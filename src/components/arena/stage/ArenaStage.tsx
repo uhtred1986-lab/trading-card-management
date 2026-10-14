@@ -1249,9 +1249,9 @@ export function ArenaStage({
     return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
   };
   const inspectAt = inspectCard && inspectId ? locate(inspectId) : null;
-  const inspectWhere = inspectId ? whereOf(inspectId) : null;
+  const inspectWhere = wide && inspectId ? whereOf(inspectId) : null;
   const rejectedFor = (id: string) => (playable && !busy ? rejected.filter((r) => cardIdOf(r.action) === id) : []);
-  const inspectRejected = inspectId ? rejectedFor(inspectId) : [];
+  const inspectRejected = wide && inspectId ? rejectedFor(inspectId) : [];
   /**
    * The chips for one card: its state, and what it can do. The phone review
    * also says *why* a card cannot act (`reason`) — the desktop inspector has
@@ -1287,9 +1287,9 @@ export function ArenaStage({
     }
     return chips;
   };
-  const inspectChips = inspectId ? chipsFor(inspectId) : [];
+  const inspectChips = wide && inspectId ? chipsFor(inspectId) : [];
   const inspectMoves: SheetMove[] = [];
-  if (inspectId && playable && !busy) {
+  if (wide && inspectId && playable && !busy) {
     if (isTargeting) {
       const at = targetsOf(selected!)?.[inspectId];
       if (at != null) inspectMoves.push({ index: at, legal: legal[at], label: "Attack it" });
@@ -1300,23 +1300,23 @@ export function ArenaStage({
    * opponent's leader first, or your hand when the card is in it. A card in
    * neither (an energy, a life card) is reviewed alone.
    */
-  const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
-  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id),
+  const inPlayRun = sheet ? [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you }))) : [];
+  const handRun = sheet ? (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id),
     playable: (taps.byCard[card.id] ?? []).some((i) => legal[i].action.type === "play" || legal[i].action.type === "activate"),
     counter: card.abilities?.some((ability) => ability.category === "counter") || handStatus(card.id) === "counter",
-  }));
+  })) : [];
   const zoneNames: Record<string, string> = { drop: "Drop", warp: "Warp", zEnergy: "Z-Energy", zDeck: "Z-Deck" };
-  const zoneRuns = [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) })));
+  const zoneRuns = sheet ? [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) }))) : [];
   const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
   const sheetAt = sheet ? locate(sheet.id) : null;
-  const inPlaySides: InPlaySide[] = [view.them, view.you].map((side) => {
+  const inPlaySides: InPlaySide[] = wide ? [view.them, view.you].map((side) => {
     const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
     const rows: InPlaySide["rows"] = [];
     if (side.leader) rows.push({ card: side.leader, note: `Leader · ${side.life} life · ${word(side.leader)}` });
     if (side.unison) rows.push({ card: side.unison, note: `Unison · ${word(side.unison)}` });
     for (const c of side.battle) rows.push({ card: c, note: c.mode === "rest" ? "Rested" : "Standing" });
     return { name: side.name, rows, battleCount: side.battle.length, battlePower: side.battle.reduce((n, c) => n + (c.power ?? 0), 0) };
-  });
+  }) : [];
 
   return (
     <AdminContext.Provider value={admin}>
