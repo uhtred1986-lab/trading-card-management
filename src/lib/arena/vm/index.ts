@@ -606,7 +606,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     }
   }
 
-  run(ctx, game, state, events);
+  run(ctx, game, state, events, offeredAttack);
   return { state, events };
 }
 

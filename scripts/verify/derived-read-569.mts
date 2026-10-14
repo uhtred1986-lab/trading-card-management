@@ -38,9 +38,9 @@ for (const preview of one.attackPreviews ?? []) {
   const offered = one.legal[preview.action]?.action;
   assert.ok(offered?.type === "attack");
   assert.equal(preview.state, "known");
-  const applied = IMPL.apply(CTX, state, offered);
+  const applied = IMPL.previewLegalAttack(CTX, state, offered);
   assert.deepEqual(preview.battle, IMPL.boardView(CTX, applied.state, "p1", {}).battle,
-    "each reused attack projection equals that target's independent engine transition");
+    "each reused attack projection equals that target's independent pre-response engine transition");
 }
 const crowded = arenaG({ hand: ["V1"], energy: ["V1"], battle: Array(12).fill("AURA"), oppBattle: Array(6).fill("V-BLUE") }) as VmState;
 for (const id of crowded.sides.p2.zones.battle) crowded.cards[id].mode = "rest";
@@ -51,9 +51,9 @@ assert.ok(crowdedSnapshot.attackPreviews?.slice(64).every((entry) => entry.state
 for (const preview of [crowdedSnapshot.attackPreviews![0], crowdedSnapshot.attackPreviews![7], crowdedSnapshot.attackPreviews![63]]) {
   const offered = crowdedSnapshot.legal[preview.action]?.action;
   assert.ok(offered?.type === "attack");
-  const applied = IMPL.apply(CTX, crowded, offered);
+  const applied = IMPL.previewLegalAttack(CTX, crowded, offered);
   assert.deepEqual(preview.battle, IMPL.boardView(CTX, applied.state, "p1", {}).battle,
-    "a batched crowded-board preview is identical to the independent engine result");
+    "a batched crowded-board preview is identical to the independent pre-response engine result");
 }
 const two = read(CTX, state, 7, "p2");
 const together = withSnapshotReading({ ctx: CTX, state }, () => {

@@ -88,7 +88,7 @@ export function attackPreviews(ctx: EngineContext, game: GameDefinition, state: 
         unknown("The attack reaches a hidden or variable outcome before the response."); return;
       }
       if (after.pending.length || after.programs.length || !after.battle ||
-          !["counter", "blocker", "combo"].includes(after.prompt.kind)) {
+          after.flow.at(-1)?.phase !== "battle") {
         unknown("A skill or choice is still resolving after the attack declaration."); return;
       }
       const battle = vmBattleView(ctx, game, after, viewer, images);
