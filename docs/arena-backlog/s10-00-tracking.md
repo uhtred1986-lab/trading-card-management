@@ -6,6 +6,7 @@ stage: 10
 tracking: true
 issue: 168
 priority: P3
+status: closed
 ---
 Stage 10 of the rules-language programme (Sonnet 5, size S). The legacy engine's rule content is deleted, the generic parts move into `vm/`, the adapter and `--engine` go, and the saved legacy games are handled the way the owner decides.
 

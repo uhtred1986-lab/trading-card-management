@@ -5,6 +5,7 @@ labels: enhancement, backlog, area:arena-vm, phase:rules-stage10, model:sonnet-5
 stage: 10
 issue: 118
 priority: P3
+status: closed
 ---
 **Source:** plan Stage 10; `src/lib/arena/engines.ts`; the cleanup-ledger convention of `docs/arena-rules-workbench-spec.md` §3.8 (every commit carries lines in/out).
 

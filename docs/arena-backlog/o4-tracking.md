@@ -5,6 +5,7 @@ milestone: Arena O4 — Verified offline MVP release
 labels: backlog, epic, area:arena-contract, phase:arena-home, model:opus-5
 stage: offline-o4
 tracking: true
+status: closed
 ---
 **Source:** `docs/arena-offline-plan.md` §O4; user-provided `create-offline-milestones.py`; `docs/agent-brief.md`.
 

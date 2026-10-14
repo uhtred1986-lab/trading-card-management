@@ -6,6 +6,7 @@ issue: 542
 stage: ui
 touches: src/lib/arena/vm/script-schema.ts, src/lib/arena/text/filters.ts, src/lib/arena/glossary.ts
 priority: P1
+status: closed
 ---
 **Source:** owner's ruling of 4 Oct 2026 on BT30-084 #0 (Support Broadcast, Universe 2 Maiden Squadron deck), stored on the row.
 
