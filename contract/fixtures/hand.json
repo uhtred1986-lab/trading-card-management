@@ -448,6 +448,18 @@
           "Red": 1
         },
         "describe": "1 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#12"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
       }
     },
     {
@@ -463,6 +475,19 @@
           "Red": 1
         },
         "describe": "2 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#12",
+              "p1#45"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
       }
     },
     {
@@ -478,6 +503,19 @@
           "Red": 1
         },
         "describe": "2 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#12",
+              "p1#45"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
       }
     },
     {
