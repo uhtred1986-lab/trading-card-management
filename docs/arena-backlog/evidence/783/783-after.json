@@ -1,0 +1,465 @@
+[
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "s21-anime-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "main",
+    "file": "s21-anime-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "combo",
+    "file": "s21-anime-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "choice",
+    "file": "s21-anime-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "end",
+    "file": "s21-anime-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "moves": 54,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+    ]
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "s21-night-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "main",
+    "file": "s21-night-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "choice",
+    "file": "s21-night-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "combo",
+    "file": "s21-night-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "end",
+    "file": "s21-night-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "moves": 45,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+    ]
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "s21plus-anime-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "choice",
+    "file": "s21plus-anime-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "combo",
+    "file": "s21plus-anime-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "main",
+    "file": "s21plus-anime-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "end",
+    "file": "s21plus-anime-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "moves": 79,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "s21plus-night-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "main",
+    "file": "s21plus-night-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "combo",
+    "file": "s21plus-night-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "choice",
+    "file": "s21plus-night-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "end",
+    "file": "s21plus-night-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "moves": 51,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+    ]
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "desk-anime-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "main",
+    "file": "desk-anime-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "combo",
+    "file": "desk-anime-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "choice",
+    "file": "desk-anime-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 1,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "end",
+    "file": "desk-anime-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 1,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "moves": 48,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+    ]
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "desk-night-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "combo",
+    "file": "desk-night-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "main",
+    "file": "desk-night-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "choice",
+    "file": "desk-night-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "end",
+    "file": "desk-night-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 1,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "moves": 40,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK"
+    ]
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "s21browser-anime-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "step": "combo",
+    "file": "s21browser-anime-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "step": "main",
+    "file": "s21browser-anime-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "step": "end",
+    "file": "s21browser-anime-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "anime",
+    "moves": 32,
+    "missing": [
+      "choice"
+    ],
+    "notices": [
+      "Nothing happenedYour Bulma, from the Sidelines — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] When you play this card, if there is a ≪Saiyan≫ card in play in your Battle Area, draw 2 cards, then choose 2 c…OK",
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
+    ]
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "s21browser-night-mulligan-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "step": "combo",
+    "file": "s21browser-night-combo-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "step": "main",
+    "file": "s21browser-night-main-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "step": "choice",
+    "file": "s21browser-night-choice-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "step": "end",
+    "file": "s21browser-night-end-after.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 2,
+    "notice": null
+  },
+  {
+    "viewport": "s21browser",
+    "skin": "night",
+    "moves": 40,
+    "missing": [],
+    "notices": [
+      "Nothing happenedYour Vegeta, Saiyan Youth — Auto: it had no valid target, or its condition was not met, so nothing happened.[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards an…OK"
+    ]
+  }
+]

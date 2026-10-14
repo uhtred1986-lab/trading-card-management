@@ -1,0 +1,344 @@
+[
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-anime-mulligan-before.jpg",
+    "pageScroll": 102,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-anime-combo-before.jpg",
+    "pageScroll": 195,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-anime-main-before.jpg",
+    "pageScroll": 145,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-anime-choice-before.jpg",
+    "pageScroll": 310,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-anime-end-before.jpg",
+    "pageScroll": 102,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "anime",
+    "moves": 43,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-night-mulligan-before.jpg",
+    "pageScroll": 102,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-night-main-before.jpg",
+    "pageScroll": 144,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-night-combo-before.jpg",
+    "pageScroll": 213,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-night-choice-before.jpg",
+    "pageScroll": 306,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21-night-end-before.jpg",
+    "pageScroll": 102,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21",
+    "skin": "night",
+    "moves": 35,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-anime-mulligan-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-anime-main-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-anime-combo-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-anime-choice-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-anime-end-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "anime",
+    "moves": 51,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-night-mulligan-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-night-combo-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-night-main-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-night-choice-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/s21plus-night-end-before.jpg",
+    "pageScroll": 118,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "s21plus",
+    "skin": "night",
+    "moves": 36,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-anime-mulligan-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-anime-main-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-anime-combo-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-anime-choice-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-anime-end-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "moves": 84,
+    "missing": [],
+    "notices": []
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "mulligan",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-night-mulligan-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "main",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-night-main-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "combo",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-night-combo-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "choice",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-night-choice-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "step": "end",
+    "file": "/tmp/claude-0/-home-user-trading-card-management/6bacda8f-6c10-550e-9d61-0e26c3750da4/scratchpad/before/desk-night-end-before.jpg",
+    "pageScroll": 0,
+    "chrome": false,
+    "leaders": 0,
+    "notice": null
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "moves": 51,
+    "missing": [],
+    "notices": []
+  }
+]
