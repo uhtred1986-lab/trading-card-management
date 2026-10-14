@@ -52,7 +52,7 @@ your 8th turn begins. Nothing is saved; reload or ☰ → Restart.
 
 ## The card view (owner's follow-up)
 
-Looking at the card is the point, so the card view leads with the card and puts its actions under it,
+A tap first opens the peek (see the follow-up below); **⤢ Bigger** opens the card view. Looking at the card is the point, so the card view leads with the card and puts its actions under it,
 then the card text (folded away in the full-card view, open in the half view). Two layouts to compare,
 switched in the view itself and remembered:
 
@@ -74,10 +74,25 @@ and a status dot showing (green playable, amber no target, red too expensive, gr
 **filmstrip** of all cards (status dots, current one lifted), ‹ › and swipe, and filters **All ·
 Playable · Counters**. Scenes `bighand` and `bighandView`.
 
+## TinyFish follow-up (issue #788 comment, 14 Oct 2026)
+
+| Point | What changed | Evidence (`shots/followup/`) |
+|---|---|---|
+| "10-card mode" in the top-right menu | There is no mode. The fan is the hand: it switches on by itself above six cards. The ☰ entries are prototype shortcuts, now labelled "Prototype only · jump to a state (not part of the game)", and the setup screen offers **Try a 10-card hand** so a tester finds it without the menu. Exercised at both heights: counts ("Your hand · 10 · 8 playable"), cost discs and status dots on every card, the **Open hand** button, peek, bigger card, charge and targeting, with the board in view. | `360x800-6-cards`, `360x800-10-cards-fan`, `360x650-6-cards`, `360x650-10-cards-fan`, `*-10-cards-peek`, `*-10-cards-charge`, `*-10-cards-target`, `360x800-setup-shortcut` |
+| Inspection hides the battlefield | A tap opens a **peek**: a compact sheet at most 56 % high. The card is small beside its name, with its actions, the full text and the hand filmstrip. The board and any target stay in view above it. **⤢ Bigger** opens the full-card or top-half view, and **‹ Board** comes back. | `360x800-peek-opponent-card`, `*-10-cards-peek`, `360x800-10-cards-bigger-card` |
+| Charge popup covers the hand | No popup. Tap a card to choose it (it lifts with "✓ Charge this"); the dock asks "Charge Super Saiyan Son Goku?" with the energy change, **Charge it** and Pass. Tap another card to compare, or the chosen one again to read it. | `360x800-charge-in-dock`, `*-10-cards-charge` |
+| Truncated target reasons | Short tags on the cards ("✕ Leader", "✕ Barrier", "✕ Active"), never cut, and the full sentence in the dock: "Can't be chosen: Golden Great Ape Son Goku (Leader: not a Battle Card); SSB Son Goku, at the Apex ([Barrier]: your skills can't choose it)". Kept on short screens too. | `360x800-target-full-reasons`, `360x650-10-cards-target` |
+| Optional skill vs unplayable card | The chip reads **▲ Play · skill idle** (playable), not "No target"; the sheet says "You can play this card — but its skill has no target". Unplayable cards keep **Need 4 ⚡** / **Counter**. | `360x800-skill-idle-vs-unplayable` |
+| Small prev/next | Paging controls are 44 px wide (72 px tall beside the big card), filmstrip thumbs 40 × 52, inside the safe area. | `*-bigger-card` |
+| Count ownership ("HAND 4") | Claude's hand is drawn as face-down card backs with its number in Claude's strip; your hand is labelled "Your hand · N" above your cards. | every board shot |
+| Immersion | The anime sky is back (clouds over the deep-to-pale sky, the halftone screentone; the capture had lost it). Feedback that says what happened to whom: a ki ring when a card lands, the attacker lunging along the arrow while it fires solid, a burst and shake on the defender (a blue flash when it holds), a KO burst, "−1 LIFE" rising from the life number, and the new phase chip popping. Each is under 0.7 s and none delays a decision. | `fx-1-attack-impact`, `fx-2-verdict`, `fx-3-life-loss`, `fx-4-ko` |
+| Reduced motion | The device setting, or ☰ → **Motion: reduced**: no movement. The defender is outlined red (blue when it holds), the KO'd card dims with a dashed outline, and "−1 LIFE" stays put. | `fx-reduced-*` |
+| Kept | Mulligan grid, the hand chips at six cards, the Leader badge, phase highlighting, the no-target reason with **Play anyway**. | |
+
 ## Scenes (☰ → *Prototype · jump to a state*, or `index.html#<name>`)
 
 `setup` · `mulligan` · `charge` · `main` · `inspect` · `play` · `notarget` · `target` · `attack` ·
-`attackConfirm` · `oppturn` · `counter` · `block` · `combo` · `bighand` · `bighandView` · `cardHalf`. They map to the issue's numbered states
+`attackConfirm` · `oppturn` · `counter` · `block` · `combo` · `bighand` · `bighandView` · `bighandBig` · `bighandCharge` · `bighandTarget` · `cardHalf`. They map to the issue's numbered states
 1–10 as the menu labels show.
 
 ## Brief for the next TinyFish run

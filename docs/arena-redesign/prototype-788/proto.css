@@ -33,7 +33,23 @@ body { background: var(--proto-page); overflow: hidden; -webkit-tap-highlight-co
 
 /* ── The board shell ─────────────────────────────────────────────────────────────────────────────── */
 .proto-board { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; isolation: isolate; }
-.proto-board[data-skin="anime"] { background: linear-gradient(180deg, var(--sky-hi, #bfe9ff), var(--color-space-950) 55%, var(--sky-hi, #bfe9ff)); }
+/* The anime sky, from globals.css (html[data-skin="anime"] body): clouds over a deep-to-pale sky, and the
+   faint halftone screentone the cels are shaded with. The capture lost it (a multi-layer shorthand), so it is
+   restated here on the board itself, which is the page in the app. */
+.proto-board[data-skin="anime"] {
+  background:
+    radial-gradient(closest-side at 16% 13%, rgba(255, 255, 255, 0.95) 0 38%, rgba(255, 255, 255, 0) 74%),
+    radial-gradient(closest-side at 34% 7%, rgba(255, 255, 255, 0.9) 0 34%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(closest-side at 72% 6%, rgba(255, 255, 255, 0.95) 0 36%, rgba(255, 255, 255, 0) 74%),
+    radial-gradient(closest-side at 90% 17%, rgba(255, 255, 255, 0.8) 0 32%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(closest-side at 54% 21%, rgba(255, 255, 255, 0.55) 0 34%, rgba(255, 255, 255, 0) 72%),
+    linear-gradient(180deg, var(--sky-deep, #2e9fe0) 0%, var(--sky, #63c2f5) 26%, var(--sky-hi, #bfe9ff) 62%, #eaf7ff 100%);
+  background-color: #eaf7ff;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.proto-sky { position: absolute !important; inset: 0; z-index: 0 !important; pointer-events: none; }
+.proto-board[data-skin="anime"] .proto-sky { opacity: 0.16; background-image: radial-gradient(rgba(18, 22, 31, 0.55) 1px, transparent 1.2px); background-size: 6px 6px; -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 45%); mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 45%); }
 .proto-board .arena-edge { position: absolute; inset: 0; border-radius: inherit; }
 .proto-board > * { position: relative; z-index: 1; }
 .proto-topbar { min-height: 48px; padding-top: env(safe-area-inset-top, 0px); }
@@ -403,4 +419,82 @@ button.proto-opt:disabled .proto-opt-go { color: var(--color-space-300); }
 .proto-handopen span { font: 700 11px/1.1 var(--font-arena); text-align: center; }
 @media (max-height: 720px) {
   .proto-cv[data-layout="full"] .proto-cv-card img { width: min(100%, 200px); }
+}
+
+/* ── TinyFish follow-up (#788 comment, 14 Oct) ─────────────────────────────────────────────────────── */
+/* The peek: a compact sheet first, so the board (and a target) stays in sight; "Bigger" opens the card view. */
+.proto-sheet-peek { max-height: 56%; overflow-y: auto; }
+.proto-peek { display: grid; gap: 8px; }
+.proto-peek-main { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding-right: 46px; }
+.proto-peek-art { position: relative; padding: 0; border: 0; background: none; cursor: zoom-in; align-self: start; min-height: 44px; }
+.proto-peek-art img { width: 84px; display: block; border-radius: 6px; box-shadow: 0 0 0 2px var(--ink, #12161f); }
+.proto-peek-art span { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); white-space: nowrap; font: 800 10.5px/1 var(--font-arena); padding: 4px 7px; border-radius: 999px; color: #fff; background: rgb(18 22 31 / 0.82); }
+.proto-peek-head { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.proto-peek-head h3 { margin: 0; font: italic 900 19px/1.1 var(--font-arena); text-wrap: balance; }
+.proto-smaller { flex: none; min-height: 40px; min-width: 44px; padding: 0 10px; border-radius: 10px; border: 1.5px solid var(--color-space-600); background: var(--color-space-800); color: var(--color-space-50); font: 800 12px/1 var(--font-arena); cursor: pointer; }
+/* 44 px thumb targets for paging, inside the safe area. */
+.proto-cv-stage { grid-template-columns: 44px 1fr 44px !important; }
+.proto-cv-nav { width: 44px !important; height: 72px; }
+.proto-navbtn { min-height: 44px; min-width: 88px; }
+.proto-film-card { min-height: 52px; min-width: 40px; display: grid; place-items: center; }
+
+/* Reasons on cards wrap instead of being cut; the full sentence is in the dock. */
+.proto-tag { max-width: none; overflow: visible; text-overflow: clip; }
+.proto-tag-no { white-space: nowrap; }
+
+/* Claude's hand as face-down cards: the count is visibly theirs. */
+.proto-opphand { display: inline-flex; align-items: center; margin-right: 2px; }
+.proto-opphand i { width: 9px; height: 13px; border-radius: 2px; background: var(--card-back, #2f6fe0); box-shadow: 0 0 0 1px var(--ink, #12161f); margin-left: -4px; transform: rotate(calc(var(--r, 0) * 1deg)); }
+.proto-opphand i:first-child { margin-left: 0; }
+.proto-opphand b { margin-left: 4px; font: italic 800 13px/1 var(--font-impact), "Kanit", sans-serif; color: var(--color-space-50); }
+
+.proto-shortcuts { display: grid; gap: 6px; justify-items: start; padding-top: 6px; border-top: 1px dashed color-mix(in srgb, var(--color-space-300) 45%, transparent); }
+
+/* ── Immersion: short, directional feedback that says what happened to whom ─────────────────────────── */
+/* Card play: the card lands with a ki ring. */
+.proto-cardbox.proto-in::after { content: ""; position: absolute; inset: -8px; border-radius: 12px; border: 3px solid var(--color-ki-400); box-shadow: 0 0 18px var(--color-ki-500), inset 0 0 12px var(--color-ki-300); animation: proto-ring .6s ease-out forwards; pointer-events: none; }
+@keyframes proto-ring { from { transform: scale(.7); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+/* Attack: the attacker lunges along the arrow; the arrow fires solid. */
+.proto-lunge-up { animation: proto-lunge-up .45s cubic-bezier(.3, 1.6, .5, 1) both; z-index: 5; }
+.proto-lunge-down { animation: proto-lunge-down .45s cubic-bezier(.3, 1.6, .5, 1) both; z-index: 5; }
+@keyframes proto-lunge-up { 50% { transform: translateY(-22px) scale(1.08); } }
+@keyframes proto-lunge-down { 50% { transform: translateY(22px) scale(1.08); } }
+.proto-board[data-fire="true"] .proto-arrow path#proto-arrow-path { stroke-dasharray: none; stroke-width: 7; filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 2px #fff); }
+/* Impact on the defender: a flash burst and a shake; a blocked hit only flashes blue. */
+.proto-impact { animation: proto-shake .4s .2s ease-in-out both; }
+.proto-impact::after, .proto-blocked::after { content: ""; position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; pointer-events: none; z-index: 6; animation: proto-burst .55s .18s ease-out both; }
+.proto-impact::after { background: radial-gradient(circle, #fff 0 12%, var(--color-ki-300) 22%, rgb(229 72 77 / .7) 42%, transparent 66%); }
+.proto-blocked::after { background: radial-gradient(circle, #fff 0 12%, #9fd8ff 26%, rgb(47 111 224 / .5) 46%, transparent 66%); }
+@keyframes proto-burst { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+@keyframes proto-shake { 20%, 60% { transform: translateX(-5px) rotate(-2deg); } 40%, 80% { transform: translateX(5px) rotate(2deg); } }
+/* KO: the card bursts away (the KO keyframes above), with a ring of ki. */
+.proto-cardbox.proto-ko::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; background: radial-gradient(circle, transparent 30%, rgb(255 192 46 / .8) 45%, transparent 70%); animation: proto-burst .6s ease-out both; pointer-events: none; }
+/* Life loss: the number pulses red and "−2 LIFE" rises from it. */
+.proto-meter { position: relative; }
+.proto-lifefloat { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); white-space: nowrap; font: italic 900 15px/1 var(--font-impact), "Kanit", sans-serif; color: #fff; -webkit-text-stroke: 1px #12161f; text-shadow: 0 0 8px var(--color-loss); animation: proto-float 1.2s ease-out both; pointer-events: none; z-index: 8; }
+@keyframes proto-float { from { transform: translate(-50%, 6px); opacity: 0; } 20% { opacity: 1; } to { transform: translate(-50%, -26px); opacity: 0; } }
+/* Phase change: the new phase chip pops. */
+.proto-phase-pop { animation: proto-pop .5s cubic-bezier(.2, 1.8, .4, 1) both; }
+@keyframes proto-pop { from { transform: scale(.6); } }
+
+/* Reduced motion (the device setting, or ☰ → Motion): the same cues without movement — outlines, colour and
+   text that appear and stay long enough to read. */
+.proto-board[data-rm="true"] *, .proto-board[data-rm="true"] *::before, .proto-board[data-rm="true"] *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+.proto-board[data-rm="true"] .proto-impact .arena-card { outline: 4px solid var(--color-loss); outline-offset: 2px; }
+.proto-board[data-rm="true"] .proto-blocked .arena-card { outline: 4px solid var(--color-dbs-blue, #2f6fe0); outline-offset: 2px; }
+.proto-board[data-rm="true"] .proto-impact::after, .proto-board[data-rm="true"] .proto-blocked::after, .proto-board[data-rm="true"] .proto-cardbox.proto-in::after, .proto-board[data-rm="true"] .proto-cardbox.proto-ko::after { display: none; }
+.proto-board[data-rm="true"] .proto-lifefloat { animation: none !important; opacity: 1; top: -14px; }
+.proto-board[data-rm="true"] .proto-ko { animation: none !important; opacity: .3; outline: 3px dashed var(--color-loss); }
+.proto-board[data-rm="true"] .proto-arrow path#proto-arrow-path { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .proto-board *, .proto-board *::before, .proto-board *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+  .proto-impact .arena-card { outline: 4px solid var(--color-loss); outline-offset: 2px; }
+  .proto-blocked .arena-card { outline: 4px solid var(--color-dbs-blue, #2f6fe0); outline-offset: 2px; }
+  .proto-impact::after, .proto-blocked::after, .proto-cardbox.proto-in::after, .proto-cardbox.proto-ko::after { display: none; }
+  .proto-lifefloat { animation: none !important; opacity: 1; top: -14px; }
+  .proto-ko { animation: none !important; opacity: .3; outline: 3px dashed var(--color-loss); }
+}
+@media (max-height: 720px) {
+  /* While choosing, the complete reasons stay readable even on a short screen. */
+  .proto-board[data-mode="target"] .proto-q-sub, .proto-board[data-mode="attack"] .proto-q-sub { display: block; }
 }

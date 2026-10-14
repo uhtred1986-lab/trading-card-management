@@ -111,10 +111,10 @@
     const d = C(c);
     if (d.counter) return { ok: false, tag: "counter", short: "Counter", why: "A Counter card: you use it when Claude attacks, not now." };
     if (ready(S.you) < d.cost) return { ok: false, tag: "short", short: `Need ${d.cost} ⚡`, why: `Costs ${d.cost} energy — you have ${ready(S.you)} ready.` };
-    if (d.onPlay === "unisonMarker") return { ok: true, tag: "warn", short: "No target", why: "Its skill needs one of your red Unison Cards, and you have none in play." };
+    if (d.onPlay === "unisonMarker") return { ok: true, tag: "warn", short: "Play · skill idle", why: "Its skill needs one of your red Unison Cards, and you have none in play." };
     if (d.onPlay === "koUpTo20k") {
       const t = koTargets();
-      return t.valid.length ? { ok: true, tag: "play", short: `Play · ${t.valid.length} targets`, targets: t.valid.length } : { ok: true, tag: "warn", short: "No target", why: "No Battle Card of Claude's can be chosen." };
+      return t.valid.length ? { ok: true, tag: "play", short: `Play · ${t.valid.length} targets`, targets: t.valid.length } : { ok: true, tag: "warn", short: "Play · no target", why: "No Battle Card of Claude's can be chosen." };
     }
     return { ok: true, tag: "play", short: "Play" };
   }
@@ -176,20 +176,21 @@
       return `<i class="arena-ec block h-[14px] w-[9px] shrink-0${will ? " arena-will" : ""}"${them ? " data-them" : ""}${off ? " data-off" : ""}></i>`;
     }).join("");
     const lifeHurt = S.fx[`life-${side.key}`] ? " proto-hurt" : "";
+    const float = S.fx[`float-${side.key}`] ? `<span class="proto-lifefloat" aria-hidden="true">−${S.fx[`float-${side.key}`]} LIFE</span>` : "";
     return `<div class="arena-pstrip relative flex min-w-0 items-center gap-2 px-2 text-xs proto-strip" data-side="${side.key}">
       <button type="button" class="proto-strip-name flex min-w-0 shrink items-center gap-1.5 font-bold text-space-50" data-act="zones" data-side="${side.key}" aria-label="${esc(side.name)}: deck, drop and decklist">
         <span class="arena-avatar grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs"${them ? " data-them" : ""} aria-hidden="true">${them ? "C" : "Y"}</span>
         <span class="truncate text-[13px]">${them ? OPP : "You"}</span>
       </button>
       <span class="proto-meter${lifeHurt}" role="img" aria-label="${side.life} life">
-        <span class="proto-meter-k">Life</span><b class="arena-num proto-meter-n">${side.life}</b>
+        <span class="proto-meter-k">Life</span><b class="arena-num proto-meter-n">${side.life}</b>${float}
       </span>
       <button type="button" class="proto-meter proto-energy" data-act="zones" data-side="${side.key}" aria-label="${ready(side)} of ${side.energy} energy ready">
         <span class="proto-meter-k">⚡</span><b class="arena-num proto-meter-n">${ready(side)}<small>/${side.energy}</small></b>
         <span class="flex shrink-0 gap-[2px] proto-chips">${chips}</span>
       </button>
       <button type="button" class="proto-counts ml-auto" data-act="zones" data-side="${side.key}" aria-label="Hand, deck and drop">
-        ${them ? `<span class="proto-count"><small>hand</small><b>${side.handCount}</b></span>` : ""}<span class="proto-count"><small>deck</small><b>${side.deck}</b></span><span class="proto-count"><small>drop</small><b>${side.drop.length}</b></span>
+        ${them ? `<span class="proto-opphand" aria-label="Claude's hand: ${side.handCount} cards, face down">${Array.from({ length: Math.min(side.handCount, 6) }, (_, i) => `<i aria-hidden="true" style="--r:${(i - (Math.min(side.handCount, 6) - 1) / 2) * 7}"></i>`).join("")}<b>${side.handCount}</b></span>` : ""}<span class="proto-count"><small>deck</small><b>${side.deck}</b></span><span class="proto-count"><small>drop</small><b>${side.drop.length}</b></span>
       </button>
     </div>`;
   }
@@ -207,8 +208,8 @@
       if (c.uid === m.attacker) { out.ring = "arena-ring-attacker ring-2 ring-ki-300"; out.tag = tagHTML("Attacker", "atk", "bottom"); out.act = "noop"; return out; }
       if (side === S.opp) {
         const t = attackTargets();
-        if (m.target === c.uid) { out.ring = "arena-ring-guard ring-2 ring-loss proto-target-on"; out.tag = tagHTML(`Target · ${roleWord(c)}`, "target", "top"); out.act = "noop"; }
-        else if (t.valid.includes(c.uid)) { out.ring = "arena-ring-legal ring-2 ring-ki-400 proto-pick"; out.tag = tagHTML(isLeader(c) ? "Leader · tap" : "Rested · tap", "pick", "top"); out.act = "pickAttackTarget"; }
+        if (m.target === c.uid) { out.ring = "arena-ring-guard ring-2 ring-loss proto-target-on"; out.tag = tagHTML(`Target · ${roleWord(c)}`, "target", isLeader(c) ? "bottom" : "top"); out.act = "noop"; }
+        else if (t.valid.includes(c.uid)) { out.ring = "arena-ring-legal ring-2 ring-ki-400 proto-pick"; out.tag = tagHTML(isLeader(c) ? "Tap to attack" : "Rested · tap", "pick", isLeader(c) ? "bottom" : "top"); out.act = "pickAttackTarget"; }
         else { out.ring = "proto-dim"; out.tag = tagHTML("✕ Active", "no", "top"); out.act = "inspect"; }
       } else if (side === S.you) out.ring = "proto-dim-soft";
       return out;
@@ -217,7 +218,7 @@
       if (side === S.opp) {
         if (m.picked === c.uid) { out.ring = "arena-ring-guard ring-2 ring-loss proto-target-on"; out.tag = tagHTML("KO this?", "target", "top"); out.act = "noop"; }
         else if (m.valid.includes(c.uid)) { out.ring = "arena-ring-legal ring-2 ring-ki-400 proto-pick"; out.tag = tagHTML("Tap to KO", "pick", "top"); out.act = "pickKoTarget"; }
-        else { out.ring = "proto-dim"; out.tag = tagHTML(m.why[c.uid]?.split(" — ")[0] ?? "Can't be chosen", "no", "top"); }
+        else { out.ring = "proto-dim"; out.tag = tagHTML(m.why[c.uid]?.startsWith("[Barrier]") ? "✕ Barrier" : m.why[c.uid]?.startsWith("Leader") ? "✕ Leader" : "✕ Too strong", "no", isLeader(c) ? "bottom" : "top"); }
       } else out.ring = "proto-dim-soft";
       return out;
     }
@@ -333,7 +334,11 @@
     const items = S.you.hand.map((c, i) => {
       let chip = "", cls = "", act = "inspect", costClass = "bg-ki-500", combo = false;
       const m = S.mode;
-      if (S.turnOf === "you" && S.phase === "Charge" && !S.busy && !m) { cls = "arena-chargeable"; chip = `<span class="proto-hchip proto-hchip-charge">Charge</span>`; }
+      if (S.turnOf === "you" && S.phase === "Charge" && !S.busy && !m) {
+        const on = S.chargePick === c.uid;
+        cls = on ? "arena-chargeable proto-hand-picked" : "arena-chargeable"; act = on ? "inspect" : "pickCharge";
+        chip = on ? `<span class="proto-hchip proto-hchip-play">✓ Charge this</span>` : `<span class="proto-hchip proto-hchip-charge">Charge</span>`;
+      }
       else if (S.turnOf === "you" && S.phase === "Main" && !S.busy && !m) {
         const p = playability(c);
         if (!p.ok) { cls = "proto-hand-off"; costClass = p.tag === "short" ? "bg-loss" : "bg-space-500"; }
@@ -377,7 +382,7 @@
     const order = ["Draw", "Charge", "Main", "Battle", "End"];
     const cur = order.indexOf(S.phase);
     return `<ol class="arena-phases flex items-center proto-phases" aria-label="Phase" data-turn="${S.turnOf}">
-      ${order.map((p, i) => `<li class="arena-phase flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${i === cur ? "arena-phase-on" : ""} ${i < cur ? "proto-phase-done" : ""}"${i === cur ? ' aria-current="step"' : ""}><span class="arena-phase-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true"></span>${p}</li>`).join("")}
+      ${order.map((p, i) => `<li class="arena-phase flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${i === cur ? `arena-phase-on${S.phasePop ? " proto-phase-pop" : ""}` : ""} ${i < cur ? "proto-phase-done" : ""}"${i === cur ? ' aria-current="step"' : ""}><span class="arena-phase-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true"></span>${p}</li>`).join("")}
     </ol>`;
   }
 
@@ -411,11 +416,15 @@
       return { eyebrow: "Main phase · confirm attack", text: `Attack ${esc(C(t).name)} (${roleWord(t)}) with ${esc(C(find(m.attacker)).name)}?`, sub: `${OPP} can still answer with a combo or a counter.`, buttons: [{ label: "Change target", act: "retarget", kind: "ghost" }, { label: "⚔ Attack", act: "confirmAttack", kind: "primary" }] };
     }
     if (m?.kind === "target") {
-      if (!m.picked) return { eyebrow: "Transcendent Strike · choose up to 1", text: `Tap one of ${OPP}'s glowing Battle Cards to KO it.`, buttons: [P("KO nothing", "koNone")] };
+      if (!m.picked) return { eyebrow: "Transcendent Strike · choose up to 1", text: `Tap one of ${OPP}'s glowing Battle Cards to KO it.`, sub: `Can't be chosen: ${Object.entries(m.why).map(([u, w]) => `${esc(C(find(u)).name)} (${esc(w.replace(" — ", ": "))})`).join("; ")}.`, buttons: [P("KO nothing", "koNone")] };
       return { eyebrow: "Transcendent Strike · confirm", text: `KO ${esc(C(find(m.picked)).name)}?`, buttons: [{ label: "Back", act: "unpickKo", kind: "ghost" }, { label: "KO it", act: "confirmKo", kind: "primary" }] };
     }
     if (m?.kind === "defend") return defendDock(m);
-    if (S.turnOf === "you" && S.phase === "Charge") return { eyebrow: "Charge phase · your turn", text: "Charge one card from your hand as energy? It becomes 1 more ⚡ for the rest of the game.", buttons: [P("don't charge")] };
+    if (S.turnOf === "you" && S.phase === "Charge") {
+      const pick = S.chargePick && find(S.chargePick);
+      if (pick) return { eyebrow: "Charge phase · your turn", text: `Charge ${esc(C(pick).name)}?`, sub: `It leaves your hand and becomes energy: ${S.you.energy} → ${S.you.energy + 1} ⚡. Tap another card to compare, or tap it again to read it.`, buttons: [{ label: "Charge it", act: "chargePicked", kind: "primary" }, P("don't charge")] };
+      return { eyebrow: "Charge phase · your turn", text: "Charge one card from your hand as energy?", sub: "Tap a card to choose it. It becomes 1 more ⚡ for the rest of the game.", buttons: [P("don't charge")] };
+    }
     if (S.turnOf === "you" && S.phase === "Main") {
       const plays = S.you.hand.filter((c) => playability(c).ok).length;
       const atks = all(S.you).filter(canAttack).length;
@@ -492,8 +501,8 @@
     else if (sh.kind === "zones") body = zonesSheet(sh.side);
     else if (sh.kind === "inplay") body = inPlaySheet();
     else if (sh.kind === "menu") body = menuSheet();
-    return `<div class="proto-scrim" data-act="closeSheet" aria-hidden="true"></div>
-      <div class="proto-sheet proto-sheet-${sh.kind}" role="dialog" aria-modal="true" aria-label="${sh.kind === "card" ? "Card" : sh.kind}">
+    return `<div class="proto-scrim${sh.kind === "card" && !sh.big ? " proto-scrim-light" : ""}" data-act="closeSheet" aria-hidden="true"></div>
+      <div class="proto-sheet proto-sheet-${sh.kind}${sh.kind === "card" && !sh.big ? " proto-sheet-peek" : ""}" role="dialog" aria-modal="true" aria-label="${sh.kind === "card" ? "Card" : sh.kind}">
         <div class="proto-grab" data-act="closeSheet" aria-hidden="true"></div>
         <button type="button" class="proto-x" data-act="closeSheet" aria-label="Close">×</button>
         ${body}</div>`;
@@ -508,6 +517,43 @@
     const side = sideOf(c.uid);
     const who = side === S.you ? "Your" : `${OPP}'s`;
     return { side: isLeader(c) ? `${who} Leader` : `${who} Battle Area`, list: [...all(S.opp), ...all(S.you)] };
+  }
+
+  /**
+   * The peek: a compact bottom sheet that leaves the board (and any target) in view. The card is small
+   * beside its name; its actions and its full text are right there. "Bigger card" opens the card view.
+   */
+  function cardPeek(sh, c) {
+    const d = C(c);
+    const z = zoneOf(c);
+    const i = z.list.indexOf(c);
+    const side = sideOf(c.uid);
+    const inHand = S.you.hand.includes(c);
+    const chips = [`<span class="proto-chip proto-chip-role" data-role="${d.type}">${roleWord(c)}</span>`];
+    if (!inHand) chips.push(`<span class="proto-chip">${c.mode === "rest" ? "Rested" : "Active"}</span>`);
+    if (d.barrier) chips.push(`<span class="proto-chip">Barrier</span>`);
+    if (d.blocker) chips.push(`<span class="proto-chip">Blocker</span>`);
+    if (d.strike === 2) chips.push(`<span class="proto-chip">Double Strike</span>`);
+    const stats = [d.cost != null ? `<b>${d.cost} ⚡</b> cost` : null, d.power != null ? `<b>${fmt(power(c))}</b> power` : null, d.combo ? `<b>+${fmt(d.combo)}</b> combo` : null, isLeader(c) ? `<b>${side.life}</b> life` : null].filter(Boolean);
+    const text = d.text ? d.text.split("\n").map((l) => `<p>${esc(l).replace(/\[([^\]]+)\]/g, '<span class="proto-kw">$1</span>')}</p>`).join("") : '<p class="proto-muted">No skill text.</p>';
+    return `<div class="proto-peek">
+      <div class="proto-peek-main">
+        <button type="button" class="proto-peek-art" data-act="cardBig" aria-label="Show ${esc(d.name)} bigger"><img src="${art(c.id)}" alt="${esc(d.name)}" draggable="false"><span>⤢ Bigger</span></button>
+        <div class="proto-peek-head">
+          <p class="proto-cs-zone">${z.side} · ${i + 1} / ${z.list.length}</p>
+          <h3>${esc(d.name)}</h3>
+          <div class="proto-chips">${chips.join("")}</div>
+          <p class="proto-cv-stats">${stats.join(" · ")}</p>
+        </div>
+      </div>
+      ${inHand && S.you.hand.length > 1 ? handStrip(c, z.list) : ""}
+      ${cardActions(c)}
+      <div class="proto-cs-text">${text}</div>
+      <div class="proto-cs-nav">
+        <button type="button" class="proto-navbtn" data-act="sheetPrev" ${i <= 0 ? "disabled" : ""} aria-label="Previous card">‹ Prev</button>
+        <span>Swipe for the next card</span>
+        <button type="button" class="proto-navbtn" data-act="sheetNext" ${i >= z.list.length - 1 ? "disabled" : ""} aria-label="Next card">Next ›</button>
+      </div></div>`;
   }
 
   /** The status of a hand card as a short tag (for the filmstrip dots and the fan). */
@@ -525,6 +571,7 @@
   function cardSheet(sh) {
     const c = find(sh.uid);
     if (!c) return "";
+    if (!sh.big) return cardPeek(sh, c);
     const d = C(c);
     const z = zoneOf(c);
     const i = z.list.indexOf(c);
@@ -541,6 +588,7 @@
     const strip = inHand && S.you.hand.length > 1 ? handStrip(c, z.list) : "";
     return `<div class="proto-cv" data-layout="${layout}">
       <div class="proto-cv-head">
+        <button type="button" class="proto-smaller" data-act="cardSmall" aria-label="Back to the small view, board in sight">‹ Board</button>
         <p class="proto-cs-zone">${z.side} · ${i + 1} / ${z.list.length}</p>
         <div class="proto-seg" role="group" aria-label="Card view">
           <button type="button" data-act="cardLayout" data-layout="full" aria-pressed="${layout === "full"}">Full card</button>
@@ -588,7 +636,7 @@
       const left = ready(S.you) - d.cost;
       const pay = `<div class="proto-pay"><span class="proto-pay-k">Pay</span>${Array.from({ length: ready(S.you) }, (_, i) => `<i class="arena-ec proto-paychip${i < d.cost ? " proto-paychip-on" : ""}"></i>`).join("")}<span class="proto-pay-v"><b>${d.cost} ⚡</b> of ${ready(S.you)} ready → ${left} left${S.you.hand.some((h) => C(h).counter && h !== c) && left < 1 ? " · <span class='proto-bad'>none left for a Counter</span>" : ""}</span></div>`;
       let target = "";
-      if (d.onPlay === "unisonMarker") target = `<div class="proto-warn" role="note"><b>⚠ No valid target.</b> Its skill adds a marker to one of your red Unison Cards — you have none in play, so the skill will do nothing. You still get a ${fmt(d.power)} Battle Card.</div>`;
+      if (d.onPlay === "unisonMarker") target = `<div class="proto-warn" role="note"><b>You can play this card — but its skill has no target.</b> The skill adds a marker to one of your red Unison Cards; you have none in play, so the skill does nothing. You still get a ${fmt(d.power)} Battle Card.</div>`;
       if (d.onPlay === "koUpTo20k") {
         const t = koTargets();
         target = t.valid.length
@@ -631,15 +679,16 @@
     ["setup", "Setup: decks and start"], ["mulligan", "Mulligan"], ["charge", "1 · Charge phase (turn start)"], ["main", "1 · Main phase overview"],
     ["inspect", "2 · Inspect a card"], ["play", "4 · Play sheet: cost and energy"], ["notarget", "6 · No valid target, before you commit"],
     ["target", "5 · Choose a target"], ["attack", "7 · Declare an attack"], ["attackConfirm", "7 · Attacker → target"],
-    ["oppturn", "9 · Claude's turn (replay)"], ["bighand", "Hand of 10: the fan"], ["bighandView", "Hand of 10: browse in the card view"], ["cardHalf", "Card view: top half"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
+    ["oppturn", "9 · Claude's turn (replay)"], ["bighand", "Hand of 10: the fan"], ["bighandView", "Hand of 10: peek a card"], ["bighandBig", "Hand of 10: bigger card"], ["bighandCharge", "Hand of 10: charge"], ["bighandTarget", "Hand of 10: choose a target"], ["cardHalf", "Card view: top half"], ["counter", "8 · Counter"], ["block", "8 · Block"], ["combo", "8 · Combo"],
   ];
   function menuSheet() {
     return `<div class="proto-zs"><p class="proto-cs-zone">Arena</p><h3>Settings</h3>
       <div class="proto-menu">
         <button type="button" class="proto-menuitem" data-act="skin">Board style: <b>${skin === "anime" ? "Sky (anime)" : "Night"}</b> — switch</button>
+        <button type="button" class="proto-menuitem" data-act="motion">Motion: <b>${S.rm ? "reduced" : "full"}</b> — switch (the device setting also applies)</button>
         <button type="button" class="proto-menuitem" data-act="restart">Restart the match</button>
       </div>
-      <p class="proto-zs-h">Prototype · jump to a state (issue #788)</p>
+      <p class="proto-zs-h">Prototype only · jump to a state (not part of the game)</p>
       <div class="proto-menu proto-scenes">${SCENES.map(([k, l]) => `<button type="button" class="proto-menuitem" data-act="scene" data-scene="${k}">${l}</button>`).join("")}</div>
       <p class="proto-muted proto-small">A scripted prototype on the app's own styles and real card art. Nothing is saved and no engine runs.</p></div>`;
   }
@@ -654,7 +703,8 @@
   }
 
   function boardHTML() {
-    return `<div id="board" class="phone-board-module__86_vIW__board arena arena-board relative flex w-full flex-col proto-board" data-skin="${skin}" data-mode="${S.mode?.kind ?? ""}" data-step="${S.mode?.step ?? ""}" style="${turnVars()}">
+    return `<div id="board" class="phone-board-module__86_vIW__board arena arena-board relative flex w-full flex-col proto-board" data-skin="${skin}" data-mode="${S.mode?.kind ?? ""}" data-step="${S.mode?.step ?? ""}" data-rm="${!!S.rm}" data-fire="${!!S.arrowFire}" style="${turnVars()}">
+      <div class="proto-sky" aria-hidden="true"></div>
       <div class="arena-edge" aria-hidden="true"></div>
       ${topbarHTML()}
       ${phasesHTML()}
@@ -677,18 +727,21 @@
     const deck = (k) => `<div class="proto-deckcard"><img src="${art(DECKS[k].leader)}" alt=""><div><p class="proto-cs-zone">${k === "you" ? "Your deck" : `${OPP} plays`}</p><b>${esc(DECKS[k].name)}</b><span class="proto-muted">Leader ${esc(CARDS[DECKS[k].leader].name)} · 50 cards</span>
       <button type="button" class="proto-linkbtn" data-act="deckList" data-side="${k}">View decklist</button></div></div>`;
     return `<div class="arena proto-board proto-setup" data-skin="${skin}" style="${turnVars()}">
+      <div class="proto-sky" aria-hidden="true"></div>
       <div class="proto-setup-in">
         <p class="proto-cs-zone">Arena · local match</p>
         <h2 class="arena-impact proto-setup-title">Pick your fight</h2>
         <div class="proto-decks">${deck("you")}<div class="proto-vs arena-impact">VS</div>${deck("opp")}</div>
         <p class="proto-muted proto-small">Plays offline on this device. Masters rules. You can review either deck before you start.</p>
         <button type="button" class="arena-btn tap proto-btn proto-btn-primary proto-btn-block proto-btn-xl" data-act="start">Start match</button>
+        <div class="proto-shortcuts"><p class="proto-zs-h">Prototype shortcuts</p><button type="button" class="proto-linkbtn" data-act="scene" data-scene="bighand">Try a 10-card hand</button><span class="proto-muted proto-small">More states under ☰ → Prototype only.</span></div>
       </div>${S.sheet ? `<div class="proto-scrim" data-act="closeSheet"></div><div class="proto-sheet proto-sheet-zones" role="dialog" aria-modal="true"><button type="button" class="proto-x" data-act="closeSheet" aria-label="Close">×</button>${zonesSheet(S.sheet.side)}</div>` : ""}</div>`;
   }
 
   function mulliganHTML() {
     const hand = ["BT11-011", "BT6-025", "SD15-03", "BT14-010", "BT3-027", "BT14-006"];
     return `<div class="arena proto-board proto-setup" data-skin="${skin}" style="${turnVars()}">
+      <div class="proto-sky" aria-hidden="true"></div>
       <div class="proto-setup-in">
         <p class="proto-cs-zone">Before the first turn</p>
         <h2 class="arena-impact proto-setup-title">Keep this hand?</h2>
@@ -701,6 +754,8 @@
 
   function render() {
     S.k = S.short ? 0.84 : 1;
+    S.phasePop = S.lastPhase !== undefined && S.lastPhase !== `${S.turnOf}${S.phase}`;
+    S.lastPhase = `${S.turnOf}${S.phase}`;
     S.boardW = document.querySelector(".proto-device")?.clientWidth || innerWidth;
     const shc = S.sheet?.kind === "card" ? find(S.sheet.uid) : null;
     S.willPay = shc && S.you.hand.includes(shc) && S.turnOf === "you" && S.phase === "Main" && playability(shc).ok ? C(shc).cost : 0;
@@ -769,9 +824,12 @@
     const uid = el?.dataset.uid;
     switch (name) {
       case "noop": return;
-      case "inspect": S.sheet = { kind: "card", uid, filter: S.sheet?.kind === "card" ? S.sheet.filter : "all" }; S.zoom = null; return render();
+      case "inspect": S.sheet = { kind: "card", uid, filter: S.sheet?.kind === "card" ? S.sheet.filter : "all", big: S.sheet?.kind === "card" ? S.sheet.big : false }; S.zoom = null; return render();
       case "closeSheet": S.sheet = null; return render();
       case "zoom": S.zoom = uid; return render();
+      case "cardBig": S.sheet = { ...S.sheet, big: true }; return render();
+      case "cardSmall": S.sheet = { ...S.sheet, big: false }; return render();
+      case "motion": S.rm = !S.rm; return render();
       case "cardLayout": S.cardLayout = el.dataset.layout; try { localStorage.setItem("proto788.cardLayout", S.cardLayout); } catch { /* fine */ } return render();
       case "handFilter": {
         S.sheet.filter = el.dataset.filter;
@@ -797,8 +855,10 @@
       case "start": S.screen = "mulligan"; S.sheet = null; return render();
       case "keep": S.screen = "board"; render(); return turnStart();
       case "fastForward": S.fast = true; ffToken++; return render();
+      case "pickCharge": S.chargePick = uid; return render();
+      case "chargePicked": return act("charge", { dataset: { uid: S.chargePick } });
       case "charge": {
-        const c = find(uid); S.you.hand = S.you.hand.filter((h) => h !== c); S.you.energy++;
+        const c = find(uid); S.you.hand = S.you.hand.filter((h) => h !== c); S.you.energy++; S.chargePick = null;
         S.sheet = null; S.narration = { text: `You charge ${C(c).name} as energy. ${S.you.energy} ⚡ this turn.`, who: "you" };
         return toMain();
       }
@@ -876,6 +936,16 @@
     render();
   }
 
+  /** The clash itself: the attacker lunges along the arrow, the target takes the hit. */
+  async function clashFx(atk, tgt, landed) {
+    S.fx[atk] = sideOf(atk) === S.you ? "proto-lunge-up" : "proto-lunge-down";
+    S.fx[tgt] = landed ? "proto-impact" : "proto-blocked";
+    S.arrowFire = true;
+    render();
+    await wait(700);
+    S.arrowFire = false;
+  }
+
   async function yourAttack() {
     const m = S.mode; const a = find(m.attacker); const t = find(m.target);
     S.busy = true; S.playback = true; S.phase = "Battle";
@@ -893,13 +963,15 @@
     } else await beat(`${OPP} adds no combo and plays no counter.`, "opp", 1000);
     const gp = power(t);
     const hit = atkPow >= gp;
+    await clashFx(a.uid, t.uid, hit);
     if (hit && isLeader(t)) {
       const dmg = C(a).strike ?? 1;
       await verdictShow("good", "BREAK THROUGH!", `${fmt(atkPow)} vs ${fmt(gp)}${atkPow === gp ? " — a tie goes to the attacker" : ""}. ${OPP} takes ${dmg} damage: ${S.opp.life} → ${S.opp.life - dmg} life.`);
-      S.opp.life -= dmg; S.opp.handCount += dmg; S.fx["life-opp"] = 1;
+      S.opp.life -= dmg; S.opp.handCount += dmg; S.fx["life-opp"] = 1; S.fx["float-opp"] = dmg;
       S.narration = { text: `${OPP} loses ${dmg} life (the life card${dmg > 1 ? "s go" : " goes"} to their hand).`, who: "you" };
     } else if (hit) {
       await verdictShow("good", "KO!", `${fmt(atkPow)} vs ${fmt(gp)}: ${C(t).name} is KO'd.`);
+      S.fx[t.uid] = "proto-ko"; render(); await wait(650);
       S.opp.battle = S.opp.battle.filter((c) => c !== t); S.opp.drop.push(t.id);
       S.narration = { text: `${C(t).name} is KO'd.`, who: "you" };
     } else {
@@ -1006,14 +1078,16 @@
     const gp = power(guard), ap = m.atk;
     const hit = ap >= gp;
     const isLead = guard === S.you.leader;
+    await clashFx(m.attacker, guard.uid, hit);
     if (hit && isLead) {
       const dmg = 2;
       await verdictShow("bad", "BREAK THROUGH", `${fmt(ap)} vs ${fmt(gp)}${ap === gp ? " — a tie goes to the attacker" : ""}. [Double Strike]: you take 2 damage, ${S.you.life} → ${S.you.life - dmg} life.`);
-      S.you.life -= dmg; S.fx["life-you"] = 1;
+      S.you.life -= dmg; S.fx["life-you"] = 1; S.fx["float-you"] = dmg;
       S.you.hand.push(inst("BT11-008"), inst("BT14-010"));
       S.narration = { text: "You lose 2 life. The 2 life cards go to your hand.", who: "opp" };
     } else if (hit) {
       await verdictShow("bad", "KO", `${fmt(ap)} vs ${fmt(gp)}: ${C(guard).name} is KO'd. Your life is safe.`);
+      S.fx[guard.uid] = "proto-ko"; render(); await wait(650);
       S.you.battle = S.you.battle.filter((c) => c !== guard); S.you.drop.push(guard.id);
       S.narration = { text: `${C(guard).name} is KO'd blocking. You keep your life.`, who: "opp" };
     } else {
@@ -1049,20 +1123,22 @@
       case "mulligan": S.screen = "mulligan"; break;
       case "charge": break;
       case "main": S.phase = "Main"; S.you.energy = 6; S.narration = { text: "You charge Super Saiyan Son Goku as energy. 6 ⚡ this turn.", who: "you" }; S.you.hand = S.you.hand.filter((c) => c.id !== "BT14-006"); break;
-      case "inspect": scene("main"); S.sheet = { kind: "card", uid: S.opp.battle[2].uid }; break;
+      case "inspect": scene("main"); S.sheet = { kind: "card", uid: S.opp.battle[2].uid, big: false }; break;
       case "play": scene("main"); S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "SD15-03").uid }; S.willPay = 0; break;
       case "notarget": scene("main"); S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT11-011").uid }; break;
       case "target": { scene("main"); const s = strike(); S.you.hand = S.you.hand.filter((c) => c !== s); payEnergy(S.you, 1); S.you.drop.push("BT6-025"); const t = koTargets(); S.mode = { kind: "target", valid: t.valid, why: t.why, picked: null }; break; }
       case "attack": scene("main"); S.mode = { kind: "attack", attacker: S.you.leader.uid }; break;
-      case "bighand": case "bighandView": {
-        scene("main");
-        for (const id of ["BT11-008", "BT14-010", "BT6-025", "BT3-027", "BT14-006"]) S.you.hand.push(inst(id));
+      case "bighand": case "bighandView": case "bighandBig": case "bighandCharge": case "bighandTarget": {
+        scene(name === "bighandCharge" ? "charge" : "main");
+        for (const id of name === "bighandCharge" ? ["BT11-008", "BT14-010", "BT6-025", "BT3-027"] : ["BT11-008", "BT14-010", "BT6-025", "BT3-027", "BT14-006"]) S.you.hand.push(inst(id));
         S.you.deck -= 5;
         S.narration = { text: "A big hand: 10 cards. Tap any card to browse them all.", who: "you" };
-        if (name === "bighandView") S.sheet = { kind: "card", uid: S.you.hand[2].uid, filter: "all" };
+        if (name === "bighandView" || name === "bighandBig") S.sheet = { kind: "card", uid: S.you.hand[2].uid, filter: "all", big: name === "bighandBig" };
+        if (name === "bighandCharge") { S.narration = { text: "Your turn 6: 10 cards in hand. Choose one to charge.", who: "you" }; S.chargePick = S.you.hand[5].uid; }
+        if (name === "bighandTarget") { const st = S.you.hand.find((c) => c.id === "BT6-025"); S.you.hand = S.you.hand.filter((c) => c !== st); payEnergy(S.you, 1); S.you.drop.push("BT6-025"); const t = koTargets(); S.mode = { kind: "target", valid: t.valid, why: t.why, picked: null }; }
         break;
       }
-      case "cardHalf": scene("main"); S.cardLayout = "half"; S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT6-025").uid, filter: "all" }; break;
+      case "cardHalf": scene("main"); S.cardLayout = "half"; S.sheet = { kind: "card", uid: S.you.hand.find((c) => c.id === "BT6-025").uid, filter: "all", big: true }; break;
       case "attackConfirm": scene("main"); S.mode = { kind: "attack", attacker: S.you.leader.uid, target: S.opp.leader.uid }; break;
       case "oppturn": scene("main"); render(); oppTurn(); return;
       case "counter": case "block": case "combo": {
