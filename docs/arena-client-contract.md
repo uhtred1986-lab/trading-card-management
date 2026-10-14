@@ -990,3 +990,12 @@ through a cost, choice, hidden or variable event, or an excessive number of
 attack options. The client must use the actual next snapshot after declaration
 as the authoritative result. The preview is omitted when no attack is legal
 for that viewer. This additive field leaves contract version 2 unchanged.
+
+`Snapshot.blockPreviews?` (issue #801) has the same optional row shape and
+viewer-relative `legal` action index as `attackPreviews`. A `known` row gives
+the rules engine's `BattleView` after that legal Blocker is chosen and its
+immediate skills resolve, before the attacking player can combo. Its `guard`
+and stakes use the new Blocker while the attack's original target remains
+unchanged. An unresolved skill or variable event yields `notEvaluated` with a
+reason. Declining the Blocker has no row. This additive field also leaves
+contract version 2 unchanged.
