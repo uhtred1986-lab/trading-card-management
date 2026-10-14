@@ -13,7 +13,8 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { arg, Browser, requireServer, sleep, VIEWPORTS } from "./lib/cdp.mts";
+import { arg, Browser, requireServer, VIEWPORTS } from "./lib/cdp.mts";
+import { IDB_FAULT, choosePack, clickText, until } from "./lib/local-arena-page.mts";
 
 const base = (arg("base") ?? "http://localhost:3000").replace(/\/$/, "");
 const out = arg("out") ?? join(process.cwd(), "docs", "arena-redesign", "current", "local");
@@ -36,25 +37,7 @@ browser.on((method, params) => {
   if (url.startsWith(base) && (/\/api\//.test(url) || verb === "POST" || headers["Next-Action"] || headers["RSC"] || headers["rsc"])) requests.push(`${verb} ${url}`);
 });
 
-const choose = (page: Awaited<ReturnType<Browser["page"]>>, text: string) =>
-  page.eval(`(() => {
-    const input = document.querySelector('input[type=file]');
-    const dt = new DataTransfer();
-    dt.items.add(new File([${JSON.stringify(text)}], "pack.json", { type: "application/json" }));
-    input.files = dt.files;
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  })()`);
-const clickText = (page: Awaited<ReturnType<Browser["page"]>>, text: string) =>
-  page.eval(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)}) && !x.disabled); if (!b) return false; b.click(); return true; })()`);
-const textOf = (page: Awaited<ReturnType<Browser["page"]>>) => page.eval(`document.body.innerText`) as Promise<string>;
-async function until(page: Awaited<ReturnType<Browser["page"]>>, predicate: string, ms = 30000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < ms) {
-    if (await page.eval(predicate)) return;
-    await sleep(150);
-  }
-  throw new Error(`timed out waiting for ${predicate}\n${(await textOf(page)).slice(0, 600)}`);
-}
+const choose = choosePack;
 
 /**
  * A device out of space, as the match engine meets it: every IndexedDB write in the match Workers a page
@@ -75,9 +58,7 @@ async function storageFull(page: Awaited<ReturnType<Browser["page"]>>, on: boole
   if (!sessions.length) throw new Error("no match Worker is attached to this page");
   for (const session of sessions) {
     await browser.send("Runtime.evaluate", {
-      expression: on
-        ? `(() => { const P = IDBObjectStore.prototype; if (!P.__put) { P.__put = P.put; P.__add = P.add; } P.put = P.add = function () { throw new DOMException("The quota has been exceeded.", "QuotaExceededError"); }; })()`
-        : `(() => { const P = IDBObjectStore.prototype; if (P.__put) { P.put = P.__put; P.add = P.__add; } })()`,
+      expression: on ? IDB_FAULT.quota : IDB_FAULT.clear,
     }, session).catch(() => {});
   }
 }
