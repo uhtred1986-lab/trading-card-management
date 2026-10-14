@@ -115,7 +115,9 @@ function legacyUntilWords(until: EffectUntil, o: { master: string | null; viewer
 
 // ── the loaded words equal the old tables, field by field ───────────────────
 const fromDef = wordsFromRuleset(dbs.definition);
-assert.deepEqual(dbsWords(), fromDef, "dbsWords() is wordsFromRuleset over the loaded DBS ruleset");
+// #782: dbsWords() is the table `npm run arena:rulesets` generated (rulesets/dbs/board-words.ts), so the browser
+// never parses the ruleset for it; this is what keeps that table equal to words.rules.
+assert.deepEqual(dbsWords(), fromDef, "dbsWords() (the generated rulesets/dbs/board-words.ts) is wordsFromRuleset over the loaded DBS ruleset: run `npm run arena:rulesets` after editing a .rules file");
 assert.deepEqual(fromDef.area, LEGACY_AREA);
 assert.deepEqual(fromDef.narrationArea, LEGACY_NARRATION_AREA);
 assert.deepEqual(fromDef.phase, LEGACY_PHASE);

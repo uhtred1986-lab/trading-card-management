@@ -14,14 +14,16 @@
  *
  * `dbsWords()` is what every caller gets by default, on either engine, since
  * the arena only ever plays `dbs` (`docs/arena-code-map.md`, "Two engines").
- * It reads the generated `rulesets/dbs/files.ts` through `loadDbs()` — pure,
- * client-safe, cached — and nothing is read from a file at request time.
+ * It is `wordsFromRuleset` over the generated `rulesets/dbs/files.ts`, worked
+ * out by `npm run arena:rulesets` into `rulesets/dbs/board-words.ts` (#782), so
+ * nothing is read or parsed at request time.
  * Android's Kotlin copy of these tables is unchanged: the strings are the
  * same ones.
  */
 import type { Area } from "./types";
 import { AREAS, COLORS } from "./vm/script-schema";
-import { loadDbs, type GameDefinition } from "./rulesets";
+import type { GameDefinition } from "./rulesets";
+import { DBS_BOARD_WORDS } from "./rulesets/dbs/board-words";
 
 /** How long a rule holds, as `words.rules` declares it. `{them}` and `{source}` are filled by `effects.ts`'s `untilWords`. */
 export interface UntilWord {
@@ -148,12 +150,15 @@ export function wordsFromRuleset(def: GameDefinition): BoardWords {
   return { area, narrationArea, phase, mode, leaderColours, verb, window, until };
 }
 
-let cached: BoardWords | null = null;
-
-/** The vocabulary every caller gets by default — DBS, on either engine, read from the loaded `words.rules`. */
+/**
+ * The vocabulary every caller gets by default — DBS, on either engine: `wordsFromRuleset` over the loaded
+ * `words.rules`, computed when the ruleset is generated (`npm run arena:rulesets` writes
+ * `rulesets/dbs/board-words.ts`) rather than here. Computing it here parsed every `.rules` file on the
+ * browser's main thread the first time a board drew a room colour or a sentence (#782: about 25 ms of
+ * the longest task of a match start on a desktop). `scripts/verify/board-words.ts` fails `npm test`
+ * when the generated table and the ruleset disagree, so a renamed zone or a deleted phrase is still a
+ * broken build.
+ */
 export function dbsWords(): BoardWords {
-  if (cached) return cached;
-  const loaded = loadDbs();
-  if (!loaded.ok) throw new Error(`the DBS ruleset does not load, so the board has no words: ${JSON.stringify(loaded.errors[0])}`);
-  return (cached = wordsFromRuleset(loaded.definition));
+  return DBS_BOARD_WORDS;
 }

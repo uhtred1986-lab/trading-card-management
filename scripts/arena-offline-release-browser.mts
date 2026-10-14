@@ -4,7 +4,7 @@
  * PRODUCTION build. The phone half is the owner's (`docs/arena-offline-release.md`).
  *
  *   GITHUB_SHA=<40-hex> npm run build
- *   GITHUB_SHA=<same>  npm run arena:offline-release -- [--port N] [--phone-emulated] [--json] [--out FILE] [--total-timeout S]
+ *   GITHUB_SHA=<same>  npm run arena:offline-release -- [--port N] [--phone-emulated] [--json] [--out FILE] [--total-timeout S] [--trace DIR]
  *
  * One `next start` (no database, no sign-in: open mode) and one Chrome profile directory:
  *
@@ -41,6 +41,12 @@
  * Safari/Firefox engines. `--phone-emulated` runs the same matrix in a 390 px touch viewport with the
  * page's CPU throttled 4x: EMULATION, not a phone, and the throttle does not reach the Worker.
  *
+ * `--trace DIR` (#782) records a CDP trace and a CPU profile of each case from the Start click to the end and
+ * writes, per case, the raw trace (`*.trace.json`, open it in DevTools' Performance panel), the profile
+ * (`*.cpuprofile`) and `*.long-tasks.json`: every main-thread task of 50 ms or more with what filled it
+ * (`scripts/lib/long-task-trace.mts`). Build with `PROFILE_SOURCEMAPS=1` to see source files and lines
+ * rather than minified names. Tracing slows the page: a traced run is for attribution, not for budgets.
+ *
  * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed (or a budget is over and
  * `--record` is absent), 2 usage / no Chrome / no build.
  */
@@ -51,6 +57,7 @@ import path from "node:path";
 import { Browser, findChrome, sleep, VIEWPORTS, type Page } from "./lib/cdp.mts";
 import { BOARD, IDB_FAULT, WorkerTaps, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
 import { BUDGETS, distribution, type Dist } from "./lib/worker-budgets.ts";
+import { chunkLabeler, longTasks, startTrace, type LongTaskBreakdown } from "./lib/long-task-trace.mts";
 import { buildMastersPack } from "./build-arena-offline-pack.mts";
 import { pngFor } from "./verify/arena-pack-store-fixture.mts";
 import { humanAsked, humanPick, playLoop, requestIds } from "./verify/arena-local-storage-driver.ts";
@@ -65,12 +72,12 @@ import type { Snapshot } from "../src/lib/arena/snapshot-core.ts";
 
 function usage(message: string): never {
   console.error(`arena:offline-release: ${message}`);
-  console.error("Usage: npm run arena:offline-release -- [--port N] [--phone-emulated] [--record] [--json] [--out FILE] [--total-timeout S]");
+  console.error("Usage: npm run arena:offline-release -- [--port N] [--phone-emulated] [--record] [--json] [--out FILE] [--total-timeout S] [--trace DIR]");
   process.exit(2);
 }
 const argv = process.argv.slice(2);
 const flag = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
-for (const a of argv) if (a.startsWith("--") && !["--json", "--port", "--out", "--phone-emulated", "--record", "--only", "--total-timeout"].includes(a)) usage(`unknown flag ${a}`);
+for (const a of argv) if (a.startsWith("--") && !["--json", "--port", "--out", "--phone-emulated", "--record", "--only", "--total-timeout", "--trace"].includes(a)) usage(`unknown flag ${a}`);
 const PORT = Number(flag("--port") ?? 3762);
 const OUT = flag("--out");
 const JSON_OUT = argv.includes("--json");
@@ -79,6 +86,8 @@ const RECORD = argv.includes("--record");
 /** Development only: play the first N cases of the matrix (and skip the recovery case when N is given). */
 const ONLY = flag("--only") ? Number(flag("--only")) : null;
 const TOTAL_MS = Number(flag("--total-timeout") ?? 900) * 1000;
+/** #782: a directory for a CDP trace and CPU profile of each case (Start click to the end) and its long-task breakdown. */
+const TRACE_DIR = flag("--trace");
 if (!Number.isInteger(PORT) || PORT <= 0 || !Number.isFinite(TOTAL_MS) || TOTAL_MS <= 0) usage("bad --port or --total-timeout");
 // Chrome must exist (findChrome throws otherwise)
 try { findChrome(); } catch (error) { usage((error as Error).message); }
@@ -306,7 +315,7 @@ interface CaseResult {
   launchMs: number; shellMs: number; startableMs: number; workerReadyMs: number | null; matchStartMs: number;
   humanMoves: number; aiAdvances: number; aiDecisions: number; humanRtt: Dist | null; aiAdvanceRtt: Dist | null; aiMsPerDecision: Dist | null;
   revision: number; winner: string | null; reason: string | null; journalEntries: number; journalHumans: number;
-  longTasks: number[]; longTaskAtStartMax: number; frames: number; frameP95: number; framesOver50: number;
+  longTasks: number[]; longTaskAtStartMax: number; traced: LongTaskBreakdown[] | null; frames: number; frameP95: number; framesOver50: number;
   snapshotBytes: Dist | null; mainHeap: { before: number; after: number }; workerHeap: { before: number; after: number } | null; rssBytes: number | null;
   imgs: number; brokenImgs: number; blobImgs: number; remoteImgs: number; denied: number; webRequestsOffSw: string[];
   matchesNodeReference: boolean; seconds: number;
@@ -323,6 +332,7 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
   try {
     const shell = await openShell(l);
     check(shell.where === SHELL_PATH, `${id}: a cold launch of /arena with no network lands on the cached shell (${shell.where})`);
+    const stopTrace = TRACE_DIR ? await startTrace(browser!, l.page) : null;
     const matchStartMs = await chooseAndStart(l.page, mine, theirs, seat);
     const first = await quiet(l.page);
     const head = (await journal(l.page, first.matchId)).header;
@@ -330,6 +340,17 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
     const ref = reference(pack, revision, { matchId: first.matchId, gameId: first.gameId, seed: head.seed, policySeed: head.policySeed, decks: head.decks, human: head.human });
     const stats = newStats();
     const end = await playTo(l.page, stats);
+    let traced: LongTaskBreakdown[] | null = null;
+    if (stopTrace && TRACE_DIR) {
+      const t = await stopTrace();
+      traced = longTasks(t.events, t.profile, { label: await chunkLabeler(path.join(".next", "static", "chunks")) });
+      fs.mkdirSync(TRACE_DIR, { recursive: true });
+      const slug = id.replace(/\W+/g, "-");
+      fs.writeFileSync(path.join(TRACE_DIR, `${slug}.trace.json`), JSON.stringify({ traceEvents: t.events }));
+      if (t.profile) fs.writeFileSync(path.join(TRACE_DIR, `${slug}.cpuprofile`), JSON.stringify(t.profile));
+      fs.writeFileSync(path.join(TRACE_DIR, `${slug}.long-tasks.json`), JSON.stringify(traced, null, 2));
+      for (const lt of traced) log(`  ${id}: traced long task ${lt.ms} ms at +${lt.startMs} ms: ${lt.byEvent.slice(0, 4).map(([k, v]) => `${k} ${v}`).join("; ")}${lt.bySource.length ? ` | under ${lt.bySource.slice(0, 3).map(([k, v]) => `${k} ${v}`).join("; ")}` : ""}`);
+    }
     const s = end.snapshot!;
     check(s.game.status === "over", `${id}: the match reached its end (revision ${s.game.revision})`);
     const over = (s as unknown as { over?: { winner: string | null; reason: string | null } }).over ?? null;
@@ -357,7 +378,7 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
       humanMoves: stats.human.length, aiAdvances: stats.ai.length, aiDecisions,
       humanRtt: distribution(stats.human), aiAdvanceRtt: distribution(stats.ai.map((a) => a.ms)), aiMsPerDecision: distribution(aiDist),
       revision: s.game.revision, winner: over?.winner ?? null, reason: over?.reason ?? null, journalEntries: j.entries.length, journalHumans: humans,
-      longTasks: longPlay.map((t) => t.ms), longTaskAtStartMax: atStart.length ? Math.max(...atStart.map((t) => t.ms)) : 0,
+      longTasks: longPlay.map((t) => t.ms), longTaskAtStartMax: atStart.length ? Math.max(...atStart.map((t) => t.ms)) : 0, traced,
       frames: play.length, frameP95: q(play.map((f) => f.ms), 0.95), framesOver50: play.filter((f) => f.ms > 50).length,
       snapshotBytes: distribution(stats.bytes), mainHeap: hp.main, workerHeap: hp.workers[0] ?? null, rssBytes: chromeRssBytes(),
       imgs: facts.imgs, brokenImgs: facts.broken, blobImgs: facts.blob, remoteImgs: facts.remote, denied: l.taps.denied.length,
