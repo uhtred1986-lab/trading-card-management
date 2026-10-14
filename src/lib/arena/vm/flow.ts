@@ -800,7 +800,15 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const named = state.cards[next.card]?.cardId ?? next.card;
   const showing = skillsShowing(ctx, state, next.card);
   const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
-  const program = showing.scripts.bySkill[next.skillIndex];
+  // Bare Attack/Revenge lines deliberately have no card_rules row: their
+  // entire behavior is the declared keyword DO/battleEnd hook (22-8/22-9).
+  // Do not confuse that with a missing printed effect. A priced/qualified
+  // line or an explicit unread record must still take the interruption path.
+  const nativeBattleKeyword = skill?.kind === "keyword"
+    && (skill.keyword?.name === "Attack" || skill.keyword?.name === "Revenge")
+    && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
+  const program = showing.scripts.bySkill[next.skillIndex]
+    ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
   // #741: the queue was swept before the order was asked; this is the same
   // rule for the one taken off it, in case a use was spent in between.
   if (skill && usesLeft(state, next.master, next.card, skill) === 0) {

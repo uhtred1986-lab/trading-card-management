@@ -8,7 +8,7 @@ tracking: true
 ---
 **Source:** `docs/arena-offline-plan.md` §O5; user-provided `create-offline-milestones.py`; `docs/agent-brief.md`.
 
-**Intended milestone:** Arena O5 — Expanded deck coverage and stronger play. Creation/assignment remains pending because the environment blocks api.github.com before authentication; the available GH_TOKEN is already used by the CLI.
+**Milestone:** Arena O5 — Expanded deck coverage and stronger play. GitHub access is available; historical network-access blockers are superseded.
 
 ## Outcome
 
@@ -16,7 +16,8 @@ After the offline MVP, admit more Masters decks through capability and cross-dec
 
 ## Agent-sized implementation issues
 
-- [ ] #662 — O5-01: Add a repeatable deck admission gate and qualify the next pair
+- [x] #662 — Superseded by owner-selected automatic deck qualification in #793.
+- [x] #793 — Automatic deck qualification delivered; the owner waived the remaining production phone test.
 - [ ] #663 — O5-02: Prototype bounded search using sampled unknown information
 - [ ] #664 — O5-03: Evaluate search strength and expose evidence-backed difficulty levels
 - [ ] #665 — O5-04: Measure whether an arena MCP wrapper would improve agent workflows

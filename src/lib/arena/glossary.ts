@@ -328,7 +328,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn.",
     engineRules:
-      "Built (#156) in two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area).",
+      "Bare printed Dual/Triple Attack needs no stored compiler record; its native declaration and hook still resolve. A priced or unread printed extension remains guarded. Built (#156) in two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area).",
     support: "engine",
   },
   Revenge: {
@@ -338,7 +338,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card becomes the guard card, KO the attacking card at the end of the battle.",
     engineRules:
-      "Built (#156) in two halves: the line answers `attacked` (`at:` in `keywords.rules`), so it is announced as the card becomes the guard — attacked, or blocking — and the KO is the `battleEnd` hook, run on whichever card is the guard at the Battle End Step, after the combo cards go to the Drop, and only on a Battle Card attacker. A Revenge card KO'd by the battle still KOs the attacker. This engine resolves a “when attacked” skill at the checkpoint before the blocker window, so a Revenge card that is blocked for is announced at that checkpoint. Whether the KO happens is read at the end of the battle (the guard then).",
+      "Bare printed Revenge needs no stored compiler record; its native declaration and hook still resolve. A priced or unread printed extension remains guarded. Built (#156) in two halves: the line answers `attacked` (`at:` in `keywords.rules`), so it is announced as the card becomes the guard — attacked, or blocking — and the KO is the `battleEnd` hook, run on whichever card is the guard at the Battle End Step, after the combo cards go to the Drop, and only on a Battle Card attacker. A Revenge card KO'd by the battle still KOs the attacker. This engine resolves a “when attacked” skill at the checkpoint before the blocker window, so a Revenge card that is blocked for is announced at that checkpoint. Whether the KO happens is read at the end of the battle (the guard then).",
     support: "engine",
   },
   Alliance: {
