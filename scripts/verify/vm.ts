@@ -3363,6 +3363,8 @@ console.log("verify/vm: ok");
       }
       r.sides.p1.zones.deck = r.sides.p1.zones.deck.filter((id) => id !== unison);
       r.sides.p1.zones.unison = [unison];
+      // 21-9-2 (#759): a Unison with no markers is placed in the Drop Area, so the staged one carries one.
+      r.cards[unison].markers = 1;
       return { r, unison, copy };
     }
 
@@ -3409,7 +3411,7 @@ console.log("verify/vm: ok");
     // is sometimes the bug, not a description of it").
     const r2 = rulesEngine.apply(CTX, board.r, grow);
     assert.equal((r2.state as VmState).prompt.kind, "main", "growing the Unison did not leave the Main Phase's own question on the table (7-3-4: free timing, `again: true`)");
-    assert.equal((r2.state as VmState).cards[board.unison].markers, 1, "the Unison did not gain a marker on the rules engine");
+    assert.equal((r2.state as VmState).cards[board.unison].markers, 2, "the Unison did not gain a marker on the rules engine");
     assert.deepEqual((r2.state as VmState).cards[board.unison].under, [board.copy], "the copy did not go under the Unison on the rules engine");
     assert.equal((r2.state as VmState).sides.p1.attrs.grewUnison, true, "the once-a-turn fact was not set by the completed grow");
 

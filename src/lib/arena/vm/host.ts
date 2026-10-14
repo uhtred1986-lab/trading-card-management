@@ -72,11 +72,12 @@ import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
-import { activationMoment, activationTaxes, canPayPriceProgram, invokedMainLines, queueActivationTaxes, resolveActivation } from "./activate";
+import { activationMoment, activationTaxGate, canPayPriceProgram, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
 import { uniqueFrame } from "./unique";
+import { emptyUnisons } from "./unison-zero";
 import type { VmState } from "./state";
 
 /**
@@ -130,12 +131,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");
       const moment = activationMoment(ctx, game, state, player, line);
       // #677: the waiver is of the printed price (12-2-4) only. A 20-14 tax
-      // is read before the counted use is spent and queued in front of the
+      // is read before the counted use is spent and charged in front of the
       // nested effect, which is itself in front of the invoking parent.
-      const taxes = activationTaxes(ctx, game, state, player, id);
+      const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
       spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
+      const queued = state.programs.length;
       resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
-      queueActivationTaxes(state, player, id, taxes);
+      if (gate) queueTaxGate(state, gate, state.programs.length - queued);
       fire(ctx, game, state, moment);
     },
     playerName: (p) => state.sides[p].name,
@@ -467,7 +469,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // on the strict action-price host (which spreads this host) is proven and
     // paid as one unit, so it is not cut; the runner's own look takes the
     // violation the moment the price frame hands back control.
-    ruleInterrupt: (frame) => (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost ? null : uniqueFrame(ctx, game, state)),
+    ruleInterrupt: (frame) => {
+      if (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
+      // 21-9-2 (#759): a Unison the instruction just left without markers
+      // goes to the Drop Area before the next instruction.
+      for (const [id, owner] of emptyUnisons(state)) {
+        log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
+        moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
+      }
+      return uniqueFrame(ctx, game, state);
+    },
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an
     // `ACTION play` says `DO { play(target: $card) }` and arrives here too, so a
     // play a player declares and a play a skill makes are one act (#146).
