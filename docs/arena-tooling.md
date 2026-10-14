@@ -692,6 +692,23 @@ Not covered: scenarios on real catalog cards (the fixture is synthetic; a real b
 admin replay export), and any
 scenario needing the database. Run them on real data only when the owner asks.
 
+### `arena:replay` — replay an admin export offline
+
+```bash
+DATABASE_URL='' npm run arena:replay -- export.json --runtime-revision <sha>
+DATABASE_URL='' npm run arena:replay -- export.json --runtime-revision <sha> --summary
+DATABASE_URL='' npm run arena:replay -- export.json --runtime-revision <sha> --output replay-result.json --summary
+```
+
+The export must be pinned to the rules engine and include seed, actions, decks and its replay
+bundle. The revision must match the interpreter used for the replay. The default keeps the original
+full JSON stdout (`state`, `events`, `legalActions`). `--summary` prints one compact JSON record
+with engine, seed, revision, action/event/legal-action counts and types, final phase/turn and hashes
+of the full state, events and legal actions. `--output <path>` writes that full JSON result to a
+file and prints a small JSON record containing the file path; combined with `--summary`, it prints
+the summary and writes the full artifact. It does not read the database or network. The synthetic CLI check is
+`npx tsx scripts/verify/arena-replay-cli.mts` and is part of `npm test`.
+
 ---
 
 ## 5. Recording a ruling
