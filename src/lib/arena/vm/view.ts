@@ -507,7 +507,7 @@ export function vmRevealedTo(game: GameDefinition, state: VmState, viewer: Playe
     }
   }
   const pr = state.prompt;
-  if (pr.kind === "chooseCards" && pr.player === viewer) for (const id of pr.choice.candidates) add(id);
+  if (pr.kind === "chooseCards" && pr.player === viewer && !pr.choice.blind) for (const id of pr.choice.candidates) add(id);
   return out;
 }
 
