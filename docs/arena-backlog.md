@@ -1,5 +1,12 @@
 # Arena backlog — tracking the rebuilt compiler against the design
 
+**Current phone UX programme (14 Oct 2026):** GitHub milestone 23,
+**Arena phone UX — approved #788 prototype**, is tracked by [#795](https://github.com/uhtred1986-lab/trading-card-management/issues/795).
+The approved behaviour is implemented in #796–#802; reviewed issue copies are in
+`docs/arena-backlog/795.md` through `802.md`. The order is skin/chrome/engine previews,
+hand and card view, play/targets, combat/Pass, then feedback effects. #798's reference
+to two engines is historical: #118 removed the legacy engine on 13 Oct.
+
 **Offline AI programme (12 Oct 2026):** `docs/arena-offline-plan.md` defines O1–O5,
 tracked by #633–#637 with 27 bounded implementation issues. #639, #640 and #649
 can start independently; later work follows the explicit child prerequisites.
