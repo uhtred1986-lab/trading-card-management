@@ -82,12 +82,12 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
-import type { Area, Color, PlayerId, Requirement, Skill } from "../types";
+import { counterKindOf, type Area, type Color, type PlayerId, type Requirement, type Skill } from "../types";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -481,7 +481,7 @@ export function activationRefusals(
   if (banned) before.push({ kind: "forbidden", ...banned });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
-  const unpaid = banned ? null : unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card));
+  const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
   if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   const left = usesLeft(state, player, card, sk);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
@@ -656,7 +656,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
-    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card))) return false;
+    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
     if (usesLeft(state, player, card, sk) === 0) return false;
     if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
     if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) return false;
@@ -666,16 +666,19 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
 }
 
 /**
- * #677, 20-14-1: "your opponent can't activate skills unless they … each
- * time" — every price in force on this player using a skill of this card, in
- * the order the rules are read. Read once, as the activation is declared and
- * before 20-14's counted uses are spent, so the activation that spends a
- * counted rule's last free use is not itself charged; the frames queued from
- * this list are the identity of what is owed, so a saved game charges each
- * once and a reload neither repeats nor skips one.
+ * #677, 20-14-1: "your opponent can't activate skills unless they …" — every
+ * price in force on this player activating this line of this card, in the
+ * order the rules are read: the `activateSkill` rules, then (for a [Counter])
+ * the `activateCounter` ones, each matched against the line's kind
+ * (`skillKind`) and the area the card was used from (`from`, once an Extra
+ * has gone on to the Drop). `counted` reads the rules whose free uses are not
+ * spent yet instead, which an activation's gate records as owing nothing.
  */
-export function activationTaxes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): TaxInForce[] {
-  return taxesOn(ctx, game, state, "activateSkill", { player, card });
+export function activationTaxes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind?: string, from?: string, counted = false): TaxInForce[] {
+  const opts = { player, card, ...(skillKind === undefined ? {} : { skillKind }), ...(from === undefined ? {} : { from }), counted };
+  const out = taxesOn(ctx, game, state, "activateSkill", opts);
+  if (skillKind !== undefined && counterKindOf(skillKind)) out.push(...taxesOn(ctx, game, state, "activateCounter", opts));
+  return out;
 }
 
 /**
@@ -695,15 +698,88 @@ export function unpaidActivationTax(ctx: EngineContext, game: GameDefinition, st
 }
 
 /**
- * Queue the taxes in front of everything the activation itself queued — its
- * action price, its effect and the parent of an invoked line — so they are
- * paid at the successful activation boundary, before the skill's effect and
- * before the moment's triggers resolve. Each runs in its own frame, the
- * activating card as "this card" (a price's choice never offers it) and the
- * activating player as "you".
+ * #677: the same question on the board the activation's printed energy will
+ * leave — `energy` of the player's Active Mode energy rested first, on a copy
+ * — since the prices are charged after it. "Unless they switch 1 of their
+ * energy to Rest Mode" (BT10-097) on an Extra that takes the last Active
+ * energy is a price that cannot be paid, so the Extra is not offered rather
+ * than failing once its energy is spent.
  */
-export function queueActivationTaxes(state: VmState, player: PlayerId, card: string, taxes: TaxInForce[]): void {
-  for (const t of [...taxes].reverse()) state.programs.unshift({ ops: t.ops, ip: 0, vars: {}, card, master: player });
+export function unpaidActivationTaxAfter(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, taxes: TaxInForce[], energy: number): TaxInForce | null {
+  if (!taxes.length) return null;
+  if (energy <= 0) return unpaidActivationTax(ctx, game, state, player, card, taxes);
+  const copy = structuredClone(state);
+  for (const id of activeEnergy(game, copy, player).slice(0, energy)) copy.cards[id].mode = "rest";
+  return unpaidActivationTax(ctx, game, copy, player, card, taxes);
+}
+
+/**
+ * #677: where an activation's 20-14 prices are charged — a frame with no
+ * program of its own, put in front of what it guards (the activation's own
+ * price and effect, an [Auto]'s or a [Counter]'s activation), stored with the
+ * game so a reload resumes it.
+ *
+ * Each time it reaches the front it reads the prices **live** (`activationTaxes`
+ * on the board as it now is): the first one not yet charged (`paid`, by the
+ * rule's stable key) is put in front of it, in the payer's frame, and the gate
+ * waits behind it to look again. So a rule whose source leaves before its
+ * price is reached is not charged, one newly in force is, and none is charged
+ * twice. A price already being paid when its rule ends is finished — it was
+ * owed when it began. `free` holds the rules whose counted free use this
+ * activation spent (20-14's "one more"), which owe nothing for it.
+ *
+ * Nothing left to charge: the gate is spent and what it guards runs. Prices
+ * left that can no longer be paid whole: 20-14-1 ("if action B is not taken
+ * … action A can't be … taken") with 5-8-4 — the activation fails, the
+ * `guards` frames behind the gate are dropped, what was paid stays paid, and a
+ * [Counter] still in the hand goes to the Drop (22-10-7-1).
+ */
+export interface TaxGate {
+  player: PlayerId;
+  card: string;
+  skillKind: string;
+  /** The area the card was used from, read at the declaration. */
+  from?: string;
+  paid: string[];
+  free: string[];
+  /** How many frames behind the gate are the activation it guards. */
+  guards: number;
+  /** A [Counter]: failing sends the card from the hand to the Drop. */
+  counter?: true;
+}
+
+/**
+ * The gate for an activation being declared, read before anything is paid or
+ * moved and before a counted use is spent — or null when no price is in force
+ * on it. The caller has already refused an activation whose prices cannot be
+ * paid whole (`unpaidActivationTax`).
+ */
+export function activationTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind: string): Omit<TaxGate, "guards"> | null {
+  const from = findCard(state, card)?.zone;
+  if (!activationTaxes(ctx, game, state, player, card, skillKind, from).length) return null;
+  const free = activationTaxes(ctx, game, state, player, card, skillKind, from, true).map((t) => t.key);
+  return { player, card, skillKind, ...(from === undefined ? {} : { from }), paid: [], free };
+}
+
+/** Put the gate in front of the `guards` frames the activation has just queued. */
+export function queueTaxGate(state: VmState, gate: Omit<TaxGate, "guards">, guards: number, counter = false): void {
+  state.programs.unshift({ ops: [], ip: 0, vars: {}, card: gate.card, master: gate.player, taxGate: { ...gate, guards, ...(counter ? { counter: true as const } : {}) } });
+}
+
+/** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
+export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
+  const gate = frame.taxGate!;
+  const owed = activationTaxes(ctx, game, state, gate.player, gate.card, gate.skillKind, gate.from).filter((t) => !gate.paid.includes(t.key) && !gate.free.includes(t.key));
+  if (!owed.length) return "done";
+  if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {
+    state.programs.splice(0, gate.guards);
+    if (gate.counter && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
+    log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
+    return "done";
+  }
+  gate.paid.push(owed[0].key);
+  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player }, frame);
+  return "done";
 }
 
 // ── taking one ──────────────────────────────────────────────────────────────

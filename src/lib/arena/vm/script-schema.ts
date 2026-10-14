@@ -214,7 +214,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
-export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive", "activateSkill"]);
+export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive", "activateSkill", "activateCounter"]);
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
@@ -778,14 +778,25 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "turnPlayer", type: "boolean" },
       { name: "counterKind", type: { enum: ["play", "attack", "battleCardAttack", "counter"] } },
       { name: "otherCards", type: "boolean" },
+      { name: "extraCardActivation", type: "boolean" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
+      // 20-14-1's price, said from the payer's side: the program's "you" is
+      // whoever takes the action, not this card's controller.
+      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       // #716: "you can't activate the [Counter: Play] skills of other cards".
-      if (op.what === "activateCounter" && (op.counterKind || op.otherCards)) {
+      if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.otherCards ? " of other cards" : ""}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+      }
+      // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
+      // of particular cards (BT23-140's "the skills of Battle Cards").
+      if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
+        const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+        const which = op.extraCardActivation ? "Extra Cards" : `the skills of ${describeFilter(op.filter!)}`;
+        return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // A rule aimed at a card reads the other way round: the card is what is
       // played, not what plays. "You can't play …" is the player's version.
@@ -800,12 +811,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
       // BT8-051: whose skill it has to be.
       const by = op.byTypes?.length ? ` with the skill of ${op.byTypes.map((t) => (t === "LEADER" ? "a Leader Card" : t === "BATTLE" ? "a Battle Card" : t === "EXTRA" ? "an Extra Card" : "a Unison Card")).join(" or ")}` : "";
-      // 20-14-1's price, said from the payer's side: the program's "you" is
-      // whoever takes the action, not this card's controller.
-      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       return `${who} can't ${verb}${which ? ` ${which}` : ""}${by}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what":"activateSkill" and "activateCounter" take an "unlessPay" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; "extraCardActivation":true narrows an "activateSkill" rule to 12-1-3's "activating an Extra Card" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -1713,9 +1721,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
     // attack, a declared play, a skill's switch of energy to Active Mode and
-    // a skill activation (#677: a declared or invoked [Activate] is charged;
-    // an [Auto] or [Counter] under one stops with `NotYet`) charge one — a
-    // price on any other action would be a rule that silently stopped
+    // a skill activation (#677: [Activate], [Auto] and [Counter]) charge one —
+    // a price on any other action would be a rule that silently stopped
     // forbidding anything.
     if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined))
       return `${step}: only an attack, a declared play, a switch of energy to Active Mode or a skill activation is taxed with "unlessPay", and never beside "unless"`;

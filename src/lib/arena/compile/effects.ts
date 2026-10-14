@@ -2451,8 +2451,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // #677: a skill activation is taxed like an attack — "each time" is part of
   // the wording — but its price is paid while an Extra is still in the hand it
   // is used from, so a hand price is said the way a play's is.
-  const taxOn = oneAct ? (/^play\b/.test(rest0) ? "play" : "switch") : /^activate skills\b/.test(rest0) ? "activate" : "attack";
-  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(unlessTail[1].trim(), c, taxOn) : null;
+  // #677: and on the five catalog cards that print one (EX06-35, DB1-015,
+  // BT29-022, BT23-140, BT10-097) the price may close with "as an additional
+  // (skill) cost" — the cost it is (22-30-3's "additional skill cost"), not a
+  // part of what is done — so the words are dropped before the price is read.
+  const taxOn = oneAct ? (/^play\b/.test(rest0) ? "play" : "switch") : /^activate\b/.test(rest0) ? "activate" : "attack";
+  const priceSaid = unlessTail ? (taxOn === "activate" ? unlessTail[1].trim().replace(/\s+as an additional (?:skill )?cost$/, "") : unlessTail[1].trim()) : "";
+  const tax = unlessTail && !unlessPlayBySkill ? taxProgram(priceSaid, c, taxOn) : null;
   const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${unlessTail[1].trim()}`, true);
   if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
@@ -2501,10 +2506,30 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // Cards", "[Auto] skills") stays unread rather than taxing more than it
     // names. Both engines charge it on a declared or invoked [Activate];
     // an [Auto] or [Counter] activation under it stops with `NotYet`.
+    //
+    // Since the catalog check of 13 Oct 2026 four narrower descriptions are
+    // read too, each exactly as printed and nothing wider:
+    // - "activate the skills of Battle Cards in any Area" (BT23-140): every
+    //   skill of a Battle Card, wherever the card is (`filter.type`);
+    // - "activate Extra Cards" (BT10-097): 12-1-3's "activating an Extra
+    //   Card" — an [Activate] or [Counter] skill of an Extra used from the
+    //   hand (`extraCardActivation`), not an Extra's [Auto];
+    // - "activate [Counter] skills" (DB1-015) and "activate [Counter: Attack]
+    //   skills" (BT29-022): a [Counter] of that kind (`activateCounter`,
+    //   `counterKind`).
     if (taxOn === "activate") {
       const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
-      if (!side || side !== tax.payer || !/^activate skills(?:\s+(?:until|for|during)\b.*)?$/.test(rest)) return null;
-      return [{ op: "forbid", what: "activateSkill", side, until, unlessPay: tax.ops }];
+      if (!side || side !== tax.payer) return null;
+      const said = rest.replace(/\s+(?:until|for|during)\b.*$/, "").trim();
+      if (said === "activate skills") return [{ op: "forbid", what: "activateSkill", side, until, unlessPay: tax.ops }];
+      if (/^activate (?:the )?skills of battle cards(?: in any area)?$/.test(said)) return [{ op: "forbid", what: "activateSkill", side, until, filter: { ...parseFilter(""), type: "BATTLE" }, unlessPay: tax.ops }];
+      if (said === "activate extra cards") return [{ op: "forbid", what: "activateSkill", side, until, filter: { ...parseFilter(""), type: "EXTRA" }, extraCardActivation: true, unlessPay: tax.ops }];
+      const counter = /^activate (?:the )?\[counter(?:: (play|attack|battle card attack|counter))?\] skills$/.exec(said);
+      if (counter) {
+        const counterKind = counter[1] === undefined ? undefined : counter[1] === "battle card attack" ? "battleCardAttack" : (counter[1] as "play" | "attack" | "counter");
+        return [{ op: "forbid", what: "activateCounter", side, until, ...(counterKind ? { counterKind } : {}), unlessPay: tax.ops }];
+      }
+      return null;
     }
     if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
     const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
@@ -2667,6 +2692,13 @@ export function taxWordings(text: string): string {
     .replace(
       /\b(?:then )?(for the duration of the game|during the game), if the turn player would use the skills? of (?:an? )?(.+?) to switch energy to active mode, they can(?:'|no)t switch energy to active mode unless they choose (\d+) cards? from their drop(?: area)? and send them to their warp\b/gi,
       (_m, lasts: string, whose: string, n: string) => `the turn player can't switch energy to active mode with the skills of ${whose} ${lasts} unless they send ${n} cards from their drop area to their warp`,
+    )
+    // #677, EX06-35: "your opponent can't activate skills unless they choose 1
+    // card in their hand and send it to their Warp" — the choice is the
+    // sending's own, said as one verb so the price is not cut at its "and".
+    .replace(
+      /\b(can(?:'|no)t activate [^.]*?) unless they choose (\d+) (cards?) in their hand and send (?:it|them) to their warp\b/gi,
+      (_m, head: string, n: string, cards: string) => `${head} unless they send ${n} ${cards} from their hand to their warp`,
     );
 }
 
@@ -2688,10 +2720,12 @@ const TAX_OPS = new Set<Op["op"]>(["discard", "mill", "choose", "moveTo", "switc
 function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "activate" = "attack"): { payer: Side; ops: Op[] } | null {
   // An attack's price says "each time"; a play's and a switch's need not
   // (one act each), but then the sentence's own duration may follow it. An
-  // activation's says it too (#677), as the only wording it is read in.
+  // activation is one act too (#677): the printed cards say it without "each
+  // time" ("unless they discard 2 cards from their hand", BT29-022), and
+  // 20-14-1 charges every activation it governs either way.
   const m =
     /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said) ??
-    (on === "attack" || on === "activate" ? null :/^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
+    (on === "attack" ? null :/^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
   if (!m) return null;
   const payer: Side = m[1] === "you" ? "you" : "opponent";
   let clause = m[2];
@@ -2731,7 +2765,19 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
   // is done before A is declared (20-14-1): "switch 1 of their Active Mode
   // cards to Rest Mode" (BT24-133) paid with the attacker itself would leave
   // nothing able to attack, so a choice in the price never offers it.
-  return { payer, ops: ops.map((o) => (o.op === "choose" ? { ...o, sel: { ...o.sel, notSelf: "card" as const } } : o)) };
+  // #677: an activation's price is not an attack's. The activating card is
+  // ruled out of a price taken from the hand — a [Counter] pays it from there
+  // and is itself the counter (22-10-7) — but not out of one taken from play:
+  // "switch 2 of their Active Mode cards to Rest Mode" (BT23-140) names any
+  // of them, and nothing in 20-14-1 or 9-4 keeps the card whose skill it is
+  // from being one.
+  const ruledOut = (o: Extract<Op, { op: "choose" }>) => on !== "activate" || o.sel.area === "hand";
+  // 5-8-2-2: a switch to Rest Mode is paid only by a card it switches, so
+  // "switch 1 of their energy to Rest Mode" (BT10-097) offers Active Mode
+  // energy alone — the same `mode` BT23-140's "Active Mode cards" says.
+  const rested = (o: Extract<Op, { op: "choose" }>) => ops.some((s) => s.op === "switchMode" && s.mode === "rest" && "var" in s.target && s.target.var === o.as);
+  const priced = (o: Extract<Op, { op: "choose" }>): Extract<Op, { op: "choose" }> => (on === "activate" && !o.sel.mode && rested(o) ? { ...o, sel: { ...o.sel, mode: "active" } } : o);
+  return { payer, ops: ops.map((o) => (o.op === "choose" ? (ruledOut(o) ? { ...priced(o), sel: { ...priced(o).sel, notSelf: "card" as const } } : priced(o)) : o)) };
 }
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
