@@ -132,7 +132,8 @@ try {
   if (!(await waitUp())) throw new Error(`next start did not come up on ${PORT}:\n${server.log()}`);
   const manifest = (await (await fetch(`${BASE}/arena/offline/shell.json`)).json()) as ShellManifest;
   report.manifest = { version: manifest.version, revision: manifest.revision, files: manifest.files.length };
-  if (!manifest.revision) usage("the build has no interpreter revision: build with GITHUB_SHA=<40-hex> npm run build");
+  // A throw, not usage(): process.exit would skip `finally` and leave `next start` holding the port.
+  if (!manifest.revision) throw new Error("the build has no interpreter revision: build with GITHUB_SHA=<40-hex> npm run build");
   const shellCacheName = SHELL_CACHE_PREFIX + manifest.version;
 
   const good = await buildMastersPack({ runtimeRevision: manifest.revision });

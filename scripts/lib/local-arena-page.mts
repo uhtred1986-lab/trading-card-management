@@ -108,6 +108,13 @@ export const IDB_FAULT = {
 
 export interface Denied { url: string; method: string; why: string }
 
+/**
+ * The card-art CDNs (`next.config.ts` images, `public/sw.js` ART_HOSTS). Not a match or provider
+ * request: since #659 the service worker no longer claims an open page, so a first visit's images
+ * go straight to the CDN. They are still failed (the device is offline) but counted apart.
+ */
+const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tcgplayer-cdn.tcgplayer.com", "www.cardtrader.com", "cardtrader.com"]);
+
 /** True when `request` is a match or provider request: an API route, a server action, a non-GET, or another host. */
 export function matchOrProvider(base: string, request: { url: string; method: string; headers: Record<string, string> }): string | null {
   const origin = new URL(base).origin;
@@ -130,6 +137,8 @@ export class WorkerTaps {
   private readonly byPage = new Map<string, Set<string>>();
   readonly denied: Denied[] = [];
   readonly allowed: string[] = [];
+  /** Card-art CDN requests, failed like the rest but not a match/provider request (see ART_HOSTS). */
+  readonly art: string[] = [];
 
   constructor(private readonly browser: Browser, private readonly base: string) {
     browser.on((method, params, sessionId) => {
@@ -151,7 +160,12 @@ export class WorkerTaps {
       } else if (method === "Fetch.requestPaused" && sessionId) {
         const r = params.request as { url: string; method: string; headers: Record<string, string> };
         const why = matchOrProvider(this.base, r);
-        if (why) {
+        let host = "";
+        try { host = new URL(r.url).hostname; } catch { /* unparseable: matchOrProvider names it */ }
+        if (ART_HOSTS.has(host) && r.method === "GET") {
+          this.art.push(r.url);
+          void browser.send("Fetch.failRequest", { requestId: params.requestId, errorReason: "InternetDisconnected" }, sessionId).catch(() => {});
+        } else if (why) {
           this.denied.push({ url: r.url, method: r.method, why });
           void browser.send("Fetch.failRequest", { requestId: params.requestId, errorReason: "BlockedByClient" }, sessionId).catch(() => {});
         } else {
