@@ -6,7 +6,7 @@ import type { PlayerId } from "@/lib/arena/types";
 import { feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
 import { anchorPoint, type Point } from "./anchors";
-import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, FX, fxScale, msFor, reveals, turnBannerMs } from "./motion";
+import { addsToChain, arrives, arrivesFrom, battleLink, departs, feelFor, FX, fxDuration, msFor, reveals, turnBannerMs } from "./motion";
 
 export interface Ghost {
   key: number;
@@ -266,12 +266,11 @@ export function useBeatPlayer(
           const from = anchorPoint(hostRef.current, `${gone.owner}:${gone.from}`);
           const to = anchorPoint(hostRef.current, `${gone.owner}:drop`);
           if (from) {
-            const k = fxScale(paceRef.current === "step" ? "normal" : paceRef.current);
             // A KO shatters where it stood and then flies; the `move` to the Drop
             // that follows it is the same card's flight, not a second ghost.
             const ghost: Ghost =
               beat.t === "ko"
-                ? { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms: Math.round(FX.koFly * k), ko: { delay: Math.round(FX.ko * k) } }
+                ? { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms: fxDuration(FX.koFly, paceRef.current), ko: { delay: fxDuration(FX.ko, paceRef.current) } }
                 : { key: beat.n, card: gone.card, from, to: to ?? from, kind: "leave", ms };
             setGhosts((g) => (beat.t === "move" && g.some((x) => x.card === ghost.card && x.ko) ? g : [...g, ghost]));
           }

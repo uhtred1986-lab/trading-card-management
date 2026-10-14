@@ -1998,14 +1998,14 @@ input[type="number"] {
 .arena-fx-vs {
   display: inline-block;
   transition: opacity 0.2s;
-  animation: arena-fx-slam var(--fx-vs, 520ms) cubic-bezier(0.2, 1.8, 0.4, 1) var(--fx-vs-delay, 180ms) backwards;
+  animation: arena-fx-slam min(var(--fx-vs, 520ms), 519ms) cubic-bezier(0.2, 1.8, 0.4, 1) min(var(--fx-vs-delay, 180ms), 180ms) backwards;
 }
 .arena-fx-vs-off {
   opacity: 0;
 }
 .arena-fx-word {
   display: block;
-  animation: arena-fx-slam var(--fx-word, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) var(--fx-beam, 360ms) both;
+  animation: arena-fx-slam min(var(--fx-word, 640ms), 599ms) cubic-bezier(0.2, 1.6, 0.35, 1) min(var(--fx-beam, 360ms), 100ms) both;
 }
 .arena-fx-stage {
   position: absolute;
@@ -2058,7 +2058,7 @@ input[type="number"] {
   pointer-events: none;
   animation:
     arena-fx-beam var(--fx-beam, 360ms) ease-out both,
-    arena-fx-fade 320ms ease-in var(--fx-word, 640ms) forwards;
+    arena-fx-fade 320ms ease-in 100ms forwards;
 }
 @keyframes arena-fx-shield {
   0% {
@@ -2083,7 +2083,7 @@ input[type="number"] {
     0 0 26px var(--color-dbs-blue);
   background: radial-gradient(circle, transparent 50%, color-mix(in srgb, var(--color-dbs-blue) 45%, transparent) 100%);
   pointer-events: none;
-  animation: arena-fx-shield var(--fx-shield, 620ms) ease-out var(--fx-beam, 360ms) both;
+  animation: arena-fx-shield min(var(--fx-shield, 620ms), 599ms) ease-out min(var(--fx-beam, 360ms), 100ms) both;
 }
 
 /* Victory and defeat: slow rays behind a slammed title. */
@@ -2110,6 +2110,62 @@ input[type="number"] {
 .arena-fx-title {
   display: block;
   animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) both;
+}
+
+/* Short event cues are attached to the public beat's named subject. They never
+   gate the board; reduced motion keeps their outlines and labels static. */
+@keyframes arena-feedback-attacker {
+  0% { transform: translateX(0) scale(1); }
+  28% { transform: translateX(12px) scale(1.045); }
+  62% { transform: translateX(-4px) scale(1.015); }
+  100% { transform: none; }
+}
+@keyframes arena-feedback-hit {
+  0%, 100% { outline-color: transparent; box-shadow: none; }
+  20%, 55% { outline-color: var(--color-loss); box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-loss) 28%, transparent), 0 0 22px color-mix(in srgb, var(--color-loss) 65%, transparent); }
+}
+@keyframes arena-feedback-held {
+  0%, 100% { outline-color: transparent; box-shadow: none; }
+  20%, 60% { outline-color: #3b82f6; box-shadow: 0 0 0 5px color-mix(in srgb, #3b82f6 30%, transparent), 0 0 22px color-mix(in srgb, #3b82f6 70%, transparent); }
+}
+@keyframes arena-feedback-ko {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(1.6); }
+  100% { filter: grayscale(1) brightness(.65); }
+}
+@keyframes arena-feedback-life {
+  0% { transform: scale(1); color: inherit; }
+  25% { transform: scale(1.18); color: var(--color-loss); }
+  100% { transform: scale(1); color: inherit; }
+}
+@keyframes arena-feedback-life-label {
+  0% { transform: translate(-50%, 0); opacity: 0; }
+  22% { opacity: 1; }
+  100% { transform: translate(-50%, -14px); opacity: 1; }
+}
+@keyframes arena-feedback-phase {
+  0% { transform: scale(.9); }
+  44% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.arena-feedback-attacker { animation: arena-feedback-attacker 560ms cubic-bezier(.2, .9, .25, 1.1) both; }
+.arena-feedback-hit,
+.arena-feedback-held {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  animation: arena-feedback-hit 560ms ease-out both;
+}
+.arena-feedback-held { animation-name: arena-feedback-held; }
+.arena-feedback-ko {
+  outline: 2px dashed var(--color-loss);
+  outline-offset: 2px;
+  animation: arena-feedback-ko 620ms ease-out both;
+}
+.arena-feedback-life { animation: arena-feedback-life 520ms ease-out both; }
+.arena-feedback-life-label { animation: arena-feedback-life-label 640ms ease-out both; }
+.arena-feedback-phase {
+  display: inline-flex;
+  animation: arena-feedback-phase 460ms cubic-bezier(.2, .9, .25, 1.1) both;
 }
 
 /* ==========================================================================
@@ -2356,7 +2412,7 @@ input[type="number"] {
     repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--burst) 60%, transparent) 0 8deg, transparent 8deg 22deg);
   -webkit-mask-image: radial-gradient(circle, #000 28%, transparent 68%);
   mask-image: radial-gradient(circle, #000 28%, transparent 68%);
-  animation: arena-verdict-burst var(--fx-word, 640ms) cubic-bezier(0.2, 1.2, 0.35, 1) var(--fx-beam, 360ms) both;
+  animation: arena-verdict-burst min(var(--fx-word, 640ms), 599ms) cubic-bezier(0.2, 1.2, 0.35, 1) min(var(--fx-beam, 360ms), 100ms) both;
 }
 .arena-verdict-calm .arena-verdict-burst {
   --burst: color-mix(in srgb, var(--color-dbs-blue) 70%, #fff);
@@ -3107,16 +3163,39 @@ html[data-skin="anime"] body::before {
   [data-skin="anime"] .arena-fx-lines {
     animation: none;
   }
+  .arena-feedback-attacker,
+  .arena-feedback-hit,
+  .arena-feedback-held,
+  .arena-feedback-ko,
+  .arena-feedback-life,
+  .arena-feedback-life-label,
+  .arena-feedback-phase {
+    animation: none;
+    transform: none;
+  }
+  .arena-feedback-attacker { outline: 2px solid var(--color-ki-500); outline-offset: 2px; }
+  .arena-feedback-hit { outline: 3px solid var(--color-loss); outline-offset: 2px; }
+  .arena-feedback-held { outline: 3px solid #3b82f6; outline-offset: 2px; }
+  .arena-feedback-ko { outline: 2px dashed var(--color-loss); outline-offset: 2px; filter: grayscale(1); opacity: .65; }
+  .arena-feedback-life { color: var(--color-loss); }
+  .arena-feedback-life-label { opacity: 1; }
+  .arena-feedback-phase { outline: 2px solid currentColor; outline-offset: 2px; }
   /* What is only ever a flourish is not drawn at all: a still frame of a beam or a shard is noise. */
   .arena-fx-flash,
   .arena-boom,
   .arena-pip-shatter,
-  .arena-lifefloat,
   .arena-fx-beam,
   .arena-fx-shield,
   .arena-fx-ko-glow,
   .arena-fx-ko::after {
     display: none;
+  }
+  /* The life loss is information, not a flourish: keep its label in place. */
+  .arena-lifefloat {
+    display: block;
+    opacity: 1;
+    transform: none;
+    translate: -50% 0;
   }
   .arena-banner,
   .arena-slam,

@@ -92,11 +92,17 @@ export function fxScale(pace: Pace = "normal"): number {
   return pace === "slow" ? 2.4 : 1;
 }
 
-/** `--fx-<name>` custom properties for the board root, from `FX` at this pace. */
+/** An individual visual effect/flight is capped below the 700 ms limit. */
+export function fxDuration(ms: number, pace: Pace = "normal"): number {
+  return Math.min(699, Math.round(ms * fxScale(pace === "step" ? "normal" : pace)));
+}
+
+/** `--fx-<name>` custom properties for the board root, from `FX` at this pace.
+ * Feedback is deliberately brief even at slow pace; beat narration keeps its
+ * separate dwell in `msFor`. */
 export function fxVars(pace: Pace = "normal"): Record<string, string> {
-  const k = fxScale(pace);
   const out: Record<string, string> = {};
-  for (const [name, ms] of Object.entries(FX)) out[`--fx-${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`] = `${Math.round(ms * k)}ms`;
+  for (const [name, ms] of Object.entries(FX)) out[`--fx-${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`] = `${fxDuration(ms, pace)}ms`;
   return out;
 }
 
