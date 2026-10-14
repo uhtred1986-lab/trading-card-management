@@ -389,7 +389,7 @@ const GUARD = 10_000;
  * every path out, because a finished game sits in its over phase asking the
  * question nobody answers.
  */
-export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], previewAttack = false): void {
   let guard = 0;
   checkWins(ctx, game, state, ev);
   while (state.flow.length) {
@@ -436,6 +436,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     const name = phase.steps[top.index];
     const step = game.steps[name];
     if (!step) throw new RulesetBroken(state.game, `${top.phase} names a step called ${JSON.stringify(name)}, which nothing declares`);
+
+    // A disposable attack preview stops after the declaration's checkpoint
+    // (including deterministic [Auto]s) and before asking whether the
+    // defender's concealed hand contains a payable [Counter: Attack]. Normal
+    // play still runs this step; only RULES.previewLegalAttack requests it.
+    if (previewAttack && top.phase === "battle" && name === "battleCounterAttack") return;
 
     // 20-13-1..4: a skipped phase's steps are not performed — no work, no
     // question — except a step declared `always:` (20-13-5). The programs

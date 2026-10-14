@@ -53,8 +53,11 @@ for (const leader of ["BONUS801", "PASSIVE801", "DRAW801"]) {
     assert.equal(preview.battle, undefined);
   } else {
     assert.equal(preview.state, "known");
-    assert.deepEqual(preview.battle, RULES.boardView(ctx, result.state, "p1", {}).battle,
-      "the preview is the actual engine BattleView after declaration");
+    const settled = RULES.boardView(ctx, result.state, "p1", {}).battle;
+    assert.ok(settled);
+    assert.equal(preview.battle?.step, "declared", "preview stops before the hidden defender response window");
+    assert.deepEqual({ ...preview.battle, step: settled.step }, settled,
+      "the declared preview keeps the same engine power and stakes as the next response snapshot");
     assert.equal(preview.battle?.attackPower, 15000);
     if (leader === "PASSIVE801") {
       assert.equal(preview.battle.stakes?.lifeDamage, 2);
