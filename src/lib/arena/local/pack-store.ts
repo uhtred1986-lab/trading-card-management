@@ -312,8 +312,12 @@ export interface PackStore {
   art(hash: string): Promise<Map<string, Blob>>;
   /** The pack's `CardArt` as object URLs of the stored images; `revoke()` frees them. */
   artUrls(hash: string): Promise<{ art: Record<string, CardArt>; revoke(): void }>;
-  /** Delete a version; refused for the active one and for one a saved match references. */
-  remove(hash: string): Promise<void>;
+  /**
+   * Delete a version; refused for one a saved match references, and for the active one unless
+   * `active` is given (#660: removing a prepared pack from the device — its pointer goes first, so a
+   * failure half-way leaves an unreferenced version, never a pointer to nothing).
+   */
+  remove(hash: string, options?: { active?: boolean }): Promise<void>;
   /** Delete every version that is not active, not pinned and (unless `staged`) ready, and every image no version names. */
   prune(options?: { staged?: boolean; id?: string }): Promise<{ versions: string[]; art: number; skipped?: string }>;
   close(): void;
@@ -715,14 +719,26 @@ export function packStore(options: PackStoreOptions): PackStore {
     return { versions: drop, art };
   }
 
-  async function remove(hash: string): Promise<void> {
+  async function removePointers(hash: string): Promise<void> {
+    const d = await db();
+    await inTransaction<void>(d, [POINTERS], "readwrite", "removing the active pointer", (tx, fail) => {
+      req<unknown[]>(tx.objectStore(POINTERS).getAll(), fail, (all) => {
+        for (const p of all) if (isRecord(p) && p.hash === hash && typeof p.id === "string") tx.objectStore(POINTERS).delete(p.id);
+      });
+    });
+  }
+
+  async function remove(hash: string, opt: { active?: boolean } = {}): Promise<void> {
     await exclusive(async () => {
       const pins = await pinsOrNull();
       if (!pins) throw new PackStoreError("pinned", `pack ${hash}: the saved matches could not be read, so it is kept`);
       if (pins.has(hash)) throw new PackStoreError("pinned", `pack ${hash} is the pack of a saved match; it is kept until that match is deleted`);
       const { versions, pointers } = await readAll();
       if (!versions.some((v) => v.hash === hash)) throw new PackStoreError("unknown", `pack ${hash} is not on this device`);
-      if (pointers.some((p) => p.hash === hash)) throw new PackStoreError("active", `pack ${hash} is the active version; install another first`);
+      if (pointers.some((p) => p.hash === hash)) {
+        if (!opt.active) throw new PackStoreError("active", `pack ${hash} is the active version; install another first`);
+        await removePointers(hash);
+      }
       await deleteVersions([hash]);
     });
   }

@@ -40,6 +40,23 @@ export const SHELL_FORMAT = 1;
 /** How many complete shells activation keeps: the current one and the newest before it. */
 export const SHELL_KEEP = 2;
 export const SHELL_VERSION_PATTERN = /^[0-9a-f]{16}$/;
+/** The curated deck pack, built with this build (`/arena/offline/pack.json`, public: card text, rules and public art URLs only). */
+export const PACK_PATH = "/arena/offline/pack.json";
+/**
+ * The device's "prepared for offline play" mark (#660): set by the preparation flow, read by
+ * `ServiceWorker.tsx`. Until it is set a device keeps only the card-art worker and downloads no
+ * shell; once set, every deploy's shell is downloaded and kept up to date. Removing all offline
+ * data clears it.
+ */
+export const PREPARED_KEY = "dbs-arena-offline-prepared";
+
+export function isPreparedDevice(): boolean {
+  try { return localStorage.getItem(PREPARED_KEY) === "1"; } catch { return false; }
+}
+
+export function markPreparedDevice(prepared: boolean): void {
+  try { if (prepared) localStorage.setItem(PREPARED_KEY, "1"); else localStorage.removeItem(PREPARED_KEY); } catch { /* no storage: the device cannot be prepared */ }
+}
 
 export interface ShellManifest {
   format: typeof SHELL_FORMAT;

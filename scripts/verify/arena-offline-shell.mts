@@ -17,7 +17,7 @@
  *      shells and old art caches, keeps the pack store's caches, and never calls `clients.claim`;
  *      `?shell=<version>` opens the kept previous shell.
  *   7. A worker registered without a version installs no shell and deletes none.
- *   8. The proxy exempts exactly `/arena/offline` and `/arena/offline/shell.json`.
+ *   8. The proxy exempts exactly `/arena/offline`, `/arena/offline/shell.json` and `/arena/offline/pack.json`.
  *   9. `shellManifestProblems` and `shellRefusal`.
  *
  * Pure: no browser, no network, no database.
@@ -288,11 +288,11 @@ await check("7. a worker registered without a version installs no shell and dele
 });
 
 // 8. proxy
-await check("8. the proxy exempts exactly /arena/offline and its shell.json; the rest of the arena keeps the sign-in", () => {
+await check("8. the proxy exempts exactly /arena/offline, its shell.json and its pack.json; the rest of the arena keeps the sign-in", () => {
   const matcher = (proxyConfig as unknown as { matcher: [string, ...unknown[]] }).matcher[0];
   const re = new RegExp(`^${matcher}$`);
-  for (const p of [SHELL_PATH, SHELL_MANIFEST_PATH, "/sw.js", "/manifest.webmanifest", "/icons/icon-192.png", "/_next/static/chunks/a.js"]) assert.equal(re.test(p), false, `${p} is exempt`);
-  for (const p of ["/arena", "/arena/local", "/arena/offline/", "/arena/offline/x", "/arena/offlinex", "/arena/offline/shell.jsonx", "/arena/offline/shell.json/x", "/arena/1", "/collection", "/settings", "/api/cards", "/"]) assert.equal(re.test(p), true, `${p} keeps the sign-in`);
+  for (const p of [SHELL_PATH, SHELL_MANIFEST_PATH, "/arena/offline/pack.json", "/sw.js", "/manifest.webmanifest", "/icons/icon-192.png", "/_next/static/chunks/a.js"]) assert.equal(re.test(p), false, `${p} is exempt`);
+  for (const p of ["/arena", "/arena/local", "/arena/offline/", "/arena/offline/x", "/arena/offlinex", "/arena/offline/shell.jsonx", "/arena/offline/shell.json/x", "/arena/offline/pack.jsonx", "/arena/offline/pack.json/x", "/arena/1", "/collection", "/settings", "/api/cards", "/"]) assert.equal(re.test(p), true, `${p} keeps the sign-in`);
 });
 
 // 9. pure helpers
