@@ -979,6 +979,17 @@ the choice resolves. All instance ids pass through the usual snapshot concealmen
 and a non-actor receives no private hand play preview. This addition does not
 change contract version 2.
 
+`LegalAction.paymentPreview?` (#800) describes the exact VM candidate payment,
+before commit: `{ state: "known" | "choice", options: { energyRest: string[],
+markers: number, costMarkers: number }[] }`. `markers` counts energy markers
+spent; `costMarkers` is the separate on-card marker delta. A `known` preview
+has one plan; `choice` lists the payment choices the engine will ask about.
+Alternative costs are settled on a disposable state before any follow-up
+payment is projected. Rest IDs can include non-Energy Area payers under 20-19;
+clients count only Energy Area IDs when displaying remaining ready energy.
+All IDs pass through snapshot concealment. This is information, not a payment
+selection, and the next payment prompt remains authoritative. Version 2 is unchanged.
+
 `Snapshot.attackPreviews?` (issue #801) is an optional array of
 `{ action: number, state: "known" | "notEvaluated", battle?: BattleView,
 reason?: string }`. `action` indexes the same viewer's `legal` array. For a

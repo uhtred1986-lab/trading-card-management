@@ -243,7 +243,7 @@
       "battle": {
         "attacker": "p1#0",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 10000,
         "guardPower": 10000,
         "stakes": {
@@ -271,7 +271,7 @@
       "battle": {
         "attacker": "p1#15",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 10000,
         "guardPower": 10000,
         "stakes": {

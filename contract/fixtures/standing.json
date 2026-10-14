@@ -572,7 +572,7 @@
       "battle": {
         "attacker": "p1#0",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 10000,
         "guardPower": 10000,
         "stakes": {
@@ -600,7 +600,7 @@
       "battle": {
         "attacker": "p1#35",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 15000,
         "guardPower": 10000,
         "stakes": {
@@ -628,7 +628,7 @@
       "battle": {
         "attacker": "p1#18",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 20000,
         "guardPower": 10000,
         "stakes": {
@@ -656,7 +656,7 @@
       "battle": {
         "attacker": "p1#38",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 15000,
         "guardPower": 10000,
         "stakes": {
@@ -684,7 +684,7 @@
       "battle": {
         "attacker": "p1#13",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 15000,
         "guardPower": 10000,
         "stakes": {
@@ -712,7 +712,7 @@
       "battle": {
         "attacker": "p1#12",
         "guard": "p2#0",
-        "step": "offense",
+        "step": "declared",
         "attackPower": 15000,
         "guardPower": 10000,
         "stakes": {
