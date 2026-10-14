@@ -141,7 +141,7 @@ export function PromptPanel({
   const defending = !!view.battle && !ownsTurn;
   const responseQuestion = defending ? view.prompt.kind === "counter" ? "Cancel the attack with a Counter card?" : view.prompt.kind === "blocker" ? "Let a [Blocker] take the hit instead?" : view.prompt.kind === "combo" ? "Add combo power to your defender?" : null : null;
   const line: React.ReactNode = playing ? (
-    `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${pace === "step" ? " · tap Next" : ""}`
+    `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${playingMine && pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
     `${overOutcome.kind === "interrupted" ? "Game interrupted" : overOutcome.kind === "abandoned" ? "Game abandoned" : overOutcome.kind === "draw" ? "A draw" : `${overOutcome.winner === yourPlayer ? view.you.name : view.them.name} wins`}${overOutcome.reason ? ` — ${overOutcome.reason}` : ""}`
   ) : view.over ? (
@@ -151,7 +151,7 @@ export function PromptPanel({
   ) : waitingOnServer ? (
     `${view.them.name} is thinking…`
   ) : (refusalText ?? (isTargeting ? (
-    attackConfirmation ? `Review the attack: ${attackConfirmation.attacker.name} → ${attackConfirmation.target.name}.` : "Choose what to attack — tap a glowing card, or Cancel. Only a Leader or rested Battle Card can be attacked."
+    attackConfirmation ? `Review the attack: ${attackConfirmation.attacker.name} → ${attackConfirmation.target.name}.` : "Choose what to attack — tap a glowing target, or Pass to cancel."
   ) : chargeLine ? (
     <>
       <span className="[@media(pointer:fine)]:hidden">Choose a card, then Charge it or Pass below.</span>
@@ -269,9 +269,9 @@ export function PromptPanel({
       {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
         <div className="w-full" data-defend-step={view.prompt.kind}>
           <p className="mb-1 flex flex-wrap items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-space-300" aria-label="Counter, Block, Combo response steps">
-            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>① Counter{view.battle?.emptyResponses?.includes("counter") ? " · none" : ""}</span><span>›</span>
-            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>② Block{view.battle?.emptyResponses?.includes("blocker") ? " · none" : ""}</span><span>›</span>
-            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>③ Combo{view.battle?.emptyResponses?.includes("defenseCombo") ? " · none" : ""}</span>
+            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>1 Counter{view.battle?.emptyResponses?.includes("counter") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>2 Block{view.battle?.emptyResponses?.includes("blocker") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>3 Combo{view.battle?.emptyResponses?.includes("defenseCombo") ? " · none" : ""}</span>
           </p>
           {view.prompt.kind === "combo" && view.battle && (() => {
             const b = view.battle!;

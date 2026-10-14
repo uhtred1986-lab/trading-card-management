@@ -1,6 +1,8 @@
 import type { CardArt } from "@/lib/arena/view";
 import type { CardDef, DeckInput, PlayerId } from "@/lib/arena/types";
 
+const compareNames = new Intl.Collator().compare;
+
 /** A deck's original catalog contents, with copies grouped and no match instance ids. */
 export interface ArenaDecklist {
   name: string;
@@ -31,7 +33,7 @@ export function arenaDecklistsFromInputs(
         imageUrl: art[cardId]?.front ?? null,
       }))
       // A stable display order avoids exposing the original draw/deck order.
-      .sort((a, b) => a.name.localeCompare(b.name) || a.cardId.localeCompare(b.cardId));
+      .sort((a, b) => compareNames(a.name, b.name) || compareNames(a.cardId, b.cardId));
 
     result[seat] = { name: input.name, cards };
   }

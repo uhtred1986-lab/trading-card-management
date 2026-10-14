@@ -51,7 +51,8 @@ export function Hand({
     const measure = () => {
       const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
       // Less the side padding (px-2.5): the fan lays out inside it.
-      setRoom({ width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1024px)").matches });
+      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1024px)").matches };
+      setRoom((current) => current?.width === next.width && current.card === next.card && current.desktop === next.desktop ? current : next);
     };
     measure();
     const ro = new ResizeObserver(measure);

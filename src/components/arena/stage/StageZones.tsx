@@ -101,8 +101,9 @@ function useOverflows<T extends HTMLElement>(dep: unknown) {
     const el = ref.current;
     if (!el) return;
     const measure = () => setOverflows(el.scrollWidth > el.clientWidth + 1);
-    measure();
     const ro = new ResizeObserver(measure);
+    // The initial observation runs after layout. Measuring synchronously here
+    // forces a second layout between React's card updates.
     ro.observe(el);
     return () => ro.disconnect();
   }, [dep]);
