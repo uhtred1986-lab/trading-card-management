@@ -4,7 +4,52 @@ The integration implements #796–#802 in the production board and current rules
 engine, using the approved #788 prototype as a behaviour reference. It does not
 restore the removed legacy engine or change database contents.
 
-## Latest local validation — 14 October 2026
+## Recovery and independent phone follow-up — 14 October 2026
+
+The two previously incomplete checks have now produced passing evidence within
+the scopes below. Application code remains `f7831ce7`; this follow-up changes
+only the validation harness and evidence.
+
+- **Production recovery: passed.** `arena:local-browser --json --total-timeout
+  1800` completed with no failures or browser exceptions. Simultaneous Continue
+  produced exactly one owner and one watcher; watcher moves were refused;
+  **Play here instead** transferred ownership and fenced the old writer without
+  writing another move. The match ended at revision 128, with all 127 decisions,
+  trace, final board and next AI decisions after recovery equal to the reference.
+  All 86 observed revisions matched; no match/provider request occurred.
+  [Full result](local-2026-10-14/recovery-foreground.json).
+- **Dedicated browser ownership proof: passed.** Real Web Locks, IndexedDB and
+  BroadcastChannel tests cover concurrent claims, takeover during AI work,
+  closing the owner, worker kills before/after persistence, frozen lease owner
+  fencing and cleanup. All 86 observed revisions matched the reference.
+  [Result](local-2026-10-14/ownership-followup.json).
+- **Independent TinyFish phone screen-reading review: completed.** The follow-up
+  exercised the unchanged production app in real 360×800/360×650 iframe browsing
+  viewports. Turn/hand ownership, Leaders, actions, payment information, battle
+  stakes and Pass consequences were readable; no internal decision scrolling or
+  row/hand/dock overlap was reported. Hand navigation and attack cancellation
+  were reported exercised. [Report, scope and caveats](tinyfish-phone-followup-2026-10-14.md).
+  This is responsive layout evidence; the owner's S21 pass supplies physical
+  device approval. Actual hit-target measurements, independent skin/reduced-motion
+  comparison, Bigger/Board and active phone Counter/Block choices are not proved
+  by this run. Existing deterministic checks are not replaced by reviewer prose.
+
+The full UI harness initially timed out during tab opening/takeover. It now
+allows 120 seconds to settle and 180 seconds to open the two tabs, and disables
+headless Chrome background timer/renderer throttling for this CDP-driven test.
+All correctness assertions remain enabled. This combination produced the full
+pass; it does not establish an app regression or isolate a single timing cause.
+The separate ownership proof still tests frozen-tab lease recovery explicitly.
+[First follow-up](local-2026-10-14/recovery-followup.json) and
+[longer-wait attempt](local-2026-10-14/recovery-patient.json) retain the earlier outcomes.
+
+TinyFish's first follow-up could only use desktop dimensions; the second used
+this temporary [review-frame proxy](local-2026-10-14/phone-review-proxy.mjs).
+It changes only the containing viewport, not the game, DOM or styles. Both
+tunnels, the proxy and production server were stopped after review. Laptop and
+network delays remain excluded from app-defect findings by owner instruction.
+
+## Earlier local validation — 14 October 2026
 
 This section supersedes the historical handoff below. Tested application revision:
 `f7831ce71961734033fe70336ac435964802881f`, branch
