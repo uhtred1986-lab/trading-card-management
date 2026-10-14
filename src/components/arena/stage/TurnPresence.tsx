@@ -95,16 +95,16 @@ function litChip(view: BoardView): string | null {
 }
 
 /** Draw · Charge · Main · Battle · End as plain words with dots; only the live one is a pill. */
-export function PhaseChips({ view, vertical = false, className = "" }: { view: BoardView; vertical?: boolean; className?: string }) {
+export function PhaseChips({ view, vertical = false, className = "", cue }: { view: BoardView; vertical?: boolean; className?: string; cue?: { beat: number; phase: string } | null }) {
   const lit = litChip(view);
   const battleStep = view.battle ? (view.battle.step === "declared" ? "attack" : view.battle.step) : null;
   return (
     <ol className={`arena-phases flex ${vertical ? "arena-phases-col flex-col gap-1.5" : "items-center justify-center gap-0.5 sm:gap-1"} ${className}`} aria-label="Phase">
       {CHIPS.map((c) => (
         <li
-          key={c.id}
+          key={`${c.id}:${lit === c.id ? cue?.beat ?? 0 : 0}`}
           aria-current={lit === c.id ? "step" : undefined}
-          className={`arena-phase ${lit === c.id ? "arena-phase-on" : ""} flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${vertical ? "rounded-[10px] px-3 py-2 text-sm" : "sm:px-2.5"}`}
+          className={`arena-phase ${lit === c.id ? `arena-phase-on ${cue ? "arena-feedback-phase" : ""}` : ""} flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-[0.1em] ${vertical ? "rounded-[10px] px-3 py-2 text-sm" : "sm:px-2.5"}`}
         >
           <span className="arena-phase-dot h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden />
           {c.label}

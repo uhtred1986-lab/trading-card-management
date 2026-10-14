@@ -28,7 +28,7 @@ import { foldStory, type StoryLine } from "@/lib/arena/story";
 import type { AdminDebug } from "@/lib/arena/admin-debug";
 import { AdminContext } from "../admin-context";
 import { AdminDrawer, AdminShield } from "./AdminDrawer";
-import { missingEnergyChips, pill } from "@/lib/arena/wording";
+import { missingEnergyChips, pill, priceOf } from "@/lib/arena/wording";
 import {
   ActionRows,
   AttackBeam,
@@ -66,6 +66,9 @@ import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 import { PromptPanel } from "./PromptPanel";
+import { stakesSummary } from "./stakes-model";
+import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
+import { FeedbackOverlay } from "./FeedbackOverlay";
 import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
 import { SpeedButton } from "./SpeedButton";
@@ -558,7 +561,7 @@ export function ArenaStage({
     return null;
   };
   const whyOf = (id: string): Requirement[] | undefined => taps.whyByCard?.[id];
-  const targetReasonOf = (id: string) => rejected.find((item) => item.action.type === "attack" && item.action.target === id)?.why.find((why) => why.kind === "target");
+  const targetReasonOf = (id: string) => rejected.find((item) => item.action.type === "attack" && item.action.attacker === selected && item.action.target === id)?.why.find((why) => why.kind === "target");
   const reaching = (id: string) => rejected.find((r) => cardIdOf(r.action) === id)?.action.type ?? "play";
 
   // Missing energy chips beside the energy strip (ui-100-missing-energy-chips.md).
@@ -615,6 +618,7 @@ export function ArenaStage({
       if (idx != null) {
         const action = legal[idx].action;
         if (action.type === "attack") {
+          if (wide) return send(action);
           setAttackPick({ action: idx, attacker: action.attacker, target: action.target });
           setSheet(null);
           return;
@@ -812,6 +816,8 @@ export function ArenaStage({
   // The storyboard, driven by the beat on screen rather than by whatever a
   // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
   const beat = playback.current;
+  const passiveFeedback = useFeedbackCues(live.beats);
+  const feedback = still ? passiveFeedback : feedbackFromBeats(beat ? [beat] : []);
   const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
   /**
    * Whose card this is, or null when the board cannot see it any more. The
@@ -1069,6 +1075,7 @@ export function ArenaStage({
   );
 
   const cardProps = (c: CardView) => ({
+    feedback: feedback.cards[c.id] ?? null,
     card: c,
     state: stateOf(c.id),
     suppressed: playback.suppressed.has(c.id),
@@ -1169,7 +1176,7 @@ export function ArenaStage({
     const place = (id: string) => {
       const at = locate(id);
       const area = at?.zone === "leader" ? "Leader" : at?.zone === "unison" ? "Unison" : "Battle Card";
-      return `${at?.side.name ?? "Unknown player"}'s ${area}`;
+      return `${at?.side === view.you ? "Your" : `${at?.side.name ?? "Other player"}'s`} ${area}`;
     };
     const preview = attackPreviewOf(attackPick.action);
     const battle = preview?.state === "known" ? preview.battle : undefined;
@@ -1187,13 +1194,51 @@ export function ArenaStage({
   })();
   const targetLabel = (card: CardView): string | null => {
     if (!isTargeting || wide) return null;
-    if (attackPick?.target === card.id) return "TARGET · tap to confirm";
+    if (attackPick?.target === card.id) return "TARGET";
     if (targetsOf(selected!)?.[card.id] != null) return locate(card.id)?.zone === "leader" ? "Tap to attack" : card.mode === "rest" ? "Rested · tap" : "Tap to attack";
     const reason = targetReasonOf(card.id);
     if (!reason || reason.kind !== "target") return null;
     if (/active|standing|rested/i.test(reason.reason)) return "✕ Active";
     return `✕ ${reason.reason}`;
   };
+  const defending = !!view.battle && view.turnPlayer !== view.you.player;
+  const attackSummary = attackConfirmation ? (
+    <div className="arena-fight w-full max-w-sm rounded-xl p-2 text-xs leading-snug text-space-100" data-attack-summary>
+      {[view.them, view.you].map((side) => {
+        const attacks = locate(attackConfirmation.attacker.id)?.side.player === side.player;
+        const card = attacks ? attackConfirmation.attacker : attackConfirmation.target;
+        const role = attacks ? attackConfirmation.attackerRole : attackConfirmation.targetRole;
+        const battle = attackConfirmation.preview?.battle;
+        return <p key={side.player} className="flex items-start gap-2 py-0.5">
+          <span className="min-w-0 flex-1 break-words"><b>{card.name}</b><span className="block text-[10px]">{role} · {attacks ? "ATTACKER" : "TARGET"}</span></span>
+          {attackConfirmation.preview?.state === "known" && battle && <b className="shrink-0 font-mono tabular-nums">{(attacks ? battle.attackPower : battle.guardPower).toLocaleString("en")}</b>}
+        </p>;
+      })}
+      <p className="mt-1 break-words" data-attack-stakes>{attackConfirmation.preview?.state === "known" ? `If nothing else changes: ${attackConfirmation.result}` : attackConfirmation.preview?.reason ?? "A skill must resolve before this result can be shown."}</p>
+    </div>
+  ) : null;
+  const responseType = view.prompt.kind === "counter" ? "counter" : view.prompt.kind === "blocker" ? "block" : null;
+  const defendOptions = responseType && defending ? [
+    ...legal.flatMap((offer, index) => {
+      const action = offer.action;
+      if (action.type !== responseType || !("card" in action) || !action.card) return [];
+      const card = cardOf(action.card);
+      if (!card) return [];
+      const projected = live.blockPreviews?.find((entry) => entry.action === index);
+      const b = projected?.state === "known" ? projected.battle : null;
+      return [{ card, action, label: card.name, detail: card.text,
+        cost: priceOf(action, card, offer.label, offer.cost), reason: null,
+        impact: responseType === "block" ? b?.stakes ? `${b.guardPower.toLocaleString("en")} vs ${b.attackPower.toLocaleString("en")}: ${stakesSummary(b)} You lose ${b.stakes.lifeDamage} life.` : projected?.reason ?? "The exact outcome needs the next battle snapshot." : null }];
+    }),
+    ...rejected.flatMap((offer) => {
+      const action = offer.action;
+      if (action.type !== responseType || !("card" in action) || !action.card || legal.some((entry) => entry.action.type === responseType && "card" in entry.action && entry.action.card === action.card)) return [];
+      const card = cardOf(action.card);
+      if (!card) return [];
+      return [{ card, action: null, label: card.name, detail: card.text, cost: null,
+        reason: refusalLine(offer.why, { name: card.name, reaching: responseType, side: view.you, inHand: inHand(card.id) }) ?? "Unavailable now", impact: null }];
+    }),
+  ] : [];
   const whereOf = (id: string) => {
     const at = locate(id);
     return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
@@ -1215,7 +1260,7 @@ export function ArenaStage({
     if (["leader", "unison", "battle area", "energy area"].includes(at.zone)) chips.push({ label: card.mode === "rest" ? "Rested" : "Standing", tone: "plain" });
     if (playable && !busy && targetsOf(id)) chips.push({ label: "Can attack", tone: "good" });
     if (isTargeting && targetsOf(selected!)?.[id] != null) chips.push({ label: "Valid target", tone: "good" });
-    const previews = (snapshot as Snapshot & { choicePreviews?: { action: number; skillIndex: number; state: "available" | "empty" | "notEvaluated"; candidates?: string[]; rejected?: { card: string; reason: string }[]; reason?: string }[] }).choicePreviews ?? [];
+    const previews = live.choicePreviews ?? [];
     for (const preview of previews) {
       const action = legal[preview.action]?.action;
       if (action?.type !== "activate" || action.card !== id || preview.state === "notEvaluated") continue;
@@ -1311,7 +1356,7 @@ export function ArenaStage({
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
             <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
             <TurnPill view={view} />
-            <PhaseChips view={view} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
+            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
@@ -1360,7 +1405,7 @@ export function ArenaStage({
           </div>
           {/* The phase words under the bar; from lg they are the left column's list. */}
           <div className="h-[30px] shrink-0 lg:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
-            <PhaseChips view={view} className="arena-phases-row h-full overflow-hidden px-2" />
+            <PhaseChips view={view} cue={feedback.phase} className="arena-phases-row h-full overflow-hidden px-2" />
           </div>
 
           {/* The shake is on this block and not on the board: a transform on the
@@ -1373,7 +1418,7 @@ export function ArenaStage({
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
             <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
-              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
+              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
               <div className={`flex min-w-0 flex-1 flex-col ${bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}`}>
@@ -1392,7 +1437,7 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} canFastForward={playback.playing} fastForward={playback.skip}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1427,6 +1472,7 @@ export function ArenaStage({
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
               <PlayerStrip
+                lifeCue={feedback.life[view.you.player]}
                 side={view.you}
                 cardProps={cardProps}
                 onOpenInspection={wide ? undefined : () => setZonesOpen(true)}
@@ -1474,7 +1520,8 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
+          <Hand cards={!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") ? [] : view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
@@ -1514,6 +1561,7 @@ export function ArenaStage({
               onReopenSearch={() => setClosedSearch(null)}
               inlineBare={chargeSelection ? [] : inlineBare}
               attacksRemaining={attacksRemaining}
+              defendOptions={defendOptions}
               primaryBare={primaryBare}
               onSend={send}
               chargeSelection={chargeSelection}
@@ -1707,6 +1755,7 @@ export function ArenaStage({
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
         <ClashBeam beat={beat} hostRef={boardRef} />
+        <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}
