@@ -7,6 +7,8 @@ import type { ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { TurnLighting } from "@/lib/arena/lighting";
 import type { SpawnedWorker } from "../../../lib/arena/local/recovery";
+import { packStore, PackStoreError, type InstalledVersion, type InstallProgress, type PackStore } from "../../../lib/arena/local/pack-store";
+import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
 
 /**
@@ -14,12 +16,17 @@ import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack
  * runs in the browser — the match in a module Worker, its journal in IndexedDB — and nothing is
  * sent to the server: this component calls no network API and no server action.
  *
- * Until packs are installed from the app (O4-03, #658) the player chooses the pack file. A pack the
- * audit still blocks is refused with its reasons; the saved match is remembered by a pointer (match
- * id, pack hash, seat) in this browser's storage, and continued from the device's journal.
+ * On `/arena/local` the player chooses the pack file. In the offline shell (`shell`, #659,
+ * `/arena/offline`) the packs come from the device's pack store (`packStore`, #658): the installed
+ * ones are listed, a chosen file is installed into the store first, and a pack made for another
+ * interpreter revision than the shell's is refused (`shellRefusal`). A pack the audit still blocks is
+ * refused with its reasons; the saved match is remembered by a pointer (match id, pack hash, seat) in
+ * this browser's storage, and continued from the device's journal.
  */
 
 type StageProps = { skin?: ArenaSkin; staging?: ArenaStaging; lighting?: TurnLighting };
+/** The offline shell's build: its interpreter revision (null for an unpinned build, which plays no pack). */
+export type ShellInfo = { revision: string | null };
 
 /** A module Worker on the local match engine; the literal form is what the bundler recognises. */
 const spawn = (): SpawnedWorker => new Worker(new URL("../../../lib/arena/local/worker-entry.ts", import.meta.url), { type: "module" }) as unknown as SpawnedWorker;
@@ -46,8 +53,105 @@ const panel = "rounded-xl border border-space-700/70 bg-space-900/60 p-4";
 const primary = "tap inline-flex items-center justify-center rounded-lg bg-ki-500 px-4 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-40";
 const quiet = "tap inline-flex items-center justify-center rounded-lg border border-space-600 bg-space-900 px-4 py-2 text-sm text-space-100 hover:border-space-400 disabled:opacity-40";
 const seatOf = (p: LocalPointer) => (p.human === "p1" ? "first" : "second");
+const fileInput = "tap block w-full text-sm text-space-200 file:mr-3 file:rounded-lg file:border file:border-space-600 file:bg-space-900 file:px-3 file:py-2 file:text-space-100";
 
-export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
+type Installed = {
+  store: PackStore;
+  /** The ready versions on this device; null while reading. */
+  versions: InstalledVersion[] | null;
+  /** The complete offline shells cached on this device (newest first). */
+  shells: ShellMeta[];
+  progress: InstallProgress | null;
+  error: string | null;
+  install(text: string): Promise<InstalledVersion>;
+};
+
+/** The device's pack store, for the offline shell; null on `/arena/local`. */
+function useInstalledPacks(shell: ShellInfo | undefined): Installed | null {
+  const revision = shell?.revision;
+  const enabled = !!shell && typeof indexedDB !== "undefined";
+  const store = useMemo(() => (enabled ? packStore({ interpreterRevision: revision ?? null }) : null), [enabled, revision]);
+  const [versions, setVersions] = useState<InstalledVersion[] | null>(null);
+  const [shells, setShells] = useState<ShellMeta[]>([]);
+  const [progress, setProgress] = useState<InstallProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reads, setReads] = useState(0);
+  useEffect(() => {
+    if (!store) return;
+    let live = true;
+    store.list().then(
+      (all) => { if (live) { setVersions(all.filter((v) => v.status === "ready")); setError(null); } },
+      (e: unknown) => { if (live) { setVersions([]); setError(e instanceof Error ? e.message : String(e)); } },
+    );
+    installedShells().then((s) => { if (live) setShells(s); }, () => {});
+    return () => { live = false; };
+  }, [store, reads]);
+  useEffect(() => () => store?.close(), [store]);
+  if (!store) return null;
+  return {
+    store, versions, shells, progress, error,
+    async install(text) {
+      setProgress({ phase: "pack", done: 0, total: 0, resumed: 0 });
+      try { return await store.install({ text }, { onProgress: setProgress }); } finally { setProgress(null); setReads((n) => n + 1); }
+    },
+  };
+}
+
+function InstalledPacks({ installed, revision, chosen, busy, onUse, onFile }: { installed: Installed; revision: string | null; chosen: string | null; busy: boolean; onUse: (hash: string) => void; onFile: (f: File | undefined) => void }) {
+  const { versions, progress, error } = installed;
+  return (
+    <div className="space-y-2">
+      {versions === null && <p className="text-xs text-space-400">Reading the packs on this device…</p>}
+      {versions?.length === 0 && <p className="text-sm text-space-300">No deck pack is installed on this device yet.</p>}
+      {error && <p className="text-xs text-loss">The packs on this device could not be read: {error}</p>}
+      {versions && versions.length > 0 && (
+        <ul className="space-y-2" aria-label="Installed packs">
+          {versions.map((v) => {
+            const why = shellRefusal(revision, v.runtimeRevision);
+            return (
+              <li key={v.hash} data-pack-hash={v.hash} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-space-700 px-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="font-mono text-space-100">{v.id}</span>
+                  {v.active && <span className="ml-2 text-[11px] uppercase tracking-wider text-space-400">current</span>}
+                  {why && <span className="block text-xs text-dbs-yellow" data-refusal>{why}</span>}
+                </span>
+                <button type="button" className={chosen === v.hash ? primary : quiet} disabled={busy || !!why} onClick={() => onUse(v.hash)}>{chosen === v.hash ? "Chosen" : "Use"}</button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <label className="block text-sm text-space-200">
+        <span className="mb-1 block">Add a pack file to this device</span>
+        <input type="file" accept="application/json,.json" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} className={fileInput} />
+      </label>
+      {progress && <p className="text-xs text-space-300" aria-live="polite">Installing · {progress.phase}{progress.total ? ` ${progress.done}/${progress.total}` : ""}</p>}
+    </div>
+  );
+}
+
+/** A saved match played on another revision: the cached shell of that revision can still open it. */
+function PreviousShell({ revision, shells }: { revision: string; shells: ShellMeta[] }) {
+  const match = shells.find((s) => s.revision === revision);
+  return match ? (
+    <p className="text-xs text-dbs-yellow">It was played on an earlier version of the app, which is still on this device: <a className="underline" href={`${SHELL_PATH}?shell=${match.version}`}>continue it there</a>.</p>
+  ) : (
+    <p className="text-xs text-dbs-yellow">It was played on app version {revision.slice(0, 7)}, which is no longer on this device; it cannot be continued here.</p>
+  );
+}
+
+/** A newer shell has downloaded and waits: it takes over only once no window of the app is open, never mid-match. */
+function UpdateNotice() {
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    let live = true;
+    navigator.serviceWorker?.getRegistration().then((r) => { if (live) setWaiting(!!r?.waiting); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return waiting ? <p role="status" className="text-xs text-space-300">A new version of the app is on this device. It starts the next time the app is opened with every window of it closed; a match in progress keeps the version it started on.</p> : null;
+}
+
+export function LocalArena({ skin = "night", staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [facts, setFacts] = useState<PackFacts | null>(null);
   const [problem, setProblem] = useState<{ message: string; reasons: string[] } | null>(null);
@@ -61,6 +165,7 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
   const storedPointer = useSyncExternalStore(subscribePointer, rawPointer, () => null);
   const pointer = useMemo(() => readPointer(storedPointer), [storedPointer]);
   useEffect(() => () => { void boardRef.current?.dispose(); }, []);
+  const installed = useInstalledPacks(shell);
 
   const deps = { spawn, pointers };
   const show = (board: LocalBoard) => { boardRef.current = board; setPhase({ kind: "board", board }); };
@@ -70,15 +175,18 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
     setPhase({ kind: "setup" });
   };
 
+  function adopt(f: PackFacts) {
+    setFacts(f);
+    setMine(f.decks[0].key);
+    setTheirs((f.decks[1] ?? f.decks[0]).key);
+  }
+
   async function choose(file: File | undefined) {
     setProblem(null);
     setFacts(null);
     if (!file) return;
     try {
-      const f = readPack(JSON.parse(await file.text()) as unknown);
-      setFacts(f);
-      setMine(f.decks[0].key);
-      setTheirs((f.decks[1] ?? f.decks[0]).key);
+      adopt(readPack(JSON.parse(await file.text()) as unknown));
     } catch (e) {
       fail(e instanceof SyntaxError ? new LocalBoardError("pack", "That file is not an offline deck pack.") : e);
     }
@@ -90,8 +198,35 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
     try { show(await open()); } catch (e) { fail(e); }
   }
 
-  const start = () => facts && begin("Dealing…", () => LocalBoard.start(facts.pack, { decks: seat === "p1" ? { p1: mine, p2: theirs } : { p1: theirs, p2: mine }, human: seat }, deps));
-  const resume = () => facts && pointer && begin("Opening your saved match…", () => LocalBoard.resume(facts.pack, pointer, deps));
+  /** In the shell, a pack this build cannot play is refused before a worker is spent on it. */
+  const compatible = (f: PackFacts) => {
+    const why = shell ? shellRefusal(shell.revision, f.runtimeRevision) : null;
+    if (why) throw new LocalBoardError("unplayable", why);
+    return f;
+  };
+  const start = () => facts && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: mine, p2: theirs } : { p1: theirs, p2: mine }, human: seat }, deps));
+  const resume = () => pointer && (facts || installed) && begin("Opening your saved match…", async () => {
+    // In the shell the saved match's pack is read from the device, whichever pack is chosen.
+    const f = installed && facts?.hash !== pointer.packHash ? readPack(await installed.store.load(pointer.packHash)) : facts!;
+    return LocalBoard.resume(compatible(f).pack, pointer, deps);
+  });
+  /** Choose an installed pack (shell). */
+  async function chooseInstalled(hash: string) {
+    setProblem(null);
+    setFacts(null);
+    try { adopt(readPack(await installed!.store.load(hash))); } catch (e) { fail(e); }
+  }
+  /** Install a pack file into the device's store, then choose it (shell). */
+  async function installFile(file: File | undefined) {
+    setProblem(null);
+    if (!file || !installed) return;
+    try {
+      const v = await installed.install(await file.text());
+      await chooseInstalled(v.hash);
+    } catch (e) {
+      fail(e instanceof PackStoreError ? new LocalBoardError("pack", `The pack was not installed: ${e.message}`) : e);
+    }
+  }
   const discard = () => pointers.clear();
 
   if (!supported) {
@@ -121,8 +256,9 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
     );
   }
 
-  const busy = phase.kind === "opening";
-  const sameDeck = facts && pointer && facts.hash === pointer.packHash;
+  const busy = phase.kind === "opening" || !!installed?.progress;
+  const pinned = installed && pointer ? installed.versions?.find((v) => v.hash === pointer.packHash) ?? null : null;
+  const sameDeck = (facts && pointer && facts.hash === pointer.packHash) || !!pinned;
   return (
     <Shell>
       <div className="space-y-4">
@@ -130,12 +266,18 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
           The match runs in this browser and is saved on this device after every move. Nothing is sent to a server, and no account or connection is needed once the pack is here.
         </p>
 
+        {installed && <UpdateNotice />}
+
         <section aria-label="Deck pack" className={`${panel} space-y-2`}>
           <h2 className="text-xs uppercase tracking-widest text-space-400">Deck pack</h2>
-          <label className="block text-sm text-space-200">
-            <span className="mb-1 block">Choose the pack file</span>
-            <input type="file" accept="application/json,.json" disabled={busy} onChange={(e) => void choose(e.target.files?.[0])} className="tap block w-full text-sm text-space-200 file:mr-3 file:rounded-lg file:border file:border-space-600 file:bg-space-900 file:px-3 file:py-2 file:text-space-100" />
-          </label>
+          {installed ? (
+            <InstalledPacks installed={installed} revision={shell!.revision} chosen={facts?.hash ?? null} busy={busy} onUse={(h) => void chooseInstalled(h)} onFile={(f) => void installFile(f)} />
+          ) : (
+            <label className="block text-sm text-space-200">
+              <span className="mb-1 block">Choose the pack file</span>
+              <input type="file" accept="application/json,.json" disabled={busy} onChange={(e) => void choose(e.target.files?.[0])} className={fileInput} />
+            </label>
+          )}
           {facts && <p className="text-xs text-space-400">Pack <span className="font-mono">{facts.id}</span> · {facts.decks.length} decks · ready</p>}
         </section>
 
@@ -157,8 +299,10 @@ export function LocalArena({ skin = "night", staging, lighting }: StageProps) {
             <p className="text-sm text-space-100">
               {pointer.names[pointer.human]} <span className="text-space-500">vs</span> {pointer.names[pointer.human === "p1" ? "p2" : "p1"]} · you play {seatOf(pointer)}
             </p>
-            {facts && !sameDeck && <p className="text-xs text-dbs-yellow">It was started from pack <span className="font-mono">{pointer.packId}</span>; choose that file to continue it.</p>}
-            {!facts && <p className="text-xs text-space-400">Choose the pack file <span className="font-mono">{pointer.packId}</span> to continue it.</p>}
+            {!installed && facts && !sameDeck && <p className="text-xs text-dbs-yellow">It was started from pack <span className="font-mono">{pointer.packId}</span>; choose that file to continue it.</p>}
+            {!installed && !facts && <p className="text-xs text-space-400">Choose the pack file <span className="font-mono">{pointer.packId}</span> to continue it.</p>}
+            {installed?.versions && !pinned && <p className="text-xs text-dbs-yellow">Its pack <span className="font-mono">{pointer.packId}</span> is not installed on this device.</p>}
+            {installed && pinned && shell && shellRefusal(shell.revision, pinned.runtimeRevision) && <PreviousShell revision={pinned.runtimeRevision} shells={installed.shells} />}
             <div className="flex flex-wrap gap-2">
               <button type="button" className={primary} disabled={busy || !sameDeck} onClick={() => void resume()}>Continue</button>
               <button type="button" className={quiet} disabled={busy} onClick={discard}>Forget it</button>
