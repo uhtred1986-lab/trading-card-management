@@ -81,10 +81,11 @@ for (const f of files) {
 
 // ── Pages ──────────────────────────────────────────────────────────────────
 
-/** Pages with no guard, and why: both are where a signed-out browser has to be able to go. */
+/** Pages with no guard, and why: each is where a signed-out browser has to be able to go. */
 const PAGE_EXEMPT: Record<string, string> = {
   "src/app/login/page.tsx": "the sign-in itself; reads no data",
   "src/app/join/page.tsx": "where a player redeems a join code; shows only the name a valid code joins, behind the rate limit",
+  "src/app/arena/offline/page.tsx": "the offline shell (#659): prerendered at build, reads no cookie and no data; its packs come from the browser's own storage",
 };
 
 let pages = 0;
@@ -118,6 +119,7 @@ const ROUTE_EXEMPT: Record<string, string> = {
   "src/app/api/join/route.ts": "a player redeeming a code; rate-limited, the code is the credential",
   "src/app/api/v1/health/route.ts": "the contract version a client checks on launch; no data",
   "src/app/password-login/route.ts": "the old Basic Auth popup on demand; checks the credentials itself",
+  "src/app/arena/offline/shell.json/route.ts": "the offline shell's precache list (#659): prerendered at build, public static file names and the interpreter revision only",
 };
 
 let routes = 0;

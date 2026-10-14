@@ -1,0 +1,21 @@
+ok   A. the shell page registers /sw.js?v=a8134f82718b9e43 and it activates
+ok   A. dbs-arena-shell-a8134f82718b9e43 holds the shell page, its meta record and all 80 listed files
+ok   A. a pack made for another interpreter revision is refused at install (The pack was not installed: the pack is not playable on this runtime: runtime a659000000000000000000000000000000000659 is not the pack's int)
+ok   A. the shell's pack is installed with its 43 images (43 /_next/image answers)
+ok   A. an update whose install fails leaves the working shell active and its cache whole; no partial cache stays
+ok   A. … and every file of the working shell is still cached
+ok   B. the server is stopped: http://localhost:3759 refuses connections
+ok   C. a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   C. the service worker controls the page
+ok   C. the CSS loads from the cache (3 sheets, body rgb(234, 247, 255))
+ok   C. the JS loads from the cache (22 static responses)
+ok   C. the fonts load from the cache ("Kanit" loaded, "Barlow Semi Condensed" loaded)
+ok   C. every static response came from the service worker
+ok   C. the installed pack is listed offline (read from IndexedDB)
+ok   C. a match starts on the board offline: the interpreter ran
+ok   C. the match Worker's script was served by the service worker (/_next/static/chunks/turbopack-worker-2gqdcwp7k90ea.js)
+shot docs/arena-backlog/evidence/659/offline-cold-launch-board-phone.jpg
+ok   C. no shell file failed to load (10 expected offline failures — the shell list and link prefetches: /arena/offline/shell.json, /, /leaders, /meta, /settings, /arena)
+ok   D. the shell caches hold only the shell page, its meta record and public static files (82 keys)
+ok   D. no signed-in page, API body or online arena page is in any cache (dbs-arena-shell-a8134f82718b9e43, dbs-card-art-v1)
+arena:offline-shell-browser: 20 checks passed

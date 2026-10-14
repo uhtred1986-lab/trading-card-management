@@ -477,7 +477,7 @@ else {
   for (const n of notes) console.log(n);
   console.log("\ncheckpoint            revision  entries  hash  legal  next AI decision");
   for (const c of checkpoints) console.log(`${c.scenario.padEnd(20)}  ${String(c.revision).padStart(8)}  ${String(c.entries).padStart(7)}  ${c.hash ? "ok  " : "FAIL"}  ${c.legal ? "ok   " : "FAIL "}  ${(c as Checkpoint & { nextAi?: string }).nextAi ?? "?"}   (${c.detail})`);
-  console.log(`\n${taps.allowed.length} page/asset requests allowed, ${taps.denied.length} match/provider requests denied; ${summary.seconds} s`);
+  console.log(`\n${taps.allowed.length} page/asset requests allowed, ${taps.denied.length} match/provider requests denied, ${taps.art.length} card-art CDN requests failed offline; ${summary.seconds} s`);
   console.log("Browser emulation only (headless desktop Chrome). Physical-device evidence: unverified — the owner's.");
   console.log(failures.length ? `\narena:local-browser: ${failures.length} FAILED\n${failures.join("\n")}` : "\narena:local-browser: ok");
 }

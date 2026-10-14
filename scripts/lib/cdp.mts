@@ -51,9 +51,17 @@ export class Browser {
   private pending = new Map<number, Pending>();
   private listeners: Array<(method: string, params: any, sessionId?: string) => void> = [];
 
-  static async launch(): Promise<Browser> {
+  private keepDir = false;
+
+  /**
+   * `userDataDir`: a profile that outlives this process (#659's cold launch: a second Chrome on the
+   * same profile finds the first one's service worker and caches). It is not deleted on close; the
+   * caller owns it. Without it, a fresh temporary profile that `close()` deletes.
+   */
+  static async launch(o: { userDataDir?: string } = {}): Promise<Browser> {
     const b = new Browser();
-    b.dir = mkdtempSync(join(tmpdir(), "arena-cdp-"));
+    b.keepDir = !!o.userDataDir;
+    b.dir = o.userDataDir ?? mkdtempSync(join(tmpdir(), "arena-cdp-"));
     b.proc = spawn(findChrome(), ["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--mute-audio", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${b.dir}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
     const url = await new Promise<string>((resolve, reject) => {
       let buf = "";
@@ -109,10 +117,17 @@ export class Browser {
   }
 
   async close() {
+    const exited = this.proc.exitCode !== null ? Promise.resolve() : new Promise<void>((r) => this.proc.once("exit", () => r()));
+    // A kept profile must be written out before another process opens it: ask Chrome to shut down
+    // the way a user quitting would, and wait for it, before falling back to a kill.
+    if (this.keepDir) await Promise.race([this.send("Browser.close").catch(() => {}), sleep(5000)]);
     try {
       this.ws.close();
     } catch {}
+    if (this.keepDir) await Promise.race([exited, sleep(10000)]);
     this.proc.kill();
+    await Promise.race([exited, sleep(5000)]);
+    if (this.keepDir) return;
     try {
       rmSync(this.dir, { recursive: true, force: true });
     } catch {}
