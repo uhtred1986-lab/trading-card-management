@@ -49,7 +49,7 @@ import { strings } from "./arena-policy-permute.ts";
 import { inProcessChannel, type Channel } from "./arena-local-worker-channel.ts";
 import { runScripted } from "./arena-local-worker-driver.ts";
 import { GAME_ID, LoopRefused, aiAsked, humanAsked, playLoop, requestIds, resumeLoopMatch, startLoopMatch } from "./arena-local-storage-driver.ts";
-import { OTHER_REVISION, auditPack, stagedPack } from "./arena-local-worker-fixture.mts";
+import { OTHER_REVISION, otherPack, stagedPack } from "./arena-local-worker-fixture.mts";
 import { FakeIndexedDb, asFactory } from "./fake-indexeddb.ts";
 
 const ROOT = process.cwd();
@@ -270,8 +270,8 @@ await damaged("a forged save with recomputed digests (a changed AI decision)", (
   headers.set(keyH, matchRecordOf(journal, chains));
 }, "journal", /policy answered/);
 {
-  const audited = await auditPack();
-  assert.equal((await resumeError(fakeR, "local-r1", { pack: audited }))?.code, "journal", "another pack than the match's is refused");
+  const other = await otherPack();
+  assert.equal((await resumeError(fakeR, "local-r1", { pack: other }))?.code, "journal", "another pack than the match's is refused");
   assert.equal((await resumeError(fakeR, "local-r1", { interpreterRevision: OTHER_REVISION }))?.code, "runtime", "another interpreter revision is refused");
   assert.equal((await resumeError(fakeR, "nothing-saved"))?.code, "journal", "an unknown match is refused");
   assert.equal(await resumeError(fakeR), null, "and the save is still good after all of it");

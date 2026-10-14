@@ -46,7 +46,7 @@ import { canonicalJson, replayHash } from "../../src/lib/arena/replay-core.ts";
 import { hiddenFrom, permutedFor, strings } from "./arena-policy-permute.ts";
 import { humanPick, rawChannel, requestIds, runScripted, scriptedStart } from "./arena-local-worker-driver.ts";
 import { inProcessChannel } from "./arena-local-worker-channel.ts";
-import { auditPack, GAME_ID, LOCAL_REVISION, OTHER_REVISION, stagedPack, withheldCostsPack } from "./arena-local-worker-fixture.mts";
+import { auditPack, GAME_ID, LOCAL_REVISION, OTHER_REVISION, otherPack, stagedPack, withheldCostsPack } from "./arena-local-worker-fixture.mts";
 import type { Snapshot } from "../../src/lib/arena/snapshot-core.ts";
 
 const ROOT = process.cwd();
@@ -194,13 +194,15 @@ async function refused(input: LocalNewMatch, code: string, reason: RegExp, what:
   return error;
 }
 const audited = await auditPack();
-const unplayable = await refused(startInput("x", { pack: audited }), "unplayable", /blocker U1 .*#651/, "the audited pack as it is today");
-// Since #728 no program of the pair holds an unread clause (`arena-offline-pack.mts` stages one to
-// name that reason), and the owner supplied the Unison costs (migration 0049, #733): what keeps the
-// audited pack unplayable is its open blockers alone.
-assert.ok(!unplayable.reasons.some((r) => /unresolved mechanic/.test(r)), "no unread mechanic is left (#728)");
-assert.ok(!unplayable.reasons.some((r) => /missing input/.test(r)), "the audited pack has no missing input");
-assert.ok(unplayable.reasons.every((r) => /^blocker U\d /.test(r)), `only open blockers are named: ${unplayable.reasons.join("; ")}`);
+{
+  // Since #757 resolved U1 (every compiled-only mechanic of the pair has a played scenario), the
+  // audited pack qualifies as built: no open blocker, no unread clause, no missing input (#655).
+  assert.equal(audited.qualification.playable, true, `the audited pack as it is today qualifies (${audited.qualification.reasons.join("; ")})`);
+  const ch = inProcessChannel({ onPost: auditMessage });
+  const started = await LocalWorkerSession.start(ch.port, startInput("audited", { pack: audited }), { newRequestId: requestIds(0x16), sessionId: "audited" });
+  assert.equal(ch.host.inspect()?.sessionId, "audited", "the worker starts a match on the audited pack");
+  await started.dispose();
+}
 const withheld = await refused(startInput("x", { pack: await withheldCostsPack() }), "unplayable", /missing input/, "the pack without the owner's Unison costs");
 assert.ok(withheld.reasons.some((r) => /missing input: DB3-001 specifiedCost/.test(r)), "a missing input is a named reason");
 await refused(startInput("x", { interpreterRevision: OTHER_REVISION }), "runtime", /interpreter/, "another interpreter revision");
@@ -243,7 +245,7 @@ await refused(startInput("x", { decks: { p1: "A", p2: "Z" } }), "unplayable", /n
   assert.equal((await resume({ matchId: "nothing-saved" }, "r1"))?.code, "journal", "an unknown match");
   const restart = await LocalWorkerSession.start(ch.port, startInput("saved"), { newRequestId: ids, sessionId: "r0", awaitReady: false }).then(() => null, (e: LocalSessionError) => e);
   assert.equal(restart?.code, "journal", "a new match under a saved match's id is refused, not overwritten");
-  assert.equal((await resume({ pack: audited }, "r2"))?.code, "journal", "another pack");
+  assert.equal((await resume({ pack: await otherPack() }, "r2"))?.code, "journal", "another pack");
   assert.equal((await resume({ interpreterRevision: OTHER_REVISION }, "r3"))?.code, "runtime", "another interpreter revision");
   const good = store.journals.get("saved")!;
   store.journals.set("saved", { ...clone(good), policyVersion: "main0+combat1+choices1" });

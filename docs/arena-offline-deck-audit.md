@@ -219,43 +219,44 @@ Results of the audit play-through are in section 6. A matchup is "supported" onl
 <!-- GENERATED:play -->
 | Matchup | Games | Finished | p1 / p2 wins | End reason | Stopped |
 |---|---|---|---|---|---|
-| A (p1) vs A (p2) | 20 | 20 | 14 / 6 | all by empty Life Area (0-1-3-2) | none |
+| A (p1) vs A (p2) | 20 | 20 | 15 / 5 | all by empty Life Area (0-1-3-2) | none |
 | A (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs A (p2) | 20 | 20 | 10 / 10 | all by empty Life Area (0-1-3-2) | none |
 | B (p1) vs B (p2) | 20 | 20 | 11 / 9 | all by empty Life Area (0-1-3-2) | none |
 
 Games: 80 (20 per ordered matchup, seeds 649.., policy seeds 1000.., `localPolicy()` (#650: every window handled, an unreadable one interrupts) on both seats, 3000-move cap).
 
-- Prompt kinds the policy was asked (decisions, all games): blocker 476, charge 1147, chooseCards 933, chooseFirst 80, chooseMode 168, combo 5792, counter 964, main 5786, mulligan 160, orderPending 7, payCost 204, zEnergyFromCombo 1102.
-- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 48, BT11-008#blocker 37, BT3-027#counter 43, BT4-077#0 20, BT4-078#0 42, BT4-079#0 16, BT4-081#0 7, BT4-084#0 43, BT4-085#0 8, BT4-086#0 7, BT4-091#0 41, BT4-091#blocker 44, BT4-096#0 50, BT4-097#counter 55, BT5-023#counter 50, BT6-025#0 54, BT6-026#counter 40, DB1-019#0 41, DB3-001#10 24, DB3-001#20 5, SD15-01#10 60, SD15-02#10 18, SD5-01#10 58, SD5-04#10 15, SD5-05#0 7, TB1-023#0 47.
+- Prompt kinds the policy was asked (decisions, all games): blocker 476, charge 1153, chooseCards 905, chooseFirst 80, chooseMode 152, combo 5788, counter 957, main 5762, mulligan 160, orderPending 8, payCost 206, zEnergyFromCombo 1105.
+- Games in which a manual skill (card#skill) was on the legal list at least once: BT1-027#0 48, BT11-008#blocker 37, BT3-027#counter 43, BT4-077#0 20, BT4-078#0 42, BT4-079#0 16, BT4-081#0 7, BT4-084#0 43, BT4-085#0 7, BT4-086#0 7, BT4-091#0 41, BT4-091#blocker 44, BT4-096#0 50, BT4-097#counter 55, BT5-023#counter 50, BT6-025#0 54, BT6-026#counter 40, DB1-019#0 41, DB3-001#10 24, DB3-001#20 5, SD15-01#10 60, SD15-02#10 18, SD5-01#10 58, SD5-04#10 16, SD5-05#0 7, TB1-023#0 47.
 - Games in which the engine refused a manual skill as `unread`: none.
 - Games in which a Leader awakened: SD15-01 60, SD5-01 58.
-- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 51, BT10-008 30, BT11-008 44, BT11-011 45, BT14-006 49, BT14-010 53, BT4-012 51, BT4-077 57, BT4-078 54, BT4-079 48, BT4-081 54, BT4-084 55, BT4-085 49, BT4-086 34, BT4-089 57, BT4-091 56, BT6-010 36, BT6-011 50, BT9-031 15, DB2-004 53, DB3-001 24, SD15-02 18, SD15-03 36, SD15-04 44, SD15-05 30, SD5-02 46, SD5-03 27, SD5-04 35, SD5-05 43, TB1-055 11.
+- Games in which a card reached a Battle, Unison or Combo Area: BT1-014 51, BT10-008 30, BT11-008 44, BT11-011 46, BT14-006 49, BT14-010 53, BT4-012 51, BT4-077 57, BT4-078 54, BT4-079 48, BT4-081 54, BT4-084 55, BT4-085 50, BT4-086 34, BT4-089 57, BT4-091 56, BT6-010 36, BT6-011 50, BT9-031 15, DB2-004 53, DB3-001 24, SD15-02 18, SD15-03 37, SD15-04 44, SD15-05 31, SD5-02 45, SD5-03 27, SD5-04 36, SD5-05 43, TB1-055 11.
 
 `chooseCards` questions asked (the engine's own reason text, decisions across all games):
 
 - 107x choose up to 1 ≪Goku's Lineage≫ from among them
-- 104x choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills
 - 87x [Swap]: the Battle Card to play in its place, or none
+- 81x choose up to 1 of your red Unison Cards with a specified cost of 2 and no keyword skills
 - 79x You may switch up to 2 of your energy to Active Mode (2 more)
-- 77x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
+- 78x Choose up to 1 of your opponent's Battle Cards with 20000 power or less
 - 75x You may choose up to 2 of your energy (2 more)
-- 70x choose up to 1 of your Unison Cards
-- 65x choose up to 1 of your red ≪Saiyan≫ Leader Cards
+- 68x choose up to 1 of your red ≪Saiyan≫ Leader Cards
+- 58x choose up to 1 of your Unison Cards
 - 58x you may choose 1 red card from your hand
 - 54x choose up to 1 of your opponent's Battle Cards
-- 52x Choose up to 1 of your opponent's Battle Cards or Unison Cards
-- 27x choose 2 cards from your hand (2 more)
-- 18x choose up to 1 of your red energy
-- 15x Choose 1 card from your life
+- 51x Choose up to 1 of your opponent's Battle Cards or Unison Cards
+- 26x choose 2 cards from your hand (2 more)
+- 17x Choose 1 card from your life
+- 16x choose up to 1 of your red energy
 - 14x choose up to 1 of your opponent's Rest Mode Battle Cards
 - 7x choose up to 1 of your red Unison Cards
+- 6x Choose 1 Extra Card in your hand
+- 6x choose up to 1 of your mono-red Leader Cards
 - 5x Choose 1 card in your life
-- 5x Choose 1 Extra Card in your hand
 - 5x you may choose 1 card from your life
 - 4x you may choose 1 card in your life
-- 3x choose up to 1 of your mono-red Leader Cards
 - 2x choose 1 card from your hand
+- 1x choose up to 1 of your red Unison Cards with {Cabba} in its name
 <!-- /GENERATED:play -->
 
 Reading it:
@@ -296,86 +297,86 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 
 | Face | Qty | Skill | Kind | Text (clipped) | Compiler | Trigger | Price | Static | Tier |
 |---|---|---|---|---|---|---|---|---|---|
-| SD15-01 | 1 | #0 | auto | When this card attacks, draw 1 card, then it gets +5000 power for the... | read | attacks | - | - | C |
-| SD15-01 | 1 | #10 | keyword:Awaken | When your life is at 4 or less or you have a red Unison Card with a s... | read | - | - | - | C |
-| SD15-01 (back) | 1 | #0 | auto | When this card attacks, draw 1 card, then choose up to 1 of your red... | read | attacks | - | - | C |
-| SD15-01 (back) | 1 | #10 | auto | (You must remove a marker from your Unison Card to activate this skil... | read | opponentAttacksRedUnison2 | - | - | C |
-| SD15-02 | 2 | #0 | auto | (You can only activate this skill once per turn across all copies of... | read | unisonToDrop | - | - | C |
-| SD15-02 | 2 | #10 | activate:main | Choose up to 1 of your opponent's Battle Cards or Unison Cards and it... | read | - | - | - | C |
-| SD15-02 | 2 | #20 | auto | If your opponent's life is at 3 or more : When your mono-red ≪Saiyan≫... | read | yourLeaderAttacked | read | - | C |
+| SD15-01 | 1 | #0 | auto | When this card attacks, draw 1 card, then it gets +5000 power for the... | read | attacks | - | - | evidence |
+| SD15-01 | 1 | #10 | keyword:Awaken | When your life is at 4 or less or you have a red Unison Card with a s... | read | - | - | - | evidence |
+| SD15-01 (back) | 1 | #0 | auto | When this card attacks, draw 1 card, then choose up to 1 of your red... | read | attacks | - | - | evidence |
+| SD15-01 (back) | 1 | #10 | auto | (You must remove a marker from your Unison Card to activate this skil... | read | opponentAttacksRedUnison2 | - | - | evidence |
+| SD15-02 | 2 | #0 | auto | (You can only activate this skill once per turn across all copies of... | read | unisonToDrop | - | - | evidence |
+| SD15-02 | 2 | #10 | activate:main | Choose up to 1 of your opponent's Battle Cards or Unison Cards and it... | read | - | - | - | evidence |
+| SD15-02 | 2 | #20 | auto | If your opponent's life is at 3 or more : When your mono-red ≪Saiyan≫... | read | yourLeaderAttacked | read | - | evidence |
 | SD15-03 | 2 | #0 | keyword:Deflect | (keyword line) | read | - | - | - | evidence |
 | SD15-03 | 2 | #1 | keyword:Strike | (keyword line) | read | - | - | - | evidence |
-| SD15-03 | 2 | #2 | keyword:Attack | (keyword line) | read | - | - | - | C |
-| SD15-03 | 2 | #10 | permanent | If this card is in Rest Mode and you have a red Unison Card with a sp... | read | - | - | applies | C |
-| SD15-03 | 2 | #20 | auto | (You must remove a marker from your Unison Card to activate this skil... | read | koed,droppedByOpponent | - | - | C |
-| SD15-04 | 2 | #0 | activate:battle | {r}, if you have 2 or more mono-red Battle Cards in your Combo Area :... | read | - | read | - | C |
+| SD15-03 | 2 | #2 | keyword:Attack | (keyword line) | read | - | - | - | evidence |
+| SD15-03 | 2 | #10 | permanent | If this card is in Rest Mode and you have a red Unison Card with a sp... | read | - | - | applies | evidence |
+| SD15-03 | 2 | #20 | auto | (You must remove a marker from your Unison Card to activate this skil... | read | koed,droppedByOpponent | - | - | evidence |
+| SD15-04 | 2 | #0 | activate:battle | {r}, if you have 2 or more mono-red Battle Cards in your Combo Area :... | read | - | read | - | evidence |
 | SD15-05 | 2 | #0 | keyword:Unique | (keyword line) | read | - | - | - | evidence |
 | SD15-05 | 2 | #1 | keyword:Critical | (keyword line) | read | - | - | - | evidence |
-| SD15-05 | 2 | #10 | auto | If your opponent has 2 or more energy : When you remove a marker from... | read | spiritBoostPaid | read | - | C |
-| BT1-014 | 2 | #0 | auto | When this card attacks, you may choose 1 card from your life and add... | read | attacks | - | - | C |
-| BT1-027 | 2 | #0 | activate:battle | Choose up to 1 of your red cards. It gains +6000 power for the durati... | read | - | - | - | C |
-| BT3-027 | 2 | #0 | counter:attack | Negate the attack. Then, choose up to 1 of your red ≪Saiyan≫ Leader C... | read | - | - | - | C |
-| BT4-012 | 2 | #0 | auto | When this card attacks, you may choose 1 card in your life and add it... | read | attacks | - | - | C |
-| BT5-023 | 3 | #0 | counter:attack | Your Leader Card is red : Choose up to 1 of your cards and it gets +4... | read | - | read | - | C |
-| BT5-023 | 3 | #10 | permanent | (This skill takes effect when you have 5 or more cards in your Drop A... | read | - | - | applies | C |
-| BT6-010 | 2 | #0 | auto | At the end of a battle in which you combo with this card from your ha... | read | comboed | - | - | C |
-| BT6-010 | 2 | #10 | auto | When you play this card, choose up to 1 of your opponent's Battle Car... | read | played | - | - | C |
-| BT6-011 | 2 | #0 | auto | When you play this card, if there is a ≪Saiyan≫ card in play in your... | read | played | - | - | C |
-| BT6-025 | 2 | #0 | activate:main | If your Leader Card is red : Choose up to 1 of your opponent's Battle... | read | - | read | - | C |
-| BT6-026 | 2 | #0 | counter:attack | If your Leader Card is red : Negate the attack, then you may choose 1... | read | - | read | - | C |
-| BT9-031 | 2 | #0 | auto | Choose 1 Extra Card in your hand and place it in your Drop Area : Whe... | read | comboed,comboUsed | read | - | C |
-| BT10-008 | 1 | #0 | counter:play | You can't activate the [Counter: Play] skills of other cards for the... | read | - | read | - | C |
-| BT10-008 | 1 | #10 | permanent | If you have a red Unison Card with 2 or more markers in play, you can... | read | - | - | applies | C |
+| SD15-05 | 2 | #10 | auto | If your opponent has 2 or more energy : When you remove a marker from... | read | spiritBoostPaid | read | - | evidence |
+| BT1-014 | 2 | #0 | auto | When this card attacks, you may choose 1 card from your life and add... | read | attacks | - | - | evidence |
+| BT1-027 | 2 | #0 | activate:battle | Choose up to 1 of your red cards. It gains +6000 power for the durati... | read | - | - | - | evidence |
+| BT3-027 | 2 | #0 | counter:attack | Negate the attack. Then, choose up to 1 of your red ≪Saiyan≫ Leader C... | read | - | - | - | evidence |
+| BT4-012 | 2 | #0 | auto | When this card attacks, you may choose 1 card in your life and add it... | read | attacks | - | - | evidence |
+| BT5-023 | 3 | #0 | counter:attack | Your Leader Card is red : Choose up to 1 of your cards and it gets +4... | read | - | read | - | evidence |
+| BT5-023 | 3 | #10 | permanent | (This skill takes effect when you have 5 or more cards in your Drop A... | read | - | - | applies | evidence |
+| BT6-010 | 2 | #0 | auto | At the end of a battle in which you combo with this card from your ha... | read | comboed | - | - | evidence |
+| BT6-010 | 2 | #10 | auto | When you play this card, choose up to 1 of your opponent's Battle Car... | read | played | - | - | evidence |
+| BT6-011 | 2 | #0 | auto | When you play this card, if there is a ≪Saiyan≫ card in play in your... | read | played | - | - | evidence |
+| BT6-025 | 2 | #0 | activate:main | If your Leader Card is red : Choose up to 1 of your opponent's Battle... | read | - | read | - | evidence |
+| BT6-026 | 2 | #0 | counter:attack | If your Leader Card is red : Negate the attack, then you may choose 1... | read | - | read | - | evidence |
+| BT9-031 | 2 | #0 | auto | Choose 1 Extra Card in your hand and place it in your Drop Area : Whe... | read | comboed,comboUsed | read | - | evidence |
+| BT10-008 | 1 | #0 | counter:play | You can't activate the [Counter: Play] skills of other cards for the... | read | - | read | - | evidence |
+| BT10-008 | 1 | #10 | permanent | If you have a red Unison Card with 2 or more markers in play, you can... | read | - | - | applies | evidence |
 | BT11-008 | 2 | #0 | keyword:Blocker | (keyword line) | read | - | - | - | evidence |
-| BT11-008 | 2 | #10 | auto | If you have a red Unison Card in play : When this card is played, dra... | read | played | read | - | C |
-| BT11-011 | 2 | #0 | auto | If your Leader Card is red : When this card is played from your hand,... | read | played | read | - | C |
+| BT11-008 | 2 | #10 | auto | If you have a red Unison Card in play : When this card is played, dra... | read | played | read | - | evidence |
+| BT11-011 | 2 | #0 | auto | If your Leader Card is red : When this card is played from your hand,... | read | played | read | - | evidence |
 | BT14-010 | 4 | #0 | keyword:Super Combo | (keyword line) | read | - | - | - | evidence |
-| BT14-010 | 4 | #10 | auto | If your Leader Card is red and your life is at 4 or less : When this... | read | comboed,comboUsed | read | - | C |
-| TB1-023 | 2 | #0 | activate:main | Choose all red ≪Saiyan≫ cards in your Battle Area. They gain [Barrier... | read | - | - | - | C |
-| TB1-055 | 2 | #0 | auto | At the end of the battle after you combo with this card from your han... | read | comboed | - | - | C |
-| DB1-019 | 2 | #0 | activate:battle | If your Leader Card is a red ≪Saiyan≫ card : Choose 1 of your Leader... | read | - | read | - | C |
-| DB2-004 | 2 | #0 | auto | Choose 1 card in your life and add it to your hand : When this card a... | read | attacks | read | - | C |
-| DB3-001 | 2 | #0 | auto | If your Leader Card is red and your opponent's life is at 5 or more :... | read | played | read | - | C |
-| DB3-001 | 2 | #10 | activate:main | This card gets +5000 power for the turn. | read | - | - | - | C |
-| DB3-001 | 2 | #20 | activate:main | This card gets +15000 power and [Double Strike] for the turn. | read | - | - | - | C |
+| BT14-010 | 4 | #10 | auto | If your Leader Card is red and your life is at 4 or less : When this... | read | comboed,comboUsed | read | - | evidence |
+| TB1-023 | 2 | #0 | activate:main | Choose all red ≪Saiyan≫ cards in your Battle Area. They gain [Barrier... | read | - | - | - | evidence |
+| TB1-055 | 2 | #0 | auto | At the end of the battle after you combo with this card from your han... | read | comboed | - | - | evidence |
+| DB1-019 | 2 | #0 | activate:battle | If your Leader Card is a red ≪Saiyan≫ card : Choose 1 of your Leader... | read | - | read | - | evidence |
+| DB2-004 | 2 | #0 | auto | Choose 1 card in your life and add it to your hand : When this card a... | read | attacks | read | - | evidence |
+| DB3-001 | 2 | #0 | auto | If your Leader Card is red and your opponent's life is at 5 or more :... | read | played | read | - | evidence |
+| DB3-001 | 2 | #10 | activate:main | This card gets +5000 power for the turn. | read | - | - | - | evidence |
+| DB3-001 | 2 | #20 | activate:main | This card gets +15000 power and [Double Strike] for the turn. | read | - | - | - | evidence |
 
 #### Deck B skill faces
 
 | Face | Qty | Skill | Kind | Text (clipped) | Compiler | Trigger | Price | Static | Tier |
 |---|---|---|---|---|---|---|---|---|---|
-| SD5-01 | 1 | #0 | auto | When this card attacks a Leader Card, draw 1 card. | read | attacks | - | - | C |
-| SD5-01 | 1 | #10 | keyword:Awaken | When your life is at 4 or less : You may choose up to 2 of your energ... | read | - | - | - | C |
-| SD5-01 (back) | 1 | #0 | auto | When this card attacks, draw 1 card. | read | attacks | - | - | C |
-| SD5-01 (back) | 1 | #10 | permanent | When your life is less than or equal to your opponent's life, this ca... | read | - | - | applies | C |
+| SD5-01 | 1 | #0 | auto | When this card attacks a Leader Card, draw 1 card. | read | attacks | - | - | evidence |
+| SD5-01 | 1 | #10 | keyword:Awaken | When your life is at 4 or less : You may choose up to 2 of your energ... | read | - | - | - | evidence |
+| SD5-01 (back) | 1 | #0 | auto | When this card attacks, draw 1 card. | read | attacks | - | - | evidence |
+| SD5-01 (back) | 1 | #10 | permanent | When your life is less than or equal to your opponent's life, this ca... | read | - | - | applies | evidence |
 | SD5-03 | 4 | #0 | keyword:Swap | {y}{y}{y}{y} : ≪Goku's Lineage≫ with an energy cost of 8. (Play the s... | read | - | - | - | evidence |
 | SD5-03 | 4 | #10 | keyword:Barrier | (This card can't be chosen by the skills of your opponent's cards) | read | - | - | - | evidence |
 | SD5-03 | 4 | #20 | keyword:Strike | (This card inflicts 2 damage instead of 1 when attacking) | read | - | - | - | evidence |
-| SD5-03 | 4 | #30 | auto | When you play this card, if your Leader Card is ≪Goku's Lineage≫, cho... | read | played | - | - | C |
+| SD5-03 | 4 | #30 | auto | When you play this card, if your Leader Card is ≪Goku's Lineage≫, cho... | read | played | - | - | evidence |
 | BT4-077 | 4 | #0 | keyword:Swap | {y}{y} : ≪Goku's Lineage≫ with an energy cost of 4. (Play the specifi... | read | - | - | - | evidence |
 | BT4-077 | 4 | #10 | keyword:Barrier | (This card can't be chosen by the skills of your opponent's cards) | read | - | - | - | evidence |
 | BT4-078 | 4 | #0 | keyword:Swap | {y}{y} : ≪Goku's Lineage≫ with an energy cost of 3. (Play the specifi... | read | - | - | - | evidence |
 | BT4-081 | 4 | #0 | keyword:Swap | {y}{y}{y} : ≪Goku's Lineage≫ with an energy cost of 5. (Play the spec... | read | - | - | - | evidence |
 | BT4-081 | 4 | #10 | keyword:Barrier | (This card can't be chosen by the skills of your opponent's cards) | read | - | - | - | evidence |
-| BT4-081 | 4 | #20 | auto | At the end of your turn, switch this card to Active Mode. | read | turnEnd | - | - | C |
+| BT4-081 | 4 | #20 | auto | At the end of your turn, switch this card to Active Mode. | read | turnEnd | - | - | evidence |
 | BT4-084 | 4 | #0 | keyword:Swap | {y}{y} : ≪Goku's Lineage≫ with an energy cost of 3. (Play the specifi... | read | - | - | - | evidence |
 | BT4-084 | 4 | #10 | keyword:Barrier | (This card can't be chosen by the skills of your opponent's cards) | read | - | - | - | evidence |
 | BT4-085 | 4 | #0 | keyword:Swap | {y}{y} : ≪Goku's Lineage≫ with an energy cost of 4. (Play the specifi... | read | - | - | - | evidence |
-| BT4-085 | 4 | #10 | auto | When you combo with this card, if one of your yellow Battle Cards is... | read | comboed,comboUsed | - | - | C |
+| BT4-085 | 4 | #10 | auto | When you combo with this card, if one of your yellow Battle Cards is... | read | comboed,comboUsed | - | - | evidence |
 | BT4-086 | 4 | #0 | keyword:Swap | {y}{y}{y} : ≪Goku's Lineage≫ with an energy cost of 5. (Play the spec... | read | - | - | - | evidence |
 | BT4-086 | 4 | #10 | keyword:Super Combo | (You can only include up to 4 cards with [super combo] in your deck) | read | - | - | - | evidence |
-| BT4-086 | 4 | #20 | auto | When you combo with this card, if your Leader Card is a yellow ≪Goku'... | read | comboed,comboUsed | - | - | C |
-| BT4-089 | 4 | #0 | auto | When you play this card, look at up to 3 cards from the top of your d... | read | played | - | - | C |
+| BT4-086 | 4 | #20 | auto | When you combo with this card, if your Leader Card is a yellow ≪Goku'... | read | comboed,comboUsed | - | - | evidence |
+| BT4-089 | 4 | #0 | auto | When you play this card, look at up to 3 cards from the top of your d... | read | played | - | - | evidence |
 | BT4-091 | 4 | #0 | keyword:Swap | ≪Goku's Lineage≫ with an energy cost of 2. (Play the specified card f... | read | - | - | - | evidence |
 | BT4-091 | 4 | #10 | keyword:Blocker | (When one of your other cards is attacked, you may switch this card t... | read | - | - | - | evidence |
-| BT4-097 | 4 | #0 | counter:attack | Negate the attack. | read | - | - | - | C |
-| BT4-097 | 4 | #10 | permanent | If your Leader Card is ≪Goku's Lineage≫, when you activate this card'... | read | - | - | applies | C |
-| SD5-02 | 2 | #0 | auto | When this card attacks, you may draw 1 card. If you did not draw a ca... | read | attacks | - | - | C |
+| BT4-097 | 4 | #0 | counter:attack | Negate the attack. | read | - | - | - | evidence |
+| BT4-097 | 4 | #10 | permanent | If your Leader Card is ≪Goku's Lineage≫, when you activate this card'... | read | - | - | applies | evidence |
+| SD5-02 | 2 | #0 | auto | When this card attacks, you may draw 1 card. If you did not draw a ca... | read | attacks | - | - | evidence |
 | SD5-04 | 2 | #0 | keyword:Swap | {y}{y}{y}{y} : <<Goku's Lineage>> with an energy cost of 8. (Play the... | read | - | - | - | evidence |
-| SD5-04 | 2 | #10 | activate:main | Choose 1 card from your life and add it to your hand : Switch this ca... | read | - | read | - | C |
+| SD5-04 | 2 | #10 | activate:main | Choose 1 card from your life and add it to your hand : Switch this ca... | read | - | read | - | evidence |
 | SD5-05 | 2 | #0 | keyword:Swap | {y}{y} : <<Goku's Lineage>> with an energy cost of 4. (Play the speci... | read | - | - | - | evidence |
-| SD5-05 | 2 | #10 | auto | When you play this card, choose up to 1 of your opponent's Rest Mode... | read | played | - | - | C |
-| BT4-079 | 2 | #0 | keyword:Swap | {y},choose 1 card from your hand and place it in your Drop Area : ≪Go... | read | - | - | - | C |
-| BT4-096 | 2 | #0 | activate:battle | If your Leader Card is ≪Goku's Lineage≫ with <Son Goku> in its charac... | read | - | - | - | C |
+| SD5-05 | 2 | #10 | auto | When you play this card, choose up to 1 of your opponent's Rest Mode... | read | played | - | - | evidence |
+| BT4-079 | 2 | #0 | keyword:Swap | {y},choose 1 card from your hand and place it in your Drop Area : ≪Go... | read | - | - | - | evidence |
+| BT4-096 | 2 | #0 | activate:battle | If your Leader Card is ≪Goku's Lineage≫ with <Son Goku> in its charac... | read | - | - | - | evidence |
 
 <!-- /GENERATED:skills -->
 
@@ -391,33 +392,33 @@ has an op the static layer applies. Until #716, Counter lines that printed a non
 | [Permanent] and keyword lines | S | 32 | - | - | - | No decision of their own. |
 | Auto at genuine combo entry ("when you combo with this card") | E | 4 | `arena-combo-entry-auto-timing` | #672 (closed) | - | Timing evidence only: when the Auto pends, not what its effect does. |
 | Auto at the end of a battle after a combo from hand | E | 6 | `arena-combo-from-hand-battle-end`; `arena-combo-cleanup-checkpoints` | #572 (closed), #609 (closed) | - | BT6-010 and TB1-055 bind this copy's hand origin; BT6-010 also the opponent's turn. |
-| Auto when a card attacks / a Leader or Unison is attacked | C | 11 | scripts/verify/readings.ts, readings-571.ts - the reading of these triggers (parse level), not a played game | #571 (closed), U1 | - | SD15-01's red-Unison-only trigger is a #571 reading. |
-| Auto when a card is played | C | 8 | - | U1 | - | The most common trigger; generic suites use it, no scenario names these wordings. |
+| Auto when a card attacks / a Leader or Unison is attacked | K | 11 | scripts/verify/u1a-triggers-757.ts - SD15-01 front/back and SD5-01 front/back draw on the attack declaration (SD5-01 front only against a Leader), SD5-02, BT1-014, BT4-012 and DB2-004 are played with and without the optional price; SD15-02 #20 answers an attack on a mono-red Saiyan Leader; SD15-01 back #10 answers the opponent's attack on the red {r}{r} Unison (negates it); scripts/verify/readings.ts, readings-571.ts - the reading of these triggers (parse level) | #571 (closed) | - | SD15-01's red-Unison-only trigger is a #571 reading, played in the U1-a suite (#757). Rows that also carry an unplayed op or condition stay C until their own family moves. |
+| Auto when a card is played | K | 8 | scripts/verify/u1a-triggers-757.ts - BT6-010, BT6-011 (with and without a Saiyan), BT11-008 (with and without a red Unison), BT11-011 (red and yellow Leader), DB3-001 (played as a Unison, opponent's life 8 and 4), SD5-03 (Goku's Lineage Leader or not), SD5-05, BT4-089 each played from the hand | - | - | Played in the U1-a suite (#757). |
 | Auto when an opponent's skill sends this card from the Battle Area to the Drop | K | 1 | scripts/verify/sd15-readings-728.ts - SD15-03: an opponent's skill drops it, [Spirit Boost 1] takes a marker off SD15-02 and it plays itself back | #728 | - | SD15-03 #20; [Limit 1] is counted across copies on its master (22-44-3, #741: scripts/verify/limit-copies-741.ts). |
-| Auto when this card is KO'd | C | 1 | scripts/verify/sd15-readings-728.ts - SD15-03's "or KO'd" half (reading only) | U1 | - | SD15-03 #20's second half; no scenario KOs it. |
-| Auto at turn end / Unison to Drop / [Spirit Boost] payment | C | 3 | - | U1 | - | Each is one card (BT4-081, SD15-02, SD15-05). |
+| Auto when this card is KO'd | K | 1 | scripts/verify/sd15-readings-728.ts - SD15-03's opponent's-skill half; scripts/verify/u1a-triggers-757.ts - SD15-03 rested, KO'd in a battle by a 25000-power attacker (5-12-1): [Spirit Boost 1] takes a marker off SD15-02 and it plays itself from the Drop Area; with no Unison marker it stays in the Drop Area | - | - | SD15-03 #20's "or KO'd" half, played in the U1-a suite (#757). |
+| Auto at turn end / Unison to Drop / [Spirit Boost] payment | K | 3 | scripts/verify/u1a-triggers-757.ts - BT4-081 rested is Active at the end of its master's turn (7-4-2; a plain rested card is not); SD15-02 #0 pends when DB3-001 is played over it (3-11-5) and gives the mono-red Leader +5000; SD15-05 is played from the hand when SD15-03's [Spirit Boost 1] removes a marker (opponent with 2+ energy; declined, and with fewer energy, it stays in the hand) | - | - | Each is one card (BT4-081, SD15-02, SD15-05), played in the U1-a suite (#757). A Unison with zero markers is not yet placed in the Drop Area (21-9-2): #759, not asserted. |
 | [Blocker] | K | 2 | scripts/verify/battles.ts:92-127 - [Blocker] redirect, rested Blocker not offered | - | blocker | - |
 | [Barrier] | K | 4 | scripts/verify/workflow.ts:539-550 - 22-16 candidate exclusion; scripts/verify/vm.ts:3612-3657 - exemptions do not leak | - | - | - |
 | [Deflect] | K | 1 | scripts/verify/keywords.ts:2269-2333 - [Counter: Play] window not opened | - | - | - |
 | [Critical] | K | 1 | scripts/verify/battles.ts:244 - life goes to the Drop; scripts/verify/keywords.ts:3437-3450 | - | - | - |
 | [Strike] / [Double Strike] | K | 2 | scripts/verify/battles.ts:244,309 - 2 damage, markers off a Unison | - | - | - |
-| [Attack X] | C | 1 | - | U1 | - | Glossary says the engine plays it; no scenario located (grep of scripts/verify). |
+| [Attack X] | K | 1 | scripts/verify/u1a-triggers-757.ts - SD15-03's [Dual Attack] (22-8-3): Active again at the end of the battle, attacks a second time, no third attack the same turn | - | - | Played in the U1-a suite (#757). |
 | [Awaken] | K | 2 | scripts/verify/battles.ts:380 - offered only when the printed condition holds, flips the Leader; scripts/verify/sd15-readings-728.ts - SD15-01: offered at 4 life or with a {r}{r} red Unison, not with an unknown-cost, blue or one-orb one; flips | - | main | SD5-01's and SD15-01's Awakens are offered in the audit play-through (U2 resolved by #728). |
 | [Swap X] | K | 11 | `arena-swap-specified-card`; `arena-swap-action-price`; scripts/verify/swap-729-731.ts - specified card only on offer and choice (SD5-05's <<Goku's Lineage>>), BT4-079's price on the strict host; scripts/verify/keywords.ts:317 - specified cost-X card, both engines; scripts/verify/workflow.ts:498-513 | #731, #729 | chooseCards | U6 resolved by #731 (the printed description is read); U4 resolved by #729 (BT4-079's action price is paid on the strict host). |
 | [Unique] | K | 1 | `arena-unique-master-choice`; scripts/verify/battles.ts:361 - second copy cannot be played; scripts/verify/unique-730.ts - SD15-05 played beside itself by a skill: the master chooses the copy that stays before the skill continues, the rest go to the Drop Area | #730 | chooseCards | U8 resolved by #730 (21-11: the master chooses; legacy engine still keeps the newest). |
 | [Super Combo] (deck limit 4) | D | 2 | - | - | - | legality() counts it (see the legality block). |
-| [Spirit Boost X] marker price | C | 2 | `arena-auto-own-cost` | #549, U1 | - | Glossary: the supported Auto continuation charges it after the payable decision (#549); no scenario names SD15-01's back Auto. |
-| [Once per turn] | C | 2 | - | U1 | - | - |
-| Auto/Activate price: choose a card and move it (hand to Drop, life to hand) | C | 4 | `arena-auto-own-cost` | #549, U1 | chooseMode, chooseCards | BT9-031 is the named hand-to-Drop shape; DB2-004 and SD5-04 move a Life card to the hand, a shape the row does not name. Auto prices ask pay/decline through a `chooseMode` today, not the `optionalCost` prompt. |
-| Condition-only price ("If your Leader is red and life <= 4:", SD15-01's "life <= 4 or a red Unison with a specified cost of 2") | C | 3 | `arena-auto-own-cost` | #549, U1 | - | Row: public-area condition-only Autos stay compulsory. |
+| [Spirit Boost X] marker price | K | 2 | `arena-auto-own-cost`; scripts/verify/u1a-triggers-757.ts - SD15-03 #20 (1 marker off the red Unison, 3 to 2; no Unison, not payable) and SD15-01 back #10 (1 marker, the attack on the Unison negated) | #549 | - | Glossary: the supported Auto continuation charges it after the payable decision (#549); played on SD15-03 and SD15-01's back Auto in the U1-a suite (#757). |
+| [Once per turn] | K | 2 | scripts/verify/u1a-triggers-757.ts - SD5-04 [Activate: Main] offered once, spent, offered again next turn (22-11-2); SD15-01 back #10 is not answered on the opponent's second attack on the Unison the same turn; scripts/verify/once-per-turn-746.ts - the area-change reset (3-1-4), on synthetic cards | - | - | Played with deck cards in the U1-a suite (#757). |
+| Auto/Activate price: choose a card and move it (hand to Drop, life to hand) | K | 4 | `arena-auto-own-cost`; scripts/verify/u1b-prices-757.ts - U1-b #757: BT9-031 (Extra Card, hand to Drop; paid, declined, only Extra Cards offered), DB2-004 and SD5-04 (Life card to hand; paid, declined, unpayable with no Life), BT4-079 [Swap] (hand card to Drop on the strict host) | #549 | chooseMode, chooseCards | BT9-031 is the named hand-to-Drop shape; DB2-004 and SD5-04 move a Life card to the hand, a shape the row does not name. Auto prices ask pay/decline through a `chooseMode` today, not the `optionalCost` prompt. |
+| Condition-only price ("If your Leader is red and life <= 4:", SD15-01's "life <= 4 or a red Unison with a specified cost of 2") | K | 3 | `arena-auto-own-cost`; scripts/verify/u1b-prices-757.ts - U1-b #757: BT14-010 and DB3-001 (condition-only Autos: compulsory when it holds, never asked, silent when it fails, 9-6-4-1-1), SD15-01 [Awaken] (life <= 4 or a red {r}{r} Unison: offered, not offered, flips) | #549 | - | Row: public-area condition-only Autos stay compulsory. |
 | Restriction printed as a [Counter] price ("You can't activate the [Counter: Play] skills of other cards for the turn:") | E | 1 | `arena-counter-action-price` | #716 | counter | BT10-008's own text is the #716 fixture: put in force before the skill, binding other cards' [Counter: Play] only. |
-| Counter alternative price (Life card instead of energy; free with markers) | C | 3 | `arena-counter-alternative-action-price` | U1 | counter, chooseCards | The row is one ALTC fixture shape; BT5-023, BT4-097 and BT10-008 are not that fixture. |
-| Choose cards / targets | C | 27 | - | U1 | chooseCards | "Up to N" picks, energy picks, hand picks. |
-| Optional effect ("you may") and printed modes | C | 3 | - | U1 | chooseMode | - |
-| Draw, power, combo power, damage, KO, negate attack, grant, forbid | C | 38 | - | U1 | - | - |
-| Card movement and state: moveTo, play, look, shuffle, switchMode, addMarker, lifeDownTo | C | 18 | - | U1 | - | - |
-| Conditional ("if ...") | C | 27 | - | U1 | - | - |
-| Conditions: Leader match, life, counts, did/chose, battle, turn | C | 27 | - | U1 | - | Condition readings are covered at parse level in readings.ts; no played scenario. |
+| Counter alternative price (Life card instead of energy; free with markers) | K | 3 | `arena-counter-alternative-action-price`; scripts/verify/u1b-prices-757.ts - U1-b #757: BT5-023 (5+ Drop cards, Life card instead of energy), BT4-097 (Goku's Lineage Leader, SD5-01), BT10-008 (free with a red Unison with 2+ markers); each offered only when its condition holds and the effect resolves | - | counter, chooseCards | The row is one ALTC fixture shape; BT5-023, BT4-097 and BT10-008 are not that fixture - they are played in the U1-b suite. |
+| Choose cards / targets | K | 27 | scripts/verify/u1b-prices-757.ts - U1-b #757 plays all 27 faces (candidates, min/max and effects); SD15-01 [Awaken]'s marker pick asserted since #758 | - | chooseCards | "Up to N" picks, energy picks, hand picks. SD15-01's "{Cabba} in its name" reads as includes since #758. |
+| Optional effect ("you may") and printed modes | K | 3 | scripts/verify/u1b-prices-757.ts - U1-b #757: SD5-02 (may draw, else [Double Strike]), SD15-05 (may play, declined and condition), DB1-019 (printed Leader-or-Battle either/or, then the conditional energy and draw) | - | chooseMode | - |
+| Draw, power, combo power, damage, KO, negate attack, grant, forbid | K | 38 | scripts/verify/u1c-effects-757.ts - every deck face with one of these ops, played with its printed wording on the rules engine: draw/power/grant on attack Autos (SD15-01, BT1-014, BT4-012, SD5-02, DB2-004), plays (BT6-010, BT6-011, BT11-008, SD5-03, SD5-05), combos (BT9-031, BT14-010, BT4-085, BT4-086), [Counter]s (BT3-027, BT5-023, BT6-026, BT4-097, BT10-008), [Activate]s (SD15-02, SD15-04, BT1-027, BT6-025, TB1-023, DB1-019, DB3-001, SD5-04, BT4-096) and the [Permanent] SD5-01 back; scripts/verify/u1c-conditions-757.ts - the coverage block fails when a skill this row counts is not registered as played | #759 | - | SD15-02 #0 is played with the Unison sent to the Drop Area by an opponent's skill; its zero-marker route is #759 (21-9 not implemented). |
+| Card movement and state: moveTo, play, look, shuffle, switchMode, addMarker, lifeDownTo | K | 18 | scripts/verify/u1c-moves-757.ts - SD15-01 [Awaken] (switchMode, lifeDownTo), SD15-03 #20 (play from the Drop Area after a skill and after a KO), SD15-05 #10 (play by [Spirit Boost]), BT6-010 #0 and TB1-055 (play in Rest Mode at battle end), BT4-081 (switchMode at turn end), BT4-089 (look, moveTo, shuffle); scripts/verify/u1c-effects-757.ts - moveTo (BT1-014, BT4-012, BT6-011, BT6-026), play (SD15-04, BT10-008), switchMode (DB1-019, DB2-004, SD5-04), addMarker (BT11-011) | #758 | - | SD15-01 #10's marker on the Unison with {Cabba} in its name is not asserted: #758 (the filter reads it as an exact name). |
+| Conditional ("if ...") | K | 27 | scripts/verify/u1c-effects-757.ts, u1c-moves-757.ts, u1c-conditions-757.ts - each "if ..." skill played with the condition holding and, where the card allows, not holding (20-16 "if you do", 20-17 "if you don't", Leader, life, count and battle conditions) | - | - | - |
+| Conditions: Leader match, life, counts, did/chose, battle, turn | K | 27 | scripts/verify/u1c-conditions-757.ts - Leader match (BT6-025, BT5-023, BT6-026, BT14-010, DB3-001, SD5-03, BT4-086, BT4-096, DB1-019, BT4-097), life ([Awaken] SD5-01, SD15-02, BT14-010), counts (SD15-03 #10, BT10-008 #10) and turn (SD5-01 back #10), each on both sides; scripts/verify/u1c-effects-757.ts - did/chose (BT1-014, BT4-012, BT6-026, SD5-02), battle (SD5-01, BT4-085), life against the opponent's life (SD5-01 back) | - | - | Condition readings are also covered at parse level in readings.ts; these are played. |
 <!-- /GENERATED:mechanics -->
 
 `U1`..`U8` are the blockers defined below (U2-U4, U6 and U8 gained owner issues on 13 Oct 2026). `#n` links are existing issues; "(closed)" ones delivered the narrow
@@ -436,7 +437,7 @@ evidence cited and are not blockers. The capability rows cited are `arena-combo-
 | U6 | [Swap] named <<Goku's Lineage>> but filtered by energy cost only (glossary was `partial`) | B: 11 numbers carry a [Swap] line, 38 copies | **#731** (owner decision 13 Oct 2026: the approximation is NOT accepted): both engines read the printed description with the filter grammar on the offer and the choice, SD5-04/SD5-05's ASCII "<<...>>" included; glossary `engine` (`arena-swap-specified-card`) | **resolved by #731** |
 | U7 | Unison cards have no energy cost / specified cost in the feed; the owner's database column `cards.specified_cost` is not visible to agents. The pack builder must carry it. | A: SD15-02, DB3-001 (and every "specified cost of 2" wording) | **#655**; the owner ruled both `{r}{r}` on 13 Oct 2026 (both print "Energy (Color Cost): X(RR)"), entered by migration 0049 (PR #733). The pack builder carries them from `docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json` by default (`--specified-costs` overrides) and records no missing input | **resolved** (owner ruling 13 Oct, #733) |
 | U8 | [Unique] 21-11 half unbuilt (the legacy engine keeps the newest; the rules engine did nothing) | A: SD15-05 x2 | **#730**: the rules engine processes 21-11 as interruptive rule processing; the master chooses the copy that stays (`chooseCards`, reloadable, answered by the local policy), the rest go to the Drop Area through 9-10 (`arena-unique-master-choice`, `scripts/verify/unique-730.ts`); glossary `engine` | **resolved by #730** |
-| U1 | Card-level scenario gates for every compiled-only mechanic | both | belongs with the policy and qualification work: **#650** (decision fixtures), **#651** (evaluation), **#661** (support matrix), **#655** (pack qualifies only when blockers resolve) | **unowned as a task**; no issue creates these scenarios today |
+| U1 | Card-level scenario gates for every compiled-only mechanic | both | **#757** (U1-a #761 triggers and keywords, U1-b #764 prices and choices, U1-c #763 effects and conditions; engine defects found on the way: #758 and #759, both fixed) | **resolved by #757**: every §8 family is tier K or E, each citing the suite that plays its real wordings (`scripts/verify/u1a-triggers-757.ts`, `u1b-prices-757.ts`, `u1c-{effects,moves,conditions}-757.ts`); the regenerated play-through (80 games) stops in none and refuses no skill as unread |
 
 Existing issues checked and **not** blocking these decks: **#552** (no skill in either deck is `counter:counter`;
 `--check` fails if one appears), **#550** (no price binds X; `arena-priced-choice-binds-x` is X-only), **#595**
@@ -454,18 +455,18 @@ until a scenario plays them. **#577** is the delivery epic for all of these.
 |---|---|---|---|
 | chooseFirst | every match | - | 80 |
 | mulligan | every match | - | 160 |
-| charge | every match | - | 1147 |
-| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5786 |
-| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5792 |
+| charge | every match | - | 1153 |
+| main | every match | SD15-01#10, SD15-02#10, BT6-025#0, TB1-023#0, DB3-001#10, DB3-001#20 | 5762 |
+| combo | every match | SD15-04#0, BT1-027#0, DB1-019#0, BT4-096#0 | 5788 |
 | blocker | every match | BT11-008#0, BT4-091#10 | 476 |
-| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 964 |
-| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 7 |
-| chooseCards | by card | SD15-01#10, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20 | 933 |
-| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 168 |
+| counter | every match | BT3-027#0, BT5-023#0, BT5-023#10, BT6-026#0, BT10-008#0, BT10-008#10 | 957 |
+| orderPending | by card | SD15-01#0, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#20, SD15-03#20 | 8 |
+| chooseCards | by card | SD15-01#10, SD15-01b#0, SD15-01b#10, SD15-02#0, SD15-02#10, SD15-03#20 | 905 |
+| chooseMode | by card | SD15-05#10, BT9-031#0, DB1-019#0, DB2-004#0, SD5-02#0, SD5-04#10 | 152 |
 | replaceMove | no audited card needs it | - | 0 |
-| zEnergyFromCombo | every match | - | 1102 |
+| zEnergyFromCombo | every match | - | 1105 |
 | optionalCost | no audited card needs it | - | 0 |
-| payCost | every match | - | 204 |
+| payCost | every match | - | 206 |
 | offering | no audited card needs it | - | 0 |
 | empowerCarry | no audited card needs it | - | 0 |
 <!-- /GENERATED:windows -->
@@ -522,7 +523,7 @@ that makes it. Playing needs no database; it was run on Windows with Node 24.
 | Acceptance | Evidence | Open |
 |---|---|---|
 | Exact IDs/counts, source/revision, matchups, main/Z/Leader faces, generated dependencies, legality and missing inputs | sections 3-5, `catalog-subset-2026-10-13.json`, `--check` | Source revisions are the importer's descriptions of two third-party pages (athenagames.com, poggers.com), not re-fetched; the owner's decks are absent |
-| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | Scenarios for the compiled-only mechanics do not exist (U1), and every other blocker is resolved: U5 by #716, U2/U3 by #728, U4 by #729, U6 by #731, U8 by #730 and U7 by the owner's input (#733) |
+| Every mechanic has a scenario or a linked blocker with an owner; compile never counts | sections 7-8: every mechanic is in a tier; B/C/P rows carry an owner or a `U` id | None: every blocker is resolved: U1 by #757 (played scenarios), U5 by #716, U2/U3 by #728, U4 by #729, U6 by #731, U8 by #730 and U7 by the owner's input (#733) |
 | Useful during O1 without the local runtime | the audit runs on the current engine and policy | Fixed by the next audit run, not by this one |
 | Verification | script `--check`, typecheck, lint, `scripts/verify/backlog.ts` | `npm test`/`npm run build`/`arena:fuzz`: unaffected (no `src/` change); database-backed checks not run |
 | Scenario-specific evidence, no relabelling | each K/E row cites its file or capability id | Issue stays **open** |
