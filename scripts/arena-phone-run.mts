@@ -60,7 +60,7 @@ const FLAGS: Record<string, boolean> = {
 function usage(message: string): never {
   console.error(`arena:phone: ${message}`);
   console.error("Usage: npm run arena:phone -- [--emulated] [--serial S] [--browser-package com.android.chrome] [--port 3763] [--devtools-port 9222]\n" +
-    "  [--cases all|N|A-v-B-first,...] [--no-recovery] [--pace step|slow|normal] [--shots all|decisions|none] [--card-review-every 12]\n" +
+    "  [--cases all|none|N|A-v-B-first,...] [--no-recovery] [--pace step|slow|normal] [--shots all|decisions|none] [--card-review-every 12]\n" +
     "  [--out DIR] [--no-airplane] [--skip-prepare] [--total-timeout HOURS]");
   process.exit(2);
 }
@@ -92,7 +92,7 @@ const ALL_CASES: Array<{ id: string; mine: string; theirs: string; seat: "p1" | 
   { id: "B-v-B-first", mine: "B", theirs: "B", seat: "p1" }, { id: "B-v-B-second", mine: "B", theirs: "B", seat: "p2" },
 ];
 const casesArg = flag("--cases") ?? "all";
-const CASES = casesArg === "all" ? ALL_CASES : /^\d+$/.test(casesArg) ? ALL_CASES.slice(0, Number(casesArg)) : casesArg.split(",").map((id) => ALL_CASES.find((c) => c.id === id) ?? usage(`no case ${id} (${ALL_CASES.map((c) => c.id).join(", ")})`));
+const CASES = casesArg === "all" ? ALL_CASES : casesArg === "none" ? [] : /^\d+$/.test(casesArg) ? ALL_CASES.slice(0, Number(casesArg)) : casesArg.split(",").map((id) => ALL_CASES.find((c) => c.id === id) ?? usage(`no case ${id} (${ALL_CASES.map((c) => c.id).join(", ")})`));
 
 const BASE = `http://localhost:${PORT}`;
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
@@ -422,7 +422,7 @@ async function shoot(page: Page, caseId: string, kind: string, s: Snapshot | nul
   if (facts && ["decision", "card-review", "hand-review", "zones", "storage-full", "saved-match", "over"].includes(kind)) {
     const rows = await page.eval<ContrastRow[]>(CONTRAST_AUDIT).catch(() => [] as ContrastRow[]);
     const seen = new Set<string>();
-    facts.lowContrast = rows.filter((r) => r.ratio < r.need && !r.image && r.y >= 0 && r.y < facts.vh && !seen.has(r.text) && seen.add(r.text)).slice(0, 30).map((r) => ({ text: r.text, ratio: r.ratio, need: r.need }));
+    facts.lowContrast = rows.filter((r) => r.ratio < r.need && !r.image && /[\p{L}\p{N}]/u.test(r.text) && r.y >= 0 && r.y < facts.vh && !seen.has(r.text) && seen.add(r.text)).slice(0, 30).map((r) => ({ text: r.text, ratio: r.ratio, need: r.need }));
   }
   const truth = s ? truthOf(s, o.logFrom ?? s.log.length) : null;
   const n = ++shotN;
@@ -800,7 +800,7 @@ async function recoveryCase(deadline: number): Promise<{ steps: Step[]; result: 
   let { page } = await openShell(id);
   await startMatch(page, id, c.mine, c.theirs, c.seat);
   const continueSaved = async (how: string) => {
-    await until(page, `document.body.innerText.includes("Saved match")`, 60000, "the saved-match card");
+    await until(page, `!!document.querySelector('section[aria-label="Saved match"]')`, 60000, "the saved-match card");
     const shot = await shoot(page, id, "saved-match", null, { force: true, note: how });
     const r = await tapFind(page, `() => [...document.querySelectorAll("button")].filter((b) => b.innerText.trim() === "Continue" && !b.disabled)`);
     if (!r.ok) throw new Error(`Continue could not be tapped (${r.why})`);

@@ -93,7 +93,8 @@ At every shot (`checksOf` in `scripts/lib/ux-probe.mts`):
   wrong row; read the shot before calling it a bug. After an `unreachable` the move is made through
   the board and the run starts the computer's turn itself; a turn that stalls for 45 s is started
   the same way and listed under stalls.
-- **Card navigation**, every `--card-review-every` decisions: tap a card, the review opens (time),
+- **Card navigation** (a "no change" after the swipe is not yet a finding: the run's swipe is one
+  synthetic 140 px stroke, so check it by hand before reporting it), every `--card-review-every` decisions: tap a card, the review opens (time),
   shows the card's name, the pager's Next and a swipe change the card, × closes it; the hand review
   and the public zones open.
 - **Feedback**: tap-to-move time (p50/p95/max), playback that never ends, a computer turn that
