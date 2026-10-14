@@ -1,0 +1,10 @@
+[
+  {
+    "id": "BT31-093",
+    "skill": "[double strike]\n[br]\n[xeno-evolve] {b}: <Vegito: Xeno> card with an energy cost of 7.\n[br]\n[auto] [limit 1] If you have 3 or more energy: When this card is played, draw 1 card, choose up to 1 of your opponent's Battle Cards, send it to its owner's Warp and during your opponent's next turn, when your opponent's Battle Card is played, your opponent can't play it unless they send 3 cards from their Drop to their owner's Warp.\n[br]\n[activate: main] {b}{b}: Play this card from your hand."
+  },
+  {
+    "id": "BT31-150",
+    "skill": "[ultimate] [triple strike]\n[br]\n[over realm 6] If your Leader is black and you have 4 or more energy: \n[br]\n[permanent] This card's [over realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand.\n[br]\n[auto] When this card is played, choose up to 1 of your opponent's Battle Cards, send it to its owner's Warp, and until the end of your opponent's turn, when your opponent's card is played, they can't play it unless they send 1 card from their hand to its owner's Warp."
+  }
+]

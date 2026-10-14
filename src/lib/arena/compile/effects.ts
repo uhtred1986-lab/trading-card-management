@@ -1,4 +1,5 @@
 import { keywordOf, orbsIn } from "../text/cards";
+import { playTaxWording } from "../text/play-tax";
 import { emptyFilter, parseFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
@@ -2684,11 +2685,7 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
  * Anything else comes back as it went.
  */
 export function taxWordings(text: string): string {
-  return text
-    .replace(
-      /\bwhen (your opponent's|your) (.+?) (?:is|are) played, (?:your opponent|they|you) can(?:'|no)t play (?:it|them) unless\b/gi,
-      (_m, whose: string, what: string) => `${/opponent/i.test(whose) ? "your opponent" : "you"} can't play ${what} unless`,
-    )
+  return playTaxWording(text)
     .replace(
       /\b(?:then )?(for the duration of the game|during the game), if the turn player would use the skills? of (?:an? )?(.+?) to switch energy to active mode, they can(?:'|no)t switch energy to active mode unless they choose (\d+) cards? from their drop(?: area)? and send them to their warp\b/gi,
       (_m, lasts: string, whose: string, n: string) => `the turn player can't switch energy to active mode with the skills of ${whose} ${lasts} unless they send ${n} cards from their drop area to their warp`,
