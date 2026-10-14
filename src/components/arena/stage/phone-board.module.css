@@ -109,6 +109,11 @@
  .board :global(.arena-row) { --arena: .72; }
  .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .board :global(.arena-topbar) { min-height: 44px; }
+ .board :global(.arena-topbar:not(:has([data-arena-connection]))) { height: 44px; }
+ /* Keep both rows visible above the response controls on a short phone.
+    Only the field cards shrink; the 66px combo hand keeps its tap targets. */
+ .board:is([data-response-window="counter"], [data-response-window="blocker"], [data-response-window="combo"]) :global(.arena-row) { --arena: .55; }
+ .dock :global([data-defend-step] > [aria-label$="options"]) { max-height: 18dvh; overscroll-behavior-y: contain; }
  /* Choosing how to pay needs the dock's room more than the last line of narration. */
  .board:has(:global(.arena-bar[data-prompt-kind="payCost"])) :global(.arena-lane) { display: none; }
 }

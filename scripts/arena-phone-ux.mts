@@ -14,6 +14,10 @@ const failures: string[] = [];
 try {
   for (const height of [800, 650]) {
     const page = await browser.page({ name: `360x${height}`, width: 360, height, mobile: true });
+    // These are layout fixtures, not saved matches. Keep the real poller but
+    // answer its unchanged-revision request without touching a database.
+    await page.interceptFetch("*/api/v1/games/*");
+    page.onFetchPaused(({ requestId }) => { setTimeout(() => { void page.fulfillFetch(requestId, "", 204).catch(() => {}); }, 500); });
     await page.beforeLoad('try { localStorage.setItem("arena.pace", "step"); } catch {}');
     for (const fixture of fixtures) for (const skin of ["anime", "night"]) {
       await page.setCookie("arenaSkin", skin, base);
@@ -27,7 +31,9 @@ try {
         return { scroll: document.documentElement.scrollHeight > innerHeight + 2,
           phase: !!box && box.height > 0 && box.bottom <= innerHeight,
           cards: document.querySelectorAll('[data-arena-card]').length,
-          clippedReasons: reasons.filter(e => e.scrollWidth > e.clientWidth + 1).length };
+          clippedReasons: reasons.filter(e => e.scrollWidth > e.clientWidth + 1).length,
+          height: document.documentElement.scrollHeight,
+          boxes: [...document.querySelectorAll('.arena-topbar,.arena-row,.arena-pstrip,.arena-lane-battle,.arena-hand,.arena-bar')].map(e=>({class: e.className, y:e.getBoundingClientRect().y, height:e.getBoundingClientRect().height, bottom:e.getBoundingClientRect().bottom})) };
       })()`);
       const label = `360x${height}-${fixture}-${skin}`;
       results.push({ label, ...facts });
