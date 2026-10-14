@@ -19,7 +19,10 @@
  *  - `crash()`: the process dies — nothing in flight commits, nothing more runs; `revive()` is a new
  *    process over the same persisted data.
  *
- * Not implemented (the store does not use them): indexes, cursors, key ranges, `add`, `delete`,
+ *  - `delete`, `getAll` and `getAllKeys` (whole store, no key range), added for the pack store
+ *    (#658, `src/lib/arena/local/pack-store.ts`): they see the transaction's own buffered writes.
+ *
+ * Not implemented (the stores do not use them): indexes, cursors, key ranges, `add`,
  * `count`, blocked/versionchange between connections, durability hints, `objectStoreNames` beyond `contains`. The real-browser half
  * (`npm run arena:local-storage-browser`) proves the store against Chrome's IndexedDB.
  */
@@ -32,8 +35,21 @@ interface FakeEvent { target: unknown; type: string; oldVersion?: number; newVer
 
 const named = (name: string, message: string) => Object.assign(new Error(message), { name });
 const keyOf = (k: Key) => JSON.stringify(k);
+/** A buffered `delete` in a transaction's overlay (#658). */
+const DELETED: unknown = Object.freeze({ deleted: true });
 /** A macrotask: after the current task and its microtasks, as IndexedDB delivers events. */
 const later = (fn: () => void) => { setImmediate(fn); };
+
+/** A row's size for the quota: its JSON, with binary data (an `ArrayBuffer` or a view) counted by its bytes (#658). */
+function sizeOf(v: unknown): number {
+  let bytes = 0;
+  const json = JSON.stringify(v, (_k, x) => {
+    if (x instanceof ArrayBuffer) { bytes += x.byteLength; return null; }
+    if (ArrayBuffer.isView(x)) { bytes += x.byteLength; return null; }
+    return x;
+  });
+  return (json?.length ?? 0) + bytes;
+}
 
 class FakeRequest {
   result: unknown = undefined;
@@ -69,8 +85,8 @@ export class FakeIndexedDb {
     for (const [name, d] of this.databases) {
       for (const [storeName, s] of d.stores) {
         const overlay = name === dbName ? extra?.get(storeName) : undefined;
-        for (const [k, v] of s.rows) if (!overlay?.has(k)) n += k.length + JSON.stringify(v).length;
-        if (overlay) for (const [k, v] of overlay) n += k.length + JSON.stringify(v).length;
+        for (const [k, v] of s.rows) if (!overlay?.has(k)) n += k.length + sizeOf(v);
+        if (overlay) for (const [k, v] of overlay) if (v !== DELETED) n += k.length + sizeOf(v);
       }
     }
     return n;
@@ -185,8 +201,19 @@ class FakeTransaction {
         const k = keyOf(key);
         const o = this.overlay.get(name);
         const v = o?.has(k) ? o.get(k) : store.rows.get(k);
-        return v === undefined ? undefined : structuredClone(v);
+        return v === undefined || v === DELETED ? undefined : structuredClone(v);
       }),
+      getAll: () => this.request(() => [...this.merged(name, store).values()].map((v) => structuredClone(v))),
+      getAllKeys: () => this.request(() => [...this.merged(name, store).keys()].map((k) => JSON.parse(k))),
+      delete: (key: Key) => {
+        if (this.mode === "readonly") throw named("ReadOnlyError", "delete in a readonly transaction");
+        return this.request(() => {
+          const o = this.overlay.get(name) ?? new Map<string, unknown>();
+          o.set(keyOf(key), DELETED);
+          this.overlay.set(name, o);
+          return undefined;
+        });
+      },
       put: (value: Record<string, unknown>) => {
         if (this.mode === "readonly") throw named("ReadOnlyError", "put in a readonly transaction");
         const copy = structuredClone(value);
@@ -205,6 +232,13 @@ class FakeTransaction {
         });
       },
     };
+  }
+
+  /** A store's rows as this transaction sees them (its buffered writes and deletes applied), in key order. */
+  private merged(name: string, store: StoreData): Map<string, unknown> {
+    const out = new Map(store.rows);
+    for (const [k, v] of this.overlay.get(name) ?? []) { if (v === DELETED) out.delete(k); else out.set(k, v); }
+    return new Map([...out].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
   }
 
   /** Wait for every earlier unfinished transaction on this database that overlaps and either side writes. */
@@ -281,7 +315,7 @@ class FakeTransaction {
     this.finished = true;
     if (commit && this.mode !== "versionchange") {
       const data = this.idb.databases.get(this.dbName);
-      for (const [name, rows] of this.overlay) for (const [k, v] of rows) data!.stores.get(name)!.rows.set(k, v);
+      for (const [name, rows] of this.overlay) for (const [k, v] of rows) { if (v === DELETED) data!.stores.get(name)!.rows.delete(k); else data!.stores.get(name)!.rows.set(k, v); }
     }
     this.overlay.clear();
     this.error = error;
