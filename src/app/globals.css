@@ -3541,15 +3541,19 @@ html[data-skin="anime"] body::before {
   [data-skin="anime"].arena [data-phase-step="3"] .arena-phase:nth-child(-n + 3),
   [data-skin="anime"].arena [data-phase-step="4"] .arena-phase:nth-child(-n + 4) {
     opacity: 1;
-    color: #263145;
+    color: #12161f;
   }
 
   [data-skin="anime"].arena [data-phase-step] .arena-phase:not(.arena-phase-on) .arena-phase-dot {
     opacity: .4;
   }
 
-  [data-skin="anime"].arena .arena-hand > p {
+  [data-skin="anime"].arena .arena-hand > p,
+  [data-skin="anime"].arena .arena-hand-folded {
     color: var(--ink);
+  }
+  [data-skin="anime"].arena .arena-energy-toggle .arena-num {
+    color: #96320a;
   }
 
   [data-skin="anime"].arena .arena-phase-on {

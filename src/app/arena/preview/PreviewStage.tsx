@@ -72,7 +72,7 @@ function pricedPlans(proof: { actions: Action[]; first: GameplanPreview; second:
  * the online page uses. `watch` is the real poller, as before, so a fixture that
  * waits on the opponent still shows the offline chip without a database.
  */
-function previewSession(gameId: number, refresh: () => void, preview?: ArenaSession["preview"]): ArenaSession {
+function previewSession(gameId: number, refresh: () => void, preview?: ArenaSession["preview"], staticTransport = false): ArenaSession {
   // The preferences and the bug report are the real actions, as the board called them before the seam.
   const methods = {
     advance: STUB.advance,
@@ -87,7 +87,13 @@ function previewSession(gameId: number, refresh: () => void, preview?: ArenaSess
     gameId,
     capabilities: capabilitiesOf(methods),
     act: (action) => STUB.act(action),
-    watch: (options) => startLiveGamePolling({ gameId, ...options }),
+    watch: (options) => {
+      if (!staticTransport) return startLiveGamePolling({ gameId, ...options });
+      // Reproducible layout states have no saved match behind their ID.
+      // Ordinary fixtures retain the real poller and its connection proofs.
+      options.onConnection("connected");
+      return { retry() {}, stop() {} };
+    },
     refresh,
     ...methods,
   };
@@ -213,6 +219,7 @@ export function PreviewStage({
   replay = false,
   planProof,
   rejectPlanOnce = false,
+  staticTransport = false,
 }: {
   snapshot: Snapshot;
   skin: ArenaSkin;
@@ -225,6 +232,7 @@ export function PreviewStage({
   replay?: boolean;
   planProof?: { actions: Action[]; first: GameplanPreview; second: GameplanPreview };
   rejectPlanOnce?: boolean;
+  staticTransport?: boolean;
 }) {
   const router = useRouter();
   // `?replay=1` (preview only): the fixture's own beats, played from the start. It is the
@@ -240,8 +248,9 @@ export function PreviewStage({
         gameId,
         () => router.refresh(),
         planProof ? pricedPlans(planProof, rejectPlanOnce) : undefined,
+        staticTransport,
       ),
-    [gameId, router, planProof, rejectPlanOnce],
+    [gameId, router, planProof, rejectPlanOnce, staticTransport],
   );
   useEffect(() => {
     if (pace) setPacePref(pace);

@@ -556,7 +556,7 @@ export function ChipRow({ chips }: { chips: InspectorChip[] }) {
 export interface ReviewSequence {
   /** "In play", "Your hand". */
   label: string;
-  items: { card: CardView; yours: boolean; status?: "playable" | "skill" | "unaffordable" | "counter" | null }[];
+  items: { card: CardView; yours: boolean; status?: "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge" | null; playable?: boolean; counter?: boolean }[];
 }
 
 /** A left or right swipe moves one card past this many px; a downward one closes past `CLOSE_PX`. */
@@ -660,8 +660,11 @@ export function CardSheet({
   const [handFilter, setHandFilter] = useState<"All" | "Playable" | "Counters">("All");
   const currentManualCount = card.abilities ? abilityPanelRows(card.abilities).manual.length : 0;
   const sourceItems = sequence?.items ?? [];
+  const matchesFilter = (item: ReviewSequence["items"][number], filter: "All" | "Playable" | "Counters") => filter === "All" || (filter === "Playable"
+    ? item.playable ?? ["playable", "targets", "noTarget", "skill"].includes(item.status ?? "")
+    : item.counter ?? item.status === "counter");
   const filteredItems = sequence?.label === "Your hand" && sourceItems.length > 6 && handFilter !== "All"
-    ? sourceItems.filter((item) => handFilter === "Playable" ? item.status === "playable" || item.status === "skill" : item.status === "counter")
+    ? sourceItems.filter((item) => matchesFilter(item, handFilter))
     : sourceItems;
   const items = filteredItems.some((item) => item.card.id === card.id) || !sequence ? filteredItems : [...filteredItems, { card, yours: true }];
   const at = items.findIndex((i) => i.card.id === card.id);
@@ -787,7 +790,7 @@ export function CardSheet({
         </div>
 
         {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
-          {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = filter === "All" ? sourceItems : sourceItems.filter((item) => filter === "Playable" ? item.status === "playable" || item.status === "skill" : item.status === "counter"); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
+          {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = sourceItems.filter((item) => matchesFilter(item, filter)); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
         </div>}
         {reviewMode === "own" && !fullArt && <div className="mx-4 mb-2 flex gap-1 rounded-full border border-space-600 p-1" role="group" aria-label="Card size">
           {(["full", "top"] as const).map((layout) => <button key={layout} type="button" aria-pressed={ownSize === layout} onClick={() => setOwnSize(layout)} className={`tap min-h-11 flex-1 rounded-full px-3 text-xs font-bold ${ownSize === layout ? "bg-space-50 text-space-900" : "text-space-100"}`}>{layout === "full" ? "Full card" : "Top half"}</button>)}

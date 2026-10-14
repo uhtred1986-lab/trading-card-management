@@ -269,9 +269,9 @@ export function PromptPanel({
       {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
         <div className="w-full" data-defend-step={view.prompt.kind}>
           <p className="mb-1 flex flex-wrap items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-space-300" aria-label="Counter, Block, Combo response steps">
-            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>① Counter</span><span>›</span>
-            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>② Block</span><span>›</span>
-            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>③ Combo</span>
+            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>① Counter{view.battle?.emptyResponses?.includes("counter") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>② Block{view.battle?.emptyResponses?.includes("blocker") ? " · none" : ""}</span><span>›</span>
+            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>③ Combo{view.battle?.emptyResponses?.includes("defenseCombo") ? " · none" : ""}</span>
           </p>
           {view.prompt.kind === "combo" && view.battle && (() => {
             const b = view.battle!;
@@ -306,6 +306,7 @@ export function PromptPanel({
           : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
             : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
               : l.action.type === "block" && l.action.card == null ? "Keep the current target"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "If unchanged: take the hit" : "If unchanged: defend the hit" : "Finish adding combo power"
                 : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
                   : view.prompt.passConsequence ?? "Pass this decision";
         return (
