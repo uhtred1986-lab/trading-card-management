@@ -365,8 +365,8 @@ function report(problems: AttrProblem[], gaps: { unfilled: string[]; undeclared:
  * a refusal in the middle of a move must leave the caller's state exactly as
  * it found it.
  */
-function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false): { state: VmState; events: GameEvent[] } {
-  const result = applyInner(ctx, prev, action, offeredAttack);
+function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false, previewBlock = false): { state: VmState; events: GameEvent[] } {
+  const result = applyInner(ctx, prev, action, offeredAttack, previewBlock);
   // The event order is authoritative: hiding or moving after the latest
   // declaration ends that reveal, even if the source is unhidden later in
   // the same action. An invalid answer never reaches this commit point.
@@ -383,7 +383,7 @@ function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack 
   return result;
 }
 
-function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false): { state: VmState; events: GameEvent[] } {
+function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false, previewBlock = false): { state: VmState; events: GameEvent[] } {
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   const events: GameEvent[] = [{ type: "action", action }];
@@ -606,7 +606,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     }
   }
 
-  run(ctx, game, state, events, offeredAttack);
+  run(ctx, game, state, events, offeredAttack ? "battleCounterAttack" : previewBlock ? "battleOffense" : undefined);
   return { state, events };
 }
 
@@ -936,6 +936,8 @@ export const RULES = {
   apply: (ctx: EngineContext, prev: VmState, action: Action) => apply(withTokens(ctx), prev, action),
   /** Snapshot-only: the action already came from this exact state's legal list. */
   previewLegalAttack: (ctx: EngineContext, prev: VmState, action: Extract<Action, { type: "attack" }>) => apply(withTokens(ctx), prev, action, true),
+  /** Snapshot-only: the Blocker action already came from this exact state's legal list. */
+  previewLegalBlock: (ctx: EngineContext, prev: VmState, action: Extract<Action, { type: "block" }>) => apply(withTokens(ctx), prev, action, false, true),
   legalActions: (ctx: EngineContext, state: VmState) => legalActions(withTokens(ctx), state),
   rejectedActions: (ctx: EngineContext, state: VmState, legal: LegalAction[]) => rejectedActions(withTokens(ctx), state, legal),
   abilityAvailability: (ctx: EngineContext, state: VmState, player: PlayerId, legal: LegalAction[], rejected: RejectedAction[]) => abilityAvailability(withTokens(ctx), state, player, legal, rejected),

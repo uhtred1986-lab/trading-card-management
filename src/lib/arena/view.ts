@@ -110,6 +110,9 @@ export interface AttackPreview {
   reason?: string;
 }
 
+/** The same pre-response battle reading after a legal Blocker redirects the guard. */
+export type BlockPreview = AttackPreview;
+
 /** One [Permanent] skill of a card and its state now (review §3.5). */
 export interface PermanentView {
   /** Index of the skill in the card's text, the same `skillIndex` the engine uses. */
