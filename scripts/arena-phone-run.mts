@@ -135,7 +135,7 @@ const UI = `(() => {
     line: (bar?.querySelector("p")?.innerText ?? "").trim().slice(0, 200), dialog: dlg,
     storage: document.body.innerText.includes("Could not save on this device"),
     targeting: (bar?.innerText ?? "").includes("Choose what to attack"),
-    notice: notice ? notice.innerText.replace(/\s+/g, " ").trim().slice(0, 300) : null,
+    notice: notice ? notice.innerText.replace(/\\s+/g, " ").trim().slice(0, 300) : null,
   };
 })()`;
 /** A blocking dialog or sheet: a card sheet, a search, or a no-target notice (`QuietNotice`, #783, `role=alertdialog`). */
@@ -367,7 +367,7 @@ async function tapFind(page: Page, finder: string, clearPopups = true): Promise<
   const p = await page.eval<{ x: number; y: number; scrolled: boolean } | { why: string; dismiss?: { x: number; y: number; what: string } }>(`(() => {
     const els = (${finder})().filter(Boolean);
     if (!els.length) return { why: "not on the page" };
-    const name = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) { const t = (x.getAttribute("aria-label") || x.innerText || "").replace(/\s+/g, " ").trim(); if (t) return '"' + t.slice(0, 50) + '"'; } return e ? e.tagName.toLowerCase() : "nothing"; };
+    const name = (e) => { for (let x = e; x && x !== document.body; x = x.parentElement) { const t = (x.getAttribute("aria-label") || x.innerText || "").replace(/\\s+/g, " ").trim(); if (t) return '"' + t.slice(0, 50) + '"'; } return e ? e.tagName.toLowerCase() : "nothing"; };
     const reach = (el) => {
       const r = el.getBoundingClientRect();
       for (const [fx, fy] of [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5], [0.2, 0.2], [0.8, 0.8]]) {
