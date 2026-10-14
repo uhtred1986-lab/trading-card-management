@@ -11,7 +11,8 @@ import { buildSnapshot } from "../../src/lib/arena/snapshot-core";
 import type { CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
-const catalog = JSON.parse(readFileSync("docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json", "utf8")) as { cards: { id: string }[] };
+const catalog = JSON.parse(readFileSync("docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json", "utf8")) as { cards: { id: string; imageUrl?: string | null }[] };
+const images = Object.fromEntries(catalog.cards.filter((item) => item.imageUrl).map((item) => [item.id, { front: item.imageUrl ?? null, back: null }]));
 function printed(id: string): CardDef {
   const row = catalog.cards.find((item) => item.id === id);
   assert.ok(row);
@@ -50,7 +51,7 @@ function main(leader = "L-RED"): VmState {
 }
 function snapshot(state: VmState, viewer: PlayerId) {
   return buildSnapshot({ id: 798, mode: "hotseat", status: "playing", p1Name: "You", p2Name: "Other", ctx, state,
-    legal: RULES.legalActions(ctx, state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
+    legal: RULES.legalActions(ctx, state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images });
 }
 function preview(state: VmState, cardId: string, viewer: PlayerId = "p1") {
   const snap = snapshot(state, viewer);
@@ -71,8 +72,10 @@ function actualFirstChoice(state: VmState, action: ReturnType<typeof snapshot>["
   return next.prompt.choice.candidates;
 }
 const fixtures: unknown[] = [];
+const browserFixtures: { name: string; snapshot: ReturnType<typeof snapshot> }[] = [];
 function fixture(name: string, state: VmState, source: string): void {
   const snap = snapshot(state, "p1");
+  browserFixtures.push({ name, snapshot: snap });
   const card = snap.view.you.hand?.find((item) => item.cardId === source);
   assert.ok(card);
   const actions = snap.legal.map((item, index) => ({ ...item, index }))
@@ -144,5 +147,12 @@ function fixture(name: string, state: VmState, source: string): void {
 if (process.argv.includes("--emit")) {
   mkdirSync("docs/arena-backlog/evidence/798", { recursive: true });
   writeFileSync("docs/arena-backlog/evidence/798/choice-previews.json", `${JSON.stringify({ source: "scripts/verify/play-choice-preview-798.ts", scenarios: fixtures }, null, 2)}\n`);
+}
+if (process.argv.includes("--emit-browser")) {
+  mkdirSync("docs/arena-backlog/evidence/798/browser", { recursive: true });
+  for (const [index, item] of browserFixtures.entries()) {
+    const file = `${String(index + 1).padStart(2, "0")}-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, "")}.json`;
+    writeFileSync(`docs/arena-backlog/evidence/798/browser/${file}`, `${JSON.stringify(item.snapshot, null, 2)}\n`);
+  }
 }
 console.log("#798 legal-play first-choice previews: real cards, optional empty, and privacy passed");
