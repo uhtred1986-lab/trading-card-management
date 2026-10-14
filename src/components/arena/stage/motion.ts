@@ -97,6 +97,12 @@ export function fxDuration(ms: number, pace: Pace = "normal"): number {
   return Math.min(699, Math.round(ms * fxScale(pace === "step" ? "normal" : pace)));
 }
 
+/** A delayed KO flight shares one visual budget with its initial burst. */
+export function flightTiming(ms: number, koDelay = 0): { duration: number; delay: number } {
+  const delay = Math.min(450, Math.max(0, koDelay));
+  return { duration: Math.min(699 - delay, Math.max(0, ms)) / 1000, delay: delay / 1000 };
+}
+
 /** `--fx-<name>` custom properties for the board root, from `FX` at this pace.
  * Feedback is deliberately brief even at slow pace; beat narration keeps its
  * separate dwell in `msFor`. */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { feedbackAfter, feedbackFromBeats } from "../../src/components/arena/stage/useFeedbackCues";
-import { fxDuration, fxVars } from "../../src/components/arena/stage/motion";
+import { flightTiming, fxDuration, fxVars } from "../../src/components/arena/stage/motion";
 import type { Beats } from "../../src/lib/arena/beats";
 
 const beats: Beats = {
@@ -38,4 +38,10 @@ for (const pace of ["normal", "slow"] as const) {
   }
 }
 assert.ok(fxDuration(780, "slow") < 700, "the slow-pace KO flight delay exceeds the effect budget");
+for (const pace of ["normal", "slow", "step"] as const) {
+  const ko = flightTiming(fxDuration(420, pace), fxDuration(780, pace));
+  assert.ok((ko.duration + ko.delay) * 1000 < 700, `the whole KO burst/flight exceeds the budget at ${pace} pace`);
+  assert.ok(ko.duration > 0 && ko.delay > 0, "the KO retains both its burst and its flight");
+  assert.ok(flightTiming(1800).duration * 1000 < 700, "narration dwell must not stretch a visual card flight");
+}
 console.log("arena-feedback-cues: ok");
