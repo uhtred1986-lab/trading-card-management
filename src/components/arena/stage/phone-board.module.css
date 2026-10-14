@@ -1,15 +1,35 @@
 .handViewport { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-.handCards { width: max-content; min-width: 100%; }
+.handCards { position: relative; width: max-content; min-width: 100%; }
 .handControl { min-height: 44px; min-width: 44px; }
 .handStatus { position: absolute; z-index: 80; right: -3px; top: 5px; width: 11px; height: 11px; border: 2px solid var(--color-space-950); border-radius: 999px; pointer-events: none; }
 .status_playable { background: var(--color-gain); }
 .status_skill { background: var(--color-dbs-yellow); }
 .status_unaffordable { background: var(--color-loss); }
 .status_counter { background: var(--color-space-400); }
+.status_targets { background: var(--color-gain); }
+.status_noTarget { background: var(--color-dbs-yellow); }
+.status_charge { background: var(--color-ki-400); }
+.handAction { position: absolute; z-index: 90; left: 50%; bottom: -17px; transform: translateX(-50%); max-width: 96px; white-space: nowrap; border-radius: 999px; padding: 2px 5px; font: 800 8px/1.2 var(--font-arena, sans-serif); color: var(--color-space-50); background: var(--color-space-800); box-shadow: 0 0 0 1px var(--color-space-600); pointer-events: none; }
+.action_playable, .action_targets { background: var(--color-gain); color: white; }
+.action_noTarget { background: #f59e0b; color: #211600; }
+.action_unaffordable { background: var(--color-loss); color: white; }
+.action_counter, .action_skill { background: var(--color-space-700); color: var(--color-space-100); }
+.action_charge { background: var(--color-ki-500); color: var(--color-space-950); }
+.handRow { display: flex; width: 100%; align-items: flex-end; }
+.fanViewport { flex: 1 1 auto; min-width: 0; overflow: visible; margin-right: 0 !important; }
+.handOpen { display: grid; width: 56px; min-width: 56px; min-height: 96px; flex: 0 0 56px; align-content: center; justify-items: center; gap: 2px; margin: 0 6px 8px 0; padding: 4px; font-size: 11px; line-height: 1.1; }
+.handOpen b { font: italic 800 22px/1 var(--font-impact, sans-serif); }
+.handFanOverlays { position: absolute; z-index: 200; inset: 0; pointer-events: none; }
+.handFanOverlay { position: absolute; top: 4px; width: 0; height: 100%; }
+.handFanOverlay .handStatus { top: 4px; left: 26px; right: auto; z-index: 5; box-shadow: 0 0 0 2px var(--color-space-800); }
+.fanCost { position: absolute; top: 0; left: -7px; z-index: 4; display: grid; width: 22px; height: 22px; place-items: center; border: 1.5px solid white; border-radius: 50%; background: var(--color-ki-500); color: var(--color-space-950); font: 900 12px/1 var(--font-arena, sans-serif); }
+.fanCost.status_unaffordable { background: var(--color-loss); color: white; }
+.handFanHeader { padding: 0 12px 3px; color: var(--color-space-200); font: 700 10px/1.25 var(--font-arena, sans-serif); }
 .scrollRail { display: none; }
 .fullscreenReview { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.cardReview { }
 @media (max-width: 1023px) {
- [data-review-mode="opponent-peek"], [data-review-mode="targeting"] { max-height: 56dvh !important; }
+ .cardReview[data-review-mode="opponent-peek"], .cardReview[data-review-mode="targeting"] { max-height: 56dvh !important; }
  .scrollRail { display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 10px; z-index: 29; touch-action: pan-y; }
  .board { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
  .board :global(.arena-topbar) { top: env(safe-area-inset-top); height: auto; min-height: 48px; }
@@ -33,13 +53,25 @@
  .board :global([data-player-resources]) { padding: 0 6px; }
  .board :global([data-player-resources] button) { margin-left: auto; }
  .handCards { justify-content: flex-start; padding-top: 4px; padding-bottom: 6px; min-height: 0 !important; }
+ .handRow { min-width: 0; }
+ .handFanHeader { display: block; }
+ .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .handCard :global(.arena-cost) { width: 22px !important; height: 22px !important; font-size: 12px !important; }
- [data-review-mode="own"][data-review-size="full"] :global(.arena-review-art-wrap) { width: 188px; }
- [data-review-mode="own"][data-review-size="full"] :global(.arena-review-art) { height: 262px; object-fit: cover; }
- [data-review-mode="opponent-peek"] :global(.arena-review-art-wrap) { width: 90px; }
- [data-review-mode="opponent-peek"] :global(.arena-review-art) { max-height: 126px; object-fit: cover; }
- [data-review-mode="targeting"] :global(.arena-review-art-wrap) { width: 84px; }
- [data-review-mode="targeting"] :global(.arena-review-art) { max-height: 116px; object-fit: cover; }
+ .cardReview[data-review-mode="own"] :global(.arena-review-body > div:first-child) { flex-direction: column; align-items: center; }
+ .cardReview[data-review-mode="own"] :global(.arena-review-art-wrap) { width: min(100%, 262px); }
+ .cardReview[data-review-mode="own"][data-review-size="full"] :global(.arena-review-art) { width: 100%; height: auto; aspect-ratio: 63 / 88; object-fit: cover; }
+ .cardReview[data-review-mode="own"][data-review-size="top"] :global(.arena-review-art) { width: 100%; height: auto; aspect-ratio: 63 / 46; object-position: top; mask-image: linear-gradient(180deg, #000 82%, transparent); -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent); }
+ .cardReview[data-review-mode="own"][data-review-size="top"] :global(.arena-review-art-wrap) { width: 100%; }
+ .cardReview[data-review-mode="own"] :global(.arena-review-body > div:first-child > div:last-child) { width: min(100%, 262px); padding-left: 0; text-align: center; }
+ .cardReview[data-review-mode="own"] :global(.arena-review-body > div:first-child > div:last-child > p) { justify-content: center; }
+ .cardReview[data-review-mode="opponent"] :global(.arena-review-body > div:first-child) { flex-direction: column; align-items: center; }
+ .cardReview[data-review-mode="opponent"] :global(.arena-review-art-wrap) { width: min(100%, 262px); }
+ .cardReview[data-review-mode="opponent"] :global(.arena-review-art) { width: 100%; height: auto; max-height: 44dvh; aspect-ratio: 63 / 88; object-fit: cover; }
+ .cardReview[data-review-mode="opponent"] :global(.arena-review-body > div:first-child > div:last-child) { width: min(100%, 262px); padding-left: 0; text-align: center; }
+ .cardReview[data-review-mode="opponent-peek"] :global(.arena-review-art-wrap) { width: 84px; }
+ .cardReview[data-review-mode="opponent-peek"] :global(.arena-review-art) { max-height: 126px; object-fit: cover; }
+ .cardReview[data-review-mode="targeting"] :global(.arena-review-art-wrap) { width: 84px; }
+ .cardReview[data-review-mode="targeting"] :global(.arena-review-art) { max-height: 116px; object-fit: cover; }
  /* A page-scroll rail beside the cards preserves vertical card drags without
     trapping the page behind their pan-x gesture surface. */
  .handViewport { margin-right: 10px; }
@@ -73,10 +105,14 @@
 }
 @media (max-width: 1023px) and (max-height: 760px) {
  .board :global(.arena-row) { --arena: .72; }
- .board :global(.arena-field.arena-hand) { --arena: .78; }
+ .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .board :global(.arena-topbar) { min-height: 44px; }
  /* Choosing how to pay needs the dock's room more than the last line of narration. */
  .board:has(:global(.arena-bar[data-prompt-kind="payCost"])) :global(.arena-lane) { display: none; }
+}
+@media (max-width: 1023px) and (max-height: 720px) {
+ .cardReview[data-review-mode="own"][data-review-size="full"] :global(.arena-review-art) { width: min(100%, 200px); }
+ .cardReview[data-review-mode="opponent"] :global(.arena-review-art) { width: min(100%, 200px); }
 }
 @media (min-width: 400px) and (max-width: 1023px) and (min-height: 860px) {
  .board :global(.arena-row) { --arena: 1; }

@@ -549,7 +549,7 @@ function Thumb({ card, yours, current, index, total, onJump, status }: { card: C
         <span className={`${face} bg-space-700`} />
       )}
       <span className={`h-[3px] w-[30px] rounded-full ${yours ? "bg-ki-500" : "bg-[#7c5cd6]"}`} aria-hidden />
-      {status && <span className={`absolute mt-[-50px] ml-[28px] h-2.5 w-2.5 rounded-full border border-space-950 ${status === "playable" ? "bg-gain" : status === "skill" ? "bg-dbs-yellow" : status === "unaffordable" ? "bg-loss" : status === "counter" ? "bg-space-400" : "bg-space-600"}`} aria-hidden />}
+      {status && <span className={`absolute mt-[-50px] ml-[28px] h-2.5 w-2.5 rounded-full border border-space-950 ${status === "playable" || status === "targets" || status === "charge" ? "bg-gain" : status === "noTarget" ? "bg-dbs-yellow" : status === "skill" ? "bg-space-300" : status === "unaffordable" ? "bg-loss" : status === "counter" ? "bg-space-400" : "bg-space-600"}`} aria-hidden />}
     </button>
   );
 }
@@ -646,6 +646,17 @@ export function CardSheet({
   // not be read. One that overflows keeps `pan-y` and scrolls; a swipe down
   // then closes from the handle, the strip and the Close row instead.
   const [scrolls, setScrolls] = useState(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const saved = localStorage.getItem("arena.phone.cardLayout");
+      if (saved === "full" || saved === "top") timer = setTimeout(() => setOwnSize(saved), 0);
+    } catch { /* private browsing can deny storage; the layout still toggles in this view */ }
+    return () => { if (timer) clearTimeout(timer); };
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("arena.phone.cardLayout", ownSize); } catch { /* the preference is optional */ }
+  }, [ownSize]);
   useLayoutEffect(() => {
     const el = body.current;
     if (!el) return;
@@ -691,7 +702,7 @@ export function CardSheet({
         data-arena-review={card.id}
         data-review-mode={reviewMode === "opponent" && !opponentBig ? "opponent-peek" : reviewMode}
         data-review-size={ownSize}
-        className={`relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
+        className={`${phoneStyles.cardReview} relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
           if (Date.now() - swipedAt.current < 200) {
@@ -711,11 +722,11 @@ export function CardSheet({
             <button
               type="button"
               onClick={() => reviewMode === "opponent" ? (opponentBig ? onClose() : setOpponentBig(true)) : setFullArt((value) => !value)}
-              aria-label={reviewMode === "opponent" ? opponentBig ? "Return to board" : "Make opponent card bigger" : fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Show full card"}
+              aria-label={reviewMode === "opponent" ? opponentBig ? "Return to board" : "Make opponent card bigger" : fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Show card image only"}
               aria-pressed={reviewMode === "opponent" ? opponentBig : fullArt}
               className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
             >
-              {reviewMode === "opponent" ? opponentBig ? "Board" : "Bigger" : fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Full card"}
+              {reviewMode === "opponent" ? opponentBig ? "Board" : "Bigger" : fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Zoom"}
             </button>
             <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
           </div>
@@ -724,7 +735,9 @@ export function CardSheet({
         {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
           {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = filter === "All" ? sourceItems : sourceItems.filter((item) => filter === "Playable" ? item.status === "playable" || item.status === "skill" : item.status === "counter"); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
         </div>}
-        {reviewMode === "own" && !fullArt && <button type="button" onClick={() => setOwnSize((size) => size === "full" ? "top" : "full")} className="tap mx-4 mb-2 min-h-11 rounded-lg border border-space-500 text-sm font-bold text-space-100">{ownSize === "full" ? "Top half" : "Full card · 262px"}</button>}
+        {reviewMode === "own" && !fullArt && <div className="mx-4 mb-2 flex gap-1 rounded-full border border-space-600 p-1" role="group" aria-label="Card size">
+          {(["full", "top"] as const).map((layout) => <button key={layout} type="button" aria-pressed={ownSize === layout} onClick={() => setOwnSize(layout)} className={`tap min-h-11 flex-1 rounded-full px-3 text-xs font-bold ${ownSize === layout ? "bg-space-50 text-space-900" : "text-space-100"}`}>{layout === "full" ? "Full card" : "Top half"}</button>)}
+        </div>}
 
         {pager && !fullArt && (
           <div className="mb-1 flex shrink-0 items-center gap-2 px-4">
@@ -759,7 +772,7 @@ export function CardSheet({
               </>
             )}
           </div>
-        ) : <div ref={body} className={`min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
+        ) : <div ref={body} className={`arena-review-body min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
           <div className="flex gap-3">
             <div className="arena-review-art-wrap relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
