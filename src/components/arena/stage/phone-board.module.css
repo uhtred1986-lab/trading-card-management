@@ -18,6 +18,7 @@
 .handRow { display: flex; width: 100%; align-items: flex-end; }
 .fanViewport { flex: 1 1 auto; min-width: 0; overflow: visible; margin-right: 0 !important; }
 .handOpen { display: grid; width: 56px; min-width: 56px; min-height: 96px; flex: 0 0 56px; align-content: center; justify-items: center; gap: 2px; margin: 0 6px 8px 0; padding: 4px; font-size: 11px; line-height: 1.1; }
+.handOpen { height: 96px; align-self: flex-end; }
 .handOpen b { font: italic 800 22px/1 var(--font-impact, sans-serif); }
 .handFanOverlays { position: absolute; z-index: 200; inset: 0; pointer-events: none; }
 .handFanOverlay { position: absolute; top: 4px; width: 0; height: 100%; }
@@ -57,6 +58,7 @@
  .handFanHeader { display: block; }
  .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .handCard :global(.arena-cost) { width: 22px !important; height: 22px !important; font-size: 12px !important; }
+ .handRow .handCard :global(.arena-cost) { display: none; }
  .cardReview[data-review-mode="own"] :global(.arena-review-body > div:first-child) { flex-direction: column; align-items: center; }
  .cardReview[data-review-mode="own"] :global(.arena-review-art-wrap) { width: min(100%, 262px); }
  .cardReview[data-review-mode="own"][data-review-size="full"] :global(.arena-review-art) { width: 100%; height: auto; aspect-ratio: 63 / 88; object-fit: cover; }

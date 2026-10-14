@@ -577,7 +577,7 @@ export function ArenaStage({
         out.push({ index: i, legal: l, targets: Object.keys(targets ?? {}).length });
         continue;
       }
-      out.push({ index: i, legal: l });
+      out.push({ index: i, legal: l, choicePreview: choicePreviewOf(i) });
     }
     return out;
   };
@@ -726,6 +726,9 @@ export function ArenaStage({
   const searching = choices.length > 0 && playable && !busy && view.prompt.player === view.you.player;
   const searchOpen = searching && closedSearch !== searchKey;
   const chooseNone = taps.bare.find((i) => legal[i].action.type === "choose" && (legal[i].action as { cards: string[] }).cards.length === 0) ?? null;
+  const refusedChoices = rejected.flatMap((r) => r.action.type === "choose" && r.action.cards.length === 1
+    ? [{ card: cardOf(r.action.cards[0]), reason: r.why.map((why) => why.kind === "target" ? why.reason : why.kind).join(" · "), label: locate(r.action.cards[0])?.zone === "leader" ? "Leader" : cardOf(r.action.cards[0])?.keywords.includes("Barrier") ? "Barrier" : "No" }]
+    : []).filter((item): item is { card: CardView; reason: string; label: string } => !!item.card);
   // The bar's buttons. While a search is on, "Choose none" lives in the sheet
   // and the bar keeps one button that reopens it, so the question has room.
   const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] }));
@@ -1685,6 +1688,7 @@ export function ArenaStage({
             leader={sheetAt?.zone === "leader" ? { life: sheetAt.side.life, energy: `${sheetAt.side.activeEnergy}/${sheetAt.side.energy.length}` } : null}
             onJump={(c) => setSheet(cardOf(c.id) ?? c)}
             reviewMode={isTargeting ? "targeting" : sheetAt?.side === view.them ? "opponent" : "own"}
+            resolveCard={cardOf}
           />
         )}
 
@@ -1692,6 +1696,7 @@ export function ArenaStage({
           <SearchSheet
             prompt={view.prompt}
             choices={choices}
+            refused={refusedChoices}
             indexOf={(id) => taps.byCard[id]?.[0]}
             none={chooseNone}
             onPick={(i) => send(legal[i].action)}

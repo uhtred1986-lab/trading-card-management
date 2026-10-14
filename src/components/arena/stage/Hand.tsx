@@ -130,12 +130,11 @@ export function Hand({
         {fanMode && <div className={styles.handFanOverlays} aria-hidden>
           {cards.map((c, i) => {
             const status = handStatus?.(c.id) ?? null;
-            const action = handAction?.(c.id);
             const left = 10 + i * step;
             return <div key={c.id} className={styles.handFanOverlay} style={{ left }}>
               {c.cost != null && <span className={`${styles.fanCost} ${status === "unaffordable" ? styles.status_unaffordable : ""}`}>{c.cost}</span>}
               {status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} />}
-              {action && <span className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`}>{action}</span>}
+              {/* The fan is a dense overview: full action words belong in the card review. */}
             </div>;
           })}
         </div>}

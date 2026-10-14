@@ -182,7 +182,9 @@ export function PromptPanel({
         </button>
       )}
       {(waitingOnServer || busy) && !view.over && <span className="arena-pulse h-3.5 w-3.5 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />}
-      {handDecision && !playing && !bad && !isTargeting ? null : (
+      {handDecision && !playing && !bad && !isTargeting ? (
+        <p className="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {yourTurn ? "Your turn" : `${view.them.name}’s turn`}</p>
+      ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
           {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {yourTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
           <span className="line-clamp-3">{line}</span>
