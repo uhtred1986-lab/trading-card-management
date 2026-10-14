@@ -1,0 +1,1936 @@
+{
+  "issue": 793,
+  "startedAt": "2026-10-14T22:05:34.769Z",
+  "origin": "http://localhost:3794",
+  "productionOrigin": false,
+  "offline": {
+    "browserProxy": "closed loopback port, all hosts including loopback",
+    "pageEmulation": true,
+    "reducedMotion": true
+  },
+  "matches": [
+    {
+      "mine": "deck-1",
+      "theirs": "A",
+      "seat": "First",
+      "matchId": "f31c4a83-919a-4079-8813-074eb6b33f7d",
+      "header": {
+        "seed": 1175648235,
+        "policySeed": 299429727,
+        "decks": {
+          "p1": "deck-1",
+          "p2": "A"
+        },
+        "human": "p1",
+        "revision": 101,
+        "trace": "9e93a134",
+        "status": "over",
+        "decisions": 100
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p2",
+        "reason": "Ann's Crimson lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-1-deck-1-A-first.png"
+    },
+    {
+      "mine": "deck-1",
+      "theirs": "A",
+      "seat": "Second",
+      "matchId": "f38b9b11-e117-4dd0-8cda-46efbfbed91f",
+      "header": {
+        "seed": 1892134849,
+        "policySeed": 1980465208,
+        "decks": {
+          "p1": "A",
+          "p2": "deck-1"
+        },
+        "human": "p2",
+        "revision": 98,
+        "trace": "efd17854",
+        "status": "over",
+        "decisions": 97
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p1",
+        "reason": "Ann's Crimson lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-2-deck-1-A-second.png"
+    },
+    {
+      "mine": "deck-1",
+      "theirs": "deck-2",
+      "seat": "First",
+      "matchId": "96c4372f-4eb8-4b16-aa79-e54278fb18f7",
+      "header": {
+        "seed": 128198719,
+        "policySeed": 2080903449,
+        "decks": {
+          "p1": "deck-1",
+          "p2": "deck-2"
+        },
+        "human": "p1",
+        "revision": 136,
+        "trace": "87da9fd4",
+        "status": "over",
+        "decisions": 135
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p2",
+        "reason": "Ann's Crimson lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-3-deck-1-deck-2-first.png"
+    },
+    {
+      "mine": "deck-1",
+      "theirs": "deck-2",
+      "seat": "Second",
+      "matchId": "46e018ff-89da-4657-bbfa-6c8bc738bd76",
+      "header": {
+        "seed": 168023918,
+        "policySeed": 95413637,
+        "decks": {
+          "p1": "deck-2",
+          "p2": "deck-1"
+        },
+        "human": "p2",
+        "revision": 105,
+        "trace": "bf046c5b",
+        "status": "over",
+        "decisions": 104
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p1",
+        "reason": "Ann's Crimson lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-4-deck-1-deck-2-second.png"
+    },
+    {
+      "mine": "deck-2",
+      "theirs": "A",
+      "seat": "First",
+      "matchId": "2f6254bc-3be8-4e1c-882f-70cccf69f731",
+      "header": {
+        "seed": 734641785,
+        "policySeed": 221988470,
+        "decks": {
+          "p1": "deck-2",
+          "p2": "A"
+        },
+        "human": "p1",
+        "revision": 100,
+        "trace": "5242b1b0",
+        "status": "over",
+        "decisions": 99
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p2",
+        "reason": "Ann's Crimson II lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-5-deck-2-A-first.png"
+    },
+    {
+      "mine": "deck-2",
+      "theirs": "A",
+      "seat": "Second",
+      "matchId": "46ed5ead-e69a-4596-b726-58d9eaac527d",
+      "header": {
+        "seed": 962115597,
+        "policySeed": 248801642,
+        "decks": {
+          "p1": "A",
+          "p2": "deck-2"
+        },
+        "human": "p2",
+        "revision": 107,
+        "trace": "3f42a37a",
+        "status": "over",
+        "decisions": 106
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p1",
+        "reason": "Ann's Crimson II lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-6-deck-2-A-second.png"
+    },
+    {
+      "mine": "deck-2",
+      "theirs": "deck-1",
+      "seat": "First",
+      "matchId": "a26d8076-fe03-4c2e-97be-effc25e8b557",
+      "header": {
+        "seed": 922282643,
+        "policySeed": 847674630,
+        "decks": {
+          "p1": "deck-2",
+          "p2": "deck-1"
+        },
+        "human": "p1",
+        "revision": 101,
+        "trace": "1469b543",
+        "status": "over",
+        "decisions": 100
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p2",
+        "reason": "Ann's Crimson II lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-7-deck-2-deck-1-first.png"
+    },
+    {
+      "mine": "deck-2",
+      "theirs": "deck-1",
+      "seat": "Second",
+      "matchId": "935d0e7b-d0b5-48ee-8114-1831eeb3e76f",
+      "header": {
+        "seed": 1777726747,
+        "policySeed": 208007734,
+        "decks": {
+          "p1": "deck-1",
+          "p2": "deck-2"
+        },
+        "human": "p2",
+        "revision": 102,
+        "trace": "8819255f",
+        "status": "over",
+        "decisions": 101
+      },
+      "outcome": {
+        "kind": "win",
+        "winner": "p1",
+        "reason": "Ann's Crimson II lost: there are no cards in your Life Area (0-1-3-2)"
+      },
+      "endTitle": "DEFEAT",
+      "packFacts": {
+        "hash": "5edc405b97899d219022ebafb5dc29aa3af92c532fe5953be3fbdcf49aeeb8d8",
+        "id": "masters-sd15-vs-sd5",
+        "runtimeRevision": "ff2b7d5994bf0676bf1785186fe38ece69177ff1",
+        "decks": [
+          {
+            "key": "A",
+            "name": "[Starter] Pride of the Saiyans",
+            "leader": null
+          },
+          {
+            "key": "B",
+            "name": "[Starter] The Crimson Saiyan",
+            "leader": null
+          },
+          {
+            "key": "deck-1",
+            "name": "Ann's Crimson",
+            "leader": null
+          },
+          {
+            "key": "deck-2",
+            "name": "Ann's Crimson II",
+            "leader": null
+          }
+        ],
+        "source": {
+          "audit": "docs/arena-offline-deck-audit.md; player decks: the app's catalog and stored card_rules records (#793)",
+          "catalog": {
+            "cardsHash": "b8cb2cc0acb3b70cae55be25419c996bdbaaa81e3147963d8dbb22ed7cea66f9",
+            "path": "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json",
+            "retrieved": "2026-10-13",
+            "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=N (all pages, shaped by src/lib/catalog/deckplanet.ts shapeCatalog)"
+          }
+        }
+      },
+      "screenshot": "match-8-deck-2-deck-1-second.png"
+    }
+  ],
+  "success": true,
+  "decks": [
+    {
+      "key": "A",
+      "text": "[Starter] Pride of the Saiyans\nVegeta · built in · 26 card pictures, about 38 KB"
+    },
+    {
+      "key": "B",
+      "text": "[Starter] The Crimson Saiyan\nGolden Great Ape Son Goku · built in · 17 card pictures, about 25 KB"
+    },
+    {
+      "key": "deck-1",
+      "text": "Ann's Crimson\nGolden Great Ape Son Goku · your deck · 17 card pictures, about 25 KB\nRemove"
+    },
+    {
+      "key": "deck-2",
+      "text": "Ann's Crimson II\nGolden Great Ape Son Goku · your deck · 17 card pictures, about 25 KB\nRemove"
+    }
+  ],
+  "preparation": "READY",
+  "offlineChallenges": {
+    "navigatorOnline": false,
+    "pageRejected": true,
+    "serviceWorkerRejected": true,
+    "serviceWorker": "http://localhost:3794/sw.js?v=24de4a8505d7edd9"
+  },
+  "finishedAt": "2026-10-14T22:06:08.516Z",
+  "responses": [
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    },
+    {
+      "url": "http://localhost:3794/arena/offline",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/20e92ea7378681da-s.p.3md56pgsl4_cx.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/490cbca7f386131e-s.p.1zrwl0c4yv3pr.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/520c929efec0b33f-s.p.3arxh35s5-kc0.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/6a1d08cf467f0848-s.p.240fzfer9e_rh.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/media/f76647e196e5e5bc-s.p.0abssb_1x05s3.woff2",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3lrd_5zwizeps.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1o0dzat2ddto6.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1k-v7qnmrjwqy.css",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0xj3bc0lh5e2o.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3g0xw87dy-zb0.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1-5sk-rn_mzl1.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0kiagvf2h63_j.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/turbopack-0tvlwu3el0bvy.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0ploslgeg_f6w.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/06yaku_7pcmyl.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/3r8lhgor9r6-f.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1x0mkts0y4ppg.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/1f1g52_br29jr.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2qdbrb5jt6zai.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/20l9fbjk_y3ex.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0m6p6--ssb8tp.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/0yqv4mz5bma43.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/_next/static/chunks/2gurhu0w6f-ca.js",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": true
+    },
+    {
+      "url": "http://localhost:3794/manifest.webmanifest",
+      "status": 200,
+      "fromServiceWorker": true,
+      "fromDiskCache": false
+    }
+  ],
+  "blockedRequests": [
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    },
+    {
+      "url": "http://localhost:3794/api/arena/offline/decks?ids=1,2",
+      "method": "GET",
+      "why": "an API route"
+    }
+  ],
+  "artNetworkRequests": []
+}
