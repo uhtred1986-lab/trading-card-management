@@ -11,6 +11,7 @@ import { Count } from "./BattleParts";
 import { ZoneAnchor } from "./anchors";
 import { StageCard, type Moment } from "./StageCard";
 import { energySummary } from "./stakes-model";
+import type { FeedbackLifeCue } from "./useFeedbackCues";
 
 export type CardProps = (c: CardView) => {
   card: CardView;
@@ -189,9 +190,9 @@ export function BattleRow({
                  the row does not reflow when the turn flips. */
               <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={sized(LEADER_W)}>
                 <StageCard {...cardProps(leader)} width={LEADER_W} />
-                {attackRole?.attacker === leader.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-ki-500 px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="attacker">ATTACKER</span>}
-                {attackRole?.target === leader.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-gain px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="target">TARGET</span>}
-                {targetLabel?.(leader) && <span className="pointer-events-none absolute -bottom-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-space-900 px-1 py-px text-[8px] font-bold text-space-50" data-target-label={leader.id}>{targetLabel(leader)}</span>}
+                {attackRole?.attacker === leader.id && <span className="pointer-events-none absolute bottom-0 left-1/2 z-30 -translate-x-1/2 rounded bg-ki-500 px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="attacker">ATTACKER</span>}
+                {attackRole?.target === leader.id && <span className="pointer-events-none absolute bottom-0 left-1/2 z-30 -translate-x-1/2 rounded bg-gain px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="target">TARGET</span>}
+                {targetLabel?.(leader) && <span className={`pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-space-900 px-1 py-px text-[8px] font-bold text-space-50 ${attackRole?.target === leader.id || attackRole?.attacker === leader.id ? "-bottom-7" : "-bottom-3"}`} data-target-label={leader.id}>{targetLabel(leader)}</span>}
                 {active && <span className="arena-leader-ring" aria-hidden />}
                 {/* Named on both sides (#783): the leader is not a card anyone played, and on a
                     phone the two look alike without a word on them. */}
@@ -265,6 +266,7 @@ export function Lane({
   logOpen = false,
   fastForward,
   canFastForward = false,
+  summary,
   children,
 }: {
   view: BoardView;
@@ -276,6 +278,8 @@ export function Lane({
   logOpen?: boolean;
   fastForward?: () => void;
   canFastForward?: boolean;
+  /** Engine outcome, displayed in the lane in place of the narration pill. */
+  summary?: ReactNode;
   /** The log, when it is open: drawn over the lane. */
   children?: ReactNode;
 }) {
@@ -314,7 +318,11 @@ export function Lane({
   }
   return (
     <div className="arena-field arena-lane relative flex min-h-[56px] flex-1 items-center justify-center px-3 py-1.5">
-      {narration && (
+      {summary != null ? (
+        <div className="relative z-[1] flex max-h-32 min-w-0 w-full max-w-[28rem] flex-col items-center justify-center overflow-y-auto text-center max-[390px]:max-h-24" data-arena-outcome-summary>
+          {summary}
+        </div>
+      ) : narration && (
         <div className="relative z-[1] flex max-w-full items-center gap-2">
           <button
             type="button"
@@ -354,6 +362,7 @@ export function PlayerStrip({
   cardProps,
   onOpenInspection,
   hit = null,
+  lifeCue = null,
   narrator,
   energyChips,
   drop = null,
@@ -368,6 +377,8 @@ export function PlayerStrip({
   onOpenInspection?: () => void;
   /** The damage beat on screen against this player: the emptied pips shatter and -N LIFE rises. */
   hit?: { n: number; amount: number; critical: boolean } | null;
+  /** Public life-loss cue, keyed by its beat number. */
+  lifeCue?: FeedbackLifeCue | null;
   narrator: { viewer: PlayerId; them: string };
   energyChips?: MissingEnergyChip[];
   /** A card is being dragged and this is the zone it would charge into (rd-03). */
@@ -426,20 +437,21 @@ export function PlayerStrip({
           <span className="truncate text-[13px] lg:text-base">{side.name}</span>
         </span>
         {/* The labelled number saves space on phones; desktop keeps its original life pips. */}
-        <span className="relative hidden shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:flex" role="img" aria-label={lifeWord}>
+        <span key={`life-desktop-${lifeCue?.beat ?? "idle"}`} className={`relative hidden shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:flex ${lifeCue ? "arena-feedback-life" : ""}`} role="img" aria-label={lifeWord}>
           <ZoneAnchor zone={`${p}:life`} />
           {Array.from({ length: pips }, (_, i) => (
             <i key={i} className="arena-lp relative block h-[15px] w-[9px] sm:h-[17px] sm:w-3 lg:h-[22px] lg:w-4" data-them={flag} data-gone={i < side.life ? undefined : ""}>
               {hit && i >= side.life && i < side.life + hit.amount && <b className="arena-pip-shatter" />}
             </i>
           ))}
+          {lifeCue && <span className="arena-feedback-life-label pointer-events-none absolute bottom-full left-1/2 z-20 whitespace-nowrap rounded bg-space-950 px-1.5 py-0.5 text-[10px] font-black text-space-50" aria-hidden>{lifeCue.text}</span>}
         </span>
         <span className="relative flex shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:hidden" aria-label={lifeWord}>
           <ZoneAnchor zone={`${p}:life`} />
-          <b className="font-bold text-space-50">{side.life}</b><span>Life</span>
-          {hit && (
-            <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
-              −{hit.amount} LIFE
+          <b key={`life-${lifeCue?.beat ?? "idle"}`} className={`font-bold text-space-50 ${lifeCue ? "arena-feedback-life" : ""}`}>{side.life}</b><span>Life</span>
+          {(lifeCue || hit) && (
+            <span key={`life-label-${lifeCue?.beat ?? hit?.n}`} className={`${lifeCue ? "arena-feedback-life-label" : "arena-lifefloat"} pointer-events-none absolute bottom-full left-1/2 z-20 whitespace-nowrap rounded bg-space-950 px-1.5 py-0.5 text-[10px] font-black text-space-50`} aria-hidden>
+              {lifeCue?.text ?? `−${hit?.amount} LIFE`}
             </span>
           )}
         </span>
