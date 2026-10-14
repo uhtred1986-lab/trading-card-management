@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { InstallProgress, PackStore } from "@/lib/arena/local/pack-store";
-import { PACK_PATH, isPreparedDevice } from "@/lib/arena/local/shell";
+import { isPreparedDevice } from "@/lib/arena/local/shell";
+import { devicePackUrl, deviceDeckIds, readDevicePack } from "@/lib/arena/local/device-decks";
+import { DeviceDecks } from "./DeviceDecks";
 import {
   PrepareError, assess, clearOfflineData, deleteSavedMatches, fetchLatest, formatBytes, friendlyError, listSavedMatches, prepareShell, readFacts,
   requestPersistence, storageUsage, updateAvailable, type DeviceFacts, type Friendly, type Latest, type Part, type SavedMatch, type Usage,
 } from "@/lib/arena/local/prepare";
 
 /**
- * Offline preparation (#660, plan O4-05): get the two starter decks, their card artwork and the game
- * itself onto this device, see what is stored, and take it off again. Mounted by the offline page
+ * Offline preparation (#660, plan O4-05): get the decks (the built-in starters, plus the player's own
+ * decks they downloaded, #793), their card artwork and the game itself onto this device, see what is stored, and take it off again. Mounted by the offline page
  * (`/arena/offline`, `LocalArena`) in place of the pack-file step.
  *
  * "Ready" comes only from `assess` over what is really on the device — a complete game-files cache,
@@ -32,7 +34,7 @@ type Run =
 type Ask = null | "pack" | "saves" | "all";
 
 const ORDER: Part[] = ["game files", "deck pack", "card artwork"];
-const LABEL: Record<Part, string> = { "game files": "The game", "deck pack": "The two starter decks", "card artwork": "Card artwork" };
+const LABEL: Record<Part, string> = { "game files": "The game", "deck pack": "The decks", "card artwork": "Card artwork" };
 
 export function OfflinePreparation({ store, revision, pointerPack, onChanged, onReady, forgetPointer }: {
   store: PackStore;
@@ -109,7 +111,9 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
       await prepareShell(l, l.files, (p) => setRun({ kind: "working", ...p }), controller.signal);
       part = "deck pack";
       setRun({ kind: "working", part, done: 0, total: 0 });
-      await store.install({ url: PACK_PATH }, {
+      // The device's own decks (#793) come along: the pack is rebuilt for this version with the same decks.
+      const mine = deviceDeckIds(await readDevicePack(store).catch(() => null));
+      await store.install({ url: devicePackUrl(mine) }, {
         signal: controller.signal,
         onProgress: (p: InstallProgress) => {
           part = p.phase === "pack" ? "deck pack" : "card artwork";
@@ -155,7 +159,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
     if (!pack) return;
     if (packSaves.length) { await deleteSavedMatches(packSaves.map((s) => s.matchId)); if (pointerPack === pack.hash) forgetPointer(); }
     await store.remove(pack.hash, { active: true });
-  }, "The starter decks and their artwork were removed from this device.");
+  }, "The decks and their artwork were removed from this device.");
   const removeSaves = () => act(async () => { await deleteSavedMatches(saves.map((s) => s.matchId)); forgetPointer(); await store.prune().catch(() => undefined); }, "Saved matches were deleted from this device.");
   const removeAll = () => act(async () => {
     store.close();
@@ -191,9 +195,10 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
       )}
       {readiness?.ready && pack && (
         <p className="text-sm text-space-200">
-          The two starter decks and all {pack.artRequired} card images are on this device. Start a match below; no connection is needed.
+          The decks below and all {pack.artRequired} card images are on this device. Start a match below; no connection is needed.
         </p>
       )}
+      {pack && <DeviceDecks store={store} packHash={pack.hash} saves={saves} busy={working} onChanged={() => { onChanged(); void read(); }} />}
       {newer && !working && <p role="status" className="text-sm text-dbs-yellow">A newer version of the decks and the game is available.</p>}
       {!online && !working && <p className="text-xs text-space-400">You are offline, so updates cannot be checked.</p>}
 
@@ -262,7 +267,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
             ? <>This app uses about <strong>{formatBytes(usage.used)}</strong>{usage.quota ? <> of the roughly {formatBytes(usage.quota)} your browser allows</> : null}.</>
             : "How much space this app uses cannot be shown in this browser."}
         </p>
-        {pack && <p className="text-xs text-space-300">Starter decks and artwork: {formatBytes(pack.bytes)}.</p>}
+        {pack && <p className="text-xs text-space-300">Decks and artwork: {formatBytes(pack.bytes)}.</p>}
         {usage?.persisted === false && readiness?.ready && <p className="text-xs text-space-400">Your browser may clear this if the device runs very low on space.</p>}
         <p className="text-xs text-space-300" data-saves>
           {saves.length === 0 ? "No saved matches." : `${saves.length} saved ${saves.length === 1 ? "match" : "matches"}, kept only on this device.`}
@@ -279,7 +284,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
           </div>
           {ask === "pack" && pack && (
             <div role="group" aria-label="Remove the decks" className="space-y-2 rounded-lg border border-space-600 bg-space-950/60 p-3 text-sm text-space-200">
-              <p>This takes the two starter decks and their card artwork off this device ({formatBytes(pack.bytes)}). You need a connection to prepare again, and offline play stops until you do.</p>
+              <p>This takes every deck on this device, the built-in ones and yours, and their card artwork off it ({formatBytes(pack.bytes)}). You need a connection to prepare again, and offline play stops until you do. To take off just one of your decks, use Remove next to it above.</p>
               {packSaves.length > 0
                 ? <p className="text-dbs-yellow">{packSaves.length === 1 ? "A saved match uses" : `${packSaves.length} saved matches use`} these decks and would be deleted with them.</p>
                 : <p>No saved match uses them.</p>}
@@ -300,7 +305,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
           )}
           {ask === "all" && (
             <div role="group" aria-label="Remove everything" className="space-y-2 rounded-lg border border-space-600 bg-space-950/60 p-3 text-sm text-space-200">
-              <p>This removes everything this app keeps on the device for offline play: the game, the starter decks, the card artwork, the cached card images and {saves.length === 0 ? "any saved matches" : saves.length === 1 ? "your saved match" : `your ${saves.length} saved matches`}. Offline play stops until you prepare again. Your account, your collection and online matches are not touched, and nothing else this site stored is removed.</p>
+              <p>This removes everything this app keeps on the device for offline play: the game, every deck on it, the card artwork, the cached card images and {saves.length === 0 ? "any saved matches" : saves.length === 1 ? "your saved match" : `your ${saves.length} saved matches`}. Offline play stops until you prepare again. Your account, your collection and online matches are not touched, and nothing else this site stored is removed.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={danger} onClick={() => void removeAll()}>Remove everything</button>
                 <button type="button" className={quiet} onClick={() => setAsk(null)}>Keep it all</button>

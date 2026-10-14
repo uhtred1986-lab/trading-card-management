@@ -21,6 +21,9 @@ import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
 import { SubmitButton } from "@/components/SubmitButton";
+import { OfflineDeck } from "@/components/arena/OfflineDeck";
+import { checkOfflineDecks } from "@/lib/arena/offline-decks";
+import { runtimeRevision } from "@/lib/arena/replay-bundle";
 import { deleteDeckForm, duplicateDeckForm, importDeckListForm, updateDeckForm } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +41,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   if (!deck) notFound();
   // Read only once the deck is known to be the looker's to see.
   const suggestions = await suggestionsForDeck(db, id);
+  // #793: whether this deck can go on a device for offline play (the arena plays the original game only).
+  const offline = deck.game === "dbs" ? (await checkOfflineDecks(db, scope, [id])).get(id) ?? null : null;
   const conflicts = deck.isBuilt ? [] : await buildConflicts(db, id);
   const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);
   const reserversMap = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, id, deck.owner) : new Map<string, { id: number; name: string; quantity: number }[]>();
@@ -166,6 +171,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             enabled={hasAnthropic()}
             openSuggestions={[...suggestions.values()].reduce((n, l) => n + l.length, 0)}
           />
+          {offline ? <OfflineDeck deckId={deck.id} deckName={deck.name} check={offline} revision={runtimeRevision()} /> : null}
 
           <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
             <summary className="cursor-pointer text-sm font-semibold text-space-100">Deck details & notes</summary>
