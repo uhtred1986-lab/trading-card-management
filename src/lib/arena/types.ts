@@ -340,6 +340,13 @@ export interface Prohibition {
   counterKind?: CounterKind;
   /** "…of **other** cards" (BT10-008): the card that made the rule is not bound by it. */
   otherCards?: boolean;
+  /**
+   * 12-1-3 (#677): "activating an Extra Card" — only an [Activate] or [Counter]
+   * skill of an Extra Card used from a player's hand, not an Extra's [Auto]
+   * (BT10-097's "can't activate Extra Cards unless …"). Matched against the
+   * line's kind and the area the card was used from (`skillKind`, `from`).
+   */
+  extraCardActivation?: boolean;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
@@ -392,8 +399,15 @@ export interface Permission {
    * [Union] skill of a red <Veku> or <Gogeta> card from your hand. If you do,
    * send the chosen cards to their owner's Warp" (BT31-001, owner's ruling of
    * 13 Oct 2026). `filter` says which cards' [Union-Fusion] it widens.
+   * `aegisAltDrop` (BT22-035): while the card granting it is in play, its
+   * master may pay any of their [Aegis] skills by sending one card of each of
+   * `filter.colors` from their Drop to their Warp instead of the hand cards of
+   * 22-30-3 — `filter` carries only those colours here, it is not asked of a card.
+   * `aegisAltOpponentHand` (BT22-140): the target's own [Aegis] skill may be
+   * paid by sending 1 card from the opponent's hand to the bottom of their deck
+   * instead. Both stand beside the hand payment, which stays the player's choice.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "aegisAltDrop" | "aegisAltOpponentHand";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
@@ -836,6 +850,12 @@ export interface CardChoice {
   max: number;
   /** Continuation id the engine resolves when the choice comes back. */
   continuation: string;
+  /**
+   * The candidates are cards the chooser may not read (BT22-140: "1 card from
+   * your opponent's hand"), so asking does not reveal them: they reach the
+   * chooser by position, like any hidden card (`vmRevealedTo`).
+   */
+  blind?: true;
   /**
    * 22-30-3: the cards picked must between them cover every one of these
    * colours. Covering is a *condition of activating* [Aegis], not something a

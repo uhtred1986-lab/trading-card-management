@@ -38,6 +38,14 @@ export interface CardFilter {
   charactersIncluding: string[];
   /** "…without <Turles> in their character names" (BT24-099). */
   notCharactersIncluding: string[];
+  /**
+   * "A blue Leader with **both <Son Goku> and <Vegeta>**" (BT22-035, #768):
+   * every character named, not one of them. `characters` is an any-of list
+   * ("<A> or <B>", "<A>/<B>"), so the two readings need two lists; a card
+   * answers by having each name among its character names (2-3), on top of any
+   * other measure. `?? []` at the readers: older stored programs lack it.
+   */
+  charactersAll: string[];
   traits: string[];
   notTraits: string[];
   /**
@@ -78,6 +86,8 @@ export interface CardFilter {
    */
   namesIncluding: string[];
   notNamesIncluding: string[];
+  /** "…with both {A} and {B}": the card-name twin of `charactersAll` (#768). */
+  namesAll: string[];
   /**
    * "Play up to 1 Battle Card **whose card name is in the text of a skill on the
    * chosen card**" (BT30-084, #542): the variable (bound by an earlier
@@ -280,6 +290,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   notCharacters: "strings",
   charactersIncluding: "strings",
   notCharactersIncluding: "strings",
+  charactersAll: "strings",
+  namesAll: "strings",
   traits: "strings",
   notTraits: "strings",
   characterOrTrait: "boolean",
@@ -349,6 +361,8 @@ export function emptyFilter(): CardFilter {
     notCharacters: [],
     charactersIncluding: [],
     notCharactersIncluding: [],
+    charactersAll: [],
+    namesAll: [],
     traits: [],
     notTraits: [],
     characterOrTrait: false,
@@ -499,8 +513,17 @@ function parseOneFilter(text: string): CardFilter {
     // Area" with it on some wordings.
     return " other than ";
   });
+  // "…with **both <Son Goku> and <Vegeta>**" (BT22-035, #768): all of the
+  // names, not one. Taken out of the text first so the loops below cannot
+  // also read the two tokens as the any-of `characters` / `names`. "<A> or
+  // <B>" and "<A>/<B>" never reach this and stay any-of.
+  t = t.replace(/\bboth\s+(<[^>]+>|\{[^}]+\})\s+and\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, a: string, b: string) => {
+    for (const token of [a, b]) (token.startsWith("<") ? f.charactersAll : f.namesAll).push(token.slice(1, -1).trim());
+    return " ";
+  });
   // "…with <Son Goku> in its character name", "…{SS4} in its card name",
-  // "…without <Turles> in their character names". Read before the exact loops
+  // "…without <Turles> in their character names", and the bare "{Cabba} in
+  // its name" (card name, #758). Read before the exact loops
   // below and taken out of the text, so a token the phrase governs cannot also
   // be claimed as a whole name. See `charactersIncluding`.
   // The negation is written three ways and only two were read: BT21-040 prints
@@ -509,9 +532,11 @@ function parseOneFilter(text: string): CardFilter {
   // sentence rules out. Until 9 Sep 2026 nothing noticed, because the measure
   // was thrown away before it reached a selector (see `narrows` in
   // `compile.ts`) — the filter was wrong and the selector had none at all.
-  t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (character|card) names?/gi, (_whole, neg: string | undefined, token: string, which: string) => {
+  t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, neg: string | undefined, token: string, which: string | undefined) => {
     const value = token.slice(1, -1).trim();
-    const character = which.toLowerCase() === "character";
+    // A bare "in its name" (SD15-01: "Unison Cards with {Cabba} in its name",
+    // #758) is the card name (2-3), looked inside, not matched whole.
+    const character = which?.toLowerCase() === "character";
     if (neg) (character ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
     else (character ? f.charactersIncluding : f.namesIncluding).push(value);
     return " ";
@@ -880,6 +905,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   const partNames = f.namesIncluding ?? [];
   const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => hasCharacter(d, c)) || partChars.some((c) => characterIncludes(d, c));
   const traitOk = !f.traits.length || f.traits.some((c) => hasTrait(d, c));
+  // "with both <A> and <B>" (#768): each one, where `characters` takes any.
+  if (!(f.charactersAll ?? []).every((c) => hasCharacter(d, c))) return false;
   // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
   if (f.characterOrTrait) {
     if (!f.characters.some((c) => hasCharacter(d, c)) && !f.traits.some((c) => hasTrait(d, c))) return false;
@@ -895,6 +922,7 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   // *not* to choose — both readings come from the same list.
   const names = namesOf(d);
   if ((f.names.length || partNames.length) && !f.names.some((n) => names.some((own) => own.toLowerCase() === n.toLowerCase())) && !partNames.some((n) => nameIncludes(d, n))) return false;
+  if (!(f.namesAll ?? []).every((n) => names.some((own) => own.toLowerCase() === n.toLowerCase()))) return false;
   if (f.notNames.some((n) => names.some((own) => own.toLowerCase() === n.toLowerCase()))) return false;
   if ((f.notNamesIncluding ?? []).some((n) => nameIncludes(d, n))) return false;
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;

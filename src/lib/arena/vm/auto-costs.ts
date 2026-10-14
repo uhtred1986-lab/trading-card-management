@@ -4,7 +4,7 @@ import type { GameDefinition } from "../rulesets";
 import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
 import { vmHost } from "./host";
-import { boundFor, scopedPayersSpent } from "./activate";
+import { boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
 import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
 import { describeScript } from "./script-schema";
@@ -28,6 +28,13 @@ export interface AutomaticCost {
   costs: string[];
   choices: { price: Price; payment: VmPayment; label: string; x?: number }[];
   stage: "offer" | "action";
+  /**
+   * #677: the 20-14 prices a rule puts on activating this [Auto], part of the
+   * one cost its master pays in its entirety or not at all (9-6-4) — named on
+   * the "Pay:" option, and charged once the printed price is paid, before the
+   * skill is activated (`vm/activate.ts`'s `TaxGate`). Additive.
+   */
+  taxGate?: Omit<TaxGate, "guards">;
 }
 
 /** A supported action-price must complete every instruction (5-8-2-2). */
@@ -707,6 +714,18 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
 /** Finish the activation only after the entire action price completed. */
 export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }): void {
   const cost = frame.autoCost!;
+  // #677: the printed price is paid; the rule's prices come next, and the
+  // activation itself only once they are — this same frame, with nothing left
+  // to pay, is what the gate lets through (or drops, if they can't be paid).
+  if (cost.taxGate) {
+    const gate = cost.taxGate;
+    delete cost.taxGate;
+    const paid: ScriptFrame & { autoRevealEpoch?: number } = { ...frame, ops: [], ip: 0 };
+    delete paid.awaiting;
+    state.programs.unshift(paid);
+    queueTaxGate(state, gate, 1);
+    return;
+  }
   // 22-11-2 / 22-44-3 (#741): the paid Auto is activated — one use spent, on
   // the copy for [Once per turn] and across copies for [Limit X].
   spendUse(state, frame.master, frame.card, cost.skill);

@@ -46,7 +46,7 @@ import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsI
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
-import { nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
+import { emptyFilter, nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
@@ -55,7 +55,7 @@ import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
-import { SETUP_ZONES, hostOf, inPlayZones } from "./zones";
+import { SETUP_ZONES, findCard, hostOf, inPlayZones } from "./zones";
 import type { VmState } from "./state";
 
 /** The zone words this module names, and why each is unavoidable. Asserted against the declarations by `verify/rulesets.ts`. */
@@ -891,6 +891,13 @@ interface RuleInForce {
   /** The source controller of a timed rule; absent on standing/own rules. */
   master?: PlayerId;
   forbid: Prohibition;
+  /**
+   * #677: which rule this is, stable across a save — a timed effect's id, a
+   * standing rule's source card and its place among that card's rules — so a
+   * price already charged for one activation is never charged again, and one
+   * whose rule has gone is not charged at all.
+   */
+  key: string;
 }
 
 /**
@@ -906,11 +913,16 @@ interface RuleInForce {
  */
 function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean } = {}): RuleInForce[] {
   const out: RuleInForce[] = [];
-  for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, master: e.master, forbid: e.forbid });
-  for (const e of statics(ctx, game, state)) if (e.kind === "forbid") out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition });
+  for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, master: e.master, forbid: e.forbid, key: `effect:${e.id}` });
+  const ordinal: Record<string, number> = {};
+  for (const e of statics(ctx, game, state)) {
+    if (e.kind !== "forbid") continue;
+    const n = (ordinal[e.source] = (ordinal[e.source] ?? -1) + 1);
+    out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition, key: `static:${e.source}:${n}` });
+  }
   if (card) {
     const master = masterOf(game, state, card);
-    for (const f of ownProhibitions(ctx, state, card, (frame, a) => amount(ctx, game, state, frame, a), master)) out.push({ target: card, source: card, until: "permanent", forbid: f });
+    for (const [i, f] of ownProhibitions(ctx, state, card, (frame, a) => amount(ctx, game, state, frame, a), master).entries()) out.push({ target: card, source: card, until: "permanent", forbid: f, key: `own:${card}:${i}` });
     // #154: a keyword's own `chooseable`/`koByEffect` hook is a fourth source,
     // read fresh alongside the card's other own rules ([Barrier], 22-16, is
     // the worked example) — `until: "permanent"` for the same reason
@@ -918,7 +930,7 @@ function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, 
     // long as the card shows it, not for a stored span.
     if (opts.hooks !== false) {
       for (const point of ["chooseable", "koByEffect"] as const)
-        for (const fact of queryHookStatics(ctx, game, state, card, point)) if (fact.op === "forbid") out.push({ target: card, source: card, until: "permanent", forbid: fact.forbid });
+        for (const [i, fact] of queryHookStatics(ctx, game, state, card, point).entries()) if (fact.op === "forbid") out.push({ target: card, source: card, until: "permanent", forbid: fact.forbid, key: `hook:${card}:${point}:${i}` });
     }
   }
   return out;
@@ -947,10 +959,18 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; skillKind?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; skillKind?: string; from?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
+  // #677, 12-1-3: "activating an Extra Card" is an [Activate] or [Counter]
+  // skill of one used from the hand (BT10-097) — the area it was used from,
+  // which the caller names once the card has gone on to the Drop (12-2-2-2).
+  if (f.extraCardActivation) {
+    if (opts.skillKind !== undefined && !/^(?:activate|counter)\b/.test(opts.skillKind)) return false;
+    const from = opts.from ?? (opts.card ? findCard(state, opts.card)?.zone : undefined);
+    if (from !== undefined && from !== "hand") return false;
+  }
   // #716: "[Counter: Play] skills of other cards" (BT10-008) — only that kind
   // of line, and never the card whose rule it is. Asked without a line, the
   // kind cannot exclude anything, so the rule is read as applying.
@@ -1036,7 +1056,7 @@ export function forbiddenBy(
       for (const source of inPlayZones(game).flatMap((zone) => side.zones[zone] ?? [])) {
         for (const fact of queryHookStatics(ctx, game, state, source, "playRefused")) {
           if (fact.op !== "forbid") continue;
-          if (!ruleApplies(ctx, game, state, what, { target: "", source, until: "permanent", forbid: fact.forbid }, opts)) continue;
+          if (!ruleApplies(ctx, game, state, what, { target: "", source, until: "permanent", forbid: fact.forbid, key: `hook:${source}:playRefused` }, opts)) continue;
           return { by: nameShowing(ctx, state, source) ?? null };
         }
       }
@@ -1050,6 +1070,8 @@ export interface TaxInForce {
   ops: Op[];
   by: string | null;
   until: EffectUntil;
+  /** #677: the rule's stable identity (`RuleInForce.key`). */
+  key: string;
 }
 
 /**
@@ -1061,12 +1083,15 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; skillKind?: string; from?: string; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
-    if (!rule.forbid.pay?.length || (rule.forbid.uses ?? 0) > 0) continue;
+    // `counted` asks the other half (#677): the priced rules whose free uses
+    // are not spent yet, so the activation that spends one is not charged
+    // once the use is gone.
+    if (!rule.forbid.pay?.length || ((rule.forbid.uses ?? 0) > 0) !== !!opts.counted) continue;
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
-    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until });
+    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key });
   }
   return out;
 }
@@ -1102,7 +1127,7 @@ export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state
 export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): void {
   for (const e of state.effects) {
     if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
-    if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid }, opts)) continue;
+    if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts)) continue;
     e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
   }
 }
@@ -1465,6 +1490,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // card using this line answers, under the same master.
     case "permits": {
       const card = frame.card;
+      // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
+      if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
       return !!card && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && permitted(ctx, game, state, p.filter, card));
     }
     // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
@@ -1508,6 +1535,31 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
   });
   return namedSetCandidates(printedNames(sk), pool, picked, samePower);
+}
+
+/** An alternative way to pay an [Aegis] skill instead of its hand cards (22-30-3), already known to be payable. */
+export type AegisAlt = { kind: "aegisAltDrop"; colors: Color[] } | { kind: "aegisAltOpponentHand" };
+
+/**
+ * BT22-035 / BT22-140: the alternative [Aegis] payments a [Permanent] of the
+ * frame's master offers for the frame's card, each one only if the board can
+ * pay it now. "Instead of" (20-1-11: the substitute applies only when it is
+ * fulfilled) leaves the hand payment to the caller. `aegisAltDrop` is the
+ * master's own for any of their [Aegis] skills and needs two different Drop
+ * cards, one of each colour; `aegisAltOpponentHand` is the granting card's
+ * own [Aegis] only ("this card's") and needs a card in the opponent's hand.
+ */
+export function aegisAlternatives(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): AegisAlt[] {
+  const out: AegisAlt[] = [];
+  const mine = (what: Permission["what"]) => permissions(ctx, game, state, what).filter((p) => p.master === frame.master);
+  for (const p of mine("aegisAltDrop")) {
+    const colors = [...(p.filter?.colors ?? [])];
+    if (colors.length !== 2 || out.some((a) => a.kind === "aegisAltDrop" && a.colors.join() === colors.join())) continue;
+    const [first, second] = colors.map((color) => resolveSelector(ctx, game, state, frame, { side: "you", area: "drop", filter: { ...emptyFilter(), colors: [color] }, count: 1, upTo: false }));
+    if (first.some((a) => second.some((b) => a !== b))) out.push({ kind: "aegisAltDrop", colors });
+  }
+  if (mine("aegisAltOpponentHand").some((p) => p.target === frame.card) && (state.sides[other(frame.master)].zones.hand ?? []).length) out.push({ kind: "aegisAltOpponentHand" });
+  return out;
 }
 
 /** The name `sumsTo` binds one card to while it reads that card's measure through `amount`. */

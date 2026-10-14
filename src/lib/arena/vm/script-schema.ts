@@ -214,7 +214,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
-export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive", "activateSkill"]);
+export const TAXABLE: ReadonlySet<ForbiddenAction> = new Set(["attack", "play", "switchEnergyToActive", "activateSkill", "activateCounter"]);
 
 const SIDE: OpField = { name: "side", type: "side", default: "you" };
 const TARGET: OpField = { name: "target", type: "ref", required: true };
@@ -321,7 +321,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "aegisAltDrop", "aegisAltOpponentHand"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -340,6 +340,11 @@ const CHOOSE_FIELDS: OpField[] = [
         name: "namedSet",
         type: "boolean",
         offCard: "picks one card at a time for the characters the keyword line prints in ‹…› — one card per name, all of one printed power — offering only the cards that still leave a complete set; binds the picks to `as` and those that stood outside the hand to `<as>Outside` — [Union-Fusion] (22-13-4-2)",
+      },
+      {
+        name: "blind",
+        type: "boolean",
+        offCard: "the candidates are cards the chooser may not read (the opponent's hand), so asking reveals none of them: they are offered by position only — [Aegis]'s alternative payment (BT22-140)",
       },
       {
         name: "atMost",
@@ -773,14 +778,25 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "turnPlayer", type: "boolean" },
       { name: "counterKind", type: { enum: ["play", "attack", "battleCardAttack", "counter"] } },
       { name: "otherCards", type: "boolean" },
+      { name: "extraCardActivation", type: "boolean" },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"forbid">;
+      // 20-14-1's price, said from the payer's side: the program's "you" is
+      // whoever takes the action, not this card's controller.
+      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       // #716: "you can't activate the [Counter: Play] skills of other cards".
-      if (op.what === "activateCounter" && (op.counterKind || op.otherCards)) {
+      if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.otherCards ? " of other cards" : ""}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+      }
+      // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
+      // of particular cards (BT23-140's "the skills of Battle Cards").
+      if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
+        const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+        const which = op.extraCardActivation ? "Extra Cards" : `the skills of ${describeFilter(op.filter!)}`;
+        return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // A rule aimed at a card reads the other way round: the card is what is
       // played, not what plays. "You can't play …" is the player's version.
@@ -795,12 +811,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const budget = op.uses != null ? ` ${op.uses === 1 ? "once more" : `${describeAmount(op.uses)} more times`}` : "";
       // BT8-051: whose skill it has to be.
       const by = op.byTypes?.length ? ` with the skill of ${op.byTypes.map((t) => (t === "LEADER" ? "a Leader Card" : t === "BATTLE" ? "a Battle Card" : t === "EXTRA" ? "an Extra Card" : "a Unison Card")).join(" or ")}` : "";
-      // 20-14-1's price, said from the payer's side: the program's "you" is
-      // whoever takes the action, not this card's controller.
-      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       return `${who} can't ${verb}${which ? ` ${which}` : ""}${by}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what":"activateSkill" and "activateCounter" take an "unlessPay" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; "extraCardActivation":true narrows an "activateSkill" rule to 12-1-3's "activating an Extra Card" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -822,10 +835,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         return renderTemplate("{target}'s [Over Realm] skill can be activated from its owner's Warp under the same conditions as from the hand", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
       }
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
+      if (op.what === "aegisAltDrop") return `you can pay your [Aegis] skills by sending 1 ${(op.filter?.colors ?? []).join(" card and 1 ").toLowerCase()} card from your Drop to your Warp instead of discarding cards from your hand${forThe(op.until, r)}`;
+      if (op.what === "aegisAltOpponentHand") return `${describeRef(op.target)}'s [Aegis] skill can be paid by sending 1 card from your opponent's hand to the bottom of their deck instead of discarding cards from your hand${forThe(op.until, r)}`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: 'a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). The filter says *which* cards — leave it out only when the card does',
+    doc: '"aegisAltDrop" / "aegisAltOpponentHand" (BT22-035, BT22-140; 22-30-3 "instead of", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card\'s own [Aegis] only) one card of your opponent\'s hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
@@ -1297,9 +1312,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag",
   },
   permits: {
-    fields: [{ name: "what", type: { enum: ["unionFusionAreas"] }, required: true }],
-    sentence: () => "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from",
-    doc: "does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. A `DEFINE KEYWORD` body's word; no card's record says this",
+    fields: [{ name: "what", type: { enum: ["unionFusionAreas", "aegisAlt"] }, required: true }],
+    sentence: (raw) => ((raw as { what?: string }).what === "aegisAlt" ? "a [Permanent] of yours lets this card's [Aegis] be paid another way, and that payment can be made now" : "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from"),
+    doc: "`aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. A `DEFINE KEYWORD` body's word; no card's record says this",
   },
   covers: {
     fields: [
@@ -1706,9 +1721,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
     // attack, a declared play, a skill's switch of energy to Active Mode and
-    // a skill activation (#677: a declared or invoked [Activate] is charged;
-    // an [Auto] or [Counter] under one stops with `NotYet`) charge one — a
-    // price on any other action would be a rule that silently stopped
+    // a skill activation (#677: [Activate], [Auto] and [Counter]) charge one —
+    // a price on any other action would be a rule that silently stopped
     // forbidding anything.
     if (o.op === "forbid" && o.unlessPay !== undefined && (!TAXABLE.has(o.what as ForbiddenAction) || !(o.unlessPay as unknown[]).length || o.unless !== undefined))
       return `${step}: only an attack, a declared play, a switch of energy to Active Mode or a skill activation is taxed with "unlessPay", and never beside "unless"`;
@@ -2148,6 +2162,13 @@ const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
+function allOfPhrases(characters: string[], names: string[]): string[] {
+  const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i += 2) out.push(`with both ${tokens[i]} and ${tokens[i + 1] ?? tokens[i]}`);
+  return out;
+}
+
 export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): string {
   // A stored filter may be partial (Claude writes only the measures it means),
   // and a missing list crashed the workbench and the printer on BT31-132.
@@ -2202,6 +2223,9 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const partial = [
     ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
     ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
+    // the names go out in pairs (an odd one is repeated, which says the same).
+    ...allOfPhrases(f.charactersAll ?? [], f.namesAll ?? []),
     ...f.notCharactersIncluding.map((x) => `without <${x}> in its character name`),
     ...f.notNamesIncluding.map((x) => `without {${x}} in its card name`),
     // A name the target must *not* have. Written the way the cards write it,

@@ -1153,6 +1153,14 @@ equal only when all the text is the same (so `{Son Goku, The Awakened Power}` do
 runs on the printed text of the chosen card, never by compiling at game time, and with nothing bound
 it matches nothing. `play … onto: $c0` is the existing "on top of the chosen card" form.
 
+### "With both <A> and <B>" is all-of (#768)
+
+`"blue Leader with both <Son Goku> and <Vegeta>"` (BT22-035) fills the filter fields `charactersAll`
+(for `<…>` tokens) and `namesAll` (for `{…}` tokens): the card must have **every** name listed, where
+`characters` / `names` take any one of their list ("<A> or <B>", "<A>/<B>" stay any-of). `describeFilter`
+prints them back as `with both <A> and <B>` (an odd one out is repeated). Rule Manual 2-3 defines
+what a name is; nothing in it turns "both A and B" into "either", and no ruling is needed.
+
 ### Combo power, and different card names (2 Oct 2026)
 
 2-8: combo power is a filter measure, `comboPowerMin`/`comboPowerMax`, printed "with 5000 combo

@@ -437,6 +437,8 @@ function put(ctx: EngineContext, s: EngineState, p: PlayerId, cardId: string, ar
   if (isZ(ctx.defs[cardId])) s.cards[inst].zCard = true;
   else delete s.cards[inst].zCard;
   send(ctx, s, inst, area, p);
+  // 21-9-2 (#759): a Unison with no markers is placed in the Drop Area, so a staged one carries the one it was played with at least.
+  if (area === "unison" && !s.cards[inst].markers) s.cards[inst].markers = 1;
   return inst;
 }
 
