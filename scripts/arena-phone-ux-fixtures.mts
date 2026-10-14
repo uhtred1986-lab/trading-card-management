@@ -40,3 +40,12 @@ for (let n = 0; n < 10 && (!("player" in defend.state.prompt) || defend.state.pr
 }
 assert.equal(defend.state.prompt.kind, "combo");
 save("combo", defend);
+const emptySteps = battleAt(theirs, {
+  p1: { hand: ["C-V5", "C-V10"], energy: ["C-V5", "C-V5"], battle: [] },
+  p2: { hand: [], battle: [{ cardId: "C-BIG", mode: "active" }] },
+}, "C-BIG", "leader", { p2: "C-L-RED" });
+assert.equal(emptySteps.state.prompt.kind, "combo");
+assert.ok("player" in emptySteps.state.prompt && emptySteps.state.prompt.player === "p1");
+const emptyView = projectSnapshot(emptySteps, "p1", { id: 23001 }).view.battle;
+assert.deepEqual(emptyView?.emptyResponses, ["counter", "blocker"]);
+save("combo-empty", emptySteps);

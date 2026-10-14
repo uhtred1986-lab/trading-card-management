@@ -1301,7 +1301,10 @@ export function ArenaStage({
    * neither (an energy, a life card) is reviewed alone.
    */
   const inPlayRun = [view.them, view.you].flatMap((side) => [side.leader, side.unison, ...side.battle].filter((c): c is CardView => !!c).map((card) => ({ card, yours: side === view.you })));
-  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id) }));
+  const handRun = (view.you.hand ?? []).map((card) => ({ card, yours: true, status: handStatus(card.id),
+    playable: (taps.byCard[card.id] ?? []).some((i) => legal[i].action.type === "play" || legal[i].action.type === "activate"),
+    counter: card.abilities?.some((ability) => ability.category === "counter") || handStatus(card.id) === "counter",
+  }));
   const zoneNames: Record<string, string> = { drop: "Drop", warp: "Warp", zEnergy: "Z-Energy", zDeck: "Z-Deck" };
   const zoneRuns = [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) })));
   const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
@@ -1527,7 +1530,7 @@ export function ArenaStage({
             </div>
           )}
 
-          {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
+          {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
           {!(!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 

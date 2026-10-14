@@ -68,5 +68,5 @@ export default async function ArenaPreviewPage({ searchParams }: { searchParams:
   }
   const snapshot = JSON.parse(readFileSync(join(DIR, `${name}.json`), "utf8")) as Snapshot;
   const pace: Pace | null = q.pace === "step" || q.pace === "normal" || q.pace === "slow" ? q.pace : null;
-  return <PreviewStage snapshot={snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={pace} announceTurn={q.turn === "banner"} fx={q.fx ?? null} admin={q.admin !== "0"} referee={q.referee === "1"} replay={q.replay === "1"} />;
+  return <PreviewStage snapshot={snapshot} skin={skinFrom(q.skin)} staging={stagingFrom(q.staging)} pace={pace} announceTurn={q.turn === "banner"} fx={q.fx ?? null} admin={q.admin !== "0"} referee={q.referee === "1"} replay={q.replay === "1"} staticTransport={name.startsWith("phone-ux-")} />;
 }
