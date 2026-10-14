@@ -143,8 +143,8 @@ assert.deepEqual(pack.qualification.reasons, [], "and no reason is left");
   for (const id of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"]) assert.ok(ids.includes(id), `blocker ${id} is in the pack`);
   for (const b of pack.blockers) {
     if (b.status === "resolved") continue;
-    assert.ok(pack.qualification.reasons.some((r) => r.startsWith(`blocker ${b.id} (`)), `open blocker ${b.id} is a visible reason`);
-    for (const i of b.issues) assert.ok(pack.qualification.reasons.some((r) => r.includes(`#${i.issue}`)), `${b.id}'s issue #${i.issue} is visible`);
+    assert.ok((pack.qualification.reasons as readonly string[]).some((r) => r.startsWith(`blocker ${b.id} (`)), `open blocker ${b.id} is a visible reason`);
+    for (const i of b.issues) assert.ok((pack.qualification.reasons as readonly string[]).some((r) => r.includes(`#${i.issue}`)), `${b.id}'s issue #${i.issue} is visible`);
   }
   assert.equal(pack.blockers.find((b) => b.id === "U5")?.status, "resolved", "U5 (resolved by #716) stays listed as resolved");
   assert.equal(pack.blockers.find((b) => b.id === "U4")?.status, "resolved", "U4 (resolved by #729: BT4-079's [Swap] price) stays listed as resolved");
