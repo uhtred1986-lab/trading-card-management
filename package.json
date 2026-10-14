@@ -44,6 +44,7 @@
     "arena:local-ownership-browser": "tsx scripts/arena-local-ownership-browser.mts",
     "arena:local-browser": "tsx scripts/arena-local-browser.mts",
     "arena:offline-release": "tsx scripts/arena-offline-release-browser.mts",
+    "arena:phone": "tsx scripts/arena-phone-run.mts",
     "arena:vs": "tsx --env-file-if-exists=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file-if-exists=.env.local scripts/arena-gaps.mts",
     "arena:feedback": "tsx --env-file-if-exists=.env.local scripts/arena-feedback.mts",
