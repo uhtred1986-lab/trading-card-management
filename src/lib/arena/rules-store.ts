@@ -12,6 +12,8 @@ import { cardRules, cards } from "@/db/schema";
 import { completeFilters, describeScript, type CardScripts, type Op } from "./vm/script";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs } from "./vm/script-schema";
 import { DEFERRED_STATICS, STATIC_OPS } from "./vm/effects";
+import { readableAutomaticPrice } from "./vm/auto-costs";
+import { NotYet } from "./vm/errors";
 import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
 import type { Cond, PayWith, SkillPrice, XCost } from "./vm/script";
@@ -68,13 +70,15 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   const unsupported = [...(row.unread ?? [])];
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
-  const cost = row.cost as { program?: Op[] | null; x?: unknown } | null;
+  const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
 
-  // Auto resolution still cannot ask or bind an action/X price. Activate and
-  // Counter lines have their own payment paths and are intentionally not
-  // inferred from this Auto-only limitation.
-  if (kind === "auto" && (cost?.program?.length || cost?.x)) {
-    unsupported.push("the rules engine cannot resolve an Auto action or X price yet (#149)");
+  // An Auto's action or X price is paid by the VM's own planner (#549,
+  // `vm/auto-costs.ts`); refuse only what that planner refuses statically, in
+  // its own words (#804). Activate and Counter lines have their own payment
+  // paths and are intentionally not inferred from this Auto-only check.
+  if (kind === "auto") {
+    const gap = autoPriceGap(cost);
+    if (gap) unsupported.push(gap);
   }
   if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
@@ -108,6 +112,29 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (hasOp(row.ops as Op[], "play")) unknown.push("play target support depends on the card and board at resolution");
 
   return { unsupported: [...new Set(unsupported)], unknown: [...new Set(unknown)] };
+}
+
+/**
+ * Why the VM's Auto price planner would refuse this record's price before
+ * asking anyone, or null when it plans it. The same static checks
+ * `prepareAutomaticCost` runs at the checkpoint (`vm/auto-costs.ts`): the
+ * action program through `readableAutomaticPrice`, and the X bounds. Whether a
+ * readable price is affordable is a question of the board, answered in game.
+ */
+function autoPriceGap(cost: { program?: Op[] | null; x?: XCost } | null): string | null {
+  try {
+    if (cost?.program?.length) readableAutomaticPrice(cost.program);
+    const x = cost?.x;
+    if (x) {
+      const min = x.min ?? 0;
+      if (!Number.isInteger(min) || min < 0 || (x.max !== undefined && (!Number.isInteger(x.max) || x.max < min)))
+        throw new NotYet("read the bounds of this Auto's X cost", "#549");
+    }
+  } catch (err) {
+    if (err instanceof NotYet) return err.message;
+    throw err;
+  }
+  return null;
 }
 
 const IDENTITY_LIST_ATTRS = new Set(["traits", "characters", "colors", "alsoNames"]);

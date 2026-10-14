@@ -152,9 +152,21 @@ export async function verifyReadiness(db: Db): Promise<void> {
     "a printed Activate action price is supported and must not be rejected by the Auto limitation",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { program: actionPrice }, trigger: ["played"] } as never).unsupported.length,
-    1,
-    "an Auto action price the flow cannot resolve is not reported supported",
+    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { program: actionPrice }, trigger: ["played"] } as never).unsupported,
+    ["the rules engine cannot pay Auto action price containing draw yet — #549 builds it"],
+    "an Auto action price the VM's planner cannot plan is not reported supported, and says why (#804)",
+  );
+  // #804: a price the planner does plan (a hand card to the Drop, BT9-031) is supported.
+  const handToDrop = [{ op: "choose", sel: { side: "you", area: "hand", count: 1, filter: { type: "EXTRA" } }, as: "c0" }, { op: "moveTo", target: { var: "c0" }, to: "drop" }];
+  assert.deepEqual(
+    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { program: handToDrop }, trigger: ["comboed"] } as never),
+    { unsupported: [], unknown: [] },
+    "an Auto action price the VM's planner plans is supported (#804)",
+  );
+  assert.deepEqual(runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { x: { min: 1 } }, trigger: ["played"] } as never), { unsupported: [], unknown: [] }, "a readable Auto X price is supported (#804)");
+  assert.ok(
+    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { x: { min: 3, max: 1 } }, trigger: ["played"] } as never).unsupported.some((reason) => reason.includes("bounds of this Auto's X cost")),
+    "an Auto X price with unreadable bounds stays refused with its reason (#804)",
   );
   assert.ok(
     runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: null, trigger: [] } as never).unsupported.some((reason) => reason.includes("WHEN trigger")),

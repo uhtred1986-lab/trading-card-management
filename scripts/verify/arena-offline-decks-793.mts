@@ -65,14 +65,24 @@ for (const id of [annRed, annRed2]) {
   assert.equal(deckIdOfKey(c.key), id);
 }
 
-// The SD15 list as a player's deck is refused on live records: two of its [Auto] skills carry an
-// action price, which `runtimeSupportOfRow` reports the engine cannot resolve (#149) — and which a
-// confirmed record therefore does not execute online either (`rulesFromRows`). Same rules both ways.
+// #804: the SD15 list as a player's deck is accepted on live records. Two of its [Auto] skills
+// (BT9-031, DB2-004) carry an action price; `runtimeSupportOfRow` used to refuse every priced Auto
+// (#149), but the VM pays them (#549), so the gate now refuses only a price its planner cannot read.
+// The same records execute online (`rulesFromRows`): same rules both ways.
 {
   const c = checks.get(annPride)!;
-  assert.equal(c.ready, false, "the SD15 list is refused on the stored records");
-  assert.deepEqual(c.blocking.map((b) => b.card), ["BT9-031", "DB2-004"], "named card by card");
-  for (const b of c.blocking) assert.match(b.reasons.join(" "), /the game cannot do this yet/);
+  assert.deepEqual(c.problems, [], `${c.name}: no deck-level problem`);
+  assert.deepEqual(c.blocking, [], `the SD15 list is accepted on the stored records (${JSON.stringify(c.blocking).slice(0, 400)})`);
+  assert.equal(c.ready, true);
+  const sd15Pack = await buildDeviceOfflinePack(db, "ann", [annPride], starters);
+  assert.deepEqual(sd15Pack.decks.map((d) => d.key), ["A", "B", offlineDeckKey(annPride)], "the SD15 list goes on the device as the player's deck");
+  assert.equal(sd15Pack.qualification.playable, true);
+  assert.deepEqual(qualificationReasons(packContent(sd15Pack), REV), []);
+  for (const id of ["BT9-031", "DB2-004"]) {
+    const prog = sd15Pack.bundle.payload.scripts[id];
+    assert.deepEqual(prog.unsupported, [], `${id}: its priced [Auto] plays offline`);
+    assert.ok(Object.values(prog.bySkill).some((sk) => sk?.price?.ops?.length && !sk.unsupported.length), `${id}: the price is charged, not skipped`);
+  }
 }
 
 // The device pack: starters + two of Ann's decks.
