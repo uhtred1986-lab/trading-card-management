@@ -13,7 +13,7 @@ blocker or still open. No budget was relabelled, and no emulation stands in for 
 | Desktop: reload, Worker recovery, storage failure (in the prepared, offline app) | Pass (recovery case, section 5). |
 | Desktop: update | Partly. A failed shell update leaves the working shell; a pack update keeps a pinned pack (Node proof). A successful update to a NEWER build in a real browser was **not** run (open item OP-3). |
 | Desktop: latency, responsiveness and memory | **Within the board budgets** (#782, section 6.1): no long task over 500 ms, the owner's accepted ceiling of 14 Oct (longest 116 ms, the first render of the board, after the fix of #782), and every re-derived board budget met; `userAgentMemoryBytes` recorded as not measurable. Against the O1 no-UI budgets (section 6.2, history) the board missed RB-2 to RB-5. |
-| Physical phone | **OPEN. Nothing was measured on a phone.** Steps and an empty results table: section 8. |
+| Physical phone | **Functional check passed on the owner's Samsung Galaxy S21 (Chrome), 14 Oct 2026**: prepared online, then in airplane mode it launched the shell and a match ran. The owner closed the remaining phone layout and measurement rows the same day because the match UI is being redesigned (#788); see section 8. |
 | Emulated phone (390 px touch viewport, 4x CPU throttle on the page) | Plays 8 of 8 and the recovery case; **misses the desktop board budgets** (longest task 379 ms, match start 1,163 ms, section 6.1). **Emulation, not a phone**; the throttle does not reach the Worker. |
 
 Release blockers: RB-1 (art) is **resolved** (#780, section 5.2). RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
@@ -326,6 +326,13 @@ stay manual. The manual steps below remain the procedure for an iPhone or a phon
     and the JS heap in Memory after "collect garbage". Compare with the budgets in section 6. If you cannot attach
     a debugger, use a stopwatch for "tap Start to first board" and write what you saw for stalls.
 
+**Owner's run, 14 Oct 2026, and closure.** Samsung Galaxy S21, Chrome, through a Cloudflare tunnel and then the
+production deploy. Prepared online: "Ready for offline play", all 43 card images, 3.0 MB of decks and art, about
+13 MB in all. In airplane mode the shell launched and a match ran (screenshot in #783). The owner found the phone
+match UI unplayable at that point (scrolling, stacked boxes, no Leader label, a silent no-target skill). #786 then
+reworked it, and the owner closed the remaining phone rows below, layout and measurement, as obsolete: the match UI
+is being redesigned (#788, prototype PR #789). The table is kept as the procedure for the redesigned board.
+
 | Row | Result | Notes |
 |---|---|---|
 | Phone model, OS, browser and version | | |
@@ -351,6 +358,12 @@ stay manual. The manual steps below remain the procedure for an iPhone or a phon
 | Anything else seen | | |
 
 ## 9. Acceptance bullets of #661 as of this page
+
+
+**Closed by the owner, 14 Oct 2026.** The desktop matrix passes (8 of 8, the recovery case, art offline since
+#780, the budgets as the owner accepted them in #782). The S21 confirmed that a prepared phone plays offline. The
+remaining phone layout and measurement rows are obsolete while the match UI is redesigned (#788). The "Open"
+states below are the record as of the release run, not outstanding work.
 
 | Bullet | State |
 |---|---|
