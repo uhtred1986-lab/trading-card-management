@@ -347,9 +347,34 @@ the rules engine's own menu (`charge`, `play`/`playUnison`/`playZ`, `activate`,
 the native `attack`/`block`/`counter`/`combo`, `pass`, `endMain`, `concede`)
 and checks the same invariant after every move (every card in exactly one
 place, 3-1); a card whose skill needs a mechanism the rules engine does not
-build yet ends its game as a clean `NotYet` draw rather than a crash (`Abandon
-this game …`, `vm/flow.ts`'s `stepProgram`) — that is expected and is not
-counted against the 0-crashes gate.
+build yet ends its game with the typed `interrupted` outcome rather than a crash
+(`vm/flow.ts`'s `stepProgram`). The summary counts completions, interruptions,
+action limits and crashes separately. A zero-crash run can still have missing rules.
+
+An SL/coordinator can cache the stored deck inputs and rule programs in one read,
+then repeat the same random games locally without importing the database:
+
+```
+npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40 --snapshot-out /tmp/fuzz-input.json --report /tmp/fuzz-report.json
+env -u DATABASE_URL npx tsx scripts/arena-fuzz.mts 40 --snapshot /tmp/fuzz-input.json --report /tmp/fuzz-local.json
+```
+
+An interruption reports its source card, skill, trigger, issue and exact runtime
+detail; the JSON report also includes printed text. Each non-completion has a
+self-contained `trace` (the pair's definitions, stored programs, seed, decks and
+actions). Extract a failure's `trace` to `/tmp/fuzz-trace.json`, then replay it:
+
+```
+env -u DATABASE_URL npx tsx scripts/arena-fuzz.mts --replay /tmp/fuzz-trace.json --report /tmp/fuzz-replay.json
+```
+
+Snapshots and traces are **private admin artifacts**: they contain full deck
+lists, hidden identities and raw rule programs. The CLI creates them with
+owner-only permissions. Keep them outside the repository and player-facing logs;
+publish only reviewed card/rule findings and aggregate counts. No engine or rule
+text is compiled during a cached run or replay. A replay uses the current checked
+out interpreter, so record its Git commit alongside the evidence. The focused
+proof is `npx tsx scripts/verify/arena-fuzz-diagnostics.ts`.
 
 ### `arena:diff` — the oracle
 
