@@ -114,6 +114,15 @@ const missingRef = new Set<number>();
 const packObject = await auditPack();
 const packText = JSON.stringify(packObject);
 const browser = await Browser.launch();
+// Preserve browser exceptions when a recovery lands on the framework's error
+// screen; the board text alone loses the cause of the failed render.
+const browserErrors: string[] = [];
+browser.on((method, params) => {
+  if (method === "Runtime.exceptionThrown") browserErrors.push(JSON.stringify(params.exceptionDetails));
+  if (method === "Runtime.consoleAPICalled" && params.type === "error") {
+    browserErrors.push(params.args.map((arg: { value?: unknown; description?: string }) => arg.description ?? arg.value ?? "").join(" "));
+  }
+});
 const taps = new WorkerTaps(browser, base);
 const desk = VIEWPORTS.find((v) => v.name === "desk")!;
 
@@ -139,7 +148,7 @@ async function quiet(page: Page, ms = 20000) {
     if (v && !v.saving && (v.kind === "owner" || v.kind === "watching" || v.kind === "storage" || v.kind === "failed" || v.kind === "stopped")) { if (++calm >= 3) return v; } else calm = 0;
     await sleep(120);
   }
-  throw new Error(`the board did not settle\n${(await textOf(page)).slice(0, 600)}`);
+  throw new Error(`the board did not settle\n${(await textOf(page)).slice(0, 600)}\nBrowser errors:\n${browserErrors.slice(-8).join("\n")}`);
 }
 async function journal(page: Page, matchId: string): Promise<{ header: { seed: number; policySeed: number; decks: { p1: string; p2: string }; human: "p1" | "p2"; revision: number; trace: string; decisions: number }; entries: JournalEntry[] }> {
   const j = await page.eval(readJournalExpr(matchId));
@@ -469,7 +478,7 @@ check(missingRef.size === 0, `every board shown is a reference revision${missing
 check(taps.denied.length === 0, `no match/provider request was attempted (${taps.denied.length} denied: ${taps.denied.slice(0, 5).map((d) => `${d.method} ${d.url} — ${d.why}`).join("; ")})`);
 const summary = {
   build: "production (next start)", base, pack: { id: packObject.id, hash: packObject.hash, playable: packObject.qualification.playable },
-  checkpoints, denied: taps.denied, allowedRequests: taps.allowed.length, failures, seconds: Math.round((Date.now() - t0) / 1000),
+  checkpoints, denied: taps.denied, allowedRequests: taps.allowed.length, failures, browserErrors, seconds: Math.round((Date.now() - t0) / 1000),
   evidence: "headless desktop Chrome (emulation); physical-device evidence: not collected (owner)",
 };
 if (JSON_OUT) console.log(JSON.stringify({ ...summary, notes }, null, 2));

@@ -1150,7 +1150,7 @@ export function ArenaStage({
   const fallbackId = view.you.hand?.[0]?.id ?? view.you.leader?.id ?? view.them.leader?.id ?? null;
   const inspectId = pinned ?? (inspected && cardOf(inspected) ? inspected : null) ?? fallbackId;
   const inspectCard = inspectId ? cardOf(inspectId) : null;
-  const locate = (id: string) => {
+  function locate(id: string) {
     for (const side of [view.you, view.them]) {
       const zones: [string, (CardView | null | undefined)[]][] = [
         ["leader", [side.leader]],
@@ -1171,7 +1171,7 @@ export function ArenaStage({
       for (const [zone, cards] of zones) if (cards.some((c) => c?.id === id)) return { side, zone };
     }
     return null;
-  };
+  }
   const attackConfirmation = (() => {
     if (!attackPick) return null;
     const action = legal[attackPick.action]?.action;

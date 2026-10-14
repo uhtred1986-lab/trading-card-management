@@ -447,7 +447,7 @@ export function ActionRows({
           const ready = afterReady(option.energyRest);
           const paid = option.energyRest.filter((id) => energyIds.has(id)).length;
           const names = option.energyRest.map((id) => resolveCard?.(id)?.name ?? "Card");
-          return <button type="button" className="block w-full text-left text-space-200" key={i} data-payment-option={i} onPointerEnter={() => onPreviewPayment?.(option.energyRest)} onFocus={() => onPreviewPayment?.(option.energyRest)} onClick={() => onPreviewPayment?.(option.energyRest)} aria-label={`Preview payment ${i + 1}`}>
+          return <button type="button" className="tap block min-h-11 w-full rounded px-1 py-1 text-left text-space-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ki-400" key={i} data-payment-option={i} onPointerEnter={() => onPreviewPayment?.(option.energyRest)} onFocus={() => onPreviewPayment?.(option.energyRest)} onClick={() => onPreviewPayment?.(option.energyRest)} aria-label={`Preview payment ${i + 1}`}>
             {payment.state === "choice" ? `Option ${i + 1}: ` : ""}
             {option.energyRest.length ? `Rest ${names.join(", ")}` : "No energy cards rest"}
             {option.markers > 0 ? ` · ${option.markers} ⚡ marker${option.markers === 1 ? "" : "s"}` : ""}
