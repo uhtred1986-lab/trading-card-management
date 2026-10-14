@@ -9,7 +9,7 @@ import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { planMoves, type GameplanPreview, type PlanMove } from "@/lib/arena/gameplan-types";
-import type { CardView } from "@/lib/arena/view";
+import type { CardView, ChoicePreview } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
@@ -843,6 +843,7 @@ export function ArenaStage({
   // Legality is the engine's: a drop sends an action that is already in
   // `legal`, or says why there is none. Nothing here evaluates a rule.
   const playsOf = (id: string) => (taps.byCard[id] ?? []).filter((i) => legal[i].action.type === "play");
+  const choicePreviewOf = (index: number): ChoicePreview | undefined => snapshot.choicePreviews?.find((preview) => preview.action === index);
   const rejectedFor1 = (id: string, type: "play" | "charge") => rejected.find((r) => cardIdOf(r.action) === id && r.action.type === type)?.why ?? [];
   const draggable = (id: string) => playable && !busy && yourTurn && !isTargeting && !searchOpen && !sheet && inHand(id) && (playsOf(id).length > 0 || chargesOf(id).length > 0 || !!whyOf(id)?.length);
 
@@ -910,7 +911,7 @@ export function ArenaStage({
         setDrag(null);
         if (!wide) {
           if (zone === "energy") { select(id); return; }
-          if (card) { setSheet(card); return; }
+          if (card && choicePreviewOf(list[0])?.state !== undefined && choicePreviewOf(list[0])?.state !== "notEvaluated") { setSheet(card); return; }
         }
         return send(legal[list[0]].action);
       }
@@ -1047,14 +1048,54 @@ export function ArenaStage({
     outlined: rowHover === c.id,
   });
 
-  const handStatus = (id: string): "playable" | "skill" | "unaffordable" | "counter" | null => {
-    const actions = (taps.byCard[id] ?? []).map((i) => legal[i].action);
-    if (actions.some((a) => a.type === "counter" || a.type === "block")) return "counter";
-    if (actions.some((a) => a.type === "play" || a.type === "charge")) return "playable";
-    if (actions.some((a) => a.type === "activate")) return "skill";
+  type HandActionStatus = "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge";
+  const handStatus = (id: string): HandActionStatus | null => {
+    const indices = taps.byCard[id] ?? [];
+    const actions = indices.map((i) => legal[i].action);
+    if (actions.some((a) => a.type === "counter" || a.type === "block") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter") || cardOf(id)?.abilities?.some((ability) => ability.category === "counter")) return "counter";
+    const play = indices.find((i) => legal[i].action.type === "play");
+    if (play != null) {
+      const preview = choicePreviewOf(play);
+      if (preview?.state === "empty") return "noTarget";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return "targets";
+      return "playable";
+    }
+    if (actions.some((a) => a.type === "charge")) return "charge";
+    const activate = indices.find((i) => legal[i].action.type === "activate");
+    if (activate != null) {
+      const preview = choicePreviewOf(activate);
+      if (preview?.state === "empty") return "noTarget";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return "targets";
+      return "skill";
+    }
     const failed = rejected.filter((r) => cardIdOf(r.action) === id);
-    if (failed.some((r) => r.why.some((w) => w.kind === "energy"))) return "unaffordable";
+    if (failed.some((r) => (r.action.type === "play" || r.action.type === "activate") && r.why.some((w) => w.kind === "energy" || w.kind === "energyColour"))) return "unaffordable";
     if (failed.some((r) => r.action.type === "activate")) return "skill";
+    return null;
+  };
+  const handAction = (id: string): string | null => {
+    const indices = taps.byCard[id] ?? [];
+    const play = indices.find((i) => legal[i].action.type === "play");
+    if (play != null) {
+      const preview = choicePreviewOf(play);
+      if (preview?.state === "empty") return "⚠ Play · skill idle";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return `▲ Play · ${preview.candidates!.length} targets`;
+      return "▲ Play";
+    }
+    if (indices.some((i) => legal[i].action.type === "charge")) return "⚡ Charge";
+    const activate = indices.find((i) => legal[i].action.type === "activate");
+    if (activate != null) {
+      const preview = choicePreviewOf(activate);
+      if (preview?.state === "empty") return "⚠ Skill idle";
+      if (preview?.state === "available" && (preview.candidates?.length ?? 0) > 0) return `▲ Skill · ${preview.candidates!.length} targets`;
+      return "Skill";
+    }
+    const failed = rejected.find((r) => cardIdOf(r.action) === id && r.action.type === "play");
+    const need = failed?.why.find((w) => w.kind === "energy" || w.kind === "energyColour");
+    if (need?.kind === "energy") return `Need ${need.need} ⚡`;
+    if (need?.kind === "energyColour") return `Need ${need.need} ${need.colour} ⚡`;
+    const card = cardOf(id);
+    if (card?.abilities?.some((ability) => ability.category === "counter") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter")) return "Counter";
     return null;
   };
 
@@ -1362,7 +1403,7 @@ export function ArenaStage({
             </div>
           )}
 
-          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
+          <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "block" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
