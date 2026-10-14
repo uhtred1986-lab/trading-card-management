@@ -79,15 +79,26 @@ export function feedbackAfter(beats: Beats | null, seen: number): FeedbackCues {
   return feedbackFromBeats((beats?.list ?? []).filter((beat) => beat.n > seen));
 }
 
-/** Observe the public beat stream without joining the beat player or gating
- * any decision. CSS applies movement in normal mode and stable outlines when
- * reduced motion is requested. */
-export function useFeedbackCues(beats: Beats | null): FeedbackCues {
+/** Passive public cues for reduced motion, independent of narration and
+ * decisions. While disabled, advance the baseline without scheduling renders;
+ * enabling it must not replay previously delivered beats. */
+export function useFeedbackCues(beats: Beats | null, enabled = true): FeedbackCues {
   const [cues, setCues] = useState<FeedbackCues>(EMPTY);
   const seen = useRef(beats?.seq ?? 0);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      // Normal motion reads the beat player's current beat. Keep its passive
+      // baseline current without repainting the whole board for unused cues.
+      seen.current = beats?.seq ?? seen.current;
+      if (clearTimer.current) {
+        clearTimeout(clearTimer.current);
+        clearTimer.current = null;
+        setCues(EMPTY);
+      }
+      return;
+    }
     if (!beats || beats.seq <= seen.current) return;
     const next = feedbackAfter(beats, seen.current);
     seen.current = beats.seq;
@@ -98,11 +109,11 @@ export function useFeedbackCues(beats: Beats | null): FeedbackCues {
       clearTimer.current = null;
       setCues(EMPTY);
     }, FEEDBACK_MS);
-  }, [beats]);
+  }, [beats, enabled]);
 
   useEffect(() => () => {
     if (clearTimer.current) clearTimeout(clearTimer.current);
   }, []);
 
-  return cues;
+  return enabled ? cues : EMPTY;
 }

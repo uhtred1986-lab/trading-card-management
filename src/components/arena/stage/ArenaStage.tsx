@@ -817,7 +817,7 @@ export function ArenaStage({
   // The storyboard, driven by the beat on screen rather than by whatever a
   // re-render happens to notice. `docs/arena-ui-motion-spec.md` §7.
   const beat = playback.current;
-  const passiveFeedback = useFeedbackCues(live.beats);
+  const passiveFeedback = useFeedbackCues(live.beats, !!still);
   const feedback = still ? passiveFeedback : feedbackFromBeats(beat ? [beat] : []);
   const mine = (id: string) => view.you.battle.some((c) => c.id === id) || view.you.leader?.id === id || view.you.unison?.id === id;
   /**
