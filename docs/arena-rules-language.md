@@ -79,6 +79,7 @@ attr   := "power" | "originalPower" | "comboPower" | "energyCost" | "comboCost"
 REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number
+        | "MIN" number                            a choose's lower count bound
         | "BOTTOM" number | filter | "IN" places | "OF" side | flag
         | "TOTAL" attr "<=" expr                   a choose's bound on the chosen cards' sum
 places := ( side "." )? ( zone | zone ( "|" zone )+ | "ANY" "(" zone ( "|" zone )* ")" )
@@ -1178,6 +1179,19 @@ THEN
   choose(sel: UP TO 3 "card with 5000 combo power" IN you.drop differentNames, as: "c0")
   moveTo(target: $c0, to: under)
 ```
+
+### A choice with a minimum count (#820)
+
+`choose(sel: 2 MIN 1 IN you.life, as: "c0")` represents BT6-063's one-or-two
+Life choice. The existing count is the ceiling; `MIN` is `Selector.minCount`.
+The player chooses one card at a time and may stop after the minimum. Fewer
+available candidates are handled by 5-2-5/6, without changing game-loss checkpoints.
+
+The floor must be a nonnegative integer no greater than the count. It belongs
+only on a `choose`'s own selector and cannot combine with `UP TO`, `TOP`/`BOTTOM`,
+a special selector, `atMost`, `sumTo`, `namedSet` or `TOTAL`. Omitting it preserves
+existing exact-count and up-to semantics. Nonconsecutive printed alternatives
+such as one or three are not widened into a range.
 
 ### A choice bounded by a sum (3 Oct 2026)
 

@@ -13,6 +13,8 @@ status: closed
 
 Flagged: BT3-109 #20 (5 from the Warp), BT6-062 #10 (2 from hand), SD8-03 #10 (2 from hand). Related: BT6-063 #10 says "choose **1 or 2** cards from your life", a range the player picks from, which the draft reads as exactly 1.
 
+**Follow-up #820:** the bounded Life choice and the complete subsequent Broly play are tracked separately. The implementation adds a minimum count without changing optional exact payment; existing stored drafts require their own reviewed refresh.
+
 **Build.** "you may choose N … If you do" is an optional exact choice: `may` around `choose count N` (not up to), and the follow-up depends on the `may` being taken. With fewer than N candidates the offer isn't made. "choose 1 or 2" is a choice with min 1 and max 2. Glossary entry.
 
 **Acceptance.**
