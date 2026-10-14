@@ -81,6 +81,8 @@ function stage(s: VmState, p: PlayerId, id: string, area: Zone): string {
   assert.ok(physical);
   s.cards[physical].cardId = id;
   assert.ok(moveCard(s, game, physical, area, { owner: p }).ok, `staged ${id} in ${area}`);
+  // 21-9-2: a Unison with no markers goes to the Drop Area, so a staged Unison starts with one, as a played one does.
+  if (area === "unison") s.cards[physical].markers = 1;
   s.pending = [];
   return physical;
 }
@@ -540,14 +542,14 @@ const sorted = (ids: string[]) => [...ids].sort();
   assert.ok(q.candidates.includes(r.red), "a red Unison is on offer");
   assert.ok(q.candidates.every((id) => zone(s, "p1", "unison").includes(id)), "Unison Cards only");
   s = choose(s, "p1", [r.red]);
-  assert.equal(s.cards[r.red].markers, 1, "a marker was added to the chosen Unison");
+  assert.equal(s.cards[r.red].markers, 2, "a marker was added to the chosen Unison (staged with 1, 21-9-2)");
   const b = run("L-BLUE");
   assert.notEqual(cast(b.s, "p1", b.c).prompt.kind, "chooseCards", "a blue Leader: the condition fails, nothing to choose");
   // A blue Unison is not a red one: no candidate, so no target is chosen (5-2-6) and no marker is added.
   const u = run("L-RED", "BUNI757");
   const after = cast(u.s, "p1", u.c);
   assert.notEqual(after.prompt.kind, "chooseCards", "only a blue Unison in play: nothing to choose");
-  assert.equal(after.cards[u.red].markers, 0);
+  assert.equal(after.cards[u.red].markers, 1, "no marker added: still the staged 1");
 }
 {
   // SD5-03 [Auto] "When you play this card, if your Leader Card is <<Goku's Lineage>>, choose up to 1 of your opponent's Battle Cards and KO it."
@@ -730,7 +732,7 @@ const sorted = (ids: string[]) => [...ids].sort();
   s = choose(s, "p1", [foeU]);
   assert.equal(attrs(s, foeU).power, 5000 - 10000, "-10000 for the turn");
   assert.equal(attrs(s, foeB).power, 10000);
-  assert.equal(s.cards[u].markers, 1, "[+1] added a marker");
+  assert.equal(s.cards[u].markers, 2, "[+1] added a marker (staged with 1, 21-9-2)");
 }
 {
   // SD15-02 [Auto][Limit 1] "When this card is placed in your Drop Area from your Unison Area, choose up to 1 of your mono-red Leader Cards and it gets +5000 power for the turn."
