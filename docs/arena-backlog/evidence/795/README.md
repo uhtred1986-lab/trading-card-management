@@ -50,11 +50,17 @@ dev board; the Next development indicator is absent from production.
   gain, folded-hand and action/cost-chip text. The broad contrast audit still
   reports pre-existing card badges, inactive cards and desktop animation text;
   it is not a blanket WCAG pass.
-- Full suite and production builds pass; the suite is being repeated after
-  the browser-discovered target-choice crash fix. The production recovery
-  check passes reloads, worker termination, quota/abort and two-tab takeover,
-  ending with 172 journal decisions identical to the reference. Release matrix
-  budgets remain pending.
+- Full suite, typecheck, lint and production build pass on code commit
+  `ad788078b2d2026bd7aa14e47d25332c633ca043`. Earlier production recovery
+  passes reloads, worker termination, quota/abort and two-tab takeover,
+  ending with 172 journal decisions identical to the reference. A fresh recovery
+  run on that code commit was stopped at the owner’s request on 14 October;
+  it is not a new pass.
+- Performance acceptance remains open: the last full branch matrix
+  (`b4aed13b`) passes all functional cases and frame budgets but exceeds startup
+  (834.4 ms versus 770 ms) and long-task count (24 versus 12). Current main
+  (`6f08002f`) also exceeds those budgets (941.8 ms and 23 tasks). The latest
+  code has only a single-case probe, not a completed full release matrix.
 - The browser recovery run found rejected-target rows calling a location helper
   before initialization. The helper is now hoisted; browser exceptions are
   retained in the proof output so a future render failure keeps its cause.
@@ -63,7 +69,11 @@ dev board; the Next development indicator is absent from production.
   targets. These are source/local fixes awaiting independent browser retest.
 - The complete delayed KO flight shares one sub-700ms visual budget; its burst
   and flight remain distinct and narration dwell is unchanged.
-- TinyFish review has not run. Git/Vercel branch previews are disabled and the
+- TinyFish review of this branch has not run. The owner deferred validation
+  on 14 October and will run locally. The production build was launched on
+  local port 3000 and `/arena/offline` returned HTTP 200; the workspace offers
+  no public forwarding URL for TinyFish. Both local processes are stopped.
+  Git/Vercel branch previews are disabled and the
   fixture route is dev-only, so review needs a reachable built-branch deployment.
   Do not test old production and report it as acceptance of this branch.
   [The regression checklist](tinyfish-retest.md) identifies both baseline runs
@@ -71,3 +81,20 @@ dev board; the Next development indicator is absent from production.
 - Owner S21 retest remains required by tracker #795 before the milestone closes.
 
 No milestone issue is closed by this evidence record.
+
+## Owner local launch
+
+Use Node 24 and branch `arena-m23-phone-ux-reviewed` (PR #808). On a clean
+checkout, install with npm 10 if npm 11 rejects optional lockfile packages.
+Run without a production database or authentication configuration:
+
+```sh
+npx --yes npm@10 ci --no-audit --no-fund
+env -u DATABASE_URL npm run build
+env -u DATABASE_URL -u AUTH_SECRET -u GOOGLE_CLIENT_ID -u GOOGLE_CLIENT_SECRET -u SL_EMAILS -u BASIC_AUTH_USER -u BASIC_AUTH_PASSWORD npm run start -- -p 3000
+```
+
+Open `http://localhost:3000/arena/offline` for the real production board.
+The fixture review route `/arena/preview` is available only with `npm run dev`.
+TinyFish runs remotely and needs a public URL forwarding to the local server.
+Use the regression checklist above for its previous findings.
