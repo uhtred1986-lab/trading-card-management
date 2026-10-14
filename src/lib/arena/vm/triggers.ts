@@ -67,6 +67,7 @@ import { RulesetBroken } from "./errors";
 import { NotYet } from "./errors";
 import type { Moment } from "./events";
 import type { VmState } from "./state";
+import { bondIsValid } from "./bond";
 import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { usableFrom } from "./activate";
@@ -311,6 +312,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // which is the one place a keyword's moment is written down.
       const keyword = sk.kind === "keyword" ? keywordMomentOf(game, sk, match.trigger) : undefined;
       if (sk.kind !== "auto" && !keyword) continue;
+      // 22-21: a pending Auto is only created while its Bond condition is
+      // valid. Unknown named selectors are left for the normal unread-rule
+      // boundary; they must never be treated as an unrestricted count here.
+      if (sk.kind === "auto" && bondIsValid(ctx, game, state, master, sk) === false) continue;
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;

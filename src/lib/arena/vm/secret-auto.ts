@@ -1,5 +1,6 @@
 /** 9-6-3-1-1: a pending [Auto] still in a secret area may be left undeclared. */
 import { costIsOnlyOrbs } from "../compile";
+import { bondSelector } from "./bond";
 import type { EngineContext, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { Script } from "./script";
@@ -28,7 +29,9 @@ export function canWithholdSecretAuto(ctx: EngineContext, game: GameDefinition, 
 /** The one price test used both when offering silence and when resolving. */
 export function automaticHasPrice(skill: Skill | undefined, program: Script | undefined): boolean {
   if (!skill) return false;
-  const unknownPrice = skill.kind === "auto" && !costIsOnlyOrbs(skill.cost) && !program?.price?.condition && !program?.price?.ops?.length && !program?.price?.x && !program?.price?.payWith?.length;
+  const bondCost = skill.kind === "auto" ? bondSelector(skill) : null;
+  const knownBondCondition = bondCost?.kind === "any" || bondCost?.kind === "filter";
+  const unknownPrice = skill.kind === "auto" && !knownBondCondition && !costIsOnlyOrbs(skill.cost) && !program?.price?.condition && !program?.price?.ops?.length && !program?.price?.x && !program?.price?.payWith?.length;
   return unknownPrice || Object.values(skill.energyCost).some((n) => n > 0) || skill.energyEither.length > 0
     || skill.markerCost != null || skill.burst != null || skill.spiritBoost != null
     || !!program?.price?.ops?.length || !!program?.price?.x;

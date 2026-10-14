@@ -574,7 +574,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Bond X]",
     section: "22-21",
     meaning: "The skill is only valid while you have X or more Battle Cards in your Battle Area — or X or more of a named Battle Card, when one is printed.",
-    engine: "Checked before the skill is offered, and the refusal names the count you have. A [Bond X] that names a card is read as the plain count of Battle Cards. On a [Permanent] the rules engine applies the skill only while its master has the count (#716).",
+    engine: "The rules engine checks a [Bond X] Auto when it would pend and again when it is chosen to activate; a failed condition does not reveal a secret-area source. For one exact bracketed selector, only matching Battle Cards count, using their effective attributes (22-21-3-1, #549). Selector text with anything beyond that remains an explicit unread-price interruption. The existing [Activate] and [Permanent] checks still use the plain Battle Card count when a selector is printed (#716).",
   },
   {
     tag: "[Sparking X]",
