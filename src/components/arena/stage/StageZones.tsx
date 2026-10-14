@@ -336,6 +336,7 @@ export function PlayerStrip({
   side,
   them = false,
   cardProps,
+  onOpenInspection,
   hit = null,
   narrator,
   energyChips,
@@ -347,6 +348,8 @@ export function PlayerStrip({
   side: SideView;
   them?: boolean;
   cardProps: CardProps;
+  /** Open the public zone/deck inspection sheet when the strip is tapped. */
+  onOpenInspection?: () => void;
   /** The damage beat on screen against this player: the emptied pips shatter and -N LIFE rises. */
   hit?: { n: number; amount: number; critical: boolean } | null;
   narrator: { viewer: PlayerId; them: string };
@@ -384,9 +387,20 @@ export function PlayerStrip({
   return (
     <div className={`arena-field relative ${className}`} aria-label={them ? `${side.name}'s side` : "Your side"}>
       <div
-        className="arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px]"
+        className={`arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] ${onOpenInspection ? "cursor-pointer" : ""}`}
         data-drop={drop ? (drop.ok ? "ok" : "no") : undefined}
         data-hot={drop?.hot ? "" : undefined}
+        role={onOpenInspection ? "button" : undefined}
+        tabIndex={onOpenInspection ? 0 : undefined}
+        aria-label={onOpenInspection ? `Inspect ${side.name}'s deck and public zones` : undefined}
+        onClick={onOpenInspection}
+        onKeyDown={onOpenInspection ? (event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpenInspection();
+          }
+        } : undefined}
       >
         <ZoneAnchor zone={`${p}:energy`} />
         <span className="flex min-w-0 flex-1 shrink items-center gap-1.5 font-bold text-space-50 lg:flex-none">
@@ -395,15 +409,18 @@ export function PlayerStrip({
           </span>
           <span className="truncate text-[13px] lg:text-base">{side.name}</span>
         </span>
-        {/* Life: one skewed pip per card, the emptied ones an outline. */}
-        <span className="relative flex shrink-0 gap-[3px] sm:gap-1" role="img" aria-label={lifeWord}>
+        {/* The labelled number saves space on phones; desktop keeps its original life pips. */}
+        <span className="relative hidden shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:flex" role="img" aria-label={lifeWord}>
           <ZoneAnchor zone={`${p}:life`} />
           {Array.from({ length: pips }, (_, i) => (
             <i key={i} className="arena-lp relative block h-[15px] w-[9px] sm:h-[17px] sm:w-3 lg:h-[22px] lg:w-4" data-them={flag} data-gone={i < side.life ? undefined : ""}>
-              {/* The pips this beat emptied are the ones just past the life now left. */}
               {hit && i >= side.life && i < side.life + hit.amount && <b className="arena-pip-shatter" />}
             </i>
           ))}
+        </span>
+        <span className="relative flex shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:hidden" aria-label={lifeWord}>
+          <ZoneAnchor zone={`${p}:life`} />
+          <b className="font-bold text-space-50">{side.life}</b><span>Life</span>
           {hit && (
             <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
               −{hit.amount} LIFE
@@ -418,7 +435,10 @@ export function PlayerStrip({
             className="arena-energy-toggle relative flex min-h-11 min-w-0 shrink items-center gap-[2px] sm:gap-[3px]"
             aria-label={`${energyWord} — ${inspectEnergy ? "hide" : "show"} energy detail`}
             aria-expanded={inspectEnergy}
-            onClick={() => setInspectEnergy((open) => !open)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setInspectEnergy((open) => !open);
+            }}
           >
             {energy.map((c) => (
               <i
@@ -434,6 +454,7 @@ export function PlayerStrip({
                 {chip.text}
               </span>
             ))}
+            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs lg:hidden">⚡ {side.activeEnergy}/{side.energy.length}</span>
             {gain && !them && (
               <span key={gain.key} className="arena-gain arena-num pointer-events-none absolute bottom-full left-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
                 +1 ENERGY
@@ -445,7 +466,13 @@ export function PlayerStrip({
           {them && (
             <span className="relative">
               <ZoneAnchor zone={`${p}:hand`} />
-              hand <b className="font-bold text-space-50">{side.handCount}</b>
+              <span className="inline-flex items-center gap-0.5 lg:hidden" aria-label={`${side.name}'s hand`}>
+                <span className="inline-flex items-center gap-px" aria-hidden>
+                  {Array.from({ length: Math.min(side.handCount, 4) }, (_, i) => <i key={i} className="block h-[12px] w-[8px] rounded-[2px] border border-space-300/70 shadow-sm" style={{ background: "var(--card-back)" }} />)}
+                </span>
+                <b className="font-bold text-space-50">{side.handCount}</b>
+              </span>
+              <span className="hidden lg:inline">hand <b className="font-bold text-space-50">{side.handCount}</b></span>
             </span>
           )}
           <span className="relative">
@@ -477,7 +504,7 @@ export function PlayerStrip({
       <div className={`flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100 ${inspectEnergy ? "flex" : "hidden lg:flex"}`} data-player-resources={side.player}>
         <span className="font-semibold">Life {side.life} · Energy {side.activeEnergy}/{side.energy.length} ready</span>
         <span>{energySummary(side)}</span>
-        <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={() => setInspectEnergy((open) => !open)}>Inspect energy</button>
+        <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={(event) => { event.stopPropagation(); setInspectEnergy((open) => !open); }}>Inspect energy</button>
         {willRest > 0 && <span className="w-full">Play costs {willRest} energy; remaining colours depend on the chosen payment.</span>}
       </div>
 

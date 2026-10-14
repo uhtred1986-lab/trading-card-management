@@ -13,6 +13,7 @@ import type { CardView } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
 import { isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
+import { CardImage } from "@/components/CardImage";
 import { FeelToggle } from "../FeelToggle";
 import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
@@ -94,6 +95,12 @@ import { quietSkills } from "./quiet-skills";
  * mismatch on hydration. False on the server, which has no pointer to hover.
  */
 const WIDE = "(min-width: 1024px)";
+
+type ArenaDecklist = {
+  name: string;
+  cards: { cardId: string; name: string; count: number; imageUrl: string | null }[];
+};
+
 function useWide(): boolean {
   return useSyncExternalStore(
     (notify) => {
@@ -116,6 +123,7 @@ export function ArenaStage({
   admin = false,
   adminDebug = null,
   menu = null,
+  decklists,
 }: {
   /**
    * The transport (#648): snapshots in, actions out, connection status, and the
@@ -145,6 +153,8 @@ export function ArenaStage({
    * debug view), drawn in the menu sheet's Game section.
    */
   menu?: React.ReactNode;
+  /** Decklists supplied by the host only when that host is allowed to show them. */
+  decklists?: Partial<Record<PlayerId, ArenaDecklist>>;
 }) {
   const [pending, startTransition] = useTransition();
   const [advancing, setAdvancing] = useState(false);
@@ -1195,7 +1205,9 @@ export function ArenaStage({
             </div>
           </div>
           {/* The phase words under the bar; from lg they are the left column's list. */}
-          <PhaseChips view={view} className="arena-phases-row h-8 shrink-0 overflow-hidden px-2 lg:hidden" />
+          <div className="h-[30px] shrink-0 lg:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
+            <PhaseChips view={view} className="arena-phases-row h-full overflow-hidden px-2" />
+          </div>
 
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
@@ -1207,7 +1219,7 @@ export function ArenaStage({
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
             <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
-              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} className="mx-2" />
+              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
               <div className={`flex min-w-0 flex-1 flex-col ${bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}`}>
@@ -1259,6 +1271,7 @@ export function ArenaStage({
               <PlayerStrip
                 side={view.you}
                 cardProps={cardProps}
+                onOpenInspection={wide ? undefined : () => setZonesOpen(true)}
                 hit={hitOf(view.you.player)}
                 narrator={narrator}
                 energyChips={energyChips}
@@ -1406,22 +1419,48 @@ export function ArenaStage({
         )}
 
         {zonesOpen && (
-          <Sheet title="Zone inspection" onClose={() => setZonesOpen(false)}>
-            {[view.you, view.them].map((side) => <section key={side.player} className="space-y-3" aria-label={`${side.name} zones`}>
-              <h3 className="font-bold text-space-50">{side.name}</h3>
-              {([
-                ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
-                ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
-                ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
-                ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
-                ["Warp", side.warp, side.inspectableZones?.warp ?? []],
-              ] as [string, number, CardView[]][]).map(([zone, count, cards]) => <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
-                <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
-                {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
-                {count === 0 && <p className="text-xs text-space-400">Empty</p>}
-                <div className="flex flex-wrap gap-2 pt-1">{cards.map((card) => <ArenaCard key={card.id} card={card} width={68} onTap={() => { setZonesOpen(false); setSheet(card); }} />)}</div>
-              </div>)}
-            </section>)}
+          <Sheet title="Deck and public zones" onClose={() => setZonesOpen(false)}>
+          {[view.you, view.them].map((side) => {
+            const decklist = decklists?.[side.player];
+            return (
+              <section key={side.player} className="space-y-3" aria-label={`${side.name} zones`}>
+                <h3 className="font-bold text-space-50">{side.name}</h3>
+                <div data-inspect-zone={`${side.player}:deck`}>
+                  <h4 className="text-sm font-semibold text-space-100">Deck · {side.deck} remaining</h4>
+                  {decklist ? (
+                    <>
+                      <p className="text-xs text-space-300">{decklist.name} · {decklist.cards.reduce((total, card) => total + card.count, 0)} cards</p>
+                      <ul className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3">
+                        {decklist.cards.map((card) => (
+                          <li key={card.cardId} className="flex min-w-0 items-center gap-2 rounded border border-space-700 bg-space-900/60 p-1.5">
+                            <CardImage src={card.imageUrl} alt={card.name} sizes="40px" className="h-12 w-[34px] shrink-0" />
+                            <span className="min-w-0 text-xs leading-tight text-space-100">
+                              <span className="block truncate">{card.name}</span>
+                              <span className="text-space-400">{card.cardId} · {card.count}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : <p className="text-xs text-space-300">Decklist unavailable in this view.</p>}
+                </div>
+                {([
+                  ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
+                  ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
+                  ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
+                  ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
+                  ["Warp", side.warp, side.inspectableZones?.warp ?? []],
+                ] as [string, number, CardView[]][]).map(([zone, count, cards]) => (
+                  <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
+                    <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
+                    {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
+                    {count === 0 && <p className="text-xs text-space-400">Empty</p>}
+                    <div className="flex flex-wrap gap-2 pt-1">{cards.map((card) => <ArenaCard key={card.id} card={card} width={68} onTap={() => { setZonesOpen(false); setSheet(card); }} />)}</div>
+                  </div>
+                ))}
+              </section>
+            );
+          })}
           </Sheet>
         )}
 
