@@ -171,8 +171,8 @@ try {
   const rows = await fx.db.select().from(schema.deckCards).where(and(eq(schema.deckCards.deckId, red), eq(schema.deckCards.zone, "main")));
   const from = rows.find((r) => r.quantity > 1)!;
   const to = rows.find((r) => r.cardId !== from.cardId && r.quantity < 4)!;
-  await fx.db.update(schema.deckCards).set({ quantity: from.quantity - 1 }).where(eq(schema.deckCards.id, from.id));
-  await fx.db.update(schema.deckCards).set({ quantity: to.quantity + 1 }).where(eq(schema.deckCards.id, to.id));
+  await fx.db.update(schema.deckCards).set({ quantity: from.quantity - 1 }).where(and(eq(schema.deckCards.deckId, red), eq(schema.deckCards.zone, "main"), eq(schema.deckCards.cardId, from.cardId)));
+  await fx.db.update(schema.deckCards).set({ quantity: to.quantity + 1 }).where(and(eq(schema.deckCards.deckId, red), eq(schema.deckCards.zone, "main"), eq(schema.deckCards.cardId, to.cardId)));
   answers.set(devicePackUrl([red, red2]), await packOf([red, red2]));
   const checks = await checkOfflineDecks(fx.db, "ann", [red, red2]);
   answers.set(`/api/arena/offline/decks?ids=${red},${red2}`, JSON.stringify({ decks: [...checks.values()] }));
