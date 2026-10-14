@@ -55,6 +55,7 @@ export function StageCard({
   outlined = false,
   holdLock = false,
   pulse = false,
+  unaffordable = false,
 }: {
   card: CardView;
   state?: CardState;
@@ -83,6 +84,7 @@ export function StageCard({
   holdLock?: boolean;
   /** This energy would be rested by the card being dragged (rd-03). */
   pulse?: boolean;
+  unaffordable?: boolean;
 }) {
   return (
     <motion.div
@@ -110,7 +112,7 @@ export function StageCard({
         {/* The lift reads the parent hover, not its own: an element that moves
             out from under the cursor un-hovers itself, drops back, and oscillates. */}
         <div key={moment ?? "still"} className={`${MOMENT[moment ?? "none"]} ${lifts ? "transition-transform duration-200 group-hover:-translate-y-2" : ""}`}>
-          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onDoubleTap={onDoubleTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} />
+          <ArenaCard card={card} state={state} width={width} upsideDown={upsideDown} onTap={onTap} onDoubleTap={onDoubleTap} onInspect={onInspect} onHover={onHover} outlined={outlined} holdLock={holdLock} unaffordable={unaffordable} />
         </div>
       </div>
     </motion.div>

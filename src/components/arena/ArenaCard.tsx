@@ -102,6 +102,7 @@ export function ArenaCard({
   badge,
   outlined = false,
   holdLock = false,
+  unaffordable = false,
 }: {
   card: CardView;
   width?: number;
@@ -120,6 +121,8 @@ export function ArenaCard({
   outlined?: boolean;
   /** A drag has begun from this card: the long press it started is over (rd-03). */
   holdLock?: boolean;
+  /** The snapshot has no legal play for this card because its exact cost is unaffordable. */
+  unaffordable?: boolean;
 }) {
   // Keyed to the URL that failed: a leader keeps its instance when it awakens
   // and its art switches to the back, so a plain flag would hide the new face.
@@ -239,7 +242,7 @@ export function ArenaCard({
         )}
         {card.cost && chrome && (
           <span
-            className={`arena-cost absolute left-[2px] top-[2px] grid place-items-center rounded-full arena-num leading-none ${state === "dead" ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
+            className={`arena-cost absolute left-[2px] top-[2px] grid place-items-center rounded-full arena-num leading-none ${unaffordable ? "bg-loss text-space-50" : "bg-ki-500 text-space-950"}`}
             style={{ fontSize: px(8), width: px(13), height: px(13) }}
           >
             {card.cost}

@@ -1,9 +1,15 @@
 .handViewport { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
 .handCards { width: max-content; min-width: 100%; }
 .handControl { min-height: 44px; min-width: 44px; }
+.handStatus { position: absolute; z-index: 80; right: -3px; top: 5px; width: 11px; height: 11px; border: 2px solid var(--color-space-950); border-radius: 999px; pointer-events: none; }
+.status_playable { background: var(--color-gain); }
+.status_skill { background: var(--color-dbs-yellow); }
+.status_unaffordable { background: var(--color-loss); }
+.status_counter { background: var(--color-space-400); }
 .scrollRail { display: none; }
 .fullscreenReview { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 @media (max-width: 1023px) {
+ [data-review-mode="opponent-peek"], [data-review-mode="targeting"] { max-height: 56dvh !important; }
  .scrollRail { display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 10px; z-index: 29; touch-action: pan-y; }
  .board { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
  .board :global(.arena-topbar) { top: env(safe-area-inset-top); height: auto; min-height: 48px; }
@@ -27,6 +33,13 @@
  .board :global([data-player-resources]) { padding: 0 6px; }
  .board :global([data-player-resources] button) { margin-left: auto; }
  .handCards { justify-content: flex-start; padding-top: 4px; padding-bottom: 6px; min-height: 0 !important; }
+ .handCard :global(.arena-cost) { width: 22px !important; height: 22px !important; font-size: 12px !important; }
+ [data-review-mode="own"][data-review-size="full"] :global(.arena-review-art-wrap) { width: 188px; }
+ [data-review-mode="own"][data-review-size="full"] :global(.arena-review-art) { height: 262px; object-fit: cover; }
+ [data-review-mode="opponent-peek"] :global(.arena-review-art-wrap) { width: 90px; }
+ [data-review-mode="opponent-peek"] :global(.arena-review-art) { max-height: 126px; object-fit: cover; }
+ [data-review-mode="targeting"] :global(.arena-review-art-wrap) { width: 84px; }
+ [data-review-mode="targeting"] :global(.arena-review-art) { max-height: 116px; object-fit: cover; }
  /* A page-scroll rail beside the cards preserves vertical card drags without
     trapping the page behind their pan-x gesture surface. */
  .handViewport { margin-right: 10px; }
