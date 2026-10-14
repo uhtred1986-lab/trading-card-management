@@ -10,6 +10,7 @@
 import { effectHead, maskNames, trailingTrigger } from "./cards";
 import { expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "./filters";
 import type { Skill, Trigger } from "../types";
+import { playTaxWording } from "./play-tax";
 
 /**
  * BT31-116's shared Cell/Cell Jr. qualification belongs to the play moment,
@@ -137,7 +138,7 @@ function switchedTo(t: string): string {
  */
 export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // A {name} is one word here — its comma and its "by" are the name's (P-526).
-  const t = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
+  const t = playTaxWording(maskNames(sk.cost + " " + sk.effect).text).toLowerCase();
   /**
    * The timing triggers name a moment, and a card may equally well *mention*
    * that moment in the middle of an effect — "…, and at the end of the turn,

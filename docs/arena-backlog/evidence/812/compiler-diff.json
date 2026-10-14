@@ -1,0 +1,40 @@
+{
+  "cards": 6552,
+  "skills": 13615,
+  "differences": [
+    {
+      "card": "BT31-093",
+      "side": "front",
+      "skill": 20,
+      "printed": "[auto] [limit 1] If you have 3 or more energy: When this card is played, draw 1 card, choose up to 1 of your opponent's Battle Cards, send it to its owner's Warp and during your opponent's next turn, when your opponent's Battle Card is played, your opponent can't play it unless they send 3 cards from their Drop to their owner's Warp.",
+      "fields": [
+        "trigger"
+      ],
+      "before": [
+        "played",
+        "opponentPlayed"
+      ],
+      "after": [
+        "played"
+      ],
+      "reading": "if there are 3 or more cards in your Energy Area: draw 1, choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to warp, during your opponent's next turn: your opponent can't play battle card unless, each time, the player doing it first pays: choose 3 cards in your Drop Area other than this card, move the chosen cards to warp for the turn"
+    },
+    {
+      "card": "BT31-150",
+      "side": "front",
+      "skill": 30,
+      "printed": "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards, send it to its owner's Warp, and until the end of your opponent's turn, when your opponent's card is played, they can't play it unless they send 1 card from their hand to its owner's Warp.",
+      "fields": [
+        "trigger"
+      ],
+      "before": [
+        "played",
+        "opponentPlayed"
+      ],
+      "after": [
+        "played"
+      ],
+      "reading": "choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to warp, your opponent can't play cards unless, each time, the player doing it first pays: choose 1 card in your hand other than this card, move the chosen cards to warp until the end of your opponent's turn"
+    }
+  ]
+}
