@@ -173,7 +173,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
     <section aria-label="Offline play" className={`${panel} space-y-3`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Offline play</h2>
-        <span data-offline-status={readiness?.ready ? "ready" : "not-ready"} className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wider ${readiness?.ready ? "border-ki-500/60 text-ki-300" : "border-space-700 text-space-400"}`}>
+        <span data-offline-status={!readiness ? "checking" : readiness.ready ? "ready" : "not-ready"} className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wider ${readiness?.ready ? "border-ki-500/60 text-ki-300" : "border-space-700 text-space-400"}`}>
           {readiness?.ready ? "Ready" : "Not ready"}
         </span>
       </div>
