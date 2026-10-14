@@ -92,9 +92,11 @@ interface Plan {
   /** Every commit's fault while set (a worker that always dies). */
   always: PutFault | null;
   spawned: KillablePort[];
+  /** Deliver one healthy request late, without killing or hanging its worker. */
+  nextRequestDelayMs: number;
 }
 type KillablePort = SpawnedWorker & { dead: boolean; host: ReturnType<typeof createLocalMatchHost>; fireError(message: string): void };
-const newPlan = (): Plan => ({ next: null, always: null, spawned: [] });
+const newPlan = (): Plan => ({ next: null, always: null, spawned: [], nextRequestDelayMs: 0 });
 
 function spawner(fake: FakeIndexedDb, plan: Plan): () => SpawnedWorker {
   return () => {
@@ -129,7 +131,9 @@ function spawner(fake: FakeIndexedDb, plan: Plan): () => SpawnedWorker {
       postMessage: (m: unknown) => {
         if (dead) return;
         const copy = structuredClone(m);
-        setTimeout(() => { if (!dead) void host.handle(copy); }, 0);
+        const delay = plan.nextRequestDelayMs;
+        plan.nextRequestDelayMs = 0;
+        setTimeout(() => { if (!dead) void host.handle(copy); }, delay);
       },
       addEventListener: ((type: "message" | "error", l: never) => { (listeners[type] as unknown[]).push(l); }) as SpawnedWorker["addEventListener"],
       terminate: () => kill(),
@@ -161,9 +165,11 @@ const locksLeft = async (matchId: string) => {
   return locksHeld(matchId);
 };
 // One process runs every "tab" and "worker", so a watcher replaying the journal holds up the owner's worker:
-// multi-tab scenarios get a generous silence limit; the single-tab recovery ones a short one, to be quick.
+// this proves recovery, not performance. Healthy in-process work exceeded the old 400 ms
+// watchdog (#818), including during restart/replay. Keep a bounded 10 s silence limit
+// for real game work; deliberate hangs still have to expire it and recover.
 const tabs = { hungMs: 10000, openMs: 60000, pingMs: 0 };
-const fast = { hungMs: 400, openMs: 20000, pingMs: 0 };
+const recoveryTimings = { hungMs: 10000, openMs: 20000, pingMs: 0 };
 
 assert.equal(MIGRATIONS.length, 2, "the local database is at schema version 2: matches, decisions, and the owners store #654 adds");
 assert.equal(typeof navigator.locks?.request, "function", "(Node offers Web Locks, so both coordination modes are proved here)");
@@ -353,12 +359,31 @@ lap("steal");
   const fake = new FakeIndexedDb();
   const plan = newPlan();
   const spawn = spawner(fake, plan);
-  const sup = await openSupervised(pack, "recover", true, spawn, { ...fast, ownership: ownershipOn(fake, { holder: "tab-r" }) });
+  const sup = await openSupervised(pack, "recover", true, spawn, { ...recoveryTimings, ownership: ownershipOn(fake, { holder: "tab-r" }) });
   const seen = states(sup);
   const check = (s: { game: { revision: number } }) => sameBoard("recovery")(s);
   const toHuman = (min: number) => supLoop(sup, { nextId: ids, onBoard: check, stop: (s) => s.snapshot!.game.revision >= min && humanAsked(s.snapshot!) });
   const toAi = (min: number) => supLoop(sup, { nextId: ids, onBoard: check, stop: (s) => s.snapshot!.game.revision >= min && aiAsked(s.snapshot!) });
   const report: string[] = [];
+
+  // A healthy worker may be silent longer than the old accelerated watchdog.
+  // This must finish once, without restarting, and on the reference board.
+  await toHuman(6);
+  {
+    const at = sup.snapshot!.game.revision;
+    const restarts = sup.state.totalRestarts;
+    const id = ids();
+    plan.nextRequestDelayMs = 650;
+    const started = Date.now();
+    const answer = await sup.actRaw(humanPick(sup.snapshot!), at, id);
+    assert.ok(answer.ok, "a healthy request delayed beyond 400 ms still answers");
+    assert.ok(Date.now() - started >= 650, "the slow-worker control actually waited");
+    assert.equal(sup.state.totalRestarts, restarts, "healthy slow work is not restarted");
+    assert.equal(answer.revision, at + 1, "slow work advances exactly once");
+    assert.equal((await deviceJournal(fake, "recover"))!.entries.filter((e) => e.kind === "human" && e.requestId === id).length, 1);
+    check(sup.snapshot!);
+    report.push("healthy request delayed 650 ms without restart");
+  }
 
   // A human move, the worker killed before its commit is persisted: restarted, resumed at basedOn, sent again — applied once.
   for (const fault of ["before", "after"] as const) {
@@ -393,7 +418,7 @@ lap("steal");
   plan.next = "hang";
   const hungAt = Date.now();
   assert.ok((await sup.advanceRaw(2)).ok, "a worker hung inside an AI commit: restarted and answered");
-  assert.ok(Date.now() - hungAt >= fast.hungMs, "(after the watchdog's silence limit)");
+  assert.ok(Date.now() - hungAt >= recoveryTimings.hungMs, "(after the watchdog's silence limit)");
   assert.ok(seen.some((s) => s.kind === "recovering" && /did not answer/.test(s.detail ?? "")), "reported as recovering: the worker did not answer");
   report.push("hung inside a commit");
   // A worker `error` event: restarted at once.
@@ -444,17 +469,17 @@ lap("recovery");
   const fake = new FakeIndexedDb();
   const plan = newPlan();
   const spawn = spawner(fake, plan);
-  const sup = await openSupervised(pack, "idle", true, spawn, { hungMs: 300, openMs: 400, pingMs: 50, maxRestarts: 2, ownership: ownershipOn(fake, { holder: "tab-i" }) });
+  const sup = await openSupervised(pack, "idle", true, spawn, { hungMs: 10000, openMs: 20000, pingMs: 50, maxRestarts: 2, ownership: ownershipOn(fake, { holder: "tab-i" }) });
   const seen = states(sup);
   await supLoop(sup, { nextId: ids, onBoard: sameBoard("idle"), stop: (s) => s.snapshot!.game.revision >= 6 && humanAsked(s.snapshot!) });
   const board = canonicalJson(sup.snapshot);
   plan.spawned.at(-1)!.terminate();
-  assert.ok(await until(() => seen.some((s) => s.kind === "recovering") && sup.state.kind === "owner"), "a worker that dies while idle: the ping finds it and it is restarted");
+  assert.ok(await until(() => seen.some((s) => s.kind === "recovering") && sup.state.kind === "owner", 60000), "a worker that dies while idle: the ping finds it and it is restarted");
   assert.equal(canonicalJson(sup.snapshot), board, "at the same board");
   // Every open dies.
   plan.always = "before";
   plan.spawned.at(-1)!.terminate();
-  assert.ok(await until(() => sup.state.kind === "failed"), `a worker that dies on every open: failed after maxRestarts (${sup.state.kind})`);
+  assert.ok(await until(() => sup.state.kind === "failed", 60000), `a worker that dies on every open: failed after maxRestarts (${sup.state.kind})`);
   assert.match(sup.state.detail ?? "", /stopped 2 time\(s\) in a row.*last saved move/, "named, with the match safe at its last saved move");
   const refusedWhileFailed = await sup.actRaw(humanPick(sup.snapshot!), sup.snapshot!.game.revision, ids());
   assert.ok(!refusedWhileFailed.ok, "moves are refused while failed");
@@ -482,13 +507,13 @@ lap("idle/failed/stop");
   // Reload during a choice and during an AI turn: dispose, open again — the identical board and the same game.
   const fake = new FakeIndexedDb();
   const spawn = spawner(fake, newPlan());
-  let sup = await openSupervised(pack, "reload", true, spawn, { ...fast, ownership: ownershipOn(fake, { holder: "tab-1" }) });
+  let sup = await openSupervised(pack, "reload", true, spawn, { ...recoveryTimings, ownership: ownershipOn(fake, { holder: "tab-1" }) });
   for (const [min, want] of [[10, humanAsked], [20, aiAsked]] as const) {
     await supLoop(sup, { nextId: ids, onBoard: sameBoard("reload"), stop: (s) => s.snapshot!.game.revision >= min && want(s.snapshot!) });
     const board = canonicalJson(sup.snapshot);
     await sup.dispose();
     assert.ok(clean(sup));
-    sup = await openSupervised(pack, "reload", false, spawn, { ...fast, ownership: ownershipOn(fake, { holder: `tab-${min}` }) });
+    sup = await openSupervised(pack, "reload", false, spawn, { ...recoveryTimings, ownership: ownershipOn(fake, { holder: `tab-${min}` }) });
     assert.equal(sup.state.kind, "owner", "a reloaded tab takes the released match at once");
     assert.equal(canonicalJson(sup.snapshot), board, `reloaded during ${want === humanAsked ? "a choice" : "an AI turn"}: the identical board`);
   }
