@@ -10,6 +10,8 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { buildSnapshot } from "../../src/lib/arena/snapshot-core";
 import type { CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
+import { choicePreviews } from "../../src/lib/arena/vm/choice-preview";
+import type { Op } from "../../src/lib/arena/vm/script";
 
 const catalog = JSON.parse(readFileSync("docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json", "utf8")) as { cards: { id: string; imageUrl?: string | null }[] };
 const images = Object.fromEntries(catalog.cards.filter((item) => item.imageUrl).map((item) => [item.id, { front: item.imageUrl ?? null, back: null }]));
@@ -143,6 +145,28 @@ function fixture(name: string, state: VmState, source: string): void {
     return action?.type === "activate" && action.card === extra;
   }));
   fixture("BT6-025: blue Leader cannot activate", state, "BT6-025");
+}
+{
+  // Synthetic selector variant: omitted area means Battle Area to the VM.
+  // A just-played card can join this choice, so a pre-play view must not
+  // claim its current candidate list is the eventual on-play choice.
+  const state = main();
+  stage(state, "p1", "BT11-011", "hand");
+  stage(state, "p1", "V1", "energy"); stage(state, "p1", "V1", "energy");
+  stage(state, "p1", "SMALL798", "battle");
+  const scripts = { ...ctx.scripts, "BT11-011": JSON.parse(JSON.stringify(ctx.scripts!["BT11-011"])) as NonNullable<EngineContext["scripts"]>[string] };
+  let changed = false;
+  const rewrite = (ops: Op[]): void => {
+    for (const op of ops) {
+      if (op.op === "choose") { op.sel = { side: "you" }; changed = true; }
+      if (op.op === "if") rewrite(op.then);
+    }
+  };
+  for (const script of Object.values(scripts["BT11-011"].bySkill)) rewrite(script.ops);
+  assert.ok(changed);
+  const rows = choicePreviews({ ...ctx, scripts }, game, state, RULES.legalActions(ctx, state));
+  assert.ok(rows.length > 0);
+  assert.ok(rows.every((row) => row.state === "notEvaluated"), "implicit own Battle Area is as uncertain as explicit own Battle Area");
 }
 if (process.argv.includes("--emit")) {
   mkdirSync("docs/arena-backlog/evidence/798", { recursive: true });

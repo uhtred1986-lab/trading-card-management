@@ -1098,6 +1098,7 @@ export function ArenaStage({
   const handStatus = (id: string): HandActionStatus | null => {
     const indices = taps.byCard[id] ?? [];
     const actions = indices.map((i) => legal[i].action);
+    if (view.prompt.kind === "combo" && actions.some((a) => a.type === "combo")) return "playable";
     if (actions.some((a) => a.type === "counter" || a.type === "block") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter") || cardOf(id)?.abilities?.some((ability) => ability.category === "counter")) return "counter";
     const play = indices.find((i) => legal[i].action.type === "play");
     if (play != null) {
@@ -1121,6 +1122,11 @@ export function ArenaStage({
   };
   const handAction = (id: string): string | null => {
     const indices = taps.byCard[id] ?? [];
+    if (view.prompt.kind === "combo") {
+      if (!indices.some((i) => legal[i].action.type === "combo")) return null;
+      const power = cardOf(id)?.comboPower;
+      return power == null ? "Combo" : `+${power / 1000}k`;
+    }
     const play = indices.find((i) => legal[i].action.type === "play");
     if (play != null) {
       const preview = choicePreviewOf(play);

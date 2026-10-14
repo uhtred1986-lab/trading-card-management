@@ -77,7 +77,7 @@ export function choicePreviews(ctx: EngineContext, game: GameDefinition, state: 
       const sel = first.choice.sel;
       // A played Battle Card joins its own area before an Auto resolves. Its
       // current hand position cannot answer an own-Battle selector faithfully.
-      if (!safeSelector(sel) || (action.type === "play" && sel.side === "you" && sel.area === "battle")) {
+      if (!safeSelector(sel) || (action.type === "play" && sel.side === "you" && (sel.area ?? "battle") === "battle")) {
         out.push({ action: index, skillIndex: skill.index, state: "notEvaluated" }); continue;
       }
       const candidates = resolveSelector(ctx, game, state, frame, sel);

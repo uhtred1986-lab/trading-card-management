@@ -24,7 +24,7 @@ try {
       await page.goto(`${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=step&admin=0`);
       await page.waitFor(".arena");
       await page.settle(700);
-      const facts = await page.eval<{ scroll: boolean; phase: boolean; cards: number; clippedReasons: number; obscuredRows: number }>(`(() => {
+      const facts = await page.eval<{ scroll: boolean; phase: boolean; cards: number; clippedReasons: number; obscuredRows: number; obscuredChips: number }>(`(() => {
         const phase = document.querySelector('.arena-phases-row');
         const box = phase?.getBoundingClientRect();
         const reasons = [...document.querySelectorAll('[data-target-reason]')];
@@ -33,6 +33,7 @@ try {
           phase: !!box && box.height > 0 && box.bottom <= innerHeight,
           cards: document.querySelectorAll('[data-arena-card]').length,
           clippedReasons: reasons.filter(e => e.scrollWidth > e.clientWidth + 1).length,
+          obscuredChips: [...document.querySelectorAll('[data-hand-action]')].filter(e => {const r=e.getBoundingClientRect();return r.bottom>dockTop+1 || e.scrollHeight>e.clientHeight+1 || e.scrollWidth>e.clientWidth+1}).length,
           obscuredRows: [...document.querySelectorAll('.arena-row,.arena-pstrip,.arena-hand')].filter(e => e.getBoundingClientRect().bottom > dockTop + 1).length,
           height: document.documentElement.scrollHeight,
           boxes: [...document.querySelectorAll('.arena-topbar,.arena-row,.arena-pstrip,.arena-lane-battle,.arena-hand,.arena-bar')].map(e=>({class: e.className, y:e.getBoundingClientRect().y, height:e.getBoundingClientRect().height, bottom:e.getBoundingClientRect().bottom})) };
@@ -43,6 +44,7 @@ try {
       if (check && !facts.phase) failures.push(`${label}: phase row unavailable`);
       if (check && facts.clippedReasons) failures.push(`${label}: target reason clipped`);
       if (check && facts.obscuredRows) failures.push(`${label}: board or hand covered by dock`);
+      if (check && facts.obscuredChips) failures.push(`${label}: hand action chips clipped or covered by dock`);
       writeFileSync(join(out, `${label}.jpg`), await page.screenshot(false));
       console.log(`${label}: scroll=${facts.scroll}, phase=${facts.phase}, cards=${facts.cards}`);
     }

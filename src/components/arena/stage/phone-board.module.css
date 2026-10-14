@@ -11,6 +11,8 @@
 .status_charge { background: var(--color-ki-400); }
 .handAction { position: absolute; z-index: 90; left: 50%; bottom: -17px; transform: translateX(-50%); max-width: 96px; white-space: nowrap; border-radius: 999px; padding: 2px 5px; font: 800 8px/1.2 var(--font-arena, sans-serif); color: var(--color-space-50); background: var(--color-space-800); box-shadow: 0 0 0 1px var(--color-space-600); pointer-events: none; }
 .action_playable, .action_targets { background: var(--color-gain); color: #12161f; }
+:global([data-skin="anime"]) .action_playable,
+:global([data-skin="anime"]) .action_targets { color: #fff; }
 .action_noTarget { background: #f59e0b; color: #211600; }
 .action_unaffordable { background: var(--color-loss); color: #12161f; }
 .action_counter, .action_skill { background: #20273c; color: #eef1f8; }
@@ -57,6 +59,10 @@
  .board :global([data-player-resources]) { padding: 0 6px; }
  .board :global([data-player-resources] button) { margin-left: auto; }
  .handCards { justify-content: flex-start; padding-top: 4px; padding-bottom: 6px; min-height: 0 !important; }
+ /* Reserve the chips' actual space above the dock. Their width fits the
+    smallest ordinary-hand step, so neighbouring labels cannot cover them. */
+ .handCards:has(.handAction) { padding-bottom: 32px; }
+ .handAction { bottom: -28px; display: grid; align-content: center; width: 48px; min-height: 24px; white-space: normal; text-align: center; }
  .handRow { min-width: 0; }
  .handFanHeader { display: block; }
  .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
@@ -121,6 +127,8 @@
  .board:has(:global(.arena-bar[data-prompt-kind="payCost"])) :global(.arena-lane) { display: none; }
 }
 @media (max-width: 1023px) and (max-height: 720px) {
+ .board:not([data-response-window]) :global(.arena-row) { --arena: .64; }
+ .board[data-response-window="combo"] :global(.arena-row) { --arena: .45; }
  .cardReview[data-review-mode="opponent"] :global(.arena-review-art) { width: min(100%, 200px); }
 }
 @media (min-width: 400px) and (max-width: 1023px) and (min-height: 860px) {

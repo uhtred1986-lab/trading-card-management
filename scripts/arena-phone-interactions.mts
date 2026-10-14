@@ -13,6 +13,7 @@ try {
     await page.interceptFetch("*/api/v1/games/*");
     page.onFetchPaused(({ requestId }) => { setTimeout(() => { void page.fulfillFetch(requestId, "", 204).catch(() => {}); }, 500); });
     const open = async (name: string) => {
+      await page.setCookie("arenaSkin", skin, base);
       await page.goto(`${base}/arena/preview?fixture=${name}&skin=${skin}&pace=step&admin=0`);
       await page.waitFor(".arena"); await page.settle(300);
     };
@@ -50,6 +51,11 @@ try {
     await page.tap(selector);
     await page.waitFor("[data-target-label]");
     await shot("attack-pick");
+    await page.eval(`document.querySelector('[data-arena-card="${snap.view.them.leader.id}"] button').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`);
+    await page.waitFor('[data-arena-review]');
+    assert.equal(await page.eval(`(() => {const top=document.querySelector('[data-arena-review]').getBoundingClientRect().top;return [...document.querySelectorAll('[data-target-label]')].filter(e=>/tap/i.test(e.textContent)).some(e=>e.getBoundingClientRect().bottom>top)})()`), false, 'targeting review leaves eligible cards visible');
+    await shot('targeting-review');
+    await page.tap('[aria-label="Close card review"]');
     await page.tap(`[data-arena-card="${snap.view.them.leader.id}"]`);
     await page.waitFor("[data-attack-summary]");
     assert.ok(await page.eval("document.querySelector('[data-attack-summary]').getBoundingClientRect().height >= 80"), "attack summary must have visible height");
@@ -61,6 +67,16 @@ try {
     await page.tap('[data-attack-confirm] [data-pass-action]');
     await page.settle(100);
     assert.equal(await page.eval("!!document.querySelector('[data-attack-confirm]')"), false);
+    for (const kind of ['counter', 'blocker']) {
+      await open(`phone-ux-${kind}`);
+      await page.tap('[data-defend-action]');
+      await page.settle(150);
+      const sent = await page.eval<Array<{type:string;card?:string}>>('window.__arenaSent ?? []');
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].type, kind === 'blocker' ? 'block' : 'counter');
+      assert.ok(sent[0].card, 'active response sends the chosen card, not a pass');
+      await shot(`${kind}-chosen`);
+    }
     console.log(`${height}-${skin}: full-screen arrows/swipe and staged attack/cancel passed`);
     await page.close();
   }

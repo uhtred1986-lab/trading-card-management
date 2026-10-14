@@ -124,7 +124,7 @@ export function Hand({
             >
               <StageCard {...props} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
-              {!fanMode && handAction?.(c.id) && <span className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
+              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
           );
         })}
