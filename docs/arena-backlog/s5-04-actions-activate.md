@@ -6,7 +6,7 @@ stage: 5
 touches: src/lib/arena/rulesets/dbs/actions.rules, scripts/verify/harness.ts, scripts/arena-playthrough.mts
 status: closed
 ---
-**Source:** plan Stage 5; the `activate` handler and `whyNotActivate` in `src/lib/arena/engine/engine.ts`; `docs/arena-workflow-spec.md` §3.2 as amended 8 Sep 2026 (an activation is one rejection **per skill line**, because a card prints up to nine and one being on the menu says nothing about the others); `Script.price` from `card_rules.cost`; `docs/arena-refusals-spec.md`.
+**Source:** plan Stage 5; the `activate` handler and `whyNotActivate` in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts); `docs/arena-workflow-spec.md` §3.2 as amended 8 Sep 2026 (an activation is one rejection **per skill line**, because a card prints up to nine and one being on the menu says nothing about the others); `Script.price` from `card_rules.cost`; `docs/arena-refusals-spec.md`.
 
 **Problem.** [Activate:Main] and [Activate:Battle] skills are the action whose legality depends on the *record* — its price, its hoisted condition, its once-per-turn flag — and whose refusal is per line rather than per card. On the rules engine the record must be read exactly as the legacy engine reads it, or a corrected rule plays differently depending on the engine.
 

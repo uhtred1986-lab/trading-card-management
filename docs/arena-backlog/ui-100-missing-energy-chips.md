@@ -7,7 +7,7 @@ status: closed
 closed_at: 2026-09-10
 pr: 182
 ---
-**Source:** `docs/arena-workflow-spec.md` §9 ("Not done: the missing-energy chips the prototype draws beside the energy strip") and §4 for the register; `src/lib/arena/wording.ts` (`refusal()`, `pill()`, `priceOf()`); `rejectedActions` and the `Requirement` shapes in `src/lib/arena/engine/`.
+**Source:** `docs/arena-workflow-spec.md` §9 ("Not done: the missing-energy chips the prototype draws beside the energy strip") and §4 for the register; `src/lib/arena/wording.ts` (`refusal()`, `pill()`, `priceOf()`); `rejectedActions` and the `Requirement` shapes in [historical src/lib/arena/engine/](https://github.com/uhtred1986-lab/trading-card-management/tree/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/).
 
 **Problem.** When a card is dead for want of energy the board shakes it and words the first requirement, but the energy strip itself says nothing. The prototype drew a chip per missing orb beside the strip — "needs {r}{r}, you have {r}" — which is the one place the player looks when deciding what to charge next turn.
 

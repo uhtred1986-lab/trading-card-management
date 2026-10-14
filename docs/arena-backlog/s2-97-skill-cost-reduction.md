@@ -6,7 +6,7 @@ stage: 2
 status: closed
 closed_at: 2026-09-10
 ---
-**Source:** `docs/arena-next-session-prompt.md` §4(c), third bullet; `docs/arena-next-stage-spec.md` §6.6; plan Stage 2 row `costModifier(target, costKind, delta, until)`; `orbTotals` in `src/lib/arena/engine/engine.ts` (~line 904, eleven call sites).
+**Source:** `docs/arena-next-session-prompt.md` §4(c), third bullet; `docs/arena-next-stage-spec.md` §6.6; plan Stage 2 row `costModifier(target, costKind, delta, until)`; `orbTotals` in [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) (~line 904, eleven call sites).
 
 **Problem.** Cost-reduction sub-family A — 71 clauses, "reduce the **skill** cost by {o}" — stays unread for two reasons. `orbTotals` is a pure function of the parsed skill with eleven call sites, so a discount has nowhere to apply; and the **scoping** half of those sentences ("of your ≪Saiyan≫ cards", "of [Counter] skills", "while this card is in play") is itself unread, 45 clauses over 40 shapes. Compile the discount without the scope and every skill on the board gets a permanent, unlimited, untargeted discount — the wrong-reading trap in its purest form.
 

@@ -6,7 +6,7 @@ stage: 2
 status: closed
 closed_at: 2026-09-10
 ---
-**Source:** plan Stage 2 gap table, last row: keyword-timing triggers (7 clauses) and free [Counter] from hand (7); rule manual 22-5, 22-10; `src/lib/arena/engine/triggers.ts` (`skillAnswersTo`); `docs/arena-rules-language.md` §7.
+**Source:** plan Stage 2 gap table, last row: keyword-timing triggers (7 clauses) and free [Counter] from hand (7); rule manual 22-5, 22-10; [historical src/lib/arena/engine/triggers.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/triggers.ts) (`skillAnswersTo`); `docs/arena-rules-language.md` §7.
 
 **Problem.** Since Stage 1 an [Auto]'s moment is read off `card_rules.trigger`, but a keyword's own moments are hard-coded per keyword in the engine. Cards whose trigger *is* a keyword's timing — "when using this card's [Evolve] from your hand", "when this card's [Union-Absorb] is activated" — and [Counter] skills usable from hand at no energy cost have no trigger name to be given, so the record cannot express them and the text view cannot fix them.
 

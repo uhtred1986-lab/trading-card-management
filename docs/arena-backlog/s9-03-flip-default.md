@@ -6,7 +6,7 @@ stage: 9
 touches: src/lib/arena/engines.ts, src/lib/arena/engine-setting.ts, src/app/api/v1/games/route.ts, CLAUDE.md, docs/arena-client-contract.md
 status: closed
 ---
-**Source:** `src/lib/arena/engine-setting.ts` (Settings → Arena engine), `DEFAULT_ENGINE` in `engines.ts`, the badge on rules-engine games; the plan's Stage 9.
+**Source:** [historical src/lib/arena/engine-setting.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine-setting.ts) (Settings → Arena engine), `DEFAULT_ENGINE` in `engines.ts`, the badge on rules-engine games; the plan's Stage 9.
 
 **Blocked on** the two parity issues in this milestone being closed.
 

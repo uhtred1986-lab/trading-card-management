@@ -6,7 +6,7 @@ stage: ui
 status: closed
 closed_at: 2026-09-09
 ---
-**Source:** `docs/arena-markers-stage-scope.md` §2 item 1 and §4 step B; rule manual 22-45-3; `src/lib/arena/engine/engine.ts` (the `[Empower XY]` carry near line 637 and the `empowerCarry` prompt kind near line 2826).
+**Source:** `docs/arena-markers-stage-scope.md` §2 item 1 and §4 step B; rule manual 22-45-3; [historical src/lib/arena/engine/engine.ts](https://github.com/uhtred1986-lab/trading-card-management/blob/9c7bfdbc20695b0c7102ebc7872232f0586082b7/src/lib/arena/engine/engine.ts) (the `[Empower XY]` carry near line 637 and the `empowerCarry` prompt kind near line 2826).
 
 **Status check, 9 Sep 2026 — an `empowerCarry` prompt already exists in the engine.**
 
