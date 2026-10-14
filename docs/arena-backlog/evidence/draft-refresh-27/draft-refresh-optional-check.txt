@@ -1,0 +1,4 @@
+BT3-109#20: choose up to 5; selected cards move to Drop before the later atLeast 5 check. Control-flow inference for a 1-card selection: the move precedes and is independent of the full-count follow-up gate.
+BT6-062#10: choose up to 2; selected cards move to Drop before the later atLeast 2 check. Control-flow inference for a 1-card selection: the move precedes and is independent of the full-count follow-up gate.
+SD8-03#10: choose up to 2; selected cards move to Drop before the later atLeast 2 check. Control-flow inference for a 1-card selection: the move precedes and is independent of the full-count follow-up gate.
+PASS: current compiled op order retains the documented partial-choice approximation in all three candidate readings.
