@@ -247,6 +247,19 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   Proof: `scripts/verify/arena-offline-decks-793.mts` (`npm test`, PGlite): the gate's refusals, scope, no
   private data, programs equal to `rulesFor`, and full matches in the local Worker (a player's deck against a
   starter and against another of their decks, both seats).
+  The device half (`src/lib/arena/local/device-decks.ts`, browser-safe): the deck page's "Available offline"
+  card (`src/components/arena/OfflineDeck.tsx`) shows the server's check — "Ready to download" or the blocking
+  cards, with no button for a blocked deck — and downloads with the pack store's progress, Stop and resumable
+  "Try again" (`installDeviceDecks`: the whole set, one new version, atomic), says when the copy on the device
+  is out of date and removes it. `/arena/offline` lists "Decks on this device" (`DeviceDecks.tsx`) with each
+  deck's picture storage, the changed-online flag and Update, and Remove for a player's deck: done on the device
+  with no connection (`packWithout` rebuilds and reseals the pack; the saved matches that play the deck are
+  deleted after the page says so, the others keep their pinned version). Preparing or updating the app keeps the
+  device's decks (`devicePackUrl`). "Remove everything" stays there, on a page that needs no sign-in. Proofs:
+  `scripts/verify/arena-offline-decks-793.mts` §6 (the pack store on a fake IndexedDB) and
+  `npm run arena:offline-decks-browser` (a production build behind Basic Auth that the browser never passes,
+  the two routes answered from a PGlite build of the same data; the deck page itself needs the database and is
+  not shown).
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

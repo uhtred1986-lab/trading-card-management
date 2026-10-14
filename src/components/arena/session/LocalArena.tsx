@@ -304,14 +304,16 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
             store={installed.store}
             revision={shell!.revision}
             pointerPack={pointer?.packHash ?? null}
+            deviceKey={installed.versions?.map((v) => `${v.hash}:${v.active ? 1 : 0}`).join(",")}
             onChanged={installed.refresh}
-            onReady={(hash) => { if (!facts) void chooseInstalled(hash, true); }}
+            // A new version of the device's pack (a deck added or taken off, #793) is chosen at once.
+            onReady={(hash) => { if (facts?.hash !== hash) void chooseInstalled(hash, true); }}
             forgetPointer={discard}
           />
         )}
 
         <section aria-label="Deck pack" className={`${panel} space-y-2`}>
-          <h2 className="text-xs uppercase tracking-widest text-space-400">{installed ? "Decks on this device" : "Deck pack"}</h2>
+          <h2 className="text-xs uppercase tracking-widest text-space-400">{installed ? "Deck pack files" : "Deck pack"}</h2>
           {installed ? (
             <details>
               <summary className="tap inline-flex cursor-pointer items-center text-sm text-space-200">Choose a deck pack or add one from a file</summary>
@@ -367,7 +369,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
               </select>
             </label>
             <label className="block text-sm text-space-200">
-              <span className="mb-1 block">Opponent&rsquo;s deck</span>
+              <span className="mb-1 block">{installed ? "Computer\u2019s deck" : "Opponent\u2019s deck"}</span>
               <select value={theirs} onChange={(e) => setTheirs(e.target.value)} disabled={busy} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
                 {facts.decks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.leader ? ` — ${d.leader}` : ""}</option>)}
               </select>

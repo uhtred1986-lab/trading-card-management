@@ -19,19 +19,22 @@
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import { and, eq } from "drizzle-orm";
 import * as schema from "../../src/db/schema.ts";
-import type { Db } from "../../src/db/index.ts";
-import { DECKS, loadSnapshot, resolveDeck } from "../arena-deck-audit.mts";
 import { mastersPackInput, buildMastersPack } from "../build-arena-offline-pack.mts";
-import { draftCards } from "../../src/lib/arena/draft.ts";
+import { liveFixture } from "./arena-offline-decks-fixture.mts";
 import { rulesFor } from "../../src/lib/arena/rules-store.ts";
 import { defsForCards } from "../../src/lib/arena/load.ts";
 import { OfflineDeckRefused, buildDeviceOfflinePack, checkOfflineDecks, parseDeckIds } from "../../src/lib/arena/offline-decks.ts";
-import { deckIdOfKey, deckListHash, offlineDeckKey } from "../../src/lib/arena/local/device-decks.ts";
+import {
+  DEVICE_PACK_ID, LOCAL_POINTER_KEY, PLAYER_DECKS_SOURCE, deckBytes, deckIdOfKey, deckListHash, deviceDeckIds, devicePackUrl, installDeviceDecks, matchesUsing,
+  offlineDeckKey, packWithout, readDevicePack, takeDeckOff,
+} from "../../src/lib/arena/local/device-decks.ts";
+import { packStore } from "../../src/lib/arena/local/pack-store.ts";
+import { PACK_PATH } from "../../src/lib/arena/local/shell.ts";
+import { POINTER_KEY } from "../../src/components/arena/session/local-board.ts";
+import { FakeIndexedDb, asFactory } from "./fake-indexeddb.ts";
+import { nodeDecode, pngFor } from "./arena-pack-store-fixture.mts";
 import { privateDataViolations, qualificationReasons, validateOfflinePack, packContent, makeOfflinePack } from "../../src/lib/arena/local/pack.ts";
 import { CURATED_PACK_ID } from "../../src/lib/arena/local/prepare.ts";
 import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
@@ -41,32 +44,8 @@ import { inProcessChannel } from "./arena-local-worker-channel.ts";
 import { playLoop, requestIds } from "./arena-local-storage-driver.ts";
 
 const REV = "a793000000000000000000000000000000000793";
-const client = new PGlite();
-const db = drizzle(client, { schema }) as unknown as Db;
-for (const file of fs.readdirSync("drizzle").filter((f) => f.endsWith(".sql")).sort()) {
-  for (const stmt of fs.readFileSync(path.join("drizzle", file), "utf8").split("--> statement-breakpoint")) if (stmt.trim()) await client.exec(stmt);
-}
+const { client, db, snapshot, owner: OWNER, specA, specB, addDeck } = await liveFixture();
 
-// ── the catalog: the committed snapshot's cards, as a sync would have stored them ─────────────────
-const snapshot = loadSnapshot();
-const sets = [...new Set(snapshot.cards.map((c) => c.setCode))];
-await db.insert(schema.cardSets).values(sets.map((code, i) => ({ code, name: code, line: "masters", sortKey: i, game: "dbs" }))).onConflictDoNothing();
-await db.insert(schema.cards).values(snapshot.cards.map((c) => ({ ...c }) as typeof schema.cards.$inferInsert)).onConflictDoNothing();
-// The owner's specified costs (migration 0049 put them in the live database).
-const OWNER = JSON.parse(fs.readFileSync("docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json", "utf8")).specifiedCosts as Record<string, string>;
-for (const [id, cost] of Object.entries(OWNER)) await db.update(schema.cards).set({ specifiedCost: cost }).where(eq(schema.cards.id, id));
-// Rule records, the drafter's way (the only module that compiles; the pack never does).
-await draftCards(db, snapshot.cards.map((c) => c.id));
-// Drafts the compiler read fully are what a person would confirm; confirm them, as the review queue does.
-await db.update(schema.cardRules).set({ status: "confirmed" }).where(eq(schema.cardRules.status, "draft"));
-
-async function addDeck(owner: string | null, name: string, spec: (typeof DECKS)[number], game = "dbs"): Promise<number> {
-  const [d] = await db.insert(schema.decks).values({ name, owner, game }).returning({ id: schema.decks.id });
-  const { rows } = resolveDeck(spec, snapshot.cards);
-  await db.insert(schema.deckCards).values(rows.map((r) => ({ deckId: d.id, cardId: r.card.id, zone: r.zone, quantity: r.quantity })));
-  return d.id;
-}
-const [specA, specB] = [DECKS.find((d) => d.key === "A")!, DECKS.find((d) => d.key === "B")!];
 const annRed = await addDeck("ann", "Ann's Crimson", specB);
 const annPride = await addDeck("ann", "Ann's Pride", specA);
 const annRed2 = await addDeck("ann", "Ann's Crimson II", specB);
@@ -224,6 +203,75 @@ for (const f of ["src/app/api/arena/offline/pack/route.ts", "src/app/api/arena/o
 }
 const proxy = fs.readFileSync("src/proxy.ts", "utf8");
 assert.doesNotMatch(proxy, /api\/arena/, "the device pack routes are not exempt from the proxy");
+
+// ── 6. the device: one pack, decks added and taken off atomically, removal with no connection ───
+{
+  const texts = new Map<string, string>([[PACK_PATH, canonicalJson(curated)]]);
+  for (const ids of [[annRed], [annRed, annRed2]]) texts.set(devicePackUrl(ids), canonicalJson(await buildDeviceOfflinePack(db, "ann", ids, starters)));
+  const calls: string[] = [];
+  let offline = false;
+  const fetchFn = (async (input: string) => {
+    const url = String(input);
+    calls.push(url);
+    if (offline) throw new TypeError("Failed to fetch (offline)");
+    if (texts.has(url)) return new Response(texts.get(url)!, { status: 200, headers: { "content-type": "application/json" } });
+    const m = url.match(/^\/_next\/image\?url=([^&]+)/);
+    if (m) { const img = pngFor(decodeURIComponent(m[1])); return new Response(new Uint8Array(img), { status: 200, headers: { "content-type": "image/png", "content-length": String(img.length) } }); }
+    return new Response("", { status: 404 });
+  }) as unknown as typeof fetch;
+  const store = packStore({ name: "packs-793", factory: asFactory(new FakeIndexedDb()), localName: "local-793", fetch: fetchFn, decode: nodeDecode, interpreterRevision: REV, retries: 1, retryDelayMs: () => 0, locks: null });
+
+  assert.equal(devicePackUrl([]), PACK_PATH, "no deck of the player's: the public starter pack");
+  assert.equal(devicePackUrl([5, 2, 5]), "/api/arena/offline/pack?decks=2,5");
+  await installDeviceDecks(store, []);
+  let device = (await readDevicePack(store))!;
+  assert.deepEqual(device.decks.map((d) => d.key), ["A", "B"], "a prepared device holds the starters");
+  assert.deepEqual(deviceDeckIds(device), []);
+
+  const progress: string[] = [];
+  await installDeviceDecks(store, [annRed], { onProgress: (p) => progress.push(p.phase) });
+  device = (await readDevicePack(store))!;
+  assert.deepEqual(device.decks.map((d) => d.key), ["A", "B", red], "a downloaded deck joins the starters");
+  assert.ok(progress.includes("pack") && progress.includes("art") && progress.at(-1) === "done", `real progress through the phases (${[...new Set(progress)].join(" → ")})`);
+  assert.equal(device.decks[2].listHash, checks.get(annRed)!.listHash, "the device's fingerprint equals the server's: not stale");
+
+  const firstVersion = device.version.hash;
+  await installDeviceDecks(store, [annRed, annRed2]);
+  device = (await readDevicePack(store))!;
+  assert.deepEqual(deviceDeckIds(device), [annRed, annRed2], "a second deck: one pack with both");
+  assert.equal((await store.list()).filter((v) => v.status === "ready" && v.id === DEVICE_PACK_ID && v.active).length, 1, "one active version");
+  assert.ok(!(await store.list()).some((v) => v.hash === firstVersion), "the superseded version, pinned by no saved match, is pruned");
+  const sizes = await deckBytes(store, device);
+  assert.ok([...sizes.values()].every((n) => n > 0), "each deck's pictures have a size on the device");
+
+  // Remove one deck with no connection: the device rebuilds its pack and installs it.
+  offline = true;
+  const before = calls.length;
+  await takeDeckOff(store, device, red, { saves: [] });
+  assert.deepEqual(calls.slice(before), [], "removing a deck makes no request at all");
+  device = (await readDevicePack(store))!;
+  assert.deepEqual(device.decks.map((d) => d.key), ["A", "B", pride], "the other decks stay");
+  assert.deepEqual((await validateOfflinePack(device.pack)).errors, [], "the rebuilt pack validates");
+  assert.equal(device.pack.qualification.playable, true);
+  assert.ok(device.pack.source.audit.endsWith(PLAYER_DECKS_SOURCE), "it still names the player's decks as a source");
+  await assert.rejects(packWithout(device.pack, "A"), /built-in deck/, "a built-in starter stays");
+  const onlyStarters = await packWithout(device.pack, pride);
+  assert.deepEqual(onlyStarters.decks.map((d) => d.key), ["A", "B"]);
+  assert.equal(onlyStarters.source.audit, curated.source.audit, "with no deck of the player's left, the source is the curated one again");
+  assert.deepEqual(Object.keys(onlyStarters.bundle.payload.defs).sort(), Object.keys(curated.bundle.payload.defs).sort(), "and it carries the starters' cards only");
+  // A match on the rebuilt pack, from the device's copy.
+  const ch = inProcessChannel({ store: memoryJournalStore() });
+  const session = await LocalWorkerSession.start(ch.port, { matchId: "after-removal", gameId: 793, seed: 7935, policySeed: 7936, decks: { p1: pride, p2: "B" }, human: "p2", pack: JSON.parse(JSON.stringify(device.pack)), interpreterRevision: REV, batch: 4 }, { newRequestId: requestIds(7935), sessionId: "s-after" });
+  assert.equal(await playLoop(session, { nextId: requestIds(7937) }), "over", "the remaining deck still plays to the end after another was removed");
+  await session.dispose();
+  played.push(`after removal ${pride} v B, human p2: over`);
+
+  // Saved matches: those that play the removed deck go with it, the others stay.
+  const saves = [{ matchId: "m1", packHash: "x", moves: 3, over: false, decks: { p1: red, p2: "A" } }, { matchId: "m2", packHash: "x", moves: 3, over: false, decks: { p1: "A", p2: pride } }, { matchId: "m3", packHash: "x", moves: null, over: false, decks: null }];
+  assert.deepEqual(matchesUsing(saves, red).map((s) => s.matchId), ["m1"], "only the saved match that plays the deck is taken with it");
+  assert.equal(LOCAL_POINTER_KEY, POINTER_KEY, "the pointer key is the board's");
+  store.close();
+}
 
 await client.close();
 console.log(`arena-offline-decks-793: ok — device pack ${pack.hash.slice(0, 12)} (${pack.decks.length} decks, ${pack.manifest.cards.length} cards); ${played.join("; ")}`);
