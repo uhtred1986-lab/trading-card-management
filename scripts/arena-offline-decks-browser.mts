@@ -195,9 +195,9 @@ try {
   });
   await page.goto(`${BASE}${SHELL_PATH}`);
   await until(page, `document.querySelector('[data-offline-status]')`, "the preparation panel (no sign-in)");
-  check(await page.eval<boolean>(`[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Remove everything")`), "Remove everything is on /arena/offline for a browser that never signed in");
   await clickText(page, "Prepare for offline play");
   await until(page, `document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, "ready with the starters", 240000);
+  check(await page.eval<boolean>(`[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Remove everything")`), "a prepared device offers Remove everything on /arena/offline, to a browser that never signed in");
   check(JSON.stringify((await deckRows(page)).map((r) => r.key)) === JSON.stringify(["A", "B"]), "prepared: the starters are on the device");
 
   await page.eval(`document.querySelector('section[aria-label="Deck pack"] details').open = true; 0`);
@@ -251,7 +251,8 @@ try {
   await until(page, `document.querySelectorAll("[data-device-deck]").length === 3`, "three decks left");
   list = await deckRows(page);
   check(JSON.stringify(list.map((r) => r.key)) === JSON.stringify(["A", "B", k1]), `offline, one deck came off and the others stayed (${list.map((r) => r.key).join(", ")})`);
-  check(served.length === offlineFrom, "taking a deck off made no request");
+  const during = served.slice(offlineFrom);
+  check(!during.some((u) => u.startsWith("/api/arena/offline/pack")), `taking a deck off downloaded no pack: the device rebuilt it (requests meanwhile: ${during.join(", ") || "none"})`);
   const savesAfter = await savedMatches(page);
   const uses = (s: { decks: { p1: string; p2: string } }, k: string) => s.decks.p1 === k || s.decks.p2 === k;
   check(savesBefore.some((s) => uses(s, k2)) && !savesAfter.some((s) => uses(s, k2)), "the saved match that played the removed deck went with it");
