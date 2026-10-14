@@ -20,6 +20,22 @@ Next.js 16 · React 19 · Tailwind 4 · Drizzle + Neon Postgres · Anthropic SDK
 - **CardTrader** — read-only EU listings per card and a deterministic cheapest-sellers cart
   optimiser (`/cart?deck=ID` for a deck's missing cards).
 
+## On iPhone
+
+Open the deployed app in Safari and sign in. To keep it on your Home Screen,
+open Safari's Share menu → **Add to Home Screen** → **Add** (enable **Open as Web App**
+if offered). Launch **DBS Arena** from the new icon; collection and decks remain
+available through the app's navigation. No App Store download is needed.
+
+If the installed app asks you to sign in again, use your normal sign-in. Players
+whose one-time join code has already been redeemed should request a new code for
+that installation from an admin.
+
+Collection, syncing and AI scanning need an internet connection. For offline
+arena play, open **Play on this device** in the installed app and prepare the
+starter decks while online first. Offline data belongs to that browser/installation;
+it is not automatically shared with Safari or another device.
+
 ## Setup
 
 ```powershell
