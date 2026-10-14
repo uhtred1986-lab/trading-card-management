@@ -34,7 +34,7 @@ try {
       if (check && facts.scroll) failures.push(`${label}: page scrolls`);
       if (check && !facts.phase) failures.push(`${label}: phase row unavailable`);
       if (check && facts.clippedReasons) failures.push(`${label}: target reason clipped`);
-      writeFileSync(join(out, `${label}.jpg`), await page.screenshot());
+      writeFileSync(join(out, `${label}.jpg`), await page.screenshot(false));
       console.log(`${label}: scroll=${facts.scroll}, phase=${facts.phase}, cards=${facts.cards}`);
     }
     await page.close();
