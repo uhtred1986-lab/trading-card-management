@@ -29,7 +29,7 @@ import { legalityForDecks } from "@/lib/decks/legality";
 import { cardDefFrom, deckInputFor } from "./load";
 import { loadRules, rulesFromRows, runtimeSupportOfRow, type RuleRow } from "./rules-store";
 import { parseSkills, skillLines, specifiedCostUnknown } from "./text/cards";
-import { deckListHash, offlineDeckKey } from "./local/device-decks";
+import { PLAYER_DECKS_SOURCE, deckListHash, offlineDeckKey, type BlockingCard, type OfflineDeckCheck } from "./local/device-decks";
 import { makeOfflinePack, qualificationReasons, type MakeOfflinePackInput, type OfflinePack, type PackDeck } from "./local/pack";
 import type { CardDef, DeckInput } from "./types";
 import type { CardScripts } from "./vm/script";
@@ -38,26 +38,7 @@ import type { CardArt } from "./view";
 /** The most decks one device pack may carry besides the starters. */
 export const MAX_OFFLINE_DECKS = 12;
 
-export interface BlockingCard {
-  card: string;
-  name: string;
-  /** Plain words, one per problem. */
-  reasons: string[];
-}
-
-export interface OfflineDeckCheck {
-  deckId: number;
-  key: string;
-  name: string;
-  /** True when the deck can be downloaded. */
-  ready: boolean;
-  /** Problems of the deck as a whole (no leader, wrong game). */
-  problems: string[];
-  /** The cards that keep it off the device, and why. */
-  blocking: BlockingCard[];
-  /** The list's fingerprint (`deckListHash`), null when the deck cannot be read as a game deck. */
-  listHash: string | null;
-}
+export type { BlockingCard, OfflineDeckCheck };
 
 /** What a deck brings to a pack: its list and the definitions, programs and art of its cards. */
 interface LiveDeck {
@@ -216,7 +197,7 @@ export function deviceOfflinePackInput(starters: MakeOfflinePackInput, live: { k
     defs,
     scripts,
     art,
-    source: { ...starters.source, audit: `${starters.source.audit}; player decks: the app's catalog and stored card_rules records (#793)` },
+    source: { ...starters.source, audit: `${starters.source.audit}${PLAYER_DECKS_SOURCE}` },
     decks: [...starters.decks, ...live.map((d) => ({ key: d.key, name: d.name, source: "Your deck (the app's database)", deck: d.deck, legality: d.legality }))],
   };
 }

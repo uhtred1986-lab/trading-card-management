@@ -227,6 +227,8 @@ export interface SavedMatch {
   moves: number | null;
   /** The match is over (`status` of the header), when known. */
   over: boolean;
+  /** The pack deck keys of each seat (#793: which saved matches a removed deck takes with it); null when unreadable. */
+  decks: { p1: string; p2: string } | null;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -257,6 +259,7 @@ export async function listSavedMatches(options: LocalDbOptions = {}): Promise<Sa
           packHash: typeof h.packHash === "string" ? h.packHash : null,
           moves: typeof h.decisions === "number" ? h.decisions : null,
           over: h.status === "over",
+          decks: isRecord(h.decks) && typeof h.decks.p1 === "string" && typeof h.decks.p2 === "string" ? { p1: h.decks.p1, p2: h.decks.p2 } : null,
         };
       }));
     });
