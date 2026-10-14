@@ -1,0 +1,2027 @@
+{
+  "baseline": "5b22945a",
+  "scope": "All 6552 dbs cards in the read-only production catalog snapshot; corrections applied independently on both heads.",
+  "changed": [
+    {
+      "card": "BT5-119",
+      "side": "front",
+      "skill": 10,
+      "before": {
+        "cardId": "BT5-119",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] Your Leader Card is a \u226aShenron\u226b card: Choose 1 Battle Card in your Drop Area with an energy cost less than or equal to your current energy and play it.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "text": "Your Leader Card is a \u226aShenron\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "shenron"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "Choose 1 Battle Card in your Drop Area with an energy cost less than or equal to your current energy",
+          "play it"
+        ],
+        "pattern": "choose N battle card in your drop area with an energy cost less than or equal to your current energy",
+        "reads": ""
+      },
+      "after": {
+        "cardId": "BT5-119",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] Your Leader Card is a \u226aShenron\u226b card: Choose 1 Battle Card in your Drop Area with an energy cost of 3 or less and play it.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "text": "Your Leader Card is a \u226aShenron\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "shenron"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "shenron"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 3,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "Choose 1 Battle Card in your Drop Area with an energy cost of 3 or less"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose\u2192play]",
+        "reads": "if your leader is \u226ashenron\u226b: choose 1 Battle Card with an energy cost of 3 or less in your Drop Area, play the chosen cards"
+      }
+    },
+    {
+      "card": "BT6-063",
+      "side": "front",
+      "skill": 10,
+      "before": {
+        "cardId": "BT6-063",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand and play it.",
+        "kind": "auto",
+        "trigger": [
+          "koed",
+          "removedFromBattle"
+        ],
+        "cost": null,
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "frieza's army"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "special": "leader"
+              }
+            },
+            "to": "hand"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 4,
+                "costMax": 4,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [
+          "choose 1 or 2 cards from your life"
+        ],
+        "pattern": "choose N or N cards from your life",
+        "reads": "if your leader is Green \u226afrieza's army\u226b: move your leader to hand, choose up to 1 green <Broly: Br> card with an energy cost of 4 in your hand, play the chosen cards"
+      },
+      "after": {
+        "cardId": "BT6-063",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand and play it.",
+        "kind": "auto",
+        "trigger": [
+          "koed",
+          "removedFromBattle"
+        ],
+        "cost": null,
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "frieza's army"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": false,
+              "minCount": 1
+            },
+            "as": "c0",
+            "reason": "choose 1 or 2 cards from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 4,
+                "costMax": 4,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c1",
+            "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c1"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose\u2192moveTo\u2192choose\u2192play]",
+        "reads": "if your leader is Green \u226afrieza's army\u226b: choose 1 to 2 cards in your Life Area, move the chosen cards to hand, choose up to 1 green <Broly: Br> card with an energy cost of 4 in your hand, play the chosen cards"
+      }
+    },
+    {
+      "card": "BT7-127",
+      "side": "front",
+      "skill": 30,
+      "before": {
+        "cardId": "BT7-127",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto] When this card is placed in your Drop Area from your hand by a skill, and your Leader Card is a <Broly> card, choose up to 1 {Broly's Ring} from your deck, activate it, then shuffle your deck. If you do, choose 1 or 2 cards in your life and add them to your hand.",
+        "kind": "auto",
+        "trigger": [
+          "droppedFromHand"
+        ],
+        "cost": null,
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "Broly's Ring"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 {Broly's Ring} from your deck"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "hand"
+              }
+            ]
+          }
+        ],
+        "unread": [
+          "choose 1 or 2 cards in your life"
+        ],
+        "pattern": "choose N or N cards in your life",
+        "reads": "if your leader is <broly>: choose up to 1 {Broly's Ring} card in your deck, play the chosen cards, shuffle, if you took that choice: move the chosen cards to hand"
+      },
+      "after": {
+        "cardId": "BT7-127",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto] When this card is placed in your Drop Area from your hand by a skill, and your Leader Card is a <Broly> card, choose up to 1 {Broly's Ring} from your deck, activate it, then shuffle your deck. If you do, choose 1 or 2 cards in your life and add them to your hand.",
+        "kind": "auto",
+        "trigger": [
+          "droppedFromHand"
+        ],
+        "cost": null,
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "Broly's Ring"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 {Broly's Ring} from your deck"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "count": 2,
+                  "upTo": false,
+                  "minCount": 1
+                },
+                "as": "c1",
+                "reason": "choose 1 or 2 cards in your life"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c1"
+                },
+                "to": "hand"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose\u2192play\u2192shuffle\u2192if:chose[choose\u2192moveTo]]",
+        "reads": "if your leader is <broly>: choose up to 1 {Broly's Ring} card in your deck, play the chosen cards, shuffle, if you took that choice: choose 1 to 2 cards in your Life Area, move the chosen cards to hand"
+      }
+    },
+    {
+      "card": "BT8-025",
+      "side": "front",
+      "skill": 0,
+      "before": {
+        "cardId": "BT8-025",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card, it gets +5000 power for the duration of the turn, and at the start of your opponent's next Main Phase, choose up to 1 of your energy and switch it to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "delay",
+            "at": "mainStart",
+            "scope": "opponentNextTurn",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "energy",
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "choose up to 1 of your energy"
+              },
+              {
+                "op": "switchMode",
+                "target": {
+                  "var": "c0"
+                },
+                "mode": "active"
+              }
+            ],
+            "label": "at the start of your opponent's next main phase"
+          }
+        ],
+        "unread": [],
+        "pattern": "power\u2192delay:mainStart[choose\u2192switchMode]",
+        "reads": "this card +5000 power for the turn, at the start of your opponent's next main phase: choose up to 1 card in your Energy Area, switch the chosen cards to active mode"
+      },
+      "after": {
+        "cardId": "BT8-025",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card, it gets +5000 power for the duration of the turn, and at the start of your opponent's next Main Phase, choose up to 1 of your energy and switch it to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 2,
+                "upTo": false,
+                "minCount": 1
+              },
+              "as": "c0",
+              "reason": "Choose 1 or 2 cards in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "delay",
+            "at": "mainStart",
+            "scope": "opponentNextTurn",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "energy",
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "choose up to 1 of your energy"
+              },
+              {
+                "op": "switchMode",
+                "target": {
+                  "var": "c0"
+                },
+                "mode": "active"
+              }
+            ],
+            "label": "at the start of your opponent's next main phase"
+          }
+        ],
+        "unread": [],
+        "pattern": "power\u2192delay:mainStart[choose\u2192switchMode]",
+        "reads": "this card +5000 power for the turn, at the start of your opponent's next main phase: choose up to 1 card in your Energy Area, switch the chosen cards to active mode"
+      }
+    },
+    {
+      "card": "BT9-058",
+      "side": "front",
+      "skill": 10,
+      "before": {
+        "cardId": "BT9-058",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card during your opponent's turn, choose up to 1 of your green energy and switch it to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your green energy"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192switchMode",
+        "reads": "choose up to 1 green card in your Energy Area, switch the chosen cards to active mode"
+      },
+      "after": {
+        "cardId": "BT9-058",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] Choose 1 or 2 cards in your life and add them to your hand: When you play this card during your opponent's turn, choose up to 1 of your green energy and switch it to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 2,
+                "upTo": false,
+                "minCount": 1
+              },
+              "as": "c0",
+              "reason": "Choose 1 or 2 cards in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your green energy"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192switchMode",
+        "reads": "choose up to 1 green card in your Energy Area, switch the chosen cards to active mode"
+      }
+    },
+    {
+      "card": "BT9-128",
+      "side": "back",
+      "skill": 0,
+      "before": {
+        "cardId": "BT9-128",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto][Once per turn] Choose 1 or 2 cards in your life and add them to your hand: When this card attacks, switch this card to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "switchMode",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "switchMode",
+        "reads": "switch this card to active mode"
+      },
+      "after": {
+        "cardId": "BT9-128",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto][Once per turn] Choose 1 or 2 cards in your life and add them to your hand: When this card attacks, switch this card to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 2,
+                "upTo": false,
+                "minCount": 1
+              },
+              "as": "c0",
+              "reason": "Choose 1 or 2 cards in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "switchMode",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "switchMode",
+        "reads": "switch this card to active mode"
+      }
+    },
+    {
+      "card": "BT9-128",
+      "side": "front",
+      "skill": 0,
+      "before": {
+        "cardId": "BT9-128",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto][Once per turn] Choose 1 or 2 cards in your life and add them to your hand: When this card attacks, switch this card to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "switchMode",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "switchMode",
+        "reads": "switch this card to active mode"
+      },
+      "after": {
+        "cardId": "BT9-128",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto][Once per turn] Choose 1 or 2 cards in your life and add them to your hand: When this card attacks, switch this card to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "cost": {
+          "text": "Choose 1 or 2 cards in your life and add them to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 2,
+                "upTo": false,
+                "minCount": 1
+              },
+              "as": "c0",
+              "reason": "Choose 1 or 2 cards in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "switchMode",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "switchMode",
+        "reads": "switch this card to active mode"
+      }
+    },
+    {
+      "card": "EX07-11",
+      "side": "front",
+      "skill": 0,
+      "before": {
+        "cardId": "EX07-11",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[activate: main][burst 2] {2}, if your Leader Card is a <Demigra> or <Towa> card and you place this card from your hand in your Drop Area: Choose 1 or 2 cards in your life and add them to your hand, then choose up to 1 <Gravy> and 1 <Putine> from your Deck and/or Warp and play them. Then shuffle your deck if you looked through it.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "text": "if your Leader Card is a <Demigra> or <Towa> card and you place this card from your hand in your Drop Area",
+          "orbs": {
+            "any": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": 2,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "any",
+            "conds": [
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "demigra"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "towa"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            ]
+          },
+          "program": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "demigra"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "towa"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [
+          "Choose 1 or 2 cards in your life",
+          "add them to your hand",
+          "choose up to 1 <Gravy> and 1 <Putine> from your Deck and/or Warp",
+          "play them"
+        ],
+        "pattern": "choose N or N cards in your life",
+        "reads": "if your leader is <demigra>, or your leader is <towa>: shuffle"
+      },
+      "after": {
+        "cardId": "EX07-11",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[activate: main][burst 2] {2}, if your Leader Card is a <Demigra> or <Towa> card and you place this card from your hand in your Drop Area: Choose 1 or 2 cards in your life and add them to your hand, then choose up to 1 <Gravy> and 1 <Putine> from your Deck and/or Warp and play them. Then shuffle your deck if you looked through it.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "text": "if your Leader Card is a <Demigra> or <Towa> card and you place this card from your hand in your Drop Area",
+          "orbs": {
+            "any": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": 2,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "any",
+            "conds": [
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "demigra"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "towa"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            ]
+          },
+          "program": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "demigra"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "towa"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": false,
+              "minCount": 1
+            },
+            "as": "c0",
+            "reason": "Choose 1 or 2 cards in your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [
+          "choose up to 1 <Gravy> and 1 <Putine> from your Deck and/or Warp",
+          "play them"
+        ],
+        "pattern": "choose up to N \u2026 and N \u2026 from your deck and/or warp",
+        "reads": "if your leader is <demigra>, or your leader is <towa>: choose 1 to 2 cards in your Life Area, move the chosen cards to hand, shuffle"
+      }
+    }
+  ],
+  "snapshotSha256": "759114066ab38c598b10ec04e5b3f1b38fb764e6b6c9a7f4eb801dab06e38576",
+  "skillRecords": 13615,
+  "unchangedRecords": 13607,
+  "reviewDate": "2026-10-15",
+  "review": {
+    "BT5-119#front#10": "Official erratum replaces unsupported dynamic energy bound with <=3; Shenron price and own Drop Battle selector retained.",
+    "BT6-063#front#10": "Life choice retains floor1/ceiling2 and now supplies the missing reference; subsequent green Broly:Br cost4 hand search retained.",
+    "BT7-127#front#30": "One-or-two Life choice becomes readable; the existing Broly Leader condition, optional Brolys Ring search/play/shuffle and if-you-do guard remain.",
+    "BT8-025#front#0": "Bounded action price becomes executable; on-play power and delayed energy effect are unchanged. Regression scenario verifies one and two pay.",
+    "BT9-058#front#10": "Bounded action price becomes executable; opponent-turn trigger/condition and green energy switch remain unchanged.",
+    "BT9-128#front#0": "Bounded action price becomes executable; attack trigger, once-per-turn guard and source switch remain unchanged.",
+    "BT9-128#back#0": "Same bounded price correction as front; awakened-face effect unchanged.",
+    "EX07-11#front#0": "Life choice and hand movement become readable; unsupported dual-character play remains unread, so partial compilation does not qualify the skill."
+  },
+  "baselineCompilerUnchangedFrom": "e2a40e88"
+}

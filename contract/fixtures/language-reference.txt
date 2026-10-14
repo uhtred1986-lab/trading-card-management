@@ -3286,6 +3286,10 @@
       "part": "count"
     },
     {
+      "field": "minCount",
+      "part": "count"
+    },
+    {
       "field": "take",
       "part": "take"
     },

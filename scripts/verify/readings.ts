@@ -2152,8 +2152,13 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   );
   // "Up to 2 … if you do" is satisfied by one.
   assert.equal(hung("[Auto] When this card attacks, choose up to 2 cards in your hand and place them in the Drop Area. If you do, draw 2 cards.")?.atLeast, undefined, "up to N: one is enough");
-  // BT6-063: "1 or 2" has a floor the choice cannot say — refused, not read as exactly 1.
-  assert.ok(one("[Auto] When this card is KO'd, choose 1 or 2 cards from your life and add them to your hand.").unsupported.length > 0, "1 or 2 is refused");
+  // BT6-063: a printed lower bound permits the second card without permitting zero.
+  const lifeRange = one("[Auto] When this card is KO'd, choose 1 or 2 cards from your life and add them to your hand.");
+  assert.deepEqual(lifeRange.unsupported, []);
+  const boundedLife = lifeRange.ops.find((o) => o.op === "choose");
+  assert.ok(boundedLife?.op === "choose");
+  assert.deepEqual([boundedLife.sel.minCount, boundedLife.sel.count, boundedLife.sel.upTo], [1, 2, false]);
+  assert.ok(one("[Auto] When this card is KO'd, choose 1 or 3 cards from your life and add them to your hand.").unsupported.length > 0, "nonconsecutive alternatives are not widened to a range");
   // "an energy cost of 1 or 5" is a measure, not a count.
   assert.ok(!one("[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.").unsupported.some((u) => /1 or 5/.test(u) && /^you may add/.test(u)), "a cost of 1 or 5 does not trip the count refusal");
 }

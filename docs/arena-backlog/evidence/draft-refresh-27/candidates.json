@@ -1,0 +1,54 @@
+{
+  "snapshot_date": "2026-10-14",
+  "provenance": {
+    "source": "handover-review-extract.txt items 288, 291, 293, 295",
+    "method": "Historical read-only comparison of 50 compiler-owned draft flags against a fresh compiler pass",
+    "historical_printed_texts_matched_frozen_catalog": 50,
+    "historical_semantic_difference_count": 29,
+    "selection_rule": "Exclude BT5-119#10 and BT6-063#10 investigation rows from the 29 differences",
+    "current_live_recheck_required": true,
+    "live_rechecked_date": "2026-10-15",
+    "latest_recheck": "../819-820/live-rule-audit.json; repeat version/text checks at any future write",
+    "database_reads_or_writes_in_historical_review": false,
+    "live_recheck_database_reads": true,
+    "live_recheck_database_writes": false
+  },
+  "review_counts": {
+    "candidates": 27,
+    "semantics_approved": 24,
+    "held_for_semantic_correction": 3
+  },
+  "candidates": [
+    {"card":"SD13-01","side":"front","skill":10,"review":"approved","change":"Add opponent Leader guard attack condition"},
+    {"card":"SD5-01","side":"front","skill":0,"review":"approved","change":"Add opponent Leader guard attack condition"},
+    {"card":"BT3-109","side":"front","skill":20,"review":"held","change":"Exact optional choice of 5 Warp cards; fresh reading adds atLeast gate but retains upTo selection and preceding move (documented approximation)"},
+    {"card":"BT29-029","side":"back","skill":10,"review":"approved","change":"Separate blue Cooler’s Armored Squadron and blue Extra alternatives; first is not-in-battle"},
+    {"card":"BT29-032","side":"front","skill":10,"review":"approved","change":"Separate exact energy costs 1 and 5"},
+    {"card":"BT6-009","side":"front","skill":0,"review":"approved","change":"Red qualifier applies to Son Goku: Br alternative only"},
+    {"card":"BT30-084","side":"front","skill":0,"review":"approved","change":"Choose Warp Battle Card whose name occurs in chosen host skill text; play onto host"},
+    {"card":"SD13-04","side":"front","skill":10,"review":"approved","change":"Choose Leader or Unison mode"},
+    {"card":"BT6-004","side":"front","skill":0,"review":"approved","change":"Red qualifier applies to Vegeta: Br alternative only"},
+    {"card":"BT6-005","side":"front","skill":0,"review":"approved","change":"Red qualifier applies to Vegeta: Br alternative only"},
+    {"card":"BT6-008","side":"front","skill":0,"review":"approved","change":"Red qualifier applies to Son Goku: Br alternative only"},
+    {"card":"BT4-095","side":"front","skill":0,"review":"approved","change":"Retain Swap keyword filter"},
+    {"card":"BT6-062","side":"front","skill":10,"review":"held","change":"Exact optional choice of 2 hand cards; fresh reading adds atLeast gate but retains upTo selection and preceding move (documented approximation)"},
+    {"card":"BT6-014","side":"front","skill":40,"review":"approved","change":"Add opponent Battle Card guard attack condition"},
+    {"card":"EX03-19","side":"front","skill":0,"review":"approved","change":"Add opponent Leader guard attack condition"},
+    {"card":"BT29-036","side":"front","skill":10,"review":"approved","change":"Add selector notInBattle restriction"},
+    {"card":"BT6-015","side":"front","skill":30,"review":"approved","change":"Add opponent Battle Card guard attack condition"},
+    {"card":"BT3-030","side":"front","skill":20,"review":"approved","change":"Choose opponent Leader or Battle Card mode"},
+    {"card":"BT29-035","side":"front","skill":10,"review":"approved","change":"Separate blue Cooler, blue Armored Squadron, or blue cost-0 Extra alternatives"},
+    {"card":"BT29-039","side":"front","skill":10,"review":"approved","change":"Separate blue Cooler, blue Armored Squadron, or blue cost-0 Extra alternatives"},
+    {"card":"SD13-04","side":"front","skill":0,"review":"approved","change":"Search green specified-cost-2 Unison or green Frieza’s Army cost-4-or-less among looked cards"},
+    {"card":"DB1-019","side":"front","skill":0,"review":"approved","change":"Choose own Leader or Battle Card mode"},
+    {"card":"BT31-119","side":"front","skill":20,"review":"approved","change":"Choose up to 2 white Cell cards or white Extras from deck"},
+    {"card":"BT3-031","side":"front","skill":0,"review":"approved","change":"Add opponent Leader attack condition"},
+    {"card":"SD8-03","side":"front","skill":10,"review":"held","change":"Exact optional choice of 2 hand cards; fresh reading adds atLeast gate but retains upTo selection and preceding move (documented approximation)"},
+    {"card":"BT3-010","side":"front","skill":20,"review":"approved","change":"Choose red Leader or red Battle Card mode"},
+    {"card":"SD13-03","side":"front","skill":0,"review":"approved","change":"Choose Leader or green Unison mode"}
+  ],
+  "excluded_investigations": [
+    {"card":"BT5-119","side":"front","skill":10,"reason":"Not in exact 27; official erratum changes dynamic current-energy wording to cost 3 or less; reconcile in catalog/compiler"},
+    {"card":"BT6-063","side":"front","skill":10,"reason":"Not in exact 27; current fresh compilation refuses 1-or-2 choice and has a partial downstream target"}
+  ]
+}

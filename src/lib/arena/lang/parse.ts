@@ -600,6 +600,10 @@ class Parser {
   }
 
   private selectorPart(sel: Selector): void {
+    if (this.eatKw("MIN")) {
+      sel.minCount = this.number();
+      return;
+    }
     if (this.isPunct("[")) {
       this.i++;
       sel.special = this.enumValue(SPECIAL_TARGETS);

@@ -50,6 +50,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // ── Dragon Ball Super (the game the arena plays) ──────────────────────────
   "BT3-104": [[/your\s+opponent's\s+can\s+only\s+attack/g, "your opponent can only attack"]],
   "BT4-059": [[/<Lord\s+Slug>with/g, "<Lord Slug> with"]],
+  // Official 2019-11-01 errata, reconfirmed 2026-10-14 (#819): World Peace
+  // plays a cost-3-or-less Battle Card, regardless of current energy.
+  // https://www.dbs-cardgame.com/us-en/rule/errata-cards.php (BT5-119)
+  "BT5-119": [[/an\s+energy\s+cost\s+less\s+than\s+or\s+equal\s+to\s+your\s+current\s+energy/g, "an energy cost of 3 or less"]],
   "BT6-013": [[/1\s+red&lt;Vegeta:\s+Br&gt;/g, "1 red &lt;Vegeta: Br&gt;"]],
   "BT20-083": [[/≪Saiyan≫card/g, "≪Saiyan≫ card"]],
   "BT25-032": [[/2\s+oor\s+more\s+energy/g, "2 or more energy"]],

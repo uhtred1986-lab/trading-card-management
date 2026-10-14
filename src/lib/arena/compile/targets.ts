@@ -645,13 +645,19 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
 
   let count = 1;
   let upTo = false;
+  let minCount: number | undefined;
   let m: RegExpExecArray | null;
   // "Choose 1 or 2 cards from your life" (BT6-063, #538): a count with a
-  // floor and a ceiling. A choice has a count and an up-to and nothing in
-  // between, so the first number alone read it as exactly 1 — the player could
-  // never take the second card. Refused rather than read narrower or wider.
-  if (/(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.test(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+(?: or \d+)?/g, ""))) return null;
-  if ((m = /\bup to (\d+)\b/.exec(t))) {
+  // floor and a ceiling. `count` is the ceiling; `minCount` retains the floor,
+  // so the first number cannot silently become the whole choice.
+  const range = /(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.exec(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+(?: or \d+)?/g, ""));
+  // Two consecutive counts specify a range. Wider disjunctions (1 or 3)
+  // cannot be widened to include the number between them.
+  if (range && Number(range[2]) !== Number(range[1]) + 1) return null;
+  if (range) {
+    minCount = Number(range[1]);
+    count = Number(range[2]);
+  } else if ((m = /\bup to (\d+)\b/.exec(t))) {
     count = Number(m[1]);
     upTo = true;
   } else if (/\ball\b|\bevery\b|\beach\b/.test(t)) {
@@ -731,15 +737,16 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // offering every card the other measure matches (ground rule 5).
   if (hiddenSaid && filter) return null;
   const hidden = hiddenSaid || undefined;
-  if (underSelf || underHostSel) return { side: "you", area: "under", underHost: underHostSel, filter, count, upTo, mode, hidden, notSelf };
+  const floor = minCount === undefined ? {} : { minCount };
+  if (underSelf || underHostSel) return { side: "you", area: "under", underHost: underHostSel, filter, count, upTo, ...floor, mode, hidden, notSelf };
   // No single `area` stands for all of them, and leaving one on would be read
   // as the place the cards must be — so the span is the only thing said.
-  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, mode, hidden, notSelf };
-  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, mode, hidden, notSelf };
-  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, mode, hidden, fromVar, notSelf };
-  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, mode, hidden, fromVar, notSelf };
-  if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, mode, hidden, notSelf };
-  return { side, area: area ?? undefined, filter, count, upTo, mode, hidden, fromVar, take, fromEnd, notSelf };
+  if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, ...floor, mode, hidden, notSelf };
+  if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, ...floor, mode, hidden, notSelf };
+  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
+  return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 
 /**

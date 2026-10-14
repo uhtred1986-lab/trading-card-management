@@ -1,0 +1,1552 @@
+{
+  "baseline": "ff2b7d5",
+  "scope": "Two independently verified printed cards plus related controls; full live catalog unavailable (EAI_AGAIN api.deckplanet.net).",
+  "records": [
+    {
+      "id": "BT5-119",
+      "skill": 10,
+      "expectedChange": true,
+      "before": {
+        "text": "[Permanent] This card gains ≪Desire≫ in all areas.<br>[Activate: Main] Your Leader Card is a ≪Shenron≫ card: Choose 1 Battle Card in your Drop Area with an energy cost less than or equal to your current energy and play it.",
+        "reads": "",
+        "unread": [
+          "Choose 1 Battle Card in your Drop Area with an energy cost less than or equal to your current energy",
+          "play it"
+        ],
+        "ops": []
+      },
+      "after": {
+        "text": "[Permanent] This card gains ≪Desire≫ in all areas.<br>[Activate: Main] Your Leader Card is a ≪Shenron≫ card: Choose 1 Battle Card in your Drop Area with an energy cost of 3 or less and play it.",
+        "reads": "if your leader is ≪shenron≫: choose 1 Battle Card with an energy cost of 3 or less in your Drop Area, play the chosen cards",
+        "unread": [],
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "shenron"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "drop",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": 3,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "Choose 1 Battle Card in your Drop Area with an energy cost of 3 or less"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "BT6-063",
+      "skill": 10,
+      "expectedChange": true,
+      "before": {
+        "text": "[Auto] When you play this card from your hand and if your Leader Card is a green ≪Frieza's Army≫ card, choose 2 cards from your life and add them to your hand.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green ≪Frieza's Army≫ card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand and play it.",
+        "reads": "if your leader is Green ≪frieza's army≫: move your leader to hand, choose up to 1 green <Broly: Br> card with an energy cost of 4 in your hand, play the chosen cards",
+        "unread": [
+          "choose 1 or 2 cards from your life"
+        ],
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "frieza's army"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "then": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "sel": {
+                    "special": "leader"
+                  }
+                },
+                "to": "hand"
+              },
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Broly: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 4,
+                    "costMax": 4,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c0"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] When you play this card from your hand and if your Leader Card is a green ≪Frieza's Army≫ card, choose 2 cards from your life and add them to your hand.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green ≪Frieza's Army≫ card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand and play it.",
+        "reads": "if your leader is Green ≪frieza's army≫: choose 1 to 2 cards in your Life Area, move the chosen cards to hand, choose up to 1 green <Broly: Br> card with an energy cost of 4 in your hand, play the chosen cards",
+        "unread": [],
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "frieza's army"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "count": 2,
+                  "upTo": false,
+                  "minCount": 1
+                },
+                "as": "c0",
+                "reason": "choose 1 or 2 cards from your life"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "hand"
+              },
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Broly: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 4,
+                    "costMax": 4,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 4 from your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "BT3-109-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] When a card evolves into this card, if your Leader Card is black, you may choose 5 cards from your Warp and place them in the Drop Area. If you do so, send all of your opponent's Battle Cards to their Warp.",
+        "reads": "if your leader is Black: choose up to 5 cards in your Warp, move the chosen cards to drop, if you took all 5: move all Battle Cards in your opponent's Battle Area to warp",
+        "unread": [],
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [
+                  "Black"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "warp",
+                  "count": 5,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "you may choose 5 cards from your Warp"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ]
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0",
+              "atLeast": 5
+            },
+            "then": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "sel": {
+                    "side": "opponent",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 99,
+                    "upTo": false
+                  }
+                },
+                "to": "warp"
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] When a card evolves into this card, if your Leader Card is black, you may choose 5 cards from your Warp and place them in the Drop Area. If you do so, send all of your opponent's Battle Cards to their Warp.",
+        "reads": "if your leader is Black: choose up to 5 cards in your Warp, move the chosen cards to drop, if you took all 5: move all Battle Cards in your opponent's Battle Area to warp",
+        "unread": [],
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [
+                  "Black"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "warp",
+                  "count": 5,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "you may choose 5 cards from your Warp"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ]
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0",
+              "atLeast": 5
+            },
+            "then": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "sel": {
+                    "side": "opponent",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 99,
+                    "upTo": false
+                  }
+                },
+                "to": "warp"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SD8-03-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.",
+        "reads": "choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 2 cards from your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0",
+              "atLeast": 2
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Broly: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 7,
+                    "costMax": 7,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.",
+        "reads": "choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 2 cards from your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0",
+              "atLeast": 2
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Broly: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 7,
+                    "costMax": 7,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SD7-01-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.",
+        "reads": "choose one — draw 1 / activate the chosen Desire card's activate:main skill",
+        "unread": [],
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Draw 1 card.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  }
+                ]
+              },
+              {
+                "label": "Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.",
+                "ops": [
+                  {
+                    "op": "invokeSkill",
+                    "trait": "Desire",
+                    "skillKind": "activate:main",
+                    "from": "hand",
+                    "maxCost": "currentEnergy"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "text": "[Activate: Main] Choose one- ・Draw 1 card. ・Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.",
+        "reads": "choose one — draw 1 / activate the chosen Desire card's activate:main skill",
+        "unread": [],
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Draw 1 card.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  }
+                ]
+              },
+              {
+                "label": "Choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.",
+                "ops": [
+                  {
+                    "op": "invokeSkill",
+                    "trait": "Desire",
+                    "skillKind": "activate:main",
+                    "from": "hand",
+                    "maxCost": "currentEnergy"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] When this card is KO'd, choose 2 cards from your life and add them to your hand.",
+        "reads": "choose 2 cards in your Life Area, move the chosen cards to hand",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose 2 cards from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] When this card is KO'd, choose 2 cards from your life and add them to your hand.",
+        "reads": "choose 2 cards in your Life Area, move the chosen cards to hand",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose 2 cards from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      }
+    },
+    {
+      "id": "up-to-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] When this card is KO'd, choose up to 2 cards from your life and add them to your hand.",
+        "reads": "choose up to 2 cards in your Life Area, move the chosen cards to hand",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 2 cards from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] When this card is KO'd, choose up to 2 cards from your life and add them to your hand.",
+        "reads": "choose up to 2 cards in your Life Area, move the chosen cards to hand",
+        "unread": [],
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 2 cards from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nonconsecutive-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] When this card is KO'd, choose 1 or 3 cards from your life and add them to your hand.",
+        "reads": "",
+        "unread": [
+          "choose 1 or 3 cards from your life",
+          "add them to your hand"
+        ],
+        "ops": []
+      },
+      "after": {
+        "text": "[Auto] When this card is KO'd, choose 1 or 3 cards from your life and add them to your hand.",
+        "reads": "",
+        "unread": [
+          "choose 1 or 3 cards from your life",
+          "add them to your hand"
+        ],
+        "ops": []
+      }
+    },
+    {
+      "id": "cost-disjunction-control",
+      "skill": 0,
+      "expectedChange": false,
+      "before": {
+        "text": "[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.",
+        "reads": "you may: choose 1 blue ≪cooler's armored squadron≫ card with an energy cost of 1 or blue ≪cooler's armored squadron≫ card with an energy cost of 5 in your Drop Area, move the chosen cards to energy",
+        "unread": [],
+        "ops": [
+          {
+            "op": "may",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "drop",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null,
+                    "anyOf": [
+                      {
+                        "colors": [
+                          "Blue"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "cooler's armored squadron"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 1,
+                        "costMax": 1,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      {
+                        "colors": [
+                          "Blue"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "cooler's armored squadron"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 5,
+                        "costMax": 5,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      }
+                    ]
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "energy",
+                "mode": "rest",
+                "reveal": true,
+                "owner": "you"
+              }
+            ],
+            "reason": "add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode"
+          }
+        ]
+      },
+      "after": {
+        "text": "[Auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode.",
+        "reads": "you may: choose 1 blue ≪cooler's armored squadron≫ card with an energy cost of 1 or blue ≪cooler's armored squadron≫ card with an energy cost of 5 in your Drop Area, move the chosen cards to energy",
+        "unread": [],
+        "ops": [
+          {
+            "op": "may",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "drop",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null,
+                    "anyOf": [
+                      {
+                        "colors": [
+                          "Blue"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "cooler's armored squadron"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 1,
+                        "costMax": 1,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      {
+                        "colors": [
+                          "Blue"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "cooler's armored squadron"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 5,
+                        "costMax": 5,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      }
+                    ]
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "energy",
+                "mode": "rest",
+                "reveal": true,
+                "owner": "you"
+              }
+            ],
+            "reason": "add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode"
+          }
+        ]
+      }
+    }
+  ]
+}

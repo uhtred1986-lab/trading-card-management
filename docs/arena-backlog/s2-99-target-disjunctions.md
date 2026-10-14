@@ -22,7 +22,7 @@ status: closed
    - BT29-032 #10: "an energy cost of 1 or 5" read as cost 1.
    - BT29-036 #10 and BT29-029 #10: "that's not in a battle" dropped.
    - BT4-095 #0: "and [Swap]" dropped.
-   - BT5-119 #10: "with an energy cost less than or equal to your current energy" dropped.
+   - BT5-119 #10: "with an energy cost less than or equal to your current energy" dropped. **Follow-up #819:** this was historical text; Bandai's 2019-11-01 erratum changes the limit to cost 3 or less. The owner selected that official correction on 14 October 2026; do not refresh this row from the historical wording.
    - SD15-01 #0 and #10: "with a specified cost of 2" dropped (#10 also has no target on its trigger; see s2-101). **Done in #728** (13 Oct 2026): the specified cost is a filter measure (`specifiedCostMin`/`Max`), SD13-04 #0's two alternatives now read with it, and SD15-01's [Awaken] OR condition is the record's price.
 5. **Condition grouping.** "if your Leader is A or B and C" is (A or B) and C, not A or (B and C): BT30-096 #10, BT31-128 #30.
 

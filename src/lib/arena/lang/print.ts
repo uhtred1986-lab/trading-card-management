@@ -161,6 +161,7 @@ export function printSelector(sel: Selector): string {
   if (sel.underHost !== undefined) parts.push(`UNDER (${printSelector(sel.underHost)})`);
   if (sel.upTo) parts.push(sel.count === undefined ? "UP TO" : `UP TO ${slot(sel.count)}`);
   else if (sel.count !== undefined) parts.push(slot(sel.count));
+  if (sel.minCount !== undefined) parts.push(`MIN ${slot(sel.minCount)}`);
   // An expression in `TOP` is a macro body's (#137), in brackets.
   if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${typeof sel.take === "object" && !isHole(sel.take) ? `(${printAmount(sel.take as unknown as Amount)})` : slot(sel.take)}`);
   else if (sel.fromEnd) parts.push("fromEnd");
