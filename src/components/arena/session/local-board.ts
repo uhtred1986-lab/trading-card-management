@@ -55,7 +55,7 @@ export interface PointerStore {
   clear(): void;
 }
 
-const POINTER_KEY = "dbs-arena-local-pointer";
+export const POINTER_KEY = "dbs-arena-local-pointer";
 const isPointer = (v: unknown): v is LocalPointer => {
   if (!v || typeof v !== "object") return false;
   const p = v as Record<string, unknown>;
@@ -64,15 +64,21 @@ const isPointer = (v: unknown): v is LocalPointer => {
     && deck(p.decks) && deck(p.names) && (p.human === "p1" || p.human === "p2") && typeof p.savedAt === "number";
 };
 
+/** The pointer in a stored string; anything damaged or of the wrong shape is no pointer. */
+export function readPointer(raw: string | null): LocalPointer | null {
+  if (!raw) return null;
+  try { const v: unknown = JSON.parse(raw); return isPointer(v) ? v : null; } catch { return null; }
+}
+
 /** `localStorage`, tolerating its absence, a full quota and a blocked accessor: the pointer is a convenience, never the match. */
 export function browserPointerStore(storage: () => Pick<Storage, "getItem" | "setItem" | "removeItem"> | null = () => (typeof localStorage === "undefined" ? null : localStorage)): PointerStore {
-  const use = <T,>(f: (s: Pick<Storage, "getItem" | "setItem" | "removeItem">) => T, fallback: T): T => {
+  const guarded = <T,>(f: (s: Pick<Storage, "getItem" | "setItem" | "removeItem">) => T, fallback: T): T => {
     try { const s = storage(); return s ? f(s) : fallback; } catch { return fallback; }
   };
   return {
-    get: () => use((s) => { const raw = s.getItem(POINTER_KEY); const v: unknown = raw ? JSON.parse(raw) : null; return isPointer(v) ? v : null; }, null),
-    set: (p) => use((s) => s.setItem(POINTER_KEY, JSON.stringify(p)), undefined),
-    clear: () => use((s) => s.removeItem(POINTER_KEY), undefined),
+    get: () => guarded((s) => readPointer(s.getItem(POINTER_KEY)), null),
+    set: (p) => guarded((s) => s.setItem(POINTER_KEY, JSON.stringify(p)), undefined),
+    clear: () => guarded((s) => s.removeItem(POINTER_KEY), undefined),
   };
 }
 
@@ -137,6 +143,8 @@ export interface BoardNotice {
   tone: BoardTone;
   headline: string;
   detail: string;
+  /** The raw reason (ids, the device's own words), for a "Details" disclosure; never the headline. */
+  technical: string | null;
   actions: BoardAction[];
 }
 
@@ -156,28 +164,29 @@ const REASON: Partial<Record<LocalErrorCode, string>> = {
  */
 export function describeBoard(state: SupervisorState, over: boolean): BoardNotice | null {
   const safe = "The match is safe at its last saved move.";
+  const technical = state.detail;
   switch (state.kind) {
     case "owner":
       return null;
     case "opening":
-      return { tone: "busy", headline: "Opening the match…", detail: "Reading it from this device.", actions: [] };
+      return { tone: "busy", headline: "Opening the match…", detail: "Reading it from this device.", technical: null, actions: [] };
     case "recovering":
-      return { tone: "busy", headline: "The local game engine stopped. Restarting it…", detail: `${state.detail ?? "It stopped unexpectedly"} (attempt ${state.restarts}). ${safe}`, actions: ["stop"] };
+      return { tone: "busy", headline: "The local game engine stopped. Restarting it…", detail: `Attempt ${state.restarts}. ${safe}`, technical, actions: ["stop"] };
     case "storage":
-      return { tone: "error", headline: "Could not save on this device", detail: `${state.detail ?? ERROR_SENTENCE.storage}. ${(state.code && REASON[state.code]) ?? REASON.storage} ${safe}`, actions: ["retry", "leave"] };
+      return { tone: "error", headline: "Could not save on this device", detail: `${(state.code && REASON[state.code]) ?? REASON.storage} ${safe}`, technical, actions: ["retry", "leave"] };
     case "failed": {
       const specific = state.code ? REASON[state.code] : undefined;
       const discard = state.code === "journal" || state.code === "runtime" || state.code === "policy" || state.code === "unplayable";
-      return { tone: "error", headline: "This match cannot continue right now", detail: `${state.detail ?? ERROR_SENTENCE.internal}${specific ? ` ${specific}` : ""}${discard ? "" : ` ${safe}`}`, actions: discard ? ["discard", "leave"] : ["retry", "leave"] };
+      return { tone: "error", headline: "This match cannot continue right now", detail: `${specific ?? (state.code ? `${ERROR_SENTENCE[state.code][0].toUpperCase()}${ERROR_SENTENCE[state.code].slice(1)}.` : "The local game engine failed.")}${discard ? "" : ` ${safe}`}`, technical, actions: discard ? ["discard", "leave"] : ["retry", "leave"] };
     }
     case "stopped":
-      return { tone: "warn", headline: "Stopped", detail: `${state.detail ?? "Stopped."} ${safe}`, actions: ["retry", "leave"] };
+      return { tone: "warn", headline: "Stopped", detail: `You stopped waiting. ${safe}`, technical, actions: ["retry", "leave"] };
     case "watching":
       return state.watching === "taken-over"
-        ? { tone: "warn", headline: "Another tab took this match over", detail: "This tab now only shows it and will not save anything. Play here instead to take it back.", actions: ["takeOver", "leave"] }
-        : { tone: "warn", headline: "This match is open in another tab", detail: "This tab only shows it; moves are not accepted here. Play here instead to take it over — the other tab becomes read-only.", actions: ["takeOver", "leave"] };
+        ? { tone: "warn", headline: "Another tab took this match over", detail: "This tab now only shows it and will not save anything. Play here instead to take it back.", technical, actions: ["takeOver", "leave"] }
+        : { tone: "warn", headline: "This match is open in another tab", detail: "This tab only shows it; moves are not accepted here. Play here instead to take it over — the other tab becomes read-only.", technical, actions: ["takeOver", "leave"] };
     case "closed":
-      return { tone: "warn", headline: over ? "Match closed" : "This match was closed", detail: over ? "The final position is saved on this device." : "Open it again from the start page.", actions: ["leave"] };
+      return { tone: "warn", headline: over ? "Match closed" : "This match was closed", detail: over ? "The final position is saved on this device." : "Open it again from the start page.", technical: null, actions: ["leave"] };
   }
 }
 

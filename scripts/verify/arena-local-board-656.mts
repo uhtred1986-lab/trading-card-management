@@ -34,7 +34,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { checkImportGraph, diskRead } from "../lib/import-graph.ts";
-import { LocalBoard, LocalBoardError, browserPointerStore, describeBoard, memoryPointerStore, readPack, type LocalBoardDeps, type LocalPointer } from "../../src/components/arena/session/local-board.ts";
+import { LocalBoard, LocalBoardError, browserPointerStore, describeBoard, memoryPointerStore, readPack, type LocalBoardDeps, type LocalPointer, type PointerStore } from "../../src/components/arena/session/local-board.ts";
 import { createLocalMatchHost } from "../../src/lib/arena/local/worker.ts";
 import { indexedDbJournalStore } from "../../src/lib/arena/local/storage.ts";
 import type { SpawnedWorker } from "../../src/lib/arena/local/recovery.ts";
@@ -52,7 +52,6 @@ const DB = "proof-656";
 const t0 = performance.now();
 const fetchCalls: string[] = [];
 globalThis.fetch = ((input: unknown) => { fetchCalls.push(String(input)); throw new Error("no network in this proof"); }) as typeof fetch;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const pack = await stagedPack();
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -85,7 +84,7 @@ function world() {
 }
 
 const fixedRandom = (seed: number) => { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; }; };
-const depsOn = (w: ReturnType<typeof world>, pointers = memoryPointerStore(), extra: Partial<LocalBoardDeps> = {}): LocalBoardDeps & { pointers: ReturnType<typeof memoryPointerStore> } => ({
+const depsOn = (w: ReturnType<typeof world>, pointers: PointerStore = memoryPointerStore(), extra: Partial<LocalBoardDeps> = {}): LocalBoardDeps => ({
   spawn: w.spawn,
   ownership: { factory: asFactory(w.fake), name: DB, heartbeatMs: 40 },
   supervisor: { hungMs: 10000, openMs: 60000, pingMs: 0 },
@@ -101,6 +100,7 @@ const journalOf = async (fake: FakeIndexedDb, matchId: string) => {
 };
 
 // ── The audit: what the page was handed must hold nothing the seat may not read ──────────────────────
+const promptKinds = new Map<string, number>();
 const audit = { snapshots: 0, checked: 0, hiddenIds: 0 };
 function auditBoard(board: LocalBoard, w: ReturnType<typeof world>, s: Snapshot): void {
   audit.snapshots++;
@@ -124,6 +124,7 @@ async function stageLoop(board: LocalBoard, w: ReturnType<typeof world>, o: { st
     for (let step = 0; step < 6000; step++) {
       const snap = board.snapshot!;
       o.onBoard?.(snap);
+      promptKinds.set(snap.view.prompt.kind, (promptKinds.get(snap.view.prompt.kind) ?? 0) + 1);
       if (snap.game.status === "over") return "over";
       if (o.stop?.(snap)) return "stopped";
       const r = humanAsked(snap) ? await board.act(humanPick(snap), snap.game.revision, ids()) : await board.advance();
@@ -406,6 +407,10 @@ assert.ok(audit.hiddenIds > 1000, "and the hidden state it compared against was 
   mem.set("dbs-arena-local-pointer", JSON.stringify({ matchId: 3 }));
   assert.equal(ok.get(), null, "and so is one of the wrong shape");
 }
+
+// The board met more than one kind of question through the local adapter (payments, choices, battle steps...).
+assert.ok(promptKinds.size >= 4, `the matches asked ${promptKinds.size} kinds of question: ${[...promptKinds].map(([k, n]) => `${k}×${n}`).join(", ")}`);
+console.log(`  questions answered through the local adapter: ${[...promptKinds].map(([k, n]) => `${k}×${n}`).join(", ")}`);
 
 // ── 8. Boundary ────────────────────────────────────────────────────────────────────────────────
 {
