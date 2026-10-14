@@ -11,8 +11,10 @@ import { Count } from "./BattleParts";
 import { ZoneAnchor } from "./anchors";
 import { StageCard, type Moment } from "./StageCard";
 import { energySummary } from "./stakes-model";
+import type { FeedbackLifeCue } from "./useFeedbackCues";
 
 export type CardProps = (c: CardView) => {
+  layoutMotion?: boolean;
   card: CardView;
   state: CardState;
   suppressed: boolean;
@@ -99,8 +101,9 @@ function useOverflows<T extends HTMLElement>(dep: unknown) {
     const el = ref.current;
     if (!el) return;
     const measure = () => setOverflows(el.scrollWidth > el.clientWidth + 1);
-    measure();
     const ro = new ResizeObserver(measure);
+    // The initial observation runs after layout. Measuring synchronously here
+    // forces a second layout between React's card updates.
     ro.observe(el);
     return () => ro.disconnect();
   }, [dep]);
@@ -128,6 +131,8 @@ export function BattleRow({
   hurt = false,
   hit = null,
   them = false,
+  targetLabel,
+  attackRole,
 }: {
   side: SideView;
   /** The Battle Cards to draw (those a staging lifted are already left out). */
@@ -150,6 +155,9 @@ export function BattleRow({
   hit?: { n: number; amount: number; critical: boolean } | null;
   /** The opponent's row: its Leader tag wears their colour. */
   them?: boolean;
+  /** Compact current attack target guidance, from the legal menu/rejection evidence. */
+  targetLabel?: (card: CardView) => string | null;
+  attackRole?: { attacker: string; target: string } | null;
 }) {
   const p = side.player;
   const leader = side.leader;
@@ -184,6 +192,9 @@ export function BattleRow({
                  the row does not reflow when the turn flips. */
               <span className={`arena-leader ${active ? "arena-leader-on" : "arena-leader-off"}`} style={sized(LEADER_W)}>
                 <StageCard {...cardProps(leader)} width={LEADER_W} />
+                {attackRole?.attacker === leader.id && <span className="pointer-events-none absolute bottom-0 left-1/2 z-30 -translate-x-1/2 rounded bg-ki-500 px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="attacker">ATTACKER</span>}
+                {attackRole?.target === leader.id && <span className="pointer-events-none absolute bottom-0 left-1/2 z-30 -translate-x-1/2 rounded bg-gain px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="target">TARGET</span>}
+                {targetLabel?.(leader) && <span className={`pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-space-900 px-1 py-px text-[8px] font-bold text-space-50 ${attackRole?.target === leader.id || attackRole?.attacker === leader.id ? "-bottom-7" : "-bottom-3"}`} data-target-label={leader.id}>{targetLabel(leader)}</span>}
                 {active && <span className="arena-leader-ring" aria-hidden />}
                 {/* Named on both sides (#783): the leader is not a card anyone played, and on a
                     phone the two look alike without a word on them. */}
@@ -207,9 +218,9 @@ export function BattleRow({
         {/* The Battle Area proper starts here, after a rule that sets the leader apart. */}
         <div className="arena-battle-cards relative flex min-w-0 items-center gap-[5px] sm:gap-2 lg:gap-3">
           <ZoneAnchor zone={zone} />
-          {unison && <StageCard {...cardProps(unison)} width={UNIT_W} />}
+          {unison && <div className="relative"><StageCard {...cardProps(unison)} width={UNIT_W} />{attackRole?.attacker === unison.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-ki-500 px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="attacker">ATTACKER</span>}{attackRole?.target === unison.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-gain px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="target">TARGET</span>}{targetLabel?.(unison) && <span className="pointer-events-none absolute -bottom-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-space-900 px-1 py-px text-[8px] font-bold text-space-50" data-target-label={unison.id}>{targetLabel(unison)}</span>}</div>}
           {cards.map((c) => (
-            <StageCard key={c.id} {...cardProps(c)} width={UNIT_W} />
+            <div key={c.id} className="relative"><StageCard {...cardProps(c)} width={UNIT_W} />{attackRole?.attacker === c.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-ki-500 px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="attacker">ATTACKER</span>}{attackRole?.target === c.id && <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 rounded bg-gain px-1 py-px text-[8px] font-black tracking-wider text-space-950" data-attack-role="target">TARGET</span>}{targetLabel?.(c) && <span className="pointer-events-none absolute -bottom-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-space-900 px-1 py-px text-[8px] font-bold text-space-50" data-target-label={c.id}>{targetLabel(c)}</span>}</div>
           ))}
           {Array.from({ length: slots }, (_, i) => (
             // A slot gives way before a card does: on a narrow board the empty
@@ -255,6 +266,9 @@ export function Lane({
   narration,
   onLog,
   logOpen = false,
+  fastForward,
+  canFastForward = false,
+  summary,
   children,
 }: {
   view: BoardView;
@@ -264,6 +278,10 @@ export function Lane({
   narration: { text: string; n: number; mine: boolean } | null;
   onLog: () => void;
   logOpen?: boolean;
+  fastForward?: () => void;
+  canFastForward?: boolean;
+  /** Engine outcome, displayed in the lane in place of the narration pill. */
+  summary?: ReactNode;
   /** The log, when it is open: drawn over the lane. */
   children?: ReactNode;
 }) {
@@ -272,6 +290,7 @@ export function Lane({
     const winning = b.attackPower >= b.guardPower;
     return (
       <div className="arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2">
+        {canFastForward && <button type="button" onClick={fastForward} className="arena-btn tap absolute right-2 top-1 z-10 min-h-11 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-50">⏩ Fast-forward</button>}
         <div className="arena-clash relative flex items-center justify-center gap-3 sm:gap-6">
           <Count value={b.attackPower} className={`arena-impact relative text-2xl tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
           <span className="arena-impact relative text-[10px] tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
@@ -301,19 +320,26 @@ export function Lane({
   }
   return (
     <div className="arena-field arena-lane relative flex min-h-[56px] flex-1 items-center justify-center px-3 py-1.5">
-      {narration && (
-        <button
-          type="button"
-          onClick={onLog}
-          aria-expanded={logOpen}
-          aria-label={`${narration.text} — open the battle log`}
-          className="arena-lanepill relative z-[1] flex min-h-11 max-w-full items-center gap-2 rounded-full py-2 pl-3 pr-4 text-left text-sm font-semibold leading-tight lg:text-base"
-        >
-          <span className="arena-lanepill-dot h-[9px] w-[9px] shrink-0 rounded-full" data-mine={narration.mine ? "" : undefined} data-them={narration.mine ? undefined : ""} aria-hidden />
-          <span key={narration.n} className="arena-drop line-clamp-2 min-w-0">
-            {narration.text}
-          </span>
-        </button>
+      {summary != null ? (
+        <div className="relative z-[1] max-h-32 min-w-0 w-full max-w-[28rem] overflow-y-auto text-center" data-arena-outcome-summary>
+          {summary}
+        </div>
+      ) : narration && (
+        <div className="relative z-[1] flex max-w-full items-center gap-2">
+          <button
+            type="button"
+            onClick={onLog}
+            aria-expanded={logOpen}
+            aria-label={`${narration.text} — open the battle log`}
+            className="arena-lanepill flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full py-2 pl-3 pr-4 text-left text-sm font-semibold leading-tight lg:text-base"
+          >
+            <span className="arena-lanepill-dot h-[9px] w-[9px] shrink-0 rounded-full" data-mine={narration.mine ? "" : undefined} data-them={narration.mine ? undefined : ""} aria-hidden />
+            <span key={narration.n} className="arena-drop line-clamp-2 min-w-0">
+              {narration.text}
+            </span>
+          </button>
+          {canFastForward && <button type="button" onClick={fastForward} className="arena-btn tap min-h-11 shrink-0 rounded-lg border border-space-600 bg-space-900 px-2 text-[10px] font-semibold text-space-50 sm:px-3 sm:text-xs">⏩ Fast-forward</button>}
+        </div>
       )}
       {children}
     </div>
@@ -336,25 +362,34 @@ export function PlayerStrip({
   side,
   them = false,
   cardProps,
+  onOpenInspection,
   hit = null,
+  lifeCue = null,
   narrator,
   energyChips,
   drop = null,
   willRest = 0,
+  restingIds = [],
   gain = null,
   className = "",
 }: {
   side: SideView;
   them?: boolean;
   cardProps: CardProps;
+  /** Open the public zone/deck inspection sheet when the strip is tapped. */
+  onOpenInspection?: () => void;
   /** The damage beat on screen against this player: the emptied pips shatter and -N LIFE rises. */
   hit?: { n: number; amount: number; critical: boolean } | null;
+  /** Public life-loss cue, keyed by its beat number. */
+  lifeCue?: FeedbackLifeCue | null;
   narrator: { viewer: PlayerId; them: string };
   energyChips?: MissingEnergyChip[];
   /** A card is being dragged and this is the zone it would charge into (rd-03). */
   drop?: DropState | null;
   /** How many of the active energy the dragged card's play would rest. */
   willRest?: number;
+  /** Exact resource ids from a VM payment offer; never chosen by strip order. */
+  restingIds?: readonly string[];
   /** A charge was just sent: "+1 ENERGY" rises beside the energy for `ms` (rd-04). */
   gain?: { key: number; ms: number } | null;
   className?: string;
@@ -366,8 +401,7 @@ export function PlayerStrip({
   const nowIds = side.energy.map((c) => c.id);
   if (nowIds.join("|") !== seen.ids.join("|")) setSeen({ ids: nowIds, fresh: new Set(nowIds.filter((id) => !seen.ids.includes(id))) });
   const arrived = seen.fresh;
-  const activeIds = side.energy.filter((c) => c.mode === "active").map((c) => c.id);
-  const resting = new Set(willRest > 0 ? activeIds.slice(-willRest) : []);
+  const resting = new Set(restingIds);
   // Active energy first, then rested, as the chips read left to right.
   const energy = [...side.energy.filter((c) => c.mode === "active"), ...side.energy.filter((c) => c.mode !== "active")];
   const askable = (c: CardView) => {
@@ -384,9 +418,20 @@ export function PlayerStrip({
   return (
     <div className={`arena-field relative ${className}`} aria-label={them ? `${side.name}'s side` : "Your side"}>
       <div
-        className="arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px]"
+        className={`arena-pstrip arena-dropzone relative flex h-9 min-w-0 items-center gap-2 px-3 text-xs sm:h-10 sm:gap-3 sm:text-sm lg:h-11 lg:gap-4 lg:px-[18px] ${onOpenInspection ? "cursor-pointer" : ""}`}
         data-drop={drop ? (drop.ok ? "ok" : "no") : undefined}
         data-hot={drop?.hot ? "" : undefined}
+        role={onOpenInspection ? "button" : undefined}
+        tabIndex={onOpenInspection ? 0 : undefined}
+        aria-label={onOpenInspection ? `Inspect ${side.name}'s deck and public zones` : undefined}
+        onClick={onOpenInspection}
+        onKeyDown={onOpenInspection ? (event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpenInspection();
+          }
+        } : undefined}
       >
         <ZoneAnchor zone={`${p}:energy`} />
         <span className="flex min-w-0 flex-1 shrink items-center gap-1.5 font-bold text-space-50 lg:flex-none">
@@ -395,18 +440,22 @@ export function PlayerStrip({
           </span>
           <span className="truncate text-[13px] lg:text-base">{side.name}</span>
         </span>
-        {/* Life: one skewed pip per card, the emptied ones an outline. */}
-        <span className="relative flex shrink-0 gap-[3px] sm:gap-1" role="img" aria-label={lifeWord}>
+        {/* The labelled number saves space on phones; desktop keeps its original life pips. */}
+        <span key={`life-desktop-${lifeCue?.beat ?? "idle"}`} className={`relative hidden shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:flex ${lifeCue ? "arena-feedback-life" : ""}`} role="img" aria-label={lifeWord}>
           <ZoneAnchor zone={`${p}:life`} />
           {Array.from({ length: pips }, (_, i) => (
             <i key={i} className="arena-lp relative block h-[15px] w-[9px] sm:h-[17px] sm:w-3 lg:h-[22px] lg:w-4" data-them={flag} data-gone={i < side.life ? undefined : ""}>
-              {/* The pips this beat emptied are the ones just past the life now left. */}
               {hit && i >= side.life && i < side.life + hit.amount && <b className="arena-pip-shatter" />}
             </i>
           ))}
-          {hit && (
-            <span className="arena-lifefloat text-xl sm:text-3xl" aria-hidden>
-              −{hit.amount} LIFE
+          {lifeCue && <span className="arena-feedback-life-label pointer-events-none absolute bottom-full left-1/2 z-20 whitespace-nowrap rounded bg-space-950 px-1.5 py-0.5 text-[10px] font-black text-space-50" aria-hidden>{lifeCue.text}</span>}
+        </span>
+        <span className="relative flex shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:hidden" aria-label={lifeWord}>
+          <ZoneAnchor zone={`${p}:life`} />
+          <b key={`life-${lifeCue?.beat ?? "idle"}`} className={`font-bold text-space-50 ${lifeCue ? "arena-feedback-life" : ""}`}>{side.life}</b><span>Life</span>
+          {(lifeCue || hit) && (
+            <span key={`life-label-${lifeCue?.beat ?? hit?.n}`} className={`${lifeCue ? "arena-feedback-life-label" : "arena-lifefloat"} pointer-events-none absolute bottom-full left-1/2 z-20 whitespace-nowrap rounded bg-space-950 px-1.5 py-0.5 text-[10px] font-black text-space-50`} aria-hidden>
+              {lifeCue?.text ?? `−${hit?.amount} LIFE`}
             </span>
           )}
         </span>
@@ -418,7 +467,10 @@ export function PlayerStrip({
             className="arena-energy-toggle relative flex min-h-11 min-w-0 shrink items-center gap-[2px] sm:gap-[3px]"
             aria-label={`${energyWord} — ${inspectEnergy ? "hide" : "show"} energy detail`}
             aria-expanded={inspectEnergy}
-            onClick={() => setInspectEnergy((open) => !open)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setInspectEnergy((open) => !open);
+            }}
           >
             {energy.map((c) => (
               <i
@@ -434,6 +486,7 @@ export function PlayerStrip({
                 {chip.text}
               </span>
             ))}
+            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs lg:hidden">⚡ {side.activeEnergy}/{side.energy.length}</span>
             {gain && !them && (
               <span key={gain.key} className="arena-gain arena-num pointer-events-none absolute bottom-full left-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
                 +1 ENERGY
@@ -445,7 +498,13 @@ export function PlayerStrip({
           {them && (
             <span className="relative">
               <ZoneAnchor zone={`${p}:hand`} />
-              hand <b className="font-bold text-space-50">{side.handCount}</b>
+              <span className="inline-flex items-center gap-0.5 lg:hidden" aria-label={`${side.name}'s hand`}>
+                <span className="inline-flex items-center gap-px" aria-hidden>
+                  {Array.from({ length: Math.min(side.handCount, 4) }, (_, i) => <i key={i} className="block h-[12px] w-[8px] rounded-[2px] border border-space-300/70 shadow-sm" style={{ background: "var(--card-back)" }} />)}
+                </span>
+                <b className="font-bold text-space-50">{side.handCount}</b>
+              </span>
+              <span className="hidden lg:inline">hand <b className="font-bold text-space-50">{side.handCount}</b></span>
             </span>
           )}
           <span className="relative">
@@ -477,7 +536,7 @@ export function PlayerStrip({
       <div className={`flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100 ${inspectEnergy ? "flex" : "hidden lg:flex"}`} data-player-resources={side.player}>
         <span className="font-semibold">Life {side.life} · Energy {side.activeEnergy}/{side.energy.length} ready</span>
         <span>{energySummary(side)}</span>
-        <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={() => setInspectEnergy((open) => !open)}>Inspect energy</button>
+        <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={(event) => { event.stopPropagation(); setInspectEnergy((open) => !open); }}>Inspect energy</button>
         {willRest > 0 && <span className="w-full">Play costs {willRest} energy; remaining colours depend on the chosen payment.</span>}
       </div>
 

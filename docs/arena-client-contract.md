@@ -965,3 +965,48 @@ information. The position, count and mode remain usable for public resource sele
 named by a positional alias (`?p1:energy:2`, §3.7) rather than its instance id, which is a decklist
 position and would name it. Revealed cards retain their normal catalogue identity. This is
 a projection correction; it does not reveal additional areas or change cost timing.
+
+`Snapshot.choicePreviews?` (issue #798) is an optional array of
+`{ action: number, skillIndex: number, state: "available" | "empty" | "notEvaluated",
+candidates?: string[], rejected?: { card: string, reason: string }[], reason?: string }`.
+`action` indexes that same viewer's `legal` array, including separate payment offers. The
+rules engine reads the first independent target choice of a legal hand play or Extra
+activation before committing it. `available` names current legal candidates;
+`empty` explains why none is currently selectable; `notEvaluated` makes no
+prediction. An optional “up to” choice remains a legal action even when empty.
+The preview is advisory: responses and pending effects can change the board before
+the choice resolves. All instance ids pass through the usual snapshot concealment,
+and a non-actor receives no private hand play preview. This addition does not
+change contract version 2.
+
+`LegalAction.paymentPreview?` (#800) describes the exact VM candidate payment,
+before commit: `{ state: "known" | "choice", options: { energyRest: string[],
+markers: number, costMarkers: number }[] }`. `markers` counts energy markers
+spent; `costMarkers` is the separate on-card marker delta. A `known` preview
+has one plan; `choice` lists the payment choices the engine will ask about.
+Alternative costs are settled on a disposable state before any follow-up
+payment is projected. Rest IDs can include non-Energy Area payers under 20-19;
+clients count only Energy Area IDs when displaying remaining ready energy.
+All IDs pass through snapshot concealment. This is information, not a payment
+selection, and the next payment prompt remains authoritative. Version 2 is unchanged.
+
+`Snapshot.attackPreviews?` (issue #801) is an optional array of
+`{ action: number, state: "known" | "notEvaluated", battle?: BattleView,
+reason?: string }`. `action` indexes the same viewer's `legal` array. For a
+`known` attack, `battle` is the rules engine's battle projection after that
+legal attack is declared and its deterministic immediate skills resolve, but
+before the defender responds. It includes current power and stakes, such as
+life damage and Critical. `notEvaluated` gives a reason instead of predicting
+through a cost, choice, hidden or variable event, or an excessive number of
+attack options. The client must use the actual next snapshot after declaration
+as the authoritative result. The preview is omitted when no attack is legal
+for that viewer. This additive field leaves contract version 2 unchanged.
+
+`Snapshot.blockPreviews?` (issue #801) has the same optional row shape and
+viewer-relative `legal` action index as `attackPreviews`. A `known` row gives
+the rules engine's `BattleView` after that legal Blocker is chosen and its
+immediate skills resolve, before the attacking player can combo. Its `guard`
+and stakes use the new Blocker while the attack's original target remains
+unchanged. An unresolved skill or variable event yields `notEvaluated` with a
+reason. Declining the Blocker has no row. This additive field also leaves
+contract version 2 unchanged.

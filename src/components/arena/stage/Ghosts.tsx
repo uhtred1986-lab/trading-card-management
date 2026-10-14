@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { BeatArt } from "@/lib/arena/beats";
 import type { Ghost } from "./useBeatPlayer";
 import { cardImage } from "@/lib/catalog/card-image";
+import { flightTiming } from "./motion";
 
 /**
  * Cards that have already left.
@@ -35,7 +36,7 @@ export function Ghosts({ ghosts, art }: { ghosts: Ghost[]; art: Record<string, B
             exit={{ opacity: 0 }}
             // A KO holds still while it shatters (the inner card plays `arena-fx-ko`
             // for `delay`), and only then does the flight to the Drop begin.
-            transition={{ duration: Math.min(0.9, g.ms / 1000), ease: g.kind === "arrive" ? "easeOut" : "easeIn", delay: g.ko ? g.ko.delay / 1000 : 0 }}
+            transition={{ ...flightTiming(g.ms, g.ko?.delay), ease: g.kind === "arrive" ? "easeOut" : "easeIn" }}
           >
             {/* A KO burns white inside a glow (`fx-lab-effects`): the glow is a
                 sibling, because the card clips everything drawn inside it. */}

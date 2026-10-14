@@ -1,0 +1,145 @@
+
+> dbs-card-companion@0.1.0 arena:offline-release
+> tsx scripts/arena-offline-release-browser.mts --record --out .validation/release-matrix-retry.json --total-timeout 1800
+
+A-v-B first: A v B, human p1: 137 revisions, 62 human moves, winner p2 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 76 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+Der Befehl "ps" ist entweder falsch geschrieben oder
+A-v-B second: B v A, human p2: 143 revisions, 71 human moves, winner p1 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 108 s
+konnte nicht gefunden werden.
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+B-v-A first: B v A, human p1: 99 revisions, 47 human moves, winner p2 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 70 s
+B-v-A second: A v B, human p2: 94 revisions, 49 human moves, winner p1 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 45 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+A-v-A first: A v A, human p1: 139 revisions, 65 human moves, winner p2 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 54 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+A-v-A second: A v A, human p2: 138 revisions, 64 human moves, winner p1 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 50 s
+konnte nicht gefunden werden.
+B-v-B first: B v B, human p1: 115 revisions, 50 human moves, winner p2 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 38 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+B-v-B second: B v B, human p2: 118 revisions, 49 human moves, winner p1 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 38 s
+ok   the SD15/SD5 pack is playable (b4e1872d71f9, 43 images)
+ok   prepared online in 17.5 s (43 art requests answered by this script with placeholder PNGs)
+ok   the server is stopped: http://localhost:3762 refuses connections
+ok   A-v-B first: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   A-v-B first: the device holds a match of A v B with the human in p1
+ok   A-v-B first: the match reached its end (revision 137)
+ok   A-v-B first: the final board and the device's journal (136 decisions, 62 the human's) equal the same match played in Node
+ok   A-v-B first: no alert on the page and the tab is the writer at the end (owner)
+ok   A-v-B first: 19 images on the final board, 19 loaded, 0 missing or broken (19 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/9a8a24d7-1d70-4091-be38-b4878981f5c8 | blob:http://localhost:3762/288fcb8a-086b-42e6-a928-1ec1e9d6c6e5)
+ok   A-v-B first: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   A-v-B second: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   A-v-B second: the device holds a match of B v A with the human in p2
+ok   A-v-B second: the match reached its end (revision 143)
+ok   A-v-B second: the final board and the device's journal (142 decisions, 71 the human's) equal the same match played in Node
+ok   A-v-B second: no alert on the page and the tab is the writer at the end (owner)
+ok   A-v-B second: 24 images on the final board, 24 loaded, 0 missing or broken (24 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/f29a0820-9e2a-42ac-a444-d2cf580cc911 | blob:http://localhost:3762/fdeb288c-994f-47db-9de3-9264c7f9defe)
+ok   A-v-B second: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   B-v-A first: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   B-v-A first: the device holds a match of B v A with the human in p1
+ok   B-v-A first: the match reached its end (revision 99)
+ok   B-v-A first: the final board and the device's journal (98 decisions, 47 the human's) equal the same match played in Node
+ok   B-v-A first: no alert on the page and the tab is the writer at the end (owner)
+ok   B-v-A first: 22 images on the final board, 22 loaded, 0 missing or broken (22 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/2c5d9133-3805-4f8f-a754-dca1b759a4ee | blob:http://localhost:3762/2c93b49d-9205-4a40-b321-8a656b2671f1)
+ok   B-v-A first: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   B-v-A second: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   B-v-A second: the device holds a match of A v B with the human in p2
+ok   B-v-A second: the match reached its end (revision 94)
+ok   B-v-A second: the final board and the device's journal (93 decisions, 49 the human's) equal the same match played in Node
+ok   B-v-A second: no alert on the page and the tab is the writer at the end (owner)
+ok   B-v-A second: 18 images on the final board, 18 loaded, 0 missing or broken (18 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/fc4f6744-9074-4927-a2d3-08d79998f4df | blob:http://localhost:3762/308d3bf7-66b3-4a5e-b86a-256e02010404)
+ok   B-v-A second: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   A-v-A first: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   A-v-A first: the device holds a match of A v A with the human in p1
+ok   A-v-A first: the match reached its end (revision 139)
+ok   A-v-A first: the final board and the device's journal (138 decisions, 65 the human's) equal the same match played in Node
+ok   A-v-A first: no alert on the page and the tab is the writer at the end (owner)
+ok   A-v-A first: 29 images on the final board, 29 loaded, 0 missing or broken (29 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/7bdfdd30-53a6-464a-9cd7-bef3db6c7384 | blob:http://localhost:3762/7bdfdd30-53a6-464a-9cd7-bef3db6c7384)
+ok   A-v-A first: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   A-v-A second: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   A-v-A second: the device holds a match of A v A with the human in p2
+ok   A-v-A second: the match reached its end (revision 138)
+ok   A-v-A second: the final board and the device's journal (137 decisions, 64 the human's) equal the same match played in Node
+ok   A-v-A second: no alert on the page and the tab is the writer at the end (owner)
+ok   A-v-A second: 25 images on the final board, 25 loaded, 0 missing or broken (25 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/c257b881-bdf2-4ea0-b351-86cd05f06dc2 | blob:http://localhost:3762/e4878d8e-cc22-4518-92d2-d6db5ca6f146)
+ok   A-v-A second: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   B-v-B first: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   B-v-B first: the device holds a match of B v B with the human in p1
+ok   B-v-B first: the match reached its end (revision 115)
+ok   B-v-B first: the final board and the device's journal (114 decisions, 50 the human's) equal the same match played in Node
+ok   B-v-B first: no alert on the page and the tab is the writer at the end (owner)
+ok   B-v-B first: 24 images on the final board, 24 loaded, 0 missing or broken (24 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/c8758a38-66c6-4688-951a-dfd783d72882 | blob:http://localhost:3762/558bdb4f-63af-464d-b984-673b0d7e4de8)
+ok   B-v-B first: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   B-v-B second: a cold launch of /arena with no network lands on the cached shell (/arena/offline)
+ok   B-v-B second: the device holds a match of B v B with the human in p2
+ok   B-v-B second: the match reached its end (revision 118)
+ok   B-v-B second: the final board and the device's journal (117 decisions, 49 the human's) equal the same match played in Node
+ok   B-v-B second: no alert on the page and the tab is the writer at the end (owner)
+ok   B-v-B second: 26 images on the final board, 26 loaded, 0 missing or broken (26 from blob: URLs, 0 addressed to a card CDN: blob:http://localhost:3762/ccf73758-bc08-4f17-8254-c104b2f8446e | blob:http://localhost:3762/c7edddd1-6a7c-4b78-a63d-77faec6bc560)
+ok   B-v-B second: no API route, server action or other host was asked (0 denied, 0 API responses)
+ok   R relaunch: the saved match is offered on the cached shell and Continue is pressed
+ok   R relaunch: the board and the legal actions are the ones from before the browser was quit (revision 12)
+ok   R relaunch: the board at revision 12 (hash and legal actions) equals the Node reference's
+ok   R relaunch: nothing was added or lost on the device
+ok   R worker: the Worker was restarted (1x) and the human's move was accepted (ok)
+ok   R worker: the move is on the device exactly once
+ok   R worker: the board at revision 21 (hash and legal actions) equals the Node reference's
+ok   R storage: the fault reached the match Worker (1)
+ok   R storage: the move is refused with the device-full notice and Try again (storage)
+ok   R storage: the board stays at the last saved move and nothing was written
+ok   R storage: Try again pressed
+ok   R storage: the board at revision 32 (hash and legal actions) equals the Node reference's
+ok   R storage: the move is accepted once there is room
+ok   R abort: the fault reached the match Worker
+ok   R abort: the advance is refused with an actionable notice (storage)
+ok   R abort: the board stays at the last saved move and nothing was written
+ok   R abort: Try again pressed
+ok   R abort: the board at revision 33 (hash and legal actions) equals the Node reference's
+ok   R: the match reached its end after every failure (revision 107)
+ok   R: the device's journal (106 decisions) and the final board equal the uninterrupted Node match, decision for decision
+ok   R: every checkpoint board equalled the reference
+ok   R: card art on the recovered board loads offline (16 images, 16 loaded, 0 missing, 16 from blob: URLs, 0 addressed to a card CDN)
+ok   R: no match/provider request was made (0 denied)
+
+Chrome/155.0.0.0, 1440x900, shell 375448749fb60821
+
+case           launch  shell  startable  worker  start→board  human rtt p95/max  AI ms/dec p95/max  revs  winner  heap main/worker (MB, after GC)  RSS MB
+A-v-B first     1627    518       1004     250         1038         85.8/114.3      204.325/318.7   137  p2      11.6/7.3  -
+A-v-B second    3697   1039       1665     515         1248       489.1/2720.1        534.5/958.2   143  p1      11.8/7.4  -
+B-v-A first     7636   1636       2435     958         3816        107.8/188.1        249.4/249.4    99  p2      11.0/6.8  -
+B-v-A second    1436    411        933     268         1096          103.1/154            243/243    94  p1      10.9/6.7  -
+A-v-A first     1153    316        735     283          794         96.7/267.1      209.933/318.3   139  p2      11.6/7.4  -
+A-v-A second    1429    324        905     221          820         72.8/209.6     130.867/140.42   138  p1      11.7/7.1  -
+B-v-B first     1126    321        726     129          715          62.6/98.2      104.825/110.3   115  p2      10.8/7.0  -
+B-v-B second    1179    363        757     164          546         59.3/105.7       114.82/132.1   118  p1      11.2/6.9  -
+
+board budget (docs/arena-worker-budgets.md)        limit        measured      verdict
+roundTripMs.p95                              70 ms         489.1  OVER   worst case's p95 of the human move round trip (act to result), page-measured
+roundTripMs.max                             250 ms        2720.1  OVER   slowest human move of all cases
+decisionMs.max                              300 ms         958.2  OVER   slowest computer advance divided by the decisions it committed, page-measured (as arena:local-worker-browser does)
+coldWorkerStartMs.p50                      1500 ms         249.6  ok   Worker construction to its first message, from the service-worker cache, page-measured
+coldWorkerStartMs.max                      6000 ms         957.5  ok   slowest of the cold starts
+matchStartMs.p95                            770 ms        3815.8  OVER   Start-match click to the first board (includes the page's own render; nearest-rank p95 of the cases)
+frameIntervalMs.p95                          51 ms          83.3  OVER   worst case's p95 requestAnimationFrame interval from the Start click to the end
+framesOver50Ms                               38 count        278  OVER   most frames over 50 ms in one case (the budget counts ~1,300 frames)
+longTaskCount                                12 count        158  OVER   most long tasks (>= 50 ms) in one case, Start click to the end
+longTaskMaxMs                               500 ms           971  OVER   longest long task of all cases (0 = none seen)
+longTaskAtMatchStartMaxMs                   500 ms           597  OVER   longest long task overlapping the match start
+workerHeapRetainedBytes                16000000 bytes    7388364  ok   match Worker V8 heap after a forced GC, end of one match
+workerHeapAfterBulkBytes               64000000 bytes   23040032  ok   match Worker V8 heap at the end of one match before GC (the budget is after 20 games)
+mainHeapBytes                          20000000 bytes   11817236  ok   page V8 heap after a forced GC, end of one match, WITH the React app
+userAgentMemoryBytes                          -                -  NOT MEASURABLE   performance.measureUserAgentSpecificMemory exists only on a cross-origin-isolated page (COOP/COEP); the app is not isolated, so the browser does not offer it. The page heap (mainHeapBytes) and the Worker heap stand in
+
+8 of 8 matrix cases played to the end; recovery case ended at revision 107 (106 decisions); 638 s
+9 budget(s) not met: roundTripMs.p95 OVER, roundTripMs.max OVER, decisionMs.max OVER, matchStartMs.p95 OVER, frameIntervalMs.p95 OVER, framesOver50Ms OVER, longTaskCount OVER, longTaskMaxMs OVER, longTaskAtMatchStartMaxMs OVER
+Headless desktop Chrome: not a phone. Physical-phone evidence: the owner's, unverified.
+
+arena:offline-release: every check passed

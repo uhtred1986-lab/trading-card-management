@@ -118,12 +118,14 @@ export function attackRejectedActions(ctx: EngineContext, game: GameDefinition, 
 }
 
 /** Take the move: open the battle. Leaves the Main Phase's own question on the table, the way `play`/`activate`'s `again: true` does. */
-export function declareAttack(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): void {
+export function declareAttack(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action, offered = false): void {
   if (action.type !== "attack") throw new RulesetBroken(state.game, "declareAttack called on a non-attack action");
   requirePrompt(state, action, ["main"]);
-  const legal = attackLegalActions(ctx, game, state, action.player);
-  if (!legal.some((l) => l.action.type === "attack" && l.action.attacker === action.attacker && l.action.target === action.target)) {
-    throw new IllegalAction("that attack is not offered");
+  if (!offered) {
+    const legal = attackLegalActions(ctx, game, state, action.player);
+    if (!legal.some((l) => l.action.type === "attack" && l.action.attacker === action.attacker && l.action.target === action.target)) {
+      throw new IllegalAction("that attack is not offered");
+    }
   }
   const attacker = action.attacker;
   // 20-14-1: "can't attack unless … each time" — the price is paid first, by
@@ -1064,7 +1066,10 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!b || b.negated || !battleIntact(state)) return;
   const responder = other(state.turnPlayer);
   const candidates = counterCandidates(ctx, game, state, responder);
-  if (!candidates.length) return;
+  if (!candidates.length) {
+    (b.emptyResponses ??= []).push("counter");
+    return;
+  }
   state.prompt = { kind: "counter", player: responder, window: "attack", candidates: candidates.map((c) => c.card) };
   return "wait";
 }
@@ -1313,7 +1318,10 @@ function openBlockerWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
   b.blockerOffered = true;
   const defender = other(state.turnPlayer);
   const candidates = blockerCandidates(ctx, game, state, defender);
-  if (!candidates.length) return;
+  if (!candidates.length) {
+    (b.emptyResponses ??= []).push("blocker");
+    return;
+  }
   state.prompt = { kind: "blocker", player: defender, candidates };
   return "wait";
 }
@@ -1379,9 +1387,15 @@ function comboWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   if (side === "defense" && state.sides[other(state.turnPlayer)].zones.unison?.includes(b.guard)) return;
   // 20-13: the combo offer is part of the step it belongs to, so a skipped
   // step makes none.
-  if (b.skipped?.includes(side)) return;
+  if (b.skipped?.includes(side)) {
+    (b.emptyResponses ??= []).push(side === "offense" ? "offenseCombo" : "defenseCombo");
+    return;
+  }
   const player = comboSide(ctx, state, side);
-  if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) return;
+  if (!comboEligible(ctx, game, state, player).length && !battleActivations(ctx, game, state, player).length) {
+    (b.emptyResponses ??= []).push(side === "offense" ? "offenseCombo" : "defenseCombo");
+    return;
+  }
   state.prompt = { kind: "combo", player, side };
   return "wait";
 }

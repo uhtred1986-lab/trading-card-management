@@ -467,9 +467,57 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
     // 20-5: an X line's row names the X it charges even at X = 0, which is
     // a real offer and really is free — the legacy `activationCost`.
     const cost = actionCostOf(c.price) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
-    out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}) });
+    const paymentPreview = paymentPreviewFor(ctx, game, state, player, c);
+    out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}), ...(paymentPreview ? { paymentPreview } : {}) });
   }
   return out;
+}
+
+/** Project the exact plan already selected by this legal candidate. This is
+ * intentionally adjacent to legal construction: the candidate carries the
+ * adjusted price (X, alternative, `onto`, taxes/orbs and reducers included),
+ * and previews must never reconstruct it from the menu's display cost. */
+function paymentPreviewFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, candidate: Candidate): LegalAction["paymentPreview"] {
+  const { price, alt, card } = candidate;
+  const resourcePrice = price.energy > 0 || Object.values(price.orbs).some((n) => (n ?? 0) > 0) ||
+    price.markers !== 0 || price.payers.length > 0;
+  if (!resourcePrice && alt?.pay !== "energy") return undefined;
+
+  // Alternative payments are settled inline by applyDeclared; even if their
+  // underlying energy has several possible choices, the VM takes its exact
+  // default plan. Run that same helper on a throwaway state, then plan any
+  // follow-up orb payment against the resulting board (22-37).
+  if (alt) {
+    const projected = structuredClone(state);
+    const ev: GameEvent[] = [];
+    payAltCost(ctx, game, projected, ev, player, alt);
+    const rested = new Set(Object.keys(projected.cards).filter((id) =>
+      state.cards[id]?.mode !== "rest" && projected.cards[id]?.mode === "rest"));
+    const beforeMarkers = Number(state.sides[player].attrs.energyMarkers ?? 0);
+    const afterAltMarkers = Number(projected.sides[player].attrs.energyMarkers ?? 0);
+    const markersSpent = Math.max(0, beforeMarkers - afterAltMarkers);
+    const next = planCost(ctx, game, projected, player, price, card);
+    if (!next.ok) return undefined; // legal candidate should make this unreachable
+    for (const id of next.payment.rest) rested.add(id);
+    return {
+      state: "known",
+      options: [{
+        energyRest: [...rested],
+        markers: markersSpent + next.payment.energyMarkers,
+        costMarkers: next.payment.markers,
+      }],
+    };
+  }
+
+  const plan = planCost(ctx, game, state, player, price, card);
+  if (!plan.ok) return undefined; // legal candidate should make this unreachable
+  const choice = plan.asks && plan.options.length > 1;
+  return {
+    state: choice ? "choice" : "known",
+    options: choice
+      ? plan.options.map((option) => ({ energyRest: option.rest, markers: option.markers, costMarkers: plan.payment.markers }))
+      : [{ energyRest: plan.payment.rest, markers: plan.payment.energyMarkers, costMarkers: plan.payment.markers }],
+  };
 }
 
 /**

@@ -1,0 +1,16 @@
+┌─────────┬─────────┬───────┬──────┬──────────┬────────────────────┬────────────────────┬────────────────────────────────────────────────────────────────┬────────────────────────────────────────────┐
+│ (index) │ skin    │ ratio │ need │ text     │ fg                 │ bg                 │ element                                                        │ seen                                       │
+├─────────┼─────────┼───────┼──────┼──────────┼────────────────────┼────────────────────┼────────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
+│ 0       │ 'anime' │ 1.86  │ 4.5  │ '3'      │ 'rgb(255,245,245)' │ 'rgb(255,157,157)' │ ' > div[card] > button.arena-card > span.arena-cost.arena-num' │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 1       │ 'anime' │ 3.28  │ 4.5  │ '+'      │ 'rgb(220,229,246)' │ 'rgb(57,122,227)'  │ 'div > div[card] > button.arena-card > span.arena-num'         │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 2       │ 'anime' │ 3.28  │ 4.5  │ '5'      │ 'rgb(220,229,246)' │ 'rgb(57,122,227)'  │ 'div > div[card] > button.arena-card > span.arena-num'         │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 3       │ 'anime' │ 3.28  │ 4.5  │ 'k'      │ 'rgb(220,229,246)' │ 'rgb(57,122,227)'  │ 'div > div[card] > button.arena-card > span.arena-num'         │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 4       │ 'anime' │ 3.51  │ 4.5  │ 'Leader' │ 'rgb(59,54,109)'   │ 'rgb(157,125,255)' │ '> span.arena-leader.arena-leader-off > span.arena-leader-tag' │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 5       │ 'anime' │ 3.78  │ 4.5  │ '+'      │ 'rgb(238,241,248)' │ 'rgb(55,119,225)'  │ '[card] > button.arena-card.arena-ring-legal > span.arena-num' │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 6       │ 'anime' │ 3.78  │ 4.5  │ '5'      │ 'rgb(238,241,248)' │ 'rgb(55,119,225)'  │ '[card] > button.arena-card.arena-ring-legal > span.arena-num' │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+│ 7       │ 'anime' │ 3.78  │ 4.5  │ 'k'      │ 'rgb(238,241,248)' │ 'rgb(55,119,225)'  │ '[card] > button.arena-card.arena-ring-legal > span.arena-num' │ 'phone:phone-ux-hand-6 desk:phone-ux-h...' │
+└─────────┴─────────┴───────┴──────┴──────────┴────────────────────┴────────────────────┴────────────────────────────────────────────────────────────────┴────────────────────────────────────────────┘
+
+218 text nodes checked over 1 fixtures x 1 skins x 2 viewports
+  anime: 8 distinct failing texts
+full list: .validation/contrast-chips-final.json

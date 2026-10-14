@@ -408,6 +408,64 @@
       "label": "Attack L-BLUE with V1 (10000 vs 10000)"
     }
   ],
+  "attackPreviews": [
+    {
+      "action": 1,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#0",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#0": 10000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 2,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#9",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#9": 10000,
+          "p2#0": 10000
+        }
+      }
+    }
+  ],
   "taps": {
     "byCard": {
       "p1#0": [

@@ -49,7 +49,7 @@
 import type { VmPendingRecord } from "./triggers";
 import type { Game } from "../../catalog/games";
 import type { ScriptFrame } from "./script";
-import type { BattleStep, ContinuousEffect, DelayedEffect, PlayerId, Prompt, ReplacementChoice, SkipWhat } from "../types";
+import type { BattleStep, ContinuousEffect, DelayedEffect, EmptyResponseWindow, PlayerId, Prompt, ReplacementChoice, SkipWhat } from "../types";
 import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 import type { StoredOutcome } from "../outcome";
@@ -75,6 +75,8 @@ export interface VmBattle {
   negated: boolean;
   /** 8-1-2-3: [Blocker] is offered once a battle. */
   blockerOffered: boolean;
+  /** Response windows the engine passed because their legal offer set was empty. */
+  emptyResponses?: EmptyResponseWindow[];
   /**
    * The counter cards played into this battle, in play order — `docs/arena-battle-staging-spec.md`
    * §3.1's own field, the legacy `Battle.counters`' shape exactly, so the two

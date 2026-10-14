@@ -1,0 +1,30 @@
+
+> dbs-card-companion@0.1.0 arena:offline-release
+> tsx scripts/arena-offline-release-browser.mts --record --out .validation/release-matrix.json --total-timeout 1800
+
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+A-v-B first: A v B, human p1: 125 revisions, 57 human moves, winner p2 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 68 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+A-v-B second: B v A, human p2: 161 revisions, 76 human moves, winner p1 ([Starter] Pride of the Saiyans lost: there are no cards in your Life Area (0-1-3-2)), 107 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+B-v-A first: B v A, human p1: 106 revisions, 49 human moves, winner p2 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 74 s
+B-v-A second: A v B, human p2: 124 revisions, 60 human moves, winner p1 ([Starter] The Crimson Saiyan lost: there are no cards in your Life Area (0-1-3-2)), 79 s
+Der Befehl "ps" ist entweder falsch geschrieben oder
+konnte nicht gefunden werden.
+node:fs:1282
+  return binding.rmSync(getValidatedPath(path), opts.maxRetries, opts.recursive, opts.retryDelay);
+                 ^
+
+Error: EPERM, Permission denied: \\?\C:\Users\patvo\AppData\Local\Temp\arena-offline-release-gejROg '\\?\C:\Users\patvo\AppData\Local\Temp\arena-offline-release-gejROg'
+    at Object.rmSync (node:fs:1282:18)
+    at <anonymous> (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\arena-offline-release-browser.mts:564:6) {
+  errno: 1,
+  code: 'EPERM',
+  path: '\\\\?\\C:\\Users\\patvo\\AppData\\Local\\Temp\\arena-offline-release-gejROg',
+  syscall: 'rm'
+}
+
+Node.js v24.21.0

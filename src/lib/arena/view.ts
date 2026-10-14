@@ -5,7 +5,7 @@
  * what a player may tap. This turns one state plus the legal moves into a view
  * for one side of the table, hiding what that player may not see (3-1-3).
  */
-import { type ActionCost, type PlayerId, type Requirement, type SkillKind } from "./types";
+import { type ActionCost, type EmptyResponseWindow, type PlayerId, type Requirement, type SkillKind } from "./types";
 import { type EffectView } from "./effects";
 
 // The viewer-side helpers live in `view-core.ts`; every existing caller keeps importing them from here.
@@ -85,6 +85,33 @@ export interface AbilityView {
   /** Existing engine reading for standing effects, when this line is a Permanent. */
   permanentState?: PermanentView["state"];
 }
+
+/** A first target choice the engine can inspect before a legal action is committed. */
+export interface ChoicePreview {
+  /** Index in this same snapshot's `legal` array, including payment variants. */
+  action: number;
+  skillIndex: number;
+  state: "available" | "empty" | "notEvaluated";
+  /** Engine-filtered instance ids. `empty` does not make an "up to" play illegal. */
+  candidates?: string[];
+  /** Visible cards in the named area that the selector refused. */
+  rejected?: { card: string; reason: string }[];
+  /** A human explanation when the first choice currently has no target. */
+  reason?: string;
+}
+
+/** Engine projection of one currently legal attack, before any opponent response. */
+export interface AttackPreview {
+  /** Index in this same snapshot's `legal` array. */
+  action: number;
+  state: "known" | "notEvaluated";
+  /** Present only when the cloned engine reached a deterministic response boundary. */
+  battle?: BattleView;
+  reason?: string;
+}
+
+/** The same pre-response battle reading after a legal Blocker redirects the guard. */
+export type BlockPreview = AttackPreview;
 
 /** One [Permanent] skill of a card and its state now (review §3.5). */
 export interface PermanentView {
@@ -171,6 +198,8 @@ export interface BattleView {
   step: string;
   attackPower: number;
   guardPower: number;
+  /** Windows the engine advanced past with no legal offers, filtered to what this viewer may know. */
+  emptyResponses?: EmptyResponseWindow[];
   /** Conditional public projection, not a resolved result. Older engines omit it. */
   stakes?: {
     hit: boolean;

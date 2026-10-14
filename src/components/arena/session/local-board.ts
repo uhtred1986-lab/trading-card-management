@@ -28,6 +28,7 @@ import type { OfflinePack } from "../../../lib/arena/local/pack";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { localizeArt } from "@/lib/arena/local/art-urls";
 import type { Action, PlayerId } from "@/lib/arena/types";
+import { arenaDecklistsFromInputs, type ArenaDecklist } from "../decklist-model";
 
 /** Why a board could not be opened at all (before any worker was started). */
 export class LocalBoardError extends Error {
@@ -203,6 +204,7 @@ export class LocalBoard implements ArenaSession {
   readonly human: PlayerId;
   readonly packFacts: PackFacts;
   readonly setup: LocalSetup;
+  readonly decklists: Partial<Record<PlayerId, ArenaDecklist>>;
   private pendingCount = 0;
   private readonly listeners = new Set<() => void>();
   private readonly successors = new Set<(next: LocalBoard) => void>();
@@ -216,6 +218,13 @@ export class LocalBoard implements ArenaSession {
     this.human = setup.human;
     this.packFacts = facts;
     this.setup = setup;
+    const inputs: Partial<Record<PlayerId, OfflinePack["decks"][number]["deck"]>> = {};
+    for (const seat of ["p1", "p2"] as const) {
+      const deck = facts.pack.decks.find((candidate) => candidate.key === setup.decks[seat]);
+      if (deck) inputs[seat] = deck.deck;
+    }
+    const decklists = arenaDecklistsFromInputs(inputs, facts.pack.bundle.payload.defs, facts.pack.bundle.payload.art);
+    this.decklists = deps.art ? localizeArt(decklists, deps.art) : decklists;
     this.offState = supervisor.onState(() => this.changed());
   }
 

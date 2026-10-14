@@ -1,0 +1,24 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: implicit own Battle Area is as uncertain as explicit own Battle Area
+    at assert (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\verify\play-choice-preview-798.ts:169:10)
+    at Object.<anonymous> (C:\Users\patvo\Code Repo\arena-m23-validation\scripts\verify\play-choice-preview-798.ts:182:100)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14)
+    at Object.transformer (C:\Users\patvo\Code Repo\arena-m23-validation\node_modules\tsx\dist\register-OY9cqBEN.cjs:9:3619)
+    at Module.load (node:internal/modules/cjs/loader:1651:32)
+    at Module._load (node:internal/modules/cjs/loader:1443:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:372:15)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:244:9)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.21.0

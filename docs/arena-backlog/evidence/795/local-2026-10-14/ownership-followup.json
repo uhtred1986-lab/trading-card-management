@@ -1,0 +1,91 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+  "statesA": [
+    "opening",
+    "opening",
+    "owner",
+    "watching: another tab took the match over (its lock was taken)"
+  ],
+  "statesB": [
+    "opening",
+    "watching",
+    "opening",
+    "owner"
+  ],
+  "takeoverMs": 2260,
+  "kills": [
+    {
+      "fault": "hold",
+      "kind": "ai",
+      "at": 36,
+      "revision": 38,
+      "ok": true,
+      "duplicate": false,
+      "restarts": 1
+    },
+    {
+      "fault": "after",
+      "kind": "ai",
+      "at": 45,
+      "revision": 46,
+      "ok": true,
+      "duplicate": false,
+      "restarts": 1
+    },
+    {
+      "fault": "hold",
+      "kind": "human",
+      "at": 48,
+      "revision": 49,
+      "ok": true,
+      "duplicate": false,
+      "restarts": 1
+    },
+    {
+      "fault": "after",
+      "kind": "human",
+      "at": 53,
+      "revision": 54,
+      "ok": true,
+      "duplicate": true,
+      "restarts": 1
+    }
+  ],
+  "frozenTakeoverMs": 3095,
+  "checks": [
+    "ok   Chrome offers Web Locks and BroadcastChannel",
+    "ok   1. Web Locks: two tabs claiming at the same instant, four times — exactly one tab got the match each time (-B -B -B -B)",
+    "ok   1. lease only: two tabs claiming at the same instant, four times — exactly one tab got the match each time (-B -B -B -B)",
+    "ok   2. tab A opens a new match and owns it (owner, web-locks, epoch 1)",
+    "ok   2. tab B opening it is watching: busy-elsewhere, holder named (watching, busy-elsewhere)",
+    "ok   2. B shows A's board read-only (revision 12)",
+    "ok   2. B's move is refused as busy-elsewhere and nothing is written",
+    "ok   2. B's board follows A's commits (to revision 20)",
+    "ok   3. B takes the match over (epoch 2) while A is advancing",
+    "ok   3. A is refused (its advance: busy-elsewhere; its next move: busy-elsewhere) and becomes a watcher",
+    "ok   3. no worker restart in either tab, and exactly one new epoch for the takeover",
+    "ok   3. the device holds one linear history: the reference game's first 25 decisions",
+    "ok   3. B resumed at the device's last commit (revision 26) on the reference board",
+    "ok   3. A now follows B's history (revision 34)",
+    "ok   4. B's tab closed: A takes over in 2260 ms (epoch 3) and resumes the identical board at revision 34",
+    "ok   5. worker killed mid-AI-batch (transaction open, 2 decision(s) queued): restarted once, resumed at 36, the batch recomputed — revision 38 is the reference's board",
+    "ok   5. worker killed after an AI batch was persisted (revision 46): restarted, resumed there, the reference's board at 46",
+    "ok   5. worker killed mid-human-move: restarted, the move sent again with its request id and applied once (revision 49)",
+    "ok   5. worker killed after a human move was persisted: restarted, the resent move answered from its receipt (duplicate), nothing played twice",
+    "ok   5. the game ends on the reference's final board (revision 109)",
+    "ok   5. the device holds the reference game decision for decision (108), the same trace: no duplicate move, no RNG drift",
+    "ok   5. each killed human move is on the device exactly once",
+    "ok   7. A disposed: no worker, timer, channel or lock left, the lease released",
+    "ok   6. lease-only: A owns a second match, C watches it",
+    "ok   6. A frozen: its lease aged and C took over after 3095 ms, at A's last board (revision 12)",
+    "ok   6. A thawed: its move on the board it was showing is refused as busy-elsewhere (this game is open in another tab or window — it can only be watched here: saving match local-654-frozen-mv8mglu2 at revision 13: another writer holds the match now (epoch 2); this writer's epoch 1 is superseded)",
+    "ok   6. the device holds exactly C's history, untouched by A, the reference game",
+    "ok   6. A becomes a watcher of C's history (revision 20)",
+    "ok   7. C disposed: nothing left running or held",
+    "ok   7. C (the owner) released the lease on dispose",
+    "ok   7. A disposed: nothing left running or held",
+    "ok   every board the tabs saw (86 revisions) is the reference's",
+    "ok   no request but repo modules (3442 requests; no /api, no database)"
+  ],
+  "failures": []
+}

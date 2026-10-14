@@ -1998,14 +1998,14 @@ input[type="number"] {
 .arena-fx-vs {
   display: inline-block;
   transition: opacity 0.2s;
-  animation: arena-fx-slam var(--fx-vs, 520ms) cubic-bezier(0.2, 1.8, 0.4, 1) var(--fx-vs-delay, 180ms) backwards;
+  animation: arena-fx-slam min(var(--fx-vs, 520ms), 519ms) cubic-bezier(0.2, 1.8, 0.4, 1) min(var(--fx-vs-delay, 180ms), 180ms) backwards;
 }
 .arena-fx-vs-off {
   opacity: 0;
 }
 .arena-fx-word {
   display: block;
-  animation: arena-fx-slam var(--fx-word, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) var(--fx-beam, 360ms) both;
+  animation: arena-fx-slam min(var(--fx-word, 640ms), 599ms) cubic-bezier(0.2, 1.6, 0.35, 1) min(var(--fx-beam, 360ms), 100ms) both;
 }
 .arena-fx-stage {
   position: absolute;
@@ -2058,7 +2058,7 @@ input[type="number"] {
   pointer-events: none;
   animation:
     arena-fx-beam var(--fx-beam, 360ms) ease-out both,
-    arena-fx-fade 320ms ease-in var(--fx-word, 640ms) forwards;
+    arena-fx-fade 320ms ease-in 100ms forwards;
 }
 @keyframes arena-fx-shield {
   0% {
@@ -2083,7 +2083,7 @@ input[type="number"] {
     0 0 26px var(--color-dbs-blue);
   background: radial-gradient(circle, transparent 50%, color-mix(in srgb, var(--color-dbs-blue) 45%, transparent) 100%);
   pointer-events: none;
-  animation: arena-fx-shield var(--fx-shield, 620ms) ease-out var(--fx-beam, 360ms) both;
+  animation: arena-fx-shield min(var(--fx-shield, 620ms), 599ms) ease-out min(var(--fx-beam, 360ms), 100ms) both;
 }
 
 /* Victory and defeat: slow rays behind a slammed title. */
@@ -2110,6 +2110,62 @@ input[type="number"] {
 .arena-fx-title {
   display: block;
   animation: arena-fx-slam var(--fx-title, 640ms) cubic-bezier(0.2, 1.6, 0.35, 1) both;
+}
+
+/* Short event cues are attached to the public beat's named subject. They never
+   gate the board; reduced motion keeps their outlines and labels static. */
+@keyframes arena-feedback-attacker {
+  0% { transform: translateX(0) scale(1); }
+  28% { transform: translateX(12px) scale(1.045); }
+  62% { transform: translateX(-4px) scale(1.015); }
+  100% { transform: none; }
+}
+@keyframes arena-feedback-hit {
+  0%, 100% { outline-color: transparent; box-shadow: none; }
+  20%, 55% { outline-color: var(--color-loss); box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-loss) 28%, transparent), 0 0 22px color-mix(in srgb, var(--color-loss) 65%, transparent); }
+}
+@keyframes arena-feedback-held {
+  0%, 100% { outline-color: transparent; box-shadow: none; }
+  20%, 60% { outline-color: #3b82f6; box-shadow: 0 0 0 5px color-mix(in srgb, #3b82f6 30%, transparent), 0 0 22px color-mix(in srgb, #3b82f6 70%, transparent); }
+}
+@keyframes arena-feedback-ko {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(1.6); }
+  100% { filter: grayscale(1) brightness(.65); }
+}
+@keyframes arena-feedback-life {
+  0% { transform: scale(1); color: inherit; }
+  25% { transform: scale(1.18); color: var(--color-loss); }
+  100% { transform: scale(1); color: inherit; }
+}
+@keyframes arena-feedback-life-label {
+  0% { transform: translate(-50%, 0); opacity: 0; }
+  22% { opacity: 1; }
+  100% { transform: translate(-50%, -14px); opacity: 1; }
+}
+@keyframes arena-feedback-phase {
+  0% { transform: scale(.9); }
+  44% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.arena-feedback-attacker { animation: arena-feedback-attacker 560ms cubic-bezier(.2, .9, .25, 1.1) both; }
+.arena-feedback-hit,
+.arena-feedback-held {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  animation: arena-feedback-hit 560ms ease-out both;
+}
+.arena-feedback-held { animation-name: arena-feedback-held; }
+.arena-feedback-ko {
+  outline: 2px dashed var(--color-loss);
+  outline-offset: 2px;
+  animation: arena-feedback-ko 620ms ease-out both;
+}
+.arena-feedback-life { animation: arena-feedback-life 520ms ease-out both; }
+.arena-feedback-life-label { animation: arena-feedback-life-label 640ms ease-out both; }
+.arena-feedback-phase {
+  display: inline-flex;
+  animation: arena-feedback-phase 460ms cubic-bezier(.2, .9, .25, 1.1) both;
 }
 
 /* ==========================================================================
@@ -2356,7 +2412,7 @@ input[type="number"] {
     repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--burst) 60%, transparent) 0 8deg, transparent 8deg 22deg);
   -webkit-mask-image: radial-gradient(circle, #000 28%, transparent 68%);
   mask-image: radial-gradient(circle, #000 28%, transparent 68%);
-  animation: arena-verdict-burst var(--fx-word, 640ms) cubic-bezier(0.2, 1.2, 0.35, 1) var(--fx-beam, 360ms) both;
+  animation: arena-verdict-burst min(var(--fx-word, 640ms), 599ms) cubic-bezier(0.2, 1.2, 0.35, 1) min(var(--fx-beam, 360ms), 100ms) both;
 }
 .arena-verdict-calm .arena-verdict-burst {
   --burst: color-mix(in srgb, var(--color-dbs-blue) 70%, #fff);
@@ -3107,16 +3163,39 @@ html[data-skin="anime"] body::before {
   [data-skin="anime"] .arena-fx-lines {
     animation: none;
   }
+  .arena-feedback-attacker,
+  .arena-feedback-hit,
+  .arena-feedback-held,
+  .arena-feedback-ko,
+  .arena-feedback-life,
+  .arena-feedback-life-label,
+  .arena-feedback-phase {
+    animation: none;
+    transform: none;
+  }
+  .arena-feedback-attacker { outline: 2px solid var(--color-ki-500); outline-offset: 2px; }
+  .arena-feedback-hit { outline: 3px solid var(--color-loss); outline-offset: 2px; }
+  .arena-feedback-held { outline: 3px solid #3b82f6; outline-offset: 2px; }
+  .arena-feedback-ko { outline: 2px dashed var(--color-loss); outline-offset: 2px; filter: grayscale(1); opacity: .65; }
+  .arena-feedback-life { color: var(--color-loss); }
+  .arena-feedback-life-label { opacity: 1; }
+  .arena-feedback-phase { outline: 2px solid currentColor; outline-offset: 2px; }
   /* What is only ever a flourish is not drawn at all: a still frame of a beam or a shard is noise. */
   .arena-fx-flash,
   .arena-boom,
   .arena-pip-shatter,
-  .arena-lifefloat,
   .arena-fx-beam,
   .arena-fx-shield,
   .arena-fx-ko-glow,
   .arena-fx-ko::after {
     display: none;
+  }
+  /* The life loss is information, not a flourish: keep its label in place. */
+  .arena-lifefloat {
+    display: block;
+    opacity: 1;
+    transform: none;
+    translate: -50% 0;
   }
   .arena-banner,
   .arena-slam,
@@ -3418,6 +3497,223 @@ html[data-skin="anime"] body::before {
 .arena-admin-raw-turn {
   margin-top: 4px;
   color: #d7ddf2;
+}
+
+/* Issue #796: let the sky breathe on phones. Keep this treatment on the sky
+   Arena only; the desktop board and a pinned night board retain their current
+   chrome. */
+@media (max-width: 639px) {
+  [data-skin="anime"].arena {
+    --arena-glass: rgba(255, 255, 255, 0.62);
+    --arena-glass-strong: rgba(255, 255, 255, 0.9);
+    --arena-soft-shadow: 0 4px 16px rgba(18, 22, 31, 0.12);
+    --arena-hairline: rgba(18, 22, 31, 0.14);
+  }
+
+  [data-skin="anime"].arena .arena-topbar,
+  [data-skin="anime"].arena .arena-phases {
+    background: transparent;
+    border-bottom: 0;
+  }
+
+  [data-skin="anime"].arena .arena-speed {
+    background: var(--arena-glass);
+    border: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  [data-skin="anime"].arena .arena-turnpill {
+    box-shadow:
+      0 0 0 2px var(--ink),
+      0 4px 14px color-mix(in srgb, var(--turn-tint) 45%, transparent);
+  }
+
+  [data-skin="anime"].arena .arena-phase {
+    color: var(--ink);
+  }
+
+  /* Earlier phases step back through their dots and text tone, rather than
+     fading the whole word into the sky. The labels remain readable. */
+  [data-skin="anime"].arena [data-phase-step="1"] .arena-phase:nth-child(1),
+  [data-skin="anime"].arena [data-phase-step="2"] .arena-phase:nth-child(-n + 2),
+  [data-skin="anime"].arena [data-phase-step="3"] .arena-phase:nth-child(-n + 3),
+  [data-skin="anime"].arena [data-phase-step="4"] .arena-phase:nth-child(-n + 4) {
+    opacity: 1;
+    color: #12161f;
+  }
+
+  [data-skin="anime"].arena [data-phase-step] .arena-phase:not(.arena-phase-on) .arena-phase-dot {
+    opacity: .4;
+  }
+
+  [data-skin="anime"].arena .arena-hand > p,
+  [data-skin="anime"].arena .arena-hand-folded {
+    color: var(--ink);
+  }
+  [data-skin="anime"].arena .arena-energy-toggle .arena-num {
+    color: #96320a;
+  }
+
+  [data-skin="anime"].arena .arena-phase-on {
+    background: var(--turn-tint);
+    color: var(--ink);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--turn-tint) 50%, transparent);
+  }
+
+  [data-skin="anime"].arena .arena-edge {
+    box-shadow: inset 0 3px 0 var(--turn-tint), inset 0 -3px 0 var(--turn-tint);
+  }
+
+  [data-skin="anime"].arena .arena-pstrip {
+    background: var(--arena-glass);
+    border: 0;
+    border-radius: 14px;
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-row-on::before {
+    background: radial-gradient(60% 90% at 30% 50%, rgba(255, 255, 255, 0.55), transparent 75%);
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-lanepill {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-lanepill-dot {
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-fight,
+  [data-skin="anime"].arena .arena-attack-summary,
+  [data-skin="anime"].arena .arena-notice,
+  [data-skin="anime"].arena .arena-logpop {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-bar {
+    background: var(--arena-glass-strong);
+    border-top: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 20px rgba(18, 22, 31, 0.1);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  [data-skin="anime"].arena :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl) {
+    border: 1px solid var(--arena-hairline);
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena :is(button, a).tap:is(.rounded-md, .rounded-lg, .rounded-xl):active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  [data-skin="anime"].arena .arena-bar button.arena-btn.bg-ki-500,
+  [data-skin="anime"].arena .arena-notice button.arena-btn.bg-ki-500 {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--ink), 0 4px 12px rgba(242, 113, 28, 0.35);
+  }
+
+  [data-skin="anime"].arena .arena-bar button.arena-btn.bg-ki-500:active,
+  [data-skin="anime"].arena .arena-notice button.arena-btn.bg-ki-500:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 2px var(--ink), 0 2px 8px rgba(242, 113, 28, 0.3);
+  }
+
+  [data-skin="anime"].arena .arena-acting,
+  [data-skin="anime"].arena .arena-clash-combo {
+    box-shadow: inset 0 0 0 1px var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-clash-combo {
+    background: rgba(47, 111, 224, 0.12);
+  }
+
+  [data-skin="anime"].arena .arena-clash-combo-pending {
+    outline: 1px dashed var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-cost {
+    border: 1px solid var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-slot {
+    border-color: var(--arena-hairline);
+  }
+
+  [data-skin="anime"].arena .arena-tip {
+    background: var(--arena-glass-strong);
+    box-shadow: var(--arena-soft-shadow);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  [data-skin="anime"].arena .arena-card {
+    box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28);
+  }
+
+  @keyframes arena-ki-soft {
+    0%,
+    100% {
+      box-shadow:
+        0 2px 5px rgba(18, 22, 31, 0.28),
+        0 0 0 3px var(--ki-gold),
+        0 0 14px 3px rgba(255, 193, 40, 0.7);
+    }
+    50% {
+      box-shadow:
+        0 2px 5px rgba(18, 22, 31, 0.28),
+        0 0 0 3px #fff0b8,
+        0 0 26px 9px rgba(255, 193, 40, 0.95);
+    }
+  }
+
+  [data-skin="anime"].arena .arena-ring-legal {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 3px var(--ki-gold),
+      0 0 18px 5px rgba(255, 193, 40, 0.85);
+    animation: arena-ki-soft 1.5s ease-in-out infinite;
+  }
+
+  [data-skin="anime"].arena [aria-label="Your hand"] .arena-ring-legal {
+    animation: none;
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 2px var(--ki-gold),
+      0 0 9px 2px rgba(255, 193, 40, 0.5);
+  }
+
+  [data-skin="anime"].arena .arena-ring-selected,
+  [data-skin="anime"].arena .arena-ring-attacker {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 4px #fff0b8,
+      0 0 34px 12px rgba(255, 193, 40, 1);
+  }
+
+  [data-skin="anime"].arena .arena-ring-guard {
+    box-shadow:
+      0 2px 5px rgba(18, 22, 31, 0.28),
+      0 0 0 3px #ff3b30,
+      0 0 20px 6px rgba(255, 59, 48, 0.8);
+  }
+
+  [data-skin="anime"].arena .arena-ghost {
+    box-shadow: 0 2px 5px rgba(18, 22, 31, 0.28);
+  }
 }
 
 /* The regular app shares the same notch protection as the full-screen arena. */

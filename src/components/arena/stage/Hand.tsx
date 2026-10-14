@@ -18,6 +18,9 @@ export function Hand({
   chargeable,
   decisionHint,
   onZones,
+  handStatus,
+  handAction,
+  defending = false,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -30,34 +33,40 @@ export function Hand({
   /** Current engine hand decision, placed beside its existing inspection control. */
   decisionHint?: string;
   onZones?: () => void;
+  handStatus?: (id: string) => "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge" | null;
+  handAction?: (id: string) => string | null;
+  defending?: boolean;
 }) {
   // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
   const [room, setRoom] = useState<{ width: number; card: number; desktop: boolean } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const n = cards.length;
+  const cardWidth = defending ? 66 : HAND_W;
+  const wide = room?.desktop ?? false;
+  const fanMode = !wide && n > 6;
   useLayoutEffect(() => {
     const el = fan.current;
     if (!el) return;
     const measure = () => {
       const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
       // Less the side padding (px-2.5): the fan lays out inside it.
-      setRoom({ width: el.clientWidth - 20, card: HAND_W * scale, desktop: window.matchMedia("(min-width: 1024px)").matches });
+      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1024px)").matches };
+      setRoom((current) => current?.width === next.width && current.card === next.card && current.desktop === next.desktop ? current : next);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [cardWidth]);
 
-  const n = cards.length;
   const first = cards[0];
   const firstProps = first ? cardProps(first) : null;
-  const card = room?.card ?? HAND_W;
-  const wide = room?.desktop ?? false;
+  const card = room?.card ?? cardWidth;
   // Every exposed card has a full finger target; excess cards scroll instead
   // of becoming ever narrower slivers. Expand separates all the artwork.
   // Leave room for the card's rounded corners around a 44px touch square.
-  const step = expanded ? card + 8 : n > 1 && room ? Math.max(wide ? 44 : 52, Math.min(card + 8, (room.width - card) / (n - 1))) : card + 8;
+  const step = fanMode && room ? Math.max(22, Math.min(card, (room.width - card - 64) / (n - 1))) : expanded ? card + 8 : n > 1 && room ? Math.max(wide ? 44 : 52, Math.min(card + 8, (room.width - card) / (n - 1))) : card + 8;
   const middle = (n - 1) / 2;
   const charging = cards.some((c) => chargeable?.(c.id));
 
@@ -84,11 +93,13 @@ export function Hand({
           {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
-      <div ref={fan} className={styles.handViewport} tabIndex={0} aria-label="Scrollable hand cards">
+      {fanMode && <p className={styles.handFanHeader}>Your hand · {n} · {cards.filter((c) => ["playable", "targets", "noTarget"].includes(handStatus?.(c.id) ?? "")).length} playable · tap a card to browse</p>}
+      <div className={`${fanMode ? styles.handRow : ""}`} data-hand-fan={fanMode ? "" : undefined}>
+      <div ref={fan} className={`${styles.handViewport} ${fanMode ? styles.fanViewport : ""}`} tabIndex={0} aria-label="Scrollable hand cards">
       <div
         className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
         // One card's height and its dip, so an empty hand keeps the board's shape.
-        style={{ minHeight: n ? `calc(${Math.round((HAND_W * 88) / 63)}px * var(--arena, 1) + 28px)` : 0 }}
+          style={{ minHeight: n ? `calc(${Math.round((cardWidth * 88) / 63)}px * var(--arena, 1) + 32px)` : 0 }}
       >
         {cards.map((c, i) => {
           const off = i - middle;
@@ -96,6 +107,7 @@ export function Hand({
           const tilt = wide && n <= 8 && !expanded ? off * 2.4 : 0;
           const dip = wide && n <= 8 && !expanded ? Math.abs(off) * 4 : 0;
           const props = cardProps(c);
+          const status = handStatus?.(c.id) ?? null;
           const up = props.state === "selected";
           return (
             <div
@@ -110,11 +122,26 @@ export function Hand({
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
               }}
             >
-              <StageCard {...props} width={HAND_W} fan={up ? 0 : tilt} lift={dip} lifts holdLock={dragId === c.id} />
+              <StageCard {...props} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
+              {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
+              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
           );
         })}
+        {fanMode && <div className={styles.handFanOverlays} aria-hidden>
+          {cards.map((c, i) => {
+            const status = handStatus?.(c.id) ?? null;
+            const left = 10 + i * step;
+            return <div key={c.id} className={styles.handFanOverlay} style={{ left }}>
+              {c.cost != null && <span className={`${styles.fanCost} ${status === "unaffordable" ? styles.status_unaffordable : ""}`}>{c.cost}</span>}
+              {status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} />}
+              {/* The fan is a dense overview: full action words belong in the card review. */}
+            </div>;
+          })}
+        </div>}
       </div>
+      </div>
+      {fanMode && firstProps?.onInspect && <button type="button" onClick={firstProps.onInspect} className={`${styles.handOpen} tap rounded-xl border-2 border-space-950 bg-space-800 text-space-50`} aria-label={`Open the whole hand, ${n} cards`}><b>{n}</b><span>Open hand</span></button>}
       </div>
     </section>
   );

@@ -142,7 +142,7 @@ export function PlayPicker({
         </ul>
         <Readiness deck={deck} />
         {/* Desktop: the phone carousel carries its own button. */}
-        <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="hidden sm:inline-flex" />
+        <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="inline-flex min-h-11 items-center" />
         <p className="text-[11px] text-space-500">Fusion World decks are not listed: the arena plays the original game&rsquo;s rules only.</p>
       </section>
 
