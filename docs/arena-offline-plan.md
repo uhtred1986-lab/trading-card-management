@@ -74,7 +74,7 @@ Audit two curated Masters decks early and package all required definitions, exec
 | #658 (O4-03) | Install, verify and update offline packs atomically (store delivered: `src/lib/arena/local/pack-store.ts`; proofs `scripts/verify/arena-pack-store.mts` and `npm run arena:pack-store-browser`; wiring into `/arena/local` is #659/#660) | #655, #653 |
 | #659 (O4-04) | Deliver a dedicated offline shell with safe service-worker updates (delivered: `/arena/offline`, `src/lib/arena/local/shell.ts`, `public/sw.js`; proofs `scripts/verify/arena-offline-shell.mts` and `npm run arena:offline-shell-browser`) | #648, #658 |
 | #660 (O4-05) | Add offline preparation, storage and local-data controls (delivered: `src/components/arena/OfflinePreparation.tsx`, `src/lib/arena/local/prepare.ts`, `/arena/offline/pack.json`; proofs `scripts/verify/arena-offline-prep.mts` and `npm run arena:offline-shell-browser`) | #656, #659 |
-| #661 (O4-06) | Verify the airplane-mode MVP and publish the support matrix | #660, #657, #651, #643 |
+| #661 (O4-06) | Verify the airplane-mode MVP and publish the support matrix (desktop half delivered in [`arena-offline-release.md`](arena-offline-release.md) with `npm run arena:offline-release`: 8 of 8 matchups play to the end offline; release blockers RB-1 to RB-5 and the physical phone stay open) | #660, #657, #651, #643 |
 
 ## O5
 
