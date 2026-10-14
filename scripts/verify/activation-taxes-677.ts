@@ -177,6 +177,30 @@ function toCounterWindow(s: VmState): VmState {
   return a;
 }
 
+/**
+ * p1 counters under a 2-card hand price with 3 cards to pick from: the price
+ * is a private question, reloaded mid-payment, answered one card at a time,
+ * and only then does the [Counter] go to the Drop and activate.
+ */
+function counterPaysTwo(w: VmState, neg: string, fs: string[]): { state: VmState; events: GameEvent[] } {
+  assert.ok(w.prompt.kind === "counter" && w.prompt.candidates.includes(neg), "offered: the price can be paid");
+  const asked = apply(w, { type: "counter", player: "p1", card: neg });
+  assert.equal(asked.state.prompt.kind, "chooseCards", "the price is asked");
+  assert.deepEqual([...(asked.state.prompt.kind === "chooseCards" ? asked.state.prompt.choice.candidates : [])].sort(), [...fs].sort(), "never the [Counter] itself");
+  assert.equal(skills(asked.events, neg), 0, "not activated before it is paid");
+  privateToPayer(asked.state, "p1", "F677");
+  const live = play(asked.state, { type: "choose", player: "p1", cards: [fs[0]] }, [fs[1]]);
+  const saved = play(reload(asked.state), { type: "choose", player: "p1", cards: [fs[0]] }, [fs[1]]);
+  assert.equal(JSON.stringify(saved.state), JSON.stringify(live.state), "a reload mid-payment resolves the same");
+  const ev = [...asked.events, ...live.events];
+  assert.deepEqual(ids(live.state, "p1", "drop", "F677").sort(), [fs[0], fs[1]].sort(), "2 cards from the hand to the Drop, once");
+  assert.deepEqual(ids(live.state, "p1", "hand", "F677"), [fs[2]]);
+  assert.ok(Math.max(movedTo(ev, fs[0], "drop"), movedTo(ev, fs[1], "drop")) < movedTo(ev, neg, "drop"), "the price, then the [Counter] to the Drop");
+  assert.equal(skills(ev, neg), 1);
+  assert.ok(ev.some((e) => e.type === "attackNegated"), "and it resolves");
+  return { state: live.state, events: ev };
+}
+
 // ── 1. each printed line compiles, and validates ───────────────────────────
 const forbidOf = (text: string): Extract<Op, { op: "forbid" }> => {
   const found: Extract<Op, { op: "forbid" }>[] = [];
@@ -351,13 +375,9 @@ const shape = (f: Extract<Op, { op: "forbid" }>) => ({ what: f.what, side: f.sid
   s.effects.push({ id: 67701, target: "", kind: "forbid", value: 0, until: "turn", source: jiren, master: "p2", createdTurn: s.turn, ownerTurn: "p2",
     forbid: { what: "activateCounter", pay: db.unlessPay, player: "p1" } } as VmState["effects"][number]);
   const neg = stage(s, "p1", "N677", "hand");
-  const [f1, f2] = [stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand")];
+  const fs = [stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand")];
   assert.deepEqual(activationTaxes(ctx, game, s, "p1", neg, "activate:main"), [], "an [Activate] is not a [Counter]");
-  const w = toCounterWindow(s);
-  assert.ok(w.prompt.kind === "counter" && w.prompt.candidates.includes(neg));
-  const paid = play(w, { type: "counter", player: "p1", card: neg }, [f1, f2]);
-  assert.deepEqual(ids(paid.state, "p1", "drop", "F677").sort(), [f1, f2].sort(), "2 cards from the hand in the Drop");
-  assert.equal(skills(paid.events, neg), 1);
+  counterPaysTwo(toCounterWindow(s), neg, fs);
   // One card short: not offered.
   const poor = board(6778);
   const j2 = stage(poor, "p2", "DB1-015", "battle");
@@ -375,17 +395,24 @@ const shape = (f: Extract<Op, { op: "forbid" }>) => ({ what: f.what, side: f.sid
   const bt29 = stage(s, "p2", "BT29-022", "hand");
   for (let i = 0; i < 3; i++) stage(s, "p2", "V1", "energy");
   const neg = stage(s, "p1", "N677", "hand");
-  const [f1, f2] = [stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand")];
+  const fs = [stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand"), stage(s, "p1", "F677", "hand")];
   const used = apply(s, activate(s, "p2", bt29));
   assert.equal(draws(used.events, "p2"), 1, "Draw 1 card");
   assert.equal(used.state.prompt.kind, "main");
   assert.equal(activationTaxes(ctx, game, used.state, "p1", neg, "counter:attack").length, 1, "a [Counter: Attack] is taxed");
   assert.equal(activationTaxes(ctx, game, used.state, "p1", neg, "counter:play").length, 0, "a [Counter: Play] is not");
-  const w = toCounterWindow(used.state);
-  assert.ok(w.prompt.kind === "counter" && w.prompt.candidates.includes(neg));
-  const paid = play(w, { type: "counter", player: "p1", card: neg }, [f1, f2]);
-  assert.deepEqual(ids(paid.state, "p1", "drop", "F677").sort(), [f1, f2].sort(), "discard 2 cards from their hand");
-  assert.ok(paid.events.some((e) => e.type === "attackNegated"));
+  assert.equal(activationTaxes(ctx, game, used.state, "p2", bt29, "counter:attack").length, 0, "nor is the player who activated it");
+  counterPaysTwo(toCounterWindow(used.state), neg, fs);
+  // One card short: not offered, and a forged declaration is refused with nothing paid.
+  const poor = board(6791, { p2: "L677-BROLY" });
+  const pb = stage(poor, "p2", "BT29-022", "hand");
+  for (let i = 0; i < 3; i++) stage(poor, "p2", "V1", "energy");
+  const lone = stage(poor, "p1", "N677", "hand");
+  const other = stage(poor, "p1", "N677", "hand");
+  const pw = toCounterWindow(apply(poor, activate(poor, "p2", pb)).state);
+  // Each [Counter] has exactly one other hand card to pay with — one short of 2.
+  assert.ok(pw.prompt.kind !== "counter" || (!pw.prompt.candidates.includes(lone) && !pw.prompt.candidates.includes(other)), "not offered");
+  if (pw.prompt.kind === "counter") refusedUnchanged(pw, { type: "counter", player: "p1", card: lone });
 }
 
 // ── 7. BT23-140: the skills of Battle Cards, paid by resting 2 cards ───────
@@ -424,14 +451,18 @@ const shape = (f: Extract<Op, { op: "forbid" }>) => ({ what: f.what, side: f.sid
   const s = board(6783, { p1: "L677-YELLOW" });
   stage(s, "p1", "BT10-097", "battle");
   const x = stage(s, "p2", "X677", "hand");
-  const [e1, e2] = [stage(s, "p2", "V1", "energy"), stage(s, "p2", "V1", "energy")];
+  const es = [stage(s, "p2", "V1", "energy"), stage(s, "p2", "V1", "energy"), stage(s, "p2", "V1", "energy")];
   const asked = apply(s, activate(s, "p2", x));
-  // One Active energy is left after the Extra's own cost: the price takes it
-  // — 1 rested for the card, 1 for the price.
-  const after = asked.state.prompt.kind === "chooseCards" ? apply(asked.state, { type: "choose", player: "p2", cards: asked.state.prompt.choice.candidates.slice(0, 1) }) : asked;
-  assert.equal(restedEnergy(after.state, "p2"), 2);
-  assert.ok([e1, e2].every((id) => after.state.cards[id].mode === "rest"));
-  assert.equal(draws([...asked.events, ...(after === asked ? [] : after.events)], "p2"), 1);
+  // Two Active energy are left after the Extra's own cost: which one pays is asked.
+  assert.equal(asked.state.prompt.kind, "chooseCards");
+  const cands = asked.state.prompt.kind === "chooseCards" ? asked.state.prompt.choice.candidates : [];
+  assert.equal(cands.length, 2, "only Active Mode energy is offered");
+  assert.ok(cands.every((id) => asked.state.cards[id].mode === "active"));
+  assert.equal(draws(asked.events, "p2"), 0);
+  const after = apply(reload(asked.state), { type: "choose", player: "p2", cards: [cands[0]] });
+  assert.equal(restedEnergy(after.state, "p2"), 2, "1 for the Extra, 1 for the price");
+  assert.equal(es.filter((id) => after.state.cards[id].mode === "active").length, 1);
+  assert.equal(draws(after.events, "p2"), 1);
   assert.equal(after.state.prompt.kind, "main");
   // One energy: the Extra's own cost takes it, so the price can't be paid — not offered.
   const poor = board(6784, { p1: "L677-YELLOW" });
