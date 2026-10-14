@@ -56,7 +56,11 @@ for (const leader of ["BONUS801", "PASSIVE801", "DRAW801"]) {
     const settled = RULES.boardView(ctx, result.state, "p1", {}).battle;
     assert.ok(settled);
     assert.equal(preview.battle?.step, "declared", "preview stops before the hidden defender response window");
-    assert.deepEqual({ ...preview.battle, step: settled.step }, settled,
+    // Later response-window history is not a declaration-time fact. The
+    // preview deliberately stops before Counter/Blocker availability is read.
+    const settledBattle = { ...settled };
+    delete settledBattle.emptyResponses;
+    assert.deepEqual({ ...preview.battle, step: settled.step }, settledBattle,
       "the declared preview keeps the same engine power and stakes as the next response snapshot");
     assert.equal(preview.battle?.attackPower, 15000);
     if (leader === "PASSIVE801") {
