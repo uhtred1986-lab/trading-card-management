@@ -12,13 +12,13 @@ blocker or still open. No budget was relabelled, and no emulation stands in for 
 | Desktop: both curated decks, both seats, each played to the END from a prepared app cold-launched with no network | **Plays: 8 of 8 matchups finish, each equal to the same match played in Node, decision for decision.** Card art shows from the installed pack (RB-1 resolved by #780: every image on every final board loads from a `blob:` URL, none addressed to a card CDN), so the bullet "no missing art" is **met on desktop**. |
 | Desktop: reload, Worker recovery, storage failure (in the prepared, offline app) | Pass (recovery case, section 5). |
 | Desktop: update | Partly. A failed shell update leaves the working shell; a pack update keeps a pinned pack (Node proof). A successful update to a NEWER build in a real browser was **not** run (open item OP-3). |
-| Desktop: latency, responsiveness and memory | **Within the board budgets** (#782, section 6.1): no long task over 150 ms (longest 116 ms, the first render of the board, after the fix of #782), and every re-derived board budget met; `userAgentMemoryBytes` recorded as not measurable. Against the O1 no-UI budgets (section 6.2, history) the board missed RB-2 to RB-5. |
+| Desktop: latency, responsiveness and memory | **Within the board budgets** (#782, section 6.1): no long task over 500 ms, the owner's accepted ceiling of 14 Oct (longest 116 ms, the first render of the board, after the fix of #782), and every re-derived board budget met; `userAgentMemoryBytes` recorded as not measurable. Against the O1 no-UI budgets (section 6.2, history) the board missed RB-2 to RB-5. |
 | Physical phone | **OPEN. Nothing was measured on a phone.** Steps and an empty results table: section 8. |
 | Emulated phone (390 px touch viewport, 4x CPU throttle on the page) | Plays 8 of 8 and the recovery case; **misses the desktop board budgets** (longest task 379 ms, match start 1,163 ms, section 6.1). **Emulation, not a phone**; the throttle does not reach the Worker. |
 
 Release blockers: RB-1 (art) is **resolved** (#780, section 5.2). RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
-plays) and RB-4 (main-thread heap) are **resolved on the desktop** by #782: the longest task is cut and stays under the owner's
-150 ms, and the other budgets were re-derived on the real board and are met (section 6.1). RB-5 is **recorded, not passed**:
+plays) and RB-4 (main-thread heap) are **resolved on the desktop** by #782: the longest task is cut and stays under 150 ms (the owner has since accepted up to
+500 ms), and the other budgets were re-derived on the real board and are met (section 6.1). RB-5 is **recorded, not passed**:
 `userAgentMemoryBytes` cannot be measured on this page, and is printed as not measurable with the reason. The physical phone
 (OP-2) is still open, and the emulated phone misses the desktop board budgets. OP-1 to OP-5 are open items, not failures.
 
@@ -176,7 +176,9 @@ items (section 8).
 
 ### 6.1 The board budgets (#782, 14 Oct 2026): the gate from now on
 
-The owner decided on 14 Oct 2026 to re-derive the budgets on the real board and to keep "no long task over 150 ms"
+Later on 14 Oct 2026 the owner accepted the current performance ("under 500 ms is ok and a longer match start is
+also ok, until I report slowness"): the long-task ceilings are now **500 ms**. Earlier that day the owner had decided
+to re-derive the budgets on the real board and to keep "no long task over 150 ms"
 as a release blocker and fix it. What #782 did, in short (the full method, runs and profile are in
 `docs/arena-worker-budgets.md` "Board budgets"):
 
@@ -187,7 +189,7 @@ as a release blocker and fix it. What #782 did, in short (the full method, runs 
   task mean 98 ms before, 86 ms after; emulated phone 493 ms before, 379 ms after. The rest of that task is the
   board's real first layout (with the platform's font look-ups) and React's first render of it.
 - **The budgets.** Re-derived from five desktop runs (worst run x1.25 for a time or size, x1.5 for a count), only
-  where the board misses the O1 limit; `longTaskMaxMs` stays 150 ms. `userAgentMemoryBytes` is recorded as not
+  where the board misses the O1 limit; `longTaskMaxMs` was held at 150 ms (now 500 ms, owner). `userAgentMemoryBytes` is recorded as not
   measurable (the app is not cross-origin isolated), never as a pass.
 
 **Check run** (`main` + #782 at `42e3a8c`, built and run with that `GITHUB_SHA`, no `--record`): exit 0, every check
@@ -207,8 +209,8 @@ evidence (`release-check-pass.json`, `release-check-disk-full.json`).
 | `frameIntervalMs.p95` | 51 ms | 33.4 ok | 50.1 ok |
 | `framesOver50Ms` | 38 | 19 ok | **90 OVER** |
 | `longTaskCount` | 12 | 5 ok | **44 OVER** |
-| `longTaskMaxMs` | 150 ms | 116 ok | **379 OVER** |
-| `longTaskAtMatchStartMaxMs` | 150 ms | 116 ok | **379 OVER** |
+| `longTaskMaxMs` | 500 ms (owner; first 150) | 116 ok | 379 ok (emulation) |
+| `longTaskAtMatchStartMaxMs` | 500 ms | 116 ok | 379 ok (emulation) |
 | `workerHeapRetainedBytes` | 16 MB | 7.3 MB ok | 7.3 MB ok |
 | `workerHeapAfterBulkBytes` | 64 MB | 20.2 MB ok | 23.1 MB ok |
 | `mainHeapBytes` | 20 MB | 13.5 MB ok | 14.3 MB ok |
@@ -339,7 +341,7 @@ table, and keep the acceptance bullets about a phone open until every row has a 
 | Storage failure notice and recovery | | |
 | Memory-pressure return | | |
 | Start to first board (budget 450 ms) | | |
-| Long tasks per match, longest (budget 3, 150 ms) | | |
+| Long tasks per match, longest (board budget 12, 500 ms) | | |
 | Frames over 50 ms per match (budget 6) | | |
 | JS heap after GC, page and Worker (budgets 8 MB, 16 MB) | | |
 | Anything else seen | | |

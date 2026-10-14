@@ -245,6 +245,12 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 `arena:offline-release` judges. They do not replace the O1 table, which still gates
 `arena:worker-bench` on its fixture page.
 
+> **Owner, 14 Oct 2026 (later the same day):** "under 500 ms is ok and a longer match start is also ok —
+> accept the current performance until I report slowness." The board's long-task ceilings are therefore
+> **500 ms** (`longTaskMaxMs`, `longTaskAtMatchStartMaxMs`); the rest of this section records the 150 ms
+> pass that came first. The O1 table above (a page with no UI) is unchanged.
+
+
 ### Method
 
 - **Runs.** Five recordings of the whole desktop matrix (8 cases each), 14 Oct 2026, HeadlessChrome 141,
@@ -265,8 +271,8 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 - **Only where the board misses.** Where the O1 limit already holds the board with that headroom, the O1
   limit stays: the Worker's own figures (decision, cold start, Worker heap), which the board does not
   change, and the slowest human move all keep theirs. No board budget is tighter than its O1 budget.
-- **Not derived.** `longTaskMaxMs` stays **150 ms** (owner) and `longTaskAtMatchStartMaxMs`, a long task
-  too, is held to the same 150 ms (O1 had 250). `frameIntervalMs.p95` is a whole number of 16.7 ms frames
+- **Not derived.** `longTaskMaxMs` is **500 ms** (owner; first 150 ms) and `longTaskAtMatchStartMaxMs`, a long task
+  too, is held to the same 500 ms (O1 had 250). `frameIntervalMs.p95` is a whole number of 16.7 ms frames
   plus 1 ms, because rAF intervals come in those steps: the runs measured two frames (33.4) or three
   (49.9), so 51 ms; 1.25x would have allowed a fourth frame for nothing.
 - **Not measurable.** `userAgentMemoryBytes` is not a board budget: `performance.measureUserAgentSpecificMemory`
@@ -292,8 +298,8 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 | `frameIntervalMs.p95` | at most 51 ms | 34 ms | 33.4 / 33.4 / 33.4 / 49.9 / 49.9 | three frames plus 1 ms (see Method) |
 | `framesOver50Ms` | at most 38 | 6 | 13 / 11 / 14 / 25 / 21 | re-derived, 1.5x 25; a match has 1,400 to 2,500 frames |
 | `longTaskCount` | at most 12 | 3 | 4 / 4 / 4 / 8 / 5 | re-derived, 1.5x 8 |
-| `longTaskMaxMs` | at most 150 ms | 150 ms | 99 / 110 / 116 / 105 / 105 | owner: never relaxed |
-| `longTaskAtMatchStartMaxMs` | at most 150 ms | 250 ms | 99 / 110 / 116 / 105 / 105 | held to the 150 ms ceiling |
+| `longTaskMaxMs` | at most 500 ms | 150 ms | 99 / 110 / 116 / 105 / 105 | owner: 500 ms until slowness is reported (first 150 ms) |
+| `longTaskAtMatchStartMaxMs` | at most 500 ms | 250 ms | 99 / 110 / 116 / 105 / 105 | held to the 500 ms ceiling |
 | `workerHeapRetainedBytes` | at most 16 MB | 16 MB | 7.4 / 7.2 / 7.2 / 7.3 / 7.3 MB | O1 kept (the Worker's) |
 | `workerHeapAfterBulkBytes` | at most 64 MB | 64 MB | 22.4 / 23.0 / 20.5 / 23.0 / 22.8 MB | O1 kept (one match, not 20) |
 | `mainHeapBytes` | at most 20 MB | 8 MB | 14.4 / 12.6 / 13.7 / 13.1 / 15.3 MB | re-derived, 1.25x 15.3 MB: the page heap WITH the React app |

@@ -273,6 +273,8 @@ try {
   await until(page, `navigator.serviceWorker.controller`, "control");
   await until(page, `document.querySelector('section[aria-label="Deck pack"] input[type=file]')`, "the deck file input");
   await clickText(page, "Choose a deck pack or add one from a file").catch(() => {});
+  // The section re-renders as the installed pack loads: wait for its <details> rather than race it.
+  await until(page, `document.querySelector('section[aria-label="Deck pack"] details')`, "the deck pack details");
   await page.eval(`document.querySelector('section[aria-label="Deck pack"] details').open = true`);
   await setFile(page, 'section[aria-label="Deck pack"] input[type=file]', otherFile);
   await until(page, `document.querySelector('[role=alert]')?.textContent.includes("not installed")`, "the refusal of another revision's pack", 120000);

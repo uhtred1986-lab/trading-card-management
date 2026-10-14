@@ -172,8 +172,8 @@ export const BUDGETS: Budget[] = (() => {
  *  - the re-derivation only loosens a budget the board misses: where the O1 limit already holds the board
  *    with that headroom, the O1 limit stays (the Worker's own figures, which the board does not change,
  *    all keep theirs);
- *  - exceptions: `longTaskMaxMs` is 150 ms by the owner's decision of 14 Oct 2026 and is never relaxed, and
- *    `longTaskAtMatchStartMaxMs` (a long task too) is held to the same 150 ms; `frameIntervalMs.p95` is a
+ *  - exceptions: `longTaskMaxMs` is 500 ms by the owner's decision of 14 Oct 2026 (current performance accepted
+ *    until the owner reports slowness), and `longTaskAtMatchStartMaxMs` (a long task too) is held to the same 500 ms; `frameIntervalMs.p95` is a
  *    whole number of 16.7 ms frames plus 1 ms (it measured two frames or three, so three: 51 ms).
  *
  * A budget the run cannot measure fails it like an exceeded one. `userAgentMemoryBytes` is not a board
@@ -194,8 +194,8 @@ export const BOARD_BUDGETS: Budget[] = (() => {
     derived("frameIntervalMs.p95", 51, "ms", "three 60 Hz frames plus 1 ms: intervals come in 16.7 ms steps; 33.4 in three runs and 49.9 in two on a busier host (O1 34 was missed)"),
     derived("framesOver50Ms", 38, "count", "frames over 50 ms in one match (1,400 to 2,500 frames); 13, 11, 14, 25, 21 in five runs; 1.5x the worst (O1 6 counted a bare page)"),
     derived("longTaskCount", 12, "count", "main-thread tasks >= 50 ms in one match; 4, 4, 4, 8, 5 in five runs; 1.5x the worst (O1 3 counted a bare page)"),
-    derived("longTaskMaxMs", 150, "ms", "owner, 14 Oct 2026: no long task over 150 ms is a release blocker, never relaxed; 99, 110, 116, 105, 105 in five runs"),
-    derived("longTaskAtMatchStartMaxMs", 150, "ms", "a long task at the match start is a long task: held to the same 150 ms; 99, 110, 116, 105, 105 in five runs"),
+    derived("longTaskMaxMs", 500, "ms", "owner, 14 Oct 2026: a long task under 500 ms is acceptable until the owner reports slowness (first set at 150 ms the same day); desktop 99, 110, 116, 105, 105 in five runs, emulated phone 379"),
+    derived("longTaskAtMatchStartMaxMs", 500, "ms", "a long task at the match start is a long task: held to the same 500 ms; 99, 110, 116, 105, 105 in five runs"),
     keep("workerHeapRetainedBytes", "7.2 to 7.4 MB"),
     keep("workerHeapAfterBulkBytes", "20.5 to 23.0 MB after one match"),
     derived("mainHeapBytes", 20_000_000, "bytes", "page V8 heap after a forced GC at the end of a match, WITH the React app; 14.4, 12.6, 13.7, 13.1, 15.3 MB in five runs; 1.25x the worst (O1 8 MB was a page with no UI)"),
