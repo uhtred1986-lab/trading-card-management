@@ -175,6 +175,7 @@ default — which would put the Atlantic in the middle of every database round-t
   `compile/*.ts`, `src/lib/arena/vm/*.ts` (`script.ts` is the interpreter), `src/lib/arena/lang/*.ts`,
 - After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
   "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
-  merged (`--no-merged` in `git branch -r --merged main`). There is one Neon database for dev,
+  merged (`--no-merged` in `git branch -r --merged main`). `npm run branches:prune` lists every merged
+  remote branch, squash merges included (dry run; `-- --apply` deletes them). There is one Neon database for dev,
   preview and production (`DATABASE_URL` above) — no per-branch database, so a merged branch
   needs no separate cleanup in Neon.
