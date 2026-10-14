@@ -56,7 +56,7 @@ async function main(): Promise<void> {
 
   // ── SD15-02 #0: "When this card is placed in your Drop Area from your Unison Area, choose up to 1 of your
   //    mono-red Leader Cards and it gets +5000 power for the turn." (power). The cause is the opponent's synthetic
-  //    remover; a Unison running out of markers (21-7-3, 21-9) is a separate gap, filed as an issue (suite end). ──
+  //    remover (a Unison running out of markers drops by 21-9-2, #759, covered in unison-zero-markers-759). ──
   {
     const s = mainPhase({ turn: 2 });
     const leader = s.sides.p1.zones.leader[0];
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     const foe = stage(s, "p2", "BLUEBIG757", "battle");
     const r = activate(s, cabba, 10);
     assert.equal(power(r.s, foe), 20000, "30000 - 10000 for the turn");
-    assert.equal(r.s.cards[cabba].markers, 1, "[+1] adds a marker (13-4)");
+    assert.equal(r.s.cards[cabba].markers, 2, "[+1] adds a marker (13-4): staged with 1, now 2");
     mark("SD15-02#10");
   }
 

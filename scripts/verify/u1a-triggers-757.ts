@@ -70,6 +70,8 @@ function stage(s: S, player: PlayerId, cardId: string, area: "battle" | "unison"
   assert.ok(moved.ok, `could not stage ${cardId}`);
   s.pending = [];
   if (area === "battle") s.cards[id].mode = "active";
+  // 21-9-2: a Unison with no markers goes to the Drop Area, so a staged Unison starts with one, as a played one does.
+  if (area === "unison") s.cards[id].markers = 1;
   return id;
 }
 function setLeader(s: S, player: PlayerId, cardId: string, flipped = false): string {
@@ -209,7 +211,7 @@ async function main(): Promise<void> {
 
 
     // SD15-02 #20: "[-6][Auto] If your opponent's life is at 3 or more: When your mono-red ≪Saiyan≫ Leader Card is attacked, deal 1 damage to your opponent."
-    // (The Unison at zero markers should then go to the Drop Area, 21-9-2; the engine does not do that yet: issue #759, so it is not asserted here.)
+    // Paying [-6] from 6 markers leaves the Unison with none, so it goes to its owner's Drop Area (21-9-2, #759).
     {
       const run = (oppLife: number): number => {
         let s = board();
@@ -220,6 +222,9 @@ async function main(): Promise<void> {
         s.sides.p2.zones.life.splice(oppLife);
         const attacker = stage(s, "p2", "BIG", "battle");
         s = drive(apply(s, attackAction(s, attacker, leader)));
+        const paid = oppLife >= 3;
+        assert.equal(zoneOf(s, "p1", "drop").includes(cabba), paid, paid ? "[-6] took the last markers: the Unison is placed in its owner's Drop Area (21-9-2)" : "[-6] not paid: the Unison keeps its markers and stays");
+        assert.equal(s.sides.p1.zones.unison.includes(cabba), !paid);
         return lifeOf(s, "p2");
       };
       assert.equal(run(8), 7, "8-1-3: the attack on the Leader pends [-6]; paid, it deals 1 damage to the opponent");

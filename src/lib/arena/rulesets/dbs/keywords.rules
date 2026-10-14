@@ -557,7 +557,7 @@ DEFINE KEYWORD Aegis
   offer: "activate:battle"
   REFUSE timing(window: defense) UNLESS all([isTurnPlayer(who: opponent), asking(prompt: combo)])
   REFUSE zone(area: battle) UNLESS count([self] IN you.play) >= 1
-  REFUSE condition(text: "cards whose original colours cover {colors:and} in your hand to drop") UNLESS covers(sel: IN you.hand, colors: $colors, original: true)
+  REFUSE condition(text: "cards whose original colours cover {colors:and} in your hand to drop, or an alternative payment a [Permanent] allows") UNLESS any([covers(sel: IN you.hand, colors: $colors, original: true), permits(what: aegisAlt)])
   label: "Aegis {colors}: drop {colors:and} from hand, stand up to 2 energy"
   DO {
     choose(sel: UP TO 2 (originalColors = $colors) IN you.hand, as: "cost", reason: "[Aegis]: drop cards covering the named colours from your hand")

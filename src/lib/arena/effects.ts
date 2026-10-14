@@ -113,6 +113,8 @@ function forbidLabel(f: Prohibition): string {
 }
 
 function permitLabel(p: Permission): string {
+  if (p.what === "aegisAltDrop") return "can pay [Aegis] from the Drop";
+  if (p.what === "aegisAltOpponentHand") return "can pay its [Aegis] from the opponent's hand";
   return `can attack ${p.filter ? describeFilter(p.filter) : "cards"} in Active Mode`;
 }
 

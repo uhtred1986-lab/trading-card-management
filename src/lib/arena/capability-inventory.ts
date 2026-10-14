@@ -208,6 +208,16 @@ export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
     detail: "Hand cost moves precede live fee calculation, native prices in declared order, supported action-price instructions, and activation. A printed \"[Aegis XY] skill cost\" action (22-30-2) is compiled and drafted as the price, never as an effect. Saved cursors prevent repeat costs; legal replacement redirects and later unaffordability retain only actual performed payments, with no activation use or effect. The pooled replacement and action-price cases are synthetic VM fixtures, not printed-card coverage. The shared host's KO and add-marker prices are paid after the colours. Other unsupported action-price instructions remain explicit #595 interruptions through the shared strict price host, now raised on declaration before any colour card is paid; broader Auto grammar remains #549. Original-color eligibility is independently tested in arena-keyword-original-colors.",
   },
   {
+    id: "arena-aegis-alternative-payment",
+    label: "Aegis can be paid by a Permanent's printed alternative instead of the hand cards",
+    status: "supported",
+    evidence: "runtime-scenario",
+    citation: "22-30-3; 20-1-11",
+    ownerIssue: 762,
+    proof: "scripts/verify/aegis-alt-payment-762.ts — both printed lines compile, offer only under BT22-035's Leader condition and for BT22-140's own Aegis, the payer's choice beside the hand payment, Drop-to-Warp and opponent-hand-to-deck-bottom moves, refusal when unpayable or stale, reload mid-payment and the blind opponent-hand pick for both viewers",
+    detail: "BT22-035 (a yellow and a blue card from the Drop to the Warp) and BT22-140 (one card of the opponent's hand to the bottom of their deck, chosen blind by the activating player: the Rule Manual is silent on who chooses, so the literal reading stands). The alternative replaces the whole hand-colour payment; additional costs, activation and Autos then proceed as usual.",
+  },
+  {
     id: "arena-heroic-once-per-turn",
     label: "Printed Heroic resolves once through turn-duration negation",
     status: "supported",
