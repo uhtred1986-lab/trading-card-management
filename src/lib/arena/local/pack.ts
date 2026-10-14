@@ -30,7 +30,7 @@ import type { CardArt } from "../view";
 import { VM_STATE_VERSION } from "../vm/state";
 import { CONTRACT_VERSION } from "../snapshot-core";
 import {
-  REPLAY_BUNDLE_FORMAT, RUNTIME_REVISION_PATTERN, makeReplayBundle, pinnedDefinition, replayHash, validateReplayBundle,
+  REPLAY_BUNDLE_FORMAT, RUNTIME_REVISION_PATTERN, canonicalJson, makeReplayBundle, pinnedDefinition, replayHash, validateReplayBundle,
   type ReplayBundle, type ReplayBundleRecord,
 } from "../replay-core";
 import { createPinnedMatch, type PinnedMatch } from "../browser";
@@ -276,7 +276,11 @@ export function privateDataViolations(pack: unknown): string[] {
   return out;
 }
 
-const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Key order is not content: a pack read back from the builder's file (canonical JSON, keys sorted)
+ * must compare equal to the manifest computed here (#658 found that it did not).
+ */
+const sameJson = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 /**
  * Validate a pack completely: format and versions, every content hash, the
