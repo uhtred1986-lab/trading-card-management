@@ -945,8 +945,8 @@ export function SearchSheet({
           onClick={() => onPick(none)}
           className="tap w-full rounded-lg border border-dashed border-space-500 bg-space-950 px-3 py-3 text-left text-sm font-semibold text-space-100 hover:border-ki-500/60"
         >
-          Pass · KO nothing
-          <span className="block text-[11px] font-normal text-space-400">The skill says “up to” — this is the way out.</span>
+          <span className="block">Pass</span>
+          <span className="block text-[11px] font-normal text-space-200">{/\bKO\b|knock.{0,2}out/i.test(`${prompt.question} ${prompt.hint}`) ? "KO nothing" : prompt.passConsequence ?? "Choose nothing"}</span>
         </button>
       )}
     </Sheet>
