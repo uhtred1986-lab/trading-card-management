@@ -4,7 +4,7 @@
  * PRODUCTION build. The phone half is the owner's (`docs/arena-offline-release.md`).
  *
  *   GITHUB_SHA=<40-hex> npm run build
- *   GITHUB_SHA=<same>  npm run arena:offline-release -- [--port N] [--phone-emulated] [--json] [--out FILE] [--total-timeout S]
+ *   GITHUB_SHA=<same>  npm run arena:offline-release -- [--port N] [--phone-emulated] [--json] [--out FILE] [--total-timeout S] [--trace DIR]
  *
  * One `next start` (no database, no sign-in: open mode) and one Chrome profile directory:
  *
@@ -26,12 +26,16 @@
  *      then "Try again", every write transaction aborts then "Try again"; the match plays to its end and
  *      equals the Node reference decision for decision.
  *
- * Measured per case and compared with the recorded #643 budgets (`scripts/lib/worker-budgets.ts`,
- * `docs/arena-worker-budgets.md`): cold launch to the shell, Worker start, click-to-board, every human
+ * Measured per case and compared with the BOARD budgets (#782: `BOARD_BUDGETS` in `scripts/lib/worker-budgets.ts`,
+ * derived from this script's own runs, `docs/arena-worker-budgets.md` "Board budgets"; the #643 O1 page's
+ * budgets are not applied here): cold launch to the shell, Worker start, click-to-board, every human
  * move's round trip, every computer advance, long tasks, frame intervals, V8 heap of page and Worker,
  * Chrome's resident memory. A budget that is exceeded is printed `OVER` and is a release blocker: this
  * script does not exit 0 for it unless `--record` is given (it still prints it). A budget it cannot
- * measure is printed `NOT MEASURED`.
+ * measure is printed `NOT MEASURED` and fails the run the same way. A metric that cannot be measured on
+ * this page at all (`BOARD_UNMEASURABLE`: `userAgentMemoryBytes`) is printed `NOT MEASURABLE` with the
+ * reason, and is neither a budget nor a pass. `--phone-emulated` is judged against the same desktop
+ * budgets: emulation is not a phone and gets no budgets of its own (the physical phone is the owner's).
  *
  * The board's card images must LOAD in that state (a missing image is a failed check); the art here is
  * the placeholder PNGs of step 1.
@@ -41,7 +45,13 @@
  * Safari/Firefox engines. `--phone-emulated` runs the same matrix in a 390 px touch viewport with the
  * page's CPU throttled 4x: EMULATION, not a phone, and the throttle does not reach the Worker.
  *
- * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed (or a budget is over and
+ * `--trace DIR` (#782) records a CDP trace and a CPU profile of each case from the Start click to the end and
+ * writes, per case, the raw trace (`*.trace.json`, open it in DevTools' Performance panel), the profile
+ * (`*.cpuprofile`) and `*.long-tasks.json`: every main-thread task of 50 ms or more with what filled it
+ * (`scripts/lib/long-task-trace.mts`). Build with `PROFILE_SOURCEMAPS=1` to see source files and lines
+ * rather than minified names. Tracing slows the page: a traced run is for attribution, not for budgets.
+ *
+ * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed (or a budget is over or unmeasured and
  * `--record` is absent), 2 usage / no Chrome / no build.
  */
 import { spawn, execSync } from "node:child_process";
@@ -50,7 +60,8 @@ import os from "node:os";
 import path from "node:path";
 import { Browser, findChrome, sleep, VIEWPORTS, type Page } from "./lib/cdp.mts";
 import { BOARD, IDB_FAULT, WorkerTaps, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
-import { BUDGETS, distribution, type Dist } from "./lib/worker-budgets.ts";
+import { BOARD_BUDGETS, BOARD_UNMEASURABLE, distribution, type Dist } from "./lib/worker-budgets.ts";
+import { chunkLabeler, longTasks, startTrace, type LongTaskBreakdown } from "./lib/long-task-trace.mts";
 import { buildMastersPack } from "./build-arena-offline-pack.mts";
 import { pngFor } from "./verify/arena-pack-store-fixture.mts";
 import { humanAsked, humanPick, playLoop, requestIds } from "./verify/arena-local-storage-driver.ts";
@@ -65,12 +76,12 @@ import type { Snapshot } from "../src/lib/arena/snapshot-core.ts";
 
 function usage(message: string): never {
   console.error(`arena:offline-release: ${message}`);
-  console.error("Usage: npm run arena:offline-release -- [--port N] [--phone-emulated] [--record] [--json] [--out FILE] [--total-timeout S]");
+  console.error("Usage: npm run arena:offline-release -- [--port N] [--phone-emulated] [--record] [--json] [--out FILE] [--total-timeout S] [--trace DIR]");
   process.exit(2);
 }
 const argv = process.argv.slice(2);
 const flag = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
-for (const a of argv) if (a.startsWith("--") && !["--json", "--port", "--out", "--phone-emulated", "--record", "--only", "--total-timeout"].includes(a)) usage(`unknown flag ${a}`);
+for (const a of argv) if (a.startsWith("--") && !["--json", "--port", "--out", "--phone-emulated", "--record", "--only", "--total-timeout", "--trace"].includes(a)) usage(`unknown flag ${a}`);
 const PORT = Number(flag("--port") ?? 3762);
 const OUT = flag("--out");
 const JSON_OUT = argv.includes("--json");
@@ -79,6 +90,8 @@ const RECORD = argv.includes("--record");
 /** Development only: play the first N cases of the matrix (and skip the recovery case when N is given). */
 const ONLY = flag("--only") ? Number(flag("--only")) : null;
 const TOTAL_MS = Number(flag("--total-timeout") ?? 900) * 1000;
+/** #782: a directory for a CDP trace and CPU profile of each case (Start click to the end) and its long-task breakdown. */
+const TRACE_DIR = flag("--trace");
 if (!Number.isInteger(PORT) || PORT <= 0 || !Number.isFinite(TOTAL_MS) || TOTAL_MS <= 0) usage("bad --port or --total-timeout");
 // Chrome must exist (findChrome throws otherwise)
 try { findChrome(); } catch (error) { usage((error as Error).message); }
@@ -309,7 +322,7 @@ interface CaseResult {
   launchMs: number; shellMs: number; startableMs: number; workerReadyMs: number | null; matchStartMs: number;
   humanMoves: number; aiAdvances: number; aiDecisions: number; humanRtt: Dist | null; aiAdvanceRtt: Dist | null; aiMsPerDecision: Dist | null;
   revision: number; winner: string | null; reason: string | null; journalEntries: number; journalHumans: number;
-  longTasks: number[]; longTaskAtStartMax: number; frames: number; frameP95: number; framesOver50: number;
+  longTasks: number[]; longTaskAtStartMax: number; traced: LongTaskBreakdown[] | null; frames: number; frameP95: number; framesOver50: number;
   snapshotBytes: Dist | null; mainHeap: { before: number; after: number }; workerHeap: { before: number; after: number } | null; rssBytes: number | null;
   imgs: number; brokenImgs: number; blobImgs: number; remoteImgs: number; denied: number; webRequestsOffSw: string[];
   matchesNodeReference: boolean; seconds: number;
@@ -326,6 +339,7 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
   try {
     const shell = await openShell(l);
     check(shell.where === SHELL_PATH, `${id}: a cold launch of /arena with no network lands on the cached shell (${shell.where})`);
+    const stopTrace = TRACE_DIR ? await startTrace(browser!, l.page) : null;
     const matchStartMs = await chooseAndStart(l.page, mine, theirs, seat);
     const first = await quiet(l.page);
     const head = (await journal(l.page, first.matchId)).header;
@@ -333,6 +347,17 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
     const ref = reference(pack, revision, { matchId: first.matchId, gameId: first.gameId, seed: head.seed, policySeed: head.policySeed, decks: head.decks, human: head.human });
     const stats = newStats();
     const end = await playTo(l.page, stats);
+    let traced: LongTaskBreakdown[] | null = null;
+    if (stopTrace && TRACE_DIR) {
+      const t = await stopTrace();
+      traced = longTasks(t.events, t.profile, { label: await chunkLabeler(path.join(".next", "static", "chunks")) });
+      fs.mkdirSync(TRACE_DIR, { recursive: true });
+      const slug = id.replace(/\W+/g, "-");
+      fs.writeFileSync(path.join(TRACE_DIR, `${slug}.trace.json`), JSON.stringify({ traceEvents: t.events }));
+      if (t.profile) fs.writeFileSync(path.join(TRACE_DIR, `${slug}.cpuprofile`), JSON.stringify(t.profile));
+      fs.writeFileSync(path.join(TRACE_DIR, `${slug}.long-tasks.json`), JSON.stringify(traced, null, 2));
+      for (const lt of traced) log(`  ${id}: traced long task ${lt.ms} ms at +${lt.startMs} ms: ${lt.byEvent.slice(0, 4).map(([k, v]) => `${k} ${v}`).join("; ")}${lt.bySource.length ? ` | under ${lt.bySource.slice(0, 3).map(([k, v]) => `${k} ${v}`).join("; ")}` : ""}`);
+    }
     const s = end.snapshot!;
     check(s.game.status === "over", `${id}: the match reached its end (revision ${s.game.revision})`);
     const over = (s as unknown as { over?: { winner: string | null; reason: string | null } }).over ?? null;
@@ -360,7 +385,7 @@ async function runCase(pack: unknown, revision: string, id: string, mine: string
       humanMoves: stats.human.length, aiAdvances: stats.ai.length, aiDecisions,
       humanRtt: distribution(stats.human), aiAdvanceRtt: distribution(stats.ai.map((a) => a.ms)), aiMsPerDecision: distribution(aiDist),
       revision: s.game.revision, winner: over?.winner ?? null, reason: over?.reason ?? null, journalEntries: j.entries.length, journalHumans: humans,
-      longTasks: longPlay.map((t) => t.ms), longTaskAtStartMax: atStart.length ? Math.max(...atStart.map((t) => t.ms)) : 0,
+      longTasks: longPlay.map((t) => t.ms), longTaskAtStartMax: atStart.length ? Math.max(...atStart.map((t) => t.ms)) : 0, traced,
       frames: play.length, frameP95: q(play.map((f) => f.ms), 0.95), framesOver50: play.filter((f) => f.ms > 50).length,
       snapshotBytes: distribution(stats.bytes), mainHeap: hp.main, workerHeap: hp.workers[0] ?? null, rssBytes: chromeRssBytes(),
       imgs: facts.imgs, brokenImgs: facts.broken, blobImgs: facts.blob, remoteImgs: facts.remote, denied: l.taps.denied.length,
@@ -540,8 +565,8 @@ try {
 }
 
 // ── budgets ─────────────────────────────────────────────────────────────────────────────────────
-interface Row { budget: string; limit: number; unit: string; measured: number | null; verdict: "ok" | "OVER" | "NOT MEASURED"; how: string }
-const budget = (metric: string) => { const b = BUDGETS.find((x) => x.metric === metric && !x.config); if (!b) throw new Error(`no #643 budget named ${metric}`); return b; };
+interface Row { budget: string; limit: number | null; unit: string; measured: number | null; verdict: "ok" | "OVER" | "NOT MEASURED" | "NOT MEASURABLE"; how: string }
+const budget = (metric: string) => { const b = BOARD_BUDGETS.find((x) => x.metric === metric && !x.config); if (!b) throw new Error(`no board budget named ${metric}`); return b; };
 const rows: Row[] = [];
 const judge = (metric: string, measured: number | null, how: string) => {
   const b = budget(metric);
@@ -562,8 +587,10 @@ if (results.length) {
   judge("longTaskAtMatchStartMaxMs", Math.max(...results.map((r) => r.longTaskAtStartMax)), "longest long task overlapping the match start");
   judge("workerHeapRetainedBytes", Math.max(...results.map((r) => r.workerHeap?.after ?? NaN)), "match Worker V8 heap after a forced GC, end of one match");
   judge("workerHeapAfterBulkBytes", Math.max(...results.map((r) => r.workerHeap?.before ?? NaN)), "match Worker V8 heap at the end of one match before GC (the budget is after 20 games)");
-  judge("mainHeapBytes", Math.max(...results.map((r) => r.mainHeap.after)), "page V8 heap after a forced GC, end of one match, WITH the React app (the budget's page had no UI)");
-  judge("userAgentMemoryBytes", null, "performance.measureUserAgentSpecificMemory needs a cross-origin-isolated page; the app is not isolated, so it does not exist here");
+  judge("mainHeapBytes", Math.max(...results.map((r) => r.mainHeap.after)), "page V8 heap after a forced GC, end of one match, WITH the React app");
+  // Every board budget is judged: one this script has no figure for is a failure, not a silent pass.
+  for (const b of BOARD_BUDGETS) if (!rows.some((r) => r.budget === b.metric)) judge(b.metric, null, "no figure for this budget in this run");
+  for (const u of BOARD_UNMEASURABLE) rows.push({ budget: u.metric, limit: null, unit: "", measured: null, verdict: "NOT MEASURABLE", how: u.why });
 }
 const rss = results.map((r) => r.rssBytes).filter((x): x is number => x !== null);
 
@@ -581,13 +608,13 @@ else {
   console.log(`\n${chromeVersion}, ${VIEWPORT.width}x${VIEWPORT.height}${PHONE ? " (EMULATED phone, 4x page CPU throttle)" : ""}, shell ${manifest?.version ?? "?"}`);
   console.log("\ncase           launch  shell  startable  worker  start→board  human rtt p95/max  AI ms/dec p95/max  revs  winner  heap main/worker (MB, after GC)  RSS MB");
   for (const r of results) console.log(`${r.id.padEnd(14)} ${String(r.launchMs).padStart(5)}  ${String(r.shellMs).padStart(5)}  ${String(r.startableMs).padStart(9)}  ${String(Math.round(r.workerReadyMs ?? -1)).padStart(6)}  ${String(Math.round(r.matchStartMs)).padStart(11)}  ${(r.humanRtt ? `${r.humanRtt.p95}/${r.humanRtt.max}` : "-").padStart(17)}  ${(r.aiMsPerDecision ? `${r.aiMsPerDecision.p95}/${r.aiMsPerDecision.max}` : "-").padStart(17)}  ${String(r.revision).padStart(4)}  ${String(r.winner).padEnd(6)}  ${(r.mainHeap.after / 1e6).toFixed(1)}/${r.workerHeap ? (r.workerHeap.after / 1e6).toFixed(1) : "-"}  ${r.rssBytes ? (r.rssBytes / 1e6).toFixed(0) : "-"}`);
-  console.log("\nbudget (docs/arena-worker-budgets.md)              limit        measured      verdict");
-  for (const r of rows) console.log(`${r.budget.padEnd(36)} ${String(r.limit).padStart(10)} ${r.unit.padEnd(5)} ${String(r.measured ?? "-").padStart(10)}  ${r.verdict}   ${r.how}`);
-  const over = rows.filter((r) => r.verdict !== "ok");
+  console.log("\nboard budget (docs/arena-worker-budgets.md)        limit        measured      verdict");
+  for (const r of rows) console.log(`${r.budget.padEnd(36)} ${String(r.limit ?? "-").padStart(10)} ${r.unit.padEnd(5)} ${String(r.measured ?? "-").padStart(10)}  ${r.verdict}   ${r.how}`);
+  const over = rows.filter((r) => r.verdict === "OVER" || r.verdict === "NOT MEASURED");
   console.log(`\n${results.length} of 8 matrix cases played to the end${recovery ? `; recovery case ended at revision ${recovery.revision} (${recovery.entries} decisions)` : "; recovery case did not finish"}; ${summary.seconds} s`);
   console.log(`${over.length} budget(s) not met: ${over.map((r) => `${r.budget} ${r.verdict}`).join(", ") || "none"}`);
   console.log(PHONE ? "EMULATION only: not a phone." : "Headless desktop Chrome: not a phone. Physical-phone evidence: the owner's, unverified.");
   console.log(failures.length ? `\narena:offline-release: ${failures.length} FAILED\n${failures.join("\n")}` : "\narena:offline-release: every check passed");
 }
-const overBudgets = rows.some((r) => r.verdict === "OVER");
+const overBudgets = rows.some((r) => r.verdict === "OVER" || r.verdict === "NOT MEASURED");
 process.exit(failures.length || (overBudgets && !RECORD) ? 1 : 0);

@@ -1,0 +1,448 @@
+[
+  {
+    "startMs": 0,
+    "ms": 110.4,
+    "byEvent": [
+      [
+        "FunctionCall chunks/223dg2h-z508j.js O",
+        55.9
+      ],
+      [
+        "Layout",
+        42.4
+      ],
+      [
+        "UpdateLayoutTree",
+        7.9
+      ],
+      [
+        "V8.HandleInterrupts",
+        1.1
+      ],
+      [
+        "V8.BytecodeBudgetInterrupt",
+        0.8
+      ],
+      [
+        "RunMicrotasks",
+        0.7
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        0.5
+      ],
+      [
+        "V8.DeoptimizeCode",
+        0.5
+      ],
+      [
+        "V8.BytecodeBudgetInterruptWithStackCheck",
+        0.2
+      ],
+      [
+        "v8.newInstance",
+        0.1
+      ],
+      [
+        "RunTask",
+        0.1
+      ],
+      [
+        "v8.callFunction",
+        0.1
+      ]
+    ],
+    "byFunction": [
+      [
+        "n src/components/arena/stage/StageZones.tsx:101",
+        50.7
+      ],
+      [
+        "renderWithHooks node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:4593",
+        13.1
+      ],
+      [
+        "(anonymous) src/components/arena/ArenaCard.tsx:93",
+        10.9
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:107",
+        2.5
+      ],
+      [
+        "commitLayoutEffectOnFiber node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:9931",
+        2.4
+      ],
+      [
+        "commitHookEffectListMount node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:8980",
+        1.3
+      ],
+      [
+        "(program) :0:0",
+        1.3
+      ],
+      [
+        "setInitialProperties node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:14727",
+        1.2
+      ],
+      [
+        "appendChild :0:0",
+        1.1
+      ],
+      [
+        "setAttribute :0:0",
+        1
+      ],
+      [
+        "(anonymous) node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:4215",
+        1
+      ],
+      [
+        "completeUnitOfWork node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:12739",
+        0.9
+      ],
+      [
+        "(anonymous) node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:8328",
+        0.7
+      ],
+      [
+        "process node_modules/motion-dom/src/frameloop/render-step.ts:59",
+        0.7
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:1069",
+        0.7
+      ]
+    ],
+    "bySource": [
+      [
+        "src/components/arena/stage/StageZones.tsx",
+        52.7
+      ],
+      [
+        "src/components/arena/ArenaCard.tsx",
+        11.2
+      ],
+      [
+        "src/components/arena/stage/ArenaStage.tsx",
+        6.4
+      ],
+      [
+        "src/components/arena/session/LocalArena.tsx",
+        1.6
+      ],
+      [
+        "src/components/arena/stage/PromptPanel.tsx",
+        0.7
+      ],
+      [
+        "src/components/arena/shared-sheets.tsx",
+        0.6
+      ],
+      [
+        "src/components/arena/stage/StageCard.tsx",
+        0.6
+      ],
+      [
+        "src/lib/arena/local/art-urls.ts",
+        0.6
+      ],
+      [
+        "src/components/arena/session/local-board.ts",
+        0.6
+      ],
+      [
+        "src/components/arena/shared-model.ts",
+        0.4
+      ],
+      [
+        "src/components/arena/stage/anchors.tsx",
+        0.4
+      ],
+      [
+        "src/components/arena/stage/stakes-model.ts",
+        0.4
+      ]
+    ]
+  },
+  {
+    "startMs": 122.3,
+    "ms": 63.3,
+    "byEvent": [
+      [
+        "ThreadControllerImpl::RunTask",
+        63
+      ],
+      [
+        "FunctionCall tick",
+        0.1
+      ],
+      [
+        "Commit",
+        0
+      ],
+      [
+        "RunTask",
+        0
+      ],
+      [
+        "PrePaint",
+        0
+      ],
+      [
+        "UpdateLayer",
+        0
+      ],
+      [
+        "FireAnimationFrame",
+        0
+      ],
+      [
+        "Layerize",
+        0
+      ],
+      [
+        "IntersectionObserverController::computeIntersections",
+        0
+      ],
+      [
+        "v8.callFunction",
+        0
+      ],
+      [
+        "BlinkScheduler_PerformMicrotaskCheckpoint",
+        0
+      ]
+    ],
+    "byFunction": [
+      [
+        "(program) :0:0",
+        63.9
+      ]
+    ],
+    "bySource": []
+  },
+  {
+    "startMs": 831.6,
+    "ms": 70.4,
+    "byEvent": [
+      [
+        "Layout",
+        34
+      ],
+      [
+        "FunctionCall chunks/223dg2h-z508j.js O",
+        18.7
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        5.3
+      ],
+      [
+        "UpdateLayoutTree",
+        4.5
+      ],
+      [
+        "V8.BytecodeBudgetInterrupt",
+        3.1
+      ],
+      [
+        "V8.HandleInterrupts",
+        1.8
+      ],
+      [
+        "RunMicrotasks",
+        1.4
+      ],
+      [
+        "V8.DeoptimizeCode",
+        0.9
+      ],
+      [
+        "V8.StackGuard",
+        0.2
+      ],
+      [
+        "RunTask",
+        0.2
+      ],
+      [
+        "V8.BytecodeBudgetInterruptWithStackCheck",
+        0.1
+      ],
+      [
+        "v8.callFunction",
+        0.1
+      ]
+    ],
+    "byFunction": [
+      [
+        "measureScroll node_modules/motion-dom/src/projection/node/create-projection-node.ts:2458",
+        38.6
+      ],
+      [
+        "commitMutationEffectsOnFiber node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:10463",
+        3.5
+      ],
+      [
+        "renderWithHooks node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:4593",
+        2.7
+      ],
+      [
+        "updateSyncExternalStore node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:4946",
+        2.3
+      ],
+      [
+        "(program) :0:0",
+        2.3
+      ],
+      [
+        "(anonymous) node_modules/framer-motion/src/context/MotionContext/utils.ts:16",
+        2.1
+      ],
+      [
+        "(anonymous) src/components/arena/stage/ArenaStage.tsx:107",
+        1.3
+      ],
+      [
+        "(anonymous) node_modules/motion-dom/src/projection/node/create-projection-node.ts:500",
+        1.2
+      ],
+      [
+        "e9 node_modules/motion-dom/src/animation/waapi/utils/linear.ts:11",
+        0.9
+      ],
+      [
+        "applyProjectionStyles node_modules/motion-dom/src/projection/node/create-projection-node.ts:1987",
+        0.8
+      ],
+      [
+        "(anonymous) src/components/arena/ArenaCard.tsx:93",
+        0.7
+      ],
+      [
+        "(anonymous) node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:8328",
+        0.7
+      ],
+      [
+        "narrate src/lib/arena/narration.ts:62",
+        0.6
+      ],
+      [
+        "setValueForStyles node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js:1424",
+        0.6
+      ],
+      [
+        "jsxProd node_modules/next/dist/compiled/react/cjs/react-jsx-runtime.production.js:14",
+        0.5
+      ]
+    ],
+    "bySource": [
+      [
+        "src/components/arena/shared-model.ts",
+        43.8
+      ],
+      [
+        "src/components/arena/stage/ArenaStage.tsx",
+        6.2
+      ],
+      [
+        "src/lib/arena/story.ts",
+        0.9
+      ],
+      [
+        "src/components/arena/ArenaCard.tsx",
+        0.7
+      ],
+      [
+        "src/components/arena/stage/Hand.tsx",
+        0.6
+      ],
+      [
+        "src/lib/arena/narration.ts",
+        0.6
+      ],
+      [
+        "src/components/arena/stage/anchors.tsx",
+        0.3
+      ],
+      [
+        "src/components/arena/stage/StageCard.tsx",
+        0.3
+      ],
+      [
+        "src/components/arena/shared-sheets.tsx",
+        0.3
+      ],
+      [
+        "src/components/arena/stage/StageZones.tsx",
+        0.3
+      ],
+      [
+        "src/lib/arena/pace.ts",
+        0.2
+      ]
+    ]
+  },
+  {
+    "startMs": 17007.6,
+    "ms": 50.2,
+    "byEvent": [
+      [
+        "ThreadControllerImpl::RunTask",
+        46.7
+      ],
+      [
+        "Layerize",
+        0.8
+      ],
+      [
+        "Layout",
+        0.6
+      ],
+      [
+        "PrePaint",
+        0.6
+      ],
+      [
+        "UpdateLayoutTree",
+        0.5
+      ],
+      [
+        "Paint",
+        0.4
+      ],
+      [
+        "FunctionCall chunks/092ver8shwrli.js g",
+        0.2
+      ],
+      [
+        "Commit",
+        0.2
+      ],
+      [
+        "v8.callFunction",
+        0.1
+      ],
+      [
+        "FunctionCall chunks/223dg2h-z508j.js fF",
+        0.1
+      ],
+      [
+        "IntersectionObserverController::computeIntersections",
+        0.1
+      ],
+      [
+        "UpdateLayer",
+        0
+      ]
+    ],
+    "byFunction": [
+      [
+        "(program) :0:0",
+        50.3
+      ]
+    ],
+    "bySource": []
+  }
+]

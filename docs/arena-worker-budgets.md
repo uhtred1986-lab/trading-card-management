@@ -233,6 +233,129 @@ The table is generated from `BUDGETS` in `scripts/lib/worker-budgets.ts`; that f
 and `scripts/verify/arena-worker-budgets.ts` fails `npm test` if a budget there is not named on this
 page.
 
+## Board budgets (#782: the real app, not the O1 page)
+
+The budgets above were set on a page that runs the engine in a Worker and draws nothing. The offline
+release matrix (`npm run arena:offline-release`, `docs/arena-offline-release.md`) measures the real app:
+a production build, the React board, the installed SD15/SD5 pack and its art, cold-launched in airplane
+mode, 8 matches played to the end. On that page the O1 numbers for the main thread cannot hold (the board
+renders, lays out and paints), so the owner decided on 14 Oct 2026 to **re-derive the budgets measured on
+the real board, but keep "no long task over 150 ms" as a release blocker and fix it**. These are the
+**board budgets**: `BOARD_BUDGETS` in `scripts/lib/worker-budgets.ts`, the only ones
+`arena:offline-release` judges. They do not replace the O1 table, which still gates
+`arena:worker-bench` on its fixture page.
+
+> **Owner, 14 Oct 2026 (later the same day):** "under 500 ms is ok and a longer match start is also ok —
+> accept the current performance until I report slowness." The board's long-task ceilings are therefore
+> **500 ms** (`longTaskMaxMs`, `longTaskAtMatchStartMaxMs`); the rest of this section records the 150 ms
+> pass that came first. The O1 table above (a page with no UI) is unchanged.
+
+
+### Method
+
+- **Runs.** Five recordings of the whole desktop matrix (8 cases each), 14 Oct 2026, HeadlessChrome 141,
+  the 4-vCPU cloud container of `docs/arena-offline-release.md` section 2, one after another, all of the
+  same app code (the long-task fix below): runs 1 to 3 at `a5cc5b4` (`--record`) on a quiet host; runs 4
+  and 5 at `43c457a`, which only adds these budgets to the scripts and this page, as the first check of a
+  three-run derivation. Both of those **failed it** while the shared host was busier (the Worker's cold
+  start went from 115-122 to 129-148 ms): `frameIntervalMs.p95` 49.9 ms (three frames) in both, and in run
+  4 also 25 slow frames and 8 long tasks. A budget that fails on the host it is meant to gate is noise, not
+  a gate, so the derivation takes all five.
+- **Percentile.** A run's figure is computed exactly as the release script judges it: the worst of the 8
+  cases (longest task, most long tasks, most slow frames, largest heap), or for a latency the p95 of the
+  run's samples (`roundTripMs.p95`: the worst case's p95 of its human moves; `matchStartMs.p95`: the
+  nearest-rank p95 of the 8 cases, which with 8 samples is their max).
+- **Headroom.** The limit is the worst of the five runs times **1.25** for a time or a size and times
+  **1.5** for a count (a count of 4 or 25 moves more from run to run), rounded **up** to the next 10 ms,
+  1 MB or whole count.
+- **Only where the board misses.** Where the O1 limit already holds the board with that headroom, the O1
+  limit stays: the Worker's own figures (decision, cold start, Worker heap), which the board does not
+  change, and the slowest human move all keep theirs. No board budget is tighter than its O1 budget.
+- **Not derived.** `longTaskMaxMs` is **500 ms** (owner; first 150 ms) and `longTaskAtMatchStartMaxMs`, a long task
+  too, is held to the same 500 ms (O1 had 250). `frameIntervalMs.p95` is a whole number of 16.7 ms frames
+  plus 1 ms, because rAF intervals come in those steps: the runs measured two frames (33.4) or three
+  (49.9), so 51 ms; 1.25x would have allowed a fourth frame for nothing.
+- **Not measurable.** `userAgentMemoryBytes` is not a board budget: `performance.measureUserAgentSpecificMemory`
+  exists only on a cross-origin-isolated page (COOP/COEP) and the app is not one, so the browser does not
+  offer it. The run prints it as `NOT MEASURABLE` with that reason (`BOARD_UNMEASURABLE`); it is never
+  counted as a pass. The page heap (`mainHeapBytes`) and the Worker heap stand in for it.
+- **A missed budget still fails the run.** `OVER` or `NOT MEASURED` on any board budget makes
+  `arena:offline-release` exit 1 (unless `--record`, which still prints it).
+- **Desktop only.** `--phone-emulated` is judged against the same desktop budgets and misses several
+  (`docs/arena-offline-release.md` section 6); emulation gets no budgets of its own, and the physical
+  phone's are the owner's to record.
+
+### The five runs and the budgets
+
+| Metric | Budget | O1 budget | Runs 1 / 2 / 3 / 4 / 5 | Why |
+|---|---|---|---|---|
+| `roundTripMs.p95` | at most 70 ms | 50 ms | 39.5 / 42.8 / 47.5 / 47.9 / 51.6 | re-derived, 1.25x 51.6; still under the 100 ms "feels instant" ceiling |
+| `roundTripMs.max` | at most 250 ms | 250 ms | 76.1 / 74.2 / 75.0 / 104.2 / 71.9 | O1 kept |
+| `decisionMs.max` | at most 300 ms | 300 ms | 77.5 / 84.7 / 82.3 / 92.5 / 98.5 | O1 kept (the Worker's) |
+| `coldWorkerStartMs.p50` | at most 1500 ms | 1500 ms | 121.5 / 115.2 / 116.0 / 147.7 / 129.0 | O1 kept (the Worker's) |
+| `coldWorkerStartMs.max` | at most 6000 ms | 6000 ms | 140.5 / 153.7 / 142.8 / 159.3 / 149.9 | O1 kept (the Worker's) |
+| `matchStartMs.p95` | at most 770 ms | 450 ms | 566.3 / 535.7 / 527.5 / 609.4 / 536.3 | re-derived, 1.25x 609.4: Start click to the first board, the board's first render and layout included |
+| `frameIntervalMs.p95` | at most 51 ms | 34 ms | 33.4 / 33.4 / 33.4 / 49.9 / 49.9 | three frames plus 1 ms (see Method) |
+| `framesOver50Ms` | at most 38 | 6 | 13 / 11 / 14 / 25 / 21 | re-derived, 1.5x 25; a match has 1,400 to 2,500 frames |
+| `longTaskCount` | at most 12 | 3 | 4 / 4 / 4 / 8 / 5 | re-derived, 1.5x 8 |
+| `longTaskMaxMs` | at most 500 ms | 150 ms | 99 / 110 / 116 / 105 / 105 | owner: 500 ms until slowness is reported (first 150 ms) |
+| `longTaskAtMatchStartMaxMs` | at most 500 ms | 250 ms | 99 / 110 / 116 / 105 / 105 | held to the 500 ms ceiling |
+| `workerHeapRetainedBytes` | at most 16 MB | 16 MB | 7.4 / 7.2 / 7.2 / 7.3 / 7.3 MB | O1 kept (the Worker's) |
+| `workerHeapAfterBulkBytes` | at most 64 MB | 64 MB | 22.4 / 23.0 / 20.5 / 23.0 / 22.8 MB | O1 kept (one match, not 20) |
+| `mainHeapBytes` | at most 20 MB | 8 MB | 14.4 / 12.6 / 13.7 / 13.1 / 15.3 MB | re-derived, 1.25x 15.3 MB: the page heap WITH the React app |
+| `userAgentMemoryBytes` | not measurable | 64 MB | not measurable | see Method |
+
+Recordings: `docs/arena-backlog/evidence/782/release-after{1,2,3,4,5}.json`. The five-run budgets were then
+checked on fresh runs of the final code with no `--record`: the first stopped in its 7th case because the
+container's disk was 98% full and the Worker's IndexedDB writes were refused (its `roundTripMs.p95` was 71.6
+against 70); after freeing space the next exited 0 with every board budget met
+(`docs/arena-offline-release.md` section 6.1, `release-check-pass.json`). As before: if a run fails, run it
+once more; a real regression fails both on the same metric.
+
+### The long task, found and fixed
+
+A CDP trace and CPU profile of each match (`arena:offline-release -- --trace DIR`, source-mapped with a
+`PROFILE_SOURCEMAPS=1` build; `scripts/lib/long-task-trace.mts`) showed the longest task of every case is
+the board's **first render**, the React commit that mounts `ArenaStage` when the first snapshot arrives,
+with two more tasks of 60 to 80 ms right after it (the first frame's paint and raster, and the next render
+with the layout animations measuring the new cards). Inside the first render, before the fix (one traced
+case, 152 ms):
+
+| Under | ms | What |
+|---|---|---|
+| `StageZones.tsx` `useOverflows` (a layout effect reading `scrollWidth`) | 50 | the board's first layout, forced there; in it about 28 ms of font look-ups (`FontCache::GetFontPlatformData`, a Linux font-service round trip per face and size) |
+| `lighting.ts` `colourOf` → `board-words.ts` `dbsWords()` → `rulesets/dbs` `loadDbs()` | 25 | **parsing every DBS `.rules` file on the main thread** to read the board's words |
+| `ArenaCard.tsx` | 16 | the cards' first render |
+| React itself, motion, the rest | 60 | |
+
+The ruleset parse is the waste: it computed, in the browser, a constant table. **Fix:** `npm run
+arena:rulesets` now also writes `src/lib/arena/rulesets/dbs/board-words.ts`, `wordsFromRuleset` over the
+loaded definition, and `dbsWords()` returns it; `scripts/verify/board-words.ts` (`npm test`) fails when
+the table and `words.rules` disagree, so a renamed zone or a deleted phrase is still a broken build. Same
+words, same sentences, on either engine and online. The layout is the board's real first layout (it
+would happen in the next frame anyway, so moving it would only move the counter); its font cost is the
+platform's. Nothing in the engine, the Worker or the Snapshot contract changed.
+
+Before and after, desktop, three matrix runs each (24 matches):
+
+| | Before (`03a5aa3`) | After (`a5cc5b4`) |
+|---|---|---|
+| Longest task of a run | 108 / 122 / 137 ms | 99 / 110 / 116 ms |
+| First-render task, mean / median of 24 | 98 / 96 ms | 86 / 84 ms |
+| Long-task time per match, mean | 229 ms | 202 ms |
+| Emulated phone (EMULATION, 4x page throttle), longest task | 493 ms | 379 ms |
+
+The 202 ms of `docs/arena-offline-release.md` (#661) was the same build as "before" on a busier host;
+this host's three "before" runs stayed under 150 ms, so the margin, not a pass, is what changed on the
+desktop (runs 4 and 5 of the fixed code, on the busier host, stayed at 105 ms). Profiles, one traced
+matrix case pair each, source-mapped: `docs/arena-backlog/evidence/782/long-tasks-{before,after}-A-v-B-{first,second}.json`
+(every task of 50 ms or more: timeline self time, functions, and the app's source files it ran under; the
+raw traces are 80 to 120 MB each and are not kept). The before/after recordings of the whole matrix are
+`release-before{1,2,3}.json`, `release-after{1..5}.json` and, for the emulated phone, `release-{before,after}-phone.json`.
+In the traced profiles, a source file named under a motion frame-loop task (`shared-model.ts`) is a
+source-map artefact of a minified name; its functions are `motion-dom`'s projection (`measureScroll`,
+`updateLayout`), i.e. the layout animations measuring the new cards.
+
 ## Regression procedure
 
 1. `DATABASE_URL='' npm run arena:worker-bench -- --check --json worker-bench.json` on a machine with
@@ -334,7 +457,7 @@ against the engine-only `decisionMs.p95` of 30 ms**. The tool prints both as `in
   memory or throttling interfaces.
 - **UI cost.** React rendering, painting and animation are not part of this; for the board's frame
   behaviour see `docs/arena-perf-baseline.md` (`npm run arena:perf:browser`), which measures the
-  preview page.
+  preview page, and the board budgets above (#782), which `arena:offline-release` measures on the real app.
 - **Sustained play.** A 120-move game and 20 repeats; thermal and battery behaviour over long
   sessions is unmeasured.
 - **The local policy's own cost (#646).** The bench plays the #641 `pick()` moves, not a policy. The
