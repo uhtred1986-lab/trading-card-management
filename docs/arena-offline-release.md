@@ -12,12 +12,15 @@ blocker or still open. No budget was relabelled, and no emulation stands in for 
 | Desktop: both curated decks, both seats, each played to the END from a prepared app cold-launched with no network | **Plays: 8 of 8 matchups finish, each equal to the same match played in Node, decision for decision.** Card art shows from the installed pack (RB-1 resolved by #780: every image on every final board loads from a `blob:` URL, none addressed to a card CDN), so the bullet "no missing art" is **met on desktop**. |
 | Desktop: reload, Worker recovery, storage failure (in the prepared, offline app) | Pass (recovery case, section 5). |
 | Desktop: update | Partly. A failed shell update leaves the working shell; a pack update keeps a pinned pack (Node proof). A successful update to a NEWER build in a real browser was **not** run (open item OP-3). |
-| Desktop: latency, responsiveness and memory against the O1 budgets | **Budgets missed** (section 6): release blockers RB-2 to RB-5. Latency of the engine itself is inside every budget. |
+| Desktop: latency, responsiveness and memory | **Within the board budgets** (#782, section 6.1): no long task over 150 ms (longest 116 ms, the first render of the board, after the fix of #782), and every re-derived board budget met; `userAgentMemoryBytes` recorded as not measurable. Against the O1 no-UI budgets (section 6.2, history) the board missed RB-2 to RB-5. |
 | Physical phone | **OPEN. Nothing was measured on a phone.** Steps and an empty results table: section 8. |
-| Emulated phone (390 px touch viewport, 4x CPU throttle on the page) | Plays 8 of 8 and the recovery case, with more budgets missed. **Emulation, not a phone**; the throttle does not reach the Worker. |
+| Emulated phone (390 px touch viewport, 4x CPU throttle on the page) | Plays 8 of 8 and the recovery case; **misses the desktop board budgets** (longest task 379 ms, match start 1,163 ms, section 6.1). **Emulation, not a phone**; the throttle does not reach the Worker. |
 
-Release blockers: RB-1 (art) is **resolved** (#780, section 5.2); RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
-plays), RB-4 (main-thread heap), RB-5 (memory budget unmeasurable). OP-1 to OP-5 are open items, not failures.
+Release blockers: RB-1 (art) is **resolved** (#780, section 5.2). RB-2 (match start), RB-3 (main-thread long tasks and frames while the board
+plays) and RB-4 (main-thread heap) are **resolved on the desktop** by #782: the longest task is cut and stays under the owner's
+150 ms, and the other budgets were re-derived on the real board and are met (section 6.1). RB-5 is **recorded, not passed**:
+`userAgentMemoryBytes` cannot be measured on this page, and is printed as not measurable with the reason. The physical phone
+(OP-2) is still open, and the emulated phone misses the desktop board budgets. OP-1 to OP-5 are open items, not failures.
 
 ## 2. Versions and machine
 
@@ -75,8 +78,11 @@ env -u DATABASE_URL npm run arena:worker-bench -- --check # the O1 fixture gate,
    and plays to the end through the board's own `act` and `advance`. It compares the end with the same match played
    in Node: replay hash, final revision, the device's journal decision for decision, one request id per human move;
 4. runs the recovery case (section 5);
-5. prints every figure and compares it with the recorded O1 budgets (`scripts/lib/worker-budgets.ts`). A budget it
-   cannot measure is `NOT MEASURED`. An `OVER` is a failure unless `--record` is given, and is printed either way.
+5. prints every figure and compares it with the **board budgets** (#782: `BOARD_BUDGETS` in `scripts/lib/worker-budgets.ts`,
+   derived in `docs/arena-worker-budgets.md` "Board budgets"). An `OVER` or a budget it could not measure (`NOT MEASURED`) is a
+   failure unless `--record` is given, and is printed either way; `userAgentMemoryBytes` is printed `NOT MEASURABLE` with its reason
+   and is never a pass. `--trace DIR` also records a CDP trace and CPU profile of each case and a breakdown of every task of 50 ms
+   or more (for attribution; tracing slows the page, so a traced run's figures are not for the budgets).
 
 ## 5. Desktop results
 
@@ -166,7 +172,53 @@ items (section 8).
 | `arena:local-ownership-browser` | **one run failed one check, the next passed** (49 s each): `7. C (the owner) released the lease on dispose`. 31 other checks passed in the failing run. Treat as a flake until an owner of #654 shows otherwise (OP-4) |
 | `arena:worker-bench -- --check` | 46 budgets checked, 0 violations (the O1 fixture gate, still green on this Chrome) |
 
-## 6. Budgets (the O1 table, `docs/arena-worker-budgets.md`)
+## 6. Budgets
+
+### 6.1 The board budgets (#782, 14 Oct 2026): the gate from now on
+
+The owner decided on 14 Oct 2026 to re-derive the budgets on the real board and to keep "no long task over 150 ms"
+as a release blocker and fix it. What #782 did, in short (the full method, runs and profile are in
+`docs/arena-worker-budgets.md` "Board budgets"):
+
+- **The long task.** A CDP trace and profile (`--trace`) showed the longest task of every case is the board's first
+  render. A quarter of it was the board parsing the whole DBS ruleset on the main thread to read its words
+  (`dbsWords()`); that table is now generated with the ruleset (`npm run arena:rulesets`), so the browser never parses
+  it. Desktop, three matrix runs each: longest task 108 / 122 / 137 ms before, 99 / 110 / 116 ms after; first-render
+  task mean 98 ms before, 86 ms after; emulated phone 493 ms before, 379 ms after. The rest of that task is the
+  board's real first layout (with the platform's font look-ups) and React's first render of it.
+- **The budgets.** Re-derived from five desktop runs (worst run x1.25 for a time or size, x1.5 for a count), only
+  where the board misses the O1 limit; `longTaskMaxMs` stays 150 ms. `userAgentMemoryBytes` is recorded as not
+  measurable (the app is not cross-origin isolated), never as a pass.
+
+**Check run** (`main` + #782 at `42e3a8c`, built and run with that `GITHUB_SHA`, no `--record`): exit 0, every check
+passed, 8 of 8 matchups and the recovery case equal to Node. A run just before it, on the same build, **stopped** in
+its 7th case: the container's disk was 98% full (other sessions' worktrees; 955 MB free) and the match Worker's
+IndexedDB writes were refused ("this game could not be saved on this device"), and in that run `roundTripMs.p95`
+was 71.6 ms against 70; after freeing 700 MB of this session's own trace files the rerun passed. Both are in the
+evidence (`release-check-pass.json`, `release-check-disk-full.json`).
+
+| Board budget | Limit | Desktop check run | Emulated phone (EMULATION, `a5cc5b4`) |
+|---|---|---|---|
+| `roundTripMs.p95` | 70 ms | 42.4 ok | 65.3 ok |
+| `roundTripMs.max` | 250 ms | 57.8 ok | 80.5 ok |
+| `decisionMs.max` | 300 ms | 115.7 ok | 210 ok |
+| `coldWorkerStartMs.p50` / `.max` | 1500 / 6000 ms | 125.3 / 143.3 ok | 122 / 139 ok |
+| `matchStartMs.p95` | 770 ms | 609.8 ok | **1162.6 OVER** |
+| `frameIntervalMs.p95` | 51 ms | 33.4 ok | 50.1 ok |
+| `framesOver50Ms` | 38 | 19 ok | **90 OVER** |
+| `longTaskCount` | 12 | 5 ok | **44 OVER** |
+| `longTaskMaxMs` | 150 ms | 116 ok | **379 OVER** |
+| `longTaskAtMatchStartMaxMs` | 150 ms | 116 ok | **379 OVER** |
+| `workerHeapRetainedBytes` | 16 MB | 7.3 MB ok | 7.3 MB ok |
+| `workerHeapAfterBulkBytes` | 64 MB | 20.2 MB ok | 23.1 MB ok |
+| `mainHeapBytes` | 20 MB | 13.5 MB ok | 14.3 MB ok |
+| `userAgentMemoryBytes` | not measurable | not measurable | not measurable |
+
+The emulated phone is judged against the desktop budgets and misses them: emulation gets no budgets of its own, and
+what a phone must meet is the owner's to record on the physical phone (section 8). Evidence:
+`docs/arena-backlog/evidence/782/`.
+
+### 6.2 History: the O1 table applied unchanged (#661, before #782)
 
 Rule from that page: a budget the tool cannot measure is a violation, not a pass. The budgets were set on a bare
 page that runs the engine in a Worker (no React, no board). They are applied here unchanged to the real app. Where
@@ -204,6 +256,7 @@ upper bound, not the page's footprint); one viewer's snapshot up to 120.8 KB (th
 45 to 74 ms (info against the engine-only 30 ms); cold launch to the shell 178 to 242 ms and to a startable form
 389 to 483 ms on the desktop (1.4 to 2.0 s emulated); a whole match 27 to 49 s of wall time at the driver's pace.
 
+(Superseded on the desktop by 6.1: #782 cut the longest task and re-derived these budgets on the board.)
 Release blockers from this table (each stays a blocker until a rerun on a quiet machine, or a re-derived budget
 the owner accepts, says otherwise):
 
@@ -295,11 +348,11 @@ table, and keep the acceptance bullets about a phone open until every row has a 
 
 | Bullet | State |
 |---|---|
-| Prepared app cold-launches in airplane mode and finishes every supported matchup in both seats with no server/model requirement, missing art or unresolved required mechanics | **Open (desktop bullet met; phone and budgets outstanding).** Finishes: yes, 8 of 8 (desktop). Server/model need: none. Unresolved mechanics: none refused. **Missing art: none** (RB-1 resolved by #780: 8 of 8 final boards and the recovery case's board load every image from the pack store). Still **Open** for the budget blockers RB-2 to RB-5 and the physical phone. |
-| Phone and desktop latency/responsiveness/memory meet the recorded budgets or remain explicit release blockers; emulator results do not substitute for a physical phone | **Open.** Desktop: blockers RB-2 to RB-5. Phone: not measured (section 8). |
+| Prepared app cold-launches in airplane mode and finishes every supported matchup in both seats with no server/model requirement, missing art or unresolved required mechanics | **Open (desktop bullet met; phone and budgets outstanding).** Finishes: yes, 8 of 8 (desktop). Server/model need: none. Unresolved mechanics: none refused. **Missing art: none** (RB-1 resolved by #780: 8 of 8 final boards and the recovery case's board load every image from the pack store). Budgets on the desktop: met since #782 (section 6.1). Still **Open** for the physical phone. |
+| Phone and desktop latency/responsiveness/memory meet the recorded budgets or remain explicit release blockers; emulator results do not substitute for a physical phone | **Open.** Desktop: the board budgets are met (#782, section 6.1; `userAgentMemoryBytes` recorded as not measurable). Emulated phone: misses them (labelled emulation). Physical phone: not measured (section 8). |
 | Publish versions, devices, repeatable steps and evidence for normal/failure cases; missing hardware stays open; full catalog/Fusion World not claimed | Published here for the desktop; phone rows open; no full-catalog or Fusion World claim. |
 | Focused scenario checks plus typecheck, lint, test, build | See the PR. Database-backed fuzz and live-device checks are not run (unavailable to an agent) and are not claimed. |
-| Attach scenario-specific evidence and limitations; link an owning issue for a blocker | Evidence JSON: `docs/arena-backlog/evidence/661/`. RB-1 was owned by #780 (resolved); no existing issue owns RB-2 to RB-5, the PR proposes them to the owner. |
+| Attach scenario-specific evidence and limitations; link an owning issue for a blocker | Evidence JSON: `docs/arena-backlog/evidence/661/`. RB-1 was owned by #780 (resolved); RB-2 to RB-5 by #782 (desktop resolved, RB-5 recorded as not measurable; evidence `docs/arena-backlog/evidence/782/`). |
 
 Evidence files (`docs/arena-backlog/evidence/661/`): `desktop-offline-2026-10-14.json` (5.1, 5.3, the "Desktop,
 offline" column), `phone-emulated-offline-2026-10-14.json`, and for the "art through the network" columns

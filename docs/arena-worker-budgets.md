@@ -300,8 +300,11 @@ the real board, but keep "no long task over 150 ms" as a release blocker and fix
 | `userAgentMemoryBytes` | not measurable | 64 MB | not measurable | see Method |
 
 Recordings: `docs/arena-backlog/evidence/782/release-after{1,2,3,4,5}.json`. The five-run budgets were then
-checked on a sixth, fresh run of the final code with no `--record`, which must exit 0
-(`docs/arena-offline-release.md` section 6).
+checked on fresh runs of the final code with no `--record`: the first stopped in its 7th case because the
+container's disk was 98% full and the Worker's IndexedDB writes were refused (its `roundTripMs.p95` was 71.6
+against 70); after freeing space the next exited 0 with every board budget met
+(`docs/arena-offline-release.md` section 6.1, `release-check-pass.json`). As before: if a run fails, run it
+once more; a real regression fails both on the same metric.
 
 ### The long task, found and fixed
 
