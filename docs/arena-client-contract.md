@@ -965,3 +965,16 @@ information. The position, count and mode remain usable for public resource sele
 named by a positional alias (`?p1:energy:2`, §3.7) rather than its instance id, which is a decklist
 position and would name it. Revealed cards retain their normal catalogue identity. This is
 a projection correction; it does not reveal additional areas or change cost timing.
+
+`Snapshot.choicePreviews?` (issue #798) is an optional array of
+`{ action: number, skillIndex: number, state: "available" | "empty" | "notEvaluated",
+candidates?: string[], rejected?: { card: string, reason: string }[], reason?: string }`.
+`action` indexes that same viewer's `legal` array, including separate payment offers. The
+rules engine reads the first independent target choice of a legal hand play or Extra
+activation before committing it. `available` names current legal candidates;
+`empty` explains why none is currently selectable; `notEvaluated` makes no
+prediction. An optional “up to” choice remains a legal action even when empty.
+The preview is advisory: responses and pending effects can change the board before
+the choice resolves. All instance ids pass through the usual snapshot concealment,
+and a non-actor receives no private hand play preview. This addition does not
+change contract version 2.

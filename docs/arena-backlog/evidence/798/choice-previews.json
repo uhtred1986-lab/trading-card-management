@@ -1,0 +1,930 @@
+{
+  "source": "scripts/verify/play-choice-preview-798.ts",
+  "scenarios": [
+    {
+      "name": "BT11-011: no red Unison",
+      "card": {
+        "id": "p1#18",
+        "cardId": "BT11-011",
+        "name": "Vegeta, Saiyan Youth",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "2",
+        "comboCost": 0,
+        "comboPower": 5000,
+        "keywords": [],
+        "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+        "reading": "if your leader is Red: choose up to 1 red Unison Card in your Unison Area, add 1 marker",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "auto",
+            "category": "automatic",
+            "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+            "tags": [
+              "Auto"
+            ],
+            "zone": "hand",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "notEvaluated",
+            "costPreview": {
+              "state": "notApplicable"
+            },
+            "pending": false
+          }
+        ]
+      },
+      "you": {
+        "leader": {
+          "id": "p1#0",
+          "cardId": "L-RED",
+          "name": "L-RED",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [
+            "Awaken"
+          ],
+          "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+          "reading": "draw 1",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "manual",
+              "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+              "tags": [
+                "Awaken"
+              ],
+              "zone": "leader",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "refused",
+              "why": [
+                {
+                  "kind": "condition",
+                  "text": "When your life is at 4 or less"
+                }
+              ],
+              "costPreview": {
+                "state": "incomplete"
+              }
+            }
+          ]
+        },
+        "unison": null
+      },
+      "them": {
+        "leader": {
+          "id": "p2#0",
+          "cardId": "L-BLUE",
+          "name": "L-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        "unison": null,
+        "battle": []
+      },
+      "legal": [
+        {
+          "action": {
+            "type": "play",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Play Vegeta, Saiyan Youth",
+          "cost": {
+            "energy": 2,
+            "orbs": {
+              "Red": 1
+            },
+            "describe": "2 energy (1 red)"
+          },
+          "index": 1
+        }
+      ],
+      "choicePreviews": [
+        {
+          "action": 1,
+          "skillIndex": 0,
+          "state": "empty",
+          "candidates": [],
+          "rejected": [
+            {
+              "card": "p1#0",
+              "reason": "Requires a Unison Card."
+            }
+          ],
+          "reason": "No eligible target for up to 1 red Unison Card in your Unison Area."
+        }
+      ],
+      "rejected": [
+        {
+          "action": {
+            "type": "charge",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Charge Vegeta, Saiyan Youth",
+          "why": [
+            {
+              "kind": "oncePerTurn",
+              "what": "charge"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "growUnison",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Grow Unison Vegeta, Saiyan Youth",
+          "why": [
+            {
+              "kind": "target",
+              "reason": "no Unison Card in play to grow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BT11-011: red Unison",
+      "card": {
+        "id": "p1#18",
+        "cardId": "BT11-011",
+        "name": "Vegeta, Saiyan Youth",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "2",
+        "comboCost": 0,
+        "comboPower": 5000,
+        "keywords": [],
+        "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+        "reading": "if your leader is Red: choose up to 1 red Unison Card in your Unison Area, add 1 marker",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "auto",
+            "category": "automatic",
+            "text": "[Auto] If your Leader Card is red: When this card is played from your hand, choose up to 1 of your red Unison Cards and add a marker to it.",
+            "tags": [
+              "Auto"
+            ],
+            "zone": "hand",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "notEvaluated",
+            "costPreview": {
+              "state": "notApplicable"
+            },
+            "pending": false
+          }
+        ]
+      },
+      "you": {
+        "leader": {
+          "id": "p1#0",
+          "cardId": "L-RED",
+          "name": "L-RED",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [
+            "Awaken"
+          ],
+          "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+          "reading": "draw 1",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "manual",
+              "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+              "tags": [
+                "Awaken"
+              ],
+              "zone": "leader",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "refused",
+              "why": [
+                {
+                  "kind": "condition",
+                  "text": "When your life is at 4 or less"
+                }
+              ],
+              "costPreview": {
+                "state": "incomplete"
+              }
+            }
+          ]
+        },
+        "unison": {
+          "id": "p1#33",
+          "cardId": "RUNI798",
+          "name": "RUNI798",
+          "power": 5000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 1,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      },
+      "them": {
+        "leader": {
+          "id": "p2#0",
+          "cardId": "L-BLUE",
+          "name": "L-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        "unison": null,
+        "battle": []
+      },
+      "legal": [
+        {
+          "action": {
+            "type": "play",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Play Vegeta, Saiyan Youth",
+          "cost": {
+            "energy": 2,
+            "orbs": {
+              "Red": 1
+            },
+            "describe": "2 energy (1 red)"
+          },
+          "index": 1
+        }
+      ],
+      "choicePreviews": [
+        {
+          "action": 1,
+          "skillIndex": 0,
+          "state": "available",
+          "candidates": [
+            "p1#33"
+          ],
+          "rejected": [
+            {
+              "card": "p1#0",
+              "reason": "Requires a Unison Card."
+            }
+          ]
+        }
+      ],
+      "rejected": [
+        {
+          "action": {
+            "type": "charge",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Charge Vegeta, Saiyan Youth",
+          "why": [
+            {
+              "kind": "oncePerTurn",
+              "what": "charge"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "growUnison",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Grow Unison Vegeta, Saiyan Youth",
+          "why": [
+            {
+              "kind": "cardType",
+              "needs": "a copy of the Unison Card in play",
+              "card": "p1#18"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BT6-025: 20k allowed, 25k and Barrier refused",
+      "card": {
+        "id": "p1#18",
+        "cardId": "BT6-025",
+        "name": "Transcendent Strike",
+        "power": null,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "1",
+        "comboCost": null,
+        "comboPower": null,
+        "keywords": [],
+        "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+        "reading": "if your leader is Red: choose up to 1 Battle Card with 20000 power or less in your opponent's Battle Area, KO the chosen cards",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "activate:main",
+            "category": "manual",
+            "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+            "tags": [
+              "Activate: Main"
+            ],
+            "zone": "hand",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "timing": "main",
+            "availability": "offered",
+            "costPreview": {
+              "state": "known",
+              "offers": [
+                {
+                  "label": "Activate Transcendent Strike: Choose up to 1 of your opponent's Battle",
+                  "cost": {
+                    "energy": 1,
+                    "orbs": {
+                      "Red": 1
+                    },
+                    "describe": "1 energy (1 red)"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "you": {
+        "leader": {
+          "id": "p1#0",
+          "cardId": "L-RED",
+          "name": "L-RED",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [
+            "Awaken"
+          ],
+          "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+          "reading": "draw 1",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "manual",
+              "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+              "tags": [
+                "Awaken"
+              ],
+              "zone": "leader",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "refused",
+              "why": [
+                {
+                  "kind": "condition",
+                  "text": "When your life is at 4 or less"
+                }
+              ],
+              "costPreview": {
+                "state": "incomplete"
+              }
+            }
+          ]
+        },
+        "unison": null
+      },
+      "them": {
+        "leader": {
+          "id": "p2#0",
+          "cardId": "L-BLUE",
+          "name": "L-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        "unison": null,
+        "battle": [
+          {
+            "id": "p2#8",
+            "cardId": "SMALL798",
+            "name": "SMALL798",
+            "power": 10000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "p2#1",
+            "cardId": "EXACT798",
+            "name": "EXACT798",
+            "power": 20000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "p2#42",
+            "cardId": "BIG798",
+            "name": "BIG798",
+            "power": 25000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "p2#24",
+            "cardId": "BARRIER798",
+            "name": "BARRIER798",
+            "power": 10000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [
+              "Barrier"
+            ],
+            "text": "[Barrier]",
+            "reading": "",
+            "referee": false,
+            "abilities": [
+              {
+                "skillIndex": 0,
+                "kind": "keyword",
+                "category": "keyword",
+                "text": "[Barrier]",
+                "tags": [
+                  "Barrier"
+                ],
+                "zone": "battle",
+                "owner": "p2",
+                "controller": "p2",
+                "origin": "printed",
+                "availability": "notEvaluated",
+                "costPreview": {
+                  "state": "notApplicable"
+                }
+              }
+            ]
+          },
+          {
+            "id": "?p2:battle:4",
+            "cardId": "",
+            "name": "Face-down card",
+            "power": null,
+            "colors": [],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": true,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": null,
+            "comboCost": null,
+            "comboPower": null,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          }
+        ]
+      },
+      "legal": [
+        {
+          "action": {
+            "type": "activate",
+            "player": "p1",
+            "card": "p1#18",
+            "skill": 0
+          },
+          "label": "Activate Transcendent Strike: Choose up to 1 of your opponent's Battle",
+          "cost": {
+            "energy": 1,
+            "orbs": {
+              "Red": 1
+            },
+            "describe": "1 energy (1 red)"
+          },
+          "index": 1
+        }
+      ],
+      "choicePreviews": [
+        {
+          "action": 1,
+          "skillIndex": 0,
+          "state": "available",
+          "candidates": [
+            "p2#8",
+            "p2#1"
+          ],
+          "rejected": [
+            {
+              "card": "p2#0",
+              "reason": "Requires a Battle Card."
+            },
+            {
+              "card": "p2#42",
+              "reason": "Power exceeds 20000."
+            },
+            {
+              "card": "p2#24",
+              "reason": "Barrier prevents this card being chosen."
+            }
+          ]
+        }
+      ],
+      "rejected": [
+        {
+          "action": {
+            "type": "charge",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Charge Transcendent Strike",
+          "why": [
+            {
+              "kind": "oncePerTurn",
+              "what": "charge"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "growUnison",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Grow Unison Transcendent Strike",
+          "why": [
+            {
+              "kind": "target",
+              "reason": "no Unison Card in play to grow"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BT6-025: blue Leader cannot activate",
+      "card": {
+        "id": "p1#18",
+        "cardId": "BT6-025",
+        "name": "Transcendent Strike",
+        "power": null,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "1",
+        "comboCost": null,
+        "comboPower": null,
+        "keywords": [],
+        "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+        "reading": "if your leader is Red: choose up to 1 Battle Card with 20000 power or less in your opponent's Battle Area, KO the chosen cards",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "activate:main",
+            "category": "manual",
+            "text": "[Activate: Main] If your Leader Card is red: Choose up to 1 of your opponent's Battle Cards with 20000 power or less and KO it.",
+            "tags": [
+              "Activate: Main"
+            ],
+            "zone": "hand",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "timing": "main",
+            "availability": "refused",
+            "why": [
+              {
+                "kind": "condition",
+                "text": "If your Leader Card is red"
+              }
+            ],
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
+      },
+      "you": {
+        "leader": {
+          "id": "p1#0",
+          "cardId": "L-BLUE",
+          "name": "L-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        "unison": null
+      },
+      "them": {
+        "leader": {
+          "id": "p2#0",
+          "cardId": "L-BLUE",
+          "name": "L-BLUE",
+          "power": 10000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": null,
+          "comboCost": null,
+          "comboPower": 0,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        "unison": null,
+        "battle": [
+          {
+            "id": "p2#8",
+            "cardId": "EXACT798",
+            "name": "EXACT798",
+            "power": 20000,
+            "colors": [
+              "Blue"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          }
+        ]
+      },
+      "legal": [],
+      "choicePreviews": [],
+      "rejected": [
+        {
+          "action": {
+            "type": "charge",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Charge Transcendent Strike",
+          "why": [
+            {
+              "kind": "oncePerTurn",
+              "what": "charge"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "growUnison",
+            "player": "p1",
+            "card": "p1#18"
+          },
+          "label": "Grow Unison Transcendent Strike",
+          "why": [
+            {
+              "kind": "target",
+              "reason": "no Unison Card in play to grow"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "activate",
+            "player": "p1",
+            "card": "p1#18",
+            "skill": 0
+          },
+          "label": "Activate Transcendent Strike: Choose up to 1 of your opponent's Battle",
+          "why": [
+            {
+              "kind": "condition",
+              "text": "If your Leader Card is red"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
