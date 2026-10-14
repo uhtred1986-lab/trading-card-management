@@ -36,8 +36,10 @@ type Ask = null | "pack" | "saves" | "all";
 const ORDER: Part[] = ["game files", "deck pack", "card artwork"];
 const LABEL: Record<Part, string> = { "game files": "The game", "deck pack": "The decks", "card artwork": "Card artwork" };
 
-export function OfflinePreparation({ store, revision, pointerPack, onChanged, onReady, forgetPointer }: {
+export function OfflinePreparation({ store, revision, pointerPack, onChanged, onReady, forgetPointer, deviceKey }: {
   store: PackStore;
+  /** Changes whenever the page saw the device's packs change (the ready versions' hashes). */
+  deviceKey?: string;
   /** The game version this page runs (null: a development build, which has no pack). */
   revision: string | null;
   /** The pack hash the page's saved-match pointer names, if any. */
@@ -73,6 +75,13 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
       return null;
     }
   }, [store]);
+
+  // A pack installed elsewhere on the page (a file, #658) changes what is on the device: read it again.
+  useEffect(() => {
+    if (!deviceKey) return;
+    const t = setTimeout(() => void read(), 0);
+    return () => clearTimeout(t);
+  }, [deviceKey, read]);
 
   useEffect(() => {
     let live = true;

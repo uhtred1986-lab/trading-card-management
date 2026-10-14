@@ -19,15 +19,10 @@
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import { and, eq } from "drizzle-orm";
 import * as schema from "../../src/db/schema.ts";
-import type { Db } from "../../src/db/index.ts";
-import { DECKS, loadSnapshot, resolveDeck } from "../arena-deck-audit.mts";
 import { mastersPackInput, buildMastersPack } from "../build-arena-offline-pack.mts";
-import { draftCards } from "../../src/lib/arena/draft.ts";
+import { liveFixture } from "./arena-offline-decks-fixture.mts";
 import { rulesFor } from "../../src/lib/arena/rules-store.ts";
 import { defsForCards } from "../../src/lib/arena/load.ts";
 import { OfflineDeckRefused, buildDeviceOfflinePack, checkOfflineDecks, parseDeckIds } from "../../src/lib/arena/offline-decks.ts";
@@ -49,32 +44,8 @@ import { inProcessChannel } from "./arena-local-worker-channel.ts";
 import { playLoop, requestIds } from "./arena-local-storage-driver.ts";
 
 const REV = "a793000000000000000000000000000000000793";
-const client = new PGlite();
-const db = drizzle(client, { schema }) as unknown as Db;
-for (const file of fs.readdirSync("drizzle").filter((f) => f.endsWith(".sql")).sort()) {
-  for (const stmt of fs.readFileSync(path.join("drizzle", file), "utf8").split("--> statement-breakpoint")) if (stmt.trim()) await client.exec(stmt);
-}
+const { client, db, snapshot, owner: OWNER, specA, specB, addDeck } = await liveFixture();
 
-// ── the catalog: the committed snapshot's cards, as a sync would have stored them ─────────────────
-const snapshot = loadSnapshot();
-const sets = [...new Set(snapshot.cards.map((c) => c.setCode))];
-await db.insert(schema.cardSets).values(sets.map((code, i) => ({ code, name: code, line: "masters", sortKey: i, game: "dbs" }))).onConflictDoNothing();
-await db.insert(schema.cards).values(snapshot.cards.map((c) => ({ ...c }) as typeof schema.cards.$inferInsert)).onConflictDoNothing();
-// The owner's specified costs (migration 0049 put them in the live database).
-const OWNER = JSON.parse(fs.readFileSync("docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json", "utf8")).specifiedCosts as Record<string, string>;
-for (const [id, cost] of Object.entries(OWNER)) await db.update(schema.cards).set({ specifiedCost: cost }).where(eq(schema.cards.id, id));
-// Rule records, the drafter's way (the only module that compiles; the pack never does).
-await draftCards(db, snapshot.cards.map((c) => c.id));
-// Drafts the compiler read fully are what a person would confirm; confirm them, as the review queue does.
-await db.update(schema.cardRules).set({ status: "confirmed" }).where(eq(schema.cardRules.status, "draft"));
-
-async function addDeck(owner: string | null, name: string, spec: (typeof DECKS)[number], game = "dbs"): Promise<number> {
-  const [d] = await db.insert(schema.decks).values({ name, owner, game }).returning({ id: schema.decks.id });
-  const { rows } = resolveDeck(spec, snapshot.cards);
-  await db.insert(schema.deckCards).values(rows.map((r) => ({ deckId: d.id, cardId: r.card.id, zone: r.zone, quantity: r.quantity })));
-  return d.id;
-}
-const [specA, specB] = [DECKS.find((d) => d.key === "A")!, DECKS.find((d) => d.key === "B")!];
 const annRed = await addDeck("ann", "Ann's Crimson", specB);
 const annPride = await addDeck("ann", "Ann's Pride", specA);
 const annRed2 = await addDeck("ann", "Ann's Crimson II", specB);

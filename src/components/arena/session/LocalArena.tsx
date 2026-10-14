@@ -304,6 +304,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
             store={installed.store}
             revision={shell!.revision}
             pointerPack={pointer?.packHash ?? null}
+            deviceKey={installed.versions?.map((v) => `${v.hash}:${v.active ? 1 : 0}`).join(",")}
             onChanged={installed.refresh}
             // A new version of the device's pack (a deck added or taken off, #793) is chosen at once.
             onReady={(hash) => { if (facts?.hash !== hash) void chooseInstalled(hash, true); }}
