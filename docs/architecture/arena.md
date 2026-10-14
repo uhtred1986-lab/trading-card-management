@@ -194,8 +194,21 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `dbs-arena-local`) are never pruned or removed. Reads (`load`, `art`, `artUrls`) are network-free
   and re-verify. `public/sw.js` deletes only its own `dbs-card-art-*` caches (`CACHE_PREFIXES`).
   Proofs: `scripts/verify/arena-pack-store.mts` (`npm test`, fake IndexedDB) and
-  `npm run arena:pack-store-browser` (Chrome's IndexedDB, decoder and Web Crypto). Not yet wired to
-  the board: #659/#660 replace `/arena/local`'s file picker with it.
+  `npm run arena:pack-store-browser` (Chrome's IndexedDB, decoder and Web Crypto). The offline shell
+  reads it; `/arena/local` keeps its file picker until #660.
+- **The offline shell** (#659, `src/lib/arena/local/shell.ts`): `/arena/offline` is "Play on this
+  device" over the installed packs, prerendered at build (no cookie, no viewer, no data) and exempt
+  from sign-in with its list `/arena/offline/shell.json` (this build's `/_next/static/` files, the
+  manifest, its icons, and the interpreter revision). `public/sw.js?v=<version>` precaches the page
+  (fetched with `credentials: "omit"`) and the list into `dbs-arena-shell-<version>`, meta record
+  last; a failed install deletes only its partial cache. No `skipWaiting`/`clients.claim`: a new
+  shell waits until every window is closed. Activation keeps the current and the newest previous
+  shell (`/arena/offline?shell=<version>`, for a saved match of that revision). Offline, `/` and
+  `/arena*` navigations redirect to the shell. A pack whose `compatibility.runtimeRevision` is not
+  the shell's is refused at install and at start (`shellRefusal`). Proofs:
+  `scripts/verify/arena-offline-shell.mts` (`npm test`: the worker on a fake Cache Storage, the
+  proxy matcher) and `npm run arena:offline-shell-browser` (a production build, a cold Chrome with
+  the server stopped). The board still shows art by its catalog URLs, not the pack store's images.
 - **The rules language** (`src/lib/arena/lang/`, `docs/arena-rules-language.md`): one closed
   grammar for a card's rule. `npm test` holds it to `parse(print(x)) === x` for every op,
   condition, selector and filter. Doc: `docs/arena-code-map.md`.

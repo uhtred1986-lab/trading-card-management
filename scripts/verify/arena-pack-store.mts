@@ -299,7 +299,8 @@ async function v1StillServes(what: string) {
   const names = ["dbs-card-art-v0", "dbs-card-art-v1", `${CACHE_PREFIXES.packs}masters`, `${CACHE_PREFIXES.shell}v3`, "workbox-precache", "other-app"];
   const deleted: string[] = [];
   const sandbox = {
-    self: { addEventListener: (t: string, f: (e: unknown) => void) => { listeners[t] = f; }, skipWaiting() {}, clients: { claim: async () => {} } },
+    // Registered without a shell version (#659): the worker owns no shell, so it deletes none.
+    self: { location: new URL("https://cards.test/sw.js"), addEventListener: (t: string, f: (e: unknown) => void) => { listeners[t] = f; }, skipWaiting() {}, clients: { claim: async () => {} } },
     caches: { keys: async () => names, delete: async (n: string) => { deleted.push(n); return true; } },
     URL, Response, fetch: () => { throw new Error("no fetch"); },
   };

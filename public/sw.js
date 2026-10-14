@@ -194,11 +194,17 @@ async function completeShells() {
   return out.sort((a, b) => (a.meta.version === VERSION ? -1 : b.meta.version === VERSION ? 1 : b.meta.installedAt - a.meta.installedAt));
 }
 
-/** A static file: from any complete shell (an older shell's page still needs its own chunks), else the network, uncached. */
+/**
+ * A static file: from any complete shell (an older shell's page still needs its own chunks), else the
+ * network, uncached. The cached response is re-wrapped: a Worker takes its `location` from the
+ * response's URL, and the cached one has lost the request's query and fragment — where Turbopack's
+ * worker bootstrap reads its `#params=` (without them the match Worker dies: "Missing worker
+ * bootstrap config"). A constructed response has no URL, so the Worker keeps the one it asked for.
+ */
 async function fromShells(request, path) {
   for (const s of await completeShells()) {
     const hit = await (await caches.open(s.name)).match(path);
-    if (hit) return hit;
+    if (hit) return new Response(hit.body, { status: hit.status, statusText: hit.statusText, headers: hit.headers });
   }
   return fetch(request);
 }

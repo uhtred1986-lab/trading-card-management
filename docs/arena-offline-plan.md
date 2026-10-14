@@ -72,7 +72,7 @@ Audit two curated Masters decks early and package all required definitions, exec
 | #649 (O4-01) | Audit two curated Masters decks and map offline blockers (delivered as [`arena-offline-deck-audit.md`](arena-offline-deck-audit.md): decks, blocker register and the decision kinds #650 needs; qualification stays blocked) | Ready now |
 | #655 (O4-02) | Build complete versioned offline deck packs (format and builder delivered: `src/lib/arena/local/pack.ts`, `scripts/build-arena-offline-pack.mts`; the SD15/SD5 pack validates and stays unplayable until the audit's blockers close) | #649, #640 |
 | #658 (O4-03) | Install, verify and update offline packs atomically (store delivered: `src/lib/arena/local/pack-store.ts`; proofs `scripts/verify/arena-pack-store.mts` and `npm run arena:pack-store-browser`; wiring into `/arena/local` is #659/#660) | #655, #653 |
-| #659 (O4-04) | Deliver a dedicated offline shell with safe service-worker updates | #648, #658 |
+| #659 (O4-04) | Deliver a dedicated offline shell with safe service-worker updates (delivered: `/arena/offline`, `src/lib/arena/local/shell.ts`, `public/sw.js`; proofs `scripts/verify/arena-offline-shell.mts` and `npm run arena:offline-shell-browser`) | #648, #658 |
 | #660 (O4-05) | Add offline preparation, storage and local-data controls | #656, #659 |
 | #661 (O4-06) | Verify the airplane-mode MVP and publish the support matrix | #660, #657, #651, #643 |
 

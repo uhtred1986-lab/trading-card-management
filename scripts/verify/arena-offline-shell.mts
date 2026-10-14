@@ -48,7 +48,11 @@ class FakeCache {
     let k = keyOf(req);
     if (opts?.ignoreSearch) k = k.split("?")[0];
     const hit = this.entries.get(k);
-    return hit ? basic(new Response(hit.body.slice(0), { status: hit.status, headers: hit.headers })) : undefined;
+    if (!hit) return undefined;
+    // Like Cache Storage: the stored response keeps the URL it was put under (without a query or fragment).
+    const r = basic(new Response(hit.body.slice(0), { status: hit.status, headers: hit.headers }));
+    Object.defineProperty(r, "url", { value: k });
+    return r;
   }
   paths() { return [...this.entries.keys()].map((k) => k.slice(ORIGIN.length)).sort(); }
 }
@@ -137,7 +141,7 @@ const V3 = "3333333333333333";
 const V4 = "4444444444444444";
 const failures: string[] = [];
 const notes: string[] = [];
-async function check(what: string, fn: () => Promise<void> | void) {
+async function check(what: string, fn: () => Promise<unknown> | void) {
   try { await fn(); notes.push(`ok   ${what}`); } catch (e) { failures.push(what); notes.push(`FAIL ${what}: ${(e as Error).message}`); }
 }
 const text = async (r: Response | "pass") => (r === "pass" ? "pass" : await r.text());
@@ -207,6 +211,10 @@ await check("5. offline: the shell and its files come from the cache; /, /arena 
   assert.match(await text(await w1.request(`${SHELL_PATH}?from=launch`, { mode: "navigate" })), /shell one/);
   assert.equal(await text(await w1.request(b1.files[0])), `one ${b1.files[0]}`);
   assert.equal(await text(await w1.request(`${b1.files[0]}?dpl=dpl_abc`)), `one ${b1.files[0]}`, "?dpl= ignored");
+  // A Worker takes its location from the response URL: a cached file must come back without one,
+  // or Turbopack's worker bootstrap loses its `#params=` (found by the browser proof).
+  const forWorker = await w1.request(`${b1.files[0]}#params=%5B%5D`);
+  assert.ok(forWorker !== "pass" && forWorker.url === "", "a static file is answered by a constructed response (no URL)");
   for (const p of ["/", "/arena", "/arena/local", "/arena/42"]) {
     const r = await w1.request(p, { mode: "navigate" });
     assert.ok(r !== "pass" && r.status === 302 && r.headers.get("location") === `${ORIGIN}${SHELL_PATH}`, `${p} → shell`);
