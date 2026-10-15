@@ -2,7 +2,7 @@
 
 Read-only Masters catalog snapshot, 15 October 2026. Every parsed record containing a printed Union tag is listed below. Direct activations include secondary Union tags. `runtime-unproven` means this individual full card was not played end-to-end in this audit; existing generic tests cover narrower mechanics. No database records were refreshed.
 
-## BT10-046 / front / skill 10
+## BT10-046 — Vegito, Infinite Radiance / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -12,7 +12,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-046 / front / skill 20
+## BT10-046 — Vegito, Infinite Radiance / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -22,7 +22,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 4 or more cards in your Energy Area: choose all Battle Cards in your Energy Area
 
-## BT10-053 / front / skill 10
+## BT10-053 — Fused Zamasu, Advocate for Evil / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -32,7 +32,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-053 / front / skill 20
+## BT10-053 — Fused Zamasu, Advocate for Evil / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -42,7 +42,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 3 or more cards in your Energy Area: choose all Battle Cards in your Energy Area
 
-## BT10-092 / back / skill 20
+## BT10-092 — SS Gotenks, Display of Mastery / back / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -52,7 +52,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: this card +5000 power for the turn, this card gains [Critical] for the turn
 
-## BT10-110 / front / skill 10
+## BT10-110 — Gotenks, Going All-Out / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -62,7 +62,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-111 / front / skill 10
+## BT10-111 — Gotenks, Overwhelming Might / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -72,7 +72,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-112 / front / skill 10
+## BT10-112 — Gotenks, the Power of Fusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -82,7 +82,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-132 / front / skill 10
+## BT10-132 — Vegeks, Spacetime Synthesis / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -92,7 +92,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT10-132 / front / skill 20
+## BT10-132 — Vegeks, Spacetime Synthesis / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -102,7 +102,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your hand
 
-## BT11-001 / front / skill 10
+## BT11-001 — Gogeta / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -112,7 +112,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT11-001 / back / skill 20
+## BT11-001 — SSB Gogeta, Prophet of Demise / back / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -122,7 +122,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT11-003 / front / skill 0
+## BT11-003 — Gotenks, Earth-Shattering Might / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -132,7 +132,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: add 1 marker
 
-## BT11-013 / front / skill 10
+## BT11-013 — Gogeta, Fusion of the Gods / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -142,7 +142,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT11-063 / front / skill 0
+## BT11-063 — SS3 Vegito, Peerless Warrior / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -152,7 +152,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT11-079 / front / skill 10
+## BT11-079 — Trunks, Bonds of Friendship / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -162,7 +162,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: look at the top 7, choose up to 1 green Unison Card with a specified cost of 2 of the cards looked at, move the chosen cards to hand, shuffle
 
-## BT11-080 / front / skill 10
+## BT11-080 — SS Gotenks, Friendship Fusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -172,7 +172,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT11-081 / front / skill 20
+## BT11-081 — SS3 Gotenks, All-Out Assault / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -182,7 +182,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT11-138 / front / skill 0
+## BT11-138 — Mira, Arcane Overflow / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -192,7 +192,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose 1 <Mira> card with an energy cost of 6 in your deck, play the chosen cards, shuffle
 
-## BT12-122 / front / skill 0
+## BT12-122 — Son Goku & Vegeta / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -202,7 +202,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a Battle Card: draw 1
 
-## BT12-122 / back / skill 0
+## BT12-122 — Gogeta, Fateful Fusion / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -212,7 +212,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a Battle Card: draw 1
 
-## BT12-124 / front / skill 20
+## BT12-124 — Paikuhan, Savior from Another Time / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -222,7 +222,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose 1 black Battle Card with [Union] with an energy cost of 6 in your Drop Area or Warp, play the chosen cards
 
-## BT12-136 / front / skill 10
+## BT12-136 — SS3 Gogeta, Marvelous Might / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -232,7 +232,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT12-136 / front / skill 20
+## BT12-136 — SS3 Gogeta, Marvelous Might / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -242,7 +242,7 @@ Unread: place the chosen cards in your Drop Area from your Warp
 
 Compiled reading: choose all Battle Cards in your hand
 
-## BT12-137 / front / skill 10
+## BT12-137 — Gogeta, Fearless Fusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -252,7 +252,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT12-137 / front / skill 20
+## BT12-137 — Gogeta, Fearless Fusion / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -262,7 +262,7 @@ Unread: place the chosen cards in your Drop Area from your Warp
 
 Compiled reading: choose all Battle Cards in your hand
 
-## BT14-079 / front / skill 10
+## BT14-079 — Majin Buu, Brilliant Absorption / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -272,7 +272,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 mono-colour green <majin buu> card with an energy cost of 4 with 15000 power in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-080 / front / skill 0
+## BT14-080 — Majin Buu, the Neverending Absorber / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -282,7 +282,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 mono-colour green <majin buu> card with an energy cost of 4 with 15000 power in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-081 / front / skill 0
+## BT14-081 — Majin Buu, Absorption Scheme / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -292,7 +292,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 mono-colour green <majin buu> card with an energy cost of 4 with 15000 power in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-082 / front / skill 10
+## BT14-082 — Majin Buu, Unadulterated Malice / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -302,7 +302,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 mono-colour green <majin buu> card with an energy cost of 4 with 15000 power in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-094 / front / skill 0
+## BT14-094 — Android 20 & Dr. Myuu, Hellish Accomplices / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -312,7 +312,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if it is your turn: add 1 marker
 
-## BT14-107 / front / skill 10
+## BT14-107 — Android 17, Conceding to Union / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -322,7 +322,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <super 17>: choose up to 1 mono-colour yellow <super 17> card with an energy cost of 3 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-110 / front / skill 10
+## BT14-110 — Hell Fighter 17, Conceding to Union / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -332,7 +332,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <super 17>: choose up to 1 mono-colour yellow <super 17> card with an energy cost of 3 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT14-114 / front / skill 10
+## BT14-114 — Super 17, Prepping for Union / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -342,7 +342,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT15-047 / front / skill 10
+## BT15-047 — SS Kefla, Unending Evolution / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -352,7 +352,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT16-142 / front / skill 10
+## BT16-142 — SS Gogeta, Holding Nothing Back / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -362,7 +362,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT17-002 / back / skill 0
+## BT17-002 — Dr. Myuu & Hyper Meta-Rilldo, Rulers of Planet M-2 / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -372,7 +372,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT17-019 / front / skill 0
+## BT17-019 — General Rilldo, Battle on Planet M-2 / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -382,7 +382,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 red <general rilldo> card with an energy cost of 5 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-020 / front / skill 0
+## BT17-020 — General Rilldo, Combination Ready / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -392,7 +392,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 red <general rilldo> card with an energy cost of 5 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-023 / front / skill 10
+## BT17-023 — Nezi, Combination Ready / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -402,7 +402,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <super sigma> card in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT17-052 / front / skill 0
+## BT17-052 — Android 13, Inorganic Horror / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -412,7 +412,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 blue <android 13> card with an energy cost of 7 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT17-067 / front / skill 0
+## BT17-067 — Piccolo, First Fusion / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -422,7 +422,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪namekian≫: choose up to 1 yellow <piccolo> card with an energy cost of 3 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-077 / front / skill 0
+## BT17-077 — Piccolo, Fusing Further / front / skill 0
 
 Role: direct activation; status: unread.
 
@@ -432,7 +432,7 @@ Unread: Play up to 1 green <Piccolo> card with an energy cost of 4 on top of thi
 
 Compiled reading: if your leader is ≪namekian≫ and there are 3 or more cards in your Energy Area: shuffle
 
-## BT17-082 / back / skill 0
+## BT17-082 — Piccolo, Supreme Power / back / skill 0
 
 Role: support/reference; status: unread.
 
@@ -442,7 +442,7 @@ Unread: When placing Battle Cards under other cards to pay skill costs for your 
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT17-089 / front / skill 10
+## BT17-089 — Dende, Guardian's Destiny / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -452,7 +452,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: move the top 1 card in your deck to under, choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode
 
-## BT17-091 / front / skill 0
+## BT17-091 — Piccolo, Ready to Fuse / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -462,7 +462,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪namekian≫: choose up to 1 yellow <piccolo> card with an energy cost of 3 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-099 / front / skill 0
+## BT17-099 — Piccolo, Fusion's Resolve / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -472,7 +472,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪namekian≫ and there are 3 or more cards in your Energy Area: choose up to 1 green <piccolo> card with an energy cost of 4 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-102 / front / skill 0
+## BT17-102 — Saonel, Burdens Shouldered / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -482,7 +482,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <saonel> card with an energy cost of 2 or <saonel> card with an energy cost of 3 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-104 / front / skill 0
+## BT17-104 — Pirina, Burdens Shouldered / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -492,7 +492,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <pirina> card with an energy cost of 2 or <pirina> card with an energy cost of 3 in your deck or hand, play the chosen cards, shuffle
 
-## BT17-114 / front / skill 0
+## BT17-114 — Super Mira, Preparing to Fight / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -502,7 +502,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Black <towa>, or your leader is Black ≪android≫: choose up to 1 <mira> card with an energy cost of 4 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT18-001 / back / skill 20
+## BT18-001 — SS4 Son Goku & SS4 Vegeta, In It Together / back / skill 20
 
 Role: support/reference; status: unread.
 
@@ -512,7 +512,7 @@ Unread: this card gains <Gogeta: GT> for the turn
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT18-019 / front / skill 10
+## BT18-019 — SS4 Gogeta, Triumphant Together / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -522,7 +522,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT18-085 / front / skill 0
+## BT18-085 — SS Son Goten & SS Trunks, Unfurled Potential / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -532,7 +532,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Green: choose up to 1 card in your Leader Area, the chosen cards +5000 power for the turn
 
-## BT18-086 / front / skill 10
+## BT18-086 — SS Gotenks, Beyond Serious / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -542,7 +542,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT19-021 / front / skill 0
+## BT19-021 — Android 13, Uninvited Guest / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -552,7 +552,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Red <android 13> <android 14> <android 15>: choose up to 1 <android 13> card with an energy cost of 7 in your deck, play the chosen cards in active mode, shuffle
 
-## BT19-052 / front / skill 0
+## BT19-052 — Son Goten, Fast Improving / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -562,7 +562,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT19-060 / front / skill 10
+## BT19-060 — Gotenks, Reckless Rush / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -572,7 +572,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT19-067 / back / skill 0
+## BT19-067 — Gogeta, Fusion Complete / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -582,7 +582,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT19-069 / front / skill 20
+## BT19-069 — SSB Gogeta, Supreme Fusion / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -592,7 +592,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose one — draw 2, discard 1 / opponent discards 1
 
-## BT19-085 / front / skill 10
+## BT19-085 — SS Gogeta, Facing the Ultimate / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -602,7 +602,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT19-085 / front / skill 20
+## BT19-085 — SS Gogeta, Facing the Ultimate / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -612,7 +612,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your hand, if you took that choice: move the chosen cards to drop
 
-## BT2-012 / front / skill 0
+## BT2-012 — Repeated Force Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -622,7 +622,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT2-013 / front / skill 0
+## BT2-013 — Lightning Speed Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -632,7 +632,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT2-015 / front / skill 0
+## BT2-015 — Prodigy Fusion Super Saiyan Gotenks / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -642,7 +642,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT2-027 / front / skill 10
+## BT2-027 — Awakening Evil Majin Buu / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -652,7 +652,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Majin Buu> card other than {Awakening Evil Majin Buu} with 25000 power or more in your deck, move this card to under, shuffle
 
-## BT2-058 / front / skill 0
+## BT2-058 — Infinite Force Fused Zamasu / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -662,7 +662,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT2-085 / front / skill 0
+## BT2-085 — Evolving Evil Lifeform Cell / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -672,7 +672,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Cell> card in your deck, move this card to under, shuffle
 
-## BT2-085 / front / skill 20
+## BT2-085 — Evolving Evil Lifeform Cell / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -682,7 +682,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1, choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards
 
-## BT2-086 / front / skill 0
+## BT2-086 — Growing Evil Lifeform Cell / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -692,7 +692,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Cell> card with an energy cost of 5 or less in your deck, move this card to under, shuffle
 
-## BT2-109 / front / skill 0
+## BT2-109 — Meta-Cooler Core / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -702,7 +702,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Meta-Cooler Core> card in your deck, move this card to under, shuffle
 
-## BT2-123 / front / skill 0
+## BT2-123 — Ultimate Force SSB Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -712,7 +712,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT20-015 / front / skill 0
+## BT20-015 — Koitsukai, Warrior of Universe 3 / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -722,7 +722,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Red ≪universe 3≫: choose up to 1 red <koichiarator> card with an energy cost of 4 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT20-125 / front / skill 10
+## BT20-125 — SSB Vegito, Supreme Gleaming / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -732,7 +732,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT20-125 / front / skill 20
+## BT20-125 — SSB Vegito, Supreme Gleaming / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -742,7 +742,7 @@ Unread: This card is played from your hand in your opponent's Battle Area; when 
 
 Compiled reading: choose all Battle Cards in your opponent's Battle Area
 
-## BT21-053 / front / skill 0
+## BT21-053 — Uub, Intercepting Kamehameha / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -752,7 +752,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Blue <uub> and there are 5 or more cards in your opponent's Z-Energy Area: choose up to 1 blue <uub> card with an energy cost of 8 with 30000 power in your deck, play the chosen cards in active mode, shuffle
 
-## BT21-054 / front / skill 0
+## BT21-054 — Uub, Warrior Left on Earth / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -762,7 +762,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Blue <uub> and there are 5 or more cards in your opponent's Z-Energy Area: choose up to 1 blue <uub> card with an energy cost of 6 in your deck, play the chosen cards in active mode, shuffle
 
-## BT22-033 / front / skill 10
+## BT22-033 — SS Gogeta, Light Shining Through Hell / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -772,7 +772,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a multicolour blue yellow <gogeta> card: draw 1, choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to deck
 
-## BT22-121 / front / skill 10
+## BT22-121 — SSB Vegito, Ultimate Battle / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -782,7 +782,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT22-122 / front / skill 10
+## BT22-122 — SSB Vegito, All-Around Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -792,7 +792,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT22-136 / front / skill 20
+## BT22-136 — Veku, Comeback From Defeat / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -802,7 +802,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT22-137 / front / skill 20
+## BT22-137 — SS Gogeta, Sparking to Utmost Limit / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -812,7 +812,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT22-140 / front / skill 10
+## BT22-140 — SS Gogeta, Fusion Reborn / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -822,7 +822,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT23-084 / front / skill 10
+## BT23-084 — SSB Vegito, Resisting a God / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -832,7 +832,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT23-085 / front / skill 10
+## BT23-085 — Vegito, Fusion in the Future / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -842,7 +842,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT24-112 / back / skill 0
+## BT24-112 — SS4 Vegito, Sparking Potara Warrior / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -852,7 +852,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards under your black Z-card unison card hand card
 
-## BT24-112 / back / skill 10
+## BT24-112 — SS4 Vegito, Sparking Potara Warrior / back / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -862,7 +862,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a black card with [Union] or black Z-Unison Card: draw 1, that card +5000 power for the turn
 
-## BT24-113 / front / skill 10
+## BT24-113 — SSB Vegito, Union of Sparks / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -872,7 +872,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 2 black cards in your Warp, move the chosen cards to under
 
-## BT24-113 / front / skill 20
+## BT24-113 — SSB Vegito, Union of Sparks / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -882,7 +882,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 black Battle Card with [Union] with an energy cost of 6 in your Warp, play the chosen cards
 
-## BT24-122 / front / skill 10
+## BT24-122 — SS4 Vegito, Sparking Offense and Defense / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -892,7 +892,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT24-124 / front / skill 0
+## BT24-124 — Sparking Kamehameha / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -902,7 +902,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 1 or more <vegito: xeno> cards with [Union] you have in play: choose any number of Battle Cards in your opponent's Battle Area whose total energy cost is 6 or less, move the chosen cards to warp
 
-## BT25-036 / back / skill 10
+## BT25-036 — SS3 Gotenks, Power of the Strongest Rookie / back / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -912,7 +912,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a blue <gotenks> card: draw 1
 
-## BT25-036 / back / skill 20
+## BT25-036 — SS3 Gotenks, Power of the Strongest Rookie / back / skill 20
 
 Role: support/reference; status: unread.
 
@@ -922,7 +922,7 @@ Unread: place up to 1 blue Z-Extra with an energy cost of 3 from your Z-Deck in 
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT25-058 / front / skill 10
+## BT25-058 — SS3 Gotenks, Energy Storm Explosion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -932,7 +932,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT25-059 / front / skill 0
+## BT25-059 — SS Gotenks, Energy Storm Dance / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -942,7 +942,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT25-060 / front / skill 10
+## BT25-060 — Gotenks, Energy Storm Release / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -952,7 +952,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT25-094 / front / skill 10
+## BT25-094 — SSB Vegito, Potara-Fusion to Protect the Future / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -962,7 +962,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-005 / front / skill 0
+## BT26-005 — Hell Fighter 17, Return of Despair / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -972,7 +972,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Red <super 17>: choose up to 1 red <super 17> card with an energy cost of 6 in your hand, play the chosen cards in active mode
 
-## BT26-031 / front / skill 0
+## BT26-031 — Gogeta / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -982,7 +982,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all blue <Gogeta: Br> Battle Cards in your Drop Area, if you took that choice: move the chosen cards to zEnergy
 
-## BT26-031 / back / skill 0
+## BT26-031 — SSB Gogeta, Mighty Fusion Warrior / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -992,7 +992,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all blue <Gogeta: Br> Battle Cards in your Drop Area, if you took that choice: move the chosen cards to zEnergy
 
-## BT26-031 / back / skill 20
+## BT26-031 — SSB Gogeta, Mighty Fusion Warrior / back / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1002,7 +1002,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 1 or more Battle Cards with [Union] in your Battle Area: switch this card to active mode
 
-## BT26-044 / front / skill 10
+## BT26-044 — SSB Gogeta, Battle for Peace / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1012,7 +1012,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-045 / front / skill 10
+## BT26-045 — SS Gogeta, Battling a Strong Foe / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1022,7 +1022,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-046 / front / skill 0
+## BT26-046 — SS Gogeta, Intense Fight With a Strong Foe / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1032,7 +1032,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-047 / front / skill 10
+## BT26-047 — Gogeta, Fusion Warrior Debut / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1042,7 +1042,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-048 / front / skill 10
+## BT26-048 — Gogeta, Fusion Achieved / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1052,7 +1052,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-061 / back / skill 0
+## BT26-061 — Fused Zamasu, Insanity From Justice / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1062,7 +1062,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 green <Goku Black> <Goku Black> <Zamasu> card with [Union] in your Drop Area
 
-## BT26-061 / back / skill 10
+## BT26-061 — Fused Zamasu, Insanity From Justice / back / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1072,7 +1072,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: 1 from the top of the deck to the Drop
 
-## BT26-075 / front / skill 10
+## BT26-075 — SSB Vegito, All-Out Super Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1082,7 +1082,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-076 / front / skill 10
+## BT26-076 — Vegito, Ultimate Unrivaled Fusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1092,7 +1092,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-080 / front / skill 0
+## BT26-080 — SS Rose Goku Black, Heightened Form / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1102,7 +1102,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 Battle Card with an energy cost of 4 or less in your opponent's Battle Area, KO the chosen cards, 1 from the top of the deck to the Drop, if there are 1 or more <zamasu> cards with [Union] you have in play: this card +5000 power for the turn, this card gains [Double Strike] for the turn
 
-## BT26-083 / front / skill 10
+## BT26-083 — Fused Zamasu, Unified Ultimate God / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1112,7 +1112,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-084 / front / skill 10
+## BT26-084 — Fused Zamasu, Ideal World Creation / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1122,7 +1122,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-085 / front / skill 10
+## BT26-085 — Fused Zamasu, Cleansing Despair / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1132,7 +1132,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT26-086 / front / skill 0
+## BT26-086 — Zamasu, Doubt in Man and God / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1142,7 +1142,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1, 1 from the top of the deck to the Drop, if there are 1 or more <zamasu> cards with [Union] you have in play: this card +5000 power for the turn, this card gains [Critical] for the turn
 
-## BT26-138 / front / skill 10
+## BT26-138 — SSB Gogeta, Shining Blue Strongest Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1152,7 +1152,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT28-012 / front / skill 0
+## BT28-012 — Piccolo, Revival / front / skill 0
 
 Role: direct activation; status: unread.
 
@@ -1162,7 +1162,7 @@ Unread: the shuffle your deck
 
 Compiled reading: choose up to 1 red <piccolo> card with an energy cost of 5 in your deck or Drop Area, play the chosen cards
 
-## BT28-079 / back / skill 0
+## BT28-079 — SS Vegito, Transcendent Rage / back / skill 0
 
 Role: support/reference; status: unread.
 
@@ -1172,7 +1172,7 @@ Unread: Reduce the skill cost of [union] skills on yellow <Vegito> cards in your
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT28-097 / front / skill 10
+## BT28-097 — SS Vegito, Strongest Fighter in History / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1182,7 +1182,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT28-097 / front / skill 20
+## BT28-097 — SS Vegito, Strongest Fighter in History / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1192,7 +1192,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 2 Battle Cards in your opponent's Battle Area, negate the skills of the chosen cards for the turn, KO the chosen cards
 
-## BT28-098 / front / skill 10
+## BT28-098 — SS Vegito, Pure Potara Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1202,7 +1202,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT28-099 / front / skill 10
+## BT28-099 — Vegito, Fighting Spirit Rush / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1212,7 +1212,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT28-099 / front / skill 20
+## BT28-099 — Vegito, Fighting Spirit Rush / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1222,7 +1222,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: this card gains [Barrier] until the end of your opponent's turn
 
-## BT28-100 / front / skill 10
+## BT28-100 — Vegito, Strongest Coffee-Flavored Fighter / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1232,7 +1232,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose this card, play the chosen cards in active mode
 
-## BT28-100 / front / skill 30
+## BT28-100 — Vegito, Strongest Coffee-Flavored Fighter / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1242,7 +1242,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if that card is a <majin buu> card: choose up to 1 mono-colour yellow <vegito> card with [Union] under your cards, play the chosen cards, move this card to drop
 
-## BT29-104 / front / skill 10
+## BT29-104 — Piercing Blow / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1252,7 +1252,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 black Battle Card with [Union] in your Battle Area, the chosen cards +15000 power for the battle, the chosen cards gains [Critical] for the battle
 
-## BT29-140 / front / skill 30
+## BT29-140 — SSB Son Goku & SSB Vegeta, Battle With a God / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1262,7 +1262,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 1 or more the <Vegito> card with [Union] on top of this card: choose up to 1 card you have in play in Hidden Mode, switch the chosen cards to Revealed Mode
 
-## BT29-141 / front / skill 10
+## BT29-141 — SSB Vegito, Bullseye Hit / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1272,7 +1272,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT29-142 / front / skill 10
+## BT29-142 — Vegito, Ace in the Hole / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1282,7 +1282,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT3-020 / front / skill 0
+## BT3-020 — Hidden Ability, General Rilldo / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1292,7 +1292,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <General Rilldo> card with 25000 power in your deck, move this card to under, shuffle
 
-## BT3-022 / front / skill 0
+## BT3-022 — Commander Nezi / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1302,7 +1302,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Super Sigma> card in your deck, move this card to under, shuffle
 
-## BT3-048 / front / skill 0
+## BT3-048 — Out of Control Evil, Majin Buu / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1312,7 +1312,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 blue <Majin Buu> card with an energy cost of 5 in your deck, move this card to under, shuffle
 
-## BT3-050 / front / skill 0
+## BT3-050 — Majin Buu, Dawn of the Rampage / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1322,7 +1322,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 {Awakening Evil Majin Buu} card in your deck, move this card to under, shuffle
 
-## BT3-063 / front / skill 0
+## BT3-063 — Hyper Rush SSB Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1332,7 +1332,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT3-070 / front / skill 0
+## BT3-070 — Dawn of Terror, Android 13 / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1342,7 +1342,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Android 13> card with an energy cost of 7 in your deck, play the chosen cards, shuffle
 
-## BT3-076 / front / skill 0
+## BT3-076 — Twisted Justice, Fused Zamasu / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1352,7 +1352,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT30-044 / back / skill 0
+## BT30-044 — Majin Buu, Ultimate Majin / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1362,7 +1362,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: play 1 Majin Token (15000 power)
 
-## BT30-061 / front / skill 0
+## BT30-061 — Majin Buu, Ruinous Majin / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1372,7 +1372,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <majin buu>: choose up to 1 green <majin buu> card with an energy cost of 4 with 20000 power in your deck or Drop Area, play the chosen cards in active mode, shuffle
 
-## BT30-062 / front / skill 0
+## BT30-062 — Majin Buu, Lawless Majin / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1382,7 +1382,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <majin buu>: choose up to 1 green <majin buu> card with an energy cost of 4 with 20000 power in your deck or Drop Area, play the chosen cards in active mode, shuffle
 
-## BT30-064 / front / skill 10
+## BT30-064 — Absorption / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -1392,7 +1392,7 @@ Unread: shuffle your deck."
 
 Compiled reading: choose up to 1 green <majin buu> card with an energy cost of 6 in your deck or Drop Area, play the chosen cards in active mode
 
-## BT31-001 / back / skill 0
+## BT31-001 — SS Gogeta, Situation Reversal Fusion / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1402,7 +1402,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: red <Veku> <Gogeta> cards' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp
 
-## BT31-013 / front / skill 10
+## BT31-013 — Veku, Incomplete Fusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1412,7 +1412,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-014 / front / skill 10
+## BT31-014 — SS Gogeta, Revoker of Evil / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1422,7 +1422,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-015 / front / skill 10
+## BT31-015 — SS Gogeta, Vanquisher / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1432,7 +1432,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-041 / back / skill 0
+## BT31-041 — SS4 Gogeta, Vainglorious / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1442,7 +1442,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1
 
-## BT31-042 / front / skill 0
+## BT31-042 — Ultimate Fusion / front / skill 0
 
 Role: support/reference; status: unread.
 
@@ -1452,7 +1452,7 @@ Unread: during the turn; the next time you activate the [union] skill on a green
 
 Compiled reading: choose up to 1 mono-colour green <gogeta: gt> card in your deck, move the chosen cards to hand, shuffle
 
-## BT31-043 / front / skill 20
+## BT31-043 — Pan, Adorable Supporter / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -1462,7 +1462,7 @@ Unread: the next time you activate the [union] skill on a green <Gogeta: GT> car
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-052 / front / skill 10
+## BT31-052 — SS4 Gogeta, the Light Protecting the Universe / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1472,7 +1472,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-091 / front / skill 10
+## BT31-091 — SSB Vegito, Fusion Surpassing the Legends / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1482,7 +1482,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-094 / front / skill 0
+## BT31-094 — SS4 Vegito, Dimension Transcending Peerless Warrior / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1492,7 +1492,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT31-110 / front / skill 10
+## BT31-110 — United Across Time / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1502,7 +1502,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: move this card to zEnergy, you may: discard 1, if the offer was taken: choose up to 1 black ≪saiyan≫ card with [Union] in your Warp, play the chosen cards
 
-## BT31-149 / front / skill 10
+## BT31-149 — SS Gogeta, Hell-Piercing Flash / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1512,7 +1512,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT4-018 / front / skill 0
+## BT4-018 — Baby, Vengeance Unleashed / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1522,7 +1522,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Red ≪machine mutant≫: choose up to 1 <Baby> card with an energy cost of 4 or less under your cards, play the chosen cards, shuffle
 
-## BT4-019 / front / skill 0
+## BT4-019 — Saiyan Onslaught Kefla / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1532,7 +1532,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT4-019 / front / skill 30
+## BT4-019 — Saiyan Onslaught Kefla / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1542,7 +1542,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 1, this card +5000 power for the turn
 
-## BT4-108 / front / skill 20
+## BT4-108 — Mira, Creator Absorbed / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -1552,7 +1552,7 @@ Unread: sends them to their Warp
 
 Compiled reading: opponent discards 3, this card gains [Double Strike] for the turn
 
-## BT4-110 / front / skill 10
+## BT4-110 — Dark Absorption Mira / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1562,7 +1562,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪android≫, or your leader is <towa>: choose 1 <Mira> card with an energy cost of 7 in your hand or Warp, play the chosen cards in active mode
 
-## BT5-037 / front / skill 0
+## BT5-037 — Vexing Outcome Veku / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1572,7 +1572,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT5-037 / front / skill 10
+## BT5-037 — Vexing Outcome Veku / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -1582,7 +1582,7 @@ Unread: Choose up to 1 each of blue {Super Saiyan Son Goku} and {Super Saiyan Ve
 
 Compiled reading: shuffle
 
-## BT5-038 / front / skill 10
+## BT5-038 — Gogeta, Hero Revived / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1592,7 +1592,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT5-039 / front / skill 10
+## BT5-039 — Quick Thinkin' Gotenks / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1602,7 +1602,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT5-039 / front / skill 20
+## BT5-039 — Quick Thinkin' Gotenks / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1612,7 +1612,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: draw 2
 
-## BT5-066 / front / skill 10
+## BT5-066 — Hell Fighter 17, Evil Revived / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1622,7 +1622,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Super 17> card with an energy cost of 4 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT5-068 / front / skill 30
+## BT5-068 — Super 17, to Further Heights / front / skill 30
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1632,7 +1632,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <Super 17> card with an energy cost of 6 in your deck or Drop Area, play the chosen cards, shuffle
 
-## BT5-120 / front / skill 20
+## BT5-120 — Miraculous Fighter SS3 Gogeta / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1642,7 +1642,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT6-012 / front / skill 0
+## BT6-012 — Veku, Contents Under Pressure / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1652,7 +1652,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT6-013 / front / skill 0
+## BT6-013 — Veku, the Fragile / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1662,7 +1662,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT6-015 / front / skill 10
+## BT6-015 — Gogeta, Unparalleled Fusion Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1672,7 +1672,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT6-036 / front / skill 0
+## BT6-036 — Vegito, Powers Combined / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1682,7 +1682,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT6-036 / front / skill 10
+## BT6-036 — Vegito, Powers Combined / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -1692,7 +1692,7 @@ Unread: if this card was played using [union]; draw 1 more card
 
 Compiled reading: draw 1
 
-## BT7-118 / front / skill 0
+## BT7-118 — Meteoric Energy SSB Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1702,7 +1702,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT7-121 / front / skill 0
+## BT7-121 — Meteoric Energy Kefla / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1712,7 +1712,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT7-123 / front / skill 10
+## BT7-123 — Fused Zamasu, Divine Providence / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1722,7 +1722,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## BT7-123 / front / skill 30
+## BT7-123 — Fused Zamasu, Divine Providence / front / skill 30
 
 Role: support/reference; status: unread.
 
@@ -1732,7 +1732,7 @@ Unread: you choose up to 2 cards from it; add them to their energy in Rest Mode
 
 Compiled reading: reveal all cards in your opponent's hand
 
-## BT8-017 / front / skill 0
+## BT8-017 — Baby, Vengeful Blow / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1742,7 +1742,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose 1 <Baby> card with 30000 power in your hand, play the chosen cards
 
-## BT8-083 / front / skill 10
+## BT8-083 — Baby, Vengeful Upheaval / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1752,7 +1752,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 {Baby Vegeta, an Unfair Choice} {Super Baby 1, All-Consuming Terror} card in your deck or hand, play the chosen cards in active mode, shuffle
 
-## BT8-116 / front / skill 0
+## BT8-116 — Super Baby 1, All-Consuming Terror / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1762,7 +1762,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Yellow <baby>: choose up to 1 {Super Baby 2, Malicious Majesty} card in your deck or hand, play the chosen cards in active mode, shuffle
 
-## BT9-044 / front / skill 0
+## BT9-044 — Android 13, Red Ribbon Raider / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1772,7 +1772,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪android≫: choose up to 1 <Android 13> card with an energy cost of 7 or less in your hand, play the chosen cards
 
-## BT9-092 / front / skill 10
+## BT9-092 — Celestial Union Kefla / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1782,7 +1782,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## DB3-063 / front / skill 10
+## DB3-063 — SS3 Gotenks, Full Throttle / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1792,7 +1792,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX01-04 / front / skill 0
+## EX01-04 — SSB Vegito, the Savior / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1802,7 +1802,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX01-07 / front / skill 0
+## EX01-07 — Psyched Up Gotenks / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1812,7 +1812,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX06-19 / front / skill 0
+## EX06-19 — Android 13, the Brilliant / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1822,7 +1822,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪android≫: choose up to 1 <Android 13> card with an energy cost of 7 in your hand, play the chosen cards
 
-## EX06-33 / front / skill 10
+## EX06-33 — Mira, Self Reformation / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1832,7 +1832,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <towa>, or your leader is ≪android≫: choose up to 1 <Mira> card with an energy cost of 7 in your deck, play the chosen cards in active mode, shuffle
 
-## EX13-05 / front / skill 10
+## EX13-05 — Vegito, Resolve Combined / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1842,7 +1842,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX13-14 / front / skill 0
+## EX13-14 — Gokule, the Legendary Fusion Warrior / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1852,7 +1852,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 green card with [Union] with an energy cost of 6 or less in your deck, move the chosen cards to hand, shuffle
 
-## EX13-14 / front / skill 10
+## EX13-14 — Gokule, the Legendary Fusion Warrior / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -1862,7 +1862,7 @@ Unread: For each character name required for the revealed card's [union] skill; 
 
 Compiled reading: shuffle
 
-## EX13-16 / front / skill 10
+## EX13-16 — Gotenks, the Grim Reaper of Justice / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1872,7 +1872,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX14-04 / front / skill 0
+## EX14-04 — Son Goten & Trunks, Super Saiyan Tag Team / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1882,7 +1882,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Yellow <gotenks: adolescence>: choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode
 
-## EX15-01 / front / skill 10
+## EX15-01 — Gogeta, Time for Payback / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1892,7 +1892,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX19-03 / front / skill 0
+## EX19-03 — SS Son Goku, Might in the Making / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1902,7 +1902,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Blue ≪saiyan≫: at the end of the turn: choose up to 1 card in your Energy Area, switch the chosen cards to active mode
 
-## EX19-09 / front / skill 10
+## EX19-09 — Veku, Might in the Making / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1912,7 +1912,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX20-06 / front / skill 10
+## EX20-06 — Cell, Startling Assimilation / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1922,7 +1922,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <cell>: choose up to 1 multicolour <cell> card with an energy cost of 4 in your deck or Drop Area, play the chosen cards, shuffle
 
-## EX20-07 / front / skill 10
+## EX20-07 — Cell, Absorption Onslaught / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1932,7 +1932,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <cell>: choose up to 1 multicolour <cell> card with an energy cost of 4 in your deck or Drop Area, play the chosen cards, shuffle
 
-## EX20-10 / front / skill 20
+## EX20-10 — Cell, Dawn of Despair / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1942,7 +1942,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <cell>: choose up to 1 multicolour <cell> card with an energy cost of 8 in your deck or Drop Area, play the chosen cards, shuffle
 
-## EX21-12 / front / skill 10
+## EX21-12 — SS3 Gotenks, Invincible Fists / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1952,7 +1952,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX21-12 / front / skill 20
+## EX21-12 — SS3 Gotenks, Invincible Fists / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -1962,7 +1962,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Yellow <gotenks: adolescence>: choose all Battle Cards in your Drop Area, if you took that choice: move the chosen cards to deck
 
-## EX22-06 / front / skill 10
+## EX22-06 — Fused Zamasu, the Power of the Gods is Complete / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1972,7 +1972,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX23-11 / front / skill 10
+## EX23-11 — Son Goku & Vegeta, Pre-Fusion Warriors / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -1982,7 +1982,7 @@ Unread: Add up to 1 <Son Goku> card; 1 <Vegeta> card―both blue and with 20000 
 
 Compiled reading: if your leader is miracle strike gogeta, or your leader is ssb gogeta, miraculous strongest warrior: shuffle
 
-## EX23-15 / front / skill 10
+## EX23-15 — SS Gogeta, Birth of the Strongest Warrior / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -1992,7 +1992,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX23-29 / front / skill 10
+## EX23-29 — Son Gohan, Rookie Support / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -2002,7 +2002,7 @@ Unread: During that turn; the next time you activate the [union] skill on a yell
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX23-36 / front / skill 10
+## EX23-36 — SS3 Gotenks, Overwhelming Power / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2012,7 +2012,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX23-36 / front / skill 20
+## EX23-36 — SS3 Gotenks, Overwhelming Power / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2022,7 +2022,7 @@ Unread: you are choosing cards to use with this card's [union] skill from your h
 
 Compiled reading: if your leader is Yellow <gotenks: adolescence>: choose all Battle Cards in your Drop Area, if you took that choice: move the chosen cards to deck
 
-## EX24-41 / front / skill 0
+## EX24-41 — Mira, Dark Empire Technology / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2032,7 +2032,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <towa>, or your leader is ≪android≫: choose up to 1 <mira> card with an energy cost of 7 in your deck, play the chosen cards in active mode, shuffle
 
-## EX25-11 / front / skill 10
+## EX25-11 — Bonds of Potara / front / skill 10
 
 Role: support/reference; status: unread.
 
@@ -2042,7 +2042,7 @@ Unread: Play up to 1 each of <Kale> and <Caulifla> cards with 9000 power in Rest
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX25-16 / front / skill 0
+## EX25-16 — SSB Vegito, Future Hope / front / skill 0
 
 Role: direct activation; status: known-wrong-secondary-keyword.
 
@@ -2052,7 +2052,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX25-32 / front / skill 10
+## EX25-32 — SS4 Gogeta, Flash / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2062,7 +2062,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## EX25-32 / front / skill 20
+## EX25-32 — SS4 Gogeta, Flash / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2072,7 +2072,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your hand, if you took that choice: move the chosen cards to drop
 
-## EX25-40 / front / skill 0
+## EX25-40 — SS2 Kefla, Miraculous Friendship / front / skill 0
 
 Role: direct activation; status: known-wrong-secondary-keyword.
 
@@ -2082,7 +2082,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-011 / front / skill 0
+## P-011 — The Almighty Beam Fused Zamasu / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2092,7 +2092,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-014 / front / skill 0
+## P-014 — Bursting Energy Super Saiyan Vegito / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2102,7 +2102,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-065 / front / skill 0
+## P-065 — Vegito, Super Warrior Reborn / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2112,7 +2112,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-069 / back / skill 10
+## P-069 — Miracle Strike Gogeta / back / skill 10
 
 Role: support/reference; status: unread.
 
@@ -2122,7 +2122,7 @@ Unread: You can only play Battle Cards by using [Union-Fusion] for the remainder
 
 Compiled reading: choose all Battle Cards in your opponent's Battle Area, negate the skills of the chosen cards for the turn, this card +5000 power for the turn
 
-## P-095 / front / skill 0
+## P-095 — Veku, Triumphant Might / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2132,7 +2132,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-108 / front / skill 0
+## P-108 — Veku, Defective Fighter / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2142,7 +2142,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-109 / front / skill 0
+## P-109 — Gogeta, Comeback King / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2152,7 +2152,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-109 / front / skill 30
+## P-109 — Gogeta, Comeback King / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2162,7 +2162,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose 3 cards in your deck, move the chosen cards to energy
 
-## P-132 / front / skill 10
+## P-132 — Brilliant Pairing Kefla / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2172,7 +2172,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-178 / front / skill 10
+## P-178 — Kale, Enigmatic Beauty / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2182,7 +2182,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: at the beginning of your opponent's next main phase: choose up to 1 blue card in your Energy Area, switch the chosen cards to active mode
 
-## P-180 / front / skill 10
+## P-180 — Caulifla, Spunky Allure / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2192,7 +2192,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode
 
-## P-185 / front / skill 0
+## P-185 — Kefla, Everlasting Light / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2202,7 +2202,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-220 / front / skill 0
+## P-220 — SSB Vegito, Soaring Blow / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2212,7 +2212,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-220 / front / skill 10
+## P-220 — SSB Vegito, Soaring Blow / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2222,7 +2222,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your Energy Area
 
-## P-226 / front / skill 0
+## P-226 — SS Trunks, Primed for Fusion / front / skill 0
 
 Role: support/reference; status: unread.
 
@@ -2232,7 +2232,7 @@ Unread: you can only play Battle Cards using [Union-Fusion] skills for the turn
 
 Compiled reading: if there are 4 or more cards your opponent has in play in rest mode and (there are 1 or more <son goten: gt> cards you have in play, or there are 1 or more Battle Cards in your Battle Area): choose this card, play the chosen cards
 
-## P-227 / front / skill 0
+## P-227 — SS Gotenks, Matchless Fusion / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2242,7 +2242,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-230 / front / skill 10
+## P-230 — SS Vegeks, Mastery Merged / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2252,7 +2252,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-230 / front / skill 20
+## P-230 — SS Vegeks, Mastery Merged / front / skill 20
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2262,7 +2262,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your hand
 
-## P-240 / front / skill 0
+## P-240 — Vegeks, Father-Son Bonds / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2272,7 +2272,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-246 / front / skill 10
+## P-246 — Son Goku, Godly Aura / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2282,7 +2282,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 card in your Life Area, move the chosen cards to hand
 
-## P-247 / front / skill 10
+## P-247 — Vegeta, Godly Aura / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2292,7 +2292,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: look at the top 7, choose up to 1 <gogeta: br> card of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to drop
 
-## P-254 / front / skill 10
+## P-254 — Gotenks, Greatest Fusion of Them All / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2302,7 +2302,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-286 / front / skill 10
+## P-286 — SS3 Gogeta, Martial Melee / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2312,7 +2312,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-286 / front / skill 20
+## P-286 — SS3 Gogeta, Martial Melee / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2322,7 +2322,7 @@ Unread: place the chosen cards in your Drop Area from your Warp
 
 Compiled reading: choose all Battle Cards in your hand
 
-## P-308 / front / skill 20
+## P-308 — SS3 Gogeta, Thwarting the Dark Empire / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2332,7 +2332,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-308 / front / skill 30
+## P-308 — SS3 Gogeta, Thwarting the Dark Empire / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2342,7 +2342,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose all Battle Cards in your hand, if you took that choice: move the chosen cards to drop
 
-## P-327 / front / skill 20
+## P-327 — Super 17, Relentless Absorption / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2352,7 +2352,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 <cell> card in your deck or Drop Area, move the chosen cards to under, if you took that choice: choose up to 1 {Super 17, Cell Absorbed} {Super 17, Hell's Storm Unleashed} card in your deck or hand, play the chosen cards, shuffle
 
-## P-351 / front / skill 20
+## P-351 — Mira, Vow to the Creator / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2362,7 +2362,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 4 or more cards in your Energy Area: if your leader is <towa>, or your leader is ≪android≫: choose up to 1 <Mira> card with an energy cost of 7 or less in your hand or Warp, play the chosen cards in active mode
 
-## P-360 / back / skill 0
+## P-360 — SSG Vegeta, Crimson Warrior / back / skill 0
 
 Role: support/reference; status: unread.
 
@@ -2372,7 +2372,7 @@ Unread: ・[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-382 / front / skill 0
+## P-382 — Baby, Parasitic Villainy / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2382,7 +2382,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Red ≪machine mutant≫: choose up to 1 <vegeta: gt> <baby> Battle Card with an energy cost of 4 in your deck, play the chosen cards, shuffle
 
-## P-388 / front / skill 0
+## P-388 — Baby, Demonic Parasite / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2392,7 +2392,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 multicolour <baby> <janemba> Battle Card in your deck, play the chosen cards, shuffle
 
-## P-519 / front / skill 10
+## P-519 — SS3 Gotenks, Flying Fists / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2402,7 +2402,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-519 / front / skill 20
+## P-519 — SS3 Gotenks, Flying Fists / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2412,7 +2412,7 @@ Unread: you choose cards to use with this card's [Union] skill from a hand
 
 Compiled reading: if your leader is Yellow <gotenks: adolescence>: choose up to 1 Battle Card in your Drop Area, if you took that choice: move the chosen cards to deck
 
-## P-534 / front / skill 20
+## P-534 — Veku, the Strongest Failed Warrior / front / skill 20
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2422,7 +2422,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-538 / front / skill 0
+## P-538 — Gogeta, Birth of the Ultimate Warrior / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2432,7 +2432,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-605 / front / skill 0
+## P-605 — SS Gotenks, Crazy God of Death / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2442,7 +2442,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-607 / front / skill 10
+## P-607 — SS Gogeta, Fusion Explosion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2452,7 +2452,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-607 / front / skill 30
+## P-607 — SS Gogeta, Fusion Explosion / front / skill 30
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2462,7 +2462,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 blue <gogeta> card with [Union] with an energy cost of 5 in your Drop Area, play the chosen cards
 
-## P-632 / front / skill 10
+## P-632 — Vegito, Scheme Halting / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2472,7 +2472,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-682 / front / skill 10
+## P-682 — Panpakapan / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2482,7 +2482,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is Green and there are 4 or more cards in your Energy Area: if that card is a <gotenks> card with an energy cost of 8: opponent discards 2
 
-## P-683 / front / skill 0
+## P-683 — SS Son Goten & SS Trunks, Partners / front / skill 0
 
 Role: support/reference; status: unread.
 
@@ -2492,7 +2492,7 @@ Unread: it gains [Barrier] until he end of your opponent's turn
 
 Compiled reading: if your leader is Green: play 1 Ghost Token (5000 power)
 
-## P-687 / front / skill 10
+## P-687 — SS Vegeks, Protector of Discipline / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2502,7 +2502,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-728 / front / skill 10
+## P-728 — SS Gogeta, Overflowing Fighting Spirit / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2512,7 +2512,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## P-728 / front / skill 20
+## P-728 — SS Gogeta, Overflowing Fighting Spirit / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2522,7 +2522,7 @@ Unread: the next time you play a blue <Gogeta: Br> card with [union] During this
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## SD19-01 / front / skill 10
+## SD19-01 — Gotenks / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2532,7 +2532,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 2 or more cards in your Energy Area: you may: flip this card over, if the offer was taken: draw 1, choose up to 1 card in your Energy Area, switch the chosen cards to active mode, life down to 6, the cards going to hand
 
-## SD19-01 / back / skill 0
+## SD19-01 — SS3 Gotenks, Extravagant Assault Returns / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2542,7 +2542,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: play 1 Ghost Token (5000 power)
 
-## SD19-02 / front / skill 10
+## SD19-02 — SS3 Gotenks, Warrior's Growth / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2552,7 +2552,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: play 1 Ghost Token (5000 power)
 
-## SD19-03 / front / skill 10
+## SD19-03 — SS3 Gogeta, Carefree Combatant / front / skill 10
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2562,7 +2562,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: add 1 marker
 
-## SD19-03 / front / skill 20
+## SD19-03 — SS3 Gogeta, Carefree Combatant / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2572,7 +2572,7 @@ Unread: Add up to 1 Battle Card each from your deck and/or Drop to your hand; ea
 
 Compiled reading: shuffle
 
-## SD19-04 / front / skill 10
+## SD19-04 — SS3 Gotenks, Ultimate Rookie / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2582,7 +2582,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## SD19-04 / front / skill 20
+## SD19-04 — SS3 Gotenks, Ultimate Rookie / front / skill 20
 
 Role: support/reference; status: unread.
 
@@ -2592,7 +2592,7 @@ Unread: reduce the skill cost of this card's [union] skill in your hand by {g}
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## SD19-05 / front / skill 10
+## SD19-05 — Gotenks, Fusion Confusion / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2602,7 +2602,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## SD23-01 / back / skill 0
+## SD23-01 — SSB Vegito, Shining Warrior / back / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2612,7 +2612,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if there are 1 or more {final kamehameha} cards in your Battle Area: draw 1
 
-## SD23-07 / front / skill 10
+## SD23-07 — SSB Vegito, Beyond Shining / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2622,7 +2622,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## SD6-02 / front / skill 0
+## SD6-02 — Fusion Reborn Vegeta / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2632,7 +2632,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <gogeta>: choose up to 1 card in your Energy Area, switch the chosen cards to active mode
 
-## SD6-03 / front / skill 0
+## SD6-03 — Fusion Reborn Son Goku / front / skill 0
 
 Role: support/reference; status: runtime-unproven.
 
@@ -2642,7 +2642,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is <gogeta>: draw 1
 
-## SD6-04 / front / skill 10
+## SD6-04 — Ultimate Fusion Gogeta / front / skill 10
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2652,7 +2652,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: (keyword-owned or no effect operations)
 
-## TB3-054 / front / skill 0
+## TB3-054 — Piccolo, Potential Unleashed / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2662,7 +2662,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: if your leader is ≪shenron≫: if there are 3 or more cards your opponent has in play in rest mode: choose up to 1 yellow ≪Namekian≫ card with an energy cost of 4 in your deck or Drop Area, play the chosen cards in active mode, shuffle
 
-## XD3-02 / front / skill 0
+## XD3-02 — Cell, Genetic Consumption / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
@@ -2672,7 +2672,7 @@ Unread: none (does not certify runtime support)
 
 Compiled reading: choose up to 1 multicolour green yellow <Cell> card with an energy cost of 4 in your hand or deck, play the chosen cards in active mode, shuffle
 
-## XD3-10 / front / skill 0
+## XD3-10 — Cell, Perfection Reclaimed / front / skill 0
 
 Role: direct activation; status: runtime-unproven.
 
