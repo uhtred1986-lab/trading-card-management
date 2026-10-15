@@ -275,6 +275,9 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   // 20-1: every name the card answers to — its printed one, and any a skill
   // gave it "in all areas".
   const names = [text(attrs.name) ?? "", ...list(attrs.alsoNames)].filter((n) => n !== "");
+  // Stored token filters name the kind without “Token”; creation preserves
+  // the full printed name (19-1-4). Only a token-qualified match uses this alias.
+  if (f.token) names.push(...names.map((n) => n.replace(/ token$/i, "")));
   const partNames = f.namesIncluding ?? [];
   if ((f.names.length || partNames.length) && !f.names.some((n) => same(names, n)) && !partNames.some((n) => part(names, n))) return false;
   if (!(f.namesAll ?? []).every((n) => same(names, n))) return false;
