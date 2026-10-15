@@ -31,7 +31,8 @@ export type { CostRecord };
 import { clauseShape, triggersOf } from "./gaps";
 import { cardDefFrom } from "./load";
 import { clarifyRule } from "./ai/clarify";
-import { loadRules, programOf, type RuleRow, type Side } from "./rules-store";
+import { isGameRuleReminder } from "./rule-scope";
+import { loadRules, programOf, ruleById, worklist, REVIEWABLE_CARD, type RuleRow, type Side } from "./rules-store";
 
 /** One skill of one card face, as the drafter would write it. */
 export interface SkillRecord {
@@ -55,6 +56,7 @@ export interface SkillRecord {
  * record; there is nothing a person could confirm about it.
  */
 export function skillRecords(def: CardDef): SkillRecord[] {
+  if (isGameRuleReminder(def.type)) return [];
   const out: SkillRecord[] = [];
   for (const side of ["front", "back"] as const) {
     const text = side === "front" ? def.skill : def.back?.skill;
@@ -202,11 +204,12 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
   const unique = [...new Set(ids)];
   for (let i = 0; i < unique.length; i += 400) {
     const slice = unique.slice(i, i + 400);
-    // The arena plays the original game only; Fusion World text gets no rows.
+    // Only playable Masters cards get skill rows. Filter reminders before
+    // iteration so pruning obsolete skills also preserves their legacy rows.
     const rows = await db
       .select()
       .from(cardsTable)
-      .where(and(inArray(cardsTable.id, slice), eq(cardsTable.game, DEFAULT_GAME)));
+      .where(and(inArray(cardsTable.id, slice), eq(cardsTable.game, DEFAULT_GAME), REVIEWABLE_CARD));
     const existing = new Map((await loadRules(db, slice)).map((r) => [`${r.cardId}#${r.side}#${r.skillIndex}`, r]));
     const inserts: (typeof cardRules.$inferInsert)[] = [];
     const seen = new Set<string>();
@@ -294,7 +297,7 @@ export async function catalogIds(db: Db, set?: string): Promise<string[]> {
   const rows = await db
     .select({ id: cardsTable.id })
     .from(cardsTable)
-    .where(set ? and(eq(cardsTable.game, DEFAULT_GAME), eq(cardsTable.setCode, set)) : eq(cardsTable.game, DEFAULT_GAME));
+    .where(and(REVIEWABLE_CARD, eq(cardsTable.game, DEFAULT_GAME), set ? eq(cardsTable.setCode, set) : undefined));
   return rows.map((r) => r.id);
 }
 
@@ -351,7 +354,7 @@ export async function reviewBudget(db: Db): Promise<number> {
 export async function reviewOpenRules(db: Db, ids: string[], opts: { budget?: number } = {}): Promise<ReviewSummary> {
   const budget = opts.budget ?? (await reviewBudget(db));
   const out: ReviewSummary = { asked: 0, drafted: 0, failed: 0, stillOpen: 0 };
-  const open = (await loadRules(db, ids)).filter((r) => r.status === "open");
+  const open = (await worklist(db, ids)).filter((r) => r.status === "open");
   out.stillOpen = open.length;
   if (!open.length) return out;
   if (!hasAnthropic()) {
@@ -395,7 +398,7 @@ async function reviewOne(db: Db, row: RuleRow, when: string): Promise<{ drafted:
  * on the answer.
  */
 export async function reviewOpenRule(db: Db, id: number): Promise<{ drafted: boolean; why: string | null }> {
-  const [row] = await db.select().from(cardRules).where(eq(cardRules.id, id));
+  const row = await ruleById(db, id);
   if (!row) return { drafted: false, why: "no such rule" };
   if (row.status !== "open") return { drafted: false, why: "only an open skill is drafted by Claude here" };
   if (!hasAnthropic()) return { drafted: false, why: "ANTHROPIC_API_KEY is not set — this needs Claude." };

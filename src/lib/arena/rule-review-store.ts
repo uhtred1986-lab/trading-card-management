@@ -21,7 +21,7 @@ import type { StoredProbe } from "./rules-store";
 import type { Cond, CostRecord, Op } from "./vm/script";
 import { reviewVersion } from "./rule-review-version";
 import type { SavedExplanation } from "./rule-explanation";
-import { reopenRule } from "./rules-store";
+import { reopenRule, REVIEWABLE_CARD } from "./rules-store";
 
 /** One skill in the queue, as the phone gets it: the record, the card around it and what is known of its play. */
 export interface ReviewItem {
@@ -107,7 +107,8 @@ export async function draftsByPattern(db: Db, patterns: string[]): Promise<Map<s
   const rows = await db
     .select({ id: cardRules.id, pattern: cardRules.pattern, explanation: cardRules.explanation })
     .from(cardRules)
-    .where(and(eq(cardRules.status, "draft"), inArray(cardRules.pattern, keys)));
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(and(REVIEWABLE_CARD, eq(cardRules.status, "draft"), inArray(cardRules.pattern, keys)));
   for (const r of rows) {
     if (!r.pattern || isFlagged(r.explanation)) continue;
     out.set(r.pattern, [...(out.get(r.pattern) ?? []), r.id]);
@@ -151,7 +152,7 @@ export async function reviewQueue(db: Db, o: { cardIds: string[]; ruleIds?: numb
     .select({ rule: cardRules, card: CARD_BITS })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(and(inArray(cardRules.cardId, ids), inArray(cardRules.status, ["open", "draft"]), o.ruleIds ? (o.ruleIds.length ? inArray(cardRules.id, o.ruleIds) : eq(cardRules.id, -1)) : undefined));
+    .where(and(REVIEWABLE_CARD, inArray(cardRules.cardId, ids), inArray(cardRules.status, ["open", "draft"]), o.ruleIds ? (o.ruleIds.length ? inArray(cardRules.id, o.ruleIds) : eq(cardRules.id, -1)) : undefined));
   const live = rows.filter((r) => o.flaggedOnly ? isFlagged(r.rule.explanation) : r.rule.status === "open" || !isFlagged(r.rule.explanation));
   const siblings = await draftsByPattern(
     db,
@@ -172,7 +173,7 @@ export async function reviewQueue(db: Db, o: { cardIds: string[]; ruleIds?: numb
 
 /** One skill as the queue shows it, read again after a write (Ask Claude). */
 export async function reviewItemById(db: Db, id: number, extra: { decks: string[]; firedIn: number | null }): Promise<ReviewItem | null> {
-  const [r] = await db.select({ rule: cardRules, card: CARD_BITS }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(eq(cardRules.id, id));
+  const [r] = await db.select({ rule: cardRules, card: CARD_BITS }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, id)));
   if (!r) return null;
   const siblings = r.rule.status === "draft" && r.rule.pattern ? ((await draftsByPattern(db, [r.rule.pattern])).get(r.rule.pattern)?.length ?? 1) - 1 : 0;
   return { ...itemOf(r.rule, r.card, { ...extra, sameWording: Math.max(0, siblings) }), pendingExplanation: (await pendingExplanations(db, [r.rule])).get(id) };
@@ -221,7 +222,7 @@ export interface FlagReceipt {
  * rule itself — status, program, version — is not touched. It stays a draft.
  */
 export async function flagWrong(db: Db, ruleId: number, v: WrongVerdict, reportedBy: string | null = null): Promise<FlagReceipt | null> {
-  const [row] = await db.select({ explanation: cardRules.explanation, cardId: cardRules.cardId, skillIndex: cardRules.skillIndex, printed: cardRules.printed, reads: cardRules.reads }).from(cardRules).where(eq(cardRules.id, ruleId));
+  const [row] = await db.select({ explanation: cardRules.explanation, cardId: cardRules.cardId, skillIndex: cardRules.skillIndex, printed: cardRules.printed, reads: cardRules.reads }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, ruleId)));
   if (!row) return null;
   const written = flagExplanation(v, row.explanation);
   await db.update(cardRules).set({ explanation: written, updatedAt: new Date() }).where(eq(cardRules.id, ruleId));

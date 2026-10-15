@@ -14,7 +14,7 @@ import { parsePath } from "../../src/lib/arena/lang/path";
 
 /** One fixture card's first skill, as the drafter records it. */
 function record(skill: string): ReviewRecord {
-  const def = { id: "FX-001", name: "Fixture", cardType: "BATTLE", skill, back: null } as unknown as CardDef;
+  const def = { id: "FX-001", name: "Fixture", type: "BATTLE", skill, back: null } as unknown as CardDef;
   const [r] = skillRecords(def);
   assert.ok(r, `the fixture compiles to a record: ${skill}`);
   return {

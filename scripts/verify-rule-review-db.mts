@@ -13,10 +13,12 @@ import assert from "node:assert/strict";
 import { and, eq, inArray } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
-import { draftCards, reviewOpenRule } from "../src/lib/arena/draft.ts";
+import { catalogIds, draftCards, reviewOpenRule, reviewOpenRules, skillRecords } from "../src/lib/arena/draft.ts";
+import { cardDefFrom } from "../src/lib/arena/load.ts";
+import { reviewVersion } from "../src/lib/arena/rule-review-version.ts";
 import { FLAG_PREFIX } from "../src/lib/arena/rule-review.ts";
-import { recentFired, reviewQueue, sameWordingIds, flagWrong, unflagWrong } from "../src/lib/arena/rule-review-store.ts";
-import { confirmMatching, confirmRule, countRules, reopenRule, undoConfirmed } from "../src/lib/arena/rules-store.ts";
+import { recentFired, reviewQueue, reviewItemById, sameWordingIds, flagWrong, unflagWrong } from "../src/lib/arena/rule-review-store.ts";
+import { confirmMatching, confirmReviewedRule, confirmRule, countRules, draftPatterns, loadRules, openPatterns, reasonGroups, reopenRule, ruleById, saveReviewedExplanation, setGroups, siblingsOf, statusCounts, undoConfirmed, worklist, worklistPage } from "../src/lib/arena/rules-store.ts";
 
 export async function verifyRuleReviewDb(db: Db): Promise<void> {
   const card = (id: string, name: string, skill: string) => ({ id, setCode: "BT18", name, cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: `${id} ${name}`.toLowerCase(), skill });
@@ -123,7 +125,84 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   // The whole sitting leaves the catalog as it found it.
   assert.deepEqual(await countRules(db, all), before);
 
+  await verifyMarkerReminders(db);
+
   await db.delete(schema.arenaFeedback).where(and(eq(schema.arenaFeedback.kind, "rule"), inArray(schema.arenaFeedback.cardId, all)));
+  await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, all));
+  await db.delete(schema.cards).where(inArray(schema.cards.id, all));
+}
+
+/** Legacy accessory records survive intact but cannot masquerade as playable skills. */
+async function verifyMarkerReminders(db: Db): Promise<void> {
+  const reminder = "At the start of the game, the player who goes second places one Energy Marker in their Energy Area. Removing one Energy Marker from the game is equivalent to switching one card from your energy, with the same color as your Leader, to Rest Mode.";
+  const markers = ["BT18-790", "BT18-791", "BT18-792", "BT18-793", "BT18-794", "BT18-795"];
+  const battleId = "BT18-796";
+  const all = [...markers, battleId];
+  await db.insert(schema.cards).values(all.map((id) => ({
+    id, setCode: "BT18", name: id === battleId ? "Marker-making Battle Card" : "Energy Marker",
+    // Normalization agrees between the SQL queue guard and pure skill drafting.
+    cardType: id === battleId ? "BATTLE" : id === markers[1] ? " energy marker " : "ENERGY MARKER",
+    rarity: "Common[C]", rarityCode: "C", searchText: id.toLowerCase(),
+    skill: id === battleId ? "[Auto] When you play this card, place 1 energy marker in your energy area." : reminder,
+  })));
+  await draftCards(db, [battleId]);
+  const [real] = await loadRules(db, [battleId]);
+  assert.equal(real.status, "draft", "ordinary Battle skills mentioning markers are still compiled");
+  assert.deepEqual(real.ops, [{ op: "energyMarker", n: 1 }], "the existing shared marker operation is used");
+  assert.ok(real.pattern);
+
+  await db.insert(schema.cardRules).values([
+    { cardId: markers[0], status: "open", source: "compiler", unread: [reminder] },
+    { cardId: markers[1], status: "draft", source: "compiler", unread: [] },
+    { cardId: markers[2], status: "corrected", source: "user", unread: [], explanation: "Owner's historical interpretation" },
+    { cardId: markers[3], status: "confirmed", source: "user", unread: [] },
+    { cardId: markers[4], status: "draft", source: "claude", unread: [] },
+    // markers[5] deliberately has no row: future drafting must not create one.
+  ].map((r) => ({ ...r, side: "front", skillIndex: 0, printed: reminder, kind: "Auto", pattern: real.pattern,
+    ops: [{ op: "energyMarker", n: 1 }], reads: "Historical reminder reading", version: 7 })));
+  const rawMarkers = () => db.select().from(schema.cardRules).where(inArray(schema.cardRules.cardId, markers)).orderBy(schema.cardRules.id);
+  const before = await rawMarkers();
+  const baselineCounts = await countRules(db);
+  const visible = { open: 0, draft: 1, confirmed: 0, corrected: 0 };
+  assert.deepEqual(await countRules(db, all), visible, "legacy accessories do not inflate any skill status");
+  assert.deepEqual(await statusCounts(db, { cardIds: all }), visible, "workbench segment counts agree");
+  assert.deepEqual((await worklist(db, all)).map((r) => r.id), [real.id]);
+  const page = await worklistPage(db, { cardIds: all }, { limit: 20, offset: 0 });
+  assert.equal(page.total, 1);
+  assert.deepEqual(page.rows.map((r) => r.id), [real.id], "pagination counts only playable skills");
+  assert.deepEqual(await openPatterns(db, { cardIds: all }), [], "marker reminders form no open wording group");
+  const groups = await draftPatterns(db, 60, { cardIds: all });
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].rules, 1, "marker drafts do not join real skill wording groups");
+  assert.deepEqual(await reasonGroups(db, { cardIds: all }), [], "markers form no unread or Claude-draft reason group");
+  assert.deepEqual((await setGroups(db, { cardIds: all })).map((g) => g.rules), [1]);
+  assert.deepEqual(await siblingsOf(db, real), { count: 0, ids: [] }, "legacy patterns are not review siblings");
+  assert.deepEqual((await sameWordingIds(db, real.id))?.ids, [real.id]);
+  assert.deepEqual((await reviewQueue(db, { cardIds: all, decksOf: new Map(), recent: { gameId: null, fired: [] } })).map((r) => r.id), [real.id]);
+  const ids = await catalogIds(db, "BT18");
+  assert.ok(ids.includes(battleId) && markers.every((id) => !ids.includes(id)), "catalog drafting selects playable entries only");
+  for (const marker of await db.select().from(schema.cards).where(inArray(schema.cards.id, markers))) {
+    assert.deepEqual(skillRecords(cardDefFrom(marker)), [], "pure drafting also refuses accessory reminders");
+  }
+  for (const marker of before) {
+    assert.equal(await ruleById(db, marker.id), null, "stale workbench links cannot review a reminder");
+    assert.equal(await reviewItemById(db, marker.id, { decks: [], firedIn: null }), null, "stale guided links cannot review a reminder");
+    assert.equal(await sameWordingIds(db, marker.id), null);
+    await confirmRule(db, marker.id);
+    await assert.rejects(confirmReviewedRule(db, marker.id, reviewVersion(marker)), /changed/);
+    await assert.rejects(saveReviewedExplanation(db, marker.id, reviewVersion(marker), { kind: "Auto", trigger: [], cost: null, cond: null, ops: [{ op: "energyMarker", n: 1 }] }, "approve stale proposal"), /changed/);
+    assert.equal(await flagWrong(db, marker.id, { tag: "DO", path: "ops[0]", reason: "something else" }), null);
+    assert.deepEqual(await reviewOpenRule(db, marker.id), { drafted: false, why: "no such rule" }, "no paid request for legacy reminder IDs");
+  }
+  assert.deepEqual(await reviewOpenRules(db, markers), { asked: 0, drafted: 0, failed: 0, stillOpen: 0 }, "sync review does not send reminder text to Claude");
+  assert.deepEqual((await confirmMatching(db, { cardIds: all })).rules.map((r) => r.id), [real.id], "bulk approval ignores even complete legacy marker drafts");
+  await draftCards(db, all);
+  await draftCards(db, all, { onlyOpen: true });
+  assert.deepEqual(await rawMarkers(), before, "drafting and every approval path preserve all marker row fields, timestamps and programs");
+  assert.deepEqual(await loadRules(db, markers), before, "low-level historical records remain accessible");
+  assert.equal((await db.select().from(schema.cards).where(inArray(schema.cards.id, markers))).length, markers.length, "collectible catalog entries remain intact");
+  assert.deepEqual(await countRules(db), { ...baselineCounts, draft: baselineCounts.draft - 1, confirmed: baselineCounts.confirmed + 1 }, "global counters also omit accessories after approving the real skill");
+
   await db.delete(schema.cardRules).where(inArray(schema.cardRules.cardId, all));
   await db.delete(schema.cards).where(inArray(schema.cards.id, all));
 }
