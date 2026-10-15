@@ -51,7 +51,7 @@ Synthetic engine test card, without catalog artwork; verifies actual mulligan ti
 - `node --import tsx scripts/arena-phone-interactions.mts --base http://127.0.0.1:3110 --out /tmp/phone-nav/interactions`: 360 wide at 800/650 high, both skins; artwork zoom, horizontal paging, attack target review, confirmation/cancel, response choices.
 - `node --import tsx scripts/arena-gameplan-570.mts --base=http://127.0.0.1:3110 --evidence=/tmp/phone-nav/planner`: phone/laptop, both skins; optional menu entry, two moves, budgets, transport retry, keyboard clear, 200% text and no submitted game move.
 
-Full-suite results and the supplementary Tiny Fish capture review are recorded below when complete.
+Final validation: typecheck, lint (five pre-existing prototype warnings), complete `npm test`, and production build passed. All three browser proofs passed again after the final UI changes. Current main was `a63e7bd4`, already containing the other chat’s work, before the full suite and remained current before merge. See [validation.json](validation.json). No dependencies, migrations, engine rules or contract changes.
 
 ## Tiny Fish capture review and disposition
 
