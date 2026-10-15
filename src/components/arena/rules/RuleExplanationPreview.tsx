@@ -8,13 +8,13 @@ import type { Rule } from "@/lib/arena/lang/ast";
 
 /** Dev-only page supplies synthetic outcomes; never calls a provider or database. */
 export const PREVIEW_RULE: Rule = {
-  kind: "activate:main", trigger: [], cost: { text: "Pay one red and one other energy", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
+  kind: "activate:main", trigger: [], cost: { text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
   cond: null, ops: [{ op: "draw", n: 2 }],
 };
 const item = (id: number, name: string): ReviewItem => ({
   id, reviewVersion: "fixture-v1", cardId: `PREVIEW-${id}`, name, meta: "Battle · Red · cost 2", imageUrl: null,
   side: "front", skillIndex: 0, kindLabel: "Activate: Main", tag: PREVIEW_RULE.kind,
-  printed: "[Activate: Main] Pay one red and one other energy: Draw 2 cards.", ...PREVIEW_RULE,
+  printed: "[Activate: Main] {R}{1}: Draw 2 cards.", ...PREVIEW_RULE,
   unread: [], status: "draft", source: "compiler", pattern: null, explanation: null, timesSeen: 0, probe: null, firedIn: null, decks: [], sameWording: 0,
 });
 

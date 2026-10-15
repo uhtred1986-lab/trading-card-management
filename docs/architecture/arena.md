@@ -344,6 +344,10 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   confirmed/corrected rows, including when a concurrent approval wins first. Structural validation
   and the runtime's named capability checks are separate: contextual unknowns ask for manual
   capability review and cannot be approved here. They are not claimed as missing engine code.
+  Native energy/marker/Burst/Spirit Boost fees are bound to the parsed printed skill: those
+  fields are not runtime overrides on `card_rules.cost`. Residual cost text stays visible and
+  needs a readable condition/action price; the activation planner shares its static refusal
+  check with authoring. Empty AI effect fallbacks cannot approve an intentional blank.
   Unsupported candidates become deduplicated coding feedback with a persisted GitHub receipt or
   honest retry state; supported `rule-proposal` staging records are excluded from generic issue
   sync. Reload resumes a candidate only for its exact original record. `/arena/rules/review/preview`

@@ -6,27 +6,37 @@ import { cards, cardRules, arenaFeedback } from "../src/db/schema.ts";
 import { requestRuleExplanation, approveRuleExplanation, retryExplanationIssue, type ExplanationServices } from "../src/lib/arena/rule-explanation-store.ts";
 import { explainDecision, type ExplanationAnswer } from "../src/lib/arena/rule-explanation.ts";
 import { reviewVersion } from "../src/lib/arena/rule-review-version.ts";
-import { saveRule, reopenRule, confirmReviewedRule } from "../src/lib/arena/rules-store.ts";
+import { saveRule, reopenRule, confirmReviewedRule, loadRules, rulesFromRows } from "../src/lib/arena/rules-store.ts";
 import { reviewItemById } from "../src/lib/arena/rule-review-store.ts";
 import { feedbackIssueEligible, syncFeedbackItem, syncAllFeedbackItems } from "../lib/github.ts";
 import type { Rule } from "../src/lib/arena/lang/ast.ts";
 import { ruleReading } from "../src/lib/arena/rule-reading.ts";
+import { RULES } from "../src/lib/arena/vm/index.ts";
+import type { Action, CardDef, EngineContext } from "../src/lib/arena/types.ts";
 
 export async function verifyRuleExplanationDb(db: Db) {
-  await db.insert(cards).values({ id: "BT18-EXPLAIN836", setCode: "BT18", name: "Explanation fixture", cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: "explanation fixture", skill: "[Activate: Main] Pay one red and one other energy: If your life is 4 or less, draw two cards." });
-  const first = await saveRule(db, { cardId: "BT18-EXPLAIN836", side: "front", skillIndex: 0, kind: "activate:main", printed: "[Activate: Main] Pay one red and one other energy: If your life is 4 or less, draw two cards.",
+  await db.insert(cards).values({ id: "BT18-EXPLAIN836", setCode: "BT18", name: "Explanation fixture", cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: "explanation fixture", skill: "[Activate: Main] {R}{1}: If your life is 4 or less, draw 2 cards." });
+  const first = await saveRule(db, { cardId: "BT18-EXPLAIN836", side: "front", skillIndex: 0, kind: "activate:main", printed: "[Activate: Main] {R}{1}: If your life is 4 or less, draw 2 cards.",
     source: "compiler", status: "draft", trigger: [], cost: null, cond: null, ops: [{ op: "draw", n: 1 }] });
   const get = async () => (await db.select().from(cardRules).where(eq(cardRules.id, first.id)))[0];
   const rule: Rule = { kind: "activate:main", trigger: [],
     cost: { text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
     cond: { kind: "life", side: "you", atMost: 4 }, ops: [{ op: "draw", n: 2 }] };
   const answer: ExplanationAnswer = { confident: true, question: "", missingCapability: "", meaning: "In your Main Phase pay one red and one other energy; at life 4 or less draw two.", ruleJson: JSON.stringify(rule) };
-  const words = ruleReading({ ...rule, cost: { ...rule.cost!, text: "Do not repeat this prose", x: { min: 1, max: 3 } } });
+  const words = ruleReading({ ...rule, cost: { ...rule.cost!, text: "discard one card", x: { min: 1, max: 3 } } });
   assert.match(words[1][1], /1 Red energy.*1 energy/);
   assert.match(words[1][1], /X energy.*1 minimum.*3 maximum/, "variable payment bounds are visible, never presented as free");
-  assert.ok(!words[1][1].includes("Do not repeat"), "structured prices do not repeat their raw prose");
+  assert.ok(words[1][1].includes("discard one card"), "native energy does not conceal an unresolved residual action cost");
   assert.match(ruleReading({ ...rule, kind: "permanent" })[0][1], /Continuously/);
   assert.match(ruleReading({ ...rule, kind: "auto" })[0][1], /not been read/);
+  assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify({ ...rule, ops: [] }) }, rule.kind, first.printed).kind, "invalid", "empty AI fallback cannot approve a blank skill");
+  assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify({ ...rule, cost: null }) }, rule.kind, first.printed).kind, "question", "a free-price proposal cannot override the engine's native R+1 fee");
+  const residualText = "discard 1 card from your hand";
+  const withResidual = `[Activate: Main] {R}{1}, ${residualText}: Draw 2 cards.`;
+  const residualRule = { ...rule, cost: { ...rule.cost!, text: residualText } };
+  assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify(residualRule) }, rule.kind, withResidual).kind, "question", "orbs do not account for an unpaid residual discard price");
+  assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify({ ...residualRule, cost: { ...residualRule.cost, program: [{ op: "discard", n: 1 }] } }) }, rule.kind, withResidual).kind, "supported", "known action-price instructions can bridge unread wording without compiler success");
+  assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify({ ...residualRule, cost: { ...residualRule.cost, program: [{ op: "draw", n: 1 }] } }) }, rule.kind, withResidual).kind, "unsupported", "ordinary effect operations are not automatically chargeable prices");
   let generateCalls = 0;
   let syncCalls = 0;
   let raw: unknown = answer;
@@ -54,6 +64,32 @@ export async function verifyRuleExplanationDb(db: Db) {
   const approved = await get();
   assert.equal(approved.status, "confirmed");
   assert.deepEqual({ kind: approved.kind, trigger: approved.trigger, cost: approved.cost, cond: approved.cond, ops: approved.ops }, rule, "approval stores WHEN, COST, IF and THEN together");
+  // Real stored-row -> VM boundary: the displayed native R+1 cost is actually paid,
+  // and the complete stored IF/THEN draws two. No compiler stands in for the row.
+  const filler: CardDef = { id: "EXPLAIN-FILL", name: "Red energy", type: "BATTLE", colors: ["Red"], energyCost: 1, zEnergyCost: null, power: 10000, comboCost: 0, comboPower: 5000, skill: null, characters: [], traits: [] };
+  const leader: CardDef = { ...filler, id: "EXPLAIN-LEADER", name: "Leader", type: "LEADER", energyCost: null, comboCost: null, comboPower: null };
+  const defs = { [filler.id]: filler, [leader.id]: leader, [approved.cardId]: { ...filler, id: approved.cardId, name: "Reviewed skill", skill: approved.printed } };
+  const ctx: EngineContext = { defs, scripts: rulesFromRows(await loadRules(db, [approved.cardId]), defs) };
+  const deck = Array.from({ length: 50 }, () => filler.id);
+  let game = RULES.createGame(ctx, { seed: 836, p1: { name: "Owner", leader: leader.id, main: deck }, p2: { name: "Other", leader: leader.id, main: deck } }).state;
+  const setup: Action[] = [{ type: "chooseFirst", player: game.chooser, first: "p1" }, { type: "mulligan", player: "p1", redraw: false }, { type: "mulligan", player: "p2", redraw: false },
+    { type: "charge", player: "p1", card: null }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null }];
+  for (const action of setup) game = RULES.apply(ctx, game, action).state;
+  const host = game.sides.p1.zones.deck.shift()!;
+  game.cards[host].cardId = approved.cardId; game.cards[host].mode = "active"; game.sides.p1.zones.battle.push(host);
+  const energy = [game.sides.p1.zones.deck.shift()!, game.sides.p1.zones.deck.shift()!];
+  for (const id of energy) { game.cards[id].mode = "active"; game.sides.p1.zones.energy.push(id); }
+  game.sides.p1.zones.hand.push(...game.sides.p1.zones.life.splice(4));
+  game.cards[energy[1]].mode = "rest";
+  assert.ok(!RULES.legalActions(ctx, game).some((entry) => entry.action.type === "activate" && entry.action.card === host), "one active energy cannot pay the displayed two-energy fee");
+  game.cards[energy[1]].mode = "active";
+  const activation = RULES.legalActions(ctx, game).find((entry) => entry.action.type === "activate" && entry.action.card === host);
+  assert.ok(activation, "the confirmed record offers its native-priced activation");
+  const handBefore = game.sides.p1.zones.hand.length;
+  game = RULES.apply(ctx, game, activation.action).state;
+  assert.equal(game.outcome, null);
+  assert.deepEqual(energy.map((id) => game.cards[id].mode), ["rest", "rest"], "the actual VM charges red plus generic energy");
+  assert.equal(game.sides.p1.zones.hand.length, handBefore + 2, "the approved conditional effect draws exactly two cards");
   await assert.rejects(() => approveRuleExplanation(db, first.id, draft.proposalId!, draft.token!), /already approved/);
   const callsBeforeProtected = generateCalls;
   await assert.rejects(() => request(), /Reopen/);

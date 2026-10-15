@@ -54,7 +54,7 @@ export async function requestRuleExplanation(db: Db, id: number, expected: strin
     if (error instanceof AiError && error.kind === "bad_output") return { decision: { kind: "invalid", error: "Claude returned invalid output. Nothing was changed; revise the explanation or try again." }, proposalId: null, token: null, issueUrl: null, issueError: null };
     throw error;
   }
-  const decision = explainDecision(answer, row.kind, row.printed);
+  const decision = explainDecision(answer, row.kind, row.printed, row.skillIndex);
   if (decision.kind === "question" || decision.kind === "invalid") return { decision, proposalId: null, token: null, issueUrl: null, issueError: null };
   const response = await db.transaction(async (transaction) => {
     const tx = transaction as unknown as Db;
@@ -108,7 +108,7 @@ export async function approveRuleExplanation(db: Db, id: number, proposalId: num
     if (state.decision.kind !== "supported") throw new Error("Only a complete supported proposal can be approved.");
     // Revalidate at approval against the current runtime, not just the model's earlier answer.
     mutable(row, state.base);
-    const check = explainDecision({ meaning: state.decision.meaning, confident: true, question: "", missingCapability: "", ruleJson: JSON.stringify(state.decision.rule) }, row.kind, row.printed);
+    const check = explainDecision({ meaning: state.decision.meaning, confident: true, question: "", missingCapability: "", ruleJson: JSON.stringify(state.decision.rule) }, row.kind, row.printed, row.skillIndex);
     if (check.kind !== "supported") throw new Error("This proposal requires further capability review before approval.");
     await saveReviewedExplanation(tx, id, state.base, check.rule, `${state.explanation}\n\nClaude's proposed interpretation: ${check.meaning}`);
     state.approved = true;

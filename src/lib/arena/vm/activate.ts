@@ -88,6 +88,7 @@ import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activationPriceProblem } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -900,6 +901,7 @@ export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">
  * and that choice has already been checked.
  */
 export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, ops: Script["ops"]): boolean {
+  if (activationPriceProblem(ops)) return false;
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player };
   const hand = zone(state, player, ACTIVATION_ZONES.hand);
   // The activating card leaves the hand as part of the activation (12-2-2),
