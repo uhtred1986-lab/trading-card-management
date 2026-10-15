@@ -131,3 +131,7 @@ bottom-deck redirect notes across all four names. These are mechanics probes,
 not owner saved decks, strategy certification, or permission to use banned
 cards in tournaments. The private-local report and replay inputs stay outside
 Git; this run opened no database connection.
+
+## Final local validation receipt
+
+Node24 typecheck and lint passed (five pre-existing historical prototype warnings). The full npm-test command chain passed cumulatively: the original run passed every entry before capabilities, then found that the capability inventory needed the new explicit `comboCleanup: true` argument in the existing issue-609 NotYet guard identity. One inventory signature string was corrected, without changing production behavior. The failed capabilities check and every remaining package test entry were then rerun successfully, followed by a successful production build. See `validation.json` for the exact upstream/resumed commands and exits. The final focused Universe3/609 proofs and offline40-game fuzz passed. An uninterrupted full gate on combined current main remains the coordinator integration step. No migration, UI layout change, live write or paid call.
