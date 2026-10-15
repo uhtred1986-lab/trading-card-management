@@ -1493,7 +1493,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const card = frame.card;
       // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
       if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
-      return !!card && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && permitted(ctx, game, state, p.filter, card));
+      return !!card && permissions(ctx, game, state, c.what).some((p) => {
+        if (p.master !== frame.master) return false;
+        // A hand Permanent about “this card's” Fusion never widens another
+        // card's skill, nor the granting card's skill from another area.
+        if (c.what === "unionFusionWarp" && (p.target !== card || findCard(state, card)?.zone !== "hand")) return false;
+        return permitted(ctx, game, state, p.filter, card);
+      });
     }
     // #155: [Arrival]/[Revive]'s colours and [Successor]'s exact sum, read
     // through the shared readings `text/cards.ts` gives both engines.

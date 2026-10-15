@@ -22,7 +22,7 @@ All three specify failed-entry Drop handling and an exception for explicit retur
 | Basic Fusion play | Generic hand pair→Drop→play tested in keywords.ts | Plain chooser accepts repeated same character; per-character qualifiers flattened; **known wrong**, #925 |
 | BT31-001 expanded Fusion | Dedicated union-areas-541.ts tests exact named pair, equal printed power, mixed hand/Battle/Drop, destinations, stale picks, serialization | This proof does not certify every Union card |
 | Gogeta Warp materials | Official FAQ for each of BT12-136/137/P-286 explicitly permits mixed hand/Warp | Self Permanent unread, **unsupported**, #924 |
-| Action costs / cost order | Generic energy planner exists | Keyword action-price path skips printed action costs; Fusion material/additional-cost staging **known wrong**, #926 |
+| Action costs / cost order | Generic energy planner exists | Keyword action-price gate refuses these costs as unread; Fusion material/additional-cost staging **unsupported**, #926 |
 | Potara source permissions | Ordinary Battle-only declaration | Under-Z-Unison/opponent Battle permissions unread; preselection/order, Active entry and both-material power carryover incomplete; #927 |
 | Absorb printed effects | Existing readings.ts and generic keywords.ts cover narrower printed Absorb examples | BT17-077 source/onto order unread; BT28-012 typo clause unread; per-card effects **partial**, #930 |
 | Counter:Play / failed entry | Generic play-window machinery exists, Evolve uses it | Fusion/Potara keyword plays omit counterWindow; full3variant failure behavior **unproven/incomplete**, #929 |
@@ -30,11 +30,13 @@ All three specify failed-entry Drop handling and an exception for explicit retur
 | Cost reductions / granting / restrictions | General cost/keyword/filter primitives exist | Multiple surrounding records unread; do not certify ignored restrictions; #930 |
 | Normal play alongside Union | General play and keyword activation are separate actions | P-286 dual-route regression belongs to #924; global prohibitions still require #930 |
 
+Leader-only negative probe: a Black Leader with traits Saiyan and Earthling was incorrectly accepted by all three Gogeta costs requiring Saiyan-only. Wrong-color Leader is correctly refused. This pre-existing predicate gap is #932; #924 does not claim full card playability or closure while that dependency remains.
+
 ## Source review
 
 Read full local comprehensive-rules22-13, including all subclauses; fetched official keyword page, card FAQ and errata on15October. [Manual](https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00), [keyword reference](https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php), [card FAQ](https://www.dbs-cardgame.com/us-en/rule/card_faq.php), [errata](https://www.dbs-cardgame.com/us-en/rule/errata-cards.php).
 
-Official Q1 for EACH BT12-136, BT12-137 and P-286 answers yes to using one material each from hand and Warp. The fetched errata page contains no entry for these three IDs. The keyword page describes Potara entry as Active; the implementation's generic onto-host mode inheritance needs variant-specific review. Other FAQ entries are source evidence, not claims of executed tests. Full per-card errata/Q&A reconciliation remains a closure requirement of #923; this audit does not claim every interaction is tested.
+Official Q1 for EACH BT12-136, BT12-137 and P-286 answers yes to using one material each from hand and Warp. The fetched errata page contains no entry for these three IDs. Official artworks for all3 were also inspected: Union costs are one Black orb for BT12-136/137 and generic3 for P-286; each normal printed total is6. The keyword page describes Potara entry as Active; the implementation's generic onto-host mode inheritance needs variant-specific review. [Official reference inventory](official-references.json) records 54 matching card-specific FAQ headings among these229cards and lists missing entries. Six cards have official errata: five retain outdated text (BT2-015, BT22-137, BT3-070, BT4-108, P-360; #934), while BT5-120 combo cost is already correct. Other FAQ entries are source evidence, not claims of executed tests. Full per-card errata/Q&A reconciliation remains a closure requirement of #923; this audit does not claim every interaction is tested.
 
 ## Order and hot files
 

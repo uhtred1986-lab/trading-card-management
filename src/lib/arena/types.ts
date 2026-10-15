@@ -394,6 +394,9 @@ export interface Permission {
    * [Field] skill on this card in your hand can also be activated at
    * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
    * where the skill is used; `filter` is not read.
+   * `unionFusionWarp`: this target card may activate its own Fusion from hand,
+   * choosing its specified materials from hand or Warp and sending both to Drop.
+   * This is self-scoped and does not grant any other card an area permission.
    * `unionFusionAreas`: while the card granting it (the target) is in play, its
    * master's [Union-Fusion] may choose its specified Battle Cards from the
    * Battle Area and the Drop as well as the hand (22-13-4-2-1), those two
@@ -410,7 +413,7 @@ export interface Permission {
    * paid by sending 1 card from the opponent's hand to the bottom of their deck
    * instead. Both stand beside the hand payment, which stays the player's choice.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "aegisAltDrop" | "aegisAltOpponentHand";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "aegisAltDrop" | "aegisAltOpponentHand";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }

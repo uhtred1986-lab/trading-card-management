@@ -2243,6 +2243,7 @@
             "fieldBattle",
             "overRealmFromWarp",
             "unionFusionAreas",
+            "unionFusionWarp",
             "aegisAltDrop",
             "aegisAltOpponentHand"
           ]
@@ -3142,7 +3143,7 @@
     {
       "kind": "permits",
       "class": "primitive",
-      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"aegisAlt\"}",
+      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"aegisAlt\"}",
       "fields": [
         {
           "name": "what",
@@ -3151,6 +3152,7 @@
           "type": "enum",
           "enumValues": [
             "unionFusionAreas",
+            "unionFusionWarp",
             "aegisAlt"
           ]
         }

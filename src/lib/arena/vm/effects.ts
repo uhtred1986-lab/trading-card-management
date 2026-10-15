@@ -769,9 +769,10 @@ function collect(
     // except `fieldBattle` (BT29-041/-042), which is about the [Field] line
     // used from the hand (22-3) and so is read there, as `altCost` is, and
     // `overRealmFromWarp` (BT31-150), which is about the card's own
-    // [Over Realm] line used from the Warp and so is read there.
+    // [Over Realm] line used from the Warp and so is read there; and
+    // unionFusionWarp, scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
-      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp") continue;
+      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "unionFusionWarp") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
