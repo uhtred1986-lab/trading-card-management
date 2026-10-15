@@ -21,9 +21,9 @@
 [AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
 [AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
   Generating static pages using 4 workers (0/13) ...
-  Generating static pages using 4 workers (3/13) 
-  Generating static pages using 4 workers (6/13) 
-  Generating static pages using 4 workers (9/13) 
+  Generating static pages using 4 workers (3/13)
+  Generating static pages using 4 workers (6/13)
+  Generating static pages using 4 workers (9/13)
 ✓ Generating static pages using 4 workers (13/13) in 319ms
   Finalizing page optimization ...
 
@@ -102,4 +102,3 @@ Route (app)
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
-
