@@ -1494,5 +1494,89 @@ export const TESTING_SCENARIO_CATALOG: TestingScenarioSeed[] = [
     "group": "white_cell_strategy",
     "description": "Use a 0-cost/5000 combo or Cell Jr. reactive play only when it changes the battle or preserves a higher-value hand/resource plan. Include Sparking-5 Android 18 draw and cell-evolution ingredients where their opportunity cost is explicit. Score cards spent, life saved/dealt, legal follow-up development and conserved White sources. Evidence scope: Partial generic efficient-combo policy tests; missing the White-card opportunity-cost fixtures. This complete checklist item starts planned; inspected component evidence is not an exact-revision pass for the item.",
     "source": "docs/arena-white-cell-validation.md#seven-decision-benchmarks-strategy-not-engine-legality"
+  },
+  {
+    "id": "ai-01",
+    "name": "AI-01 — Proven lethal and Life-to-hand replenishment",
+    "group": "strategy",
+    "description": "Objective: take a legal line that wins against every response in the fixture's declared response set when such a line exists. Acceptable actions are first steps of independently replayed winning lines, including bounded multiple attacks and any required combos; a projected lethal line that fails after ordinary damage adds Life cards to the defender's hand is rejected. Variants: Dual/Triple Attack aggro, Critical pressure and a wider small-attacker board; include a non-forced lethal case where conserving resources is acceptable. Partial existing evidence: combat threshold/Strike cases and one search two-attacker lethal. The real three-attacker Life-to-hand search case remains a documented failure; no cross-deck pass. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-01"
+  },
+  {
+    "id": "ai-02",
+    "name": "AI-02 — Avoidable loss and efficient defense",
+    "group": "strategy",
+    "description": "Objective: survive the declared attack sequence when legal defense exists, then minimize necessary card/energy expenditure within the fixture's surviving lines. Acceptable actions may be block, counter, combo or battle activation; ties follow the real engine and a cheap defense that loses to the next attack is rejected. Variants: low-Life aggro, control with multiple counters and a development deck protecting its key base. Partial existing evidence: combat fixtures prove lethal blocking, cheapest sufficient combo and non-redundant counter in synthetic battles; missing cross-attack and real-deck defenses. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-02"
+  },
+  {
+    "id": "ai-03",
+    "name": "AI-03 — Energy, colors and future payments",
+    "group": "strategy",
+    "description": "Objective: choose a legal development/payment sequence that preserves the fixture's specified next-turn play or defensive payment. Acceptable actions retain the needed active colored sources without sacrificing a strictly better survival/lethal line; enumerate equivalent energy choices rather than require an arbitrary card ID. Variants: mono-color, multicolor/Energy-Exhaust and White Hidden/Revealed resources. Partial existing evidence: Main play/payment preserves a needed color in synthetic positions; missing real multicolor, White and future-turn variants. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-03"
+  },
+  {
+    "id": "ai-04",
+    "name": "AI-04 — Card advantage and combo opportunity costs",
+    "group": "strategy",
+    "description": "Objective: spend a card or activation only when it changes the declared battle/board outcome or enables the fixture's follow-up; preserve explicitly needed material/counter cards when an equivalent expendable card exists. Acceptable actions are cheapest sufficient outcome-equivalent lines, allowing printed draw/recovery value to change the ranking. Variants: aggro hand pressure, draw/control engines and fusion/evolution material hands. Partial existing evidence: efficient synthetic combos and least-value required discards; missing printed-effect opportunity-cost variants. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-04"
+  },
+  {
+    "id": "ai-05",
+    "name": "AI-05 — Critical versus ordinary attack order",
+    "group": "strategy",
+    "description": "Objective: choose an attack order that attains the fixture's proven damage/lethal result against the declared legal defenses, accounting for Critical sending Life to Drop versus ordinary damage replenishing hand. Acceptable actions include every equally effective first attack; Critical-first is not a universal rule. Variants: mixed Critical/ordinary attackers, multiple attacks and blockers/Strike damage. Partial existing evidence: combat values Critical/Double Strike; search explicitly omits Life-to-hand replenishment. Missing exact real-deck attack-order cases. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-05"
+  },
+  {
+    "id": "ai-06",
+    "name": "AI-06 — Development sequencing and curve",
+    "group": "strategy",
+    "description": "Objective: choose a feasible turn sequence that achieves the fixture's declared board/resource milestone while retaining required defense, instead of merely playing the highest-cost card. Acceptable actions are equivalent legal orders with the measured milestone and no avoidable survival loss. Variants: low-curve aggro, Unison/marker development and resource-dependent control; include pass/end-turn when every play is dominated. Partial existing evidence: affordable development, favorable attack, endMain and free-activation termination; missing multi-effect printed development sequences. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-06"
+  },
+  {
+    "id": "ai-07",
+    "name": "AI-07 — Fusion and evolution material planning",
+    "group": "strategy",
+    "description": "Objective: preserve, find or develop the printed eligible materials/base so the declared next legal Fusion/Evolve line remains available, unless immediate survival or forced lethal dominates it. Acceptable actions use exact printed names, colors, power/areas and payment requirements; compare alternative bases/materials by resulting board and retained resources. Variants: Union-Fusion, Union-Potara and Evolve/EX-Evolve. Existing rule-family evidence can establish legal ingredients but is not a strategic planning proof; named cross-deck material decisions are missing. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-07"
+  },
+  {
+    "id": "ai-08",
+    "name": "AI-08 — Removal and control target selection",
+    "group": "strategy",
+    "description": "Objective: remove or disable the fixture's threat that changes the declared survival/board objective, respecting targeting protection and legal effect scope. Acceptable actions include all outcome-equivalent targets or decline when removal has no benefit; raw power alone is insufficient when a smaller engine/blocker determines the result. Variants: aggro removing a blocker, control breaking an engine and protected versus unprotected targets. Partial existing evidence: optional/required synthetic picks choose higher-value targets and useful printed modes; missing effect-aware real-target comparisons. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-08"
+  },
+  {
+    "id": "ai-09",
+    "name": "AI-09 — Recursion and finite resource loops",
+    "group": "strategy",
+    "description": "Objective: choose an eligible recovered/replayed card that enables the fixture's declared defense/development line, with printed limits and net costs accounted for. Acceptable actions finish a beneficial bounded cycle or decline/end when repeated recovery cannot improve the objective; infinite or unproductive activation is rejected. Variants: Desire recovery, Revive/Swap and Extra/Drop recursion. Partial existing evidence: priced Auto/mode/replacement choices and Main cycle guard; missing real recursive engine value and timing benchmarks. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-09"
+  },
+  {
+    "id": "ai-10",
+    "name": "AI-10 — Optional payment and deliberate decline",
+    "group": "strategy",
+    "description": "Objective: pay an optional price only when its declared benefit justifies losing the resources needed for the fixture's other legal objective; otherwise decline without spending. Acceptable actions include every full-payment line with equivalent benefit and resource retention, or decline; partial exact-count payment never qualifies. Variants: optional hand/Warp prices, Life-taking choices and Hidden/Revealed energy costs. Partial existing evidence: synthetic paid Auto, optional Life pick and Offering choices; exact payment rule proofs do not establish real-card value decisions. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-10"
+  },
+  {
+    "id": "ai-11",
+    "name": "AI-11 — Robust decisions under hidden information",
+    "group": "strategy",
+    "description": "Objective: make the same choice for identical permitted observations/policy RNG across hidden-state permutations, while choosing within the fixture's declared public-information risk objective. Acceptable actions are predeclared safe/expected-value alternatives under an explicit response distribution; no action is rewarded for exploiting an unseen card identity. Variants: unknown combo hands, counters and unseen deck/Life order across aggro/control/material decks. Existing suites prove hidden-permutation invariance in sampled generic positions; missing archetype-specific risk decisions and calibrated distributions. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-11"
+  },
+  {
+    "id": "ai-12",
+    "name": "AI-12 — Adapt pressure, control and long-game plans",
+    "group": "strategy",
+    "description": "Objective: select the fixture's demonstrated short- or long-horizon plan from visible race, resources and threats: pressure when delaying loses the race, stabilize when racing loses, conserve/recur when that enables the declared later win. Acceptable actions come from reviewed finite continuations with explicit horizon and response assumptions; ambiguous choices are diagnostic, not forced failures. Variants: aggro mirror, aggro versus control and recursion/material versus resource denial. Generic affordable-play/efficient-battle proofs do not establish plan adaptation; all named cross-archetype cases are missing. This benchmark starts planned. A pass requires a named fixture, deck/rules/policy revision and reviewed evidence; one generic case never passes all decks.",
+    "source": "docs/arena-strategy-validation.md#ai-12"
   }
 ];
