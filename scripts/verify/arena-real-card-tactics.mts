@@ -2,17 +2,27 @@
  * measurements. A policy failure is reported as evidence, never renamed pass.
  * Run: env -u DATABASE_URL npx tsx scripts/verify/arena-real-card-tactics.mts */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
-import { applyMove, legalMoves, type PinnedMatch } from "../../src/lib/arena/browser";
+import { applyMove, legalMoves, projectSnapshot, type PinnedMatch } from "../../src/lib/arena/browser";
 import { localStep, policyTurn } from "../../src/lib/arena/policy/boundary";
 import { localPolicy } from "../../src/lib/arena/policy/combat";
-import { localMemory } from "../../src/lib/arena/policy/main";
+import { localMemory, mainChoice, MAIN_POLICY_VERSION } from "../../src/lib/arena/policy/main";
 import { policyRng } from "../../src/lib/arena/policy/rng";
-import { searchPolicy } from "../../src/lib/arena/policy/search";
+import { searchPolicy, SEARCH_VERSION } from "../../src/lib/arena/policy/search";
 import { permutedFor } from "./arena-policy-permute";
+import { actionCostOf, freePrice, mandatoryLifeCost } from "../../src/lib/arena/vm/costs";
+import type { Op } from "../../src/lib/arena/vm/script";
 import { realTacticalCases, TACTICAL_CARDS, TACTICAL_SEED, zones, type RealTacticalCase } from "./arena-real-card-tactics-fixture";
+import { evaluationRunnerPin } from "../lib/evaluation-provenance";
+import { assertManifest, evidenceHash, fixturePin, policyPin, writeEvidenceFile } from "../lib/policy-evaluation-manifest";
+import type { DecisionManifest } from "../../src/lib/arena/testing/run-manifest";
+
+const args=process.argv.slice(2);
+if(args.length%2 || args.some((a,i)=>i%2===0 && !["--out","--manifest-out"].includes(a))) throw new Error("usage: tsx scripts/verify/arena-real-card-tactics.mts [--out FILE] [--manifest-out FILE]");
+const flag=(name:string)=>{const i=args.indexOf(name);return i<0?null:args[i+1];};
+const runner=evaluationRunnerPin("arena-policy-strategy","827-real-card-tactics-v1");
 
 type Choice = "activation"|"combo-only"|"attack"|"restand"|"decline";
 const actor = (m:PinnedMatch) => (m.state.prompt as {player?:PlayerId}).player;
@@ -80,8 +90,41 @@ function oracleLine(c:RealTacticalCase,line:Choice):LineResult {
   return {match,events,actions,stop:"80-decision bound"};
 }
 
-const {cases}=await realTacticalCases();
+const {bundle,cases}=await realTacticalCases();
 const [white,dual,restand,unsafe]=cases;
+
+// Typed Life facts survive the same JSON/contract path a worker policy reads.
+for(const c of [restand,unsafe]) {
+  const legal=legalMoves(c.match).find((l)=>l.action.type==="activate" && l.action.card===c.focus)!;
+  assert.equal(legal.cost?.life,1,"SD5-04 exact action price is a typed Life payment");
+  const snapshot=clone(projectSnapshot(c.match,c.seat));
+  assert.equal(snapshot.legal.find((l)=>l.action.type==="activate" && l.action.card===c.focus)?.cost?.life,1,"snapshot/JSON preserve the legal cost fact");
+  const preview=snapshot.view.you.battle.find((card)=>card.id===c.focus)?.abilities?.find((a)=>a.skillIndex===10)?.costPreview;
+  assert.ok(preview?.state==="known");assert.equal(preview.offers[0].cost.life,1,"ability cost preview retains the same fact");
+  const input=policyTurn(c.match,c.seat,0).input;
+  const projected=clone(input).decisions.decisions.find((d)=>d.kind==="menu" && d.type==="activate" && d.action.card===c.focus);
+  assert.ok(projected?.kind==="menu");assert.equal(projected.cost?.life,1,"contract/JSON preserve typed Life metadata");
+}
+const exact:Op[]=[{op:"choose",sel:{side:"you",area:"life",count:1,upTo:false},as:"paid"},{op:"moveTo",target:{var:"paid"},to:"hand"}];
+assert.equal(mandatoryLifeCost(freePrice(),exact),1);
+assert.equal(actionCostOf({...freePrice(),life:2})?.life,2,"declared Life cost is also typed");
+assert.equal(mandatoryLifeCost({...freePrice(),life:1},exact),undefined,"combined representations are not guessed or double-counted");
+for(const ops of [
+  [{...exact[0],sel:{side:"you",area:"life",count:1,upTo:true}},exact[1]],
+  [{op:"if",cond:{kind:"life",side:"you",atMost:3},then:exact}],
+  [{op:"may",ops:exact}],
+  [exact[0],{op:"moveTo",target:{var:"other"},to:"hand"}],
+  [{op:"choose",sel:{side:"opponent",area:"life",count:1},as:"paid"},exact[1]],
+  [exact[0],exact[1],{op:"draw",n:1}],
+] as Op[][]) assert.equal(mandatoryLifeCost(freePrice(),ops),undefined,"optional/conditional/unknown prices stay unprojected");
+const costInput=clone(policyTurn(unsafe.match,"p1",0).input);
+costInput.decisions.decisions=costInput.decisions.decisions.filter((d)=>d.kind==="menu" && (d.type==="endMain" || d.type==="activate" && d.action.card===unsafe.focus));
+const fatal=costInput.decisions.decisions.find((d)=>d.kind==="menu" && d.type==="activate")!;
+assert.ok(fatal.kind==="menu");
+fatal.label="Unrelated display words";fatal.cost!.describe="free";
+assert.equal(mainChoice(costInput)?.id,costInput.decisions.decisions.find((d)=>d.kind==="menu" && d.type==="endMain")!.id,"typed price wins over misleading display text");
+delete fatal.cost;
+assert.equal(mainChoice(costInput)?.id,fatal.id,"unknown prices are not guessed from printed or display text");
 
 // Evidence is tied to actual recipe membership, without copying/changing their
 // quantities or converting recipe readiness into a strategic result.
@@ -129,16 +172,18 @@ assert.equal(standGood.actions.filter((a)=>a.type==="attack").length,1);
 assert.equal(lastBad.match.state.winner,"p2");assert.equal(zones(lastBad.match,"p1","life").length,0);
 assert.equal(lastSafe.match.state.phase==="over",false);assert.equal(zones(lastSafe.match,"p1","life").length,1);
 
-const policies=[{key:"heuristic-v1",policy:localPolicy()},{key:"search-v2-d2",policy:searchPolicy({depth:2})},{key:"search-v2-d3",policy:searchPolicy({depth:3})}];
-interface Measurement {key:string;portalScenarioId:string;policy:string;seed:number;outcome:"pass"|"fail"|"interrupted"|"error";objective:boolean;firstAction:string|null;activatedCards:string[];comboCards:number;energySpent:number;battles:number;life:number;focusPreserved:boolean;winner:PlayerId|null;stop:string|null;}
+const policies=[{key:`heuristic-v${MAIN_POLICY_VERSION}`,policy:localPolicy(),depth:undefined},{key:`search-v${SEARCH_VERSION}-d2`,policy:searchPolicy({depth:2}),depth:2},{key:`search-v${SEARCH_VERSION}-d3`,policy:searchPolicy({depth:3}),depth:3}];
+interface Measurement {key:string;portalScenarioId:string;policy:string;seed:number;seat:PlayerId;horizonSteps:number;initialPolicyRng:{p1:ReturnType<typeof policyRng>;p2:ReturnType<typeof policyRng>};outcome:"pass"|"fail"|"interrupted"|"error";objective:boolean;firstAction:string|null;activatedCards:string[];comboCards:number;energySpent:number;battles:number;life:number;focusPreserved:boolean;winner:PlayerId|null;stop:string|null;}
 const records:Measurement[]=[];
 let privacyPositions=0;
 for(const c of cases) for(const selected of policies) {
   let match=clone(c.match),stop:string|null=null,firstAction:string|null=null,energySpent=0,comboCards=0;
   const events:GameEvent[]=[],activatedCards:string[]=[];const memory={p1:localMemory(policyRng(82701)),p2:localMemory(policyRng(82702))};
-  let error=false;
+  const initialPolicyRng={p1:policyRng(82701),p2:policyRng(82702)};
+  let error=false,steps=0;
   try {
-    for(let n=0;n<80;n++) {
+    for(;steps<80;steps++) {
+      const n=steps;
       if(enough(c,match,events)) break;
       const p=actor(match);if(!p){stop="missing actor";break;}
       if(p!==c.seat) {const out=applyMove(match,passiveAction(match,c));match=out.match;events.push(...out.events);continue;}
@@ -169,11 +214,25 @@ for(const c of cases) for(const selected of policies) {
   const objective=c===white ? focusPresent(c,match) && battles===2 && comboCards===0 && energySpent===2 :
     c===unsafe ? match.state.phase!=="over" && match.state.turn!==c.match.state.turn && zones(match,"p1","life").length===1 :
     match.state.winner==="p1" && (c!==restand || zones(match,"p1","life").length===2);
-  records.push({key:c.key,portalScenarioId:c.portalScenarioId,policy:selected.key,seed:TACTICAL_SEED,
+  records.push({key:c.key,portalScenarioId:c.portalScenarioId,policy:selected.key,seed:TACTICAL_SEED,seat:c.seat,horizonSteps:steps,initialPolicyRng,
     outcome:error?"error":stop?"interrupted":objective?"pass":"fail",objective,firstAction,activatedCards,comboCards,energySpent,battles,life:zones(match,c.seat,"life").length,focusPreserved:focusPresent(c,match),winner:match.state.winner ?? null,stop});
 }
 assert.ok(records.every((r)=>r.outcome!=="error" && r.outcome!=="interrupted"),JSON.stringify(records.filter((r)=>r.stop),null,2));
+assert.ok(records.filter((r)=>r.key==="ai-10-decline-last-life-price" || r.key==="ai-10-restand-for-triple-strike").every((r)=>r.outcome==="pass"),"known fatal payment declined, safe useful payment retained, including search fallback");
 const sha=(path:string)=>createHash("sha256").update(readFileSync(new URL(path,import.meta.url))).digest("hex");
-console.log(JSON.stringify({scope:"three tactical scenarios plus last-life negative control; no deck or whole-family pass",seed:TACTICAL_SEED,
+const setups=cases.map((c)=>({key:c.key,recipeId:c.recipeId,sha256:evidenceHash({state:c.match.state,focus:c.focus,seat:c.seat,attackers:c.attackerIds,horizonBattles:c.horizonBattles})}));
+const manifest:DecisionManifest={version:1,requestId:randomUUID(),source:"decision_cases",runner,protocol:{id:"827-real-card-tactics",revision:"printed-skill-lines-v1"},
+  fixtures:cases.map((c)=>({...fixturePin(c.key,bundle,bundle.runtimeRevision),sourceId:`tactical-${setups.find((s)=>s.key===c.key)!.sha256}`})),
+  policies:policies.map((p)=>({...policyPin(p.key,p.depth),version:p.depth ? `resource-search-v${SEARCH_VERSION}-depth-${p.depth}` : `heuristic-v${MAIN_POLICY_VERSION}`})),
+  results:records.map((r)=>({key:`${r.key}-${r.policy}`,kind:"decision_case",fixtureKey:r.key,sourceScenarioId:r.key,portalScenarioId:r.portalScenarioId,
+    policyKey:r.policy,seed:r.seed,seat:r.seat,initialPolicyRng:{p1:{mode:"seeded",...r.initialPolicyRng.p1},p2:{mode:"seeded",...r.initialPolicyRng.p2}},
+    assertion:"acceptable_action",outcome:r.outcome,horizonSteps:r.horizonSteps,evidenceSha256:evidenceHash(r)}))};
+assertManifest(manifest);
+assert.deepEqual(evaluationRunnerPin("arena-policy-strategy","827-real-card-tactics-v1"),runner,"source changed during tactical run; discard and rerun");
+const report={runner,protocol:manifest.protocol,scope:"three tactical scenarios plus last-life negative control; no deck or whole-family pass",seed:TACTICAL_SEED,setups,
   sourceHashes:{fixture:sha("./arena-real-card-tactics-fixture.ts"),scenario:sha("./arena-real-card-tactics.mts"),heuristic:sha("../../src/lib/arena/policy/combat.ts"),main:sha("../../src/lib/arena/policy/main.ts"),search:sha("../../src/lib/arena/policy/search.ts")},
-  independentOracleLines:7,privacyPositions,records},null,2));
+  independentOracleLines:7,privacyPositions,records};
+const out=flag("--out"),target=flag("--manifest-out");
+if(out) writeEvidenceFile(out,`${JSON.stringify(report,null,2)}\n`);
+if(target) writeEvidenceFile(target,`${JSON.stringify(manifest,null,2)}\n`);
+console.log(JSON.stringify(report,null,2));

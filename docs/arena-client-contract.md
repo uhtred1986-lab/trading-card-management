@@ -241,7 +241,7 @@ export interface AbilityView {
   availability: "offered" | "refused" | "notEvaluated";
   notEvaluatedReason?: "notDecisionActor" | "unsupported" | "unidentifiedAction";
   why?: Requirement[];
-  costPreview: { state: "known"; offers: { label: string; cost: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; describe: string } }[] }
+  costPreview: { state: "known"; offers: { label: string; cost: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; life?: number; describe: string } }[] }
     | { state: "incomplete" | "notApplicable" };
   pending?: boolean;
   permanentState?: "on" | "off" | "inert" | "unread";
@@ -255,7 +255,7 @@ export interface SideView {
 export interface LegalAction {
   action: Action;
   label: string;
-  cost?: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; describe: string }; // skills and counters
+  cost?: { energy: number; orbs?: Partial<Record<Color, number>>; markers?: number; life?: number; describe: string }; // skills and counters
 }
 
 // Requirement gains, all optional:
@@ -265,6 +265,8 @@ export interface LegalAction {
 ```
 
 Three properties, the server's job:
+
+`cost.life`, when present, is the known mandatory Life payment for the offered route before movement replacements. It covers declarative Life charges and a narrow exact self-Life choice/move program. Absence is unknown, rather than a promise that the action cannot cost Life; optional, conditional, alternative and waived program costs are not inferred from rendered words. It is a cost fact, not a prediction that replacements cannot change the outcome.
 
 - **`effects` and `rules` are read from the engine's state, never inferred from numbers.** A
   client that subtracts `basePower` from `power` and guesses the rest has broken §1.

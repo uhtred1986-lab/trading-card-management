@@ -16,6 +16,7 @@
  *   activate      12 + 1 − 0.5 per energy, at most once per card per turn (read
  *                 off the public beat history): an optional ability is never
  *                 looped. Without a readable history the activation is not taken.
+ *                 A typed mandatory-Life payment exhausting own Life is declined.
  *   attack        a hit that wins (attacker ≥ guard: the attacker wins ties, 8-4)
  *                 on a Leader scores 5 + damage, a lethal one 1,000; a win against
  *                 a rested Battle Card scores 6 + the card's value; a Battle Card
@@ -58,7 +59,7 @@ import type { CardFacts, PolicyObservation } from "./observation";
 import type { PolicyRng } from "./rng";
 import { shortcutThen } from "./shortcuts";
 
-export const MAIN_POLICY_VERSION = 1;
+export const MAIN_POLICY_VERSION = 2;
 
 export const MAIN_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -319,6 +320,7 @@ function scorePlay(o: PolicyObservation, d: MenuDecision, work: Work): Scored {
 }
 
 function scoreActivate(o: PolicyObservation, d: MenuDecision): Scored {
+  if (d.cost?.life !== undefined && d.cost.life >= o.you.life) return { score: SCORE.unsupported, how: "activation declined: mandatory Life payment would exhaust own Life" };
   const card = typeof d.action.card === "string" ? d.action.card : null;
   const used = card ? activationsThisTurn(o, o.seat, card) : null;
   if (used === null) return { score: SCORE.unsupported, how: "activation not taken: this turn's history is not readable" };

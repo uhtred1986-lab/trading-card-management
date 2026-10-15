@@ -14,6 +14,9 @@ Run locally, with no database or paid provider:
 
 ```sh
 env -u DATABASE_URL npx tsx scripts/verify/arena-real-card-tactics.mts
+# Optional local report + strict portal-importable manifest (no import occurs):
+env -u DATABASE_URL npx tsx scripts/verify/arena-real-card-tactics.mts \
+  --out /tmp/tactical-report.json --manifest-out /tmp/tactical-manifest.json
 ```
 
 The script asserts seven explicit engine continuations (three White choices, one Dual Attack line, safe restand, fatal restand and last-Life decline). It then measures the unchanged heuristic and depth-2/depth-3 search policies through `policyTurn`/`localStep`. Policies receive restricted observations and their own RNG only. Each measured position is compared with two hidden-identity/order permutations; the input and chosen answer must match. This demonstrates privacy of the decision, not equal outcomes for every possible hidden state. Opponent responses are fixed legal continuations; these are tactical objectives under stated bounds, not universal win-rate claims.
@@ -30,3 +33,13 @@ The script asserts seven explicit engine continuations (three White choices, one
 | SD5 refuse last-Life payment | Fail | Fail | Fail |
 
 In the White failure each policy spends Larva as a combo, spends no energy and loses Cell on the second battle. In the last-Life failure each policy activates SD5-04 and loses at zero Life. The baseline remains historical evidence after changes; a successful script exit means the oracle/privacy checks passed and measurements completed, **not** that all measured policy decisions passed. Failures stay explicit. No automatic portal qualification follows from this run.
+
+## Narrow repair and current evidence
+
+The reproduced last-Life defect warrants a small heuristic repair. `ActionCost.life` is an optional typed fact about the required payment for the offered route, derived from existing compiled cost data. The cost projector supports an existing declarative Life charge or the entire literal two-operation sequence “choose exactly N of your Life; move those cards to Hand/Drop.” Optional, bounded, conditional and additional-operation programs stay unknown. Combined declarative/program representations are not guessed or double-counted. Native keyword and alternative-route procedures do not inherit an ordinary printed action program's metadata. Invoked waived Extra prices do not create these ordinary activation offers. Unknown is not interpreted as zero.
+
+The Main heuristic (**version 2**) declines an activation when that known required count exhausts its remaining Life. It reads neither card text nor the rendered price to identify the payment. This is a conservative refusal based on a required cost, **not** a simulation of replacements: an unmodeled replacement that would keep Life could make declining safe but strategically suboptimal. Other cost-program shapes, native/alternative routes, mandatory choices already in flight and non-Main policy windows are not newly solved. The engine still offers the fatal SD5 activation and permits deliberate payment; its charging, legality, replacement and loss rules are unchanged. No compiler reading/glossary claim changes.
+
+The focused script now asserts that all three policies refuse the last-Life price and retain the useful 3→2 winning line. SD15's two-swing finish still passes all three. **White Kamehameha versus combo still fails all three**, retained for a later valuation improvement. Cost facts are checked through legal offers, ability previews, masked snapshots, the policy contract and JSON cloning. Typed facts override misleading display words, while unprojected prices are not guessed from text.
+
+The optional manifest uses the existing strict `decision_cases` import contract and provenance helpers. It pins Git commit/dirty-tree digest, current heuristic/search version and policy source hashes, bundle/catalog/program/rules hashes, initial policy RNG states, decision horizon and explicit portal mappings. Each fixture `sourceId` is `tactical-<SHA-256>` of its exact staged starting state, focus, seat, attacker list and battle horizon; the report records that setup hash explicitly. Recipe IDs are descriptive membership references in the local report, not claims that its scaffolding lists are prepared legal decks; manifest recipe links remain null. Each result has a SHA-256 of its detailed local measurement. Reports/manifests are written locally with mode 0600; no traces or state bodies are included in the import manifest, and exporting/importing results does not mark a whole scenario or deck passed. Historical baseline hashes and policy labels remain unchanged.
