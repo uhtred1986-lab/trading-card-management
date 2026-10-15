@@ -8,11 +8,15 @@ Fixture version: 1. Date: 15 October 2026.
 
 - Targeted `arena-tutorial-session.mts`: real RULES transitions, first-turn restrictions, three-Life card conservation, alternative legal play/charge choices, explicit payments, stale/duplicate/rejected commands, actor-isolated request receipts, journal restore, complete win/loss paths, and retained opponent animation beats.
 - Targeted `arena-tutorial-lessons.mts`: accepted-action progression, defensive and offensive battle evidence, legal deviations, and safe handoff. Both scripts are in the standard test chain.
-- Independent GPT-6.1 Sol review found and prompted fixes for lost animation beats, request-ID collision, and parent subscription/save timing. No remaining blocker in that review through `ce9c835a`; later changes receive a separate diff review.
+- Independent GPT-6.1 Sol review found and prompted fixes for lost animation beats, request-ID collision, and parent subscription/save timing. No remaining blocker in that review through `ce9c835a`; follow-up diff review through `29312b61` also found no concrete blocker.
 - Chromium/Playwright browser smoke at 390×844 (touch), 820×1180 (touch), and 1440×1000 with reduced motion: intro and actual ArenaStage render; no JavaScript errors or horizontal overflow. Page heights match the respective viewports. Coordinator visually inspected screenshots.
 - Phone night-skin smoke: actual card selection, Charge it, play review, reload and hints toggle. Reload safely closes an unconfirmed review while restoring accepted game actions. No JavaScript errors.
 - Responsive fixes preserve the existing hand, action dock, targeting, payment and confirmation components. Tutorial height reservation uses ResizeObserver for layout only; lesson completion uses accepted session transitions.
 - Original announcer SVGs reviewed at large and small sizes; no external artwork hotlinks. Browser speech is optional and can be stopped. Session runtime is local and does not use a database or paid AI.
+
+## Standard validation
+
+The combined implementation passed TypeScript, ESLint (five existing prototype warnings), and the complete standard `npm test` chain with `DATABASE_URL` unset. The production `npm run build` also passed. No worker ran the full suite.
 
 ## Limits
 
