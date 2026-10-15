@@ -7,6 +7,7 @@ import { listDecks } from "@/lib/decks/queries";
 import { parseQueue, queueHref } from "@/lib/arena/queue";
 import { worklistPage } from "@/lib/arena/rules-store";
 import { firedInGame } from "@/lib/arena/fired";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -32,5 +33,5 @@ export default async function RuleReviewPage({ searchParams }: { searchParams: P
   const backHref = queueHref(qu);
   const reviewHref = `/arena/rules/review${backHref.slice("/arena/rules".length)}`;
   const flagged = (await reviewQueue(db, { cardIds: [...new Set(rows.map((r) => r.cardId))], ruleIds: rows.map((r) => r.id), flaggedOnly: true, decksOf, recent })).length;
-  return <RuleReview items={items} scope={deck?.name ?? (qu.scope.kind === "catalog" ? "Whole catalog" : qu.scope.kind === "game" ? `Skills used in game ${qu.scope.id}` : qu.scope.kind === "deck" ? "Deck unavailable — choose another scope" : "All playable Masters decks (all owners)")} backHref={backHref} reviewHref={reviewHref} flagged={flagged} flaggedOnly={flaggedOnly} startId={qu.rule} admin={admin} />;
+  return <div className="space-y-4"><PageHeader title="Guided rule review" eyebrow="Arena rules" description="Review one skill at a time against its printed card text." /><Panel className="p-0"><RuleReview items={items} scope={deck?.name ?? (qu.scope.kind === "catalog" ? "Whole catalog" : qu.scope.kind === "game" ? `Skills used in game ${qu.scope.id}` : qu.scope.kind === "deck" ? "Deck unavailable — choose another scope" : "All playable Masters decks (all owners)")} backHref={backHref} reviewHref={reviewHref} flagged={flagged} flaggedOnly={flaggedOnly} startId={qu.rule} admin={admin} /></Panel></div>;
 }

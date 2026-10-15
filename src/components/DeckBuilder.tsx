@@ -6,6 +6,7 @@ import { deckRules, type Game } from "@/lib/catalog/games";
 import type { Zone } from "@/lib/decks/queries";
 import { CardImage } from "./CardImage";
 import { ColorPill } from "./ColorPill";
+import { Panel } from "@/components/ui";
 
 type Hit = Awaited<ReturnType<typeof searchCardsAction>>[number];
 
@@ -60,7 +61,7 @@ export function DeckBuilder({ deckId, game }: { deckId: number; game: Game }) {
 
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
   return (
-    <div className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+    <Panel className="p-3">
       <p className="mb-2 text-sm font-semibold text-space-100">Add cards or choose a leader</p>
       <div className="mb-2 grid grid-cols-2 gap-2">
         <label className="min-w-0 text-xs text-space-300">Card type<select value={cardType} onChange={(e) => {setCardType(e.target.value);onQuery(q,e.target.value,color);}} className={`${select} w-full`}><option value="">Any type</option>{["LEADER","BATTLE","EXTRA",...(rules.zMax ? ["UNISON","Z-LEADER","Z-BATTLE","Z-EXTRA","Z-UNISON"] : [])].map((t) => <option key={t}>{t}</option>)}</select></label>
@@ -101,6 +102,6 @@ export function DeckBuilder({ deckId, game }: { deckId: number; game: Game }) {
         ))}
         {q.trim().length >= 2 && !searching && !searchError && hits.length === 0 ? <li className="p-2 text-xs text-space-300">No matches.</li> : null}
       </ul>
-    </div>
+    </Panel>
   );
 }

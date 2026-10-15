@@ -199,7 +199,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
           </svg>
         </Link>
         <div className="mr-auto min-w-0">
-          <h1 className="arena-impact text-lg leading-tight text-space-50">Review a skill</h1>
+          <h2 className="arena-impact text-lg leading-tight text-space-50">Review a skill</h2>
           <p className="text-[13px] font-semibold text-space-300">
             {scope} · {left} skill{left === 1 ? "" : "s"} to review
           </p>

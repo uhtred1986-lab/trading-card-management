@@ -16,6 +16,7 @@ import { lastSyncRuns } from "@/lib/sync";
 import { recentBatches } from "../actions";
 import { buildRecord, historyOf, probeScenarios } from "./record";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -233,13 +234,12 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     <div className="space-y-3">
       <ArenaHeader side="rules" kpis={{ inDecks, catalog, openSinceSync: lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null }} />
 
-      <section className="rounded-xl border border-space-700 bg-space-900/60 p-4" aria-label="Review procedure">
-        <h1 className="text-xl font-bold text-space-50">Review card interpretations</h1>
-        <p className="mt-1 text-sm text-space-300">Choose cards → describe or review the interpretation → approve.</p>
-        <p className="mt-1 text-xs text-space-400">Rules are shared across all owners’ playable Masters decks. Approval is a review decision; engine support and test evidence are separate.</p>
+      <Panel aria-label="Review procedure">
+        <PageHeader title="Review card interpretations" eyebrow="Rules workbench" description="Choose cards → describe or review the interpretation → approve." />
+        <p className="mt-2 text-xs text-space-400">Rules are shared across all owners’ playable Masters decks. Approval is a review decision; engine support and test evidence are separate.</p>
         {qu.scope.kind === "deck" && scope.kind !== "deck" ? <p role="status" className="mt-2 text-sm text-loss">That deck is unavailable. Showing all decks; choose a scope below before starting.</p> : null}
         {!(qu.scope.kind === "deck" && scope.kind !== "deck") && (state === "draft" || state === "open") ? <Link href={`/arena/rules/review${queueLink({ ...here, state }, { page: 0 }).slice("/arena/rules".length)}`} className="tap mt-3 inline-flex rounded-xl bg-ki-500 px-4 py-2 font-semibold text-space-950">Start guided review</Link> : <p className="mt-2 text-sm text-space-300">Choose an available deck and To review or Unread below to start. Approved and corrected skills can be reopened from their detail.</p>}
-      </section>
+      </Panel>
       <Workbench
         rows={rows}
         record={record}

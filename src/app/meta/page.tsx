@@ -6,6 +6,7 @@ import { cachedLeaderboard, cachedResultCards } from "@/lib/cache/reads";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
 import { requireSignedInPage } from "@/lib/auth";
+import { EmptyState, FilterBar, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -26,40 +27,23 @@ export default async function MetaPage({ searchParams }: { searchParams: Promise
   const cardsByResult = await cachedResultCards(resultIds);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">Leaderboard</h1>
-          <p className="text-sm text-space-300">
-            Top-cut leaders from official regionals, last {DAYS} days — scraped from{" "}
-            <a href="https://www.deckplanet.net" target="_blank" rel="noreferrer" className="text-ki-300 hover:underline">
-              deckplanet.net
-            </a>
-            .
-          </p>
-        </div>
-        <Link href="/meta/news" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
-          News →
-        </Link>
-      </div>
+    <div className="ds-page space-y-4">
+      <PageHeader title="Leaderboard" eyebrow="Meta" description={<>Top-cut leaders from official regionals, last {DAYS} days — scraped from{" "}<a href="https://www.deckplanet.net" target="_blank" rel="noreferrer" className="text-ki-300 hover:underline">deckplanet.net</a>.</>} actions={<Link href="/meta/news" className="ds-button-secondary">News →</Link>} />
 
-      <GameFilter path="/meta" game={game} available={gamesPresent} />
+      <FilterBar summary={`${board.length} leader${board.length === 1 ? "" : "s"}`}><GameFilter path="/meta" game={game} available={gamesPresent} /></FilterBar>
 
       {board.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
-          <p>No regional results yet.</p>
-          <p className="mt-1">
+        <EmptyState title="No regional results yet">
             Go to{" "}
             <Link href="/settings" className="text-ki-300 hover:underline">
               Settings
             </Link>{" "}
             and refresh regional results.
-          </p>
-        </div>
+        </EmptyState>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {board.map((entry) => (
-            <li key={entry.leaderCardId ?? entry.leaderNumberRaw} className="flex gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-3">
+            <li key={entry.leaderCardId ?? entry.leaderNumberRaw} className="ds-panel flex gap-3">
               <div className="w-20 shrink-0">
                 <CardImage src={entry.imageUrl} alt={entry.leaderName ?? entry.leaderNumberRaw} sizes="80px" />
               </div>

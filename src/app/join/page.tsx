@@ -3,6 +3,7 @@ import { JOIN_REDEEM_PATH } from "@/lib/auth/core";
 import { isWellFormedCode, normaliseCode } from "@/lib/auth/join-code";
 import { joinAttemptAllowed } from "@/lib/auth/join-flow";
 import { StandaloneField } from "./StandaloneField";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -35,13 +36,8 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col gap-5 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold text-space-50">
-          <span className="text-ki-400">DBS</span> Card Companion
-        </h1>
-        <p className="mt-1 text-sm text-space-300">Join with the code your SL gave you. This phone stays signed in.</p>
-      </div>
+    <main className="ds-page mx-auto flex max-w-sm flex-col gap-5 py-10">
+      <PageHeader title={<><span className="text-ki-400">DBS</span> Card Companion</>} eyebrow="Player access" description="Join with the code your SL gave you. This phone stays signed in." />
 
       {message ? (
         <p role="alert" className="rounded-lg bg-dbs-red p-3 text-sm font-medium text-white">
@@ -50,7 +46,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
       ) : null}
 
       {joiningAs ? (
-        <form method="post" action={JOIN_REDEEM_PATH} className="flex flex-col gap-3 rounded-lg border border-space-700/70 bg-space-900/40 p-4">
+        <form method="post" action={JOIN_REDEEM_PATH} className="ds-panel flex flex-col gap-3 p-4">
           <p className="text-sm text-space-300">You are joining as</p>
           <p className="text-xl font-semibold text-space-50">{joiningAs}</p>
           <input type="hidden" name="code" value={code} />
@@ -63,7 +59,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
           </a>
         </form>
       ) : (
-        <form method="get" action="/join" className="flex flex-col gap-3 rounded-lg border border-space-700/70 bg-space-900/40 p-4">
+        <form method="get" action="/join" className="ds-panel flex flex-col gap-3 p-4">
           <label htmlFor="c" className="text-sm text-space-300">
             Your code
           </label>
@@ -87,6 +83,6 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
       <a href="/login" className="tap text-center text-xs text-space-400 hover:text-space-200">
         SL? Sign in here
       </a>
-    </div>
+    </main>
   );
 }

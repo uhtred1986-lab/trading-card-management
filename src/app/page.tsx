@@ -7,6 +7,7 @@ import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
 import { CardImage } from "@/components/CardImage";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
+import { PageHeader, EmptyState, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -24,17 +25,18 @@ export default async function DashboardPage() {
 
   if (s.lots === 0) {
     return (
-      <div className="mx-auto max-w-xl space-y-4 py-10 text-center">
-        <h1 className="text-2xl font-semibold text-space-50">Your collection is empty</h1>
-        <p className="text-space-300">Add cards by scanning them, typing them in, or straight from any card page.</p>
-        <div className="flex flex-wrap justify-center gap-2">
+      <div className="ds-page space-y-4">
+        <PageHeader title="Your collection starts here" eyebrow="Collection" description="Track your cards, values, and decks in one place." />
+        <EmptyState title="Your collection is empty" action={<div className="ds-actions mt-4">
           <Link href="/add" className="tap rounded-md bg-ki-500 px-4 py-2 font-semibold text-space-950 hover:bg-ki-400">
             Add cards
           </Link>
           <Link href="/cards" className="tap rounded-md border border-space-600 px-4 py-2 text-space-100 hover:bg-space-800">
             Browse catalog
           </Link>
-        </div>
+          </div>}>
+          Add cards by scanning them, typing them in, or straight from any card page.
+        </EmptyState>
         {!catalogRun ? (
           <p className="text-sm text-loss">
             The card catalog hasn&apos;t been imported yet — go to{" "}
@@ -49,14 +51,22 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-xl font-semibold text-space-50">Collection dashboard</h1>
-        <p className="text-xs text-space-400">
-          Prices {pricesRun?.finishedAt ? `as of ${pricesRun.finishedAt.toISOString().slice(0, 10)}` : "not synced"}
-          {usdEur ? ` · 1 USD = ${usdEur.toFixed(4)} EUR` : ""}
-        </p>
-      </div>
+    <div className="ds-page space-y-6">
+      <section className="ds-hero" aria-labelledby="home-hero-title">
+        <div className="ds-hero-content">
+          <p className="ds-eyebrow">Dragon Ball Super Card Game</p>
+          <h1 id="home-hero-title">Collect with purpose. Play with power.</h1>
+          <p className="ds-description">Your collection, its value, and your next match are ready when you are.</p>
+          <div className="ds-actions">
+            <Link href="/arena" className="ds-button">Enter the Arena</Link>
+            <Link href="/collection" className="ds-button-secondary">My collection</Link>
+          </div>
+          <p className="mt-4 text-xs text-space-400">
+            Prices {pricesRun?.finishedAt ? `as of ${pricesRun.finishedAt.toISOString().slice(0, 10)}` : "not synced"}
+            {usdEur ? ` · 1 USD = ${usdEur.toFixed(4)} EUR` : ""}
+          </p>
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label="Current value" value={formatCents(s.valueEurCents)} hint={`${s.copiesWithValue}/${s.copies} copies priced`} />
@@ -103,7 +113,7 @@ export default async function DashboardPage() {
 
       {/* Only worth the space once the collection actually spans both games. */}
       {bd.byGame.length > 1 ? (
-        <section>
+        <Panel>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">By game</h2>
           <Table
             rows={bd.byGame.map((r) => ({
@@ -114,18 +124,18 @@ export default async function DashboardPage() {
               href: `/collection?game=${r.code}`,
             }))}
           />
-        </section>
+        </Panel>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section>
+        <Panel>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">By set</h2>
           <Table rows={bd.bySet.map((r) => ({ key: r.code, label: r.name, sub: r.code, copies: r.copies, value: r.valueEur, href: `/collection?set=${r.code}` }))} />
-        </section>
-        <section>
+        </Panel>
+        <Panel>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">By rarity</h2>
           <Table rows={bd.byRarity.map((r) => ({ key: r.code, label: r.code, copies: r.copies, value: r.valueEur }))} />
-        </section>
+        </Panel>
       </div>
     </div>
   );

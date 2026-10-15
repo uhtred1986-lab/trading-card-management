@@ -1,0 +1,712 @@
+[
+  {
+    "path": "/",
+    "capability": "Collection dashboard: value, cost, gain/loss, movers and game/set/rarity breakdowns",
+    "primaryHome": "Home",
+    "secondaryHome": "Collection",
+    "notes": "Retain empty-state entry into capture/catalog and existing EUR valuation context.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/page.tsx"
+  },
+  {
+    "path": "/add",
+    "capability": "Choose quick capture, reviewed scan batches or keyboard bulk entry",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "Persistent Add cards shortcut; keep it prominent on phone even when nested under Collection.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/add/page.tsx"
+  },
+  {
+    "path": "/add/bulk",
+    "capability": "Keyboard-first multirow card entry with owner, location and deck choices",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "Keep distinct from quick capture and photographic review.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/add/bulk/page.tsx"
+  },
+  {
+    "path": "/add/quick",
+    "capability": "Identify a single photographed card, confirm copies and save repeatedly",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "Preserve owner, location and optional deck assignment; identification alone does not save a lot.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/add/quick/page.tsx"
+  },
+  {
+    "path": "/add/scan",
+    "capability": "Upload and review single-card or binder-page scan batches; resume and discard batches",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "Preserve batch query links, cross-device review, ownership filtering and confirmation before saving.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/add/scan/page.tsx"
+  },
+  {
+    "path": "/api/ai/agent-sdk",
+    "capability": "Execute internal AI-provider requests",
+    "primaryHome": "Settings",
+    "secondaryHome": "Admin",
+    "notes": "POST internal service endpoint with its own shared-secret guard; no navigation item.",
+    "access": "Internal service bearer secret",
+    "kind": "action",
+    "source": "src/app/api/ai/agent-sdk/route.ts"
+  },
+  {
+    "path": "/api/arena/offline/decks",
+    "capability": "Read own-deck offline eligibility and list fingerprint",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "GET backend supporting offline preparation; viewer-scoped.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/arena/offline/decks/route.ts"
+  },
+  {
+    "path": "/api/arena/offline/pack",
+    "capability": "Build/download device pack containing selected owned decks and starters",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "GET backend; viewer-scoped, readiness and runtime revision checks, private response.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/arena/offline/pack/route.ts"
+  },
+  {
+    "path": "/api/auth/callback/google",
+    "capability": "Complete verified Google sign-in and establish SL session",
+    "primaryHome": "Account",
+    "secondaryHome": "Settings",
+    "notes": "GET OAuth callback; allowlist/state/PKCE validation; redirect, not a screen.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "action",
+    "source": "src/app/api/auth/callback/google/route.ts"
+  },
+  {
+    "path": "/api/auth/login",
+    "capability": "Begin Google sign-in redirect and protected OAuth flow",
+    "primaryHome": "Account",
+    "secondaryHome": "Settings",
+    "notes": "GET auth action; launch from sign-in button without link prefetch.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "action",
+    "source": "src/app/api/auth/login/route.ts"
+  },
+  {
+    "path": "/api/join",
+    "capability": "Redeem one-time player code and establish device session",
+    "primaryHome": "Account",
+    "secondaryHome": "Settings",
+    "notes": "POST rate-limited join action; invalid/expired/spent code refuses session.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "action",
+    "source": "src/app/api/join/route.ts"
+  },
+  {
+    "path": "/api/scan",
+    "capability": "Upload/retry photo identification for a review batch",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "POST backend; authenticated batch ownership checks, temporary photo storage.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/scan/route.ts"
+  },
+  {
+    "path": "/api/scan/photo/[id]",
+    "capability": "Serve temporary stored scan-batch photo",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "GET authenticated/scoped photo resource; disappears when batch completes.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/scan/photo/[id]/route.ts"
+  },
+  {
+    "path": "/api/scan/quick",
+    "capability": "Identify one card photo without storing a lot",
+    "primaryHome": "Collection",
+    "secondaryHome": "Cards",
+    "notes": "POST backend; actual collection save remains explicit confirmation.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/scan/quick/route.ts"
+  },
+  {
+    "path": "/api/sync/meta",
+    "capability": "Refresh regional tournament results on scheduled invocation",
+    "primaryHome": "Settings",
+    "secondaryHome": "Insights",
+    "notes": "GET operational mutation protected by cron bearer secret, not a clickable tab.",
+    "access": "Operational cron bearer secret",
+    "kind": "action",
+    "source": "src/app/api/sync/meta/route.ts"
+  },
+  {
+    "path": "/api/sync/prices",
+    "capability": "Refresh market prices and exchange-rate data on schedule",
+    "primaryHome": "Settings",
+    "secondaryHome": "Collection",
+    "notes": "GET operational mutation protected by cron bearer secret, not a clickable tab.",
+    "access": "Operational cron bearer secret",
+    "kind": "action",
+    "source": "src/app/api/sync/prices/route.ts"
+  },
+  {
+    "path": "/api/v1/decks",
+    "capability": "Read game-filtered deck summaries and arena playability",
+    "primaryHome": "Decks",
+    "secondaryHome": "Arena",
+    "notes": "GET backend; preserve viewer scope and explicit unsupported-game reasons.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/v1/decks/route.ts"
+  },
+  {
+    "path": "/api/v1/decks/[id]",
+    "capability": "Read one deck with zones/counts/per-card flags",
+    "primaryHome": "Decks",
+    "secondaryHome": "Arena",
+    "notes": "GET read-only backend; owned/scoped lookup, no deck edit API implied.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/v1/decks/[id]/route.ts"
+  },
+  {
+    "path": "/api/v1/games",
+    "capability": "List visible games or create a match from permitted decks",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "GET list and POST creation; authenticated ownership checks, Masters-only engine.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/v1/games/route.ts"
+  },
+  {
+    "path": "/api/v1/games/[id]",
+    "capability": "Read/poll viewer-specific authoritative game snapshot",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "GET backend; ownership and versus-seat checks precede private state reads.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/v1/games/[id]/route.ts"
+  },
+  {
+    "path": "/api/v1/games/[id]/abandon",
+    "capability": "Give up a game while keeping its history readable",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "POST backend; retain revision/idempotency and seat checks; no direct navigation.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/v1/games/[id]/abandon/route.ts"
+  },
+  {
+    "path": "/api/v1/games/[id]/actions",
+    "capability": "Read legal actions or submit a legal choice",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "GET/POST backend; retain revision/idempotency and turn/seat checks.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/v1/games/[id]/actions/route.ts"
+  },
+  {
+    "path": "/api/v1/games/[id]/advance",
+    "capability": "Advance AI/referee decisions while preserving playable state",
+    "primaryHome": "Arena",
+    "secondaryHome": "Settings",
+    "notes": "POST backend; preserve ownership/seat checks and independent snapshot polling.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "action",
+    "source": "src/app/api/v1/games/[id]/advance/route.ts"
+  },
+  {
+    "path": "/api/v1/games/[id]/replay",
+    "capability": "Export private game replay bundle for authorized review",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "GET SL-only export with versus-seat authorization; not a public replay viewer.",
+    "access": "SL/admin only",
+    "kind": "system",
+    "source": "src/app/api/v1/games/[id]/replay/route.ts"
+  },
+  {
+    "path": "/api/v1/health",
+    "capability": "Read client/server protocol compatibility and server clock",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "GET technical endpoint behind proxy authentication when configured; not user-facing health dashboard.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "system",
+    "source": "src/app/api/v1/health/route.ts"
+  },
+  {
+    "path": "/arena",
+    "capability": "Select match mode/decks, resume games, inspect game history and invitations",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Play and Games secondary tabs (Games uses query state); preserve readiness and opponent choices. Engine plays Masters/dbs only.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/page.tsx"
+  },
+  {
+    "path": "/arena/[id]",
+    "capability": "Play/resume an online game; inspect completion/review/rematch state",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Contextual game detail; preserve full-bleed board, viewer-specific hidden information and ownership/seat checks.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/[id]/page.tsx"
+  },
+  {
+    "path": "/arena/[id]/debug",
+    "capability": "Inspect decision trace, prompts, latency and provider cost for one game",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL/arena-admin only; versus seat check applies. Contextual diagnostic, never a normal player tab.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/[id]/debug/page.tsx"
+  },
+  {
+    "path": "/arena/feedback",
+    "capability": "Review arena reports, statuses and GitHub issue links/sync",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL-only feedback management; players can still report from gameplay. Live-game private logs remain withheld.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/feedback/page.tsx"
+  },
+  {
+    "path": "/arena/local",
+    "capability": "Run a match on this device using local pack data",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Signed-in local board entry; browser worker/storage, no match API/provider/database read for gameplay.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/local/page.tsx"
+  },
+  {
+    "path": "/arena/match/[id]",
+    "capability": "Host waiting room or join invitation with own ready deck",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Match is not a game until joined; preserve waiting status, sharing, cancellation and redirect into created game.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/match/[id]/page.tsx"
+  },
+  {
+    "path": "/arena/offline",
+    "capability": "Launch prepared device-local play without network or session",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Public static shell uses installed device packs; no private server data. Preserve install/preparation and revision compatibility checks.",
+    "access": "Public; no private server data",
+    "kind": "page",
+    "source": "src/app/arena/offline/page.tsx"
+  },
+  {
+    "path": "/arena/offline/pack.json",
+    "capability": "Serve public curated starter-deck offline pack",
+    "primaryHome": "Arena",
+    "secondaryHome": "Decks",
+    "notes": "Static GET pack from committed catalog/rules snapshot; not a private deck export.",
+    "access": "Public; no private server data",
+    "kind": "system",
+    "source": "src/app/arena/offline/pack.json/route.ts"
+  },
+  {
+    "path": "/arena/offline/shell.json",
+    "capability": "Serve public offline shell asset manifest and engine revision",
+    "primaryHome": "Arena",
+    "secondaryHome": "Admin",
+    "notes": "Static GET resource, no user/account data or navigation item.",
+    "access": "Public; no private server data",
+    "kind": "system",
+    "source": "src/app/arena/offline/shell.json/route.ts"
+  },
+  {
+    "path": "/arena/preview",
+    "capability": "Render fixture board/replay/motion states for design verification",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Development-only SL preview, production 404; no live match mutation.",
+    "access": "SL/admin; development only (production 404)",
+    "kind": "page",
+    "source": "src/app/arena/preview/page.tsx"
+  },
+  {
+    "path": "/arena/review",
+    "capability": "Inspect flagged turns, legal actions, choices and decision evidence",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL-only match review; versus games limited to seats. Preserve turn/beat/game query state and fixture-only option.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/review/page.tsx"
+  },
+  {
+    "path": "/arena/rules",
+    "capability": "Filter/group/review card-interpretation queue across decks, catalog or game",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL-only Rules workbench; preserve scope/state/group/find/page/rule queries and confirmation workflows. Cross-owner rule scope is intentional.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/page.tsx"
+  },
+  {
+    "path": "/arena/rules/all",
+    "capability": "Redirect legacy catalog worklist links to the scoped Rules queue",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Compatibility redirect; preserve query translation, no extra screen/tab.",
+    "access": "SL/admin only",
+    "kind": "system",
+    "source": "src/app/arena/rules/all/page.tsx"
+  },
+  {
+    "path": "/arena/rules/build/[id]",
+    "capability": "Edit one card-rule interpretation with block builder and probes",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Dynamic id identifies a card-rule row, not a card or game. Preserve focus path and save permissions.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/build/[id]/page.tsx"
+  },
+  {
+    "path": "/arena/rules/build/preview",
+    "capability": "Render fixture rule builder and rule record",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Development-only SL preview, production 404; saving fixture cannot create a live rule.",
+    "access": "SL/admin; development only (production 404)",
+    "kind": "page",
+    "source": "src/app/arena/rules/build/preview/page.tsx"
+  },
+  {
+    "path": "/arena/rules/game",
+    "capability": "Read parsed engine game rules with source notes",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Technical reference under Rules; not a player-friendly rules tutorial.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/game/page.tsx"
+  },
+  {
+    "path": "/arena/rules/keywords",
+    "capability": "Read supported keywords, skill categories and compiler meanings",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Technical Rules reference; derived from engine glossary.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/keywords/page.tsx"
+  },
+  {
+    "path": "/arena/rules/language",
+    "capability": "Read generated rules-language statements, conditions, selectors and grammar",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Technical Rules reference; generated from schema, not a manually duplicated glossary.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/language/page.tsx"
+  },
+  {
+    "path": "/arena/rules/patterns",
+    "capability": "Redirect legacy pattern links to same-wording grouping in Rules queue",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Compatibility redirect; preserve query translation, no extra screen/tab.",
+    "access": "SL/admin only",
+    "kind": "system",
+    "source": "src/app/arena/rules/patterns/page.tsx"
+  },
+  {
+    "path": "/arena/rules/review",
+    "capability": "Guided one-skill-at-a-time rule interpretation review",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Same scoped queue as workbench; preserve accept/correct/build actions and return context.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/rules/review/page.tsx"
+  },
+  {
+    "path": "/arena/rules/review/preview",
+    "capability": "Render synthetic guided interpretation-review outcomes",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Development-only SL preview, production 404; no database/model dependency.",
+    "access": "SL/admin; development only (production 404)",
+    "kind": "page",
+    "source": "src/app/arena/rules/review/preview/page.tsx"
+  },
+  {
+    "path": "/arena/setup-preview",
+    "capability": "Render fixture match-setup, local-setup and Leader-library states",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "Development-only SL preview, production 404; fixture evidence rather than public feature.",
+    "access": "SL/admin; development only (production 404)",
+    "kind": "page",
+    "source": "src/app/arena/setup-preview/page.tsx"
+  },
+  {
+    "path": "/arena/testing",
+    "capability": "Inspect arena testing and statistics",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL-only Testing & stats; keep distinct from player match history or competitive leaderboard.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/testing/page.tsx"
+  },
+  {
+    "path": "/arena/testing/runs/[id]",
+    "capability": "Inspect a testing run, policy/deck metrics, fixture outcomes and paged cases",
+    "primaryHome": "Admin",
+    "secondaryHome": "Arena",
+    "notes": "SL-only contextual run detail; preserve pagination and evidence digest boundaries.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/arena/testing/runs/[id]/page.tsx"
+  },
+  {
+    "path": "/arena/tutorial",
+    "capability": "Play guided tutorial with legal-choice coaching",
+    "primaryHome": "Arena",
+    "secondaryHome": "Cards",
+    "notes": "Learn secondary destination; keep interactive tutorial distinct from technical engine references.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/tutorial/page.tsx"
+  },
+  {
+    "path": "/arena/tutorial/phone",
+    "capability": "Preview the tutorial in a phone-sized embedded viewport",
+    "primaryHome": "Arena",
+    "secondaryHome": "Admin",
+    "notes": "Signed-in presentation utility; unlike fixture previews, this file has no production-only exclusion. Keep direct route, outside normal main nav.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/arena/tutorial/phone/page.tsx"
+  },
+  {
+    "path": "/cards",
+    "capability": "Search/filter both game catalogs and browse card grid/list",
+    "primaryHome": "Cards",
+    "secondaryHome": "Collection",
+    "notes": "Preserve game, set, search and pagination state; set review remains SL-only.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/cards/page.tsx"
+  },
+  {
+    "path": "/cards/[id]",
+    "capability": "Inspect card faces, rules, prints, prices, owned lots, decks and marketplace listings",
+    "primaryHome": "Cards",
+    "secondaryHome": "Collection",
+    "notes": "Contextual detail from any card link; retain collection edits, add-to-deck and print/finish/owner/location controls.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/cards/[id]/page.tsx"
+  },
+  {
+    "path": "/cart",
+    "capability": "Build want-list and compare/optimise read-only CardTrader purchasing options",
+    "primaryHome": "Collection",
+    "secondaryHome": "Decks",
+    "notes": "Missing cards remain distinct from owned cards reserved in other decks; preserve deck/cards query inputs and external seller links. No checkout capability implied.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/cart/page.tsx"
+  },
+  {
+    "path": "/collection",
+    "capability": "Browse owned cards/copies, search/filter, quantities, owners, locations and reservations",
+    "primaryHome": "Collection",
+    "secondaryHome": "Home",
+    "notes": "Retain grid/list modes, filters, bulk operations and ownership scope.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/collection/page.tsx"
+  },
+  {
+    "path": "/collection/archived",
+    "capability": "Review and restore archived collection entries",
+    "primaryHome": "Collection",
+    "secondaryHome": "Settings",
+    "notes": "Collection secondary Archived destination; do not hide only in global settings.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/collection/archived/page.tsx"
+  },
+  {
+    "path": "/decks",
+    "capability": "Discover/filter decks, built/virtual state and create manually or with AI",
+    "primaryHome": "Decks",
+    "secondaryHome": "Arena",
+    "notes": "Retain game/owner scope, Leader entry and bounded discovery behavior.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/decks/page.tsx"
+  },
+  {
+    "path": "/decks/[id]",
+    "capability": "Build/edit deck, inspect legality, copies/reservations, AI analysis/swaps and offline readiness",
+    "primaryHome": "Decks",
+    "secondaryHome": "Arena",
+    "notes": "Keep rename, owner/location, built state, zones, quantities, copy allocation, shortfall/cart and offline preparation contextual to this deck.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/decks/[id]/page.tsx"
+  },
+  {
+    "path": "/join",
+    "capability": "Validate join code and confirm player identity before joining a device",
+    "primaryHome": "Account",
+    "secondaryHome": "Home",
+    "notes": "Public, rate-limited code entry/confirmation; mutation occurs through /api/join.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "page",
+    "source": "src/app/join/page.tsx"
+  },
+  {
+    "path": "/leaders",
+    "capability": "Browse Leader library and start a deck from a Leader",
+    "primaryHome": "Cards",
+    "secondaryHome": "Decks",
+    "notes": "Cards secondary Leaders; retain a Decks cross-link and game separation.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/leaders/page.tsx"
+  },
+  {
+    "path": "/login",
+    "capability": "Choose Google SL sign-in, legacy password sign-in or player join",
+    "primaryHome": "Account",
+    "secondaryHome": "Home",
+    "notes": "Public authentication screen; not an authenticated dashboard.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "page",
+    "source": "src/app/login/page.tsx"
+  },
+  {
+    "path": "/manifest.webmanifest",
+    "capability": "Describe app installation, icons and launch behavior",
+    "primaryHome": "Home",
+    "secondaryHome": "Arena",
+    "notes": "Public generated metadata endpoint, not a page; preserve installability.",
+    "access": "Public; no private server data",
+    "kind": "system",
+    "source": "src/app/manifest.ts"
+  },
+  {
+    "path": "/me",
+    "capability": "Player account identity, joined devices and sign-out",
+    "primaryHome": "Account",
+    "secondaryHome": "Settings",
+    "notes": "Player account entry; SL visitors redirect to Settings. Do not replace with an inaccessible settings page.",
+    "access": "Signed-in player; SL redirects to Settings",
+    "kind": "page",
+    "source": "src/app/me/page.tsx"
+  },
+  {
+    "path": "/meta",
+    "capability": "Regional result leaderboard and tournament decklist discovery",
+    "primaryHome": "Insights",
+    "secondaryHome": "Decks",
+    "notes": "Insights secondary Meta; preserve game filters, source links, dates and existing import/copy affordances.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/meta/page.tsx"
+  },
+  {
+    "path": "/meta/news",
+    "capability": "Recent card/set additions and official-news links",
+    "primaryHome": "Insights",
+    "secondaryHome": "Cards",
+    "notes": "Insights secondary News; preserve game filters and card-detail links.",
+    "access": "Signed-in player or SL; ownership scope applies where relevant",
+    "kind": "page",
+    "source": "src/app/meta/news/page.tsx"
+  },
+  {
+    "path": "/password-login",
+    "capability": "Challenge legacy Basic credentials and return home",
+    "primaryHome": "Account",
+    "secondaryHome": "Settings",
+    "notes": "GET authentication action, not a standalone settings page.",
+    "access": "Public authentication entry; validation required to establish session",
+    "kind": "action",
+    "source": "src/app/password-login/route.ts"
+  },
+  {
+    "path": "/sets/[code]/review",
+    "capability": "Generate/read AI set analysis: standouts, archetypes and sleepers",
+    "primaryHome": "Insights",
+    "secondaryHome": "Cards",
+    "notes": "Contextual from selected set; SL-only, provider-dependent generation with existing run metadata.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/sets/[code]/review/page.tsx"
+  },
+  {
+    "path": "/settings",
+    "capability": "Appearance, turn lighting, catalog/prices/FX/CardTrader/results sync, integrations and AI settings",
+    "primaryHome": "Settings",
+    "secondaryHome": "Admin",
+    "notes": "SL-only today; reorganise existing sections without inventing separate current routes. Preserve recent sync runs and provider availability.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/settings/page.tsx"
+  },
+  {
+    "path": "/settings/access",
+    "capability": "Manage players, one-time join codes, devices, SL accounts and unassigned ownership",
+    "primaryHome": "Settings",
+    "secondaryHome": "Admin",
+    "notes": "Users & access sidebar; preserve owner-specific restrictions on SL management.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/settings/access/page.tsx"
+  },
+  {
+    "path": "/settings/locations",
+    "capability": "Create/manage/archive physical storage locations",
+    "primaryHome": "Settings",
+    "secondaryHome": "Collection",
+    "notes": "Settings sidebar plus Collection contextual link; assignments remain in collection/deck flows.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/settings/locations/page.tsx"
+  },
+  {
+    "path": "/settings/users",
+    "capability": "Manage legacy password logins and their owner mapping",
+    "primaryHome": "Settings",
+    "secondaryHome": "Admin",
+    "notes": "Nested Legacy logins under Users & access; retain during auth transition.",
+    "access": "SL/admin only",
+    "kind": "page",
+    "source": "src/app/settings/users/page.tsx"
+  }
+]

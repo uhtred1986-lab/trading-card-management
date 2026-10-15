@@ -5,6 +5,7 @@ import { LeaderLibrary } from "@/components/LeaderLibrary";
 import type { OwnedLeader } from "@/lib/leaders/queries";
 import { readPack } from "@/components/arena/session/local-board";
 import { buildMastersPack } from "../../../../scripts/build-arena-offline-pack.mts";
+import { PageHeader } from "@/components/ui";
 
 /** Fixture-only setup evidence, guarded like the board preview and absent in production. */
 export default async function Page({searchParams}:{searchParams:Promise<{view?:string}>}) {
@@ -17,5 +18,5 @@ export default async function Page({searchParams}:{searchParams:Promise<{view?:s
   }
   // The audited pack has unresolved blockers. This display fixture does not create a match.
   const pack = view==="local" ? await buildMastersPack({runtimeRevision:"8280000000000000000000000000000000000000"}) : null;
-  return <SetupPreview view={view} local={pack ? readPack({...pack,qualification:{playable:true,reasons:[]}}) : undefined} />;
+  return <div className="ds-page space-y-4"><PageHeader title="Match setup preview" eyebrow="Arena · Design fixture" description="Preview the real setup controls with fixture data; no match is started." /><SetupPreview view={view} local={pack ? readPack({...pack,qualification:{playable:true,reasons:[]}}) : undefined} /></div>;
 }

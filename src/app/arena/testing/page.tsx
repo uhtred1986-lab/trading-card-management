@@ -5,6 +5,7 @@ import { getTestingDashboard, listImportedEvaluationRuns } from "@/lib/arena/tes
 import type { ActorKind, StatsFilter } from "@/lib/arena/testing/types";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { TestingPortal } from "@/components/arena/testing/TestingPortal";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,7 @@ export default async function ArenaTestingPage({ searchParams }: { searchParams:
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-3 py-4 pb-24 sm:px-6 sm:py-6">
       <ArenaHeader side="testing" />
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-space-50 sm:text-2xl">Testing &amp; stats</h1>
-        <p className="max-w-3xl text-sm text-space-300">Plan coverage by release and ability, keep exact scenario evidence, and record manual test results. Server Arena games and recorded results stay separate.</p>
-      </header>
+      <PageHeader title="Testing & stats" eyebrow="Arena operations" description="Plan coverage by release and ability, keep exact scenario evidence, and record manual test results. Server Arena games and recorded results stay separate." />
       <TestingPortal dashboard={dashboard} filter={filter} requestId={randomUUID()} importedRuns={importedRuns} />
     </main>
   );

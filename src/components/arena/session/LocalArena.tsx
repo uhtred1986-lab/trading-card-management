@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { LocalMatchSetup } from "./LocalMatchSetup";
 import { ArenaStage } from "../stage/ArenaStage";
-import type { ArenaSkin } from "@/lib/arena/skin";
+import { skinFrom, type ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
 import type { TurnLighting } from "@/lib/arena/lighting";
 import type { SpawnedWorker } from "../../../lib/arena/local/recovery";
@@ -165,13 +165,14 @@ function UpdateNotice() {
  * a night board on an anime page paints night classes over anime tokens and its names fade (the
  * owner's S21 shot, #783).
  */
+const subscribeSkin = (notify: () => void) => { window.addEventListener("dbs-theme-change", notify); return () => window.removeEventListener("dbs-theme-change", notify); };
 const documentSkin = (): ArenaSkin | null => {
   const s = document.documentElement.dataset.skin;
-  return s === "anime" || s === "night" ? s : null;
+  return s ? skinFrom(s) : null;
 };
 
 export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: StageProps & { shell?: ShellInfo }) {
-  const pageSkin = useSyncExternalStore(never, documentSkin, () => null);
+  const pageSkin = useSyncExternalStore(subscribeSkin, documentSkin, () => null);
   const skin: ArenaSkin = chosenSkin ?? pageSkin ?? "night";
   const [phase, setPhase] = useState<Phase>({ kind: "setup" });
   const [chosen, setFacts] = useState<PackFacts | null>(null);

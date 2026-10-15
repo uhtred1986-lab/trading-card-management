@@ -6,11 +6,12 @@ import { requireSlPage } from "@/lib/auth";
 import { getImportedEvaluationRunDetail } from "@/lib/arena/testing/store";
 import type { EvaluationManifestResult } from "@/lib/arena/testing/run-manifest";
 import type { RunScoreRow } from "@/lib/arena/testing/run-stats";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 const OUTCOMES = ["pass", "fail", "interrupted", "error", "win", "loss", "draw", "limit", "illegal"] as const;
-const panel = "rounded-xl border border-space-700 bg-space-900/50 p-4";
+const panel = "ds-panel p-4";
 
 export default async function ImportedRunDetailPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
@@ -37,32 +38,30 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
   };
   const filteredCount = run.results.length;
 
-  return <main className="mx-auto max-w-7xl min-w-0 space-y-5 overflow-x-hidden px-3 py-4 pb-24 sm:px-6 sm:py-6">
+  return <main className="ds-page mx-auto max-w-7xl min-w-0 space-y-5 overflow-x-hidden px-3 py-4 pb-24 sm:px-6 sm:py-6">
     <ArenaHeader side="testing" />
     <Link href="/arena/testing" className="tap inline-flex min-h-9 items-center text-sm text-ki-300 hover:text-ki-200">← Back to Testing &amp; stats</Link>
-    <header className={panel}>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-ki-300">Imported test run</p>
-      <h1 className="mt-1 text-xl font-semibold text-space-50 sm:text-2xl">{source}</h1>
-      <p className="mt-1 break-all font-mono text-xs text-space-400">Run {run.requestId} · {run.resultCount} result rows · {new Date(run.recordedAt).toLocaleString()}</p>
-    </header>
+    <PageHeader title={source} eyebrow="Imported test run" description={`${run.resultCount} result rows · recorded ${new Date(run.recordedAt).toLocaleString()}`}>
+      <p className="break-all font-mono text-xs text-space-400">Run {run.requestId}</p>
+    </PageHeader>
 
-    {run.scores.games > 0 ? <section className={panel} aria-labelledby="run-scores-title">
+    {run.scores.games > 0 ? <Panel className="p-4" aria-labelledby="run-scores-title">
       <h2 id="run-scores-title" className="text-base font-semibold text-space-100">Policies and decks</h2>
       <p className="mt-1 text-xs text-space-400">All {run.scores.games} games in this run, independent of the case filters below. These descriptive scores do not establish strategic strength or qualify a deck.</p>
       <p className="mt-1 text-[11px] text-space-500">Games count distinct matches; appearances count seats, so a mirror has two appearances. Win rate is wins ÷ (wins + losses). Draws and unfinished games are excluded. Policy versions and deck compositions are kept separate.</p>
       <RunScoreTable title="By policy version" rows={run.scores.policies} />
       <RunScoreTable title="By deck composition" rows={run.scores.decks} />
-    </section> : null}
+    </Panel> : null}
 
-    <section className={panel} aria-labelledby="fixture-results-title">
+    <Panel className="p-4" aria-labelledby="fixture-results-title">
       <h2 id="fixture-results-title" className="text-base font-semibold text-space-100">Outcome counts by fixture</h2>
       <p className="mt-1 text-[11px] text-space-500">Counts stay separated by fixture and result kind. Policy game outcomes are from the candidate’s perspective.</p>
       {run.fixtureTotals.length ? <div className="mt-2 overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[34rem] text-left text-xs"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Fixture</th><th className="px-2 py-2">Result kind</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Count</th></tr></thead><tbody>{run.fixtureTotals.map((item) => <tr key={`${item.fixtureKey}:${item.kind}:${item.outcome}`} className="border-t border-space-800"><th scope="row" className="px-2 py-2 font-mono">{item.fixtureKey}</th><td className="px-2 py-2">{item.kind.replaceAll("_", " ")}</td><td className="px-2 py-2">{item.outcome}</td><td className="px-2 py-2 tabular-nums">{item.count}</td></tr>)}</tbody></table></div> : <p className="mt-2 text-xs text-space-500">No result counts available.</p>}
-    </section>
+    </Panel>
 
     <section className="min-w-0 space-y-3" aria-labelledby="cases-title">
       <div><h2 id="cases-title" className="text-base font-semibold text-space-100">Case results</h2><p className="text-xs text-space-400">Review every result page. Evidence is a digest only; raw replays, game state, actions, and prompts are not uploaded.</p></div>
-      <form method="GET" className="grid gap-2 rounded-xl border border-space-700 bg-space-900/50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form method="GET" className="ds-panel grid gap-2 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <label className="block space-y-1 text-xs text-space-300">Fixture
           <select name="fixture" defaultValue={fixtureKey} className="tap w-full rounded-md border border-space-700 bg-space-950 px-2 py-2 text-sm text-space-100"><option value="">All fixtures</option>{run.fixtures.map((fixture) => <option key={fixture.key} value={fixture.key}>{fixture.key} · {fixture.sourceId}</option>)}</select>
         </label>

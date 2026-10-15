@@ -5,6 +5,7 @@ import { CardImage } from "@/components/CardImage";
 import { OFFICIAL_NEWS_LINKS } from "@/lib/catalog/news";
 import { cachedRecentCards } from "@/lib/cache/reads";
 import { requireSignedInPage } from "@/lib/auth";
+import { EmptyState, FilterBar, PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -29,27 +30,17 @@ export default async function MetaNewsPage({ searchParams }: { searchParams: Pro
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">News</h1>
-          <p className="text-sm text-space-300">New to the catalog in the last {DAYS} days, newest first.</p>
-        </div>
-        <Link href="/meta" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
-          ← Leaderboard
-        </Link>
-      </div>
+    <div className="ds-page space-y-4">
+      <PageHeader title="News" eyebrow="Meta" description={`New to the catalog in the last ${DAYS} days, newest first.`} actions={<Link href="/meta" className="ds-button-secondary">← Leaderboard</Link>} />
 
-      <GameFilter path="/meta/news" game={game} available={gamesPresent} />
+      <FilterBar summary={`${cards.length} new card${cards.length === 1 ? "" : "s"}`}><GameFilter path="/meta/news" game={game} available={gamesPresent} /></FilterBar>
 
       {cards.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
-          Nothing new in the last {DAYS} days. Run a catalog sync from Settings when a new set is out.
-        </p>
+        <EmptyState title="No recent additions">Nothing new in the last {DAYS} days. Run a catalog sync from Settings when a new set is out.</EmptyState>
       ) : (
         <div className="space-y-4">
           {[...bySet.values()].map((bucket) => (
-            <section key={bucket.setName}>
+            <Panel key={bucket.setName}>
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">{bucket.setName}</h2>
               <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6">
                 {bucket.cards.map((c) => (
@@ -62,12 +53,12 @@ export default async function MetaNewsPage({ searchParams }: { searchParams: Pro
                   </li>
                 ))}
               </ul>
-            </section>
+            </Panel>
           ))}
         </div>
       )}
 
-      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+      <Panel>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">Official news</h2>
         <ul className="space-y-1 text-sm">
           {OFFICIAL_NEWS_LINKS.map((l) => (
@@ -78,7 +69,7 @@ export default async function MetaNewsPage({ searchParams }: { searchParams: Pro
             </li>
           ))}
         </ul>
-      </section>
+      </Panel>
     </div>
   );
 }

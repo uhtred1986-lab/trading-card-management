@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { decisionsFor } from "@/lib/arena/ai/debug";
 import { isVersus, loadGame, seatOf } from "@/lib/arena/games";
 import { currentUser, isArenaAdmin, requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -49,20 +50,17 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline gap-2">
+      <PageHeader eyebrow="Arena diagnostics" title={`How Claude played · ${game.p1Name} vs ${game.p2Name}`} description="Decision trace and cost details for this game." actions={<>
         <Link href={`/arena/${id}`} className="text-xs text-space-300 hover:text-ki-300">
           ← back to the game
         </Link>
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">
-          How Claude played · {game.p1Name} vs {game.p2Name}
-        </h1>
         <span className="rounded bg-space-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-space-300" title="Every decision below was taken on the engine this game was made on (#162) — a game never changes engine, so this applies to the whole log.">
           {game.engine} engine
         </span>
         <Link href="/arena/rules/patterns?half=open" className="ml-auto text-xs text-ki-300 hover:underline">
           card-text patterns →
         </Link>
-      </div>
+      </>} />
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">Nothing recorded yet. Decisions appear here as the game is played.</p>
@@ -76,7 +74,7 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
             <Stat label="median wait" value={avgLatency ? `${(avgLatency / 1000).toFixed(1)} s` : "—"} />
           </dl>
 
-          <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+          <Panel>
             <h2 className="mb-2 text-xs uppercase tracking-widest text-space-400">Where the money went</h2>
             <ul className="space-y-1 text-xs">
               {[...byPrompt.entries()]
@@ -96,7 +94,7 @@ export default async function ArenaDebugPage({ params }: { params: Promise<{ id:
             ) : (
               <p className="mt-2 text-[11px] text-dbs-yellow">Nothing was served from cache. On Haiku 4.5 the prompt has to reach 4,096 tokens before anything caches at all; this one does not.</p>
             )}
-          </section>
+          </Panel>
 
           <ol className="space-y-2">
             {rows.map((r) => (

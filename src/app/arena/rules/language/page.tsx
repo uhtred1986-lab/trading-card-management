@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { languageReference, type RefCond, type RefOp } from "@/lib/arena/lang/reference";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const metadata = { title: "The rules language" };
 
@@ -38,7 +39,7 @@ function FieldsTable({ fields }: { fields: { name: string; type: string; require
 
 function OpCard({ op }: { op: RefOp }) {
   return (
-    <li id={`op-${op.name}`} className="scroll-mt-4 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+    <li><Panel id={`op-${op.name}`} className="scroll-mt-4 p-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-mono text-sm font-medium text-space-100">{op.name}</span>
         <span className={`ml-auto shrink-0 ${CLASS_CLASS}`}>{op.class}</span>
@@ -54,13 +55,13 @@ function OpCard({ op }: { op: RefOp }) {
           {op.sentence}
         </p>
       )}
-    </li>
+    </Panel></li>
   );
 }
 
 function CondCard({ cond }: { cond: RefCond }) {
   return (
-    <li id={`cond-${cond.kind}`} className="scroll-mt-4 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+    <li><Panel id={`cond-${cond.kind}`} className="scroll-mt-4 p-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-mono text-sm font-medium text-space-100">{cond.kind}</span>
         <span className={`ml-auto shrink-0 ${CLASS_CLASS}`}>{cond.class}</span>
@@ -74,7 +75,7 @@ function CondCard({ cond }: { cond: RefCond }) {
         <span className="text-space-500">reads: </span>
         {cond.sentence}
       </p>
-    </li>
+    </Panel></li>
   );
 }
 
@@ -92,12 +93,11 @@ export default async function LanguageReferencePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">The rules language</h1>
+      <PageHeader title="The rules language" eyebrow="Arena rules reference" description="Fields, types, defaults and meaning for every supported operation and condition.">
         <Link href="/arena/rules" className="ml-auto text-xs text-space-300 hover:text-ki-300">
           ← The rules of your cards
         </Link>
-      </div>
+      </PageHeader>
       <p className="text-sm text-space-300">
         Every statement and condition the text view accepts after <span className="font-mono text-[11px]">THEN</span> and{" "}
         <span className="font-mono text-[11px]">IF</span>, with its fields, and the selectors, filters, expressions, price items, triggers and literals the rest of a rule is built from. Generated from

@@ -9,6 +9,7 @@ import { NewDeckFromCard } from "@/components/NewDeckFromCard";
 import { hasAnthropic } from "@/lib/ai/client";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckDiscovery } from "@/components/DeckDiscovery";
+import { PageHeader, SectionTabs } from "@/components/ui";
 import { createDeckForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -31,14 +32,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">Decks</h1>
-          <p className="text-sm text-space-300">
-            {built.length} built · {virtual.length} virtual
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-2">
+      <PageHeader title="Decks" eyebrow="Build" description={`${built.length} built · ${virtual.length} virtual`} actions={<div className="flex flex-wrap items-start gap-2">
           <Link href="/leaders" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
             My leaders
           </Link>
@@ -59,8 +53,8 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
               Create
             </SubmitButton>
           </form>
-        </div>
-      </div>
+      </div>} />
+      <SectionTabs items={[{href:"/decks",label:"Decks",active:true},{href:"/leaders",label:"Leaders"},{href:"/collection",label:"Collection"},{href:"/cards",label:"Catalog"}]} />
 
       <GameFilter path="/decks" params={{ show: show === "all" ? undefined : show }} game={game} available={gamesPresent} />
 

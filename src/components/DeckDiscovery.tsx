@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import { filterDecks, emptyDeckFilters, type DiscoveryDeck } from "@/lib/decks/discovery";
 import { CardImage } from "./CardImage";
 import { ColorPill } from "./ColorPill";
+import { FilterBar } from "@/components/ui";
 
 export function DeckDescription({ text, missing = "No description yet. Add strategy notes in Deck details & notes." }: { text: string | null; missing?: string }) {
   const description = text?.trim();
@@ -52,21 +53,22 @@ export function DeckDiscovery({ decks, label, value, onChange, readyOnly = false
     {selected && <DeckFacts deck={selected} missingDescription={missingDescription} />}
     <details open={value === undefined ? true : undefined} className="space-y-3">
       <summary className="tap cursor-pointer py-2 text-sm font-semibold text-ki-300">{value === undefined ? "Find a deck" : "Change deck"} · {decks.length} available</summary>
+      <FilterBar summary={`${filtered.length} of ${decks.length} decks · showing ${Math.min(limit,filtered.length)}`} active={<>{filters.leader && <button type="button" onClick={() => update({leader:""})}>Leader: {filters.leader} ×</button>}{filters.group && <button type="button" onClick={() => update({group:""})}>Type: {filters.group} ×</button>}{filters.readyOnly && <button type="button" onClick={() => update({readyOnly:false})}>Rules ready only ×</button>}</>}>
       <div className="space-y-2">
         <label className="block text-xs text-space-300" htmlFor={`${id}-search`}>Search deck, leader or description</label>
         <input id={`${id}-search`} type="search" value={filters.q} onChange={(e) => update({q:e.target.value})} placeholder="Name, card number, strategy…" className={selectClass} />
-        <div className="grid grid-cols-2 gap-2">
-          <label className="min-w-0 text-xs text-space-300">Colour<select value={filters.color} onChange={(e) => update({color:e.target.value})} className={selectClass}><option value="">Any colour</option>{colors.map((c) => <option key={c}>{c}</option>)}</select></label>
+        <label className="block text-xs text-space-300">Colour<select value={filters.color} onChange={(e) => update({color:e.target.value})} className={selectClass}><option value="">Any colour</option>{colors.map((c) => <option key={c}>{c}</option>)}</select></label>
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2">
           <label className="min-w-0 text-xs text-space-300">Leader<select value={filters.leader} onChange={(e) => update({leader:e.target.value})} className={selectClass}><option value="">Any leader</option>{leaders.map((l) => <option key={l.value} value={l.value}>{l.name}</option>)}</select></label>
           <label className="min-w-0 text-xs text-space-300">Deck type<select value={filters.group} onChange={(e) => update({group:e.target.value})} className={selectClass}><option value="">Any type</option>{groups.map((g) => <option key={g}>{g}</option>)}</select></label>
           {decks.some((d) => d.locked !== undefined) && <label className="tap flex items-center gap-2 text-sm text-space-200"><input type="checkbox" checked={filters.readyOnly} onChange={(e) => update({readyOnly:e.target.checked})} />Ready rules only</label>}
-        </div>
+        </div></details>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p role="status" className="text-xs text-space-300">{filtered.length} of {decks.length} decks · showing {Math.min(limit,filtered.length)}</p>
           <button type="button" className="tap px-2 text-sm text-ki-300" onClick={() => { setFilters(emptyDeckFilters(readyOnly)); setLimit(6); }}>Reset filters</button>
         </div>
         {selected && !filtered.some((d) => d.id === selected.id) && <p className="text-xs text-ki-300">Your selected deck stays selected; it is outside these filters.</p>}
       </div>
+      </FilterBar>
       {filtered.length === 0 && <p className="rounded-lg border border-dashed border-space-600 p-4 text-sm text-space-300">No decks match. Try another search or reset filters.</p>}
       <ul className={`grid gap-2 ${value === undefined ? "lg:grid-cols-2" : ""}`}>
         {filtered.slice(0,limit).map((d) => <li key={d.id} className="min-w-0 rounded-lg border border-space-600 bg-space-950/60 p-3">

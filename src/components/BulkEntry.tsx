@@ -6,6 +6,7 @@ import { addLots, printsForCardAction, type LotInput } from "@/app/collection/ac
 import { CONDITIONS } from "@/lib/collection/constants";
 import type { DeckOption } from "@/lib/decks/add";
 import { CardImage } from "./CardImage";
+import { Panel } from "@/components/ui";
 import { CardSearchInput, type CardHit as Hit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
 import { OwnerPicker } from "./OwnerPicker";
@@ -147,7 +148,7 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
   const counter = "tap w-10 min-w-0 flex-1 rounded-md border border-space-600 bg-space-900 px-1 py-1 text-center text-sm tabular-nums text-space-100";
 
   return (
-    <div className="space-y-3">
+    <Panel className="space-y-3 p-3">
       <VoiceEntry onCard={addVoiceRow} />
 
       <div className="grid gap-2 sm:grid-cols-2">
@@ -323,7 +324,7 @@ export function BulkEntry({ decks, owner, owners, locations }: { decks: DeckOpti
           four cards.
         </p>
       </div>
-    </div>
+    </Panel>
   );
 }
 
