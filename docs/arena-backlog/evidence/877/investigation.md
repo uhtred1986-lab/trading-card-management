@@ -122,3 +122,20 @@ placeholder artwork. Portrait 390×844 and desktop 1440×900 cover both skins;
 layout probes also cover 390×667, 320×568, 844×390 and 768×1024 at normal/200% text.
 The long portrait white-tail report remains explicitly unverified on the owner's
 actual phone browser. No Android/native work is included.
+
+Committed representative evidence beside this report:
+
+- `before-phone-anime-search.jpg` / `after-phone-anime-search.jpg`: bounded search rows.
+- `before-phone-anime-charge-review.jpg` / `after-phone-anime-charge-review.jpg`:
+  Charge before artwork; layout/pager scroll with the body to preserve short-screen access.
+- `before-desk-anime-charge-review.jpg` / `after-desk-anime-charge-review.jpg`: desktop inspector.
+- `before-phone-anime-beam.jpg` / `after-phone-anime-beam.jpg`: layout-shift endpoint.
+- `before-768x1024-100-bottom.jpg` / `after-768x1024-100-bottom.jpg`: 329px blank tail → 8px inset.
+- `after-phone-anime-attack-confirm.jpg`: review → target → explicit confirmation.
+- `before-checks.json`: 24 failures, 12 passing controls; `after-checks.json`: all 36 pass.
+- `action-checks.json`: both skins/phone/desktop target confirmation and clash geometry
+  (under 0.001px endpoint error), plus working Charge at 200% text on both short phones.
+
+The first complete `npm test` run passed, and final exact-source validation is
+recorded in the PR. The read-only backlog-wide `--check` is blocked by a pre-existing
+`848.md: front matter lacks 'stage'`; #877's own metadata parses and its source paths exist.

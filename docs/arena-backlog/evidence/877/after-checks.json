@@ -1,0 +1,220 @@
+[
+  {
+    "what": "phone/anime bounded search",
+    "ok": true
+  },
+  {
+    "what": "phone/anime required search survives notice timeout",
+    "ok": true
+  },
+  {
+    "what": "phone/anime same-seq rerender dismisses passive",
+    "ok": true
+  },
+  {
+    "what": "phone/anime dragging does not pin passive",
+    "ok": true
+  },
+  {
+    "what": "phone/anime beam follows layout without resize/scroll",
+    "ok": true,
+    "detail": 0
+  },
+  {
+    "what": "phone/anime legal Charge visible before artwork",
+    "ok": true
+  },
+  {
+    "what": "phone/night bounded search",
+    "ok": true
+  },
+  {
+    "what": "phone/night required search survives notice timeout",
+    "ok": true
+  },
+  {
+    "what": "phone/night same-seq rerender dismisses passive",
+    "ok": true
+  },
+  {
+    "what": "phone/night dragging does not pin passive",
+    "ok": true
+  },
+  {
+    "what": "phone/night beam follows layout without resize/scroll",
+    "ok": true,
+    "detail": 0
+  },
+  {
+    "what": "phone/night legal Charge visible before artwork",
+    "ok": true
+  },
+  {
+    "what": "desk/anime bounded search",
+    "ok": true
+  },
+  {
+    "what": "desk/anime required search survives notice timeout",
+    "ok": true
+  },
+  {
+    "what": "desk/anime same-seq rerender dismisses passive",
+    "ok": true
+  },
+  {
+    "what": "desk/anime dragging does not pin passive",
+    "ok": true
+  },
+  {
+    "what": "desk/anime beam follows layout without resize/scroll",
+    "ok": true,
+    "detail": 0
+  },
+  {
+    "what": "desk/anime legal Charge visible before artwork",
+    "ok": true
+  },
+  {
+    "what": "desk/night bounded search",
+    "ok": true
+  },
+  {
+    "what": "desk/night required search survives notice timeout",
+    "ok": true
+  },
+  {
+    "what": "desk/night same-seq rerender dismisses passive",
+    "ok": true
+  },
+  {
+    "what": "desk/night dragging does not pin passive",
+    "ok": true
+  },
+  {
+    "what": "desk/night beam follows layout without resize/scroll",
+    "ok": true,
+    "detail": 0
+  },
+  {
+    "what": "desk/night legal Charge visible before artwork",
+    "ok": true
+  },
+  {
+    "what": "390x844/100% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 844,
+      "vh": 844,
+      "blank": 8,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "390x844/200% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 1125,
+      "vh": 844,
+      "blank": 15.875,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "390x667/100% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 667,
+      "vh": 667,
+      "blank": 8,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "390x667/200% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 1034,
+      "vh": 667,
+      "blank": 15.90625,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "320x568/100% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 754,
+      "vh": 568,
+      "blank": 8.40625,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "320x568/200% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 1073,
+      "vh": 568,
+      "blank": 16.40625,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "844x390/100% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 618,
+      "vh": 390,
+      "blank": 7.65625,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "844x390/200% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 846,
+      "vh": 390,
+      "blank": 16.40625,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "768x1024/100% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 1024,
+      "vh": 1024,
+      "blank": 8,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "768x1024/200% text no blank tail",
+    "ok": true,
+    "detail": {
+      "page": 1024,
+      "vh": 1024,
+      "blank": 16,
+      "wide": false,
+      "bar": true
+    }
+  },
+  {
+    "what": "resolved empty skill is nonmodal",
+    "ok": true
+  },
+  {
+    "what": "resolved empty skill automatically dismisses",
+    "ok": true
+  }
+]
