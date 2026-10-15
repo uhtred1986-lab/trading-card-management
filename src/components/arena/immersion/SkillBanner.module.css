@@ -30,3 +30,6 @@
 @keyframes ascend { 0% { transform: translateY(22px) scale(.8); } 75%,100% { transform: translateY(-8px) scale(1.1); } }
 .reduced .stage { height: 80px; animation: none; }.reduced .path,.reduced .aura { display: none; }.reduced .title { top: 10px; }.reduced .skip { top: calc(27% + 92px); }
 @media(prefers-reduced-motion: reduce) { .stage { height: 80px; animation: none; }.path,.aura { display: none; }.title { top: 10px; }.skip { top: calc(27% + 92px); } }
+
+.face { position: absolute; inset: 0; background-size: cover; background-position: center; border-radius: 5px; }
+.receipt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

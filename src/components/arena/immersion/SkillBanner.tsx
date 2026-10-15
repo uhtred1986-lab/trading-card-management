@@ -11,7 +11,7 @@ function SkillBeat({ moment, durationMs, reducedMotion, onSkip }: { moment: Skil
   const duration = Number.isFinite(durationMs) ? Math.max(1, Math.min(1100, durationMs)) : 850;
   useEffect(() => { const timer = window.setTimeout(() => setFinished(true), duration); return () => window.clearTimeout(timer); }, [duration]);
   if (finished) return null;
-  // A neutral card deliberately discloses no identity, even when a stale art capture exists.
+  // The event adapter supplies a face only when the viewer may see it.
   const movement = moment.from && moment.to;
   return <div className={`${styles.overlay} ${styles[moment.style]} ${reducedMotion ? styles.reduced : ""}`} style={{ "--duration": `${duration}ms` } as CSSProperties} data-skill-banner={moment.style}>
     <div className={styles.stage}>
@@ -19,9 +19,9 @@ function SkillBeat({ moment, durationMs, reducedMotion, onSkip }: { moment: Skil
       <strong className={styles.title}>{moment.title}</strong>
       <div className={styles.path} aria-hidden="true">
         {movement && <><span className={styles.source}>{moment.detail.split(" → ")[0]}</span><span className={styles.destination}>{moment.detail.split(" → ")[1]}</span><span className={styles.rail} /></>}
-        <div className={`${styles.card} ${movement ? styles.moving : moment.flip ? styles.flipping : styles.resolving}`}><span>✦</span></div>
+        <div className={`${styles.card} ${movement ? styles.moving : moment.flip ? styles.flipping : styles.resolving}`}>{moment.face?.imageUrl ? <span className={styles.face} style={{ backgroundImage: `url(${JSON.stringify(moment.face.imageUrl)})` }} /> : <span>✦</span>}</div>
       </div>
-      <span className={styles.receipt} role="status">{moment.title} · {moment.detail}</span>
+      <span className={styles.receipt} role="status">{moment.side && `${moment.side} · `}{moment.face && `${moment.face.name} · `}{moment.detail}</span>
     </div>
     <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip effect</button>
   </div>;
