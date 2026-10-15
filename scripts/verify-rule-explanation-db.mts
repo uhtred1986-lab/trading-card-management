@@ -87,7 +87,8 @@ export async function verifyRuleExplanationDb(db: Db) {
   assert.ok(activation, "the confirmed record offers its native-priced activation");
   const handBefore = game.sides.p1.zones.hand.length;
   game = RULES.apply(ctx, game, activation.action).state;
-  assert.equal(game.outcome, null);
+  assert.equal(game.winner, null, "paying the approved price and drawing does not finish the game");
+  assert.equal(game.outcome ?? null, null);
   assert.deepEqual(energy.map((id) => game.cards[id].mode), ["rest", "rest"], "the actual VM charges red plus generic energy");
   assert.equal(game.sides.p1.zones.hand.length, handBefore + 2, "the approved conditional effect draws exactly two cards");
   await assert.rejects(() => approveRuleExplanation(db, first.id, draft.proposalId!, draft.token!), /already approved/);
