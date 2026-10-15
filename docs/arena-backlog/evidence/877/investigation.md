@@ -159,3 +159,7 @@ Both beam probes await rendered animation frames after a layout shift instead of
 assuming 180 ms guarantees a render on a busy host. The original clash timing
 probe failed once during concurrent validation and passed when run separately;
 the frame-based wait tests the hook's rendering lifecycle directly.
+
+The clash layout probe also finishes card entrance animations before applying
+its deliberate shift, so its endpoint comparison measures that shift rather
+than racing an unrelated entrance animation.
