@@ -17,6 +17,8 @@ const defs: Record<string, CardDef> = { ...DEFS,
   ENERGY924: card("ENERGY924", { colors: ["Black"], skill: null }),
   GOKU924: card("GOKU924", { colors: ["Black"], characters: ["Son Goku: Xeno"], power: 10000, skill: null }),
   VEG924: card("VEG924", { colors: ["Black"], characters: ["Vegeta: Xeno"], power: 10000, skill: null }),
+  EXTRAGOKU924: card("EXTRAGOKU924", { type: "EXTRA", characters: ["Son Goku: Xeno"], power: 10000, skill: null }),
+  EXTRAVEG924: card("EXTRAVEG924", { type: "EXTRA", characters: ["Vegeta: Xeno"], power: 10000, skill: null }),
   VEG20924: card("VEG20924", { colors: ["Black"], characters: ["Vegeta: Xeno"], power: 20000, skill: null }),
 };
 for (const row of rows) defs[row.id] = card(row.id, { name: row.name, type: "BATTLE", colors: row.colors as Color[], energyCost: Number(row.energy_cost), power: row.power, comboCost: row.combo_cost, comboPower: row.combo_power, characters: row.characters, traits: row.traits, skill: row.skill });
@@ -86,6 +88,11 @@ for (const row of rows) {
     const s = board(9242), gog = stage(s, "p2", row.id, "hand");
     stage(s, "p2", "GOKU924", area); stage(s, "p2", "VEG924", "warp");
     assert.equal(union(s, gog), undefined, `${area} does not become a material source`);
+  }
+  for (const area of ["hand", "warp"] as const) {
+    const s = board(9248), gog = stage(s, "p2", row.id, "hand");
+    stage(s, "p2", "EXTRAGOKU924", area); stage(s, "p2", "EXTRAVEG924", area);
+    assert.equal(union(s, gog), undefined, "matching non-Battle characters cannot pay Fusion");
   }
   const s = board(9243), own = stage(s, "p2", row.id, "hand"), other = stage(s, "p2", "OTHER924", "hand");
   stage(s, "p2", "GOKU924", "warp"); stage(s, "p2", "VEG924", "warp");
