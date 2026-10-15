@@ -95,7 +95,7 @@ export interface PackFacts {
   hash: string;
   id: string;
   runtimeRevision: string;
-  decks: { key: string; name: string; leader: string | null }[];
+  decks: { key: string; name: string; leader: string | null; isTesting?: boolean }[];
 }
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -113,7 +113,8 @@ export function readPack(raw: unknown): PackFacts {
     const reasons = Array.isArray(q.reasons) ? q.reasons.filter((r): r is string => typeof r === "string") : [];
     throw new LocalBoardError("unplayable", `This deck pack is not playable yet${reasons.length ? ` (${reasons.length} open ${reasons.length === 1 ? "reason" : "reasons"})` : ""}. It stays closed until its open blockers are resolved.`, reasons);
   }
-  const decks = raw.decks.flatMap((d) => (record(d) && typeof d.key === "string" ? [{ key: d.key, name: typeof d.name === "string" ? d.name : d.key, leader: record(d.deck) && record(d.deck.leader) && typeof d.deck.leader.name === "string" ? d.deck.leader.name : null }] : []));
+  if (raw.decks.some((d) => record(d) && d.isTesting !== undefined && typeof d.isTesting !== "boolean")) throw new LocalBoardError("pack", "A deck's testing flag must be true or false.");
+  const decks = raw.decks.flatMap((d) => (record(d) && typeof d.key === "string" ? [{ key: d.key, name: typeof d.name === "string" ? d.name : d.key, ...(d.isTesting ? { isTesting: true } : {}), leader: record(d.deck) && record(d.deck.leader) && typeof d.deck.leader.name === "string" ? d.deck.leader.name : null }] : []));
   if (decks.length < 1) throw new LocalBoardError("pack", "That deck pack has no decks.");
   return { pack: raw as unknown as OfflinePack, hash: raw.hash, id: raw.id, runtimeRevision: raw.compatibility.runtimeRevision, decks };
 }

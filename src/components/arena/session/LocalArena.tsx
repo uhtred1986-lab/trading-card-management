@@ -12,6 +12,7 @@ import { packStore, PackStoreError, type InstalledVersion, type InstallProgress,
 import { installedShells, shellRefusal, SHELL_PATH, type ShellMeta } from "../../../lib/arena/local/shell";
 import { OfflinePreparation } from "../OfflinePreparation";
 import { useMatchScreen } from "../../../lib/match-screen";
+import { selectableDecks, selectedDeckKeys } from "../../../lib/arena/local/deck-selection";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
 
 /**
@@ -176,6 +177,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
   const [problem, setProblem] = useState<{ message: string; reasons: string[] } | null>(null);
   const [mine, setMine] = useState("");
   const [theirs, setTheirs] = useState("");
+  const [showTesting, setShowTesting] = useState(false);
   const [seat, setSeat] = useState<"p1" | "p2">("p1");
   const boardRef = useRef<LocalBoard | null>(null);
 
@@ -188,6 +190,8 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
   const installed = useInstalledPacks(shell);
   // A pack that was removed from the device is no longer the chosen one.
   const facts = chosen && installed?.versions && !installed.versions.some((v) => v.hash === chosen.hash) && !installed.progress ? null : chosen;
+  const availableDecks = selectableDecks(facts?.decks ?? [], showTesting);
+  const selected = selectedDeckKeys(availableDecks, mine, theirs);
 
   /** The installed pack's images as object URLs (#780), kept while the same pack is played and freed when another is chosen. */
   async function artFor(hash: string): Promise<ReadonlyMap<string, string> | undefined> {
@@ -235,7 +239,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
     if (why) throw new LocalBoardError("unplayable", why);
     return f;
   };
-  const start = () => facts && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: mine, p2: theirs } : { p1: theirs, p2: mine }, human: seat }, { spawn, pointers, art: await artFor(facts.hash) }));
+  const start = () => facts && selected.mine && selected.theirs && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: selected.mine, p2: selected.theirs } : { p1: selected.theirs, p2: selected.mine }, human: seat }, { spawn, pointers, art: await artFor(facts.hash) }));
   const resume = () => pointer && (facts || installed) && begin("Opening your saved match…", async () => {
     // In the shell the saved match's pack is read from the device, whichever pack is chosen.
     const f = installed && facts?.hash !== pointer.packHash ? readPack(await installed.store.load(pointer.packHash)) : facts!;
@@ -362,16 +366,23 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
         {facts && (
           <section aria-label="New match" className={`${panel} space-y-3`}>
             <h2 className="text-xs uppercase tracking-widest text-space-400">New match</h2>
+            {facts.decks.some((deck) => deck.isTesting) && (
+              <label className="tap flex items-center gap-2 text-sm text-space-300">
+                <input type="checkbox" checked={showTesting} onChange={(event) => setShowTesting(event.target.checked)} disabled={busy} />
+                Show testing decks
+              </label>
+            )}
+            {!availableDecks.length && <p className="text-sm text-space-300">This pack contains only testing decks. Turn on “Show testing decks” to start a match.</p>}
             <label className="block text-sm text-space-200">
               <span className="mb-1 block">Your deck</span>
-              <select value={mine} onChange={(e) => setMine(e.target.value)} disabled={busy} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
-                {facts.decks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.leader ? ` — ${d.leader}` : ""}</option>)}
+              <select value={selected.mine} onChange={(e) => setMine(e.target.value)} disabled={busy || !availableDecks.length} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
+                {availableDecks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.isTesting ? " (testing)" : ""}{d.leader ? ` — ${d.leader}` : ""}</option>)}
               </select>
             </label>
             <label className="block text-sm text-space-200">
               <span className="mb-1 block">{installed ? "Computer\u2019s deck" : "Opponent\u2019s deck"}</span>
-              <select value={theirs} onChange={(e) => setTheirs(e.target.value)} disabled={busy} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
-                {facts.decks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.leader ? ` — ${d.leader}` : ""}</option>)}
+              <select value={selected.theirs} onChange={(e) => setTheirs(e.target.value)} disabled={busy || !availableDecks.length} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
+                {availableDecks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.isTesting ? " (testing)" : ""}{d.leader ? ` — ${d.leader}` : ""}</option>)}
               </select>
             </label>
             <fieldset className="space-y-1">
@@ -384,7 +395,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
                 ))}
               </div>
             </fieldset>
-            <button type="button" className={`${primary} w-full`} disabled={busy} onClick={() => void start()}>
+            <button type="button" className={`${primary} w-full`} disabled={busy || !availableDecks.length} onClick={() => void start()}>
               {busy ? (phase.kind === "opening" ? phase.what : "") : "Start match"}
             </button>
             <p className="text-[11px] text-space-500">The opponent is the built-in computer player; it runs on this device and costs nothing.</p>

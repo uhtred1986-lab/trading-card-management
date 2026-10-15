@@ -41,7 +41,7 @@ export function deckIdOfKey(key: string): number | null {
  * The fingerprint of a deck list (`replayHash` of its `DeckInput`). The server reports the current
  * one; the device computes it from the deck it holds, and a difference means the list changed online.
  */
-export const deckListHash = (deck: DeckInput): Promise<string> => replayHash({ name: deck.name, leader: deck.leader, main: deck.main, ...(deck.z?.length ? { z: deck.z } : {}) });
+export const deckListHash = (deck: DeckInput, isTesting = false): Promise<string> => replayHash({ name: deck.name, leader: deck.leader, main: deck.main, ...(deck.z?.length ? { z: deck.z } : {}), ...(isTesting ? { isTesting: true } : {}) });
 
 export interface BlockingCard {
   card: string;
@@ -55,6 +55,7 @@ export interface OfflineDeckCheck {
   deckId: number;
   key: string;
   name: string;
+  isTesting?: boolean;
   /** True when the deck can be downloaded. */
   ready: boolean;
   /** Problems of the deck as a whole (no leader, wrong game). */
@@ -77,6 +78,7 @@ export interface DeviceDeck {
   /** The app's deck id; null for a built-in starter. */
   deckId: number | null;
   name: string;
+  isTesting?: boolean;
   leader: string;
   /** The list's fingerprint, to compare with the server's. */
   listHash: string;
@@ -107,7 +109,7 @@ export async function readDevicePack(store: Pick<PackStore, "active" | "load">):
       if (art?.back) urls.add(art.back);
     }
     const def = pack.bundle.payload.defs[d.deck.leader];
-    decks.push({ key: d.key, deckId: deckIdOfKey(d.key), name: d.name, leader: def?.name ?? d.deck.leader, listHash: await deckListHash(d.deck), images: urls.size, artUrls: [...urls] });
+    decks.push({ key: d.key, deckId: deckIdOfKey(d.key), name: d.name, ...(d.isTesting ? { isTesting: true } : {}), leader: def?.name ?? d.deck.leader, listHash: await deckListHash(d.deck, d.isTesting), images: urls.size, artUrls: [...urls] });
   }
   return { version, pack, decks };
 }
