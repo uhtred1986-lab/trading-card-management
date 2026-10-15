@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DeckDiscovery, DeckFacts } from "@/components/DeckDiscovery";
 import type { DiscoveryDeck } from "@/lib/decks/discovery";
 import { MatchSetup } from "./MatchSetup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckPreviewSheet } from "./DeckPreviewSheet";
+import { CardImage } from "@/components/CardImage";
+import "./journey-entry.css";
 
 export interface PlayDeck {
   id: number;
@@ -47,7 +49,6 @@ export function PlayPicker({
   decks,
   initialDeck,
   initialClaudeDeck,
-  costs,
   canVersus,
   versusNote,
   action,
@@ -66,6 +67,7 @@ export function PlayPicker({
   testingToggleHref: string;
   hiddenTestingDeckName: string | null;
 }) {
+  const setup = useRef<HTMLDivElement>(null);
   const [deckId, setDeckId] = useState(initialDeck);
   const [claudeDeck, setClaudeDeck] = useState(initialClaudeDeck);
   const [friend, setFriend] = useState(false);
@@ -113,15 +115,15 @@ export function PlayPicker({
         <div className="grid gap-2 sm:grid-cols-3">
           <button type="button" aria-pressed={!friend && claudeKind === "sparring"} onClick={() => { setFriend(false); setClaudeKind("sparring"); }} className={chip(!friend && claudeKind === "sparring")}>
             <span className="block font-medium">Claude · Sparring</span>
-            <span className="block text-[11px] text-space-400">{costs.sparring}</span>
+            <span className="block text-[11px] text-space-400">Practice and learn</span>
           </button>
           <button type="button" aria-pressed={!friend && claudeKind === "tournament"} onClick={() => { setFriend(false); setClaudeKind("tournament"); }} className={chip(!friend && claudeKind === "tournament")}>
             <span className="block font-medium">Claude · Tournament</span>
-            <span className="block text-[11px] text-space-400">{costs.tournament}</span>
+            <span className="block text-[11px] text-space-400">A competitive match</span>
           </button>
           <button type="button" aria-pressed={friend} onClick={() => setFriend(true)} className={chip(friend)}>
             <span className="block font-medium">A friend</span>
-            <span className="block text-[11px] text-space-400">Free</span>
+            <span className="block text-[11px] text-space-400">Play together</span>
           </button>
         </div>
         {friend && (
@@ -165,18 +167,26 @@ export function PlayPicker({
           </button>
         ) : (
           <SubmitButton pendingLabel={invite ? "Opening…" : "Flipping…"} className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-bold uppercase tracking-wider text-space-950">
-            {invite ? "Invite a friend" : "Play"}
+            {invite ? "Invite a friend" : "Start match →"}
           </SubmitButton>
         )}
         <p className={`text-center text-[11px] text-space-400 ${isLocked || otherLocked ? "hidden" : ""}`}>{invite ? "They get a waiting room and choose their own deck." : "The coin flip comes first, then each side may mulligan once."}</p>
       </div>
   </>;
-  return <MatchSetup action={action} own={own} opponent={opponentSection} ownValid={!isLocked} opponentValid={!otherLocked && (!needsOtherDeck || !!other)}
+  return <div className="journey-entry space-y-5">
+    <JourneyDeckPicker decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} onContinue={() => {
+      const mobile = setup.current?.querySelector<HTMLButtonElement>("[data-match-setup-open]");
+      if (mobile && getComputedStyle(mobile).display !== "none") mobile.click();
+      else { setup.current?.scrollIntoView({ block: "start" }); setup.current?.focus(); }
+    }} />
+    <div ref={setup} tabIndex={-1} className="journey-setup space-y-3 outline-none">
+    <div className="hidden sm:block"><p className="journey-eyebrow">MATCH SETUP</p><h2 className="text-xl font-semibold text-space-50">Your next match</h2><p className="text-sm text-space-300">Choose your opponent, then start.</p></div>
+    <MatchSetup action={action} own={own} opponent={opponentSection} ownValid={!isLocked} opponentValid={!otherLocked && (!needsOtherDeck || !!other)}
     fields={<><input type="hidden" name="deck" value={deckId} /><input type="hidden" name="opponent" value={opponent} /><input type="hidden" name="claudeDeck" value={claudeDeck} /></>}
     review={<div className="space-y-4"><section className="space-y-2"><h3 className="text-sm font-semibold text-space-300">You play</h3><DeckFacts deck={choices[index]} /></section>
-      <section className="space-y-2"><h3 className="text-sm font-semibold text-space-300">{invite ? "Friend on their device" : friend ? "Second player" : `Claude · ${claudeKind === "sparring" ? "Sparring" : "Tournament"} · ${costs[claudeKind]}`}</h3>
+      <section className="space-y-2"><h3 className="text-sm font-semibold text-space-300">{invite ? "Friend on their device" : friend ? "Second player" : `Claude · ${claudeKind === "sparring" ? "Sparring" : "Tournament"}`}</h3>
       {invite ? <p className="text-sm text-space-200">Your friend chooses their own deck after joining.</p> : other && <DeckFacts deck={choices.find((d) => d.id === String(other.id))!} />}</section></div>}
-    footer={footer} />;
+    footer={footer} /></div></div>;
 }
 /**
  * The stacked bar and the four counts. Each state also differs in shape (ring,
@@ -251,4 +261,30 @@ function Readiness({ deck }: { deck: PlayDeck }) {
       )}
     </div>
   );
+}
+
+/** The visible entry uses the same selection as the setup form; it never starts a match. */
+export function JourneyDeckPicker({ decks, value, onChange, onContinue, disabled = false }: {
+  decks: DiscoveryDeck[]; value: string; onChange: (id: string) => void; onContinue: () => void; disabled?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const [limit, setLimit] = useState(6);
+  const selected = decks.find((d) => d.id === value);
+  const query = search.trim().toLowerCase();
+  const filtered = decks.filter((d) => [d.name, d.leaderName, d.leaderId, d.description, ...d.colors].filter(Boolean).join(" ").toLowerCase().includes(query));
+  return <section aria-label="Choose a deck to play" className="space-y-4">
+    <div><p className="journey-eyebrow">DRAGON BALL · MASTERS ARENA</p><h2 className="text-2xl font-semibold text-space-50">Ready to play?</h2><p className="mt-1 text-sm text-space-300">Your cards. Your next match.</p></div>
+    {selected && <div className="journey-deck-hero">
+      <div className="journey-hero-art"><CardImage src={selected.leaderImage} alt={selected.leaderName ?? "Leader image unavailable"} sizes="140px" /></div>
+      <div className="min-w-0 space-y-2"><p className="journey-eyebrow">SELECTED DECK</p><h3 className="break-words text-xl font-semibold text-space-50">{selected.name}</h3><p className="break-words text-sm text-space-200">{selected.leaderName ?? "No leader yet"}</p><p className="text-xs text-space-300">{selected.colors.join(" / ")}{selected.colors.length ? " · " : ""}{selected.mainCount} main cards · Masters</p><span className={`journey-status ${selected.locked ? "text-loss" : "text-gain"}`}>{selected.locked ? "Open rules need review" : selected.locked === false ? "Ready to play" : "Device deck"}</span></div>
+      <button type="button" disabled={disabled} onClick={onContinue} className="journey-play tap">{selected.locked ? "Review selected deck" : "Play selected deck →"}</button>
+    </div>}
+    <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-space-100">Your decks</h3><span className="text-xs text-space-400">{decks.length} available</span></div>
+    <label className="block"><span className="sr-only">Find a deck</span><input type="search" placeholder="Find a deck or leader…" value={search} disabled={disabled} onChange={(e) => { setSearch(e.target.value); setLimit(6); }} className="tap w-full rounded-xl border border-space-600 bg-space-900 px-4 py-3 text-sm text-space-100" /></label>
+    <ul className="journey-decks">{filtered.slice(0, limit).map((d) => <li key={d.id}><button data-deck-choice={d.id} type="button" disabled={disabled} aria-pressed={d.id === value} onClick={() => onChange(d.id)} className="journey-deck tap">
+      <span className="journey-tile-art"><CardImage src={d.leaderImage} alt="" sizes="64px" /></span><span className="min-w-0 flex-1"><strong className="block break-words text-sm text-space-50">{d.name}</strong><span className="mt-1 block break-words text-xs text-space-300">{d.leaderName ?? "No leader yet"} · {d.mainCount} cards</span><span className="mt-2 block text-xs text-space-300">{d.id === value ? "✓ Selected" : d.locked ? "Rules to review" : d.colors.join(" / ") || d.group}</span></span><span aria-hidden className="text-ki-300">›</span>
+    </button></li>)}</ul>
+    {!filtered.length && <p role="status" className="text-sm text-space-300">No decks match. Try another name or leader.</p>}
+    {filtered.length > limit && <button type="button" onClick={() => setLimit(limit + 6)} className="tap w-full rounded-lg border border-space-600 p-3 text-sm text-ki-300">Show more decks</button>}
+  </section>;
 }
