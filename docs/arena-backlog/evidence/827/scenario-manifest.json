@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "source": "scenario",
+  "requestId": "2fa8e02a-32fc-4a97-bc74-87267cc47cf9",
+  "runner": {
+    "id": "arena-scenario",
+    "version": "1",
+    "gitCommit": "d5384a9e183e6feb3a6211739c9528e59c2db7e0",
+    "dirtyTreeSha256": null
+  },
+  "protocol": {
+    "id": "arena-scenario-v1",
+    "revision": "f0da1a56847a13af4bdcfa65be6d03d6f52657b995bb986910ce6190279af7af"
+  },
+  "fixtures": [
+    {
+      "key": "bundle",
+      "sourceId": "arena-scenario-input",
+      "runtimeRevision": "a641000000000000000000000000000000000641",
+      "bundleSha256": "6a639abc42a4ad04dee3ef6ecefc6972a70cb9141fc883c245f3a778b3315d22",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "66ee6fcaf29463cfba74fc751214793ad3d4ca26c8602631b378698f16529834",
+      "programsSha256": "31c08d1831daf70c88303312c5297a3c6b6e43d5140d89b0f4a44081e1af6d3d",
+      "p1DeckSha256": "1fe83f247c80f05cfdacbbfa22310f7dc1384d442600f6899af1db296318e8ee",
+      "p2DeckSha256": "03963b7c7bc89c97eb9abcd46d31260087ba5fe34e6c86aefed8096f766ddcdc",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [],
+  "results": [
+    {
+      "key": "case-1",
+      "kind": "scenario_case",
+      "fixtureKey": "bundle",
+      "sourceScenarioId": "setup",
+      "portalScenarioId": null,
+      "seed": 641,
+      "seat": null,
+      "outcome": "pass",
+      "steps": 4,
+      "differenceCount": 0,
+      "browserAgreement": true,
+      "evidenceSha256": "4fd1ab1fab9aca66bdc4cb75052c550eae173c735d95026f2b1d1dee72a863d8"
+    },
+    {
+      "key": "case-2",
+      "kind": "scenario_case",
+      "fixtureKey": "bundle",
+      "sourceScenarioId": "battle",
+      "portalScenarioId": null,
+      "seed": 641,
+      "seat": null,
+      "outcome": "pass",
+      "steps": 4,
+      "differenceCount": 0,
+      "browserAgreement": true,
+      "evidenceSha256": "a8311404b419e420cbcfbed7eb15132db083a6bb7690c33b720090304e744f55"
+    },
+    {
+      "key": "case-3",
+      "kind": "scenario_case",
+      "fixtureKey": "bundle",
+      "sourceScenarioId": "pending-choice",
+      "portalScenarioId": null,
+      "seed": 641,
+      "seat": null,
+      "outcome": "pass",
+      "steps": 7,
+      "differenceCount": 0,
+      "browserAgreement": true,
+      "evidenceSha256": "30b05e471cff3d363eb58bc8d99fc69ccb570ae11aa3727da333f0397e8c6c6b"
+    }
+  ]
+}
