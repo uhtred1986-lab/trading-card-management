@@ -171,6 +171,8 @@ export function resolvePlay(
   card: string,
   player: PlayerId,
   opts: PlayOptions = {},
+  /** The host's skill mover, after counter/base validation; never serialized. */
+  moveXenoBase?: (base: string) => void,
 ): boolean {
   const inst = state.cards[card];
   const def = inst && ctx.defs[inst.cardId];
@@ -184,7 +186,10 @@ export function resolvePlay(
   const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
   const base = opts.onto;
   if (evolution && (!base || findCard(state, base)?.zone !== "battle" || findCard(state, base)?.owner !== player)) return false;
-  if (opts.using === "Xeno-Evolve" && base) moved(ctx, game, state, ev, base, "warp", { owner: player, by: "skill", byOpponent: false, reason: "effect", actor: player });
+  if (opts.using === "Xeno-Evolve" && base) {
+    if (!moveXenoBase) throw new RulesetBroken(state.game, "Xeno-Evolve requires the host's skill mover");
+    moveXenoBase(base);
+  }
   const host = opts.using === "Xeno-Evolve" ? undefined : base;
   const hostZone = host !== undefined && host !== card ? (findCard(state, host)?.zone ?? null) : null;
   const to = hostZone && hostZone === SETUP_ZONES.leader ? hostZone : PLAY_ZONES[baseTypeOf(printed)];

@@ -508,7 +508,7 @@
     {
       "name": "play",
       "class": "primitive",
-      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\"}",
+      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\",\"using\"?:\"Over Realm\"|\"Evolve\"|\"EX-Evolve\"|\"Xeno-Evolve\"}",
       "fields": [
         {
           "name": "target",
@@ -560,15 +560,17 @@
           "name": "using",
           "required": false,
           "nullable": false,
-          "offCard": "the keyword whose own move this play is — [Over Realm]'s (22-15) — carried onto the arrival's `moved` moment, so \"when this card is played using [Over Realm]\" (`playedUsingOverRealm`) answers that play and not an ordinary one",
           "type": "enum",
           "enumValues": [
-            "Over Realm"
+            "Over Realm",
+            "Evolve",
+            "EX-Evolve",
+            "Xeno-Evolve"
           ]
         }
       ],
       "sentence": "play this card",
-      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5)"
+      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5). \"using: Evolve/EX-Evolve/Xeno-Evolve\" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. \"using: Over Realm\" is that keyword's own play and marks its arrival (22-15)."
     },
     {
       "name": "switchMode",
@@ -4024,6 +4026,14 @@
     {
       "name": "leftBattleToDrop",
       "words": "when this card goes from a Battle Area to the Drop"
+    },
+    {
+      "name": "yourCardReturnedToHand",
+      "words": "when a card is returned from your Battle Area to its owner's hand"
+    },
+    {
+      "name": "battleOrDeckToWarp",
+      "words": "when this card goes from your Battle Area or deck to the Warp"
     },
     {
       "name": "hiddenToDrop",

@@ -105,3 +105,30 @@ from-hand activation Auto remains distinct from a successful evolution payoff.
 No full test/build or production action was run in this worker worktree. The
 coordinator runs the integrated full test/build gates and any authorized stored-row
 refresh after reviewing the exact final commit.
+
+## Independent audit: Xeno base cleanup and contract emission
+
+The post-integration audit reproduced a Xeno-only regression: moving its selected
+base with the rules-procedure mover retained a +5000 effect targeting that base
+in Warp. The previous keyword's skill mover cleared it under 3-1-4. Xeno now calls
+the existing host skill mover through a runtime-only callback, after Counter: Play
+and base revalidation, before its own arrival. The mover captures original
+attributes/negated Auto indexes before cleanup; its Xeno-only actor metadata makes
+the departure a skill movement without double-pending the removal Auto. Other
+plays never invoke this callback; existing actorless moves keep their event shape.
+
+The focused suite proves that the target-bound power effect ends before the Warp
+move, the evolving card lands afterward, and a removal Auto resolves exactly once.
+Real BT3-112 additionally returns from Warp once after that arrival only if its
+Auto was not negated in its original Battle Area. Clearing its old negation cannot
+restore that previously negated trigger. The area/pile and private-view checks run
+on these cases as well. TypeScript and changed-file ESLint passed after this fix.
+
+`contract:emit` regenerated three expected artifacts: effect-language/reference
+add the marked play variants and movement triggers; `EVO#0`'s probe digest changes
+from `3561057e` to `a0a22473`. `evo-probe-review.json` demonstrates that this digest
+change comes solely from the updated Evolve glossary paragraph included in the
+static keyword result: the applied move trace is identical, and substituting the
+old paragraph exactly reproduces the old digest. All Snapshot/deck fixtures and
+the Snapshot schema are unchanged. These artifacts describe #825's existing
+language changes; the Xeno cleanup correction adds no public contract fields.

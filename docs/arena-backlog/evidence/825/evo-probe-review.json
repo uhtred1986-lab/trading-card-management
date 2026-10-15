@@ -1,0 +1,21 @@
+{
+  "key": "EVO#0",
+  "beforeDigest": "3561057e",
+  "afterDigest": "a0a22473",
+  "onlyDigestInputChange": "Evolve engine explanation in static keyword reading",
+  "appliedUnchanged": [
+    "You use 《Evolve》 on EVO — [Evolve]{1}: <V1>.",
+    "Energy Card switches to Rest Mode.",
+    "You play EVO."
+  ],
+  "beforeResult": [
+    "[Evolve] — Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157): offered from the hand at the Main Phase while a Battle Card matching the printed description is out (`asPrinted` reads the description off the line); the printed orbs are the price; the chosen card goes under this one, which keeps its place, its mode and its power effects (`vm/play.ts`'s `stackOnto`); [Xeno-Evolve] sends it to the Warp instead. “When using this card's [Evolve] from your hand” fires at the activation. With one card to evolve onto the choice is forced and nothing is asked, and the evolved card is moved once. A change to “evolve costs” reaches the line's orbs on its own channel. A change scoped to the base (`costReduction(what: evolve, onto: [self])`, EX03-16, compiled from “when evolving this card into a <X> [with a different card name] from your hand, the [evolve] cost is decreased by {…}”, the different name read as the selector word `otherThanSameName`) is read only for an activation that names that base: each such base is a further candidate of the line carrying `onto`, priced with the change, and its `$base` arrives already bound so the `DO` does not ask.",
+    "keywords in force: [Evolve]",
+    "EVO goes from hand to the Battle Area"
+  ],
+  "afterResult": [
+    "[Evolve] — Built as its keyword's own `DO` (`offer: \"activate:main\"` in `keywords.rules`, #157): offered from the hand at the Main Phase while a Battle Card matching the printed description is out (`asPrinted` reads the description off the line); the printed orbs are the price; the chosen card goes under this one, which keeps its place, its mode and its power effects (`vm/play.ts`'s `stackOnto`); [Xeno-Evolve] sends it to the Warp instead. “When using this card's [Evolve] from your hand” fires at the activation. With one card to evolve onto the choice is forced and nothing is asked, and the evolved card is moved once. Successful Evolve, EX-Evolve and Xeno-Evolve now announce a separate evolution occurrence after the card lands; the hand-activation Auto remains at activation. Countered/failed evolution announces no payoff, revalidates the bound base, and a failed hand copy goes to Drop unless the counter explicitly returned it elsewhere (22-5-5-1, 22-5-6-1, 22-5-7). The played-using fact retains the exact variant. A change to “evolve costs” reaches the line's orbs on its own channel. A change scoped to the base (`costReduction(what: evolve, onto: [self])`, EX03-16, compiled from “when evolving this card into a <X> [with a different card name] from your hand, the [evolve] cost is decreased by {…}”, the different name read as the selector word `otherThanSameName`) is read only for an activation that names that base: each such base is a further candidate of the line carrying `onto`, priced with the change, and its `$base` arrives already bound so the `DO` does not ask.",
+    "keywords in force: [Evolve]",
+    "EVO goes from hand to the Battle Area"
+  ]
+}

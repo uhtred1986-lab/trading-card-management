@@ -29,6 +29,8 @@ const defs: Record<string, CardDef> = { ...DEFS, ...Object.fromEntries(printed.m
   EVO825: card("EVO825", { skill: "[Evolve]{1}: <V1><br>[Auto] When a card evolves into this card, draw 1 card.<br>[Auto] When using this card's [Evolve] from your hand, draw 1 card." }),
   EX825: card("EX825", { skill: "[EX-Evolve]{1}: <V1><br>[Auto] When a card evolves into this card, draw 1 card.<br>[Auto] When using this card's [Evolve] from your hand, draw 1 card." }),
   XENO825: card("XENO825", { skill: "[Xeno-Evolve]{1}: <V1><br>[Auto] When a card evolves into this card, draw 1 card.<br>[Auto] When using this card's [Evolve] from your hand, draw 1 card." }),
+  XENOTRUNKS825: card("XENOTRUNKS825", { skill: "[Xeno-Evolve]{1}: <Trunks: Xeno>" }),
+  REMOVED825: card("REMOVED825", { characters: ["V1"], skill: "[Auto] When this card is removed from your Battle Area by a skill, draw 1 card." }),
   RETURN825: card("RETURN825", { skill: "[Auto] When your blue Battle Card is played, return it to its owner's hand." }),
 };
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
@@ -372,5 +374,40 @@ for (const variant of ["EVO825", "EX825", "XENO825"]) for (const outcome of ["su
   } else assert.ok(zone(s, "p1", outcome === "countered" ? "hand" : "drop").includes(evo), "failed keyword Evolve obeys 22-5-7, explicit return obeys its exception");
   assert.equal(events.slice(before).filter((e) => e.type === "skill" && e.card === evo && e.skill === 10).length, outcome === "success" ? 1 : 0, "normal Evolve/EX/Xeno payoff occurs exactly once on success");
   assert.equal(events.slice(before).filter((e) => e.type === "skill" && e.card === evo && e.skill === 20).length, 1, "from-hand activation Auto remains distinct from successful evolution");
+}
+// Xeno uses the skill mover after the counter/base checkpoint: target-bound
+// effects end on the area change, movement Autos pend once, then the card lands.
+{
+  let s = fresh(); const evo = stage(s, "XENO825", "hand"); const base = stage(s, "REMOVED825", "battle"); stage(s, "V1", "energy");
+  const power = addEffect(s, [], { target: base, source: leader(s, "p1"), kind: "power", value: 5000, until: "turn" });
+  const before = events.length;
+  const activation = RULES.legalActions(ctx, s).find(({ action }) => action.type === "activate" && action.card === evo);
+  assert.ok(activation); s = take(s, activation.action); s = finish(s);
+  assert.ok(zone(s, "p1", "warp").includes(base));
+  assert.equal(attrsNow(ctx, game, s, base).power, defs.REMOVED825.power, "Warp base has no old Battle power effect");
+  assert.ok(!s.effects.some((e) => e.id === power.id), "area change clears target-bound effects");
+  const trace = events.slice(before);
+  const removed = trace.findIndex((e) => e.type === "effectEnded" && e.effect.id === power.id);
+  const warped = trace.findIndex((e) => e.type === "move" && e.card === base && e.to === "warp");
+  const played = trace.findIndex((e) => e.type === "move" && e.card === evo && e.to === "battle");
+  assert.ok(removed >= 0 && removed < warped && warped < played, "old effects end, base moves, then evolving card lands");
+  assert.equal(trace.filter((e) => e.type === "skill" && e.card === base && e.skill === 0).length, 1, "skill removal Auto fires exactly once");
+  invariant(s); privacy(s);
+}
+for (const negated of [false, true]) {
+  let s = fresh(); const evo = stage(s, "XENOTRUNKS825", "hand"); const base = stage(s, "BT3-112", "battle"); stage(s, "V1", "energy");
+  if (negated) addEffect(s, [], { target: base, source: leader(s, "p1"), kind: "negateSkills", value: 0, until: "turn" });
+  const before = events.length;
+  const activation = RULES.legalActions(ctx, s).find(({ action }) => action.type === "activate" && action.card === evo);
+  assert.ok(activation); s = take(s, activation.action); s = finish(s);
+  assert.ok(zone(s, "p1", negated ? "warp" : "hand").includes(base), "real Trunks respects pre-departure Auto negation");
+  assert.ok(!s.effects.some((e) => e.target === base), "Xeno departure clears old negation without restoring a previously negated Auto");
+  const trace = events.slice(before);
+  assert.equal(trace.filter((e) => e.type === "move" && e.card === base && e.to === "warp").length, 1);
+  assert.equal(trace.filter((e) => e.type === "skill" && e.card === base && e.skill === 10).length, negated ? 0 : 1);
+  const played = trace.findIndex((e) => e.type === "move" && e.card === evo && e.to === "battle");
+  const returned = trace.findIndex((e) => e.type === "move" && e.card === base && e.to === "hand");
+  assert.ok(played >= 0 && (negated || returned > played), "pending Warp return resolves after the evolution lands");
+  invariant(s); privacy(s);
 }
 console.log("qualified-movement-evolve-825: real card compiler/movement/paid-combo regressions passed");
