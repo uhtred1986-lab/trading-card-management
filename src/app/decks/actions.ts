@@ -43,11 +43,11 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, 
 }
 
 export async function createDeckForm(formData: FormData) {
+  await requireSignedIn();
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
   const game = gameOr(formData.get("game"));
   const isTesting = formData.get("isTesting") === "on";
   if (isTesting) await requireSl();
-  else await requireSignedIn();
   const [row] = await db
     .insert(decks)
     .values({ name, game, isTesting, owner: await currentOwner() })
