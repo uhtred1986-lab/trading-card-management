@@ -261,7 +261,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
             </section>
             {!text.blank && !explaining && <>
               <RuleReading title="Current interpretation" rule={{ kind: item.tag, trigger: item.trigger, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />
-              {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={`${actBtn} bg-gain text-space-950`}>Approve current interpretation</button>}
+              {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={`${actBtn} bg-space-50 text-space-950`}>Approve current interpretation</button>}
             </>}
             {admin ? <RuleExplanationPanel key={item.id} id={item.id} version={item.reviewVersion ?? ""} actions={explanationActions} initial={item.pendingExplanation} onWorking={setExplaining}
               onApproved={() => go({ ...verdicts, [item.id]: "right" }, { kind: "right", at, id: item.id }, `Approved the exact proposed skill: ${item.name}.`)} />
@@ -357,7 +357,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
                   <button type="button" disabled={pending} onClick={skip} className={`${actBtn} border border-space-600 bg-space-800/60 text-space-50`}>
                     Review later
                   </button>
-                  <button type="button" disabled={pending || explaining || !!approvalProblem(item)} onClick={right} className={`${actBtn} col-span-2 bg-gain text-space-950`}>
+                  <button type="button" disabled={pending || explaining || !!approvalProblem(item)} onClick={right} className={`${actBtn} col-span-2 bg-space-50 text-space-950`}>
                     Approve interpretation
                   </button>
                 </div>

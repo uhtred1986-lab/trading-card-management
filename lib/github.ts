@@ -664,6 +664,7 @@ export async function syncAllFeedbackItems(
   repo?: string
 ): Promise<SyncResult> {
   feedbackList = feedbackList.filter(feedbackIssueEligible);
+  if (!feedbackList.length) return { total: 0, created: 0, updated: 0, closed: 0, errors: [] };
   const targetRepo = repo || getGitHubConfig().repo;
   let created = 0;
   let updated = 0;

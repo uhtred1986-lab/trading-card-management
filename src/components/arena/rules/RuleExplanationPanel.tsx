@@ -99,7 +99,7 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
     {decision?.kind === "supported" && <div className="space-y-3">
       <p>{decision.meaning}</p>
       <RuleReading rule={decision.rule} title="Proposed interpretation" />
-      <button type="button" disabled={pending} className={`${button} w-full bg-gain text-space-950`} onClick={() => perform(async () => {
+      <button type="button" disabled={pending} className={`${button} w-full bg-space-50 text-space-950`} onClick={() => perform(async () => {
         const response = await actions.approve(id, result!.proposalId!, result!.token!);
         if (!response.error && alive.current) onApproved();
         return response;
