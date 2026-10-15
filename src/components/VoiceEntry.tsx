@@ -114,7 +114,7 @@ export function VoiceEntry({ onCard }: { onCard: (card: SpokenCard, prints: { id
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={listening ? stop : start}
-          className={`tap rounded-md px-4 py-2 text-sm font-semibold ${listening ? "bg-loss text-white hover:bg-loss/80" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
+          className={`tap rounded-md px-4 py-2 text-sm font-semibold ${listening ? "ds-button-danger" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
         >
           {listening ? "■ Stop listening" : "🎤 Voice entry"}
         </button>
