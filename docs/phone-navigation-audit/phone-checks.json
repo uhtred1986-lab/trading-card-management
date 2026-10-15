@@ -1,0 +1,34 @@
+[
+  {
+    "width": 360,
+    "skin": "anime",
+    "mulliganScroll": true,
+    "writtenText": true,
+    "noAccidentalMove": true,
+    "appNavigation": true
+  },
+  {
+    "width": 360,
+    "skin": "night",
+    "mulliganScroll": true,
+    "writtenText": true,
+    "noAccidentalMove": true,
+    "appNavigation": true
+  },
+  {
+    "width": 390,
+    "skin": "anime",
+    "mulliganScroll": true,
+    "writtenText": true,
+    "noAccidentalMove": true,
+    "appNavigation": true
+  },
+  {
+    "width": 390,
+    "skin": "night",
+    "mulliganScroll": true,
+    "writtenText": true,
+    "noAccidentalMove": true,
+    "appNavigation": true
+  }
+]

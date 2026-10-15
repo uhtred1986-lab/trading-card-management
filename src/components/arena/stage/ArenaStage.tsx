@@ -1,5 +1,7 @@
 "use client";
 
+import { GamePlanPanel } from "./GamePlanPanel";
+
 import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import type { ArenaSession } from "../session/contract";
@@ -1582,18 +1584,6 @@ export function ArenaStage({
               primaryBare={primaryBare}
               onSend={send}
               chargeSelection={chargeSelection}
-              planEnabled={session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer}
-              planOpen={planCurrent && planOpen}
-              onPlanToggle={() => { setPlanRevision(live.game.revision); setPlanOpen((open) => planCurrent ? !open : true); }}
-              planChoices={planChoices}
-              planFirst={planCurrent ? planFirst : null}
-              plan={planCurrent ? plan : null}
-              planError={planCurrent ? planError : null}
-              planPending={planCurrent && planPending}
-              onPlanFirst={selectPlanFirst}
-              onPlanSecond={(move) => planCurrent && planFirst && requestPlan([planFirst, move.action])}
-              onPlanRetry={() => { if (planCurrent && planAttempt.length) requestPlan(planAttempt); }}
-              onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanAttempt([]); setPlanError(null); setPlanOpen(false); }}
               onNext={playback.next}
             />
           </div>
@@ -1691,6 +1681,22 @@ export function ArenaStage({
           </Sheet>
         )}
 
+        {planCurrent && planOpen && session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && (
+          <Sheet title="Move preview" onClose={() => setPlanOpen(false)}>
+            <GamePlanPanel
+              planChoices={planChoices}
+              planFirst={planCurrent ? planFirst : null}
+              plan={planCurrent ? plan : null}
+              planError={planCurrent ? planError : null}
+              planPending={planCurrent && planPending}
+              onPlanFirst={selectPlanFirst}
+              onPlanSecond={(move) => planCurrent && planFirst && requestPlan([planFirst, move.action])}
+              onPlanRetry={() => { if (planCurrent && planAttempt.length) requestPlan(planAttempt); }}
+              onPlanClear={() => { planRequest.current++; setPlan(null); setPlanFirst(null); setPlanAttempt([]); setPlanError(null); }}
+            />
+          </Sheet>
+        )}
+
         {moreOpen && (
           <Sheet title="Board controls" onClose={() => setMoreOpen(false)}>
             {/* The game page's links live here; give-up reads this live snapshot. */}
@@ -1727,6 +1733,10 @@ export function ArenaStage({
                 </button>
               </MenuSection>
             </div>
+            {session.capabilities.plan && playable && yourTurn && view.prompt.kind === "main" && !busy && !waitingOnServer && planChoices.length > 0 && <MenuSection title="Optional practice tool">
+              <button type="button" data-plan-open className="tap min-h-11 text-left text-sm text-ki-300" onClick={() => { setMoreOpen(false); setPlanRevision(live.game.revision); setPlanOpen(true); }}>Try moves without playing</button>
+              <p className="text-xs text-space-300">Preview energy costs for moves you choose. Your game stays as it is.</p>
+            </MenuSection>}
             <MenuSection title="Feel">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
                 <FeelToggle />

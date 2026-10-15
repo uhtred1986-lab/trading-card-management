@@ -49,6 +49,7 @@ export function CardDetail({
   narrator = DEFAULT_NARRATOR,
   battle,
   figures = true,
+  printedOpen = false,
 }: {
   card: CardView;
   withName?: boolean;
@@ -56,6 +57,7 @@ export function CardDetail({
   battle?: BattleShare | null;
   /** The id · cost · power line. The docked inspector shows those as tiles and turns it off. */
   figures?: boolean;
+  printedOpen?: boolean;
 }) {
   const delta = card.basePower != null && card.power != null ? card.power - card.basePower : 0;
   // Engine internals — the id and the compile notes — are an admin's (#350); the engine's reading of a card lives in the admin drawer (#446).
@@ -126,8 +128,8 @@ export function CardDetail({
           ))}
         </p>
       )}
-      {card.text && (card.abilities?.length ? (
-        <details className="rounded-lg border border-space-700 px-2 py-1.5">
+      {card.text && (card.abilities?.length || printedOpen ? (
+        <details open={printedOpen || undefined} data-printed-card-text className="rounded-lg border border-space-700 px-2 py-1.5">
           <summary className="cursor-pointer text-[11px] font-semibold text-space-300">Full printed card text</summary>
           <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-space-200 sm:text-sm">{plainText(card.text)}</p>
         </details>
@@ -691,18 +693,11 @@ export function CardSheet({
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  // One gesture at a time, read when it ends. `touch-action: pan-y` lets a
-  // horizontal move through to us untouched; a vertical one may be claimed by
-  // the browser as a scroll, which ends the pointer with a cancel — so a
-  // cancel is read exactly as a release, from the last point seen.
-  const drag = useRef<{ x: number; y: number; lx: number; ly: number; top: boolean } | null>(null);
+  // Native scrolling owns vertical gestures in the body. A cancelled pointer
+  // must never become a close or a page change.
+  const drag = useRef<{ x: number; y: number; inBody: boolean } | null>(null);
   const swipedAt = useRef(0);
   const body = useRef<HTMLDivElement | null>(null);
-  // A body that fits has nothing to scroll, so the browser must not be offered
-  // a vertical pan there — it would cancel the pointer and a swipe down could
-  // not be read. One that overflows keeps `pan-y` and scrolls; a swipe down
-  // then closes from the handle, the strip and the Close row instead.
-  const [scrolls, setScrolls] = useState(false);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     try {
@@ -714,38 +709,16 @@ export function CardSheet({
   useEffect(() => {
     try { localStorage.setItem("arena.phone.cardLayout", ownSize); } catch { /* the preference is optional */ }
   }, [ownSize]);
-  useLayoutEffect(() => {
-    const el = body.current;
-    if (!el) return;
-    const measure = () => setScrolls(el.scrollHeight > el.clientHeight + 1);
-    measure();
-    const resize = new ResizeObserver(measure);
-    resize.observe(el);
-    for (const child of el.children) resize.observe(child);
-    const mutation = new MutationObserver(measure);
-    mutation.observe(el, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["open", "class", "style"] });
-    return () => {
-      resize.disconnect();
-      mutation.disconnect();
-    };
-  }, [card.id, moves.length, rejected.length, chips.length, items.length]);
+  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [card.id]);
   const begin = (e: React.PointerEvent) => {
-    drag.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, top: (body.current?.scrollTop ?? 0) <= 0 };
-  };
-  const move = (e: React.PointerEvent) => {
-    if (drag.current) {
-      drag.current.lx = e.clientX;
-      drag.current.ly = e.clientY;
-    }
+    drag.current = { x: e.clientX, y: e.clientY, inBody: !!body.current?.contains(e.target as Node) };
   };
   const end = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
-    if (!d) return;
-    const cancelled = e.type === "pointercancel";
-    const s = swipeOf((cancelled ? d.lx : e.clientX) - d.x, (cancelled ? d.ly : e.clientY) - d.y);
-    // A scrolled body scrolls; only from the top does a downward move close it.
-    if (!s || (s === "close" && !d.top)) return;
+    if (!d || e.type === "pointercancel") return;
+    const s = swipeOf(e.clientX - d.x, e.clientY - d.y);
+    if (!s || (s === "close" && d.inBody)) return;
     swipedAt.current = Date.now();
     if (s === "close") onClose();
     else go(at + (s === "next" ? 1 : -1));
@@ -768,7 +741,6 @@ export function CardSheet({
           }
         }}
         onPointerDown={begin}
-        onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
       >
@@ -789,6 +761,9 @@ export function CardSheet({
           </div>
         </div>
 
+        {!fullArt && card.text && <button type="button" className="tap mx-4 mb-2 min-h-11 shrink-0 rounded-lg border border-space-500 px-3 text-sm font-semibold text-space-50" onClick={() => {
+          body.current?.querySelector("[data-printed-card-text]")?.scrollIntoView({ block: "start" });
+        }}>Read card text ↓</button>}
         {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
           {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = sourceItems.filter((item) => matchesFilter(item, filter)); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
         </div>}
@@ -829,7 +804,7 @@ export function CardSheet({
               </>
             )}
           </div>
-        ) : <div ref={body} className={`arena-review-body min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 ${scrolls ? "touch-pan-y" : "touch-none"}`}>
+        ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
           <div className="flex gap-3">
             <div className="arena-review-art-wrap relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
@@ -869,7 +844,7 @@ export function CardSheet({
             </div>
           </div>
           <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
-          <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
+          <CardDetail card={card} narrator={narrator} battle={battle} figures={false} printedOpen />
         </div>}
 
         {!fullArt && <button

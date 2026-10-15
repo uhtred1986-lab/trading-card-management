@@ -15,7 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /**
- * The phone tab bar outside the Arena: the phone is the Arena (docs/arena-home-spec.md §1,
+ * The phone tab bar, including the Arena hub: the phone is the Arena (docs/arena-home-spec.md §1,
  * decision 6), so Arena is the first tab and replaces Home, which stays one tap away on the
  * header wordmark. A phone-only list; the desktop header keeps `NAV_ITEMS`.
  */
@@ -54,7 +54,7 @@ export function isFullBleed(pathname: string): boolean {
 /**
  * The Arena's own pages on a phone: everything that draws an `ArenaHeader` (ARENA, Games, ⋯) —
  * the Play screen (`/arena`, also `?tab=games`), a waiting 1 v 1 and the feedback page. Below
- * `sm` they drop the app header and the tab bar (about 114 px of a 390×844 screen) and handle
+ * `sm` they replace the app header with ArenaHeader and handle
  * the safe-area insets themselves, as `isFullBleed` does; from `sm` up nothing changes. The
  * board is `isFullBleed`; the workbench and debug views keep the app's chrome. The phone's rule
  * review (`/arena/rules/review`, #472) is a phone screen with its own way back, so it is one too.

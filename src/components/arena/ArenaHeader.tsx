@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PhoneAppMenu } from "@/components/PhoneAppMenu";
 import { cookies } from "next/headers";
 import { BoardSettingsSheet } from "@/components/arena/BoardSettingsSheet";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
@@ -66,13 +67,14 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <PhoneAppMenu isSl={sl} arenaHeader />
           <Link href="/arena?tab=games#games" className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50 sm:hidden">
             Games
           </Link>
           {side === "rules" ? <ReferenceDrawer fixingHref={`${getRepoUrl()}/blob/main/docs/arena-fixing-a-card.md`} /> : null}
           <details className="relative">
             <summary
-              aria-label="More"
+              aria-label="Arena options"
               className="tap flex min-w-11 cursor-pointer list-none items-center justify-center rounded-md border border-space-700 px-3 text-lg leading-none text-space-200 marker:hidden [&::-webkit-details-marker]:hidden"
             >
               <span aria-hidden>⋯</span>
@@ -112,16 +114,14 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
               {/* The admin entry joins here once #350's admin check exists. */}
               <div className="mt-1 border-t border-space-700 pt-1 sm:hidden">
                 <div className="px-3 pt-1 text-[10px] uppercase tracking-wider text-space-400">
-                  Rules, decks and collection <span className="normal-case">· review on any device</span>
+                  Advanced Arena tools
                 </div>
                 {sl ? (
                   <Link href="/arena/rules" className={item}>
                     Rules
                   </Link>
                 ) : null}
-                <Link href="/" className={item}>
-                  Decks and collection
-                </Link>
+
               </div>
             </div>
           </details>
