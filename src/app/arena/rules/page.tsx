@@ -176,6 +176,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         <SelectLink label="Cards in" value={scopeValue} options={scopeOptions} />
       </div>
       <StateSegments state={state} counts={counts} href={(s) => link({ state: s })} />
+      <details open={qu.group !== "none" || !!qu.set || active.length > 0}><summary className="tap cursor-pointer text-xs text-space-300">More filters</summary>
       <Choice label="Group by" value={qu.group} options={GROUP_LABELS} href={(key) => link({ group: key })} />
       <div className="flex items-center gap-1.5">
         <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-space-500">Set</span>
@@ -190,6 +191,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
           ))}
         </div>
       )}
+      </details>
       <form action="/arena/rules" className="flex gap-1">
         {[...carried.entries()].map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
@@ -199,7 +201,10 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
           go
         </button>
       </form>
-      <ConfirmAll filter={{ ...filter, status: "draft" }} drafts={drafts} batches={batches} />
+      <details><summary className="tap cursor-pointer text-xs text-space-300">Advanced: bulk approval</summary>
+        <p className="my-2 text-xs text-space-400">Applies to every matching draft in {scopeOptions.find((o) => o.value === scopeValue)?.label}, across all pages. Review each interpretation before approving. Reported or unread drafts are excluded.</p>
+        <ConfirmAll filter={{ ...filter, status: "draft" }} drafts={drafts} batches={batches} />
+      </details>
     </>
   );
 
@@ -228,6 +233,13 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     <div className="space-y-3">
       <ArenaHeader side="rules" kpis={{ inDecks, catalog, openSinceSync: lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null }} />
 
+      <section className="rounded-xl border border-space-700 bg-space-900/60 p-4" aria-label="Review procedure">
+        <h1 className="text-xl font-bold text-space-50">Review card interpretations</h1>
+        <p className="mt-1 text-sm text-space-300">1. Choose a deck or find a card below → 2. Compare each skill with its printed text → 3. Approve, report a mismatch or review later.</p>
+        <p className="mt-1 text-xs text-space-400">Rules are shared across all owners’ playable Masters decks. Approval is a review decision; engine support and test evidence are separate.</p>
+        {qu.scope.kind === "deck" && scope.kind !== "deck" ? <p role="status" className="mt-2 text-sm text-loss">That deck is unavailable. Showing all decks; choose a scope below before starting.</p> : null}
+        {!(qu.scope.kind === "deck" && scope.kind !== "deck") && (state === "draft" || state === "open") ? <Link href={`/arena/rules/review${queueLink({ ...here, state }, { page: 0 }).slice("/arena/rules".length)}`} className="tap mt-3 inline-flex rounded-xl bg-ki-500 px-4 py-2 font-semibold text-space-950">Start guided review</Link> : <p className="mt-2 text-sm text-space-300">Choose an available deck and To review or Unread below to start. Approved and corrected skills can be reopened from their detail.</p>}
+      </section>
       <Workbench
         rows={rows}
         record={record}
@@ -238,7 +250,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         empty={nothingToPlay ? "No deck the arena can play yet — a deck needs a leader and 50 cards." : scope.kind === "game" && fired.length === 0 ? "That game fired no skill that could be read back." : "Nothing here."}
         footer={footer}
         head={head}
-        nav={nav}
+        nav={nav ? { ...nav, here: link({ rule: selected?.id ?? null }) } : undefined}
         grouped={views ? <Groups views={views} open={(id) => link({ group: "none", rule: id })} batches={[]} note={groupNote} /> : undefined}
       />
     </div>

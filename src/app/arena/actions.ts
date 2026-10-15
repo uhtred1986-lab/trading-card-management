@@ -22,6 +22,7 @@ import { advance } from "@/lib/arena/ai/run";
 import { concealForViewer, resolveForViewer } from "@/lib/arena/session";
 import { InterruptedGameReviewError, reviewGame } from "@/lib/arena/ai/review";
 import { clarifyRule } from "@/lib/arena/ai/clarify";
+import { approvalProblem } from "@/lib/arena/rule-review";
 import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
 import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-cost";
@@ -196,6 +197,8 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
   if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
+  const problem = approvalProblem(row);
+  if (problem) return { error: problem };
   await confirmRule(db, id);
   const found = await probeRuleFor(id);
   if (found) {
@@ -284,7 +287,8 @@ export async function blankRuleAction(id: number, explanation: string | null): P
   if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
   const row = await ruleById(db, id);
   if (!row) return { error: "no such rule" };
-  await blankRule(db, id, explanation);
+  if (typeof explanation !== "string" || !explanation.trim()) return { error: "Explain why this skill intentionally has no effect before saving an empty interpretation." };
+  await blankRule(db, id, explanation.trim());
   await noteRule(id, `marked as does nothing: ${row.printed}`, null);
   return { error: null };
 }

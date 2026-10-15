@@ -25,7 +25,7 @@ import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
 /** What the Rules side says about the rules: its numbers (today's `Kpi`). */
 export type ArenaKpis = { inDecks: RuleCounts; catalog: RuleCounts; openSinceSync?: number | null };
 
-/** What share of the rules the engine can play at all: everything but `open`. */
+/** Share of skills with an interpretation, including unreviewed drafts. Not runtime support or correctness. */
 export function readable(c: RuleCounts): string {
   const total = (Object.keys(c) as RuleStatus[]).reduce((n, k) => n + c[k], 0);
   return total ? `${(Math.round(((total - c.open) / total) * 1000) / 10).toFixed(1)} %` : "—";
@@ -101,7 +101,7 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
               {/* The admin entry joins here once #350's admin check exists. */}
               <div className="mt-1 border-t border-space-700 pt-1 sm:hidden">
                 <div className="px-3 pt-1 text-[10px] uppercase tracking-wider text-space-400">
-                  Rules, decks and collection <span className="normal-case">· made for the computer</span>
+                  Rules, decks and collection <span className="normal-case">· review on any device</span>
                 </div>
                 {sl ? (
                   <Link href="/arena/rules" className={item}>
@@ -122,8 +122,8 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
           <div className="flex flex-wrap gap-4">
             <Kpi n={kpis.inDecks.open} label="open in decks" tone={kpis.inDecks.open ? "text-loss" : ""} />
             <Kpi n={kpis.inDecks.draft} label="drafts to check" tone={kpis.inDecks.draft ? "text-ki-300" : ""} />
-            <Kpi n={readable(kpis.inDecks)} label="decks ready" />
-            <Kpi n={readable(kpis.catalog)} label="catalog readable" />
+            <Kpi n={readable(kpis.inDecks)} label="deck skills interpreted (includes drafts)" />
+            <Kpi n={readable(kpis.catalog)} label="catalog skills interpreted (includes drafts)" />
             {kpis.openSinceSync != null ? <Kpi n={kpis.openSinceSync} label="open since last sync" tone={kpis.openSinceSync ? "text-loss" : ""} /> : null}
           </div>
         </div>

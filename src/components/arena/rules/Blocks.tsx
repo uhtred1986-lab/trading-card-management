@@ -202,10 +202,10 @@ function Clause({ clause }: { clause: RuleClause }) {
 
   return (
     <section ref={ref} data-path={clause} aria-label={CLAUSE_WORDS[clause]} className={`rounded-2xl border bg-space-900/60 px-3 py-2.5 ${focused ? "border-ki-500 ring-2 ring-ki-500/40" : "border-space-700"}`}>
-      <header className="flex items-baseline gap-2">
-        <h3 className={`text-[12px] font-bold tracking-[0.14em] ${TONE[clause]}`}>{CLAUSE_WORDS[clause]}</h3>
+      <header className="flex flex-wrap items-baseline gap-2">
+        <h3 className={`text-[12px] font-bold tracking-[0.14em] ${TONE[clause]}`}>{{ trigger: "When it happens", cost: "What you pay", cond: "Requirements", ops: "What it does" }[clause]} <span className="text-[10px] font-normal">({CLAUSE_WORDS[clause]})</span></h3>
         {clause === "trigger" && <span className="rounded bg-space-800 px-1.5 py-0.5 font-mono text-[11px] text-space-300" title="the printed skill tag comes off the card and cannot be edited">[{rule.kind}]</span>}
-        {empty && <span className="text-[12px] text-space-500">{clause === "cond" ? "always — no condition" : clause === "cost" ? "no price" : clause === "trigger" ? "no moment named" : "does nothing yet"}</span>}
+        {empty && <span className="text-[12px] text-space-500">{clause === "cond" ? "No extra requirement" : clause === "cost" ? "No additional cost" : clause === "trigger" ? "Timing comes from the skill type unless a trigger is added" : "No effect added"}</span>}
       </header>
       {own(problems, clause).map((p) => (
         <p key={p.message} className="mt-1 text-[12px] text-loss">

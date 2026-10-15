@@ -40,8 +40,9 @@ export function ProbePane({ ruleId, scenarios }: { ruleId: number; scenarios: { 
 
   return (
     <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-      <h2 className="text-xs font-semibold text-space-300">Probe — what actually happens</h2>
-      <select
+      <h2 className="text-xs font-semibold text-space-300">Test saved interpretation</h2>
+      <p className="mt-1 text-xs text-space-400">Runs a staged scenario with the saved rule. Results describe behavior; they do not prove it is correct.</p>
+      <select aria-label="Test scenario"
         value={key}
         onChange={(e) => {
           setKey(e.target.value);
@@ -55,6 +56,7 @@ export function ProbePane({ ruleId, scenarios }: { ruleId: number; scenarios: { 
           </option>
         ))}
       </select>
+      <p className="mt-1 break-words text-xs text-space-300">{scenarios.find((s) => s.key === key)?.title}</p>
       <div className="mt-2 grid grid-cols-2 gap-1.5">
         <button
           className={btn}
@@ -70,7 +72,7 @@ export function ProbePane({ ruleId, scenarios }: { ruleId: number; scenarios: { 
             })
           }
         >
-          {pending ? "Running…" : "Run probe"}
+          {pending ? "Running…" : "Test scenario"}
         </button>
         <button
           className={btn}
@@ -86,7 +88,7 @@ export function ProbePane({ ruleId, scenarios }: { ruleId: number; scenarios: { 
             })
           }
         >
-          Every board
+          Test all scenarios
         </button>
       </div>
 

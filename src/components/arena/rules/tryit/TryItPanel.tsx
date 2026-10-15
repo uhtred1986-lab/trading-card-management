@@ -155,13 +155,13 @@ export function TryItBoards({ ruleId, rule, onFix, api }: { ruleId: number; rule
   return (
     <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3" aria-label="Try it">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-space-300">Try it · the engine plays these for you</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-space-300">Test your changes</h2>
         <span className="shrink-0 text-[11px] text-space-500" aria-live="polite">
           {running ? "running…" : saving ? "saving…" : counts.red ? <span className="text-loss">{counts.red} wrong</span> : counts.green ? <span className="text-gain">{counts.green} right</span> : null}
         </span>
       </div>
       <p className="mt-1 text-[11px] text-space-500">
-        On the engine games use. Mark each board ✓ or ✗; a judged board goes red by itself when the rule stops doing what you said.
+        Tests use the current editor program, including unsaved changes. Compare observed behavior with your expectation. Judgments save immediately and separately: they do not save the correction or approve the rule.
       </p>
       {error && <p className="mt-2 rounded-lg bg-loss/10 px-2 py-1.5 text-[12px] text-loss">{error}</p>}
       {result?.notes.map((n) => (
@@ -223,7 +223,7 @@ const STATUS: Record<JudgedStatus, { ring: string; word: string; tone: string }>
   rejudge: { ring: "border-ki-500/60", word: "changed — look again", tone: "text-ki-300" },
 };
 
-const btn = "tap inline-flex min-h-11 items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-3 text-[14px] font-semibold disabled:opacity-50";
+const btn = "tap inline-flex min-h-11 items-center justify-center gap-1 whitespace-normal rounded-lg border px-3 text-[14px] font-semibold disabled:opacity-50";
 /** A secondary action: a 44 px target that reads as a link. */
 const link = "tap inline-flex min-h-11 items-center px-1.5 text-[12px] font-semibold text-space-400 underline-offset-2 hover:text-space-200 hover:underline";
 
@@ -254,13 +254,13 @@ function BoardRow({
   const status = said ? judge(run, said) : null;
   const look = status ? STATUS[status] : null;
   const fixable = status === "mismatch" || status === "rejudge";
-  const pill = run.fires ? "bg-gain/15 text-gain" : run.outcome === "notOffered" ? "bg-ki-500/15 text-ki-300" : run.outcome === "error" ? "bg-loss/15 text-loss" : "bg-space-700/60 text-space-300";
+  const pill = run.fires ? "bg-space-800 text-space-200" : run.outcome === "notOffered" ? "bg-ki-500/15 text-ki-300" : run.outcome === "error" ? "bg-loss/15 text-loss" : "bg-space-700/60 text-space-300";
   const own = ownLines(run);
   return (
     <li className={`rounded-xl border bg-space-950/40 p-2.5 ${look?.ring ?? "border-space-700"}`}>
-      <div className="flex items-start gap-2">
+      <div className="flex min-w-0 flex-col items-start gap-2">
         <p className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-space-100">{row.title.charAt(0).toUpperCase() + row.title.slice(1)}</p>
-        <span className={`shrink-0 rounded-md px-2 py-1 text-[12px] font-bold ${pill}`}>{run.headline}</span>
+        <span className={`max-w-full whitespace-normal break-words rounded-md px-2 py-1 text-[12px] font-bold ${pill}`}>Observed: {run.headline}</span>
       </div>
 
       {said && look && (
@@ -284,11 +284,11 @@ function BoardRow({
       <div className="mt-2 flex gap-1.5">
         {status === null ? (
           <>
-            <button type="button" className={`${btn} flex-1 border-gain/50 text-gain hover:bg-gain/10`} onClick={onRight} aria-label={`Right: ${row.title} → ${run.headline}`}>
-              ✓ Right
+            <button type="button" className={`${btn} flex-1 border-gain/50 text-gain hover:bg-gain/10`} onClick={onRight} aria-label={`Matches expected behavior: ${row.title} → ${run.headline}`}>
+              Matches expected behavior
             </button>
-            <button type="button" className={`${btn} flex-1 border-loss/50 text-loss hover:bg-loss/10`} onClick={onWrong} aria-label={`Wrong: ${row.title} → ${run.headline}`}>
-              ✗ Wrong
+            <button type="button" className={`${btn} flex-1 border-loss/50 text-loss hover:bg-loss/10`} onClick={onWrong} aria-label={`Does not match: ${row.title} → ${run.headline}`}>
+              Does not match
             </button>
           </>
         ) : (

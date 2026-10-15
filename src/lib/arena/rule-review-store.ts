@@ -137,15 +137,15 @@ export async function recentFired(db: Db, deckId: number | null): Promise<{ game
  * works them (`orderQueue`). A draft already flagged from the phone waits for
  * the computer and is left out.
  */
-export async function reviewQueue(db: Db, o: { cardIds: string[]; decksOf: Map<string, string[]>; recent: { gameId: number | null; fired: FiredSkill[] } }): Promise<ReviewItem[]> {
+export async function reviewQueue(db: Db, o: { cardIds: string[]; ruleIds?: number[]; flaggedOnly?: boolean; decksOf: Map<string, string[]>; recent: { gameId: number | null; fired: FiredSkill[] } }): Promise<ReviewItem[]> {
   const ids = [...new Set(o.cardIds)];
   if (!ids.length) return [];
   const rows = await db
     .select({ rule: cardRules, card: CARD_BITS })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(and(inArray(cardRules.cardId, ids), inArray(cardRules.status, ["open", "draft"])));
-  const live = rows.filter((r) => r.rule.status === "open" || !isFlagged(r.rule.explanation));
+    .where(and(inArray(cardRules.cardId, ids), inArray(cardRules.status, ["open", "draft"]), o.ruleIds ? (o.ruleIds.length ? inArray(cardRules.id, o.ruleIds) : eq(cardRules.id, -1)) : undefined));
+  const live = rows.filter((r) => o.flaggedOnly ? isFlagged(r.rule.explanation) : r.rule.status === "open" || !isFlagged(r.rule.explanation));
   const siblings = await draftsByPattern(
     db,
     live.filter((r) => r.rule.status === "draft").map((r) => r.rule.pattern ?? ""),

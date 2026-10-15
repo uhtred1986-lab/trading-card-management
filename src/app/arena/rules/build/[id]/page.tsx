@@ -5,6 +5,7 @@ import { FullRuleBuilder } from "@/components/arena/rules/FullRuleBuilder";
 import { isArenaAdmin, requireSlPage } from "@/lib/auth";
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
+import { rulesReturnHref } from "@/lib/arena/rule-review";
 import { ruleById } from "@/lib/arena/rules-store";
 import type { Cond, CostRecord, Op } from "@/lib/arena/vm/script";
 import type { Trigger } from "@/lib/arena/types";
@@ -35,7 +36,7 @@ export default async function BuildRulePage({ params, searchParams }: { params: 
   };
   const [probe, canSave] = await Promise.all([probeScenarios(db, row), isArenaAdmin()]);
   const focus = openingFocus(rule, typeof sp.focus === "string" ? sp.focus : null, row.status === "open" ? row.unread : []);
-  const back = `/arena/rules?rule=${id}`;
+  const back = rulesReturnHref(sp.returnTo, `/arena/rules?rule=${id}`);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -44,7 +45,7 @@ export default async function BuildRulePage({ params, searchParams }: { params: 
           ←
         </Link>
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-space-50">Build the rule</h1>
+          <h1 className="truncate text-lg font-semibold text-space-50">Edit interpretation</h1>
           <p className="truncate text-[11px] text-space-400">
             {row.name} · skill {Math.floor(row.skillIndex / 10) + 1}
             {row.side === "back" ? " · awakened side" : ""} · {row.status}

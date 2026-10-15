@@ -14,9 +14,9 @@ Locally verified on the copy:
 - **Wrong → choose reason → Flag for the computer** records a mismatch and removes it from this review session. It remains a draft and is not corrected. Undo restores it.
 - **Reads right** changed Babidi's one rule from `draft` to `confirmed`. Undo restored `draft`.
 - **Run probe** ran a staged scenario against Bibidi's saved rule and showed input, actions, result and assumptions. This demonstrates observed behavior, not correctness. The result includes Bibidi being KO'd; the headline “power on the board: 10000” alone cannot answer whether the intended skill behaved correctly.
-- Opening the block builder runs its generated test boards for the current editor program. No correction or test verdict was saved.
+- Opening the block builder runs its generated test boards for the current editor program. No editor correction or explicit test judgment was saved. Single approval separately records a probe baseline when a scenario exists.
 
-Source inspection, rather than exercised mutations, establishes: approval protects the saved program from compiler overwrites; Skip is session-only; mismatch reporting does not repair a program; editor save records a correction; test judgments are separate from review approval. No bulk approval, AI drafting or “does nothing” action was exercised.
+Source inspection, rather than exercised mutations, establishes: single approval records a staged probe baseline when available; approval protects the saved program from compiler overwrites; Skip is session-only; mismatch reporting does not repair a program; editor save records a correction; test judgments are separate from review approval. No bulk approval, AI drafting or “does nothing” action was exercised.
 
 Tiny Fish is to review this **captured walkthrough**, not claim an interactive test of the app. Captions report locally verified outcomes. It should distinguish visible evidence from proposed changes and inferred usability concerns.
 
@@ -102,3 +102,72 @@ Keywords explain manual meaning and runtime limitations, which remain useful dur
 Phone: full-screen steps, compact persistent deck/card/step context, readable vertical comparisons, a reachable footer and no horizontal overflow. Laptop: retain the useful queue and side-by-side comparison, but give the selected rule the same steps, wording and outcomes. Contextual help should return to the same step.
 
 Tiny Fish findings and final priorities will be added after its review of this packet.
+
+## Concrete labels and consequences
+
+| Current control | Proposed label | Explanation before action |
+| --- | --- | --- |
+| Rules / Rule review | Review card interpretations | Compare a card's printed skill with the program the arena will use. |
+| Open | Needs an interpretation | Some or all of this skill has not been interpreted. Show the missing parts. |
+| Draft | Needs review | An interpretation exists and has not been approved. |
+| Confirmed | Approved interpretation | Someone accepted the interpretation; this does not guarantee every scenario works. |
+| Corrected | Manually corrected | A person changed the saved interpretation; show testing separately. |
+| Reads right / Confirm | Approve interpretation | Keeps this interpretation against future compiler changes. Single approval also records a staged probe when available; that baseline is not proof of correctness. |
+| Wrong | Report a mismatch | Tell us which part differs. Reporting leaves the interpretation unchanged. |
+| Flag for the computer | Save mismatch report | Keeps this item in Needs correction. You can correct it here or return later on another device. |
+| Skip | Review later | Leaves this rule unchanged in the review queue. |
+| Teach it / Build the rule / Edit in blocks | Edit interpretation | Change when the skill happens, its costs, requirements and effects. |
+| Ask Claude | Draft with Claude | Requests an AI interpretation that still needs your review. |
+| WHEN / COST / IF / DO | When it happens / What you pay / Requirements / What it does | Keep technical tags secondary, with an explanation next to each section. |
+| Run probe | Test saved interpretation | Runs a staged scenario using the saved rule, not unsaved editor changes. |
+| Every board | Test all available scenarios | Runs the generated scenarios for this rule; it is not an exhaustive test of the card. |
+| Try it | Test your changes | Tests the current editor program before saving the correction. |
+| ✓ Right / ✗ Wrong (test) | Matches expected behavior / Does not match | Saves your judgment for this scenario immediately. Does not save editor changes or approve the rule. |
+| Save rule | Save correction | Updates the saved interpretation and marks it manually corrected. |
+| Cancel | Discard changes and return | Discards unsaved editor changes. Separately saved test judgments are not discarded. |
+| Confirm all drafts in view | Review bulk approval… | Preview the exact affected scope, filters and count before any write. “In view” must not imply only visible rows. |
+| Confirm all 297 | Review 297 matching drafts across the catalog… | Explicitly identify cards outside the selected deck and allow returning without applying. |
+| Mark as does nothing | Save an intentionally empty interpretation… | Advanced only: the engine will carry out no effect for this skill. Require an explanation. |
+
+These are proposed user-facing labels, not a change to stored status values. Avoid swapping technical language for an equally unclear phrase: show a short example and the effect on saved data.
+
+## Acceptance criteria for the implementation
+
+1. On first entry at both audited sizes, the page explains the task and offers one primary “Start review” action after a scope is chosen. No action is required in Advanced to complete ordinary review.
+2. Deck, card, skill number, reason queued and current step remain identifiable. An invalid/deleted deck produces a notice before widening to all decks. Going through correction, help, testing or Back preserves the deck, filters and item.
+3. The ordinary path has three stages: **Choose scope → Compare skill → Decide**. Correction branches to **Edit → Test → Save and return**. Do not force someone approving a clear draft through the editor or every test screen.
+4. On phone, comparison and correction use the full screen with a compact context header and reachable actions. Every interpretation part can be read before approval; labels do not disappear under a footer. On laptop, the queue and comparison may remain side by side, with the same action semantics.
+5. Both layouts have no horizontal document overflow, overlapping headers, clipped result text or unreadable narrow title columns. Wrap long card names, scenario results and advanced programs; technical tables may scroll inside a labeled container. Recheck Anime and Night themes when implementing.
+6. “Approve,” “Report,” “Review later,” “Save correction” and scenario judgments explain their distinct effects before selection and accurately report the result afterward. Undo restores the documented review operation; it does not promise to erase unrelated history, stored probes or test judgments.
+7. Blank/unread interpretations clearly route to correction or an optional draft. Any proposed prevention of inappropriate approval must be enforced by server actions as well as buttons; current single approval does not validate draft completeness.
+8. A report returns a visible Needs correction destination on either device, with “Correct now” and “Review later” choices. Flagged items and excluded counts remain discoverable; ending a sitting does not mean all rules were corrected.
+9. Bulk/shared-pattern changes are outside the primary verdict footer. Every such action previews scope, filters, total affected skills/cards, and affected cards outside the selected deck before confirmation. Counts cover the full filter, not just a page. Preserve batch Undo and changed-since protection.
+10. Test screens identify saved versus unsaved program, scenario setup, observed outcome, user expectation and limitations. Execution outcomes such as “in force,” “fired” or board power do not imply correct behavior. Unavailable scenarios offer an explanation, not a passing state. Test judgments explicitly state that they save independently of the editor.
+11. Review status, runtime support and test evidence have separate labels and counts. Replace “decks ready” with an accurate measure of the current calculation, such as “Skills with an interpretation (includes drafts),” with scope and denominator; do not invent a new readiness score.
+12. Keywords and fix instructions open as contextual help; grammar, declarations, raw JSON, shared-pattern editing and empty-program correction remain under Advanced. Compatibility redirects and admin authorization remain intact. Read-only users receive a clear explanation and no write controls.
+
+Validation should exercise one draft approval and Undo, report and Undo, Skip/revisit, blank-rule correction, save versus discard, separately persisted test expectations, empty queues, invalid scope, long text and bulk preview/cancel on an isolated database. Verify server authorization and existing compiler-protection behavior. Do not approve live records as a UI test.
+
+## Source anchors
+
+- Queue scopes and filters: `src/app/arena/rules/page.tsx`, `src/lib/arena/queue.ts`.
+- Phone queue exclusions, session verdicts and outcomes: `src/app/arena/rules/review/page.tsx`, `src/components/arena/rules/RuleReview.tsx`, `src/app/arena/rules/review/actions.ts`, `src/lib/arena/rule-review-store.ts`.
+- Approval, recorded probe, correction and bulk mutations: `src/app/arena/actions.ts`, `src/lib/arena/rules-store.ts`, `src/components/arena/rules/ConfirmAll.tsx` (extra prompt currently only above 500 drafts).
+- Editing and independent test expectations: `src/components/arena/rules/RuleRecord.tsx`, `RuleBuilder.tsx`, `FullRuleBuilder.tsx`, `tryit/TryItPanel.tsx`, `src/app/arena/rules/probe-actions.ts`.
+- Saved-rule testing and readiness wording: `src/components/arena/rules/ProbePane.tsx`, `src/components/arena/ArenaHeader.tsx`.
+- Separate flagged-turn investigation: `src/app/arena/review/page.tsx`.
+
+## Tiny Fish review and implementation decision
+
+[Tiny Fish run](https://agent.tinyfish.ai/runs/9b739f03-f702-4dfe-b12a-1ba5e56f444a) completed its image-based review of all 17 captures. It did not visit production. It supported the proposed guided sequence and prioritized ambiguous approval/report/test labels, cross-catalog bulk scope, unexplained queue counts, unguided editor modes and the phone test overflow.
+
+The findings were checked against source rather than accepted verbatim. In particular:
+
+- Repeated card names are separate skills, not duplicate data: label skill number and card side rather than deduplicating them.
+- The 42-draft workbench bulk action is scoped to the selected deck; the phone's 297 matching skills reach the catalog. These are different scope problems.
+- Verdict buttons are fixed and visible in the phone captures. The full interpretation requires scrolling; the viewport is 390 pixels wide, not tall.
+- Advancing to the next card after a verdict is expected. A result message should name the previously acted-on skill and offer Undo.
+- A permanent skill need not have an explicit event trigger; do not add one just to clear “no moment named.”
+- A missing printed-text link alone says nothing about correctness. An unsupported operation is not fixed by switching editor modes or saving an empty program.
+
+The owner subsequently authorized implementation in this PR, with the other chat's changes incorporated before the full test suite. The core workflow is Choose scope → Compare → Decide; correction and testing are a branch of that workflow, rather than compulsory steps for every approval.

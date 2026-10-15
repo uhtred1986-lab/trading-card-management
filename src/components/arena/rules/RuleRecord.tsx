@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
+import { approvalProblem, builderHref } from "@/lib/arena/rule-review";
 import { keywordPlays } from "@/lib/arena/glossary";
 import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, programProblem, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
 import type { Trigger } from "@/lib/arena/types";
@@ -92,6 +93,7 @@ export interface RecordProps {
 
 /** Where Skip and the advance after Confirm go: hrefs into the current queue. */
 export interface RecordNav {
+  here?: string;
   skip: string | null;
   after: string;
 }
@@ -100,10 +102,10 @@ export interface RecordNav {
 export const ACTION_BAR_ID = "record-bar";
 
 const BADGE: Record<RecordProps["status"], { label: string; cls: string; dot: string }> = {
-  open: { label: "Open — played as blank", cls: "bg-loss/15 text-loss", dot: "bg-loss" },
-  draft: { label: "Draft — compiled, not confirmed", cls: "bg-dbs-blue/20 text-space-100", dot: "bg-dbs-blue" },
-  confirmed: { label: "Confirmed", cls: "bg-gain/15 text-gain", dot: "bg-gain" },
-  corrected: { label: "Corrected", cls: "bg-ki-500/15 text-ki-300", dot: "bg-ki-500" },
+  open: { label: "Needs interpretation — played as blank", cls: "bg-loss/15 text-loss", dot: "bg-loss" },
+  draft: { label: "Needs review — unapproved draft", cls: "bg-dbs-blue/20 text-space-100", dot: "bg-dbs-blue" },
+  confirmed: { label: "Approved interpretation", cls: "bg-gain/15 text-gain", dot: "bg-gain" },
+  corrected: { label: "Manually corrected", cls: "bg-ki-500/15 text-ki-300", dot: "bg-ki-500" },
 };
 const btn = "tap rounded-lg border border-space-600 px-3 py-1.5 text-xs font-semibold text-space-100 hover:border-space-300 disabled:opacity-50";
 const primary = "tap rounded-lg bg-ki-500 px-3 py-1.5 text-xs font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-50";
@@ -275,7 +277,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
     });
   };
 
-  const confirm = () => run("Confirmed — the engine plays it exactly like this.", () => confirmRuleAction(r.id), true);
+  const confirm = () => run("Interpretation approved. This does not prove every game scenario is correct.", () => confirmRuleAction(r.id), true);
   const skip = () => {
     if (nav?.skip) router.push(nav.skip, { scroll: false });
   };
@@ -349,7 +351,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   // The keys the workbench listens for (`WorkbenchKeys`) arrive as events, so what a key does is what its button does.
   const keyed = useRef({ confirm, editText, pending, canConfirm: false });
   useEffect(() => {
-    keyed.current = { confirm, editText, pending, canConfirm: r.status === "draft" && !editing };
+    keyed.current = { confirm, editText, pending, canConfirm: r.status === "draft" && !approvalProblem(r) && !editing };
   });
   useEffect(() => {
     const on = (e: Event) => {
@@ -397,7 +399,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             <i className={`h-2 w-2 rounded-full ${badge.dot}`} />
             {badge.label}
           </span>
-          <span className="text-[11px] text-space-400">{provenance}</span>
+          <details className="text-[11px] text-space-400"><summary className="cursor-pointer">Source and version</summary>{provenance}</details>
         </div>
       </div>
 
@@ -466,6 +468,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         </div>
       )}
 
+      <h3 className="text-sm font-semibold text-space-200">Printed on the card</h3>
       <p className="rounded-xl border border-space-700 border-l-[3px] border-l-ki-600 bg-space-900/60 px-4 py-3 text-sm leading-relaxed text-space-100">
         {printed.split(/(\[[^\]]*\])/).map((part, i) =>
           /^\[[^\]]*\]$/.test(part) ? (
@@ -489,12 +492,12 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
           {/* The same blocks the phone builder (/arena/rules/build/[id]) is made of: one editor, not two. */}
           <RuleBlocks rule={rule} onChange={setRule} problems={problems} permanent={r.permanent} />
           <div className="rounded-xl border border-space-700 px-4 py-3 text-xs text-space-300">
-            The engine will: <b className="font-semibold text-space-50">{reads || "nothing"}</b>
+            Current interpretation: <b className="font-semibold text-space-50">{reads || "nothing"}</b>
           </div>
         </>
       )}
       <div className={`overflow-hidden rounded-2xl border border-space-700 bg-space-900/60 ${editing ? "hidden" : ""}`}>
-        <Row k="WHEN" tone="text-ki-300">
+        <Row k="When" tone="text-ki-300">
           <Chip>
             [{r.kind}] · {whenLine(trigger, r.tag)}
           </Chip>
@@ -506,17 +509,17 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
           )}
         </Row>
         {costSentence(cost) && (
-          <Row k="COST" tone="text-space-300">
+          <Row k="Cost" tone="text-space-300">
             <Chip>{costSentence(cost)}</Chip>
             <DeclarationLinks define="cost" names={costLinks(cost)} />
           </Row>
         )}
         {cond && (
-          <Row k="IF" tone="text-dbs-blue">
+          <Row k="Requires" tone="text-dbs-blue">
             <Chip>{condReading(cond)}</Chip>
           </Row>
         )}
-        <Row k="DO" tone="text-ki-300">
+        <Row k="Effects" tone="text-ki-300">
           {r.status === "draft" && r.source === "compiler" && !ops.length && !cond && plays ? (
             <Chip>
               <span className="text-space-300">
@@ -544,7 +547,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             ))}
         </Row>
         <div className="border-t border-space-700 px-4 py-3 text-xs text-space-300">
-          The engine will: <b className="font-semibold text-space-50">{reads || (plays ? `play this as ${plays.tag}` : "nothing")}</b>
+          Current interpretation: <b className="font-semibold text-space-50">{reads || (plays ? `play this as ${plays.tag}` : "nothing")}</b>
           {plays && !dirty && <span className="text-space-400"> — {plays.engine}</span>}
           {r.status === "open" && !dirty && <span className="text-loss"> — the printed text says more than that.</span>}
         </div>
@@ -595,42 +598,35 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       Draft with Claude
                     </button>
                   ) : r.status === "draft" ? (
-                    <button type="button" disabled={pending} className={primary} onClick={confirm} title="Confirm — plays exactly like this (c)">
-                      Confirm
+                    <button type="button" disabled={pending || !!approvalProblem(r)} className={primary} onClick={confirm} title={approvalProblem(r) ?? "Approve this interpretation (c)"}>
+                      Approve interpretation
                     </button>
                   ) : (
                     <button type="button" disabled={pending} className={primary} onClick={() => run("Reopened — it is a draft again.", () => reopenRuleAction(r.id))}>
                       Reopen for review
                     </button>
                   )}
-                  <Link href={`/arena/rules/build/${r.id}`} className={btn} title="Spell the rule out as WHEN / COST / IF / THEN blocks">
-                    {r.status === "open" ? "Build in blocks" : "Edit in blocks"}
+                  <Link href={builderHref(r.id, nav?.here)} className={btn} title="Spell the rule out as WHEN / COST / IF / THEN blocks">
+                    Edit interpretation
                   </Link>
-                  <button type="button" className={btn} onClick={editText} title="Edit as text (e)">
-                    {r.status === "open" ? "Write as text" : "Edit as text"}
-                  </button>
                   <button type="button" disabled={!nav?.skip} className={`${btn} border-transparent text-space-300`} onClick={skip} title="Skip to the next (s)">
-                    Skip
+                    Review later
                   </button>
                   <details className="relative ml-auto">
                     <summary className={`${btn} cursor-pointer list-none`} aria-label="More actions">
-                      ⋯
+                      Advanced
                     </summary>
                     <div className="absolute bottom-full right-0 z-30 mb-1 flex w-56 flex-col gap-1 rounded-xl border border-space-600 bg-space-900 p-2 shadow-lg">
-                      <Link href={`/arena/rules/build/${r.id}`} className={`${btn} text-center`}>
-                        Build in blocks (full screen)
-                      </Link>
-                      <button type="button" className={btn} onClick={() => setEditing(true)}>
-                        Correct with blocks here
-                      </button>
+                      <button type="button" className={btn} onClick={editText}>Edit technical text</button>
+                      <button type="button" className={btn} onClick={() => setEditing(true)}>Edit blocks inline</button>
                       <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
                         Explain to Claude
                       </button>
                       <button type="button" className={btn} onClick={openJson}>
                         {jsonOpen ? "Hide" : "Show"} program (JSON)
                       </button>
-                      <button type="button" disabled={pending} className={`${btn} border-transparent text-loss`} onClick={() => run("Stored as an empty program.", () => blankRuleAction(r.id, explanation.trim() || null), true)}>
-                        Mark as does nothing
+                      <button type="button" disabled={pending} className={`${btn} border-transparent text-loss`} onClick={() => { const reason = window.prompt("The engine will perform no effect for this skill. Explain why an empty interpretation is intentional (this does not fix unsupported behavior):"); if (reason?.trim()) run("Stored as an intentionally empty program.", () => blankRuleAction(r.id, reason.trim()), true); }}>
+                        Save empty interpretation…
                       </button>
                     </div>
                   </details>
@@ -641,7 +637,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
           slot,
         )}
       <p className="text-[11px] text-space-500">
-        Confirming keeps this program against the card. A later compiler change never overwrites it: the new reading lands beside yours, with a choice.
+        Approve interpretation keeps this program against the card; it does not guarantee correct behavior. Review later leaves it unchanged. A later compiler change never overwrites it: the new reading lands beside yours, with a choice.
         {editing && r.pattern && r.source === "compiler" && (
           <label className="mt-1 flex items-center gap-1.5 text-space-300">
             <input type="checkbox" checked={patternWrong} onChange={(e) => setPatternWrong(e.target.checked)} />
