@@ -1,0 +1,226 @@
+{
+  "integratedMain": "1996255ea874bca8349ec64328ea4712e23505b0",
+  "fullSuiteStartedAt": "93a8376e82ce08d1ed1fca53341497813522659e",
+  "finalUiSourceCommit": "3e7f28c025187e366ed6d3d3297f00277a1f91f4",
+  "checks": {
+    "typecheck": "passed; TypeScript also rechecked by final production build",
+    "lint": "passed; 5 existing prototype warnings",
+    "fullTestSuite": "passed",
+    "productionBuild": "passed"
+  },
+  "tinyFish": {
+    "runId": "9b739f03-f702-4dfe-b12a-1ba5e56f444a",
+    "mode": "captured image review",
+    "beforeImagesInspected": 17,
+    "productionAppVisited": false
+  },
+  "browser": {
+    "runtime": "production build on loopback app and isolated PostgreSQL copy",
+    "viewportCssPixels": {
+      "phone": [
+        390,
+        844
+      ],
+      "laptop": [
+        1366,
+        768
+      ]
+    },
+    "themes": [
+      "anime",
+      "night"
+    ],
+    "captureAndOverflowChecks": [
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "workbench",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "printed",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "interpretation",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "mismatch",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "reported",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "builder",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "phone",
+        "screen": "test-results",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "workbench",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "printed",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "interpretation",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "mismatch",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "reported",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "builder",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "anime",
+        "viewport": "laptop",
+        "screen": "test-results",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "workbench",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "printed",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "interpretation",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "mismatch",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "reported",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "builder",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "phone",
+        "screen": "test-results",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "workbench",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "printed",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "interpretation",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "mismatch",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "reported",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "builder",
+        "noHorizontalOverflow": true
+      },
+      {
+        "skin": "night",
+        "viewport": "laptop",
+        "screen": "test-results",
+        "noHorizontalOverflow": true
+      }
+    ],
+    "workflows": [
+      "printed-to-interpretation gate",
+      "single approval and Undo through session completion",
+      "mismatch report and Undo through session completion",
+      "review later and Undo",
+      "exact card/deck filter",
+      "invalid deck does not widen scope",
+      "scoped correction return link"
+    ],
+    "correction": [
+      "Test judgment saves separately from editor changes and review approval.",
+      "Discard preserves the original program and separately saved test judgment, returning to scoped workbench.",
+      "Save correction persists the edited program as user-owned corrected data."
+    ],
+    "guards": [
+      "Opening and cancelling bulk approval changes no rule records.",
+      "A stale review tab cannot approve a rule that now has unread parts: server rejects it.",
+      "A stale tab cannot overwrite a corrected status through approval."
+    ],
+    "temporaryRuleChangesRestored": true
+  },
+  "productionWrites": false,
+  "aiDraftingInvoked": false
+}

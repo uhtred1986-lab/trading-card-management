@@ -101,7 +101,7 @@ Keywords explain manual meaning and runtime limitations, which remain useful dur
 
 Phone: full-screen steps, compact persistent deck/card/step context, readable vertical comparisons, a reachable footer and no horizontal overflow. Laptop: retain the useful queue and side-by-side comparison, but give the selected rule the same steps, wording and outcomes. Contextual help should return to the same step.
 
-Tiny Fish findings and final priorities will be added after its review of this packet.
+Tiny Fish findings, implementation decisions and final validation are recorded below.
 
 ## Concrete labels and consequences
 
@@ -171,3 +171,49 @@ The findings were checked against source rather than accepted verbatim. In parti
 - A missing printed-text link alone says nothing about correctness. An unsupported operation is not fixed by switching editor modes or saving an empty program.
 
 The owner subsequently authorized implementation in this PR, with the other chat's changes incorporated before the full test suite. The core workflow is Choose scope → Compare → Decide; correction and testing are a branch of that workflow, rather than compulsory steps for every approval.
+
+
+## Delivered behavior and final validation
+
+Tracked by [milestone 25](https://github.com/uhtred1986-lab/trading-card-management/milestone/25), [issue #830](https://github.com/uhtred1986-lab/trading-card-management/issues/830) and [PR #831](https://github.com/uhtred1986-lab/trading-card-management/pull/831).
+
+The workbench now introduces the procedure and offers Start guided review for the chosen scope. Guided review first shows the printed skill, then the interpretation and explicit verdicts. It honors the workbench's deck, card, state and advanced filters, including game context. Reported mismatches have a separate scoped queue and a Correct now route on either device. Returning from correction preserves the scope and item; an invalid deck does not silently expand the guided queue.
+
+Phone correction hides the app's navigation and uses the full screen. It explains manual editing and optional AI modes, distinguishes saved-rule tests from editor tests, shows observed changes before requesting a judgment and wraps long results. Discard and Save correction describe distinct outcomes. An unsupported editor operation directs the user to report missing support; intentional empty programs remain an explained expert action requiring a reason.
+
+Bulk approval is under Advanced with a separate confirmation even for small batches. It states that the filter spans every page and excludes reported/unread drafts on the server. The displayed “up to” count is the matching draft count, which can include excluded records; the final receipt reports the actual number approved. The phone shared-pattern shortcut now previews matching catalog drafts in the workbench rather than approving them directly.
+
+Global readiness percentages are replaced with counts of skills with interpretations, including drafts, with an explicit denominator and scope. These counts do not claim review completion, runtime support or correctness. Queue rows identify individual skills and card sides. Selecting a rule scrolls only the list, preserving the guide and avoiding the previous header overlap.
+
+| Verification | Result |
+| --- | --- |
+| Other chat integration | PR #824 / main `1996255e` incorporated before the full suite began. |
+| TypeScript | Pass; final production build rechecked TypeScript after final copy/layout changes. |
+| Lint | Pass; five existing warnings in the historical Arena prototype. Final changed-file lint is clean. |
+| Full `npm test` | Pass on the integrated tree, including the new scoped/reported queue, bulk protection and return-link checks. |
+| Production build | Pass. |
+| Responsive production walkthrough | Four phone/laptop × Anime/Night workflows; 28 captured screens checked for horizontal overflow. Approval/report/review-later and Undo passed, including after the session ended. Invalid-deck handling and scoped return links passed. |
+| Correction persistence | Saved test judgments independently of editor changes; Discard retained the original program and saved judgment; Save correction persisted a changed, user-owned program. Temporary rule edits were restored on the copy. |
+| Approval and bulk guards | Bulk preview/cancel wrote no rules. A stale tab could not approve a newly unread draft or overwrite a corrected status. Temporary guard fixtures were restored on the copy. |
+
+Machine-readable verification is in [validation.json](validation.json). The full suite began at `93a8376e`; final UI wording, active-tab styling, count presentation and visible test results were checked by the subsequent build, lint and production walkthrough. No engine behavior was changed by those final UI adjustments. Browser checks used emulated phone/laptop viewports, not physical-device measurements. No paid AI drafting or production writes were part of this verification.
+
+### After: laptop scope and procedure
+
+![Laptop procedure, explicit global counts and preserved testing portal integration](after/anime-laptop-workbench.webp)
+
+### After: phone comparison and reporting
+
+![Phone printed skill before the comparison step](after/anime-phone-printed.webp)
+![Phone interpretation with explicit verdicts and active comparison state](after/anime-phone-interpretation.webp)
+![Phone mismatch report](after/anime-phone-mismatch.webp)
+
+### After: phone correction and observed behavior
+
+![Phone correction guide and editor](after/anime-phone-builder.webp)
+![Phone test results wrap and expose observed changes before judgment](after/anime-phone-test-results.webp)
+
+### After: Night theme
+
+![Night phone interpretation](after/night-phone-interpretation.webp)
+![Night laptop workbench](after/night-laptop-workbench.webp)
