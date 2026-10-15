@@ -122,12 +122,13 @@ export async function searchCards(db: Db, s: CardSearch, withAbility: (ability: 
  * hundreds of cards, so filtering a capped result set would leave a leader
  * search with almost no leaders in it.
  */
-export async function quickSearch(db: Db, q: string, limit = 12, cardType?: string, game?: Game) {
+export async function quickSearch(db: Db, q: string, limit = 12, cardType?: string, game?: Game, color?: string) {
   const terms = searchTerms(q);
   if (terms.length === 0) return [];
   const where = and(
     ...terms.map((t) => ilike(cards.searchText, `%${t.replace(/[%_]/g, "")}%`)),
     ...(cardType ? [eq(cards.cardType, cardType)] : []),
+    ...(color ? [sql`${color} = any(${cards.colors})`] : []),
     // Scoped to one game when the caller has one in mind — a Fusion World deck
     // should not offer Masters cards in its search box.
     ...(game ? [eq(cards.game, game)] : []),

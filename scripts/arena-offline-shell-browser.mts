@@ -38,6 +38,7 @@
  *
  * Needs Chrome and a build; not part of `npm test`. Exit 0 ok, 1 a check failed, 2 usage/no Chrome/no build.
  */
+import { chooseLocalSetup } from "./lib/local-arena-page.mts";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -156,7 +157,7 @@ async function tabTo(page: Page, label: string, max = 60): Promise<number> {
   }
   return -1;
 }
-const clickText = (page: Page, text: string) => page.eval(`(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)} && !x.disabled); if (!b) return false; b.click(); return true; })()`);
+const clickText = (page: Page, text: string) => page.eval(`(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)} && !x.disabled && x.getClientRects().length > 0); if (!b) return false; b.click(); return true; })()`);
 
 try {
   if (!(await waitUp())) throw new Error(`next start did not come up on ${PORT}:\n${server.log()}`);
@@ -350,7 +351,7 @@ try {
   const offlineText = await page.eval<string>(`document.querySelector('section[aria-label="Offline play"]').innerText`);
   check(/Ready for offline play/.test(offlineText) && /offline, so updates cannot be checked/.test(offlineText), "C. offline, the panel reads the device and says ready (it cannot check for updates)");
   await shot(page, "4-ready-offline");
-  await until(page, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Start match" && !b.disabled)`, "the new-match form");
+  await chooseLocalSetup(page, "A", "B", "p1");
   await clickText(page, "Start match");
   try {
     await until(page, `document.querySelector("#board")`, "the board", 120000);

@@ -2,16 +2,13 @@ import Link from "next/link";
 import { db } from "@/db";
 import { listDecks } from "@/lib/decks/queries";
 import { currentScope, requireSignedInPage } from "@/lib/auth";
-import { mainCountLabel, mainCountOk } from "@/lib/decks/legality";
-import { GAMES, GAME_INFO, parseGame } from "@/lib/catalog/games";
+import { GAMES, parseGame } from "@/lib/catalog/games";
 import { GameFilter, GameSelect } from "@/components/GameFilter";
-import { DeckStatusBadge } from "@/components/DeckStatusBadge";
-import { CardImage } from "@/components/CardImage";
-import { ColorPill } from "@/components/ColorPill";
 import { NewDeckWithClaude } from "@/components/NewDeckWithClaude";
 import { NewDeckFromCard } from "@/components/NewDeckFromCard";
 import { hasAnthropic } from "@/lib/ai/client";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DeckDiscovery } from "@/components/DeckDiscovery";
 import { createDeckForm } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +27,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
   const decks = game ? all.filter((d) => d.game === game) : all;
   const built = decks.filter((d) => d.isBuilt);
   const virtual = decks.filter((d) => !d.isBuilt);
-  const sections = [
-    { title: "Built", rows: built, key: "built" as const },
-    { title: "Virtual", rows: virtual, key: "virtual" as const },
-  ].filter((s) => show === "all" || show === s.key);
+  const visible = decks.filter((d) => show === "all" || (show === "built" ? d.isBuilt : !d.isBuilt));
 
   return (
     <div className="space-y-6">
@@ -50,8 +44,8 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
           </Link>
           <NewDeckWithClaude enabled={hasAnthropic()} />
           <NewDeckFromCard enabled={hasAnthropic()} />
-          <form action={createDeckForm} className="flex flex-wrap items-center gap-2">
-            <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
+          <form action={createDeckForm} className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+            <input aria-label="New deck name" name="name" placeholder="New deck name" className="tap min-w-0 flex-1 rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             {/* A deck belongs to one game from the moment it exists — its rules
                 and the cards its builder offers both follow from this. */}
             <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
@@ -100,44 +94,13 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
 
       {decks.length === 0 ? <p className="rounded-xl border border-dashed border-space-700 p-8 text-center text-space-300">No decks yet — create one above.</p> : null}
 
-      {sections
-        .filter((s) => s.rows.length)
-        .map((section) => (
-          <section key={section.title}>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">{section.title}</h2>
-            <ul className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {section.rows.map((d) => (
-                <li key={d.id} className="min-w-0">
-                  <Link href={`/decks/${d.id}`} className="flex min-w-0 gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 hover:border-ki-500/50">
-                    <div className="w-16 shrink-0">
-                      <CardImage src={d.leader?.imageUrl} alt={d.leader?.name ?? "No leader"} sizes="64px" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate font-medium text-space-50">{d.name}</span>
-                        {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
-                        {d.isTesting ? <span className="rounded border border-ki-500/60 px-1.5 py-px text-[10px] font-semibold uppercase text-ki-300">Testing</span> : null}
-                        {/* Only the odd one out is labelled — most decks are the original game. */}
-                        {d.game !== "dbs" ? <span className="rounded border border-space-600 px-1.5 py-px text-[10px] font-semibold uppercase text-space-300">{GAME_INFO[d.game].short}</span> : null}
-                        <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />
-                      </div>
-                      <div className="truncate text-xs text-space-300">
-                        {d.leader?.name ?? "No leader yet"}
-                        {d.locationName ? <span className="text-space-400"> · 📍 {d.locationName}</span> : null}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
-                        {d.leader?.colors.map((c) => (
-                          <ColorPill key={c} color={c} small />
-                        ))}
-                        <span className={`ml-auto text-xs ${mainCountOk(d.mainCount, d.game) ? "text-space-300" : "text-ki-300"}`}>{mainCountLabel(d.mainCount, d.game)}</span>
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+      {decks.length > 0 && <DeckDiscovery label="Browse decks" decks={visible.map((d) => ({
+        id: String(d.id), name: d.name, description: d.description, leaderName: d.leader?.name ?? null,
+        leaderId: d.leaderId, colors: d.leader?.colors ?? [], leaderImage: d.leader?.imageUrl,
+        group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, status: d.legality.status,
+        note: [d.isTesting ? "Testing deck · hidden from Arena play pickers by default" : null, d.locationName, ...d.legality.issues.map((i) => i.message)].filter(Boolean).join(" · "), href: `/decks/${d.id}`,
+      }))} />}
+
     </div>
   );
 }

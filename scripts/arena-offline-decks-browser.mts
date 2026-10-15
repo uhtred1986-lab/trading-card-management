@@ -36,7 +36,7 @@ import os from "node:os";
 import path from "node:path";
 import { eq, and } from "drizzle-orm";
 import { Browser, findChrome, sleep, type Page } from "./lib/cdp.mts";
-import { BOARD } from "./lib/local-arena-page.mts";
+import { BOARD, chooseLocalSetup } from "./lib/local-arena-page.mts";
 import { mastersPackInput } from "./build-arena-offline-pack.mts";
 import { pngFor } from "./verify/arena-pack-store-fixture.mts";
 import { liveFixture } from "./verify/arena-offline-decks-fixture.mts";
@@ -91,7 +91,7 @@ async function until(page: Page, expr: string, what: string, timeoutMs = 60000):
   const seen = await page.eval<string>(`document.body.innerText.replace(/\\s+/g, " ").slice(-1200)`).catch(() => "");
   throw new Error(`timed out waiting for ${what}; the page said: ${seen}`);
 }
-const clickText = (page: Page, text: string, scope = "document") => page.eval<boolean>(`(() => { const b = [...${scope}.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)} && !x.disabled); if (!b) return false; b.click(); return true; })()`);
+const clickText = (page: Page, text: string, scope = "document") => page.eval<boolean>(`(() => { const b = [...${scope}.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)} && !x.disabled && x.getClientRects().length > 0); if (!b) return false; b.click(); return true; })()`);
 async function setFile(page: Page, selector: string, file: string) {
   const { root } = await page.cdp<{ root: { nodeId: number } }>("DOM.getDocument", { depth: -1 });
   const { nodeId } = await page.cdp<{ nodeId: number }>("DOM.querySelector", { nodeId: root.nodeId, selector });
@@ -132,15 +132,8 @@ async function playToEnd(page: Page): Promise<{ revision: number; matchId: strin
   throw new Error("the match did not end");
 }
 async function startMatch(page: Page, mine: string, theirs: string, seat: "First" | "Second") {
-  await until(page, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Start match" && !b.disabled) && [...document.querySelectorAll("section[aria-label='New match'] option")].some((o) => o.value === ${JSON.stringify(mine)})`, "the new-match form with the deck");
-  await page.eval(`(() => {
-    const set = (sel, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, v); sel.dispatchEvent(new Event("change", { bubbles: true })); };
-    const [a, b] = document.querySelectorAll("section[aria-label='New match'] select");
-    set(a, ${JSON.stringify(mine)}); set(b, ${JSON.stringify(theirs)});
-  })()`);
-  await clickText(page, seat);
-  await sleep(200);
-  const labels = await page.eval<string[]>(`[...document.querySelectorAll("section[aria-label='New match'] label > span")].map((s) => s.textContent.trim())`);
+  await chooseLocalSetup(page, mine, theirs, seat === "First" ? "p1" : "p2");
+  const labels = await page.eval<string[]>(`[...document.querySelectorAll("section[aria-label='New match'] legend")].map((s) => s.textContent.trim())`);
   await clickText(page, "Start match");
   await until(page, `(() => { const b = ${BOARD}; return !!(b && b.supervisor.snapshot && b.state.kind === "owner"); })()`, "the board", 120000);
   return labels;
@@ -229,7 +222,7 @@ try {
 
   // ── 3. full matches: against a starter, and against the other downloaded deck ───────────────
   const labels = await startMatch(page, k1, "A", "Second");
-  check(labels.includes("Your deck") && labels.includes("Computer’s deck"), `the form asks for "Your deck" and the "Computer's deck" (${labels.join(" / ")})`);
+  check(labels.includes("Your deck") && labels.includes("Computer's deck"), `the form asks for "Your deck" and the "Computer's deck" (${labels.join(" / ")})`);
   const m1 = await playToEnd(page);
   check(true, `${k1} v starter A, human second: played to the end (revision ${m1.revision})`);
   await page.goto(`${BASE}${SHELL_PATH}`);

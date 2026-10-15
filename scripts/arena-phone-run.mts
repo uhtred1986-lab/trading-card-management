@@ -39,7 +39,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { Browser, sleep, VIEWPORTS, type Page, type Viewport } from "./lib/cdp.mts";
 import { Adb, type DeviceInfo } from "./lib/adb.mts";
-import { BOARD, IDB_FAULT, readJournalExpr } from "./lib/local-arena-page.mts";
+import { BOARD, IDB_FAULT, chooseLocalSetup, readJournalExpr } from "./lib/local-arena-page.mts";
 import { SCREEN_FACTS, checksOf, truthOf, type Finding, type ScreenFacts, type Truth } from "./lib/ux-probe.mts";
 import { CONTRAST_AUDIT, type ContrastRow } from "./lib/contrast-audit.mts";
 import { BOARD_BUDGETS } from "./lib/worker-budgets.ts";
@@ -802,16 +802,10 @@ async function openShell(caseId: string): Promise<{ page: Page; shellMs: number;
   return { page, shellMs, landedOn };
 }
 async function startMatch(page: Page, caseId: string, mine: string, theirs: string, seat: "p1" | "p2"): Promise<number> {
-  await until(page, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Start match" && !b.disabled)`, 60000, "Start match");
-  // The deck pickers are native selects (the phone's own picker): set, as the picker would.
-  await page.eval(`(() => {
-    const set = (sel, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, v); sel.dispatchEvent(new Event("change", { bubbles: true })); };
-    const [a, b] = document.querySelectorAll("section[aria-label='New match'] select");
-    set(a, ${JSON.stringify(mine)}); set(b, ${JSON.stringify(theirs)});
-  })()`);
-  const seatTap = await tapFind(page, `() => [...document.querySelectorAll("fieldset button")].filter((b) => b.innerText.trim() === ${JSON.stringify(seat === "p1" ? "First" : "Second")})`);
-  if (!seatTap.ok) throw new Error(`the seat button could not be tapped: ${seatTap.why}`);
-  await sleep(200);
+  await chooseLocalSetup(page, mine, theirs, seat, async (selector) => {
+    const tapped = await tapFind(page, `() => [...document.querySelectorAll(${JSON.stringify(selector)})]`);
+    if (!tapped.ok) throw new Error(`Setup control ${selector} could not be tapped: ${tapped.why}`);
+  });
   await shoot(page, caseId, "new-match", null, { note: `${mine} v ${theirs}, ${seat === "p1" ? "first" : "second"}` });
   await page.eval(`window.__rel && (window.__rel.marks.click = performance.now()); 0`);
   const t = Date.now();

@@ -1,0 +1,108 @@
+
+> dbs-card-companion@0.1.0 arena:local-browser
+> tsx scripts/arena-local-browser.mts
+
+match b70e0887-a07d-431b-8923-03bc94990732: decks A v B; computing the uninterrupted reference…
+reference: 136 decisions, final revision 137
+ok   the match was started offline (the tab had no network) in seat p1
+ok   the first board equals the reference's
+note step at revision 3 refused (the computer is still thinking — try again in a moment); retrying
+ok   reload-choice: replay hash at revision 10 equals the uninterrupted reference
+ok   reload-choice: next legal actions at revision 10 equal the reference's (4)
+ok   reload-choice: the tab is the match's writer again
+ok   reload-choice: the device's journal is unchanged by the reload
+note step at revision 12 refused (the computer is still thinking — try again in a moment); retrying
+ok   inject: the human's move is accepted
+ok   inject: the duplicate apply is answered from its receipt ({"type":"result","ok":true,"revision":21})
+ok   inject: the stale apply is refused (stale)
+ok   inject: an older answer (revision 10) and a duplicate answer were handed to the page's Worker object
+ok   inject: replay hash at revision 21 equals the uninterrupted reference
+ok   inject: next legal actions at revision 21 equal the reference's (0)
+ok   inject: the board did not move and is still the writer
+ok   inject: the human's move is on the device exactly once
+ok   kill-choice: replay hash at revision 29 equals the uninterrupted reference
+ok   kill-choice: next legal actions at revision 29 equal the reference's (0)
+ok   kill-choice: the move is applied after the engine restarts (null)
+ok   kill-choice: the Worker was restarted (1)
+ok   kill-choice: the page said the engine stopped and was restarting
+ok   kill-choice: the move is on the device exactly once
+ok   kill-ai: the Worker was terminated while the advance was in flight
+ok   kill-ai: replay hash at revision 35 equals the uninterrupted reference
+ok   kill-ai: next legal actions at revision 35 equal the reference's (6)
+ok   kill-ai: the Worker was restarted and the tab writes on (owner, 2)
+ok   reload-ai-turn: replay hash at revision 45 equals the uninterrupted reference
+ok   reload-ai-turn: next legal actions at revision 45 equal the reference's (4)
+ok   reload-ai-batch: the advance was still in flight at the reload
+ok   reload-ai-batch: replay hash at revision 53 equals the uninterrupted reference
+ok   reload-ai-batch: next legal actions at revision 53 equal the reference's (2)
+ok   reload-ai-batch: the tab is the writer again
+ok   storage-quota: the fault reached the match Worker (1)
+ok   storage-quota: the move is refused with the storage sentence (this game could not be saved on this device — it is still at its last saved move)
+ok   storage-quota: the page shows the device-full notice with Try again (storage)
+ok   storage-quota: the board stays at the last saved move
+ok   storage-quota: nothing was written
+ok   storage-quota: Try again pressed
+ok   storage-quota: replay hash at revision 53 equals the uninterrupted reference
+ok   storage-quota: next legal actions at revision 53 equal the reference's (2)
+ok   storage-quota: the move is accepted once there is room
+ok   storage-quota: and is on the device once
+ok   storage-abort: the fault reached the match Worker
+ok   storage-abort: the advance is refused (this game could not be saved on this device — it is still at its last saved move)
+ok   storage-abort: the page shows an actionable notice (storage: Could not save on this device)
+ok   storage-abort: the board stays at the last saved move
+ok   storage-abort: nothing was written
+ok   storage-abort: Try again pressed
+ok   storage-abort: replay hash at revision 62 equals the uninterrupted reference
+ok   storage-abort: next legal actions at revision 62 equal the reference's (0)
+ok   race: exactly one tab writes (watching / owner)
+ok   race: the other tab watches and says so
+ok   race-owner: replay hash at revision 67 equals the uninterrupted reference
+ok   race-owner: next legal actions at revision 67 equal the reference's (4)
+ok   race-watcher: replay hash at revision 67 equals the uninterrupted reference
+ok   race-watcher: next legal actions at revision 67 equal the reference's (4)
+ok   race: the watcher's move is refused (this game is open in another tab or window — it can only be watched here)
+ok   race: nothing was written by either tab
+ok   race: Play here instead pressed in the watching tab
+ok   takeover: replay hash at revision 67 equals the uninterrupted reference
+ok   takeover: next legal actions at revision 67 equal the reference's (4)
+ok   race: the old writer's move is refused and it says another tab took over (this game is open in another tab or window — it can only be watched here)
+ok   race: the fenced tab wrote nothing
+note step at revision 72 refused (the computer is still thinking — try again in a moment); retrying
+ok   the match was played to the end (revision 137)
+ok   the final board equals the uninterrupted reference's
+ok   the device's trace equals the reference's (equal traces, equal games)
+ok   the device's journal equals the reference's, decision for decision (136 decisions, 61 human moves)
+ok   no human request was applied twice (every human entry has its own request id)
+ok   negative control: a reference on game seed +1 does not match the device's trace
+ok   reload-choice: the next AI decision after recovery (#11) equals the reference's
+ok   inject: the next AI decision after recovery (#20) equals the reference's
+ok   kill-choice: the next AI decision after recovery (#28) equals the reference's
+ok   kill-ai: the next AI decision after recovery (#36) equals the reference's
+ok   reload-ai-turn: the next AI decision after recovery (#48) equals the reference's
+ok   reload-ai-batch: the next AI decision after recovery (#54) equals the reference's
+ok   storage-quota: the next AI decision after recovery (#54) equals the reference's
+ok   storage-abort: the next AI decision after recovery (#61) equals the reference's
+ok   race-owner: the next AI decision after recovery (#71) equals the reference's
+ok   race-watcher: the next AI decision after recovery (#71) equals the reference's
+ok   takeover: the next AI decision after recovery (#71) equals the reference's
+ok   every board shown equals the reference at its revision (83 revisions seen)
+ok   every board shown is a reference revision
+ok   no match/provider request was attempted (0 denied: )
+
+checkpoint            revision  entries  hash  legal  next AI decision
+reload-choice               10        9  ok    ok     #11 m:endMain:{"type":"endMain"}   (reloaded while the human was asked)
+inject                      21       20  ok    ok     #20 m:endMain:{"type":"endMain"}   (duplicate + stale apply to the Worker; stale (rev 10) + duplicate answers to the page)
+kill-choice                 29       28  ok    ok     #28 m:attack:{"attacker":"p2#18","target":"p1#0","type":"attack"}   (Worker terminated, then the human moved)
+kill-ai                     35       34  ok    ok     #36 m:counter:{"card":"p2#38","type":"counter"}   (Worker terminated mid AI advance (advance answered: ok))
+reload-ai-turn              45       44  ok    ok     #48 m:attack:{"attacker":"p2#48","target":"p1#0","type":"attack"}   (reloaded with the computer to move, nothing in flight)
+reload-ai-batch             53       52  ok    ok     #54 m:attack:{"attacker":"p2#20","target":"p1#0","type":"attack"}   (reloaded mid AI advance (from revision 49))
+storage-quota               53       52  ok    ok     #54 m:attack:{"attacker":"p2#20","target":"p1#0","type":"attack"}   (QuotaExceededError on every put, then Try again)
+storage-abort               62       61  ok    ok     #61 m:charge:{"card":"p2#27","type":"charge"}   (every read-write transaction aborted, then Try again)
+race-owner                  67       66  ok    ok     #71 m:attack:{"attacker":"p2#0","target":"p1#0","type":"attack"}   (won the simultaneous Continue)
+race-watcher                67       66  ok    ok     #71 m:attack:{"attacker":"p2#0","target":"p1#0","type":"attack"}   (lost the simultaneous Continue (read-only))
+takeover                    67       66  ok    ok     #71 m:attack:{"attacker":"p2#0","target":"p1#0","type":"attack"}   (took the match over)
+
+36 page/asset requests allowed, 0 match/provider requests denied, 22 card-art CDN requests failed offline; 65 s
+Browser emulation only (headless desktop Chrome). Physical-device evidence: unverified — the owner's.
+
+arena:local-browser: ok

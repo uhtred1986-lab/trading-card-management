@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CardImage } from "@/components/CardImage";
+import { DeckDiscovery, DeckFacts } from "@/components/DeckDiscovery";
+import type { DiscoveryDeck } from "@/lib/decks/discovery";
+import { MatchSetup } from "./MatchSetup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckPreviewSheet } from "./DeckPreviewSheet";
 
@@ -10,6 +12,10 @@ export interface PlayDeck {
   id: number;
   name: string;
   isTesting?: boolean;
+  description?: string | null;
+  colors?: string[];
+  leaderId?: string | null;
+  isBuilt?: boolean;
   leaderName: string | null;
   leaderImage: string | null;
   mainCount: number;
@@ -69,7 +75,6 @@ export function PlayPicker({
   const opponent: Opponent = friend ? friendKind : claudeKind;
   const index = Math.max(0, decks.findIndex((d) => d.id === deckId));
   const deck = decks[index];
-  const step = (by: number) => setDeckId(decks[(index + by + decks.length) % decks.length].id);
   const needsOtherDeck = opponent !== "versus";
   const locked = (d: PlayDeck) => d.ready.open > 0;
   const readyDecks = decks.filter((d) => !locked(d));
@@ -83,84 +88,25 @@ export function PlayPicker({
   const chip = (on: boolean, off = false) =>
     `tap rounded-lg border px-3 py-2 text-left text-sm ${off ? "cursor-not-allowed opacity-50" : ""} ${on ? "border-ki-500 bg-space-800 text-space-50" : "border-space-600 bg-space-900 text-space-200"}`;
 
-  return (
-    <form action={action} className="space-y-4">
-      <input type="hidden" name="deck" value={deckId} />
-      <input type="hidden" name="opponent" value={opponent} />
-      <input type="hidden" name="claudeDeck" value={claudeDeck} />
-
-      <section aria-label="Your deck" className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xs uppercase tracking-widest text-space-400">Your deck</h2>
-          <Link href={testingToggleHref} className="tap rounded-md border border-space-700 px-2.5 py-1.5 text-xs text-space-300 hover:border-ki-500/60 hover:text-space-50" aria-label={showTestingDecks ? "Hide testing decks" : "Show testing decks"}>
-            {showTestingDecks ? "Hide testing decks" : "Show testing decks"}
-          </Link>
-        </div>
-        {hiddenTestingDeckName ? <p className="text-xs text-space-400">The link points to testing deck <span className="font-medium text-space-200">{hiddenTestingDeckName}</span>. It stays hidden until you show testing decks above.</p> : null}
-
-        {/* Phone: one deck at a time. */}
-        <div className="flex items-center gap-2 sm:hidden">
-          <button type="button" onClick={() => step(-1)} disabled={decks.length < 2} aria-label="Previous deck" className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg disabled:opacity-40">
-            ‹
-          </button>
-          <div className="min-w-0 flex-1 text-center" aria-live="polite">
-            <div className="mx-auto w-40">
-              <CardImage src={deck.leaderImage} alt={deck.leaderName ?? "No leader"} sizes="160px" priority />
-            </div>
-            <p className="mt-2 truncate text-base font-semibold text-space-50">
-              {deck.name}
-              {isLocked && <LockedBadge />}
-              {deck.isTesting && <TestingBadge />}
-            </p>
-            <p className="truncate text-xs text-space-400">
-              {deck.leaderName ?? "no leader"} · {deck.mainCount} cards · {index + 1} of {decks.length}
-            </p>
-            <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="mt-2" />
-          </div>
-          <button type="button" onClick={() => step(1)} disabled={decks.length < 2} aria-label="Next deck" className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg disabled:opacity-40">
-            ›
-          </button>
-        </div>
-        {/* Locked decks show red dots. */}
-        <div className="flex justify-center gap-1.5 sm:hidden" aria-hidden>
-          {decks.map((d) => (
-            <span key={d.id} className={`h-1.5 w-1.5 rounded-full ${locked(d) ? "bg-loss" : "bg-space-500"} ${d.id === deckId ? "ring-2 ring-ki-500" : ""}`} />
-          ))}
-        </div>
-
-        {/* Desktop: a grid, click to select. */}
-        <ul className="hidden gap-3 sm:grid sm:grid-cols-3">
-          {decks.map((d) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                onClick={() => setDeckId(d.id)}
-                aria-pressed={d.id === deckId}
-                className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left ${d.id === deckId ? "border-ki-500 bg-space-800" : "border-space-700/70 bg-space-900/50 hover:border-space-500"}`}
-              >
-                <div className="w-14 shrink-0">
-                  <CardImage src={d.leaderImage} alt={d.leaderName ?? "No leader"} sizes="56px" />
-                </div>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-space-50">
-                    {d.name}
-                    {locked(d) && <LockedBadge />}
-                    {d.isTesting && <TestingBadge />}
-                  </span>
-                  <span className="block truncate text-xs text-space-400">
-                    {d.leaderName ?? "no leader"} · {d.mainCount} cards
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <Readiness deck={deck} />
-        {/* Desktop: the phone carousel carries its own button. */}
-        <DeckPreviewSheet deckId={deck.id} deckName={deck.name} className="inline-flex min-h-11 items-center" />
-        <p className="text-[11px] text-space-500">Fusion World decks are not listed: the arena plays the original game&rsquo;s rules only.</p>
-      </section>
-
+  const choices: DiscoveryDeck[] = decks.map((d) => ({
+    id: String(d.id), name: d.name, description: d.description ?? null,
+    colors: d.colors ?? [], leaderId: d.leaderId, leaderName: d.leaderName, leaderImage: d.leaderImage,
+    group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, locked: locked(d), note: d.isTesting ? "Testing deck" : undefined,
+  }));
+  const own = <section aria-label="Your deck" className="space-y-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-space-400">Testing decks are {showTestingDecks ? "shown" : "hidden by default"}.</p>
+      <Link href={testingToggleHref} className="tap rounded-md border border-space-700 px-2.5 py-1.5 text-xs text-space-300 hover:border-ki-500/60 hover:text-space-50" aria-label={showTestingDecks ? "Hide testing decks" : "Show testing decks"}>
+        {showTestingDecks ? "Hide testing decks" : "Show testing decks"}
+      </Link>
+    </div>
+    {hiddenTestingDeckName ? <p className="text-xs text-space-400">The link points to testing deck <span className="font-medium text-space-200">{hiddenTestingDeckName}</span>. It stays hidden until you show testing decks above.</p> : null}
+    <DeckDiscovery label="Your deck" decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} />
+    <DeckPreviewSheet deckId={deck.id} deckName={deck.name} />
+    <details><summary className="tap cursor-pointer py-2 text-sm text-space-300">Rule readiness{isLocked ? " — locked" : ""}</summary><Readiness deck={deck} /></details>
+    <p className="text-xs text-space-400">Masters decks only. Fusion World uses different rules.</p>
+  </section>;
+  const opponentSection = <div className="space-y-3">
       <section aria-label="Opponent" className="space-y-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Opponent</h2>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -191,25 +137,13 @@ export function PlayPicker({
         )}
       </section>
 
-      {needsOtherDeck && (
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">{friend ? "Second player plays" : "Claude plays"}</span>
-          <select
-            value={claudeDeck}
-            onChange={(e) => setClaudeDeck(Number(e.target.value))}
-            className="tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100"
-          >
-            {decks.map((d) => (
-              <option key={d.id} value={d.id} disabled={locked(d)}>
-                {d.name} — {d.leaderName ?? "no leader"}
-                {locked(d) ? ` (${d.ready.open} open, locked)` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      <div className="sticky bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-10 space-y-1 rounded-xl bg-space-950/80 py-1 backdrop-blur sm:static sm:bg-transparent sm:backdrop-blur-none">
+    {needsOtherDeck && <>
+      <DeckDiscovery label={friend ? "Second player's deck" : "Claude's deck"} decks={choices} value={String(claudeDeck)} onChange={(id) => setClaudeDeck(Number(id))} readyOnly disableLocked />
+      {other && <DeckPreviewSheet deckId={other.id} deckName={other.name} />}
+    </>}
+  </div>;
+  const footer = <>
+      <div className="space-y-2">
         {isLocked ? (
           <>
             {/* Computer: Rules is one click away. */}
@@ -235,18 +169,14 @@ export function PlayPicker({
         )}
         <p className={`text-center text-[11px] text-space-400 ${isLocked || otherLocked ? "hidden" : ""}`}>{invite ? "They get a waiting room and choose their own deck." : "The coin flip comes first, then each side may mulligan once."}</p>
       </div>
-    </form>
-  );
+  </>;
+  return <MatchSetup action={action} own={own} opponent={opponentSection} ownValid={!isLocked} opponentValid={!otherLocked && (!needsOtherDeck || !!other)}
+    fields={<><input type="hidden" name="deck" value={deckId} /><input type="hidden" name="opponent" value={opponent} /><input type="hidden" name="claudeDeck" value={claudeDeck} /></>}
+    review={<div className="space-y-4"><section className="space-y-2"><h3 className="text-sm font-semibold text-space-300">You play</h3><DeckFacts deck={choices[index]} /></section>
+      <section className="space-y-2"><h3 className="text-sm font-semibold text-space-300">{invite ? "Friend on their device" : friend ? "Second player" : `Claude · ${claudeKind === "sparring" ? "Sparring" : "Tournament"} · ${costs[claudeKind]}`}</h3>
+      {invite ? <p className="text-sm text-space-200">Your friend chooses their own deck after joining.</p> : other && <DeckFacts deck={choices.find((d) => d.id === String(other.id))!} />}</section></div>}
+    footer={footer} />;
 }
-
-function LockedBadge() {
-  return <span className="ml-2 rounded-full border border-loss/60 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-loss">Locked</span>;
-}
-
-function TestingBadge() {
-  return <span className="ml-1 rounded border border-ki-500/60 px-1 py-0.5 align-middle text-[9px] font-semibold uppercase tracking-wider text-ki-300">Testing</span>;
-}
-
 /**
  * The stacked bar and the four counts. Each state also differs in shape (ring,
  * half, filled), so the bar never relies on hue alone (spec §3).

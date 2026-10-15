@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { LocalMatchSetup } from "./LocalMatchSetup";
 import { ArenaStage } from "../stage/ArenaStage";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import type { ArenaStaging } from "@/lib/arena/staging";
@@ -364,8 +365,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
         )}
 
         {facts && (
-          <section aria-label="New match" className={`${panel} space-y-3`}>
-            <h2 className="text-xs uppercase tracking-widest text-space-400">New match</h2>
+          <div className="space-y-3">
             {facts.decks.some((deck) => deck.isTesting) && (
               <label className="tap flex items-center gap-2 text-sm text-space-300">
                 <input type="checkbox" checked={showTesting} onChange={(event) => setShowTesting(event.target.checked)} disabled={busy} />
@@ -373,33 +373,8 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
               </label>
             )}
             {!availableDecks.length && <p className="text-sm text-space-300">This pack contains only testing decks. Turn on “Show testing decks” to start a match.</p>}
-            <label className="block text-sm text-space-200">
-              <span className="mb-1 block">Your deck</span>
-              <select value={selected.mine} onChange={(e) => setMine(e.target.value)} disabled={busy || !availableDecks.length} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
-                {availableDecks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.isTesting ? " (testing)" : ""}{d.leader ? ` — ${d.leader}` : ""}</option>)}
-              </select>
-            </label>
-            <label className="block text-sm text-space-200">
-              <span className="mb-1 block">{installed ? "Computer\u2019s deck" : "Opponent\u2019s deck"}</span>
-              <select value={selected.theirs} onChange={(e) => setTheirs(e.target.value)} disabled={busy || !availableDecks.length} className="tap w-full rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-50">
-                {availableDecks.map((d) => <option key={d.key} value={d.key}>{d.name}{d.isTesting ? " (testing)" : ""}{d.leader ? ` — ${d.leader}` : ""}</option>)}
-              </select>
-            </label>
-            <fieldset className="space-y-1">
-              <legend className="mb-1 text-sm text-space-200">Your seat</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {(["p1", "p2"] as const).map((s) => (
-                  <button key={s} type="button" aria-pressed={seat === s} onClick={() => setSeat(s)} disabled={busy} className={`tap rounded-lg border px-3 py-2 text-sm ${seat === s ? "border-ki-500 bg-space-800 text-space-50" : "border-space-700 bg-space-900/50 text-space-300"}`}>
-                    {s === "p1" ? "First" : "Second"}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <button type="button" className={`${primary} w-full`} disabled={busy || !availableDecks.length} onClick={() => void start()}>
-              {busy ? (phase.kind === "opening" ? phase.what : "") : "Start match"}
-            </button>
-            <p className="text-[11px] text-space-500">The opponent is the built-in computer player; it runs on this device and costs nothing.</p>
-          </section>
+            <LocalMatchSetup facts={{ ...facts, decks: availableDecks }} mine={selected.mine} theirs={selected.theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} busy={busy} pendingLabel={phase.kind === "opening" ? phase.what : "Preparing…"} start={() => void start()} />
+          </div>
         )}
       </div>
     </Shell>

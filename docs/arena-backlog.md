@@ -1,5 +1,10 @@
 # Arena backlog — tracking the rebuilt compiler against the design
 
+**Deck discovery and match setup (15 Oct 2026):** [milestone 24](https://github.com/uhtred1986-lab/trading-card-management/milestone/24)
+and #828 cover deck building, leader discovery, short filtered opponent lists, and a full-screen
+phone match wizard. Review: `docs/deck-setup-ux-review.md`; evidence: `docs/deck-setup-validation.md`.
+
+
 **Current phone UX programme (14 Oct 2026):** GitHub milestone 23,
 **Arena phone UX — approved #788 prototype**, is tracked by [#795](https://github.com/uhtred1986-lab/trading-card-management/issues/795).
 The approved behaviour is implemented in #796–#802; reviewed issue copies are in

@@ -59,7 +59,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Browser, findChrome, sleep, VIEWPORTS, type Page } from "./lib/cdp.mts";
-import { BOARD, IDB_FAULT, WorkerTaps, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
+import { BOARD, IDB_FAULT, WorkerTaps, chooseLocalSetup, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
 import { BOARD_BUDGETS, BOARD_UNMEASURABLE, distribution, type Dist } from "./lib/worker-budgets.ts";
 import { chunkLabeler, longTasks, startTrace, type LongTaskBreakdown } from "./lib/long-task-trace.mts";
 import { buildMastersPack } from "./build-arena-offline-pack.mts";
@@ -275,16 +275,7 @@ async function openShell(l: Launch): Promise<{ shellMs: number; startableMs: num
   return { shellMs, startableMs: Date.now() - t0, where, controlled };
 }
 async function chooseAndStart(page: Page, mine: string, theirs: string, seat: "p1" | "p2"): Promise<number> {
-  await until(page, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Start match" && !b.disabled)`, 60000);
-  await page.eval(`(() => {
-    const set = (sel, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, v); sel.dispatchEvent(new Event("change", { bubbles: true })); };
-    const [a, b] = document.querySelectorAll("section[aria-label='New match'] select");
-    set(a, ${JSON.stringify(mine)}); set(b, ${JSON.stringify(theirs)});
-  })()`);
-  await clickText(page, seat === "p1" ? "First" : "Second");
-  await sleep(150);
-  const chosen = await page.eval<{ a: string; b: string; seat: string }>(`(() => { const [a, b] = document.querySelectorAll("section[aria-label='New match'] select"); return { a: a.value, b: b.value, seat: [...document.querySelectorAll("fieldset button")].find((x) => x.getAttribute("aria-pressed") === "true")?.textContent.trim() }; })()`);
-  if (chosen.a !== mine || chosen.b !== theirs || chosen.seat !== (seat === "p1" ? "First" : "Second")) throw new Error(`the form did not take the choice: ${JSON.stringify(chosen)}`);
+  await chooseLocalSetup(page, mine, theirs, seat);
   const t0 = await page.eval<number>(`performance.now()`);
   await page.eval(`window.__rel.marks.click = performance.now(); 0`);
   await clickText(page, "Start match");
