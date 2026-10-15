@@ -11,10 +11,9 @@
  *    `noEffect`), delivered on a snapshot that waits on the computer.
  *  - `?fixture=attack&fx=no-target-battle`: the same skill inside a battle, followed by the clash.
  *
- * For each: the notice shows and names the card and the effect; OK has the keyboard focus; a tap on the
- * board under it reaches nothing (the scrim takes it) and no action is sent; the computer's advance is
- * held while it stands (`__arenaPreviewDriver.advances` stays 0); Enter on OK acknowledges it, the
- * notice goes, and the held advance is sent (advances becomes 1). Screenshots before and after OK.
+ * For each: names the resolved effect without stealing focus or a modal scrim;
+ * automatically dismisses after four seconds and releases the computer's held
+ * advance once, without sending a game action. Screenshots before and after timeout.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -47,22 +46,14 @@ try {
       await page.settle(600);
       const text = await page.eval<string>(`document.querySelector("[data-arena-notice]").textContent`);
       check(/no valid target/i.test(text) && text.includes("Auto") && /KO it/.test(text), `${tag}: the notice names the card's skill and its effect — "${text.slice(0, 120)}…"`);
-      check(await page.eval<boolean>(`document.activeElement === document.querySelector("[data-arena-notice] button")`), `${tag}: OK has the keyboard focus`);
+      check(await page.eval<boolean>(`document.activeElement !== document.querySelector("[data-arena-notice] button")`), `${tag}: a passive notice does not steal keyboard focus`);
+      check(!(await page.eval<boolean>(`!!document.querySelector("[data-arena-notice-scrim]")`)), `${tag}: no modal scrim obscures the board`);
       writeFileSync(join(out, `s21-${skin}-${fx}-notice.jpg`), Buffer.from((await page.cdp<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 })).data, "base64"));
-      // Held: nothing reaches the board under it, and the computer's move waits.
-      const under = await page.eval<string>(`(() => { const c = document.querySelector('[aria-label="Your hand"] [data-arena-card], [data-arena-card]'); if (!c) return "none"; const r = c.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return el && el.closest("[data-arena-notice-scrim]") ? "scrim" : (el ? el.tagName : "nothing"); })()`);
-      check(under === "scrim", `${tag}: a tap on a card under the notice lands on the notice's scrim (${under})`);
-      await sleep(2000);
-      const held = await page.eval<{ advances: number; actions: number }>(`({ advances: window.__arenaPreviewDriver.advances, actions: window.__arenaPreviewDriver.actions.length })`);
-      check(held.advances === 0 && held.actions === 0, `${tag}: while it stands no advance (${held.advances}) and no action (${held.actions}) is sent`);
-      // Enter on the focused OK.
-      await page.cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, text: "\r" });
-      await page.cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
-      await sleep(1500);
+      await sleep(4500);
       const after = await page.eval<{ notice: boolean; advances: number; actions: number }>(`({ notice: !!document.querySelector("[data-arena-notice]"), advances: window.__arenaPreviewDriver.advances, actions: window.__arenaPreviewDriver.actions.length })`);
-      check(!after.notice, `${tag}: Enter on OK acknowledges it`);
-      check(after.advances === 1 && after.actions === 0, `${tag}: the held advance is sent once acknowledged (${after.advances}), and acknowledging sent no game action (${after.actions})`);
-      writeFileSync(join(out, `s21-${skin}-${fx}-after-ok.jpg`), Buffer.from((await page.cdp<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 })).data, "base64"));
+      check(!after.notice, `${tag}: passive notice dismisses automatically`);
+      check(after.advances === 1 && after.actions === 0, `${tag}: timeout releases the held advance exactly once (${after.advances}), without a game action (${after.actions})`);
+      writeFileSync(join(out, `s21-${skin}-${fx}-after-timeout.jpg`), Buffer.from((await page.cdp<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 })).data, "base64"));
       // A reload tells nothing again: the beats it has already seen are history.
       await page.goto(`${base}/arena/preview?fixture=${fixture}&skin=${skin}&admin=0`);
       await page.waitFor(".arena", 60000);

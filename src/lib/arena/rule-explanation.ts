@@ -21,9 +21,20 @@ export const ExplanationSchema = z.object({
   meaning: z.string().min(1).max(2000),
   confident: z.boolean(),
   question: z.string().max(2000),
-  ruleJson: z.string().max(30000),
+  ruleJson: z.string().max(30000).describe('Serialized complete rule JSON: exactly kind, trigger (string array, [] when there is no WHEN; never null), cost, cond, ops.'),
   missingCapability: z.string().max(2000),
-}).strict();
+}).strict().superRefine((answer, ctx) => {
+  if (!answer.confident || answer.question.trim() || answer.missingCapability.trim()) return;
+  // Validate inside the serialized field at generation time too, so generateJson's
+  // existing bounded repair retry gets the actual error rather than saving bad output.
+  try {
+    const json = JSON.parse(answer.ruleJson);
+    const checked = readRule(json, json?.kind);
+    if ("error" in checked) ctx.addIssue({ code: "custom", path: ["ruleJson"], message: checked.error.message });
+  } catch {
+    ctx.addIssue({ code: "custom", path: ["ruleJson"], message: "Provide structurally valid complete rule JSON." });
+  }
+});
 export type ExplanationAnswer = z.infer<typeof ExplanationSchema>;
 export type ExplanationDecision =
   | { kind: "supported"; rule: Rule; meaning: string; reading: string }
@@ -64,6 +75,7 @@ export function explainDecision(raw: unknown, kind: string, printed: string, ski
     const checked = readRule(json, kind);
     if ("error" in checked) return { kind: "invalid", error: checked.error.message };
     const rule = checked.rule;
+    if (kind === "keyword") return { kind: "question", meaning: answer.meaning, question: "This keyword uses the engine's native activation, payment and resolution. An ordinary THEN program cannot replace that lifecycle. Review the keyword's native rule and Try it before approving a change." };
     if (!rule.ops.length) return { kind: "invalid", error: "The response contains no effect steps. An intentional blank must be set explicitly in the manual builder." };
     const support = runtimeSupportOfRow({ ...rule, printed, unread: [] });
     if (support.unsupported.length) return { kind: "unsupported", missing: support.unsupported, meaning: answer.meaning, proposed: printRule(rule) };

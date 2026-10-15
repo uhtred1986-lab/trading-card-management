@@ -10,6 +10,7 @@ import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { newestFirst, type StoryLine } from "@/lib/arena/story";
 import { cardImage } from "@/lib/catalog/card-image";
 import { ArenaCard } from "./ArenaCard";
+import { useCardEndpoints } from "./stage/use-card-endpoints";
 
 export function Counter({ label, value }: { label: string; value: number }) {
   return (
@@ -92,7 +93,6 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
   const [expanded, setExpanded] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const seen = useRef<number | null>(null);
-  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drag = useRef<{ startX: number; startY: number; from: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
@@ -101,21 +101,16 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
     setShown(spotlight);
     setExpanded(false);
     setOffset({ x: 0, y: 0 });
-    dismissTimer.current = setTimeout(() => setShown(null), 4000);
-    return () => {
-      if (dismissTimer.current) clearTimeout(dismissTimer.current);
-    };
   }, [spotlight]);
 
-  const keepOpen = () => {
-    if (dismissTimer.current) {
-      clearTimeout(dismissTimer.current);
-      dismissTimer.current = null;
-    }
-  };
+  const shownSeq = shown?.seq;
+  useEffect(() => {
+    if (shownSeq == null) return;
+    const timer = setTimeout(() => setShown(null), 4000);
+    return () => clearTimeout(timer);
+  }, [shownSeq]);
 
   const startDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    keepOpen();
     drag.current = { startX: e.clientX, startY: e.clientY, from: offset };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -134,12 +129,12 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
       className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]"
       style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       aria-live="polite"
+      data-skill-spotlight={shown.seq}
     >
       <div className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${shown.unread ? "border-dbs-yellow" : "border-ki-500"}`}>
         <button
           type="button"
           onClick={() => {
-            keepOpen();
             setShown(null);
           }}
           className="tap absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-space-400 hover:bg-space-800 hover:text-space-50"
@@ -168,7 +163,6 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
         <button
           type="button"
           onClick={() => {
-            keepOpen();
             setExpanded((v) => !v);
           }}
           className="tap absolute bottom-1 right-1 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400"
@@ -181,39 +175,15 @@ export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageU
 }
 
 export function AttackBeam({ from, to, hostRef }: { from: string; to: string; hostRef: React.RefObject<HTMLDivElement | null> }) {
-  const [line, setLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
-
-  useEffect(() => {
-    const measure = () => {
-      const host = hostRef.current;
-      const a = host?.querySelector(`[data-arena-card="${CSS.escape(from)}"]`);
-      const b = host?.querySelector(`[data-arena-card="${CSS.escape(to)}"]`);
-      if (!host || !a || !b) return setLine(null);
-      const h = host.getBoundingClientRect();
-      const ra = a.getBoundingClientRect();
-      const rb = b.getBoundingClientRect();
-      setLine({
-        x1: ra.left + ra.width / 2 - h.left,
-        y1: ra.top + ra.height / 2 - h.top,
-        x2: rb.left + rb.width / 2 - h.left,
-        y2: rb.top + rb.height / 2 - h.top,
-      });
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
-    return () => {
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
-    };
-  }, [from, to, hostRef]);
-
-  if (!line) return null;
+  const endpoints = useCardEndpoints(from, to, hostRef);
+  if (!endpoints) return null;
+  const { from: a, to: b } = endpoints;
+  const line = { x1: a.x + a.w / 2, y1: a.y + a.h / 2, x2: b.x + b.w / 2, y2: b.y + b.h / 2 };
   const cx = (line.x1 + line.x2) / 2;
   const cy = (line.y1 + line.y2) / 2 - Math.max(40, Math.abs(line.x2 - line.x1) / 5);
   const d = `M ${line.x1} ${line.y1} Q ${cx} ${cy} ${line.x2} ${line.y2}`;
   return (
-    <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible" aria-hidden>
+    <svg data-attack-beam={`${from}:${to}`} className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible" aria-hidden>
       <path d={d} fill="none" stroke="var(--color-ki-500)" strokeOpacity={0.25} strokeWidth={12} strokeLinecap="round" />
       <path d={d} fill="none" stroke="var(--color-ki-300)" strokeWidth={3} strokeLinecap="round" />
       <circle cx={line.x2} cy={line.y2} r={7} fill="var(--color-ki-400)" fillOpacity={0.35} />
@@ -289,6 +259,7 @@ export function DockedInspector({
   chips,
   stats,
   actions,
+  basicActions,
   pinned,
   onUnpin,
   narrator = DEFAULT_NARRATOR,
@@ -300,6 +271,7 @@ export function DockedInspector({
   chips: InspectorChip[];
   stats: React.ReactNode;
   actions: React.ReactNode;
+  basicActions?: React.ReactNode;
   pinned: boolean;
   onUnpin: () => void;
   narrator?: Narrator;
@@ -317,6 +289,7 @@ export function DockedInspector({
   }
   return (
     <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
+      {basicActions}
       {card.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- the board has already loaded this URL.
         <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mx-auto w-[clamp(6.5rem,16dvh,9.5rem)] rounded-lg object-cover" />

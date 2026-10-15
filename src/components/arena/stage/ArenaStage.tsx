@@ -439,7 +439,7 @@ export function ArenaStage({
   }
 
   /**
-   * A skill that found no target (#783), as a notice the player acknowledges. `pendingQuiet` is
+   * A skill that found no target (#783), as a notice dismissed manually or after four seconds. `pendingQuiet` is
    * any not yet acknowledged — it holds the computer's next advance at once; `notice` is the one
    * the story has reached, which is what is on screen (and what pauses the story).
    */
@@ -767,9 +767,8 @@ export function ArenaStage({
   }, [busy, sheet, attackPick, searchOpen, moreOpen, isTargeting, onTutorialState]);
 
   const chooseNone = taps.bare.find((i) => legal[i].action.type === "choose" && (legal[i].action as { cards: string[] }).cards.length === 0) ?? null;
-  const refusedChoices = rejected.flatMap((r) => r.action.type === "choose" && r.action.cards.length === 1
-    ? [{ card: cardOf(r.action.cards[0]), reason: r.why.map((why) => why.kind === "target" ? why.reason : why.kind).join(" · "), label: locate(r.action.cards[0])?.zone === "leader" ? "Leader" : cardOf(r.action.cards[0])?.keywords.includes("Barrier") ? "Barrier" : "No" }]
-    : []).filter((item): item is { card: CardView; reason: string; label: string } => !!item.card);
+  // A hidden-zone search only exposes the prompt's own candidates. Rejected
+  // choose diagnostics span the whole board and are not cards looked at.
   // The bar's buttons. While a search is on, "Choose none" lives in the sheet
   // and the bar keeps one button that reopens it, so the question has room.
   const bare = taps.bare.filter((i) => !(searching && i === chooseNone)).map((i) => ({ i, l: legal[i] })).sort((a, b) => Number(isGhostAction(a.l.action)) - Number(isGhostAction(b.l.action)));
@@ -1345,7 +1344,7 @@ export function ArenaStage({
         // 0.5 rem gutter for everything else), so its edge line is flush.
         // From lg the board has one match strip over the field and hand, with
         // the decision above card review in the contextual right column.
-        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-sm:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
+        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-lg:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
         data-response-window={defending ? view.prompt.kind : undefined}
@@ -1613,7 +1612,8 @@ export function ArenaStage({
                     />
                   )
                 }
-                actions={inspectCard && <ActionRows card={inspectCard} side={view.you} moves={inspectMoves} rejected={inspectRejected} onPick={pickMove} narrator={narrator} docked />}
+                basicActions={inspectCard && inspectMoves.some((move) => move.legal.action.type === "charge" || move.legal.action.type === "attack") && <div className="space-y-2" data-review-basic-actions><ActionRows card={inspectCard} side={view.you} moves={inspectMoves.filter((move) => move.legal.action.type === "charge" || move.legal.action.type === "attack")} rejected={[]} onPick={pickMove} narrator={narrator} docked basicOnly /></div>}
+                actions={inspectCard && <ActionRows card={inspectCard} side={view.you} moves={inspectMoves.filter((move) => move.legal.action.type !== "charge" && move.legal.action.type !== "attack")} rejected={inspectRejected} onPick={pickMove} narrator={narrator} docked />}
                 pinned={!!pinned}
                 onUnpin={() => setPinned(null)}
                 narrator={narrator}
@@ -1855,7 +1855,6 @@ export function ArenaStage({
           <SearchSheet
             prompt={view.prompt}
             choices={choices}
-            refused={refusedChoices}
             indexOf={(id) => taps.byCard[id]?.[0]}
             none={chooseNone}
             onPick={(i) => send(legal[i].action)}
