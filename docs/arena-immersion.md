@@ -71,3 +71,11 @@ Focused proof: `scripts/arena-hand-scrub.mts` exercises continuous real touch se
 ### Wide rule bars and individual info controls (#886)
 
 The lifted hand preview uses level, wide ability bars across the rules area, with a slight tilt on the artwork only. Each bar has its own 44px info button that expands the exact printed ability in a scrollable region; tapping the summary itself never activates or expands it. Available abilities retain an availability glow, while passive rules remain neutral. The large details header is replaced by a compact ellipsis control for the existing details/action/payment view. Continuous hand scrubbing and unknown-layout trays are preserved.
+
+### Tablet and desktop card-first layout (#888)
+
+The desktop inspector starts at 1280px. Tablets from 768–1279px keep the single touch board, with larger cards in portrait and tighter spacing in landscape. Dense decision docks scroll within 42dvh. Touch-held hand previews work even on wider tablet screens, while desktop mouse hover/focus reviews cards, clicking pins the card, and Left/Right moves through the hand. Existing mouse dragging and explicit action/payment controls remain.
+
+Desktop inspection uses the same large CardReader, wide ability bars and individual full-text info controls as phones. Other card details are disclosed on demand; unused slot outlines are hidden, and hand labels have dedicated bottom space. Ability bar width is bounded by the reader container so it cannot overflow the side panel.
+
+Focused checks: 768×1024/1024×768 tablet layout and 1440×900 desktop layout, full-text expansion without actions, desktop keyboard hand inspection, continuous touch across phone/tablet/1366px-wide touch screens, and tablet counter/combo dock scrolling. No engine/deck suite.

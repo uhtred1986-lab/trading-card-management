@@ -54,7 +54,7 @@ export function Hand({
     const measure = () => {
       const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
       // Less the side padding (px-2.5): the fan lays out inside it.
-      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1024px)").matches };
+      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1280px)").matches };
       setRoom((current) => current?.width === next.width && current.card === next.card && current.desktop === next.desktop ? current : next);
     };
     measure();
@@ -67,7 +67,7 @@ export function Hand({
   const pointer = useRef<number | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const suppressedClick = useRef(0);
-  const browsing = !wide && browseEnabled;
+  const browsing = browseEnabled;
   const visiblePeek = browsing ? cards.find(c => c.id === peek?.id) : null;
   const showPeek = (id: string, x?: number) => {
     const el = fan.current;
@@ -118,27 +118,38 @@ export function Hand({
           review on a tap, and the public zones are in the board's menu, so a phone keeps the row for
           the cards themselves. */}
       {(firstProps?.onInspect || onZones) && (
-        <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden lg:flex"}`}>
-          <span className="mr-auto hidden text-xs font-semibold text-space-100 lg:inline">Hand · {n}<span className="ml-2 font-normal">Swipe to browse</span></span>
+        <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden xl:flex"}`}>
+          <span className="mr-auto hidden text-xs font-semibold text-space-100 xl:inline">Hand · {n}<span className="ml-2 font-normal">Swipe to browse</span></span>
           {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
           {firstProps?.onInspect && <button
             type="button"
             onClick={firstProps.onInspect}
             aria-label={`Inspect your hand, starting with ${first?.hidden ? "face-down card" : first?.name ?? "first card"}`}
-            className="tap hidden min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 lg:inline-flex hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
+            className="tap hidden min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 xl:inline-flex hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
           >
             <span aria-hidden="true">⌕</span>
             <span>Inspect hand</span>
           </button>}
-          {n > 0 && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
-          {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
+          {n > 0 && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 xl:block`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
+          {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 xl:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
       {fanMode && <p className={styles.handFanHeader}>Your hand · {n} · {cards.filter((c) => ["playable", "targets", "noTarget"].includes(handStatus?.(c.id) ?? "")).length} playable · tap a card to browse</p>}
       <div className={`${fanMode ? styles.handRow : ""}`} data-hand-fan={fanMode ? "" : undefined}>
       <div ref={fan}
+        onKeyDown={e => {
+          if (!wide || !["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+          const current = (e.target as HTMLElement).closest<HTMLElement>("[data-hand-browse-card]");
+          if (!current) return;
+          const index = cards.findIndex(c => c.id === current.dataset.handBrowseCard);
+          const next = cards[index + (e.key === "ArrowRight" ? 1 : -1)];
+          if (!next) return;
+          e.preventDefault();
+          e.currentTarget.querySelector<HTMLButtonElement>(`[data-hand-browse-card="${CSS.escape(next.id)}"] button`)?.focus();
+          cardProps(next).onInspect?.();
+        }}
         onPointerDownCapture={e => {
-          if (!browsing || !e.isPrimary || e.button !== 0) return;
+          if (!browsing || !e.isPrimary || e.button !== 0 || (wide && e.pointerType === "mouse")) return;
           const target = (e.target as HTMLElement).closest<HTMLElement>("[data-hand-browse-card]");
           if (!target) return;
           e.preventDefault(); e.stopPropagation();
@@ -177,19 +188,19 @@ export function Hand({
           return (
             <div
               key={c.id}
-              {...(browsing ? {} : handlers)}
+              {...(!wide && browsing ? {} : handlers)}
               data-hand-browse-card={c.id}
               className={`${styles.handCard} relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{
                 marginLeft: i === 0 ? 0 : step - card,
-                zIndex: !browsing && up ? 60 : i + 1,
+                zIndex: wide && up ? 60 : i + 1,
                 // Keep horizontal swipes for browsing while retaining vertical drags.
                 touchAction: browsing ? "none" : handlers ? (wide ? "none" : "pan-x") : undefined,
                 transform: visiblePeek?.id === c.id ? "translateY(-12px)" : undefined,
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
               }}
             >
-              <StageCard {...props} onTap={browsing ? () => showPeek(c.id) : props.onTap} onDoubleTap={browsing ? undefined : props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
+              <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={browsing ? undefined : props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
               {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
