@@ -1545,7 +1545,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* CSS places this single decision panel under the hand on phones and
