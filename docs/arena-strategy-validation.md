@@ -5,8 +5,9 @@ one resource-engine example, alongside aggro, control, fusion/evolution, recursi
 multicolor and Unison strategies. Deck qualification proves that required rules
 are available; a completed or winning game does not prove that the opponent used
 those rules well. This plan adds twelve general strategy benchmarks to #827 and
-supports the stronger-opponent work in #826. No new strategic tests or paid runs
-have been completed by adding this checklist.
+supports the stronger-opponent work in #826. Five tactical subcases now have executable evidence in
+[resource-aware search](arena-resource-search-826.md); the twelve benchmark families
+are not yet fully covered. No paid comparison runs have started.
 
 The [testing catalog](../src/lib/arena/testing/catalog.ts) has 64 proposed decks
 (16 first-wave) and 55 planned scenarios: 24 rule/interaction families, 12 general
@@ -51,8 +52,9 @@ a line exists. Count bounded multiple attacks and own combos; ordinary Life dama
 can replenish the defender's combo hand. Test Dual/Triple Attack, Critical pressure
 and a wide small-attacker board, plus a position without forced lethal. Existing
 combat threshold/Strike evidence and one search two-attacker lethal are partial;
-the real three-attacker search example fails after Life-to-hand replenishment.
-That failure is a regression target, not proof of successful multiattack planning.
+the historical three-attacker failure remains a regression control. Resource-aware
+search now models sampled Life-to-hand replenishment and passes a paid-combo lethal
+subcase; that does not prove complete multiattack planning.
 
 ### AI-02
 
@@ -89,7 +91,8 @@ proven damage/lethal objective against its legal defenses, with Critical Life go
 to Drop and ordinary Life entering hand. Critical-first is not a universal rule.
 Variants: mixed attackers, multiple attacks and blockers/Strike damage. Partial:
 combat values Critical/Double Strike. Missing: exact real-deck attack-order cases;
-the experimental search omits Life-to-hand replenishment.
+resource-aware search now passes declared Critical-first and normal-first synthetic
+subcases, while real-deck coverage remains open.
 
 ### AI-06
 
@@ -288,3 +291,26 @@ legal action IDs, exact model identity, per-request usage ledger, retry accounti
 and a worst-next-call budget reservation. Review disputed lines by replaying
 alternatives. It is a diagnostic comparison, not the implementation of the free
 local opponent, and its explanation alone cannot mark a benchmark passed.
+
+## Next technical improvement batch
+
+Use development cases to improve useful search coverage before increasing depth.
+Record searched/fallback decisions by window and unsupported reason; cache complete
+resource-subset frontiers within each decision while preserving common samples,
+deterministic ties, the 4096-node/256 KiB bounds and exact fallback behavior. Depth
+three showed no development advantage, so deeper search alone is not the next step.
+
+Use engine-offered combo costs and explicit energy-marker facts. Retain the
+heuristic when its useful activation is outside the search model. Before modeling
+Dual/Triple Attack, expose public keyword parameters and remaining-use facts,
+keeping unknown values explicit. Add engine-checked cases for equivalent payments,
+preserving defense against a second threat, activation versus combo, and multiple
+attacks. Define objectives and acceptable lines before scoring a candidate.
+
+Compare caching, resource corrections and their combination on development seeds;
+retain every failed or unfinished attempt. Freeze the reviewed candidate, verify
+browser budgets, and reserve new untouched seeds before another strength claim.
+Continue named-deck rule/scenario qualification alongside this work. An Opus
+adapter must use the same restricted observation/legal-action boundary, a pinned
+model and verified token-category rates, request reservations and campaign caps;
+paid execution awaits an agreed spend limit.

@@ -19,7 +19,7 @@ Update evidence only after review, not merely because a deck compiles or a game 
 | Item | Status | Evidence / next step |
 |---|---|---|
 | Release/Leader/mechanic proposal | Prepared | 62 booster candidates; 16 first-wave decks including two starter controls. |
-| Initial concrete quantities | Seven draft lists prepared | Six pass current app-catalog legality; original BT3-112 Trunks recipe is banned. Separate legal control omits its historical return ability. Full rule/strategy qualification remains pending. |
+| Initial concrete quantities | Seven draft lists for six recipes prepared | Six pass current app-catalog legality; original BT3-112 Trunks recipe is banned. Separate legal control omits its historical return ability. Full rule/strategy qualification remains pending. |
 | Existing starter controls | Existing audited baseline | SD5/SD15 source lists and named proofs in `arena-offline-deck-audit.md`. |
 | Small scenarios | Planned, existing proofs reusable | 24 rule families, 12 general strategy benchmarks, 12 White Cell rule cases and 7 White Cell strategy cases; exact variants remain to be built. |
 | Combined PR #824 code gates | Merged and deployed | Integrated typecheck, lint, full tests and production build; isolated browser persistence/filtering checks at 390/1440 widths. |
@@ -31,7 +31,7 @@ Update evidence only after review, not merely because a deck compiles or a game 
 | Opus pilot | Not started | 0 paid comparison games; $0 campaign spend. Suggested 8 games / $20 cap. |
 | Full Opus campaign | Not started | Suggested 40 games / $100 total cap, inclusive of pilot. |
 | White Cell strategic effectiveness | Unproven | Dedicated rule and decision checklist below; readiness is not strategy evidence. |
-| Rename discoverability | Implemented; browser review | Rename beside the deck title and a link from the selected Arena deck; name-only changes preserve deck contents and notes. |
+| Rename discoverability | Browser checks passed | Rename beside the deck title and a link from the selected Arena deck; name-only changes preserve deck contents and notes. |
 
 ## First-wave deck progress
 
@@ -74,7 +74,8 @@ player deck or hidden-state data; link a public aggregate summary here.
 The current owner deck named White Cell was accepted by the existing readiness gate
 and appeared in the random-game sample. Neither establishes that its full printed
 engine behavior is correct or that either opponent uses it well. The proposed
-BT31-116 recipe is not yet assembled and has no Opus result.
+BT31-116 recipe now has draft quantities, but is not yet rule/strategy qualified
+and has no Opus result.
 
 Use the [dedicated White Cell checklist](arena-white-cell-validation.md) to separately
 mark **rule scenario passed**, **local policy decision passed**, **Opus decision
