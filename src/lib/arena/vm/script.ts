@@ -810,7 +810,7 @@ export type Op =
    * `by: "skill"` narrows it to departures a skill caused, and
    * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -848,7 +848,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1220,6 +1220,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** #920: explicit Drop activation action price, additive for newly queued frames only. */
+  dropCost?: import("./drop-costs").DropCost;
   /** #624: optional Revive hand payment before determining additional costs.
    * Additive at state version 10: older suspended frames execute their stored
    * program/payment history; never infer or replay a previously paid cost. */
@@ -2675,7 +2677,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 source: frame.card,
                 target: id,
                 kind: "replaceLeave",
-                value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+                value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
                 until: op.until,
               });
             }
@@ -2685,7 +2687,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               source: frame.card,
               target: "",
               kind: "replaceLeave",
-              value: { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+              value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
               until: op.until,
             });
           }

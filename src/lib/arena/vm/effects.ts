@@ -505,7 +505,7 @@ export function permanents(
   // The Warp only for the one permission about the card's own line used from
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
   // holds from the Warp, the same as the legacy `staticEffects`.
-  const zones = [...inPlay, "hand", "zDeck", "warp"].filter((zone) => game.zones[zone]?.place !== false);
+  const zones = [...inPlay, "hand", "zDeck", "warp", "combo"].filter((zone) => game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
@@ -525,7 +525,8 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp") : program.ops;
+          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp")
+            : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
       }
@@ -742,14 +743,16 @@ function collect(
     // of the play is not standing at all (it resolves). The legacy
     // `collectStatics`' reading, word for word, under its one kind.
     if (op.op === "replaceLeave") {
-      if (!inPlayNow) continue;
+      const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
+      if (op.from ? !explicitSource : !inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
-      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
+      const value: Replacement = { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value }, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) });
       continue;
     }
     if (op.op === "replace") {
-      if (op.event === "play" || !inPlayNow) continue;
+      const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
+      if (op.event === "play" || (op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.
@@ -758,8 +761,8 @@ function collect(
       const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
-        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
-        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
+        ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
+        : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }

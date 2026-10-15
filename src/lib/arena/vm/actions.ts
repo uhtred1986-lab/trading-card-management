@@ -44,6 +44,7 @@ import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
 import { activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
+import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDropCost } from "./drop-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
 import { readableAutomaticPrice } from "./auto-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
@@ -253,6 +254,7 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     // pays leaves the whole action payable on the strict host, and 22-22-3's
     // reveal still possible after it — proven on a copy of the board.
     else if (!gates.after.length) why.push(...swapPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
+    if (plan.ok && !gates.after.length && !why.length) why.push(...dropPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
   }
   why.push(...gates.after);
   const out: Candidate[] = [{ card: line.card, skill: line.skillIndex, why, price }];
@@ -939,6 +941,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
+    if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
@@ -964,12 +967,16 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
     const queued = state.programs.length;
-    resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
+    const strictDrop = hasDropActionPrice(state, line);
+    if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x);
+    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
     if (gate) queueTaxGate(state, gate, state.programs.length - queued);
-    fire(ctx, game, state, moment);
-    for (const m of keywordMoments) fire(ctx, game, state, m);
+    if (!strictDrop) {
+      fire(ctx, game, state, moment);
+      for (const m of keywordMoments) fire(ctx, game, state, m);
+    }
   } else {
     runProgram(state, def, player, chosen);
     if (card !== null) chargeTaxes(ctx, game, state, def, player, card, action);

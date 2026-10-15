@@ -211,6 +211,11 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // valid once it is in play, so a line there that is no keyword's move is
     // no candidate at all — the legacy menu never asks about one.
     if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
+    // #920 / 9-1-3-2: the Drop is a candidate area only when this
+    // non-keyword line's persisted program explicitly takes this card from
+    // there. Unrelated lines and keyword moves gain no Drop permission.
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.drop &&
+      (keyword || !usableFrom(showing.scripts.bySkill[skill.index]).includes("drop"))) continue;
     // 22-15 widened: the Warp is where nothing is used from, except an [Over
     // Realm] line whose own card's [Permanent] says it "can be activated from
     // its owner's Warp under the same conditions as if it were in your hand"

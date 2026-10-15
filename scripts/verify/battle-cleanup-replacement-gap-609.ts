@@ -268,7 +268,7 @@ for (const accept of [true, false]) {
   const subject = stage(s, "SUBJECT609", "p1", "combo");
   addEffect(s, [], { source: watcher, master: "p1", target: subject, kind: "replaceLeave",
     value: { to: "warp", optional: true, target: { area: "combo", side: "you" } }, until: "battle" });
-  assert.equal(replacementChoices(ctx, dbs, s, subject, undefined, { requestedTo: "drop" }).length, 1);
+  assert.equal(replacementChoices(ctx, dbs, s, subject, undefined, { requestedTo: "drop", comboCleanup: true }).length, 1);
   atEnd(s, watcher, guard);
   const offered = take(s, { type: "zEnergyFromCombo", player: "p1", card: null });
   assert.equal(offered.state.prompt.kind, "replaceMove");
