@@ -21,6 +21,7 @@ import type { StoredProbe } from "./rules-store";
 import type { Cond, CostRecord, Op } from "./vm/script";
 import { reviewVersion } from "./rule-review-version";
 import type { SavedExplanation } from "./rule-explanation";
+import { reopenRule } from "./rules-store";
 
 /** One skill in the queue, as the phone gets it: the record, the card around it and what is known of its play. */
 export interface ReviewItem {
@@ -175,6 +176,18 @@ export async function reviewItemById(db: Db, id: number, extra: { decks: string[
   if (!r) return null;
   const siblings = r.rule.status === "draft" && r.rule.pattern ? ((await draftsByPattern(db, [r.rule.pattern])).get(r.rule.pattern)?.length ?? 1) - 1 : 0;
   return { ...itemOf(r.rule, r.card, { ...extra, sameWording: Math.max(0, siblings) }), pendingExplanation: (await pendingExplanations(db, [r.rule])).get(id) };
+}
+
+/** Undo approval, preserving its interpretation and returning the exact fresh queue version. */
+export async function reopenReviewedRule(db: Db, id: number, extra: { decks: string[]; firedIn: number | null }): Promise<ReviewItem> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ id: cardRules.id }).from(cardRules).where(eq(cardRules.id, id)).for("update");
+    if (!row) throw new Error("No such rule.");
+    await reopenRule(tx as Db, id);
+    const item = await reviewItemById(tx as Db, id, extra);
+    if (!item) throw new Error("No such card for this rule.");
+    return item;
+  });
 }
 
 /** Resume candidates/issue receipts only for the exact record they were requested against. */

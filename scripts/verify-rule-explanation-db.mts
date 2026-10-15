@@ -7,7 +7,7 @@ import { requestRuleExplanation, approveRuleExplanation, retryExplanationIssue, 
 import { explainDecision, type ExplanationAnswer } from "../src/lib/arena/rule-explanation.ts";
 import { reviewVersion } from "../src/lib/arena/rule-review-version.ts";
 import { saveRule, reopenRule, confirmReviewedRule, loadRules, rulesFromRows } from "../src/lib/arena/rules-store.ts";
-import { reviewItemById } from "../src/lib/arena/rule-review-store.ts";
+import { reviewItemById, reopenReviewedRule } from "../src/lib/arena/rule-review-store.ts";
 import { feedbackIssueEligible, syncFeedbackItem, syncAllFeedbackItems } from "../lib/github.ts";
 import type { Rule } from "../src/lib/arena/lang/ast.ts";
 import { ruleReading } from "../src/lib/arena/rule-reading.ts";
@@ -96,6 +96,17 @@ export async function verifyRuleExplanationDb(db: Db) {
   assert.equal(generateCalls, callsBeforeProtected, "protected rules refuse before a model call");
   await assert.rejects(() => saveRule(db, { cardId: approved.cardId, side: "front", skillIndex: 0, source: "claude", status: "draft", ops: [{ op: "draw", n: 99 }] }), /cannot be overwritten/);
   assert.deepEqual(await get(), approved, "legacy Claude writers cannot overwrite approved semantics");
+  const reopened = await reopenReviewedRule(db, first.id, { decks: ["Review deck"], firedIn: 836 });
+  assert.equal(reopened.status, "draft");
+  assert.notEqual(reopened.reviewVersion, reviewVersion(approved), "Undo returns a fresh exact approval version");
+  assert.deepEqual(reopened.ops, rule.ops, "Undo approval preserves the newly approved interpretation");
+  assert.deepEqual(reopened.cost, rule.cost);
+  assert.deepEqual(reopened.cond, rule.cond);
+  assert.deepEqual(reopened.decks, ["Review deck"]);
+  assert.equal(reopened.firedIn, 836);
+  assert.equal(reopened.pendingExplanation, undefined, "The approved proposal is not offered again");
+  await confirmReviewedRule(db, first.id, reopened.reviewVersion!);
+  assert.equal((await get()).status, "confirmed", "The refreshed interpretation can be approved again after Undo");
   await saveRule(db, { cardId: approved.cardId, side: "front", skillIndex: 0, ...rule, source: "user", status: "corrected" });
   const corrected = await get();
   await assert.rejects(() => request(), /Reopen/);

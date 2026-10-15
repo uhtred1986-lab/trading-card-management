@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { confirmRuleAction, reopenRuleAction, undoConfirmAction } from "@/app/arena/actions";
+import { confirmRuleAction, undoConfirmAction } from "@/app/arena/actions";
 import { flagWrongAction, unflagWrongAction } from "@/app/arena/rules/review/actions";
-import { requestExplanationAction, approveExplanationAction, retryExplanationIssueAction } from "@/app/arena/rules/review/explanation-actions";
+import { requestExplanationAction, approveExplanationAction, retryExplanationIssueAction, reopenReviewedRuleAction } from "@/app/arena/rules/review/explanation-actions";
 import { RuleExplanationPanel, type ExplanationActions } from "./RuleExplanationPanel";
 import { RuleReading } from "./RuleReading";
 import type { Rule } from "@/lib/arena/lang/ast";
@@ -26,7 +26,7 @@ import type { FlagReceipt, ReviewItem } from "@/lib/arena/rule-review-store";
  * from its toast.
  */
 
-type ReviewProps = { items: ReviewItem[]; scope: string; backHref: string; reviewHref?: string; flagged?: number; flaggedOnly?: boolean; startId?: number | null; explanationActions?: ExplanationActions; confirmAction?: typeof confirmRuleAction };
+type ReviewProps = { items: ReviewItem[]; scope: string; backHref: string; reviewHref?: string; flagged?: number; flaggedOnly?: boolean; startId?: number | null; explanationActions?: ExplanationActions; confirmAction?: typeof confirmRuleAction; reopenAction?: typeof reopenReviewedRuleAction };
 const LIVE_EXPLANATION: ExplanationActions = { request: requestExplanationAction, approve: approveExplanationAction, retry: retryExplanationIssueAction };
 
 type Verdict = "right" | "all" | "wrong" | "skip";
@@ -78,7 +78,7 @@ export function RuleReview({ admin, ...props }: ReviewProps & { admin: boolean }
   );
 }
 
-function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/review", flagged = 0, flaggedOnly = false, startId, explanationActions = LIVE_EXPLANATION, confirmAction = confirmRuleAction }: ReviewProps) {
+function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/review", flagged = 0, flaggedOnly = false, startId, explanationActions = LIVE_EXPLANATION, confirmAction = confirmRuleAction, reopenAction = reopenReviewedRuleAction }: ReviewProps) {
   const admin = useArenaAdmin();
   const [items, setItems] = useState(() => {
     const first = initial.findIndex((x) => x.id === startId);
@@ -154,7 +154,12 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
       let error: string | null = null;
       const v = { ...verdicts };
       if (last.kind === "right") {
-        error = (await reopenRuleAction(last.id)).error;
+        const previous = items.find((entry) => entry.id === last.id);
+        if (!previous) return fail("Reload this review before undoing its approval.");
+        const reopened = await reopenAction(last.id, { decks: previous.decks, firedIn: previous.firedIn });
+        if (reopened.error || !reopened.item) return fail(reopened.error ?? "The reopened interpretation could not be loaded.");
+        setItems((queue) => queue.map((entry) => entry.id === last.id ? reopened.item! : entry));
+        setExplaining(!!reopened.item.pendingExplanation);
         delete v[last.id];
       } else if (last.kind === "all") {
         error = (await undoConfirmAction(last.batchId)).error;

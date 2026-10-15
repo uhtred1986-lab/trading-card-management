@@ -5,6 +5,19 @@ import { db } from "@/db";
 import { requireSl, isArenaAdmin, currentUser } from "@/lib/auth";
 import { approveRuleExplanation, requestRuleExplanation, retryExplanationIssue } from "@/lib/arena/rule-explanation-store";
 import type { ExplanationResult } from "@/lib/arena/rule-explanation";
+import { reopenReviewedRule, type ReviewItem } from "@/lib/arena/rule-review-store";
+
+export async function reopenReviewedRuleAction(id: number, context: { decks: string[]; firedIn: number | null }): Promise<{ error: string | null; item: ReviewItem | null }> {
+  await requireSl();
+  if (!(await isArenaAdmin())) return { error: "Only an arena admin can reopen rule reviews.", item: null };
+  if (!Number.isInteger(id) || !context || !Array.isArray(context.decks) || !context.decks.every((name) => typeof name === "string") || (context.firedIn !== null && !Number.isInteger(context.firedIn))) return { error: "Invalid review context.", item: null };
+  try {
+    const item = await reopenReviewedRule(db, id, context);
+    revalidatePath("/arena/rules");
+    revalidatePath("/arena/rules/review");
+    return { error: null, item };
+  } catch (error) { return { error: error instanceof Error ? error.message : "Could not reopen this interpretation.", item: null }; }
+}
 
 export async function requestExplanationAction(id: number, version: string, explanation: string): Promise<{ error: string | null; result: ExplanationResult | null }> {
   await requireSl();
