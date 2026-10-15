@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 type Params = Record<string, string | string[] | undefined>;
 
 export default async function DecksPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requireSignedInPage();
+  const viewer = await requireSignedInPage();
+  const canMarkTesting = viewer.kind === "sl";
   const sp = await searchParams;
   const raw = Array.isArray(sp.show) ? sp.show[0] : sp.show;
   const show: "all" | "built" | "virtual" = raw === "built" || raw === "virtual" ? raw : "all";
@@ -43,11 +44,17 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
           </Link>
           <NewDeckWithClaude enabled={hasAnthropic()} />
           <NewDeckFromCard enabled={hasAnthropic()} />
-          <form action={createDeckForm} className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <form action={createDeckForm} className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
             <input aria-label="New deck name" name="name" placeholder="New deck name" className="tap min-w-0 flex-1 rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             {/* A deck belongs to one game from the moment it exists — its rules
                 and the cards its builder offers both follow from this. */}
             <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
+            {canMarkTesting ? (
+              <label className="flex min-h-11 items-center gap-2 text-xs text-space-300">
+                <input type="checkbox" name="isTesting" className="h-4 w-4 accent-ki-500" />
+                Testing deck
+              </label>
+            ) : null}
             <SubmitButton pendingLabel="Creating…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
               Create
             </SubmitButton>
@@ -91,7 +98,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
         id: String(d.id), name: d.name, description: d.description, leaderName: d.leader?.name ?? null,
         leaderId: d.leaderId, colors: d.leader?.colors ?? [], leaderImage: d.leader?.imageUrl,
         group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, status: d.legality.status,
-        note: [d.locationName, ...d.legality.issues.map((i) => i.message)].filter(Boolean).join(" · "), href: `/decks/${d.id}`,
+        note: [d.isTesting ? "Testing deck · hidden from Arena play pickers by default" : null, d.locationName, ...d.legality.issues.map((i) => i.message)].filter(Boolean).join(" · "), href: `/decks/${d.id}`,
       }))} />}
 
     </div>

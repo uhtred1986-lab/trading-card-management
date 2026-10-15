@@ -96,9 +96,9 @@ export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store
                 <span className="min-w-0">
                   <span className="block font-medium text-space-50">{d.name}</span>
                   <span className="block text-xs text-space-300">
-                    {d.leader} · {d.deckId === null ? "built in" : "your deck"} · {d.images} card pictures{size ? `, about ${formatBytes(size)}` : ""}
+                    {d.leader} · {d.deckId === null ? "built in" : "your deck"}{d.isTesting ? " · testing" : ""} · {d.images} card pictures{size ? `, about ${formatBytes(size)}` : ""}
                   </span>
-                  {stale && <span className="block text-xs text-dbs-yellow" data-needs-update>Its list changed online since you downloaded it.</span>}
+                  {stale && <span className="block text-xs text-dbs-yellow" data-needs-update>This deck changed online since you downloaded it.</span>}
                 </span>
                 {d.deckId !== null && (
                   <span className="flex flex-wrap gap-2">

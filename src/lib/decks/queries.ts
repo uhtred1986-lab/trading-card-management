@@ -71,6 +71,7 @@ export async function listDecks(db: Db, opts: { game?: Game; viewer?: OwnerScope
       game: decks.game,
       description: decks.description,
       isBuilt: decks.isBuilt,
+      isTesting: decks.isTesting,
       updatedAt: decks.updatedAt,
       owner: decks.owner,
       leaderId: sql<string | null>`(select dc.card_id from ${deckCards} dc where dc.deck_id = ${decks.id} and dc.zone = 'leader' limit 1)`,

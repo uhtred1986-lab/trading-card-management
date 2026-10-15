@@ -95,7 +95,7 @@ export interface PackFacts {
   hash: string;
   id: string;
   runtimeRevision: string;
-  decks: { key: string; name: string; leader: string | null }[];
+  decks: { key: string; name: string; leader: string | null; isTesting?: boolean }[];
 }
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -113,6 +113,7 @@ export function readPack(raw: unknown): PackFacts {
     const reasons = Array.isArray(q.reasons) ? q.reasons.filter((r): r is string => typeof r === "string") : [];
     throw new LocalBoardError("unplayable", `This deck pack is not playable yet${reasons.length ? ` (${reasons.length} open ${reasons.length === 1 ? "reason" : "reasons"})` : ""}. It stays closed until its open blockers are resolved.`, reasons);
   }
+  if (raw.decks.some((d) => record(d) && d.isTesting !== undefined && typeof d.isTesting !== "boolean")) throw new LocalBoardError("pack", "A deck's testing flag must be true or false.");
   // The picker reads these fields before the worker performs full pack validation.
   if (!record(raw.bundle) || !record(raw.bundle.payload) || !record(raw.bundle.payload.defs)
     || raw.decks.some((d) => !record(d) || typeof d.key !== "string" || !record(d.deck) || typeof d.deck.leader !== "string"
@@ -125,7 +126,7 @@ export function readPack(raw: unknown): PackFacts {
     if (!record(d) || typeof d.key !== "string") return [];
     const leaderId = record(d.deck) && typeof d.deck.leader === "string" ? d.deck.leader : null;
     const leader = leaderId ? defs[leaderId] : null;
-    return [{ key: d.key, name: typeof d.name === "string" ? d.name : d.key, leader: record(leader) && typeof leader.name === "string" ? leader.name : null }];
+    return [{ key: d.key, ...(d.isTesting ? { isTesting: true } : {}), name: typeof d.name === "string" ? d.name : d.key, leader: record(leader) && typeof leader.name === "string" ? leader.name : null }];
   });
   if (decks.length < 1) throw new LocalBoardError("pack", "That deck pack has no decks.");
   return { pack: raw as unknown as OfflinePack, hash: raw.hash, id: raw.id, runtimeRevision: raw.compatibility.runtimeRevision, decks };

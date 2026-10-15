@@ -4,6 +4,7 @@ milestone: Arena M17 — Arena home: Play and Rules Workbench
 labels: backlog, epic, area:arena-docs
 stage: ui
 issue: 581
+status: closed
 priority: P0
 touches:
 tracking: true
@@ -15,13 +16,13 @@ Arena delivery backlog reconciled 11 Oct 2026. Priorities: **P0** correctness/tr
 ## Milestones and tracking issues
 
 - [x] #576 **P0** — Match integrity and recovery (Arena M17 — Arena home: Play and Rules Workbench); exit: Missing/unsupported skills cannot look verified; interrupted games never look drawn; clients converge after stale or disconnected requests.
-- [ ] #577 **P0/P1** — Rule engine correctness (Arena M5 — Engine capability gaps and advanced mechanics); exit: Each named mechanic has rule-grounded state, cost, timing and refusal assertions; no supported case silently disappears.
+- [x] #577 **P0/P1** — Rule engine correctness (Arena M5 — Engine capability gaps and advanced mechanics); exit: Each named mechanic has rule-grounded state, cost, timing and refusal assertions; no supported case silently disappears.
 - [x] #578 **P1** — Playable board and fullscreen cards (Arena M16 — Board redesign: play feel and card review); exit: Actor, window, stakes and resources are visible; tap/swipe fullscreen review and timely abilities work with real artwork on phone and desktop.
-- [ ] #579 **P1/P2** — Measured speed and gameplan (Arena M2 — Gameplay UX/HUD completion); exit: Measured acknowledgement, polling and rendering improve without changing legal outcomes or leaking hidden information.
-- [ ] #539 **P1** — Outstanding card readings (Arena M1 — Rules correctness and parser coverage); exit: Every #539 bullet and existing card-specific capability ticket has a bounded owner and deterministic reading proof.
-- [ ] #168 **P2/P3** — Independent coverage and retirement (Arena M13 — Retire the legacy engine (Stage 10)); exit: #459 provides fixed rule expectations; saved-game migration and support evidence pass before #118 removes legacy.
-- [ ] #580 **P2/P3** — Android after web contract (Arena M4 — Android client enablement); exit: #105 and #106 consume the settled auth/snapshot/ability contract with polling and playback parity.
-- [ ] #511 **P2** — AI efficiency and live verification (AI providers — one contract, API or subscription, any vendor); exit: #381 implements the recorded cost ruling; #518 completes owner-run verification of already-built route; #511 records the result.
+- [x] #579 **P1/P2** — Measured speed and gameplan (Arena M2 — Gameplay UX/HUD completion); exit: Measured acknowledgement, polling and rendering improve without changing legal outcomes or leaking hidden information.
+- [x] #539 **P1** — Outstanding card readings (Arena M1 — Rules correctness and parser coverage); exit: Every #539 bullet and existing card-specific capability ticket has a bounded owner and deterministic reading proof.
+- [x] #168 **P2/P3** — Independent coverage and retirement (Arena M13 — Retire the legacy engine (Stage 10)); exit: #459 provides fixed rule expectations; saved-game migration and support evidence pass before #118 removes legacy.
+- [x] #580 **P2/P3** — Android after web contract (Arena M4 — Android client enablement); exit: #105 and #106 consume the settled auth/snapshot/ability contract with polling and playback parity.
+- [x] #511 **P2** — AI efficiency and live verification (AI providers — one contract, API or subscription, any vendor); exit: #381 implements the recorded cost ruling; #518 completes owner-run verification of already-built route; #511 records the result.
 
 ## Delivery progress — 12 Oct 2026
 
@@ -190,3 +191,7 @@ Fifteen original implementation issues remain: M5 #549/#550/#552/#595/#609/#540/
 Current disjoint assignments: #683 implements verified Villainous/Extra hooks with Auto/source-area/self-watcher limits explicit; #459 replaces dynamic legacy comparisons with independently justified fixed expectations. #609 has a rule-grounded cleanup-stage and captured-subject plan; its runtime waits for #683's battle/flow handoff. The inventory has 34 narrow scenarios, three named runtime gaps and 29 guarded VM sites. #549 remains partial for unsupported price instructions, hook applicability and its bounded affordability search; #550's prerequisite is not silently removed.
 
 Completed UI/integrity tracking issues stay closed. Actual milestone object closure is still blocked by the enforced network policy excluding `api.github.com`; the token is present, and the connector exposes no milestone mutation. M17's cross-milestone umbrella #581 still needs reassignment before clean closure. No milestone object is claimed closed. Offline work remains separate. Owner catalog/fuzz/ruling/device/paid-provider checks are not inferred from local tests.
+
+
+## Completion — 15 October 2026
+All eight original programme trackers (#576, #577, #578, #579, #539, #168, #580, #511) are closed. The owner confirms #518 was tested and is working. Android was cancelled by the owner; its closure does not claim a native client. This original delivery programme is complete; continuing deck coverage and opponent improvements remain tracked separately in #637. Earlier dated in-flight lists are historical, not current blockers.

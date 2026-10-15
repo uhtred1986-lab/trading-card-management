@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, customType, date, index, integer, jsonb, pgTable, primaryKey, real, serial, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
@@ -319,6 +319,8 @@ export const decks = pgTable(
     /** Free-form notes about the current meta, fed to the AI wizard. */
     metaNotes: text("meta_notes"),
     isBuilt: boolean("is_built").notNull().default(false),
+    /** Experimental decks are opt-in in the game picker; existing decks stay normal. */
+    isTesting: boolean("is_testing").notNull().default(false),
     builtAt: timestamp("built_at", { withTimezone: true }),
     /** Where the built deck physically sits — the same list the copies use. */
     locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
@@ -824,6 +826,46 @@ export const arenaDecisions = pgTable(
   },
   (t) => [index("arena_decisions_game_idx").on(t.gameId, t.seq), uniqueIndex("arena_decisions_arena_call_idx").on(t.gameId, t.arenaCallId)],
 );
+
+/** Planned coverage recipes are distinct from actual playable deck rows. */
+export const arenaTestingDecks = pgTable("arena_testing_decks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(), category: text("category").notNull(),
+  firstWave: boolean("first_wave").notNull().default(false),
+  description: text("description").notNull(), source: text("source").notNull(),
+  linkedDeckId: integer("linked_deck_id").references(() => decks.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("planned"),
+  note: text("note").notNull().default(""), evidence: text("evidence").notNull().default(""),
+  version: integer("version").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("arena_testing_decks_status_check", sql`${t.status} in ('planned','in_progress','blocked','failed','passed')`), check("arena_testing_decks_version_check", sql`${t.version} >= 0`)]);
+export const arenaTestingScenarios = pgTable("arena_testing_scenarios", {
+  id: text("id").primaryKey(), name: text("name").notNull(), group: text("group").notNull(),
+  description: text("description").notNull(), source: text("source").notNull(),
+  status: text("status").notNull().default("planned"),
+  note: text("note").notNull().default(""), evidence: text("evidence").notNull().default(""),
+  version: integer("version").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("arena_testing_scenarios_status_check", sql`${t.status} in ('planned','in_progress','blocked','failed','passed')`), check("arena_testing_scenarios_version_check", sql`${t.version} >= 0`)]);
+/** Explicit SL-recorded evidence. Never synthesized from device-only matches. */
+export const arenaTestingMatches = pgTable("arena_testing_matches", {
+  id: serial("id").primaryKey(), requestId: text("request_id").notNull().unique(),
+  fingerprint: text("fingerprint").notNull(),
+  p1DeckId: text("p1_deck_id").notNull().references(() => arenaTestingDecks.id),
+  p2DeckId: text("p2_deck_id").notNull().references(() => arenaTestingDecks.id),
+  p1: jsonb("p1").$type<import("@/lib/arena/testing/types").MatchActor>().notNull(),
+  p2: jsonb("p2").$type<import("@/lib/arena/testing/types").MatchActor>().notNull(),
+  outcome: text("outcome").notNull(), winner: text("winner"),
+  seed: integer("seed"), rulesRevision: text("rules_revision").notNull().default(""),
+  evidence: text("evidence").notNull().default(""), note: text("note").notNull().default(""),
+  reportedCostMicros: integer("reported_cost_micros"),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("arena_testing_matches_recorded_idx").on(t.recordedAt),
+  check("arena_testing_matches_outcome_check", sql`${t.outcome} in ('win','draw','interrupted','abandoned','limit')`),
+  check("arena_testing_matches_winner_check", sql`(${t.outcome} = 'win' and ${t.winner} is not null and ${t.winner} in ('p1','p2')) or (${t.outcome} <> 'win' and ${t.winner} is null)`),
+  check("arena_testing_matches_cost_check", sql`${t.reportedCostMicros} >= 0`),
+  check("arena_testing_matches_evidence_check", sql`${t.outcome} not in ('win','draw') or length(trim(${t.evidence})) > 0`),
+]);
 
 /** One durable accounting receipt per Arena provider call, including calls whose move later lost the game-revision CAS. */
 export const arenaAiUsage = pgTable(

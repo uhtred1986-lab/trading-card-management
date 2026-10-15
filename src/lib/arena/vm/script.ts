@@ -1914,6 +1914,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // A persisted bounded choice obeys the same one-card answer and
           // floor as its prompt, even when a host restores an old answer.
           if (op.sel.minCount !== undefined && (answer.length > 1 || sofar.length + answer.length > want || answer.some((id) => !cands.includes(id)) || (!answer.length && sofar.length < minimum && cands.length > 0))) throw new IllegalAction("answer is outside the bounded choice");
+          // The prompt's required pick also applies to a persisted exact
+          // choice. Restoring an empty answer cannot end an accepted N-card
+          // payment early while qualifying candidates are still available.
+          if (!upTo && !answer.length && sofar.length < minimum && cands.length > 0) throw new IllegalAction("that exact choice still requires a card");
           // #677: an exact choice answered with a card that is no longer a
           // candidate — a stale saved answer, the card having left since the
           // question was put — is refused rather than read as picking
@@ -2843,6 +2847,21 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (!op.ops.length) {
           frame.ip++;
           continue;
+        }
+        // 20-16 / #538: an optional exact choice is N or decline. The offer
+        // cannot be accepted with fewer candidates and then use 5-2-5 to move
+        // a partial payment. Check only the first instruction, whose pool is
+        // known now; later instructions may create their own candidates.
+        // Mandatory choices and printed up-to choices keep their usual rules.
+        const first = op.ops[0];
+        if (first.op === "choose" && !first.sel.upTo && first.atMost === undefined && first.sumTo === undefined) {
+          const minimum = first.sel.minCount ?? first.sel.count ?? 1;
+          if (minimum < 99 && h.resolveSelector(frame, first.sel).length < minimum) {
+            (frame.did ??= {}).may = false;
+            frame.vars[first.as] = [];
+            frame.ip++;
+            continue;
+          }
         }
         frame.awaiting = "may";
         h.resume(frame);

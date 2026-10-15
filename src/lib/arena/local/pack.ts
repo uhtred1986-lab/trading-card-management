@@ -59,6 +59,8 @@ export interface PackBlocker {
 export interface PackDeck {
   key: string;
   name: string;
+  /** Optional display metadata; older packs are ordinary decks. */
+  isTesting?: boolean;
   /** Where the decklist comes from (the importer's own description). */
   source: string;
   deck: DeckInput;
@@ -123,7 +125,7 @@ export const PACK_FIELDS = ["blockers", "bundle", "compatibility", "decks", "dep
 /** The catalog fields a pinned definition may carry (`CardDef` as `cardDefFrom` builds it). */
 export const DEF_FIELDS = ["back", "characters", "colors", "comboCost", "comboPower", "energyCost", "id", "name", "power", "skill", "specifiedCost", "traits", "type", "zEnergyCost"] as const;
 export const DECK_INPUT_FIELDS = ["leader", "main", "name", "z"] as const;
-export const PACK_DECK_FIELDS = ["deck", "key", "legality", "name", "source"] as const;
+export const PACK_DECK_FIELDS = ["deck", "key", "legality", "name", "source", "isTesting"] as const;
 /** Key names that would mean account or private-collection data has leaked into a pack. */
 const PRIVATE_KEY = /owner|user|email|account|collection|^lots?$|paid|purchase|session|cookie|password|secret|wishlist|^wants?$|reserv|device/i;
 
@@ -259,7 +261,10 @@ export function privateDataViolations(pack: unknown): string[] {
   for (const [id, a] of Object.entries(bundle?.payload?.art ?? {})) exact(`art.${id}`, a, ["back", "front"]);
   for (const [i, d] of ((pack.decks as unknown[]) ?? []).entries()) {
     exact(`decks[${i}]`, d, PACK_DECK_FIELDS);
-    if (isRecord(d)) exact(`decks[${i}].deck`, d.deck, DECK_INPUT_FIELDS);
+    if (isRecord(d)) {
+      exact(`decks[${i}].deck`, d.deck, DECK_INPUT_FIELDS);
+      if (d.isTesting !== undefined && typeof d.isTesting !== "boolean") out.push(`decks[${i}].isTesting: expected a boolean`);
+    }
   }
   // Every key outside the compiled programs (whose ops legitimately name a `price`) and the ruleset text.
   const walk = (v: unknown, where: string) => {

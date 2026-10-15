@@ -13,7 +13,7 @@ export function localDeckChoices(facts: PackFacts): DiscoveryDeck[] {
     const leaderId = list?.deck.leader;
     const leader = leaderId ? facts.pack.bundle.payload.defs[leaderId] : null;
     return { id:d.key, name:d.name, description:null, leaderName:d.leader,
-      leaderId, colors:Array.isArray(leader?.colors) ? leader.colors.filter((c) => typeof c === "string") : [], group:d.key.startsWith("deck-") ? "Downloaded" : "Pack deck",
+      leaderId, colors:Array.isArray(leader?.colors) ? leader.colors.filter((c) => typeof c === "string") : [], group:d.isTesting ? "Testing" : d.key.startsWith("deck-") ? "Downloaded" : "Pack deck",
       mainCount:list?.deck.main.length ?? 0, note:typeof list?.source === "string" ? list.source : undefined,
     };
   });
