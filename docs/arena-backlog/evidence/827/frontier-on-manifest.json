@@ -1,0 +1,1172 @@
+{
+  "version": 1,
+  "requestId": "75f6b0ba-3e8a-4874-8797-91399bd81a3c",
+  "source": "policy_eval",
+  "runner": {
+    "id": "arena-policy-eval",
+    "version": "3",
+    "gitCommit": "8a634dbf2d9e2f3ae31886b2cf876323f4dccad5",
+    "dirtyTreeSha256": null
+  },
+  "seedSet": "dev",
+  "protocol": {
+    "id": "search-frontier-development",
+    "revision": "resource-frontier-dev-v1"
+  },
+  "fixtures": [
+    {
+      "key": "fixture-ava",
+      "sourceId": "fixture-ava",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": "sd15-01-pride-of-the-saiyans-starter-control",
+      "p2RecipeId": "sd15-01-pride-of-the-saiyans-starter-control"
+    },
+    {
+      "key": "fixture-avb",
+      "sourceId": "fixture-avb",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": "sd15-01-pride-of-the-saiyans-starter-control",
+      "p2RecipeId": "sd5-01-crimson-saiyan-starter-control"
+    },
+    {
+      "key": "fixture-bva",
+      "sourceId": "fixture-bva",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": "sd5-01-crimson-saiyan-starter-control",
+      "p2RecipeId": "sd15-01-pride-of-the-saiyans-starter-control"
+    },
+    {
+      "key": "fixture-bvb",
+      "sourceId": "fixture-bvb",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": "sd5-01-crimson-saiyan-starter-control",
+      "p2RecipeId": "sd5-01-crimson-saiyan-starter-control"
+    }
+  ],
+  "policies": [
+    {
+      "key": "search-v3-d2-cache-on",
+      "version": "resource-frontier-dev-depth-2-cache-on",
+      "sha256": "7c63c997dbfd5f0af7d923fa34c675ca7d048799bc5acdd45bae770e68834916"
+    },
+    {
+      "key": "heuristic-v1",
+      "version": "heuristic-main-2-combat-1-choices-1",
+      "sha256": "a86a58c298a6d4bfd79a0f461a0dec939529564a20381baab4c692b3e5cf856f"
+    }
+  ],
+  "results": [
+    {
+      "key": "ava-0-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 649000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 208,
+      "turn": 17,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "7ddefdaad4155e4d1ac8183421bd8e66811daf2e112126a6d34f1bf0a3296917"
+    },
+    {
+      "key": "ava-0-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 649000,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 152,
+      "turn": 12,
+      "damageDealt": 8,
+      "damageTaken": 4,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "5c3efc2b7d75f548d20e7502cfd394971ee7b55751aaa70c3dc39ab037aa12ed"
+    },
+    {
+      "key": "ava-1-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 649001,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 229,
+      "turn": 18,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "7fc3c1191c9cea8a3a91f74c5b2d49a778fd027cac0cb09cd74ca63441120e8b"
+    },
+    {
+      "key": "ava-1-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 649001,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 248,
+      "turn": 21,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "4240619afa2b399c7e787badf0965a132d81c3d5b42ba2a98d2d5d937d5bfb60"
+    },
+    {
+      "key": "ava-2-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 649002,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15847,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15848,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 267,
+      "turn": 20,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "e57666955fef4d7b52dcdda0fdd5c802ee418815bf3b530abf9b386c3a83776f"
+    },
+    {
+      "key": "ava-2-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 649002,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15849,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15850,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 267,
+      "turn": 20,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "1457feda0d4bee24b1b270fa900a79460b513b24b11a943e61249b08aac36d44"
+    },
+    {
+      "key": "ava-3-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 649003,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15851,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15852,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 266,
+      "turn": 22,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "c72c9964b72b24a33097ac2820eeaaf0702d07f05b116241551dec8d857ed197"
+    },
+    {
+      "key": "ava-3-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-ava",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 649003,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15853,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15854,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 154,
+      "turn": 11,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "7299f88399b514ccfe87566caeac0ac0f536121ad493708b4efae0826209e730"
+    },
+    {
+      "key": "avb-0-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 650000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 221,
+      "turn": 13,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "0eda03130cfd34701de81e8a2f061c08fd2047a68a927de8843714efb158a1d2"
+    },
+    {
+      "key": "avb-0-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 650000,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 233,
+      "turn": 13,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "8b90fc67ec6c5e9773d85d7d80478dc44083004d4aaa048d4628154812f03315"
+    },
+    {
+      "key": "avb-1-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 650001,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 216,
+      "turn": 17,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "d9edfcc14d96c671a27bdb0bd30f11e82503602731e23c888b78bb4d7d6d07c8"
+    },
+    {
+      "key": "avb-1-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 650001,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 215,
+      "turn": 17,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "a6b93502ba8c348f65d391b8b9b37ea4c42aa510ab7f427bfc870402b47d97f3"
+    },
+    {
+      "key": "avb-2-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 650002,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15847,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15848,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 203,
+      "turn": 12,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "f233466393247f18387908fc74ed8a465b267041812aa68eb542d152c0985c6e"
+    },
+    {
+      "key": "avb-2-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 650002,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15849,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15850,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 211,
+      "turn": 14,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "7214d9284d75887bfef1c5f97724d14d08118a1ad4169690d700ef2b672c63fe"
+    },
+    {
+      "key": "avb-3-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 650003,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15851,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15852,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 251,
+      "turn": 17,
+      "damageDealt": 4,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "1836489dc1f126979fe4d3e5b52462fa5e7bbb974d18987f2a50122ff212779a"
+    },
+    {
+      "key": "avb-3-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-avb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 650003,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15853,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15854,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 244,
+      "turn": 17,
+      "damageDealt": 8,
+      "damageTaken": 4,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "74c3e9815f2cf93582cea0d3348ba7fcba750c685b0f481f9fe440834460b7f0"
+    },
+    {
+      "key": "bva-0-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 651000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 209,
+      "turn": 12,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "d561f0d52c24e731bea7796c82187c222e3ce6d72e86d0f313417322e453f944"
+    },
+    {
+      "key": "bva-0-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 651000,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 177,
+      "turn": 11,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "7eb23c9d43f42992da9affd586d746a6f48bffb57b1ecc72d67e7c860b95acdc"
+    },
+    {
+      "key": "bva-1-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 651001,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 176,
+      "turn": 12,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "26a8697896dd1355fc16ae46bb2c0ac4cf4830e05acc9b229569450a339c46ed"
+    },
+    {
+      "key": "bva-1-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 651001,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 178,
+      "turn": 13,
+      "damageDealt": 4,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "52eb6f0d848cb108ebbffe90b988dcff2168e327caf6bcb4b8f07d298fcd3bc7"
+    },
+    {
+      "key": "bva-2-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 651002,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15847,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15848,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 221,
+      "turn": 17,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "787665482178144932fbeb89f3529700fa09faa712b78209c7655b9c9f22b735"
+    },
+    {
+      "key": "bva-2-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 651002,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15849,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15850,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 214,
+      "turn": 15,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "00d0f8f67284dd12dc5f8d5ba63d463d3438c4fbc96c1ad3ce79798301d86d98"
+    },
+    {
+      "key": "bva-3-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 651003,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15851,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15852,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 296,
+      "turn": 21,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "68bd2d5106668ce1358fabdd0633428ac4509212f783ca75adbce1313256584e"
+    },
+    {
+      "key": "bva-3-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bva",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 651003,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15853,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15854,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 124,
+      "turn": 10,
+      "damageDealt": 2,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "a02c876613a2128b3ba1bcbf3d90d99993ab55e93a20872829bff994aaaa4bb3"
+    },
+    {
+      "key": "bvb-0-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 652000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 211,
+      "turn": 16,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "f4de4c06562fcbfc22b163bc71a56f2155daf4c97792a2ca4dae639dcd8e935b"
+    },
+    {
+      "key": "bvb-0-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 0,
+      "seed": 652000,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "moves": 211,
+      "turn": 17,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "11ff0ea0f7c11fb22f1a191db8beabc3c0a51c8fb32edf3912e235f36beeb6ad"
+    },
+    {
+      "key": "bvb-1-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 652001,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 180,
+      "turn": 11,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "dccd7be4fed00b6173829ed8a4d4413e63a9455125875a4c18f8fef7849b199c"
+    },
+    {
+      "key": "bvb-1-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 1,
+      "seed": 652001,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 209,
+      "turn": 13,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "c95e0d8616b872d540048bb6d60b0dc2553be6e32beb588e60292714bd90e907"
+    },
+    {
+      "key": "bvb-2-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 652002,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15847,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15848,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 195,
+      "turn": 13,
+      "damageDealt": 4,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "a6629db34e2c533ed16efb28a5e14bbe28ee6a3275c4d6e511eff39348addcf8"
+    },
+    {
+      "key": "bvb-2-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 2,
+      "seed": 652002,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15849,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15850,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 183,
+      "turn": 11,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "fcfda4dd12ab1a97d8b498d7122e3c6a991f6c1e76f3a50ac538c7e4d26194ab"
+    },
+    {
+      "key": "bvb-3-p1",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 652003,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15851,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15852,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 185,
+      "turn": 11,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "a806d0632ac1baf48557b5b47a40c6bbd11b6e932a717678006f72708ded8d24"
+    },
+    {
+      "key": "bvb-3-p2",
+      "kind": "policy_game",
+      "fixtureKey": "fixture-bvb",
+      "candidatePolicyKey": "search-v3-d2-cache-on",
+      "baselinePolicyKey": "heuristic-v1",
+      "seedIndex": 3,
+      "seed": 652003,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15853,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15854,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p2",
+      "moves": 196,
+      "turn": 13,
+      "damageDealt": 8,
+      "damageTaken": 5,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "09c58aa6ec416abf90e3a88f770021f074f0d1e01527c772ffc7ca0d8adae5ed"
+    }
+  ]
+}

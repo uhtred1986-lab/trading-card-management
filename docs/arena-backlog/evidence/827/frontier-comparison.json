@@ -1,0 +1,1364 @@
+{
+  "version": 1,
+  "experiment": "resource-frontier-development",
+  "runner": {
+    "id": "arena-policy-eval",
+    "version": "3",
+    "gitCommit": "8a634dbf2d9e2f3ae31886b2cf876323f4dccad5",
+    "dirtyTreeSha256": null
+  },
+  "protocol": {
+    "id": "search-frontier-development",
+    "revision": "resource-frontier-dev-v1",
+    "seedSet": "dev",
+    "indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "fixtures": [
+      "AvA",
+      "AvB",
+      "BvA",
+      "BvB"
+    ],
+    "seats": [
+      "p1",
+      "p2"
+    ],
+    "gamesPerArm": 32,
+    "arms": [
+      {
+        "frontierCache": false,
+        "depth": 2
+      },
+      {
+        "frontierCache": true,
+        "depth": 2
+      }
+    ],
+    "maxMoves": 3000,
+    "baseline": "heuristic-v1 (stable key; main/combat/choices versions and source pinned)",
+    "limits": {
+      "nodes": 4096,
+      "bytes": 262144,
+      "samples": 8,
+      "depth": 3,
+      "decisions": 32,
+      "cards": 16,
+      "hand": 32,
+      "resources": 8,
+      "life": 8
+    },
+    "cacheLimits": {
+      "entries": 64,
+      "bytes": 65536,
+      "indexBytes": 256,
+      "entryBytes": 128,
+      "coverBytes": 96
+    },
+    "policySeedFormula": "7919 + 2*k + (candidateSeat === p2 ? 1 : 0)",
+    "approval": "Integrate, review and pin source/configuration before executing both32-game arms. Development evidence only; no default promotion."
+  },
+  "fixtures": [
+    {
+      "key": "fixture-ava",
+      "sourceId": "fixture-ava",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": "sd15-01-pride-of-the-saiyans-starter-control",
+      "p2RecipeId": "sd15-01-pride-of-the-saiyans-starter-control"
+    },
+    {
+      "key": "fixture-avb",
+      "sourceId": "fixture-avb",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": "sd15-01-pride-of-the-saiyans-starter-control",
+      "p2RecipeId": "sd5-01-crimson-saiyan-starter-control"
+    },
+    {
+      "key": "fixture-bva",
+      "sourceId": "fixture-bva",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": "sd5-01-crimson-saiyan-starter-control",
+      "p2RecipeId": "sd15-01-pride-of-the-saiyans-starter-control"
+    },
+    {
+      "key": "fixture-bvb",
+      "sourceId": "fixture-bvb",
+      "runtimeRevision": "a649000000000000000000000000000000000649",
+      "bundleSha256": "9dba40655ba9bbe2583fb1e716d8ffc20665dd3ff1688126755e30eddbb46300",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "6a15bc7ebdb3e2e7ec0480080339f8935d60a4ee9bf82428e2e22617a2a81802",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": "sd5-01-crimson-saiyan-starter-control",
+      "p2RecipeId": "sd5-01-crimson-saiyan-starter-control"
+    }
+  ],
+  "baseline": {
+    "key": "heuristic-v1",
+    "version": "heuristic-main-2-combat-1-choices-1",
+    "sha256": "a86a58c298a6d4bfd79a0f461a0dec939529564a20381baab4c692b3e5cf856f"
+  },
+  "baselineVersions": {
+    "main": 2,
+    "combat": 1,
+    "choices": 1
+  },
+  "matchedScheduleSha256": "5ddf1856d10e9cf7426f0cef9e9c8fbf596ce01fa3c8106275c585dc69081bc1",
+  "sameFixtureBaselineAndInitialRngPins": true,
+  "hostContext": {
+    "platform": "shared Linux execution container",
+    "logicalCpus": 5,
+    "memoryMiBAtStart": {
+      "total": 18007,
+      "available": 16388
+    },
+    "nodeArms": "two concurrent processes",
+    "browserArms": "sequential; Worker plus Chrome main-thread simulated4x",
+    "concurrentWork": "coordinator full gates and separate portal browser tests; wall latency is shared-host observational, not isolated speedup or physical-phone evidence"
+  },
+  "denominators": {
+    "outcomes": "32 development game attempts per arm, including unfinished attempts; reused dev indices0–3, no holdout or strength inference",
+    "decisions": "game paths diverge, so raw decision/fallback counts are not paired opportunities",
+    "attempts": "searched plus budget/host stop decisions, excluding unsupported model/config/window exits",
+    "windows": "main/main and combo/offense, combo/defense are possible search windows; each retains its unsupported reasons",
+    "timings": "Node policyMs excludes observation/engine move work; browser steps include localStep. Quantiles use nearest-ranked sample matching evaluator."
+  },
+  "arms": {
+    "off": {
+      "candidate": {
+        "key": "search-v3-d2-cache-off",
+        "version": "resource-frontier-dev-depth-2-cache-off",
+        "sha256": "c9956c6ca989bf6378c0cb9c012fa3ad5586e729991c71099e65d15fb7d04067"
+      },
+      "outcomes": {
+        "games": 32,
+        "completed": 32,
+        "wins": 13,
+        "losses": 19,
+        "draws": 0,
+        "unfinished": 0,
+        "illegal": 0
+      },
+      "privacy": {
+        "privacyChecks": 181,
+        "nontrivialTwins": 181,
+        "executionFailures": 0
+      },
+      "guardTrips": 0,
+      "checkpointReportTelemetryConserved": true,
+      "statuses": {
+        "unsupported": 2424,
+        "nodes": 397,
+        "searched": 493
+      },
+      "attemptedSearchDecisions": 890,
+      "searchCompletionAmongAttempts": 0.553932584269663,
+      "nodeFallbackAmongAttempts": 0.4460674157303371,
+      "possibleSearchWindowDecisions": 2272,
+      "telemetry": {
+        "decisions": 3314,
+        "byWindow": {
+          "chooseFirst/other": {
+            "decisions": 16,
+            "statuses": {
+              "unsupported": 16
+            },
+            "reasons": {
+              "not_search_window": 16
+            }
+          },
+          "mulligan/other": {
+            "decisions": 32,
+            "statuses": {
+              "unsupported": 32
+            },
+            "reasons": {
+              "not_search_window": 32
+            }
+          },
+          "charge/other": {
+            "decisions": 234,
+            "statuses": {
+              "unsupported": 234
+            },
+            "reasons": {
+              "not_search_window": 234
+            }
+          },
+          "main/main": {
+            "decisions": 1143,
+            "statuses": {
+              "unsupported": 696,
+              "nodes": 256,
+              "searched": 191
+            },
+            "reasons": {
+              "no_scored_root": 89,
+              "baseline_action": 371,
+              "node_budget": 256,
+              "complete": 191,
+              "nonpositive_attack": 66,
+              "unison": 162,
+              "resource_limit": 8
+            }
+          },
+          "combo/defense": {
+            "decisions": 618,
+            "statuses": {
+              "unsupported": 599,
+              "searched": 19
+            },
+            "reasons": {
+              "defense_hidden_hand": 561,
+              "defense_board": 38,
+              "complete": 19
+            }
+          },
+          "combo/offense": {
+            "decisions": 511,
+            "statuses": {
+              "searched": 283,
+              "nodes": 141,
+              "unsupported": 87
+            },
+            "reasons": {
+              "complete": 283,
+              "node_budget": 141,
+              "unison": 83,
+              "resource_limit": 4
+            }
+          },
+          "zEnergyFromCombo/other": {
+            "decisions": 227,
+            "statuses": {
+              "unsupported": 227
+            },
+            "reasons": {
+              "not_search_window": 227
+            }
+          },
+          "payCost/other": {
+            "decisions": 34,
+            "statuses": {
+              "unsupported": 34
+            },
+            "reasons": {
+              "not_search_window": 34
+            }
+          },
+          "chooseCards/other": {
+            "decisions": 161,
+            "statuses": {
+              "unsupported": 161
+            },
+            "reasons": {
+              "not_search_window": 161
+            }
+          },
+          "counter/other": {
+            "decisions": 206,
+            "statuses": {
+              "unsupported": 206
+            },
+            "reasons": {
+              "not_search_window": 206
+            }
+          },
+          "chooseMode/other": {
+            "decisions": 35,
+            "statuses": {
+              "unsupported": 35
+            },
+            "reasons": {
+              "not_search_window": 35
+            }
+          },
+          "blocker/other": {
+            "decisions": 96,
+            "statuses": {
+              "unsupported": 96
+            },
+            "reasons": {
+              "not_search_window": 96
+            }
+          },
+          "orderPending/other": {
+            "decisions": 1,
+            "statuses": {
+              "unsupported": 1
+            },
+            "reasons": {
+              "not_search_window": 1
+            }
+          }
+        },
+        "cache": {
+          "enabledDecisions": 0,
+          "hits": 0,
+          "misses": 0,
+          "entriesStored": 0,
+          "skipped": 0,
+          "maxEntries": 0,
+          "maxRetainedBytes": 0
+        }
+      },
+      "policyMs": {
+        "n": 3314,
+        "p50": 0.09335699999064673,
+        "p95": 1.921836000008625,
+        "p99": 3.607417000006535,
+        "max": 22.27591399999983
+      },
+      "maxFixturePolicyP95Ms": 2.403792999990401,
+      "maxStructuralReservationBytes": 135040,
+      "maxNodes": 4096,
+      "nodeHeapAfterGameBytes": {
+        "n": 32,
+        "p50": 147234728,
+        "p95": 183093104,
+        "p99": 201852040,
+        "max": 201852040
+      },
+      "memoryMethod": "Node heapUsed immediately after each game includes the engine, bundle and accumulated report; not peak search memory or browser retained heap. Search reservation is a structural estimate.",
+      "fixtures": [
+        {
+          "fixture": "AvA",
+          "games": 8,
+          "completed": 8,
+          "wins": 4,
+          "losses": 4,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 1,
+            "split": 2,
+            "lostBoth": 1,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 878,
+            "p50": 0.11388699999952223,
+            "p95": 1.625280999998722,
+            "max": 22.27591399999983
+          },
+          "maxStructuralReservationBytes": 127360
+        },
+        {
+          "fixture": "AvB",
+          "games": 8,
+          "completed": 8,
+          "wins": 4,
+          "losses": 4,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 4,
+            "lostBoth": 0,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 887,
+            "p50": 0.08430300000327406,
+            "p95": 1.6361380000016652,
+            "max": 11.414197000005515
+          },
+          "maxStructuralReservationBytes": 125568
+        },
+        {
+          "fixture": "BvA",
+          "games": 8,
+          "completed": 8,
+          "wins": 2,
+          "losses": 6,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 2,
+            "lostBoth": 2,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 763,
+            "p50": 0.08460400000330992,
+            "p95": 1.8789329999999609,
+            "max": 20.99677099999826
+          },
+          "maxStructuralReservationBytes": 132224
+        },
+        {
+          "fixture": "BvB",
+          "games": 8,
+          "completed": 8,
+          "wins": 3,
+          "losses": 5,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 3,
+            "lostBoth": 1,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 786,
+            "p50": 0.09052200001315214,
+            "p95": 2.403792999990401,
+            "max": 12.823262000005343
+          },
+          "maxStructuralReservationBytes": 135040
+        }
+      ],
+      "manifest": {
+        "sha256": "3b6bbce381868dcaca9ba13f744d83ef1bce74e701b4e2b065a0d6d248f0f415",
+        "bytes": 30939
+      },
+      "developmentProtocolMatched": true,
+      "strengthEligible": false,
+      "difficultyEnabled": false,
+      "nodePolicyP95GateAtMost5ms": true,
+      "browser": {
+        "runner": {
+          "id": "arena-policy-eval",
+          "version": "browser-3",
+          "gitCommit": "8a634dbf2d9e2f3ae31886b2cf876323f4dccad5",
+          "dirtyTreeSha256": null
+        },
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "games": 8,
+        "agreeWithNode": {
+          "worker": true,
+          "thread": true
+        },
+        "telemetryAgreement": {
+          "worker": true,
+          "thread": true
+        },
+        "unfinished": 0,
+        "guardTrips": 0,
+        "workerHeap": {
+          "usedBytes": 10789900,
+          "retainedBytes": 8092776
+        },
+        "node": {
+          "all": {
+            "n": 815,
+            "p50": 10.619813000001159,
+            "p90": 30.748821000000135,
+            "p95": 40.673675,
+            "p99": 69.6848799999998,
+            "max": 122.76364899999862
+          }
+        },
+        "worker": {
+          "all": {
+            "n": 815,
+            "p50": 6.900000000372529,
+            "p90": 20.5,
+            "p95": 28.199999999254942,
+            "p99": 45.79999999888241,
+            "max": 106.79999999888241
+          },
+          "byWindow": {
+            "blocker": {
+              "n": 27,
+              "p95": 8.700000001117587,
+              "max": 9.599999999627471
+            },
+            "charge": {
+              "n": 55,
+              "p95": 8.799999998882413,
+              "max": 16.40000000037253
+            },
+            "chooseCards": {
+              "n": 38,
+              "p95": 11.899999998509884,
+              "max": 18.399999998509884
+            },
+            "chooseFirst": {
+              "n": 4,
+              "p95": 19.699999999254942,
+              "max": 19.699999999254942
+            },
+            "chooseMode": {
+              "n": 10,
+              "p95": 12.399999998509884,
+              "max": 12.399999998509884
+            },
+            "combo": {
+              "n": 280,
+              "p95": 12.799999998882413,
+              "max": 23.199999999254942
+            },
+            "counter": {
+              "n": 56,
+              "p95": 11.700000001117587,
+              "max": 13
+            },
+            "main": {
+              "n": 279,
+              "p95": 40.899999998509884,
+              "max": 106.79999999888241
+            },
+            "mulligan": {
+              "n": 8,
+              "p95": 4.699999999254942,
+              "max": 4.699999999254942
+            },
+            "payCost": {
+              "n": 7,
+              "p95": 12.599999999627471,
+              "max": 12.599999999627471
+            },
+            "zEnergyFromCombo": {
+              "n": 51,
+              "p95": 6.700000001117587,
+              "max": 9.600000001490116
+            }
+          }
+        },
+        "mainThread4x": {
+          "all": {
+            "n": 815,
+            "p50": 32.19999999925494,
+            "p90": 88,
+            "p95": 135.2000000011176,
+            "p99": 253.40000000037253,
+            "max": 475.30000000074506
+          }
+        },
+        "telemetry": {
+          "decisions": 815,
+          "byWindow": {
+            "chooseFirst/other": {
+              "decisions": 4,
+              "statuses": {
+                "unsupported": 4
+              },
+              "reasons": {
+                "not_search_window": 4
+              }
+            },
+            "mulligan/other": {
+              "decisions": 8,
+              "statuses": {
+                "unsupported": 8
+              },
+              "reasons": {
+                "not_search_window": 8
+              }
+            },
+            "charge/other": {
+              "decisions": 55,
+              "statuses": {
+                "unsupported": 55
+              },
+              "reasons": {
+                "not_search_window": 55
+              }
+            },
+            "main/main": {
+              "decisions": 279,
+              "statuses": {
+                "unsupported": 157,
+                "nodes": 71,
+                "searched": 51
+              },
+              "reasons": {
+                "no_scored_root": 23,
+                "baseline_action": 94,
+                "node_budget": 71,
+                "complete": 51,
+                "nonpositive_attack": 18,
+                "unison": 21,
+                "resource_limit": 1
+              }
+            },
+            "combo/defense": {
+              "decisions": 142,
+              "statuses": {
+                "unsupported": 138,
+                "searched": 4
+              },
+              "reasons": {
+                "defense_hidden_hand": 133,
+                "defense_board": 5,
+                "complete": 4
+              }
+            },
+            "combo/offense": {
+              "decisions": 138,
+              "statuses": {
+                "searched": 87,
+                "nodes": 38,
+                "unsupported": 13
+              },
+              "reasons": {
+                "complete": 87,
+                "node_budget": 38,
+                "unison": 12,
+                "resource_limit": 1
+              }
+            },
+            "zEnergyFromCombo/other": {
+              "decisions": 51,
+              "statuses": {
+                "unsupported": 51
+              },
+              "reasons": {
+                "not_search_window": 51
+              }
+            },
+            "payCost/other": {
+              "decisions": 7,
+              "statuses": {
+                "unsupported": 7
+              },
+              "reasons": {
+                "not_search_window": 7
+              }
+            },
+            "chooseCards/other": {
+              "decisions": 38,
+              "statuses": {
+                "unsupported": 38
+              },
+              "reasons": {
+                "not_search_window": 38
+              }
+            },
+            "counter/other": {
+              "decisions": 56,
+              "statuses": {
+                "unsupported": 56
+              },
+              "reasons": {
+                "not_search_window": 56
+              }
+            },
+            "blocker/other": {
+              "decisions": 27,
+              "statuses": {
+                "unsupported": 27
+              },
+              "reasons": {
+                "not_search_window": 27
+              }
+            },
+            "chooseMode/other": {
+              "decisions": 10,
+              "statuses": {
+                "unsupported": 10
+              },
+              "reasons": {
+                "not_search_window": 10
+              }
+            }
+          },
+          "cache": {
+            "enabledDecisions": 0,
+            "hits": 0,
+            "misses": 0,
+            "entriesStored": 0,
+            "skipped": 0,
+            "maxEntries": 0,
+            "maxRetainedBytes": 0
+          }
+        },
+        "error": null,
+        "sourceChanged": null,
+        "attempt": 2,
+        "configuration": {
+          "audited": true,
+          "seedsPerFixture": 1,
+          "depth": 2,
+          "frontierCache": false,
+          "throttle": 4,
+          "maxMoves": 3000,
+          "plannedGames": 8,
+          "externalStderrCaptureWrapper": true
+        },
+        "receipt": {
+          "sha256": "ec3a8ad00a0a1d3341bbce9ae77874951cfea87f148fa7bfc1be4919a9b9d99d",
+          "bytes": 39497
+        },
+        "sameFixturePolicyPinsAndDevSubsetOutcomes": true,
+        "maxStructuralReservationBytes": 132224,
+        "outcomes": {
+          "wins": 4,
+          "losses": 4,
+          "draws": 0,
+          "unfinished": 0
+        },
+        "gates": {
+          "workerP95AtMost30ms": true,
+          "workerMaxAtMost300ms": true,
+          "workerRetainedAtMost16MiB": true,
+          "reservationAtMost256KiB": true,
+          "nodeWorkerMain4xParity": true,
+          "diagnosticParity": true,
+          "allCompleteNoGuardTrips": true
+        }
+      }
+    },
+    "on": {
+      "candidate": {
+        "key": "search-v3-d2-cache-on",
+        "version": "resource-frontier-dev-depth-2-cache-on",
+        "sha256": "7c63c997dbfd5f0af7d923fa34c675ca7d048799bc5acdd45bae770e68834916"
+      },
+      "outcomes": {
+        "games": 32,
+        "completed": 32,
+        "wins": 13,
+        "losses": 19,
+        "draws": 0,
+        "unfinished": 0,
+        "illegal": 0
+      },
+      "privacy": {
+        "privacyChecks": 186,
+        "nontrivialTwins": 186,
+        "executionFailures": 0
+      },
+      "guardTrips": 0,
+      "checkpointReportTelemetryConserved": true,
+      "statuses": {
+        "unsupported": 2492,
+        "searched": 569,
+        "nodes": 311
+      },
+      "attemptedSearchDecisions": 880,
+      "searchCompletionAmongAttempts": 0.6465909090909091,
+      "nodeFallbackAmongAttempts": 0.3534090909090909,
+      "possibleSearchWindowDecisions": 2286,
+      "telemetry": {
+        "decisions": 3372,
+        "byWindow": {
+          "chooseFirst/other": {
+            "decisions": 16,
+            "statuses": {
+              "unsupported": 16
+            },
+            "reasons": {
+              "not_search_window": 16
+            }
+          },
+          "mulligan/other": {
+            "decisions": 32,
+            "statuses": {
+              "unsupported": 32
+            },
+            "reasons": {
+              "not_search_window": 32
+            }
+          },
+          "charge/other": {
+            "decisions": 237,
+            "statuses": {
+              "unsupported": 237
+            },
+            "reasons": {
+              "not_search_window": 237
+            }
+          },
+          "main/main": {
+            "decisions": 1154,
+            "statuses": {
+              "unsupported": 718,
+              "searched": 235,
+              "nodes": 201
+            },
+            "reasons": {
+              "no_scored_root": 91,
+              "baseline_action": 377,
+              "complete": 235,
+              "nonpositive_attack": 79,
+              "node_budget": 201,
+              "unison": 161,
+              "resource_limit": 10
+            }
+          },
+          "combo/defense": {
+            "decisions": 611,
+            "statuses": {
+              "unsupported": 592,
+              "searched": 19
+            },
+            "reasons": {
+              "defense_hidden_hand": 552,
+              "defense_board": 40,
+              "complete": 19
+            }
+          },
+          "combo/offense": {
+            "decisions": 521,
+            "statuses": {
+              "searched": 315,
+              "nodes": 110,
+              "unsupported": 96
+            },
+            "reasons": {
+              "complete": 315,
+              "node_budget": 110,
+              "unison": 91,
+              "resource_limit": 5
+            }
+          },
+          "zEnergyFromCombo/other": {
+            "decisions": 231,
+            "statuses": {
+              "unsupported": 231
+            },
+            "reasons": {
+              "not_search_window": 231
+            }
+          },
+          "payCost/other": {
+            "decisions": 33,
+            "statuses": {
+              "unsupported": 33
+            },
+            "reasons": {
+              "not_search_window": 33
+            }
+          },
+          "chooseCards/other": {
+            "decisions": 191,
+            "statuses": {
+              "unsupported": 191
+            },
+            "reasons": {
+              "not_search_window": 191
+            }
+          },
+          "counter/other": {
+            "decisions": 209,
+            "statuses": {
+              "unsupported": 209
+            },
+            "reasons": {
+              "not_search_window": 209
+            }
+          },
+          "blocker/other": {
+            "decisions": 91,
+            "statuses": {
+              "unsupported": 91
+            },
+            "reasons": {
+              "not_search_window": 91
+            }
+          },
+          "chooseMode/other": {
+            "decisions": 45,
+            "statuses": {
+              "unsupported": 45
+            },
+            "reasons": {
+              "not_search_window": 45
+            }
+          },
+          "orderPending/other": {
+            "decisions": 1,
+            "statuses": {
+              "unsupported": 1
+            },
+            "reasons": {
+              "not_search_window": 1
+            }
+          }
+        },
+        "cache": {
+          "enabledDecisions": 3372,
+          "hits": 165834,
+          "misses": 14771,
+          "entriesStored": 13099,
+          "skipped": 1620,
+          "maxEntries": 64,
+          "maxRetainedBytes": 65536
+        }
+      },
+      "policyMs": {
+        "n": 3372,
+        "p50": 0.0951399999903515,
+        "p95": 2.794115000000602,
+        "p99": 4.776641999997082,
+        "max": 15.500542999998288
+      },
+      "maxFixturePolicyP95Ms": 3.401133999999729,
+      "maxStructuralReservationBytes": 197248,
+      "maxNodes": 4096,
+      "nodeHeapAfterGameBytes": {
+        "n": 32,
+        "p50": 137087648,
+        "p95": 168057960,
+        "p99": 181788680,
+        "max": 181788680
+      },
+      "memoryMethod": "Node heapUsed immediately after each game includes the engine, bundle and accumulated report; not peak search memory or browser retained heap. Search reservation is a structural estimate.",
+      "fixtures": [
+        {
+          "fixture": "AvA",
+          "games": 8,
+          "completed": 8,
+          "wins": 5,
+          "losses": 3,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 2,
+            "split": 1,
+            "lostBoth": 1,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 922,
+            "p50": 0.11296499999843945,
+            "p95": 2.5576579999979003,
+            "max": 11.243502999999691
+          },
+          "maxStructuralReservationBytes": 192128
+        },
+        {
+          "fixture": "AvB",
+          "games": 8,
+          "completed": 8,
+          "wins": 4,
+          "losses": 4,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 4,
+            "lostBoth": 0,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 882,
+            "p50": 0.0876189999980852,
+            "p95": 2.2117619999989984,
+            "max": 15.500542999998288
+          },
+          "maxStructuralReservationBytes": 190656
+        },
+        {
+          "fixture": "BvA",
+          "games": 8,
+          "completed": 8,
+          "wins": 1,
+          "losses": 7,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 1,
+            "lostBoth": 3,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 787,
+            "p50": 0.0854760000074748,
+            "p95": 3.401133999999729,
+            "max": 14.177851999993436
+          },
+          "maxStructuralReservationBytes": 145280
+        },
+        {
+          "fixture": "BvB",
+          "games": 8,
+          "completed": 8,
+          "wins": 3,
+          "losses": 5,
+          "draws": 0,
+          "unfinished": 0,
+          "illegal": 0,
+          "pairedAgainstBaseline": {
+            "wonBoth": 0,
+            "split": 3,
+            "lostBoth": 1,
+            "incomplete": 0
+          },
+          "policyMs": {
+            "n": 781,
+            "p50": 0.0919339999963995,
+            "p95": 3.0231300000014016,
+            "max": 8.192957000006572
+          },
+          "maxStructuralReservationBytes": 197248
+        }
+      ],
+      "manifest": {
+        "sha256": "c77d96cd7b3d139c19fd0f986e5e8c5f1764a4f2492b03a77e2843e279e753f5",
+        "bytes": 30905
+      },
+      "developmentProtocolMatched": true,
+      "strengthEligible": false,
+      "difficultyEnabled": false,
+      "nodePolicyP95GateAtMost5ms": true,
+      "browser": {
+        "runner": {
+          "id": "arena-policy-eval",
+          "version": "browser-3",
+          "gitCommit": "8a634dbf2d9e2f3ae31886b2cf876323f4dccad5",
+          "dirtyTreeSha256": null
+        },
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "games": 8,
+        "agreeWithNode": {
+          "worker": true,
+          "thread": true
+        },
+        "telemetryAgreement": {
+          "worker": true,
+          "thread": true
+        },
+        "unfinished": 0,
+        "guardTrips": 0,
+        "workerHeap": {
+          "usedBytes": 10854736,
+          "retainedBytes": 8101352
+        },
+        "node": {
+          "all": {
+            "n": 822,
+            "p50": 9.222430000001623,
+            "p90": 23.357811000001675,
+            "p95": 33.992983999998614,
+            "p99": 64.37887199999932,
+            "max": 131.52712099999917
+          }
+        },
+        "worker": {
+          "all": {
+            "n": 822,
+            "p50": 6.199999999254942,
+            "p90": 17.200000001117587,
+            "p95": 24.199999999254942,
+            "p99": 48,
+            "max": 85.90000000037253
+          },
+          "byWindow": {
+            "blocker": {
+              "n": 29,
+              "p95": 7,
+              "max": 7.099999999627471
+            },
+            "charge": {
+              "n": 55,
+              "p95": 7.199999999254942,
+              "max": 10.5
+            },
+            "chooseCards": {
+              "n": 42,
+              "p95": 10.799999998882413,
+              "max": 18.200000001117587
+            },
+            "chooseFirst": {
+              "n": 4,
+              "p95": 20.300000000745058,
+              "max": 20.300000000745058
+            },
+            "chooseMode": {
+              "n": 12,
+              "p95": 12.100000001490116,
+              "max": 14.200000001117587
+            },
+            "combo": {
+              "n": 279,
+              "p95": 10.099999999627471,
+              "max": 17.700000001117587
+            },
+            "counter": {
+              "n": 59,
+              "p95": 9.200000001117587,
+              "max": 14.699999999254942
+            },
+            "main": {
+              "n": 272,
+              "p95": 37.40000000037253,
+              "max": 85.90000000037253
+            },
+            "mulligan": {
+              "n": 8,
+              "p95": 5,
+              "max": 5
+            },
+            "payCost": {
+              "n": 7,
+              "p95": 9.400000000372529,
+              "max": 9.400000000372529
+            },
+            "zEnergyFromCombo": {
+              "n": 55,
+              "p95": 5.5,
+              "max": 7.100000001490116
+            }
+          }
+        },
+        "mainThread4x": {
+          "all": {
+            "n": 822,
+            "p50": 34.90000000037253,
+            "p90": 96.20000000111759,
+            "p95": 145.2000000011176,
+            "p99": 288,
+            "max": 415.09999999962747
+          }
+        },
+        "telemetry": {
+          "decisions": 822,
+          "byWindow": {
+            "chooseFirst/other": {
+              "decisions": 4,
+              "statuses": {
+                "unsupported": 4
+              },
+              "reasons": {
+                "not_search_window": 4
+              }
+            },
+            "mulligan/other": {
+              "decisions": 8,
+              "statuses": {
+                "unsupported": 8
+              },
+              "reasons": {
+                "not_search_window": 8
+              }
+            },
+            "charge/other": {
+              "decisions": 55,
+              "statuses": {
+                "unsupported": 55
+              },
+              "reasons": {
+                "not_search_window": 55
+              }
+            },
+            "main/main": {
+              "decisions": 272,
+              "statuses": {
+                "unsupported": 156,
+                "searched": 63,
+                "nodes": 53
+              },
+              "reasons": {
+                "no_scored_root": 24,
+                "baseline_action": 90,
+                "complete": 63,
+                "nonpositive_attack": 21,
+                "node_budget": 53,
+                "unison": 21
+              }
+            },
+            "combo/defense": {
+              "decisions": 149,
+              "statuses": {
+                "unsupported": 145,
+                "searched": 4
+              },
+              "reasons": {
+                "defense_hidden_hand": 140,
+                "defense_board": 5,
+                "complete": 4
+              }
+            },
+            "combo/offense": {
+              "decisions": 130,
+              "statuses": {
+                "searched": 94,
+                "nodes": 24,
+                "unsupported": 12
+              },
+              "reasons": {
+                "complete": 94,
+                "node_budget": 24,
+                "unison": 12
+              }
+            },
+            "zEnergyFromCombo/other": {
+              "decisions": 55,
+              "statuses": {
+                "unsupported": 55
+              },
+              "reasons": {
+                "not_search_window": 55
+              }
+            },
+            "payCost/other": {
+              "decisions": 7,
+              "statuses": {
+                "unsupported": 7
+              },
+              "reasons": {
+                "not_search_window": 7
+              }
+            },
+            "chooseCards/other": {
+              "decisions": 42,
+              "statuses": {
+                "unsupported": 42
+              },
+              "reasons": {
+                "not_search_window": 42
+              }
+            },
+            "counter/other": {
+              "decisions": 59,
+              "statuses": {
+                "unsupported": 59
+              },
+              "reasons": {
+                "not_search_window": 59
+              }
+            },
+            "blocker/other": {
+              "decisions": 29,
+              "statuses": {
+                "unsupported": 29
+              },
+              "reasons": {
+                "not_search_window": 29
+              }
+            },
+            "chooseMode/other": {
+              "decisions": 12,
+              "statuses": {
+                "unsupported": 12
+              },
+              "reasons": {
+                "not_search_window": 12
+              }
+            }
+          },
+          "cache": {
+            "enabledDecisions": 822,
+            "hits": 47224,
+            "misses": 3494,
+            "entriesStored": 3237,
+            "skipped": 246,
+            "maxEntries": 64,
+            "maxRetainedBytes": 65536
+          }
+        },
+        "error": null,
+        "sourceChanged": null,
+        "attempt": 1,
+        "configuration": {
+          "audited": true,
+          "seedsPerFixture": 1,
+          "depth": 2,
+          "frontierCache": true,
+          "throttle": 4,
+          "maxMoves": 3000,
+          "plannedGames": 8,
+          "externalStderrCaptureWrapper": true
+        },
+        "receipt": {
+          "sha256": "dbed3831c135c7e25fc7dd3a4b6c6e75be3ab2c6a7cacf43c3aad15cebc3dbfe",
+          "bytes": 40005
+        },
+        "sameFixturePolicyPinsAndDevSubsetOutcomes": true,
+        "maxStructuralReservationBytes": 145280,
+        "outcomes": {
+          "wins": 3,
+          "losses": 5,
+          "draws": 0,
+          "unfinished": 0
+        },
+        "gates": {
+          "workerP95AtMost30ms": true,
+          "workerMaxAtMost300ms": true,
+          "workerRetainedAtMost16MiB": true,
+          "reservationAtMost256KiB": true,
+          "nodeWorkerMain4xParity": true,
+          "diagnosticParity": true,
+          "allCompleteNoGuardTrips": true
+        }
+      }
+    }
+  },
+  "interruptedBrowserAttempts": [
+    {
+      "mode": "off",
+      "attempt": 1,
+      "status": "interrupted",
+      "error": "The DevTools socket closed.",
+      "plannedGames": 8,
+      "gamesWithFinalParityVerdict": null,
+      "workerHeapBeforeInterruption": {
+        "usedBytes": 10788408,
+        "retainedBytes": 8097668
+      },
+      "receipt": {
+        "sha256": "bdfbaa727ab3b0e43a8c8ca5532132b3ed39efd647195b19686578dc9da5407a",
+        "bytes": 3819
+      },
+      "diagnosis": "DevTools socket closed during main4x phase after Worker heap collection; no cgroup OOM events. Concurrent portal browser cleanup completed; exact cause not proven. Original receipt retained and one same-source retry scheduled with private Chrome stderr capture."
+    }
+  ],
+  "matchedArmOutcomes": {
+    "bothWin": 10,
+    "offWinOnLoss": 3,
+    "offLossOnWin": 3,
+    "bothLoss": 16
+  },
+  "matchedArmOutcomesByFixture": {
+    "AvA": {
+      "bothWin": 4,
+      "offWinOnLoss": 0,
+      "offLossOnWin": 1,
+      "bothLoss": 3
+    },
+    "AvB": {
+      "bothWin": 3,
+      "offWinOnLoss": 1,
+      "offLossOnWin": 1,
+      "bothLoss": 3
+    },
+    "BvA": {
+      "bothWin": 0,
+      "offWinOnLoss": 2,
+      "offLossOnWin": 1,
+      "bothLoss": 5
+    },
+    "BvB": {
+      "bothWin": 3,
+      "offWinOnLoss": 0,
+      "offLossOnWin": 0,
+      "bothLoss": 5
+    }
+  },
+  "conclusion": "Both arms13–19: no observed aggregate win gain. Cache-on completed more search decisions with a lower node-fallback fraction across diverging game paths. Declared Node-policy and browser Worker resource/parity gates passed on the shared host; timings are observational, not an isolated speedup claim. Development-only, default unchanged; previous negative holdout and real-card tactical failures remain applicable."
+}

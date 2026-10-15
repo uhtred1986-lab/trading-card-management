@@ -1,0 +1,424 @@
+{
+  "version": 1,
+  "requestId": "72bb994e-551e-480d-a55b-08c42d9b98db",
+  "source": "decision_cases",
+  "runner": {
+    "id": "arena-policy-strategy",
+    "version": "827-real-card-tactics-v1",
+    "gitCommit": "fad695d9917ce8a5e67ab33728b87d1cebd489f4",
+    "dirtyTreeSha256": null
+  },
+  "protocol": {
+    "id": "827-real-card-tactics",
+    "revision": "printed-skill-lines-v1"
+  },
+  "fixtures": [
+    {
+      "key": "wc-a03-turn-buff-vs-combo",
+      "sourceId": "tactical-ffdd4f247dfd382e8de2d92b092d1e344b55891074a1526da6eefd5dc1909637",
+      "runtimeRevision": "a827000000000000000000000000000000000827",
+      "bundleSha256": "23b4432e2bd8788108e40aeee962b4ea83e07a9cdc9f0324d0fcb21cc4125784",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "bf6ed1d75754cf770c8e69d1d2f133eebc62e5f68efc764ed96c18cab852f324",
+      "programsSha256": "191d734337ddcd6209bd9f4c54f7e963fb6df2d0dfe589fb75ebfa02edba24b5",
+      "p1DeckSha256": "57aa5ddb63603180ba1cc35715db6ff40f6a95afdb63349343929e57736c1d3d",
+      "p2DeckSha256": "1c8a51f31c3d84ecc28f2219738061c4bee46bde2ebf79d5a3e6653f992f1251",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike",
+      "sourceId": "tactical-8a7745ce4f97572a5215cb38bd46422a419e32d0286fd0fbb9278c0d88285a65",
+      "runtimeRevision": "a827000000000000000000000000000000000827",
+      "bundleSha256": "23b4432e2bd8788108e40aeee962b4ea83e07a9cdc9f0324d0fcb21cc4125784",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "bf6ed1d75754cf770c8e69d1d2f133eebc62e5f68efc764ed96c18cab852f324",
+      "programsSha256": "191d734337ddcd6209bd9f4c54f7e963fb6df2d0dfe589fb75ebfa02edba24b5",
+      "p1DeckSha256": "57aa5ddb63603180ba1cc35715db6ff40f6a95afdb63349343929e57736c1d3d",
+      "p2DeckSha256": "1c8a51f31c3d84ecc28f2219738061c4bee46bde2ebf79d5a3e6653f992f1251",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike",
+      "sourceId": "tactical-ffdf4490349e6699934c69b805d5edbd63ae65463e515aeabbe4dc8010e679b7",
+      "runtimeRevision": "a827000000000000000000000000000000000827",
+      "bundleSha256": "23b4432e2bd8788108e40aeee962b4ea83e07a9cdc9f0324d0fcb21cc4125784",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "bf6ed1d75754cf770c8e69d1d2f133eebc62e5f68efc764ed96c18cab852f324",
+      "programsSha256": "191d734337ddcd6209bd9f4c54f7e963fb6df2d0dfe589fb75ebfa02edba24b5",
+      "p1DeckSha256": "57aa5ddb63603180ba1cc35715db6ff40f6a95afdb63349343929e57736c1d3d",
+      "p2DeckSha256": "1c8a51f31c3d84ecc28f2219738061c4bee46bde2ebf79d5a3e6653f992f1251",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "ai-10-decline-last-life-price",
+      "sourceId": "tactical-8db24bab3a3646e473e0e170d04e65adf8113cf1dfe719dd8e4c421c43f2d583",
+      "runtimeRevision": "a827000000000000000000000000000000000827",
+      "bundleSha256": "23b4432e2bd8788108e40aeee962b4ea83e07a9cdc9f0324d0fcb21cc4125784",
+      "rulesSha256": "3b4fb001236f9af109235b6ab2016d8d82d40607752a540d6239d4d091ab50a8",
+      "catalogSha256": "bf6ed1d75754cf770c8e69d1d2f133eebc62e5f68efc764ed96c18cab852f324",
+      "programsSha256": "191d734337ddcd6209bd9f4c54f7e963fb6df2d0dfe589fb75ebfa02edba24b5",
+      "p1DeckSha256": "57aa5ddb63603180ba1cc35715db6ff40f6a95afdb63349343929e57736c1d3d",
+      "p2DeckSha256": "1c8a51f31c3d84ecc28f2219738061c4bee46bde2ebf79d5a3e6653f992f1251",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [
+    {
+      "key": "heuristic-v2",
+      "version": "heuristic-v2",
+      "sha256": "a86a58c298a6d4bfd79a0f461a0dec939529564a20381baab4c692b3e5cf856f"
+    },
+    {
+      "key": "search-v3-d2",
+      "version": "resource-search-v3-depth-2",
+      "sha256": "eea3fde6162a51fc5a047ba133b825e5bf822b7748242673616e10372a9e361b"
+    },
+    {
+      "key": "search-v3-d3",
+      "version": "resource-search-v3-depth-3",
+      "sha256": "c5e96316f4e8b194540b074e6f67e7d423df578c2c3a6e19bb84bfd8465867d0"
+    }
+  ],
+  "results": [
+    {
+      "key": "wc-a03-turn-buff-vs-combo-heuristic-v2",
+      "kind": "decision_case",
+      "fixtureKey": "wc-a03-turn-buff-vs-combo",
+      "sourceScenarioId": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policyKey": "heuristic-v2",
+      "seed": 827,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 5,
+      "evidenceSha256": "ba901cbeb20800b3c281b23338f787f946503adc108e3b565044d929e7feffd8"
+    },
+    {
+      "key": "wc-a03-turn-buff-vs-combo-search-v3-d2",
+      "kind": "decision_case",
+      "fixtureKey": "wc-a03-turn-buff-vs-combo",
+      "sourceScenarioId": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policyKey": "search-v3-d2",
+      "seed": 827,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 5,
+      "evidenceSha256": "724139d9099759c3b1c56799387a2fa769cb814565c8b79ca154b10a5d938f52"
+    },
+    {
+      "key": "wc-a03-turn-buff-vs-combo-search-v3-d3",
+      "kind": "decision_case",
+      "fixtureKey": "wc-a03-turn-buff-vs-combo",
+      "sourceScenarioId": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policyKey": "search-v3-d3",
+      "seed": 827,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 5,
+      "evidenceSha256": "d188ca97c1cb871f50e837ec6740a904f9f0257f5f180c656f7135b3d04b807a"
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike-heuristic-v2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-01-dual-attack-double-strike",
+      "sourceScenarioId": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policyKey": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 4,
+      "evidenceSha256": "fe5e55bb08624038c136999224dd133c2c58f1e5bcf5654228e706fae275f44c"
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike-search-v3-d2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-01-dual-attack-double-strike",
+      "sourceScenarioId": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 4,
+      "evidenceSha256": "4154e120a21254d35214856b3b3c88955892edff3e54e0297522a58886a007fd"
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike-search-v3-d3",
+      "kind": "decision_case",
+      "fixtureKey": "ai-01-dual-attack-double-strike",
+      "sourceScenarioId": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 4,
+      "evidenceSha256": "c3a25193a21e66aa629c9167b7379b98af222864c9a255014d75310578404063"
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike-heuristic-v2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-restand-for-triple-strike",
+      "sourceScenarioId": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policyKey": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 5,
+      "evidenceSha256": "166ef3cd16ee6c1d541699f9aa126dafe36093945397ac1aed6915eec6f4c4a0"
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike-search-v3-d2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-restand-for-triple-strike",
+      "sourceScenarioId": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policyKey": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 5,
+      "evidenceSha256": "687dcc62b949117076773affad7f08e1d689cc2d449867a3a208928434f1a551"
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike-search-v3-d3",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-restand-for-triple-strike",
+      "sourceScenarioId": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policyKey": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 5,
+      "evidenceSha256": "0c9d21ccf91f092b2375d3e50ec95ef8de492a7289ebb84687e8a3e7920e66e4"
+    },
+    {
+      "key": "ai-10-decline-last-life-price-heuristic-v2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-decline-last-life-price",
+      "sourceScenarioId": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policyKey": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "evidenceSha256": "049efa31351d82c30e5a70a3b1a4656c7e6ac594b6fa86c4facc3ddc88fa6605"
+    },
+    {
+      "key": "ai-10-decline-last-life-price-search-v3-d2",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-decline-last-life-price",
+      "sourceScenarioId": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policyKey": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "evidenceSha256": "ce2d54e038734cd206a0f5c579ef156662ce630af4415faedb8a0a4f99130d91"
+    },
+    {
+      "key": "ai-10-decline-last-life-price-search-v3-d3",
+      "kind": "decision_case",
+      "fixtureKey": "ai-10-decline-last-life-price",
+      "sourceScenarioId": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policyKey": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "evidenceSha256": "05334f642eb145f8a0ced36fa4196fabda2a1f8adf9c3ea2f7f9b8b3d9cc4f9f"
+    }
+  ]
+}
