@@ -35,7 +35,7 @@ export function CardFaces({
     return (
       <button type="button" onClick={() => setShowBack((b) => !b)} className={`group relative block w-full text-left ${className}`} title={showBack ? "Show front" : "Show awakened side"}>
         <CardImage src={showBack ? back : front} alt={showBack ? (backName ?? `${name} (awakened)`) : name} sizes={sizes} priority={priority} />
-        <span className="absolute bottom-1 right-1 rounded bg-space-950/80 px-1.5 py-0.5 text-[10px] font-semibold text-space-100 group-hover:bg-ki-500 group-hover:text-space-950">
+        <span className="ds-badge-neutral absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[10px] font-semibold">
           {showBack ? "↻ front" : "↻ awakened"}
         </span>
       </button>

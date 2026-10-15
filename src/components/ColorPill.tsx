@@ -1,11 +1,11 @@
 const COLOR_CLASS: Record<string, string> = {
-  Red: "bg-dbs-red/20 text-red-300 ring-dbs-red/40",
-  Blue: "bg-dbs-blue/20 text-blue-300 ring-dbs-blue/40",
-  Green: "bg-dbs-green/20 text-green-300 ring-dbs-green/40",
-  Yellow: "bg-dbs-yellow/20 text-yellow-200 ring-dbs-yellow/40",
-  Black: "bg-dbs-black/30 text-gray-200 ring-dbs-black/50",
-  White: "bg-dbs-white/20 text-gray-100 ring-dbs-white/40",
-  Colorless: "bg-space-700 text-space-200 ring-space-500",
+  Red: "ds-color-red ring-dbs-red/40",
+  Blue: "ds-color-blue ring-dbs-blue/40",
+  Green: "ds-color-green ring-dbs-green/40",
+  Yellow: "ds-color-yellow ring-dbs-yellow/40",
+  Black: "ds-color-black ring-dbs-black/50",
+  White: "ds-color-white ring-dbs-white/40",
+  Colorless: "ds-badge-neutral ring-space-500",
 };
 
 export function ColorPill({ color, small = false }: { color: string; small?: boolean }) {
