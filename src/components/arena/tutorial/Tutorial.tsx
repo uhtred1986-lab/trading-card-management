@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMatchScreen } from "@/lib/match-screen";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArenaStage } from "../stage/ArenaStage";
 import { AnnouncerPortrait } from "./AnnouncerPortrait";
 import { createPracticeSession, restorePracticeSession, type PracticeSession } from "@/lib/arena/tutorial/session";
@@ -65,12 +65,12 @@ export function Tutorial() {
     return () => { if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); };
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
-  useEffect(() => session?.subscribe(transition => {
+  useLayoutEffect(() => session?.subscribe(transition => {
     update({ type: "transition", ...transition }); setSnapshot(transition.after);
   }), [session, update]);
   useEffect(() => {
     if (!session || recovery) return;
-    try { localStorage.setItem(KEY, JSON.stringify({ version: CURRICULUM_VERSION, session: session.serialize(), progress, intro, hints, handoff } satisfies Saved)); }
+    try { localStorage.setItem(KEY, JSON.stringify({ version: CURRICULUM_VERSION, session: session.serialize(), progress: progressRef.current, intro, hints, handoff } satisfies Saved)); }
     // Storage refusal must be visible while allowing the current session to continue.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     catch { setStorageError("This browser cannot save practice. You can keep playing; reloading will lose your progress."); }
