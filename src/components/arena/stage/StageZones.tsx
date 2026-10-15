@@ -486,7 +486,7 @@ export function PlayerStrip({
                 {chip.text}
               </span>
             ))}
-            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs lg:hidden">⚡ {side.activeEnergy}/{side.energy.length}</span>
+            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs lg:hidden xl:inline">⚡ {side.activeEnergy}/{side.energy.length}</span>
             {gain && !them && (
               <span key={gain.key} className="arena-gain arena-num pointer-events-none absolute bottom-full left-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
                 +1 ENERGY
@@ -533,7 +533,7 @@ export function PlayerStrip({
       </div>
 
       {/* Below lg the line is behind the energy chips' one tap; from lg it is always there. */}
-      <div className={`flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100 ${inspectEnergy ? "flex" : "hidden lg:flex"}`} data-player-resources={side.player}>
+      <div className={`flex-wrap items-center gap-x-2 px-3 text-xs leading-snug text-space-100 ${inspectEnergy ? "flex" : "hidden lg:flex"}`} data-player-resources={side.player} data-player-resources-open={inspectEnergy || energyAsked ? "" : undefined}>
         <span className="font-semibold">Life {side.life} · Energy {side.activeEnergy}/{side.energy.length} ready</span>
         <span>{energySummary(side)}</span>
         <button type="button" className="tap min-h-11 rounded px-2 font-semibold underline underline-offset-2" aria-expanded={inspectEnergy} onClick={(event) => { event.stopPropagation(); setInspectEnergy((open) => !open); }}>Inspect energy</button>
