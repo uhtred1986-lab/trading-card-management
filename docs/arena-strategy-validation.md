@@ -239,3 +239,52 @@ Those are recommendations, not permission or verified credit/rate information.
 No paid calls are authorized or made by this plan; the portal records actual
 reported spend separately from estimates. Any strategy promotion still needs the
 fresh, frozen protocol above rather than a small Opus match sample.
+
+## Technical implementation sequence
+
+The portal and tracking ship first; changing the default opponent is a separate,
+measured delivery. The concrete code work for #826/#827 is:
+
+1. **Executable decision fixtures.** Extend the existing real-engine scenario
+   harness (`scripts/arena-scenario.mts` and `scripts/verify/arena-policy-*.mts`)
+   with the reviewed AI-01..12 positions. Store acceptable action sets and
+   continuation assertions separately from candidate policy scoring. Give every
+   result its fixture, deck/rule and policy revisions, seed, seat and evidence link.
+   Start with lethal, defense, energy preservation and attack ordering, then
+   material, recursion and optional-payment cases.
+2. **Repair the bounded search model.** In `src/lib/arena/policy/search.ts`,
+   carry defender hand/combo resources forward when normal damage moves Life
+   into hand; Critical must not replenish them. Include bounded attacker combo
+   choices and their resource costs. The current sampled 0/5k hand prior is an
+   explicit approximation: test sensitivity rather than pretending it knows
+   unseen card identities. Unsupported triggers/counters must remain outside
+   claimed coverage with a safe fallback until modelled and tested.
+3. **Improve decision scoring by demonstrated error.** Refine `policy/main.ts`,
+   `combat.ts` and `choices.ts` for affordable follow-up plays, survival through
+   multiple attacks, material opportunity costs and useful recovery targets.
+   Introduce reviewed effect features only where the engine's supported behavior
+   and the permitted observation justify them; do not infer strategic value just
+   from keyword presence or parse arbitrary printed text as a rules shortcut.
+4. **Preserve the policy boundary.** The production policy continues to receive
+   `PolicyInput` from `policy/boundary.ts` and choose legal menu answers. It must
+   not import live engine state or inspect hidden hands/Life/deck order. Keep its
+   RNG independent, work/memory caps and exact fallback. Any future real-engine
+   rollout adapter requires a separately reviewed information-set design; passing
+   the current full match to search would violate this contract.
+5. **Automate evidence ingestion.** Extend the evaluation/scenario runners to
+   emit a versioned run manifest and compact result artifact, then add an
+   authenticated idempotent import into the testing store. This is future work:
+   today's portal supports manual evidence/results and existing server-game stats,
+   and does not silently upload device journals. Keep replay/private state in
+   restricted artifacts and show aggregate metrics plus evidence links.
+6. **Measure and enable.** Run `scripts/arena-policy-eval.mts` with frozen settings
+   and fresh paired holdouts, retaining per-archetype uncertainty and known tactic
+   failures. Measure browser Worker latency and fallback rates. Only a passing
+   candidate changes the default selected by `src/lib/arena/local/worker.ts`;
+   stamp the policy version in new runs and preserve reproducibility of old ones.
+
+The paid Opus adapter comes after the free fixture baseline: restricted observation,
+legal action IDs, exact model identity, per-request usage ledger, retry accounting
+and a worst-next-call budget reservation. Review disputed lines by replaying
+alternatives. It is a diagnostic comparison, not the implementation of the free
+local opponent, and its explanation alone cannot mark a benchmark passed.

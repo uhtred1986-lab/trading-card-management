@@ -25,7 +25,7 @@ The owner requested grouping related work and delegated implementation to cheape
 - Search holdout: 80/80 complete, zero illegal, 418 hidden-state twins, 41–39; failed
   predeclared strength gate. No difficulty is shipped. Chrome policy/Worker evidence and
   the initial performance miss are preserved in `../663/` and `arena-policy-strength.md`.
-- Authenticated backlog drift check: 244 canonical files clean against GitHub.
+- Authenticated backlog drift check: 245 canonical files clean against GitHub.
 - Player UI changes: Arena navigation and testing-deck toggles; deck create/edit flags;
   the admin testing portal. The owner waived physical-phone acceptance testing.
   The deck naming affordance and release validation corpus are tracked in #827.
@@ -82,3 +82,20 @@ The O5 tracker #637 remains open; this PR does not claim every printed rule is s
   hide/show resets both selected testing decks. Deck create/edit flags persist and
   preserve existing notes. Card-art URLs were unavailable in this isolated browser
   environment, so before/after images show the app's image fallback.
+
+## Integration with deck discovery (#829)
+
+Current main `a891ee99` was merged into the reviewed portal branch. The new searchable
+deck library and desktop/mobile match setup remain in place. Both test-deck toggles
+use the new discovery controls, with filtered local metadata and sanitized seats.
+Independent review verified the test-chain union and found no integration blockers.
+
+The existing `deck-setup-browser.mts` proof passes at 390/1440; additional portal
+checks pass at 390/809/1440. Flag creation/editing preserves notes, and online/local
+both-seat hide/show/reset and all-testing empty states pass. The development preview
+was updated for the additional picker props. [Portal screenshots](portal/) use only
+isolated fixtures. The main #829 baseline screenshots are in [../828](../828/).
+
+After the #829 merge, the complete four-command chain passed again on `e84a68c8`
+(Node 24.19, DATABASE_URL unset). All 90 arena suites and the combined test chain
+passed; lint retains only the same five prototype warnings; production build passed.
