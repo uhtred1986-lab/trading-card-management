@@ -4,11 +4,15 @@ import { readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { canonicalJson, type ReplayBundleRecord } from "../../src/lib/arena/replay-core.ts";
 import { validateEvaluationManifest, type EvaluationManifest, type ManifestFixture, type ManifestPolicy } from "../../src/lib/arena/testing/run-manifest.ts";
 
+import { MAIN_POLICY_VERSION } from "../../src/lib/arena/policy/main.ts";
+import { COMBAT_POLICY_VERSION } from "../../src/lib/arena/policy/combat.ts";
+import { CHOICE_POLICY_VERSION } from "../../src/lib/arena/policy/choices.ts";
+
 export const evidenceHash = (value: unknown) => createHash("sha256").update(canonicalJson(value)).digest("hex");
-export function policyPin(key: string, depth?: number): ManifestPolicy {
+export function policyPin(key: string, depth?: number, frontierCache?:boolean): ManifestPolicy {
   const files = ["contract", "observation", "rng", "shortcuts", "main", "combat", "choices", ...(depth ? ["search"] : [])];
-  return { key, version: depth ? `resource-search-v2-depth-${depth}` : "heuristic-v1",
-    sha256: evidenceHash({ depth: depth ?? null, sources: files.map((file) => readFileSync(`src/lib/arena/policy/${file}.ts`, "utf8")) }) };
+  return { key, version: depth ? frontierCache===undefined?`resource-search-v3-depth-${depth}`:`resource-frontier-dev-depth-${depth}-cache-${frontierCache?"on":"off"}` : `heuristic-main-${MAIN_POLICY_VERSION}-combat-${COMBAT_POLICY_VERSION}-choices-${CHOICE_POLICY_VERSION}`,
+    sha256: evidenceHash({ depth: depth ?? null,...(frontierCache===undefined?{}:{frontierCache}),sources: files.map((file) => readFileSync(`src/lib/arena/policy/${file}.ts`, "utf8")) }) };
 }
 export function fixturePin(key: string, bundle: ReplayBundleRecord, runtimeRevision: string | null, recipes: {p1: string | null; p2: string | null} = {p1:null,p2:null}): ManifestFixture {
   return { key,sourceId:key,runtimeRevision,bundleSha256:evidenceHash(bundle.payload),rulesSha256:bundle.rulesetHash,

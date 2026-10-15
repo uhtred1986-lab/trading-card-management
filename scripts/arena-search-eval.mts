@@ -12,7 +12,9 @@ import assert from "node:assert/strict";
 import { loadAuditFixtures, loadFixtures } from "./verify/arena-policy-fixtures.mts";
 import { playDuel, quantile, wilson, type DuelResult } from "./verify/arena-policy-duel.ts";
 import { gameSeed, verifySeedSets } from "./verify/arena-policy-seeds.ts";
-import { SEARCH_EVAL_SETS, SEARCH_HOLDOUT_PROTOCOL, SEARCH_STRENGTH_GATE } from "./verify/arena-search-protocol.ts";
+import { SEARCH_EVAL_SETS, SEARCH_STRENGTH_GATE } from "./verify/arena-search-protocol.ts";
+import { SEARCH_FRONTIER_DEV_PROTOCOL } from "./verify/arena-search-frontier-protocol.ts";
+import { recordSearchTelemetry, searchTelemetry, mergeSearchTelemetry } from "./lib/arena-search-telemetry.ts";
 import { evaluationRunnerPin } from "./lib/evaluation-provenance.ts";
 import { evidenceHash, fixturePin, policyPin, assertManifest, writeEvidenceFile } from "./lib/policy-evaluation-manifest.ts";
 import type { PolicyEvalManifest } from "../src/lib/arena/testing/run-manifest.ts";
@@ -29,14 +31,17 @@ import { externalCheckpointPath, loadEvaluationCheckpoint, saveEvaluationCheckpo
 // mandatory external gates; Node latency alone cannot enable a difficulty.
 export const STRENGTH_GATE = SEARCH_STRENGTH_GATE;
 const args = process.argv.slice(2);
-const valued = new Set(["--seeds", "--seed-set", "--fixtures", "--max-moves", "--out", "--depth", "--manifest", "--checkpoint", "--resume"]);
+const valued = new Set(["--seeds", "--seed-set", "--fixtures", "--max-moves", "--out", "--depth", "--manifest", "--checkpoint", "--resume", "--frontier-cache"]);
 for (const a of args) if (a.startsWith("--") && !valued.has(a) && !["--allow-holdout", "--synthetic"].includes(a)) throw new Error(`unknown flag ${a}`);
 const flag = (name: string, fallback: string) => { const i = args.indexOf(name); return i < 0 ? fallback : args[i + 1]; };
 const seeds = Number(flag("--seeds", "2"));
 const maxMoves = Number(flag("--max-moves", "3000"));
 const depth=Number(flag("--depth","2"));
 if(depth!==2 && depth!==3) throw new Error("depth must be 2 or 3");
-const runner=evaluationRunnerPin("arena-policy-eval","2");
+const cacheMode=flag("--frontier-cache","off");
+if(cacheMode!=="off" && cacheMode!=="on") throw new Error("--frontier-cache must be off or on");
+const frontierCache=cacheMode==="on";
+const runner=evaluationRunnerPin("arena-policy-eval","3");
 const checkpointArg=flag("--checkpoint",""),resumeArg=flag("--resume","");
 if(checkpointArg && resumeArg) throw new Error("choose --checkpoint FILE for a new run or --resume FILE for an existing one");
 const checkpointPath=checkpointArg || resumeArg ? externalCheckpointPath(checkpointArg || resumeArg) : null;
@@ -48,26 +53,24 @@ if(checkpointPath) for(const name of ["--out","--manifest"]) {
 const setName = flag("--seed-set", "dev") as keyof typeof SEARCH_EVAL_SETS;
 const set = SEARCH_EVAL_SETS[setName];
 if (!set || !Number.isInteger(seeds) || seeds < 1 || seeds > set.size || !Number.isInteger(maxMoves) || maxMoves < 1) throw new Error("invalid seed set, seed count or move cap");
-if (set.reserved && !args.includes("--allow-holdout")) throw new Error("O5 holdouts require --allow-holdout; do not tune against the reported holdout seeds");
-if(set.reserved && !checkpointPath) throw new Error("holdout runs require --checkpoint FILE or --resume FILE outside the checkout");
+if(set.reserved) throw new Error("This frontier-cache batch is development-only. +10M/+20M/+30M are consumed; a new reviewed holdout protocol is required.");
 const fixtures = args.includes("--synthetic") ? await loadFixtures() : await loadAuditFixtures();
 const wanted = flag("--fixtures", fixtures.map((f) => f.name).join(",")).split(",");
 assert.ok(wanted.every((name) => fixtures.some((f) => f.name === name)), "unknown fixture");
 const selected = fixtures.filter((f) => wanted.includes(f.name));
-if(set.reserved && (seeds!==40 || depth!==SEARCH_HOLDOUT_PROTOCOL.candidateDepth || maxMoves!==SEARCH_HOLDOUT_PROTOCOL.maxMoves || args.includes("--synthetic") || selected.length!==4)) throw new Error("Frozen v2 holdout requires depth2, all4 audited fixtures,40 seeds and3000 move cap; partial/custom runs belong to dev.");
 verifySeedSets(selected.map((f) => f.seed));
 const baseline = localPolicy();
-const candidatePolicyKey=`search-v2-d${depth}`;
+const candidatePolicyKey=`search-v3-d${depth}-cache-${cacheMode}`;
 // A/B are exact audited amended SD15 / SD5 lists, not generic synthetic recipes.
 const recipe=(key:string)=>key==="A"?"sd15-01-pride-of-the-saiyans-starter-control":key==="B"?"sd5-01-crimson-saiyan-starter-control":null;
 const fixturePins=selected.map((f)=>fixturePin(`fixture-${f.name.toLowerCase()}`,f.bundle,f.revision,args.includes("--synthetic")?{p1:null,p2:null}:{p1:recipe(f.name.split("v")[0]),p2:recipe(f.name.split("v")[1])}));
-const policyPins=[policyPin(candidatePolicyKey,depth),policyPin("heuristic-v1")];
+const policyPins=[policyPin(candidatePolicyKey,depth,frontierCache),policyPin("heuristic-v1")];
 const schedule:EvaluationJob[]=selected.flatMap((fixture)=>Array.from({length:seeds},(_,k)=>(["p1","p2"] as const).map((seat)=>{
   const policySeed=7919+k*2+(seat==="p2"?1:0);
   return {fixture:fixture.name,k,seat,gameSeed:gameSeed(set,fixture.seed,k),policySeed,initialPolicyRng:{p1:policyRng(policySeed*2+1),p2:policyRng(policySeed*2+2)}};
 })).flat());
 const pins:EvaluationPins={runner,fixtures:fixturePins,policies:policyPins,jobs:schedule,configuration:{
-  protocolRevision:SEARCH_PROTOCOL_REVISION,seedSet:set,seeds,depth,maxMoves,synthetic:args.includes("--synthetic"),limits:SEARCH_LIMITS,gate:STRENGTH_GATE,holdoutProtocol:SEARCH_HOLDOUT_PROTOCOL,
+  protocolRevision:SEARCH_PROTOCOL_REVISION,seedSet:set,seeds,depth,frontierCache,maxMoves,synthetic:args.includes("--synthetic"),limits:SEARCH_LIMITS,gate:STRENGTH_GATE,developmentProtocol:SEARCH_FRONTIER_DEV_PROTOCOL,
 }};
 const resumed=resumeArg?loadEvaluationCheckpoint(checkpointPath!,pins):null;
 const requestId=resumed?.requestId ?? randomUUID();
@@ -83,10 +86,12 @@ for (const [jobIndex,job] of schedule.entries()) {
   const beforeChecks={privacyChecks,nontrivialTwins,executionFailures};
   const timings: number[] = [];
   const statuses: Record<string, number> = {};
+  const telemetry=searchTelemetry();
   let maxNodes = 0;
   let maxReservationBytes = 0;
-  const candidate = searchPolicy({depth}, (r: SearchReport) => {
+  const candidate = searchPolicy({depth,frontierCache}, (r: SearchReport) => {
     statuses[r.status] = (statuses[r.status] ?? 0) + 1;
+    recordSearchTelemetry(telemetry,r);
     maxNodes = Math.max(maxNodes, r.nodes);
     maxReservationBytes = Math.max(maxReservationBytes, r.reservedBytes);
   });
@@ -108,8 +113,8 @@ for (const [jobIndex,job] of schedule.entries()) {
       const twinTurn = policyTurn(twin, actor, revision);
       assert.deepEqual(twinTurn.input, turn.input, "restricted observation invariant");
       const r = policyRng(revision + 663);
-      const choice = searchDecision(turn.input, r,{depth});
-      assert.deepEqual(searchDecision(twinTurn.input, r,{depth}), choice, "sample/answer/node-count invariant");
+      const choice = searchDecision(turn.input, r,{depth,frontierCache});
+      assert.deepEqual(searchDecision(twinTurn.input, r,{depth,frontierCache}), choice, "sample/answer/node-count invariant");
       assert.ok(applyDecision(twin, twinTurn.key, choice.answer).ok, "answer plays on the twin");
       privacyChecks++;
     },
@@ -120,9 +125,9 @@ for (const [jobIndex,job] of schedule.entries()) {
     result={over:false,winner:null,reason:null,moves:0,turn:0,damageDealt:0,damageTaken:0,guards:{test:0,baseline:0},
       stopped:`execution failure: ${String(error)}`,stopKind:"interrupted",stepMs:[],steps:[],trace:"00000000"};
   }
-  records.push({ fixture: fixture.name, k, seat, result, policyMs: timings, search: statuses, maxNodes, maxReservationBytes, nodeHeapAfterBytes: process.memoryUsage().heapUsed,
+  records.push({ fixture: fixture.name, k, seat, result, policyMs: timings, search: statuses,telemetry,maxNodes, maxReservationBytes, nodeHeapAfterBytes: process.memoryUsage().heapUsed,
     checks:{privacyChecks:privacyChecks-beforeChecks.privacyChecks,nontrivialTwins:nontrivialTwins-beforeChecks.nontrivialTwins,executionFailures:executionFailures-beforeChecks.executionFailures} });
-  assert.deepEqual(evaluationRunnerPin("arena-policy-eval","2"),runner,"source changed during evaluation; last completed game was not checkpointed");
+  assert.deepEqual(evaluationRunnerPin("arena-policy-eval","3"),runner,"source changed during evaluation; last completed game was not checkpointed");
   if(checkpointPath) saveEvaluationCheckpoint(checkpointPath,pins,requestId,records);
   console.log(`${fixture.name} ${setName}[${k}] ${seat}: ${result.winner ?? `UNFINISHED ${result.stopKind}: ${result.stopped}`} ${result.moves} moves; searched ${statuses.searched ?? 0}, node fallback ${statuses.nodes ?? 0}`);
 }
@@ -148,22 +153,21 @@ const rows = selected.map((f) => {
   }));
   const decisivePairs=pairs.wonBoth+pairs.lostBoth;
   return { fixture: f.name, games: rs.length, bySeat, pairs, decisivePairs, insufficientPower:decisivePairs<STRENGTH_GATE.perFixturePowerMarkerPairs,decisivePairCi95: wilson(pairs.wonBoth, decisivePairs),
+    telemetry:mergeSearchTelemetry(rs.map((r)=>r.telemetry)),
     policyMs: dist(rs.flatMap((r) => r.policyMs)), stepMs: dist(rs.flatMap((r) => r.result.steps.filter((s) => s.role === "test").map((s) => s.ms))),
     maxReservationBytes: Math.max(...rs.map((r) => r.maxReservationBytes)), nodeHeapAfterBytes: dist(rs.map((r) => r.nodeHeapAfterBytes)) };
 });
 const paired = rows.reduce((s, r) => ({ wonBoth: s.wonBoth + r.pairs.wonBoth, lostBoth: s.lostBoth + r.pairs.lostBoth }), { wonBoth: 0, lostBoth: 0 });
 const decisive = paired.wonBoth + paired.lostBoth;
-const strengthEligible = setName === "holdout" && !args.includes("--synthetic") && selected.length === 4 && records.length / 2 >= STRENGTH_GATE.curatedPairs
-  && decisive >= STRENGTH_GATE.decisivePairs && wilson(paired.wonBoth, decisive)[0] > STRENGTH_GATE.pairWinCiLowGreaterThan
-  && executionFailures===0 && rows.every((row)=>row.decisivePairCi95[1]>=STRENGTH_GATE.perFixturePairCiUpperAtLeast)
-  && records.every((r) => r.result.over && r.result.stopKind !== "illegal");
+const strengthEligible = false; // Development comparison is never a promotion gate.
 const report = {
-  experiment: "Resource-aware bounded search", requestId,runner,resumedGames,protocolRevision:SEARCH_PROTOCOL_REVISION, depth, candidateVersion: SEARCH_VERSION, limits: SEARCH_LIMITS,
+  experiment: "Resource frontier cache development",requestId,runner,resumedGames,protocolRevision:SEARCH_PROTOCOL_REVISION,depth,frontierCache,candidateVersion: SEARCH_VERSION,limits: SEARCH_LIMITS,
+  developmentProtocol:SEARCH_FRONTIER_DEV_PROTOCOL,matchesDevelopmentProtocol:!args.includes("--synthetic") && setName==="dev" && seeds===4 && depth===2 && maxMoves===3000 && selected.map((f)=>f.name).join(",")==="AvA,AvB,BvA,BvB",telemetry:mergeSearchTelemetry(records.map((r)=>r.telemetry)),
   candidateSourceSha256: createHash("sha256").update(fs.readFileSync("src/lib/arena/policy/search.ts")).digest("hex"),
   frozenBaseline: { main: MAIN_POLICY_VERSION, combat: COMBAT_POLICY_VERSION, choices: CHOICE_POLICY_VERSION },
   seedSet: setName, seedsPerFixture: seeds, synthetic: args.includes("--synthetic"), gate: STRENGTH_GATE,
   privacyChecks, nontrivialTwins, executionFailures, insufficientPower:decisive<STRENGTH_GATE.decisivePairs,rows, strengthEligible,
-  difficultyEnabled: false, promotion: "Browser budget evidence and the full strength gate must both pass before any UI/save configuration is shipped.",
+  difficultyEnabled:false,promotion:"Development only. This report cannot enable a difficulty or claim strength.",
   memoryMethod: "Node heapUsed immediately after each game includes the engine, bundle and accumulated report; not peak search memory or browser retained heap. Search reservation is a structural estimate.",
   // Complete records preserve failed runs and their exact stop detail.
   records: records.map(({ result, policyMs, ...record }) => ({
@@ -177,7 +181,7 @@ const report = {
 };
 const out = flag("--out", "");
 const manifest:PolicyEvalManifest={version:1,requestId,source:"policy_eval",runner,seedSet:setName,
-  protocol:{id:"resource-search-826-strength",revision:SEARCH_PROTOCOL_REVISION},
+  protocol:{id:SEARCH_FRONTIER_DEV_PROTOCOL.id,revision:SEARCH_PROTOCOL_REVISION},
   fixtures:fixturePins,policies:policyPins,
   results:records.map(({fixture,k,seat,result})=>{
     const policySeed=7919+k*2+(seat==="p2"?1:0), opposite=seat==="p1"?"p2":"p1";
@@ -189,7 +193,7 @@ const manifest:PolicyEvalManifest={version:1,requestId,source:"policy_eval",runn
       guardTrips:result.guards.test+result.guards.baseline,stopKind:result.stopKind,reportedCostMicros:0,evidenceSha256:evidenceHash(result)};
   })};
 assertManifest(manifest);
-assert.deepEqual(evaluationRunnerPin("arena-policy-eval","2"),runner,"source changed during evaluation; discard evidence and rerun");
+assert.deepEqual(evaluationRunnerPin("arena-policy-eval","3"),runner,"source changed during evaluation; discard evidence and rerun");
 const manifestFile=flag("--manifest","");
 if(manifestFile) writeEvidenceFile(manifestFile,`${JSON.stringify(manifest,null,2)}\n`);
 if (out) {

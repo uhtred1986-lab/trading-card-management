@@ -466,7 +466,12 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
     if (c.why.length) continue;
     // 20-5: an X line's row names the X it charges even at X = 0, which is
     // a real offer and really is free — the legacy `activationCost`.
-    const cost = actionCostOf(c.price) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
+    // The selected ordinary activation really charges its recorded action
+    // price. Native keywords and alternative routes have separate payment
+    // procedures, so never attach the ordinary program's Life count to them.
+    const line = c.card !== null && c.skill !== undefined ? lineOf(ctx, game, state, def, c.card, c.skill) : undefined;
+    const actionPrice = !c.alt && line && !line.keyword ? line.script?.price?.ops : undefined;
+    const cost = actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
     const paymentPreview = paymentPreviewFor(ctx, game, state, player, c);
     out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}), ...(paymentPreview ? { paymentPreview } : {}) });
   }

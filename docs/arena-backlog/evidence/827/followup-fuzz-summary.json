@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "8a634dbf2d9e2f3ae31886b2cf876323f4dccad5",
+  "games": 40,
+  "counts": {
+    "completed": 40,
+    "interrupted": 0,
+    "action-limit": 0,
+    "crash": 0
+  },
+  "scope": "Cached stored-rule diagnostic sample; not deck or ability qualification"
+}

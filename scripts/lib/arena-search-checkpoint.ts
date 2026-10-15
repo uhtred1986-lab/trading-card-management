@@ -8,6 +8,7 @@ import { canonicalJson } from "../../src/lib/arena/replay-core";
 import type { ManifestFixture, ManifestPolicy, ManifestRunner } from "../../src/lib/arena/testing/run-manifest";
 import type { PolicyRng } from "../../src/lib/arena/policy/rng";
 import type { DuelResult } from "../verify/arena-policy-duel";
+import { validSearchTelemetry, telemetryStatuses, type SearchTelemetry } from "./arena-search-telemetry";
 
 export interface EvaluationJob {
   fixture:string; k:number; seat:"p1"|"p2"; gameSeed:number; policySeed:number;
@@ -17,12 +18,13 @@ export interface EvaluationChecks {privacyChecks:number;nontrivialTwins:number;e
 export interface EvaluationRecord {
   fixture:string;k:number;seat:"p1"|"p2";result:DuelResult;policyMs:number[];search:Record<string,number>;
   maxNodes:number;maxReservationBytes:number;nodeHeapAfterBytes:number;checks:EvaluationChecks;
+  telemetry:SearchTelemetry;
 }
 export interface EvaluationPins {
   runner:ManifestRunner;configuration:unknown;fixtures:ManifestFixture[];policies:ManifestPolicy[];jobs:EvaluationJob[];
 }
 export interface EvaluationCheckpoint {
-  format:"arena-search-checkpoint-v1";requestId:string;pins:EvaluationPins;records:EvaluationRecord[];checks:EvaluationChecks;integritySha256:string;
+  format:"arena-search-checkpoint-v2";requestId:string;pins:EvaluationPins;records:EvaluationRecord[];checks:EvaluationChecks;integritySha256:string;
 }
 interface DirectorySyncIo {
   open:(path:string,flags:"r")=>number;
@@ -66,12 +68,14 @@ function validateRecords(records:EvaluationRecord[],pins:EvaluationPins):void {
   const planned=pins.jobs.map((job)=>`${job.fixture}/${job.k}/${job.seat}`);
   assert.equal(new Set(planned).size,planned.length,"expected schedule repeats a seed/seat");
   for(const [i,row] of records.entries()) {
-    assert.ok(row && exact(row,["fixture","k","seat","result","policyMs","search","maxNodes","maxReservationBytes","nodeHeapAfterBytes","checks"]),"malformed checkpoint record");
+    assert.ok(row && exact(row,["fixture","k","seat","result","policyMs","search","maxNodes","maxReservationBytes","nodeHeapAfterBytes","checks","telemetry"]),"malformed checkpoint record");
     assert.equal(`${row.fixture}/${row.k}/${row.seat}`,planned[i],"checkpoint must be a unique completed prefix of the expected seed/seat schedule");
     assert.ok(row.checks && exact(row.checks,["privacyChecks","nontrivialTwins","executionFailures"]) && Object.values(row.checks).every(integer),"invalid checkpoint counters");
     assert.ok([row.maxNodes,row.maxReservationBytes,row.nodeHeapAfterBytes].every(integer),"invalid checkpoint resource counts");
     assert.ok(Array.isArray(row.policyMs) && row.policyMs.every(finite),"invalid checkpoint policy timings");
     assert.ok(row.search && typeof row.search==="object" && Object.entries(row.search).every(([key,n])=>["searched","unsupported","nodes","memory","deadline","cancelled"].includes(key) && integer(n)),"invalid checkpoint search counts");
+    assert.ok(validSearchTelemetry(row.telemetry),"invalid checkpoint telemetry or conservation totals");
+    assert.deepEqual(telemetryStatuses(row.telemetry),row.search,"checkpoint telemetry/status totals mismatch");
     const r=row.result;
     assert.ok(r && exact(r,["over","winner","reason","moves","turn","damageDealt","damageTaken","guards","stopped","stopKind","stepMs","steps","trace"]),"malformed checkpoint result");
     assert.ok(typeof r.over==="boolean" && [r.moves,r.turn,r.damageDealt,r.damageTaken,r.guards?.test,r.guards?.baseline].every(integer),"invalid checkpoint game counts");
@@ -85,7 +89,7 @@ function validateRecords(records:EvaluationRecord[],pins:EvaluationPins):void {
 export function loadEvaluationCheckpoint(path:string,pins:EvaluationPins):EvaluationCheckpoint {
   assert.ok(lstatSync(path).size<=128*1024*1024,"checkpoint exceeds128MiB");
   const value=JSON.parse(readFileSync(path,"utf8")) as EvaluationCheckpoint;
-  assert.ok(value && exact(value,["format","requestId","pins","records","checks","integritySha256"]) && value.format==="arena-search-checkpoint-v1","unsupported checkpoint format");
+  assert.ok(value && exact(value,["format","requestId","pins","records","checks","integritySha256"]) && value.format==="arena-search-checkpoint-v2","unsupported checkpoint format (v2 telemetry required; v1 receipts remain historical artifacts)");
   const {integritySha256,...body}=value;
   assert.equal(integritySha256,hash(body),"checkpoint integrity mismatch; file is corrupt or edited");
   assert.equal(canonicalJson(value.pins),canonicalJson(pins),"checkpoint pin mismatch: source, protocol, fixture, policy, seed schedule or configuration changed");
@@ -101,7 +105,7 @@ export function loadEvaluationCheckpoint(path:string,pins:EvaluationPins):Evalua
  * Orphan temporary files are never considered completed games on resume. */
 export function saveEvaluationCheckpoint(path:string,pins:EvaluationPins,requestId:string,records:EvaluationRecord[]):EvaluationCheckpoint {
   validateRecords(records,pins);
-  const body={format:"arena-search-checkpoint-v1" as const,requestId,pins,records,checks:checkpointChecks(records)};
+  const body={format:"arena-search-checkpoint-v2" as const,requestId,pins,records,checks:checkpointChecks(records)};
   const value={...body,integritySha256:hash(body)};
   const temporary=`${path}.tmp-${randomUUID()}`;
   let fd:number|null=null;

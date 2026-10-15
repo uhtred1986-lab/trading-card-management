@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "origin": "http://127.0.0.1:3002",
+  "viewports": {
+    "390": {
+      "inventory": {
+        "count": 17,
+        "newTitles": 10,
+        "blockedTitles": [
+          "BT3 — Trunks / Over Realm return\nCatalog blocked\nBT3 · Leader BT3-108 Trunks · 50 main · Draft only · qualification Not run"
+        ],
+        "allNotRun": true,
+        "metrics": {
+          "width": 390,
+          "scroll": 390
+        }
+      },
+      "mechi": {
+        "mainCount": 50,
+        "zRows": [
+          [
+            "BT27-093",
+            "SS4 Vegito, Barrage",
+            "z",
+            "4"
+          ]
+        ],
+        "hasNoMainZExtra": true,
+        "metrics": {
+          "width": 390,
+          "scroll": 390
+        }
+      },
+      "gogeta": {
+        "ultimateCopies": 1,
+        "metrics": {
+          "width": 390,
+          "scroll": 390
+        }
+      },
+      "piccolo": {
+        "sourceIssueVisible": true,
+        "metrics": {
+          "width": 390,
+          "scroll": 390
+        }
+      },
+      "vegeta": {
+        "missingCostNoteVisible": true,
+        "metrics": {
+          "width": 390,
+          "scroll": 390
+        }
+      }
+    },
+    "1440": {
+      "inventory": {
+        "count": 17,
+        "newTitles": 10,
+        "blockedTitles": [
+          "BT3 — Trunks / Over Realm return\nCatalog blocked\nBT3 · Leader BT3-108 Trunks · 50 main · Draft only · qualification Not run"
+        ],
+        "allNotRun": true,
+        "metrics": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      },
+      "mechi": {
+        "mainCount": 50,
+        "zRows": [
+          [
+            "BT27-093",
+            "SS4 Vegito, Barrage",
+            "z",
+            "4"
+          ]
+        ],
+        "hasNoMainZExtra": true,
+        "metrics": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      },
+      "gogeta": {
+        "ultimateCopies": 1,
+        "metrics": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      },
+      "piccolo": {
+        "sourceIssueVisible": true,
+        "metrics": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      },
+      "vegeta": {
+        "missingCostNoteVisible": true,
+        "metrics": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      }
+    }
+  }
+}

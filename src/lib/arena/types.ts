@@ -1220,6 +1220,10 @@ export interface ActionCost {
   orbs?: Partial<Record<Color, number>>;
   /** Unison markers added (positive) or removed (negative) as the price (13-4). */
   markers?: number;
+  /** Known mandatory Life payment for this offered route. Absent means the
+   * action price is not projected here, not that paying can never cost Life.
+   * Describes the required payment, before any replacement of its movement. */
+  life?: number;
   /**
    * The price in words, as the row shows it: "2 energy", "{r}{r}", "free",
    * "3 markers" — **except on a play**, where it is the coloured requirement

@@ -84,6 +84,11 @@ try {
     assert.equal(policyDetail?.source, "policy_eval");
     assert.equal(policyDetail?.policies[0].version, "search-v2-d2");
     assert.equal(policyDetail?.results[0].kind, "policy_game");
+    assert.equal(policyDetail?.scores.games, 2);
+    assert.deepEqual(policyDetail?.scores.policies.map(row => [row.wins, row.losses, row.draws]), [[0, 1, 1], [1, 0, 1]]);
+    const filtered = await getImportedEvaluationRunDetail(db, importedGames.runId, { outcome: "win" });
+    assert.equal(filtered?.results.length, 1);
+    assert.deepEqual(filtered?.scores, policyDetail?.scores, "case filters never bias the whole-run score denominator");
   }
   const importHistory = await listImportedEvaluationRuns(db);
   const gameHistory = importHistory.find((row) => row.requestId === gameRun.requestId)!;

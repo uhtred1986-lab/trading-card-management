@@ -1,0 +1,46 @@
+[
+  {
+    "stage": "before",
+    "label": "390",
+    "width": 390,
+    "scroll": 390,
+    "hasScores": false,
+    "rows": []
+  },
+  {
+    "stage": "before",
+    "label": "1440",
+    "width": 1440,
+    "scroll": 1440,
+    "hasScores": false,
+    "rows": []
+  },
+  {
+    "stage": "after",
+    "label": "390",
+    "width": 390,
+    "scroll": 390,
+    "hasScores": true,
+    "text": "Policies and decks\n\nAll 320 games in this run, independent of the case filters below. These descriptive scores do not establish strategic strength or qualify a deck.\n\nGames count distinct matches; appearances count seats, so a mirror has two appearances. Win rate is wins ÷ (wins + losses). Draws and unfinished games are excluded. Policy versions and deck compositions are kept separate.\n\nBy policy version\nheuristic-v1 · 7cc1bb61c7ce\n\n178 W · 142 L · 0 D · 55.6% wins\n\n320 games · 320 seat appearances\n\nUnfinished: 0 interrupted · 0 limited · 0 illegal\n\nresource-search-v2-depth-2 · cc0168bf3a73\n\n142 W · 178 L · 0 D · 44.4% wins\n\n320 games · 320 seat appearances\n\nUnfinished: 0 interrupted · 0 limited · 0 illegal\n\nBy deck composition\nCrimson Saiyan starter control · ca95339ad69c\n\n150 W · 170 L · 0 D · 46.9% wins\n\n240 games · 320 seat appearances\n\nUnfinished: 0 interrupted · 0 limited · 0 illegal\n\nPride of the Saiyans starter control · a2c7246eafec\n\n170 W · 150 L · 0 D · 53.1% wins\n\n240 games · 320 seat appearances\n\nUnfinished: 0 interrupted · 0 limited · 0 illegal",
+    "rows": [
+      "heuristic-v1 · 7cc1bb61c7ce320320178 / 142 / 000055.6%",
+      "resource-search-v2-depth-2 · cc0168bf3a73320320142 / 178 / 000044.4%",
+      "Crimson Saiyan starter control · ca95339ad69c240320150 / 170 / 000046.9%",
+      "Pride of the Saiyans starter control · a2c7246eafec240320170 / 150 / 000053.1%"
+    ]
+  },
+  {
+    "stage": "after",
+    "label": "1440",
+    "width": 1440,
+    "scroll": 1440,
+    "hasScores": true,
+    "text": "Policies and decks\n\nAll 320 games in this run, independent of the case filters below. These descriptive scores do not establish strategic strength or qualify a deck.\n\nGames count distinct matches; appearances count seats, so a mirror has two appearances. Win rate is wins ÷ (wins + losses). Draws and unfinished games are excluded. Policy versions and deck compositions are kept separate.\n\nBy policy version\nVersion / composition\tGames\tAppearances\tW / L / D\tInterrupted\tLimited\tIllegal\tWin rate\nheuristic-v1 · 7cc1bb61c7ce\t320\t320\t178 / 142 / 0\t0\t0\t0\t55.6%\nresource-search-v2-depth-2 · cc0168bf3a73\t320\t320\t142 / 178 / 0\t0\t0\t0\t44.4%\nBy deck composition\nVersion / composition\tGames\tAppearances\tW / L / D\tInterrupted\tLimited\tIllegal\tWin rate\nCrimson Saiyan starter control · ca95339ad69c\t240\t320\t150 / 170 / 0\t0\t0\t0\t46.9%\nPride of the Saiyans starter control · a2c7246eafec\t240\t320\t170 / 150 / 0\t0\t0\t0\t53.1%",
+    "rows": [
+      "heuristic-v1 · 7cc1bb61c7ce\t320\t320\t178 / 142 / 0\t0\t0\t0\t55.6%",
+      "resource-search-v2-depth-2 · cc0168bf3a73\t320\t320\t142 / 178 / 0\t0\t0\t0\t44.4%",
+      "Crimson Saiyan starter control · ca95339ad69c\t240\t320\t150 / 170 / 0\t0\t0\t0\t46.9%",
+      "Pride of the Saiyans starter control · a2c7246eafec\t240\t320\t170 / 150 / 0\t0\t0\t0\t53.1%"
+    ]
+  }
+]

@@ -3,9 +3,9 @@
  * #651: the complete local policy in a real browser — per-decision latency in a module Web Worker, and
  * the proof that it plays the same games there as in Node.
  *
- *   npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--fixtures a,b]
+ *   npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--frontier-cache off|on] [--fixtures a,b]
  *
- * --search opts into resource-aware bounded search v2, depth 2, versus the frozen
+ * --search opts into resource-aware bounded search at depth2 versus the frozen
  * heuristic. Both policies retain current menu legality; it enables no player
  * difficulty. Heap is measured in the actual Worker, before and after GC.
  *
@@ -32,15 +32,16 @@ import { quantile } from "./verify/arena-policy-duel.ts";
 import { runJobs, type Job, type JobResult } from "./verify/arena-policy-browser-jobs.ts";
 import { SEARCH_VERSION } from "../src/lib/arena/policy/search.ts";
 import { evaluationRunnerPin } from "./lib/evaluation-provenance.ts";
-import { fixturePin, policyPin } from "./lib/policy-evaluation-manifest.ts";
+import { fixturePin, policyPin, evidenceHash } from "./lib/policy-evaluation-manifest.ts";
+import { mergeSearchTelemetry, validSearchTelemetry, telemetryStatuses } from "./lib/arena-search-telemetry.ts";
 
 function usage(message: string): never {
   console.error(`arena:policy-browser: ${message}`);
-  console.error("Usage: npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--fixtures a,b]");
+  console.error("Usage: npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--frontier-cache off|on] [--fixtures a,b]");
   process.exit(2);
 }
 const argv = process.argv.slice(2);
-const valued = new Set(["--seeds", "--throttle", "--max-moves", "--total-timeout", "--fixtures"]);
+const valued = new Set(["--seeds", "--throttle", "--max-moves", "--total-timeout", "--fixtures", "--frontier-cache"]);
 const flags = new Set(["--json", "--audit", "--search"]);
 for (const a of argv) if (a.startsWith("--") && !valued.has(a) && !flags.has(a)) usage(`unknown flag ${a}`);
 const int = (name: string, fallback: number): number => {
@@ -56,8 +57,12 @@ const MAX_MOVES = int("--max-moves", 3000);
 const TOTAL_MS = int("--total-timeout", 900) * 1000;
 const JSON_OUT = argv.includes("--json");
 const SEARCH = argv.includes("--search");
+const ci=argv.indexOf("--frontier-cache"),cacheMode=ci<0?"off":argv[ci+1];
+if(cacheMode!=="off" && cacheMode!=="on") usage("--frontier-cache must be off or on");
+if(ci>=0 && !SEARCH) usage("--frontier-cache requires --search");
+const frontierCache=cacheMode==="on";
 if (SEEDS < 1) usage("--seeds must be at least 1");
-const runner=evaluationRunnerPin("arena-policy-eval","browser-2");
+const runner=evaluationRunnerPin("arena-policy-eval","browser-3");
 
 try { findChrome(); } catch (error) { console.error(`arena:policy-browser: ${(error as Error).message}`); process.exit(2); }
 
@@ -69,7 +74,7 @@ if (fi >= 0) {
   fixtures.splice(0, fixtures.length, ...fixtures.filter((f) => wanted.includes(f.name)));
 }
 const jobs: Job[] = fixtures.flatMap((f) =>
-  Array.from({ length: SEEDS * 2 }, (_, g): Job => ({ fixture: f.name, bundle: f.bundle, revision: f.revision, gameSeed: gameSeed(SEED_SETS.dev, f.seed, Math.floor(g / 2)), policySeed: 7919 + g, testSeat: g % 2 === 0 ? "p1" : "p2", ...(SEARCH ? { search: true } : {}) })),
+  Array.from({ length: SEEDS * 2 }, (_, g): Job => ({ fixture: f.name, bundle: f.bundle, revision: f.revision, gameSeed: gameSeed(SEED_SETS.dev, f.seed, Math.floor(g / 2)), policySeed: 7919 + g, testSeat: g % 2 === 0 ? "p1" : "p2", ...(SEARCH ? { search: true,frontierCache } : {}) })),
 );
 
 const PAGE = `<!doctype html><meta charset="utf-8"><title>arena policy browser</title>
@@ -116,7 +121,7 @@ const key = (r: JobResult) => `${r.fixture}/${r.gameSeed}/${r.testSeat}: ${r.ove
 
 let failed = false;
 const report: Record<string, unknown> = {runner,fixtures:fixtures.map((f)=>fixturePin(`fixture-${f.name.toLowerCase()}`,f.bundle,f.revision)),
-  ...(SEARCH?{policies:[policyPin(`search-v${SEARCH_VERSION}-d2`,2),policyPin("heuristic-v1")],depth:2}:{} )};
+  ...(SEARCH?{policies:[policyPin(`search-v${SEARCH_VERSION}-d2-cache-${cacheMode}`,2,frontierCache),policyPin("heuristic-v1")],depth:2,frontierCache}:{} )};
 let workerSession: string | null = null;
 browser.on((method, params) => {
   if (method === "Target.attachedToTarget" && params?.targetInfo?.type === "worker" && String(params.targetInfo.url).includes("arena-policy-worker")) {
@@ -151,7 +156,14 @@ try {
   const same = (got: JobResult[]) => got.length === want.length && got.every((r, i) => key(r) === want[i]);
   const agree = { worker: same(workerResults), thread: threadResults ? same(threadResults) : null };
   report.games = jobs.length;
-  report.candidate = SEARCH ? `search-v${SEARCH_VERSION} depth2 vs frozen local heuristic` : "local heuristic vs uniform";
+  report.candidate = SEARCH ? `search-v${SEARCH_VERSION} depth2 cache-${cacheMode} vs frozen local heuristic` : "local heuristic vs uniform";
+  if(SEARCH) {
+    report.telemetry=mergeSearchTelemetry(workerResults.flatMap((r)=>r.search?[r.search.telemetry]:[]));
+    const diagnostics=(results:JobResult[])=>results.map((r)=>r.search);
+    report.telemetryAgreement={worker:JSON.stringify(diagnostics(workerResults))===JSON.stringify(diagnostics(nodeResults)),thread:threadResults?JSON.stringify(diagnostics(threadResults))===JSON.stringify(diagnostics(nodeResults)):null};
+    if(workerResults.some((r)=>!r.search || !validSearchTelemetry(r.search.telemetry) || evidenceHash(telemetryStatuses(r.search.telemetry))!==evidenceHash(r.search.statuses))
+      || Object.values(report.telemetryAgreement as Record<string,boolean|null>).some((v)=>v===false)) failed=true;
+  }
   if (SEARCH) report.search = workerResults.map((r) => ({ fixture: r.fixture, gameSeed: r.gameSeed, seat: r.testSeat, over: r.over, winner: r.winner, stopKind: r.stopKind, trace: r.trace, ...r.search }));
   report.agreeWithNode = agree;
   report.node = summary(nodeResults);
@@ -174,7 +186,7 @@ try {
   await browser.close();
   server.close();
 }
-if(JSON.stringify(evaluationRunnerPin("arena-policy-eval","browser-2"))!==JSON.stringify(runner)) {
+if(JSON.stringify(evaluationRunnerPin("arena-policy-eval","browser-3"))!==JSON.stringify(runner)) {
   failed=true;report.sourceChanged=true;report.error="Source changed during browser measurement; discard receipt and rerun.";
 }
 

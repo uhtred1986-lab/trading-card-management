@@ -292,7 +292,7 @@ and a worst-next-call budget reservation. Review disputed lines by replaying
 alternatives. It is a diagnostic comparison, not the implementation of the free
 local opponent, and its explanation alone cannot mark a benchmark passed.
 
-## Next technical improvement batch
+## Follow-up implementation and next strategy work
 
 Use development cases to improve useful search coverage before increasing depth.
 Record searched/fallback decisions by window and unsupported reason; cache complete
@@ -314,3 +314,5 @@ Continue named-deck rule/scenario qualification alongside this work. An Opus
 adapter must use the same restricted observation/legal-action boundary, a pinned
 model and verified token-category rates, request reservations and campaign caps;
 paid execution awaits an agreed spend limit.
+
+The immediate follow-up implements bounded per-window fallback diagnostics and opt-in complete-frontier caching, documented in `arena-frontier-cache-development.md`. Both 32-game development arms finished 13–19; no default promotion follows. Real-card tactical controls now expose a White Cell turn-long defense valuation failure and verify the narrow last-Life refusal repair (`arena-real-card-tactics-827.md`). The next scoring work should model supported effect duration and successive-threat resource value through typed public facts, then preserve the losing example and test independent counterexamples before another frozen strength evaluation. Whole-deck rule qualification and the budgeted Opus adapter remain separate outstanding work.

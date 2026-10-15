@@ -508,22 +508,43 @@ export function xValues(ctx: EngineContext, game: GameDefinition, state: VmState
  * assembles a play's half of it, which is why the orbs are handed over
  * separately rather than folded into the words.
  */
-export function actionCostOf(price: Price): ActionCost | undefined {
-  if (!price.energy && !Object.keys(price.orbs).length && !price.markers && !price.life && !price.rest && !price.either.length && !price.pooled.length) return undefined;
+export function actionCostOf(price: Price, actionPrice?: Op[] | null): ActionCost | undefined {
+  const life = mandatoryLifeCost(price, actionPrice);
+  if (!price.energy && !Object.keys(price.orbs).length && !price.markers && !price.life && !life && !price.rest && !price.either.length && !price.pooled.length) return undefined;
   const bits: string[] = [];
   if (price.energy) bits.push(`${price.energy} energy${orbWords(price.orbs)}`);
   // 5-4: the Z-Energy half, named by the place it comes out of, so the row says
   // "2 Z-Energy" because the game declares a zone of that name.
   for (const pooled of price.pooled) bits.push(`${pooled.n} ${pooled.area}`);
   if (price.markers) bits.push(price.markers > 0 ? `+${price.markers} marker${price.markers === 1 ? "" : "s"}` : `${-price.markers} marker${price.markers === -1 ? "" : "s"}`);
-  if (price.life) bits.push(`${price.life} life`);
+  if (price.life || life) bits.push(`${price.life || life} life`);
   if (price.rest) bits.push("rests it");
   return {
     energy: price.energy,
     ...(Object.keys(price.orbs).length ? { orbs: price.orbs } : {}),
     ...(price.markers ? { markers: price.markers } : {}),
+    ...(life === undefined ? {} : { life }),
     describe: bits.join(" · ") || "free",
   };
+}
+
+/** Project a required payment, never execute a price to predict its result.
+ * Only the entire literal exact self-Life choice followed by that variable's
+ * move is supported. Branches, optional/bounded choices and other operations
+ * stay unknown. A declarative Life charge plus a program also stays unknown,
+ * so a second representation is never silently double-counted. */
+export function mandatoryLifeCost(price: Pick<Price, "life">, ops?: Op[] | null): number | undefined {
+  if (!ops?.length) return price.life > 0 ? price.life : undefined;
+  if (price.life || ops.length !== 2) return undefined;
+  const [choose, move] = ops;
+  if (choose.op !== "choose" || move.op !== "moveTo" || choose.atMost !== undefined || choose.sumTo !== undefined) return undefined;
+  const sel = choose.sel;
+  if (Object.entries(sel).some(([k,v]) => v !== undefined && !["side", "area", "count", "upTo"].includes(k)) || sel.side !== "you" || sel.area !== "life" || sel.upTo) return undefined;
+  const count = sel.count;
+  if (count === undefined || !Number.isSafeInteger(count) || count <= 0) return undefined;
+  if (Object.entries(move).some(([k,v]) => v !== undefined && !["op", "target", "to"].includes(k)) || !["hand", "drop"].includes(move.to)) return undefined;
+  if (!("var" in move.target) || Object.entries(move.target).filter(([,v]) => v !== undefined).length !== 1 || move.target.var !== choose.as) return undefined;
+  return count;
 }
 
 const orbWords = (orbs: Partial<Record<Color, number>>): string => {

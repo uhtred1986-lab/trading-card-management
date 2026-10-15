@@ -10,6 +10,7 @@ import { resolveOutcome, type OutcomeState } from "../outcome";
 import { TESTING_DECK_CATALOG, TESTING_SCENARIO_CATALOG } from "./catalog";
 import { MAX_MANIFEST_BYTES, validateEvaluationManifest, type EvaluationManifest, type EvaluationManifestResult, type ImportedResultPreview, type ImportedRunDetail, type ImportedRunSummary } from "./run-manifest";
 import { aggregateMatches, type StatsMatch } from "./stats";
+import { scoreImportedRun } from "./run-stats";
 import type { DeckProgressUpdate, MatchActor, MutationResult, ProgressStatus, ProgressUpdate, RecordTestingMatchInput, StatsFilter, TestingDashboard, TestingDeck, TestingMatch, TestingScenario } from "./types";
 
 const STATUSES = ["planned", "in_progress", "blocked", "failed", "passed"];
@@ -288,7 +289,7 @@ export async function getImportedEvaluationRunDetail(db: Db, runId: number, opti
     runner: manifest.runner, protocol: manifest.protocol, seedSet: run.seedSet as ImportedRunDetail["seedSet"],
     fixtures: manifest.fixtures, policies: manifest.policies, resultCount: run.resultCount, totalMatches: total, recordedAt: iso(run.recordedAt),
     fixtureTotals: grouped.map((row) => ({ fixtureKey: row.fixtureKey, kind: row.kind as ImportedRunDetail["fixtureTotals"][number]["kind"], outcome: row.outcome, count: row.count })),
-    results: pageRows.map((row) => row.payload), page, pageSize: IMPORTED_PAGE_SIZE, pageCount, fixtureFilter, outcomeFilter,
+    results: pageRows.map((row) => row.payload), scores: scoreImportedRun(manifest), page, pageSize: IMPORTED_PAGE_SIZE, pageCount, fixtureFilter, outcomeFilter,
   };
 }
 

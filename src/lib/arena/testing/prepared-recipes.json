@@ -1,8 +1,11 @@
 {
-  "version": 1,
-  "checkedAt": "2026-10-15T01:20:28.587Z",
-  "source": "Current app catalog restrictions; not independently verified against the current official ban list. These are draft quantities, not qualified decks.",
-  "sourceCommit": "3ee8f03e3f489b8880b8565cd93e3c7d761029f0",
+  "version": 2,
+  "checkedAt": "2026-10-15T02:16:02.092Z",
+  "source": "Authored public proposals and audited starter quantities; current app public catalog and restrictions snapshot (not independent official banlist verification).",
+  "sourceCommit": "b7fcf2237b9a6c6875772d2ae97f0a3cf1731efe",
+  "runnerDirtyTreeSha256": null,
+  "catalogSha256": "bd5999f5ad806686686f0a07eaee030332a219c04e2919287d6be084fd506da1",
+  "constraintsSha256": "8dd6055eef4fea65c3b575982902e0990eb5c1245496cea1cde474b92f8cba69",
   "recipes": [
     {
       "id": "bt31-116-white-cell-reveal-evolve",
@@ -21,6 +24,67 @@
         "BT31-140",
         "BT31-141"
       ],
+      "compilerGapDetails": [
+        {
+          "card": "BT31-133",
+          "unread": [
+            "add 1 card from your hand to your Z-Energy with its skills negated for the turn"
+          ]
+        },
+        {
+          "card": "BT31-140",
+          "unread": [
+            "if your opponent's card is attacking",
+            "your Leader gets +10000 power for the battle"
+          ]
+        },
+        {
+          "card": "BT31-141",
+          "unread": [
+            "Play 2 Cell Jr",
+            "Tokens",
+            "they gain [Blocker] for the turn"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Leader forbids non-white Extras; every Extra is mono-white",
+          "pass": true
+        },
+        {
+          "check": "All five Leader-invokable cost2 white Extras are present",
+          "pass": true
+        },
+        {
+          "check": "3+ cost white Cell base, cost4 recovery target and Android under-card exist",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "New public proposal, not the owner's saved White Cell list.",
         "All Extras are white and cost2; Cell/Android bases support absorption and evolution.",
@@ -127,6 +191,41 @@
       "listSha256": "5ed67f5eb587ab770375d65b2664d7c3e2ca833ce2d22c4db36487065d460814",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Fasha/Tora combo-evolution targets each have matching character bases",
+          "pass": true
+        },
+        {
+          "check": "5-cost yellow Bardock base supplies included EX-Evolve targets",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "Fasha/Tora have actual matching bases; 5-cost Bardock supplies both EX-Evolve targets.",
         "BT15-102 is mixed-release yellow Super Combo support; no banned/restricted status is inferred from this design.",
@@ -248,6 +347,45 @@
       "listSha256": "8d569b38e8200e74de0ffc69ef6f4feefa785db924cfe4eb0f540a63bbc101a2",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Historical Over Realm3 Battle/deck-to-Warp return card is present (banned)",
+          "pass": true
+        },
+        {
+          "check": "Red and blue bodies support the Leader's printed draw condition",
+          "pass": true
+        },
+        {
+          "check": "Included Xeno-Evolve cards have matching Towa/Mira bases",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "BLOCKED historical recipe: app catalog captured2026-10-15 marks BT3-112 banned. Do not assemble this as a legal deck.",
         "Red/blue skill-less support enables the front Leader's draw condition after milling or development.",
@@ -354,6 +492,41 @@
       "listSha256": "85e8ed9b0d38c8bd8bb473cdd774f12c1c96a1e9c2663e7b2cae8e20386f324f",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Swap sources and blue Squadron cost5 targets exist",
+          "pass": true
+        },
+        {
+          "check": "Battle-area blue Fields and return/replacement interaction exist",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "Blue 1-cost Swap sources, 5-cost Armored Squadron targets and blue Field Extras provide the named return-loop ingredients.",
         "BT4-028 is mixed-release skill-less blue support; this deliberately omits optional BT29-030 while its missing Z-Energy input is unresolved.",
@@ -441,6 +614,1757 @@
       ]
     },
     {
+      "id": "bt27-092-mechikabura-multiple-attacks",
+      "name": "BT27 — Mechikabura / multiple attacks",
+      "release": "BT27",
+      "leaderId": "BT27-092",
+      "leaderName": "Mechikabura",
+      "mainCount": 50,
+      "zCount": 4,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "7f1367877569e50d8d4ee79e435b473fea1e319182ad6b0ffcf18a533e7534e4",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT27-092",
+        "BT27-105",
+        "BT27-093"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT27-092#back",
+          "unread": [
+            "the next time you activate a [Dark Over Realm] skill from your hand During this turn",
+            "reduce its skill cost by {b}"
+          ]
+        },
+        {
+          "card": "BT27-105",
+          "unread": [
+            "an [Over Realm] or [Dark Over Realm] skill from your Warp with its non-keyword skills negated for the game",
+            "sendit to its owner's Warp"
+          ]
+        },
+        {
+          "card": "BT27-093",
+          "unread": [
+            "If you have a Battle Card with an [Over Realm] or [Dark Over Realm] skill in play",
+            "reduce the energy cost of this card in your Z-Deck by 2"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "The main deck contains black Demon Realm Race/Demon God search targets",
+          "pass": true
+        },
+        {
+          "check": "A Dark Over Realm card is included for BT27-093's printed Z-Deck reduction",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck includes BT27-093 with its recorded Z-Energy cost3",
+          "pass": true
+        },
+        {
+          "check": "Black Leader Counter and mixed-release Dark Over Realm blocker support are included",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal; all named counts are proposals, not an official or owner decklist.",
+        "The Leader searches black Demon Realm Race/Demon God cards; these traits are present in the main list.",
+        "The four-card Z-Battle has printed Z-Energy cost3; its printed reduction needs an Over Realm/Dark Over Realm Battle in play. Dark Over Realm cards are included.",
+        "BT27-099 is a Dark Over Realm blocker; BT27-095 is a Counter: Attack for a black Leader; BT16-117 is mixed-release Demon God/Dark Over Realm blocker-token support. These replace a main-deck Z-Extra, an SSB Vegeta-only card, and Salsa's Dark Dragon Ball-gated play mode.",
+        "Triple Attack and Deflect remain unqualified; a legal list and reusable keyword proof do not prove the deck was tested."
+      ],
+      "cards": [
+        {
+          "id": "BT27-101",
+          "name": "Robelu, Hotshot",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-108",
+          "name": "Dabura, Encroaching Shadow",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-107",
+          "name": "Towa, Encroaching Shadow",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-100",
+          "name": "Demigra, Encroaching Shadow",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-102",
+          "name": "Demon God Putine, Scheming",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-103",
+          "name": "Demon God Shroom, Scheming",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-104",
+          "name": "Demon God Salsa, Scheming",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-105",
+          "name": "Dark King Mechikabura, Call to Duty",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-106",
+          "name": "Demon God Towa, Scheming",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-109",
+          "name": "Fu, Scheming Scientist",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-110",
+          "name": "Cumber, Vicious Warrior",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-111",
+          "name": "Darkness Fall",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-099",
+          "name": "Supreme Kai of Time, Imprisoned Godly Spirit",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-095",
+          "name": "Bardock, Destiny-Changing Willpower",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT16-117",
+          "name": "Demon God Putine, Umbral Might",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-093",
+          "name": "SS4 Vegito, Barrage",
+          "quantity": 4,
+          "zone": "z"
+        }
+      ]
+    },
+    {
+      "id": "bt30-001-super-saiyans-united-red-attacks",
+      "name": "BT30 — Super Saiyans United / red attacks",
+      "release": "BT30",
+      "leaderId": "BT30-001",
+      "leaderName": "Son Goku, Vegeta, & Trunks",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "cc870de4d31f486b96fbea32a036612b32b0e7b9a42efcf06a6c5f94f3e5621d",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT30-001",
+        "BT30-007",
+        "BT30-010"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT30-001#back",
+          "unread": [
+            "If you have 1 or more {Spirit} under any of the cards in your Battle Area and you place all of them at the bottom of their owner's deck"
+          ]
+        },
+        {
+          "card": "BT30-007",
+          "unread": [
+            "shuffle your life"
+          ]
+        },
+        {
+          "card": "BT30-010",
+          "unread": [
+            "Add up to 1 red card from your Drop to your Z-Energy with its skills negated for the turn"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Spirit is reachable from the deck/drop routes printed on the Leader and BT30 support",
+          "pass": true
+        },
+        {
+          "check": "The Leader flips to the exact Super Saiyans United name required by support skills",
+          "pass": true
+        },
+        {
+          "check": "The list distinguishes the Leader's Spirit search, BT30-004's Z-Energy Auto and BT30-015 under-card effect",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal, not an official or owner decklist; 2 mixed-release BT6-003 cards fill the 50-card list.",
+        "BT30-001 awakens to the exact back name {Super Saiyans United}; support effects naming that Leader require the flipped side. BT30-007/012 and the Leader access Spirit; BT30-004 can move Spirit from Drop to Z-Energy. BT30-015 has a separate under-Son-Goku effect.",
+        "The 4-cost play and 4-Z-Energy play have distinct requirements; neither is asserted to have fired.",
+        "Dual Attack and all attached skills remain unqualified for this recipe."
+      ],
+      "cards": [
+        {
+          "id": "BT30-004",
+          "name": "SS Son Goku, Unmatched Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-005",
+          "name": "Son Goku, Saiyans Assembled",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-009",
+          "name": "Vegeta, Saiyans Assembled",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-011",
+          "name": "Trunks, Saiyans Assembled",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-007",
+          "name": "Son Gohan, Rising Up",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-015",
+          "name": "Spirit",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-008",
+          "name": "SS Vegeta, Unmatched Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-010",
+          "name": "SS Trunks, Unmatched Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-003",
+          "name": "SS Son Goku, Infinite Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-006",
+          "name": "SS Son Goku, SS Vegeta, & SS Trunks, Golden Warriors",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-012",
+          "name": "Piccolo, Rescue",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-013",
+          "name": "Android 18, Cold Stare",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-003",
+          "name": "Harmonic Energy SSB Son Goku",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt5-002-pilaf-wish-desire",
+      "name": "BT5 — Pilaf / Wish and Desire",
+      "release": "BT5",
+      "leaderId": "BT5-002",
+      "leaderName": "Pilaf",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [
+        {
+          "severity": "warning",
+          "message": "Dragon Ball (BT5-117): off-colour for a Red leader.",
+          "cardId": "BT5-117"
+        },
+        {
+          "severity": "warning",
+          "message": "Two-Star Ball (P-084): off-colour for a Red leader.",
+          "cardId": "P-084"
+        },
+        {
+          "severity": "warning",
+          "message": "Seven-Star Ball (P-176): off-colour for a Red leader.",
+          "cardId": "P-176"
+        },
+        {
+          "severity": "warning",
+          "message": "World Peace (BT5-119): off-colour for a Red leader.",
+          "cardId": "BT5-119"
+        },
+        {
+          "severity": "warning",
+          "message": "Dragon Ball Seeker Bulma (BT5-107): off-colour for a Red leader.",
+          "cardId": "BT5-107"
+        },
+        {
+          "severity": "warning",
+          "message": "Adventurous Son Goku (BT5-106): off-colour for a Red leader.",
+          "cardId": "BT5-106"
+        }
+      ],
+      "listSha256": "b3e9e47388972ac3b6b080ca3d9221ab7ec816bd05b3649a9a094151d5f6b300",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT5-002",
+        "P-176",
+        "BT5-106",
+        "BT5-015",
+        "BT5-014",
+        "BT5-005",
+        "BT5-025"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT5-002#back",
+          "unread": [
+            "Choose 1 red or black ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy",
+            "activate its [Activate: Main] skill"
+          ]
+        },
+        {
+          "card": "P-176",
+          "unread": [
+            "If your Leader Card has 10000 power",
+            "you have 5 or less life",
+            "your Leader Card gets +5000 power for the duration of the turn"
+          ]
+        },
+        {
+          "card": "BT5-106",
+          "unread": [
+            "If you placed a [Dragon Ball] card in your Drop Area",
+            "this card gets +10000 power and [Double Strike] for the duration of the turn"
+          ]
+        },
+        {
+          "card": "BT5-015",
+          "unread": [
+            "choose up to 1 each of {Pilaf, Leader of the Crew}, {Shu, Trusted Lackey},",
+            "{Mai, Trusted Lackey} from your Drop Area",
+            "play them"
+          ]
+        },
+        {
+          "card": "BT5-014",
+          "unread": [
+            "{Oolong's Wish} is in your Drop Area"
+          ]
+        },
+        {
+          "card": "BT5-005",
+          "unread": [
+            "If you played a card using this skill",
+            "draw 1 card"
+          ]
+        },
+        {
+          "card": "BT5-025",
+          "unread": [
+            "{A King's Return to Youth} from your deck"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Exactly seven Dragon Ball cards are listed",
+          "pass": true
+        },
+        {
+          "check": "Desire Extras and Shenron-trait Leader are present",
+          "pass": true
+        },
+        {
+          "check": "BT5-119 current card text uses the errata cost limit3",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal; P-084 and P-176 are mixed-release Dragon Ball support; exactly 7 Dragon Ball cards are listed.",
+        "The Leader has the Shenron trait required by Oolong's Wish and World Peace. BT5-119 is interpreted through current errata: target energy cost3 or less, independent of current energy.",
+        "This list contains the threshold ingredients, not evidence that Wish/Desire resolves; the wrong-identity and six-versus-seven cases remain separate scenarios.",
+        "Counts are proposals, not official or owner quantities; current legality/compiler metadata does not qualify the recipe."
+      ],
+      "cards": [
+        {
+          "id": "BT5-117",
+          "name": "Dragon Ball",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "P-084",
+          "name": "Two-Star Ball",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "P-176",
+          "name": "Seven-Star Ball",
+          "quantity": 1,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-024",
+          "name": "Oolong's Wish",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-119",
+          "name": "World Peace",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-107",
+          "name": "Dragon Ball Seeker Bulma",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-106",
+          "name": "Adventurous Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-016",
+          "name": "Pilaf, Leader of the Crew",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-015",
+          "name": "Combiner Mecha Pilaf Machine",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-003",
+          "name": "Oblivious Rampage Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-008",
+          "name": "Sideline Assist Bulma",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-012",
+          "name": "Master Roshi, Martial Expert",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-014",
+          "name": "Scheming Oolong",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-005",
+          "name": "Feisty Chi-Chi",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-025",
+          "name": "A King's Return to Youth",
+          "quantity": 4,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt5-105-black-masked-saiyan-warp-pressure",
+      "name": "BT5 — Black Masked Saiyan / Warp pressure",
+      "release": "BT5",
+      "leaderId": "BT5-105",
+      "leaderName": "Black Masked Saiyan",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "8fd2851408f95ccfcc08512b7ffb24391d319de4452d2a4d42a1646831a63548",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT5-111",
+        "BT5-106",
+        "BT13-147"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT5-111",
+          "unread": [
+            "when this card's attack is negated or when this card fails to deal damage to your opponent in a battle with their Leader Card"
+          ]
+        },
+        {
+          "card": "BT5-106",
+          "unread": [
+            "If you placed a [Dragon Ball] card in your Drop Area",
+            "this card gets +10000 power and [Double Strike] for the duration of the turn"
+          ]
+        },
+        {
+          "card": "BT13-147",
+          "unread": [
+            "1 or more Battle Card in their Warp"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "The main deck supplies at least15 Saiyan cards for the named combined-Drop threshold",
+          "pass": true
+        },
+        {
+          "check": "BT5-111 is included with the printed black Leader/Saiyan threshold Auto",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored mixed-release Saiyan proposal, not an official or owner decklist; most main-deck cards have the Saiyan trait to support the printed 15-card Drop threshold.",
+        "The Leader's Burst 3 and BT5-106/other discard effects create Drop cards, but opponent contribution and the 15-card condition must be staged in scenarios.",
+        "BT5-114 is the only four-copy Super Combo group in this list; verify current catalog limits when regenerating.",
+        "Critical and the attack-negated/no-damage Auto remain unqualified for this recipe."
+      ],
+      "cards": [
+        {
+          "id": "BT5-111",
+          "name": "Black Masked Saiyan, the Devastator",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-112",
+          "name": "Dark Power Black Masked Saiyan",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-113",
+          "name": "Deadly Defender Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-114",
+          "name": "Temporal Rescue Trunks",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-106",
+          "name": "Adventurous Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT10-129",
+          "name": "Vegeta, Demonstration of Might",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT10-130",
+          "name": "Trunks, Elite Descendant",
+          "quantity": 1,
+          "zone": "main"
+        },
+        {
+          "id": "BT11-127",
+          "name": "SS3 Son Goku, Man on a Mission",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT11-129",
+          "name": "SS3 Vegeta, Unstoppable Evolution",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT12-127",
+          "name": "Son Goku, Catastrophic Premonition",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT12-128",
+          "name": "Son Goku, True Fighting Spirit",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT12-132",
+          "name": "Vegeta, Catastrophic Premonition",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT13-147",
+          "name": "Dark Masked King, Pursuit of Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-115",
+          "name": "Power Burst",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-116",
+          "name": "Dragon Radar",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt6-001-gogeta-br-fusion",
+      "name": "BT6 — Gogeta / Br fusion",
+      "release": "BT6",
+      "leaderId": "BT6-001",
+      "leaderName": "Son Goku and Vegeta",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT6-001",
+        "BT6-012",
+        "BT6-013",
+        "BT6-015"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT6-001#back",
+          "unread": [
+            "it's your turn"
+          ]
+        },
+        {
+          "card": "BT6-012",
+          "unread": [
+            "choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area",
+            "add them to your hand"
+          ]
+        },
+        {
+          "card": "BT6-013",
+          "unread": [
+            "choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area",
+            "add them to your hand"
+          ]
+        },
+        {
+          "card": "BT6-015",
+          "unread": [
+            "it is red",
+            "no other color"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Red Son Goku:Br and red Vegeta:Br Battle Cards are included as exact Veku materials",
+          "pass": true
+        },
+        {
+          "check": "The Veku targets BT6-012 and BT6-013 are included",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal, not an official or owner decklist; the list contains red Son Goku:Br and Vegeta:Br Battle Cards as exact Union-Fusion materials.",
+        "BT6-005 and BT6-009 are the release's Veku/material searchers; BT6-012 and BT6-013 are separate Veku Union-Fusion cards.",
+        "This list intentionally includes the printed BT6-014/015 Gogeta payoffs; exact target, energy and alternative-price behavior requires scenario evidence.",
+        "Union-Fusion and the full recipe remain unqualified."
+      ],
+      "cards": [
+        {
+          "id": "BT6-012",
+          "name": "Veku, Contents Under Pressure",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-013",
+          "name": "Veku, the Fragile",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-003",
+          "name": "Harmonic Energy SSB Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-004",
+          "name": "Preemptive Strike SSG Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-005",
+          "name": "Son Goku, Prepping for Fusion",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-007",
+          "name": "Harmonic Energy SSB Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-008",
+          "name": "Preemptive Strike SSG Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-009",
+          "name": "Vegeta, Prepping for Fusion",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-011",
+          "name": "Bulma, from the Sidelines",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-015",
+          "name": "Gogeta, Unparalleled Fusion Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-006",
+          "name": "Support Attack Son Goten",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-010",
+          "name": "Support Attack Trunks",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-014",
+          "name": "SSB Gogeta, Fusion Onslaught",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt6-053-paragus-broly-recovery",
+      "name": "BT6 — Paragus / Broly recovery",
+      "release": "BT6",
+      "leaderId": "BT6-053",
+      "leaderName": "Paragus",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT6-053"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT6-053",
+          "unread": [
+            "You can't add cards from your life to your hand for the duration of the turn"
+          ]
+        },
+        {
+          "card": "BT6-053#back",
+          "unread": [
+            "You can't add cards from your life to your hand during your turn"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "BT6-062 has its two-card Auto and a green Broly:Br cost6 target is in the list",
+          "pass": true
+        },
+        {
+          "check": "Green Frieza's Army Leader and exact recovery target P-136 are present",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal; P-136 is mixed-release green Broly:Br with energy cost6, the exact recovery target for BT6-062.",
+        "The recovery Auto requires the source to be skill-removed or KO'd, the green Frieza's Army Leader, exactly two hand cards if accepted, and a qualifying target in hand.",
+        "BT6-061 and BT6-060 have separate energy-cost8 text and do not satisfy BT6-062's cost6 target condition.",
+        "The 2-card payment, optional decline and target-in-hand cases remain unqualified."
+      ],
+      "cards": [
+        {
+          "id": "BT6-062",
+          "name": "Broly, Berserker Origins",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-063",
+          "name": "Broly, Unrealized Ambition",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-060",
+          "name": "Broly, Limits Transcended",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-061",
+          "name": "Broly, Power Unleashed",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "P-136",
+          "name": "Overwhelming Energy Broly",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-059",
+          "name": "Energy Barrage Frieza",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-064",
+          "name": "Paragus, Rampage Trigger",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-065",
+          "name": "Paragus, Deadly Premonition",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-066",
+          "name": "Quickshift Angila",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-067",
+          "name": "Wings, the Morale Booster",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-068",
+          "name": "Zeiun, the Loyal",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-069",
+          "name": "Ties that Bind Ba",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-070",
+          "name": "Goliamite, the New Breed",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt27-045-piccolo-namekian-revival",
+      "name": "BT27 — Piccolo / Namekian revival",
+      "release": "BT27",
+      "leaderId": "BT27-045",
+      "leaderName": "Piccolo",
+      "mainCount": 50,
+      "zCount": 4,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "0ba027b469b9906023bd04cb94293e6d03e7670ce57b2dbe9039d6396006422d",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT27-128"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT27-128",
+          "unread": [
+            "add up to 1 green <Porunga>, ≪Namekian≫",
+            "or Extra to your hand"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Piccolo Leader is green and has the Namekian trait for the selected target package",
+          "pass": true
+        },
+        {
+          "check": "The list contains Namekian Revive cards costing4 or less that match the Leader's target condition",
+          "pass": true
+        },
+        {
+          "check": "The cost5 BT27-129 Nail is not counted as a Leader-playable target",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal; BT27-128/130/131/132 and BT8-119 are Namekian Revive Battle Cards with energy costs4 or less, fitting the Leader's printed target condition.",
+        "BT27-129 Nail costs5: it is included as a separate Revive card but is not treated as a legal target for the Leader's cost4-or-less play.",
+        "BT27-048 is a mixed-purpose Z-Battle with recorded Z-Energy cost2; check full Z-Deck legality and distinguish its alternate effects.",
+        "The current source text for BT27-045 has an apparent malformed 'o 4' token; compiler reading and official correction/manual basis require review before any qualification."
+      ],
+      "cards": [
+        {
+          "id": "BT27-128",
+          "name": "Dende, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-130",
+          "name": "Guru, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-131",
+          "name": "Muri, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-132",
+          "name": "Kami, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-129",
+          "name": "Nail, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT8-119",
+          "name": "Son Gohan & Piccolo, Pupil and Master",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-062",
+          "name": "Battle on Namek",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-064",
+          "name": "Dende's Healing Power",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-125",
+          "name": "King Piccolo, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-126",
+          "name": "Piccolo Jr., Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-127",
+          "name": "Lord Slug, Survival Strategy",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-061",
+          "name": "Defensive Stance Piccolo",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-061",
+          "name": "Kamehameha Energy Release",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT27-048",
+          "name": "Piccolo, Power-Up",
+          "quantity": 4,
+          "zone": "z"
+        }
+      ]
+    },
+    {
+      "id": "bt29-057-vegeta-saiyan-evolution",
+      "name": "BT29 — Vegeta / Saiyan evolution",
+      "release": "BT29",
+      "leaderId": "BT29-057",
+      "leaderName": "Vegeta",
+      "mainCount": 50,
+      "zCount": 1,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "1470facc2853a9b9cb269cbb762127d740d42909b467ec8a76f55c1801067527",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT29-057",
+        "BT29-063",
+        "BT29-081",
+        "BT29-071"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT29-057#back",
+          "unread": [
+            "This card gains all of the [permanent] skills on ≪Frieza's Army≫ cards with {Battle With Vegeta} in their card names in your Battle Area",
+            "place up to 1 ≪Frieza's Army≫ card with {Battle With Vegeta} in its card name under the played card",
+            "the played card gains all of the [permanent] skills on the card placed under it until the end of your turn"
+          ]
+        },
+        {
+          "card": "BT29-063",
+          "unread": [
+            "the next time your opponent switches a Battle Card to Active Mode by one of their skills until the end of your opponent's turn",
+            "place that card into its owner's Drop"
+          ]
+        },
+        {
+          "card": "BT29-081",
+          "unread": [
+            "the chosen card gains all of the [permanent] skills on the card placed under it for the turn"
+          ]
+        },
+        {
+          "card": "BT29-071",
+          "unread": [
+            "If it's your opponent's turn, and this card and all of your energy are in Rest Mode"
+          ]
+        }
+      ],
+      "inputGaps": [
+        "BT29-061: no recorded Z-Energy cost"
+      ],
+      "ingredientChecks": [
+        {
+          "check": "Leader awakens to the exact Vegeta, Warrior Race Pride name required by its support cards",
+          "pass": true
+        },
+        {
+          "check": "BT29-064 EX-Evolve and its yellow cost3 Vegeta base BT29-065 are both listed",
+          "pass": true
+        },
+        {
+          "check": "The list contains yellow Frieza's Army BT29-068 and the matching BT29-065 Drop target",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck includes Formidable Ambition; catalog Z-Energy cost is reported separately",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored proposal; BT29-065 is a yellow Vegeta cost3 base for BT29-064 EX-Evolve and the Leader can place that named card into Drop.",
+        "BT29-064's recovery Auto needs it sent to Drop by a skill on a yellow Frieza's Army card; BT29-068 provides a possible Frieza-source interaction but its chosen Vegeta/K.O. timing must be scenario-verified.",
+        "The matching `{Vegeta, Warrior Race Pride}` names, awaken route and target `Vegeta, Back From the Brink of Death` need current text/manual review.",
+        "BT29-061 is listed in the Z-Deck for the Leader's awaken condition; its Z-Energy cost metadata needs explicit audit.",
+        "The recipe is unqualified; no passed EX-Evolve or Drop-recovery claim is made."
+      ],
+      "cards": [
+        {
+          "id": "BT29-064",
+          "name": "Vegeta, One-Man Army",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-065",
+          "name": "Vegeta, Back From the Brink of Death",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-062",
+          "name": "Son Gohan, Tricking Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-063",
+          "name": "Vegeta, By a Saiyan",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-066",
+          "name": "Krillin, Almost Killing Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-067",
+          "name": "Dende, Refusing Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-068",
+          "name": "Frieza, Battle With Vegeta",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-077",
+          "name": "Zarbon, Battle With Vegeta",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-079",
+          "name": "Cui, Battle With Vegeta",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-081",
+          "name": "We Will Not Lose!!!",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-080",
+          "name": "Appule, Advance Guard",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-078",
+          "name": "Dodoria, Battle With Vegeta",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-071",
+          "name": "Ginyu, Failed Change",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-074",
+          "name": "Recoome, Battle With Vegeta",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-075",
+          "name": "Recoome, Elite Forces",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-061",
+          "name": "Formidable Ambition",
+          "quantity": 1,
+          "zone": "z"
+        }
+      ]
+    },
+    {
+      "id": "bt30-082-brianne-maiden-stack-play",
+      "name": "BT30 — Brianne / Maiden stack play",
+      "release": "BT30",
+      "leaderId": "BT30-082",
+      "leaderName": "Brianne De Chateau",
+      "mainCount": 50,
+      "zCount": 4,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "9f56f99e1f3bb22f1b0442817e4bc500d6bc32c46d28bfacab7b4564b5471d01",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT30-099",
+        "BT30-101",
+        "BT30-104"
+      ],
+      "compilerGapDetails": [
+        {
+          "card": "BT30-099",
+          "unread": [
+            "you switch this card to Active Mode at the end of the turn"
+          ]
+        },
+        {
+          "card": "BT30-101",
+          "unread": [
+            "send up to 1 card to your Warp",
+            "place up to 1 card in your Drop",
+            "send up to 1 card to its owner's Warp"
+          ]
+        },
+        {
+          "card": "BT30-104",
+          "unread": [
+            "send up to 1 card to your Warp"
+          ]
+        }
+      ],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Brianne Leader has Universe 2 and Maiden Squadron traits for the leader-gated support cards",
+          "pass": true
+        },
+        {
+          "check": "BT30-103 host skill names BT30-102 Rozie as a possible Warp target",
+          "pass": true
+        },
+        {
+          "check": "Support Broadcast is in the Z-Deck and its printed Z-Energy cost is recorded",
+          "pass": true
+        },
+        {
+          "check": "Non-Maiden slots include Maiden-tagged discard fodder and generic black defense/removal without counting Universe 7 play gates",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Authored public proposal; 10 BT30 Maiden Squadron Battle Card groups include the BT30-103 Su Roas host and BT30-102 Rozie named by its skill text.",
+        "The ten other main-deck slots are BT30-106 Delivery of Love x4, BT30-085 Son Goku, Ultra Technique x4, and BT30-088 SSB Vegeta, Accepted Fate x2. Delivery of Love gains Maiden Squadron in all areas, so it can pay the Leader's discard cost; BT30-085's Deflect/Blocker/Revenge and attack Auto are not Universe 7-gated; BT30-088's Deflect and play Auto are also not Universe 7-gated. The cards' Universe 7-specific play modes are not counted as usable support here.",
+        "BT30-084 is a Z-Extra with recorded Z-Energy cost1; the opponent-two-energy / {1} activation requirements still need scenario proof.",
+        "The played-card-on-host stack, exact name source, source area and missing-name controls remain unqualified."
+      ],
+      "cards": [
+        {
+          "id": "BT30-095",
+          "name": "Ribrianne, Witchy Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-096",
+          "name": "Song of Love and Victory! Maiden Squadron",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-097",
+          "name": "Formation!! Brianne De Chateau",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-098",
+          "name": "Brianne De Chateau, Hope of the Multiverse",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-099",
+          "name": "Kakunsa, Witchy Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-100",
+          "name": "Formation! Sanka Ku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-101",
+          "name": "Sanka Ku, Fighting Maiden",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-102",
+          "name": "Rozie, Witchy Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-103",
+          "name": "Formation! Su Roas",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-104",
+          "name": "Su Roas, Fighting Maiden",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-106",
+          "name": "Delivery of Love",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-085",
+          "name": "Son Goku, Ultra Technique",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-088",
+          "name": "SSB Vegeta, Accepted Fate",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT30-084",
+          "name": "Support Broadcast",
+          "quantity": 4,
+          "zone": "z"
+        }
+      ]
+    },
+    {
+      "id": "bt31-001-gogeta-widened-fusion",
+      "name": "BT31 — Gogeta / widened fusion",
+      "release": "BT31",
+      "leaderId": "BT31-001",
+      "leaderName": "Son Goku & Vegeta",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "af7f2cad8b7dcca7448b1325226ace8e54e8c973fbbd3713e2d879495cb59abf",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "The red BT31-014 Union-Fusion target and red Son Goku/Vegeta materials are included",
+          "pass": true
+        },
+        {
+          "check": "Leader has an awaken condition and its back adds the red Veku/Gogeta Union material permission",
+          "pass": true
+        },
+        {
+          "check": "Ultimate is one copy, no red-Z-trigger package is included, and generic red interaction is present",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
+      "notes": [
+        "Independent authored red Saiyan proposal; it does not reproduce private owner decks. BT31-007/008/009 provide red Son Goku cards and BT31-011/012 provide red Vegeta cards alongside multiple Union-Fusion targets.",
+        "BT31-014 requires exact red Son Goku and red Vegeta materials, opponent 3+ energy, `{r}{r}` and draw2; only the awakened BT31-001 back permission opens its additional material areas.",
+        "BT31-007/011 have Warp/hand conditions, and BT31-008/012 have a low-Warp attack restriction; those are list support constraints, not proof they resolve. BT31-006 was omitted because its value depends on a red Z-Card that this list does not include.",
+        "BT31-149 is an Ultimate and is limited to one copy here. BT31-018's generic play Auto supplies a -5000 power effect; its other abilities have Janemba/Evil Incarnate gates and are not assumed active. BT31-017 is one generic Counter: Attack copy; its life-payment discount is Janemba-specific.",
+        "The Union-Fusion, Revenge, printed payoffs and complete deck remain unqualified."
+      ],
+      "cards": [
+        {
+          "id": "BT31-014",
+          "name": "SS Gogeta, Revoker of Evil",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-010",
+          "name": "Son Goku & Vegeta, Battling Against Evil",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-007",
+          "name": "SS3 Son Goku, Struggle in Another World",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-012",
+          "name": "Vegeta, Hellish Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-011",
+          "name": "SS Vegeta, Struggle in Another World",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-008",
+          "name": "Son Goku, Other World Warrior",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-015",
+          "name": "SS Gogeta, Vanquisher",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-013",
+          "name": "Veku, Incomplete Fusion",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-009",
+          "name": "Son Goku, Training in Another World",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-018",
+          "name": "Janemba, Unintentional Evil",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-149",
+          "name": "SS Gogeta, Hell-Piercing Flash",
+          "quantity": 1,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-017",
+          "name": "Janemba, Demonic Howl",
+          "quantity": 1,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-024",
+          "name": "Power Release",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-025",
+          "name": "Buying Time",
+          "quantity": 4,
+          "zone": "main"
+        }
+      ]
+    },
+    {
       "id": "sd15-01-pride-of-the-saiyans-starter-control",
       "name": "SD15 — Pride of the Saiyans / starter control",
       "release": "SD15",
@@ -464,6 +2388,32 @@
       "listSha256": "a187dd816147bad0355a2b7dd297eb863f2e0fb25afd986e4c6c3a2ee889f8fd",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "athenagames.com reproduction of Bandai's official SD15 Pieces table; main deck sums to 50.",
         "Owner decision of 13 Oct 2026: BT10-008 x2 -> x1 (limit 1) and BT5-023 x2 -> x3.",
@@ -629,6 +2579,32 @@
       "listSha256": "52061b8d488fedaed9f6cea22bfaf40567c950ba1c7f64e88d77448d59c04399",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "poggers.com reproduction of SD05; main deck sums to 50.",
         "Historical audited quantities, not current strategic qualification."
@@ -750,6 +2726,45 @@
       "listSha256": "52618bb011a1c5c841fc974aba64ef8a577f0900b27d80f7722b64298fd68076",
       "qualification": "Not run",
       "compilerGapCards": [],
+      "compilerGapDetails": [],
+      "inputGaps": [],
+      "ingredientChecks": [
+        {
+          "check": "Legal control has Over Realm3 and omits banned BT3-112 (return mechanic uncovered)",
+          "pass": true
+        },
+        {
+          "check": "Red and blue bodies support the Leader's printed draw condition",
+          "pass": true
+        },
+        {
+          "check": "Included Xeno-Evolve cards have matching Towa/Mira bases",
+          "pass": true
+        }
+      ],
+      "deckBuildingChecks": [
+        {
+          "check": "Main deck contains only Battle, Extra, or Unison cards",
+          "pass": true
+        },
+        {
+          "check": "Z-Deck contains only Z cards",
+          "pass": true
+        },
+        {
+          "check": "No individual card quantity exceeds its captured restriction or the four-copy default",
+          "pass": true
+        },
+        {
+          "check": "Ultimate cards total no more than one copy",
+          "pass": true
+        },
+        {
+          "check": "Super Combo cards total no more than four copies",
+          "pass": true
+        }
+      ],
+      "restrictionBasis": "current-app-catalog-only-not-independent-official-ban-list",
       "notes": [
         "Separate legal-control proposal; deliberately omits banned BT3-112, retaining the blocked original recipe for evidence.",
         "Adds two Towa and two Mira Xeno-Evolve finishers, preserving50cards and their matching bases.",
