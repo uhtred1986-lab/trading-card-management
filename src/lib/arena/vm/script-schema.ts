@@ -1336,7 +1336,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const c = raw as CondOf<"covers">;
       return `${describeSelector(c.sel, "")} carry ${c.original ? "original " : ""}${c.colors.join(" and ")} between them`;
     },
-    doc: "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). `original: true` reads the shown face before identity effects (22-29-3, 22-30-3, 22-34-3); absent reads effective colours. `unionFusionWarp`: the card granting the permission must itself be the card activating Fusion and must be in hand. A `DEFINE KEYWORD` body's word; no card's record says this (#155, #597)",
+    doc: "do these cards carry every one of the colours between them — one card of each, or one multicolour card for two? [Arrival]'s Combo Area and [Revive]'s hand (22-29-3, 22-34-3), with the colours bound off the printed keyword (`colors: $colors`). `original: true` reads the shown face before identity effects (22-29-3, 22-30-3, 22-34-3); absent reads effective colours. A `DEFINE KEYWORD` body's word; no card's record says this (#155, #597)",
   },
   sumsTo: {
     fields: [
