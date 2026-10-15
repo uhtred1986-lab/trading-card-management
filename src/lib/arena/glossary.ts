@@ -691,6 +691,10 @@ export const READING_RULES: ReadingRule[] = [
     body: "‘This card can't attack and gains …’ keeps its explicit self subject for the identity gain. Both existing operations survive; only printed ‘in all/any areas’ extends the gain beyond play. The gain adds a trait, character, colour or additional card name without replacing printed identity. The seven BT25 Wish Z-Unisons therefore gain the Shenron special trait in the Z-Deck as well as in the Unison Area, while their attack prohibition remains. Explicit different subjects and ambiguous or narrower area wording are never rewritten as self/all-areas. This does not grant Wish or implement the separate EX24 leave-Unison search and Pilaf specified-cost permission.",
   },
   {
+    title: "Energy Markers are game-rule reminders, not card skills",
+    body: "1-14-1/2/3 and 6-2-1-11: the second player starts with one Energy Marker. Spending it replaces resting one energy matching the Leader's color when paying energy, combo or skill costs. The marker is neither a card nor energy. Setup and payment are implemented by the shared game rules (game.rules, costs.rules and the VM payment planner); catalog Energy Marker artwork does not need its own skill program. Marker reminders remain collectible catalog entries, but drafting, skill-review counts, grouped queues and approval omit them. Genuine Battle/Extra skills that place or spend Energy Markers still require their normal card-specific interpretation.",
+  },
+  {
       title: "Face-up Life remains the event subject",
       body: "3-9-2-1: a Life card turned face up by a card or skill is in an open area, but it remains in Life. The [Auto] printed on that card can answer the transition, and the Life card's master can have their in-play cards answer it as watchers. The event is emitted only for a real face-down-to-face-up transition, names the Life card as its subject, and retains the source skill's color for declarations such as ‘by one of your red card skills’. A move out of Life and a card already face up are different happenings.",
     },

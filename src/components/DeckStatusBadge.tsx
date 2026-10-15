@@ -1,9 +1,9 @@
 import { STATUS_LABEL, type DeckStatus, type IssueSeverity } from "@/lib/decks/legality";
 
 const STATUS_CLASS: Record<DeckStatus, string> = {
-  legal: "bg-gain/15 text-gain ring-gain/30",
-  incomplete: "bg-ki-500/15 text-ki-300 ring-ki-500/30",
-  illegal: "bg-loss/15 text-loss ring-loss/30",
+  legal: "ds-status-success",
+  incomplete: "ds-status-warning",
+  illegal: "ds-status-danger",
 };
 
 /** Legal / Incomplete / Illegal chip. Nothing is ever blocked — this only labels. */
@@ -19,9 +19,9 @@ export function DeckStatusBadge({ status, title, small = false }: { status: Deck
 }
 
 const FLAG_CLASS: Record<IssueSeverity, string> = {
-  illegal: "bg-loss/20 text-loss",
-  incomplete: "bg-ki-500/20 text-ki-300",
-  warning: "bg-dbs-yellow/20 text-yellow-200",
+  illegal: "ds-status-danger",
+  incomplete: "ds-status-warning",
+  warning: "ds-status-warning",
 };
 
 /** Why one card row is flagged ("5 copies, limit 4", "banned card", "off-colour…"). */

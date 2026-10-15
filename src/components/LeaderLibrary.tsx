@@ -55,7 +55,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
         </select>
         </div>
         </FilterBar>
-        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:flex sm:flex-wrap sm:items-end">
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="ds-surface grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 p-3 sm:flex sm:flex-wrap sm:items-end">
         <label className="min-w-0 text-xs text-space-300">Set<select name="set" defaultValue={set} className={`${select} block w-full`}><option value="">Any set</option>{sets.map(([code,name]) => <option key={code} value={code}>{code} · {name}</option>)}</select></label>
         <label className="min-w-0 text-xs text-space-300">Deck availability<select name="usage" defaultValue={usage} className={`${select} block w-full`}><option value="">Any leader</option><option value="with">Has a deck</option><option value="without">No deck yet</option><option value="built">Has a built deck</option></select></label>
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Filter</button>
@@ -68,7 +68,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
       </form>
 
       {leaders.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
+        <div className="ds-surface rounded-xl border border-dashed border-space-700 p-8 text-center text-sm text-space-300">
           <p>{color ? `No ${color.toLowerCase()} leaders in your collection.` : "No leaders match these filters. Clear filters or add leaders to your collection."}</p>
           <p className="mt-1">
             <Link href="/add" className="text-ki-300 hover:underline">
@@ -84,7 +84,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {leaders.map((l) => (
-            <li key={l.id} className="flex gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-3">
+            <li key={l.id} className="ds-surface flex gap-3 rounded-xl border border-space-700/70 p-3">
               <div className="w-24 shrink-0 sm:w-28">
                 <CardFaces front={l.imageUrl} back={l.backImageUrl} name={l.name} backName={l.backName} layout="flip" sizes="112px" />
               </div>
@@ -112,7 +112,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
                     <ul className="space-y-1">
                       {l.decks.map((d) => (
                         <li key={d.id} className="space-y-1">
-                          <span className={`rounded px-1.5 py-px text-[10px] font-bold uppercase ${d.isBuilt ? "bg-ki-500 text-space-950" : "bg-space-700 text-space-200"}`}>
+                          <span className={`rounded px-1.5 py-px text-[10px] font-bold uppercase ${d.isBuilt ? "bg-ki-500 text-space-950" : "ds-badge-neutral"}`}>
                             {d.isBuilt ? "Built" : "Virtual"}
                           </span>
                           <Link href={`/decks/${d.id}`} className="block break-words text-space-100 hover:text-ki-300">
@@ -136,7 +136,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
         </ul>
       )}
 
-      <p className="text-xs text-space-400">
+      <p className="ds-surface rounded-xl p-3 text-xs text-space-400">
         &ldquo;Build a deck&rdquo; asks Claude for a full 50-card list around that leader, using the on-colour cards you own first and adding cards to buy only where they matter. The result is saved
         as a new <em>virtual</em> deck with the shopping list in its description — nothing is reserved until you mark it built.
       </p>

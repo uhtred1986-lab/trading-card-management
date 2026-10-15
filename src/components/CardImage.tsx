@@ -27,7 +27,7 @@ export function CardImage({
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   if (!src || failedSrc === src) {
     return (
-      <div className={`card-aspect flex items-center justify-center rounded-lg border border-dashed border-space-600 bg-space-900 p-2 text-center text-xs text-space-300 ${className}`}>{alt}</div>
+      <div className={`ds-card-placeholder card-aspect flex items-center justify-center rounded-lg border border-dashed border-space-600 p-2 text-center text-xs text-space-300 ${className}`}>{alt}</div>
     );
   }
   return (
