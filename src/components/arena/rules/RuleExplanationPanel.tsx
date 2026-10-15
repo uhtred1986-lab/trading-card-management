@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { speechSupported, startListening, type SpeechSession } from "@/lib/scan/speech";
 import type { ExplanationResult, SavedExplanation } from "@/lib/arena/rule-explanation";
 import { RuleReading } from "./RuleReading";
@@ -11,6 +11,8 @@ export interface ExplanationActions {
   retry(proposalId: number): Promise<{ error: string | null; result: ExplanationResult | null }>;
 }
 const button = "tap min-h-11 rounded-xl border border-space-500 px-3 py-2 font-semibold text-space-50 disabled:opacity-50";
+const subscribeSpeech = () => () => {};
+const serverSpeechSupported = () => false;
 
 export function RuleExplanationPanel({ id, version, actions, initial, onApproved, onWorking }: {
   id: number; version: string; actions: ExplanationActions; initial?: SavedExplanation; onApproved(): void; onWorking(value: boolean): void;
@@ -21,21 +23,20 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
   const [pending, setPending] = useState(false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
-  const [supported, setSupported] = useState(false);
+  const supported = useSyncExternalStore(subscribeSpeech, speechSupported, serverSpeechSupported);
   const session = useRef<SpeechSession | null>(null);
   const accepting = useRef(false);
   const alive = useRef(false);
   const generation = useRef(0);
   useEffect(() => { onWorking(!!initial); }, [initial, onWorking]);
-  const stop = () => {
+  const stop = useCallback(() => {
     generation.current++;
     accepting.current = false;
     session.current?.stop(); session.current = null;
     setListening(false); setInterim("");
-  };
+  }, []);
   useEffect(() => {
     alive.current = true;
-    setSupported(speechSupported());
     const cancel = () => stop();
     const hidden = () => { if (document.hidden) stop(); };
     window.addEventListener("pagehide", cancel);
@@ -48,7 +49,7 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
       window.removeEventListener("pagehide", cancel); window.removeEventListener("popstate", cancel);
       document.removeEventListener("visibilitychange", hidden);
     };
-  }, []);
+  }, [stop]);
   const edit = (value: string) => { setText(value); setResult(null); setError(null); onWorking(!!value.trim()); };
   const dictate = () => {
     if (session.current) return stop();
