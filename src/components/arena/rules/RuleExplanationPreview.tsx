@@ -1,7 +1,7 @@
 "use client";
 
 import { RuleReview } from "./RuleReview";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ReviewItem } from "@/lib/arena/rule-review-store";
 import type { ExplanationActions } from "./RuleExplanationPanel";
 import type { ExplanationResult } from "@/lib/arena/rule-explanation";
@@ -20,7 +20,8 @@ const item = (id: number, name: string): ReviewItem => ({
 });
 
 export function RuleExplanationPreview({ outcome }: { outcome: string }) {
-  const rows = useRef([item(900001, "Synthetic rule review"), item(900002, "Next synthetic skill")]);
+  const [initialRows] = useState(() => [item(900001, "Synthetic rule review"), item(900002, "Next synthetic skill")]);
+  const rows = useRef(initialRows);
   const request: ExplanationActions["request"] = async (_id, _version, explanation) => {
     await new Promise((resolve) => setTimeout(resolve, 250));
     const base: ExplanationResult = { proposalId: 1, token: "fixture-exact-token", issueUrl: null, issueError: null,
@@ -42,7 +43,7 @@ export function RuleExplanationPreview({ outcome }: { outcome: string }) {
     },
     retry: async () => ({ error: null, result: { ...((await request(1, "fixture-v1", "Retry fixture")).result!), issueUrl: "https://github.com/uhtred1986-lab/trading-card-management/issues/836", issueError: null } }),
   };
-  return <RuleReview admin={outcome !== "readonly"} items={rows.current}
+  return <RuleReview admin={outcome !== "readonly"} items={initialRows}
     scope="Synthetic offline preview" backHref="/arena/rules/review/preview" explanationActions={actions}
     confirmAction={async (id, version) => {
       const row = rows.current.find((entry) => entry.id === id);

@@ -29,12 +29,15 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
   const alive = useRef(false);
   const generation = useRef(0);
   useEffect(() => { onWorking(!!initial); }, [initial, onWorking]);
-  const stop = useCallback(() => {
+  const cancelSession = useCallback(() => {
     generation.current++;
     accepting.current = false;
     session.current?.stop(); session.current = null;
-    setListening(false); setInterim("");
   }, []);
+  const stop = useCallback(() => {
+    cancelSession();
+    setListening(false); setInterim("");
+  }, [cancelSession]);
   useEffect(() => {
     alive.current = true;
     const cancel = () => stop();
@@ -43,13 +46,12 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
     window.addEventListener("popstate", cancel);
     document.addEventListener("visibilitychange", hidden);
     return () => {
-      alive.current = false; accepting.current = false;
-      generation.current++;
-      session.current?.stop(); session.current = null;
+      alive.current = false;
+      cancelSession();
       window.removeEventListener("pagehide", cancel); window.removeEventListener("popstate", cancel);
       document.removeEventListener("visibilitychange", hidden);
     };
-  }, [stop]);
+  }, [stop, cancelSession]);
   const edit = (value: string) => { setText(value); setResult(null); setError(null); onWorking(!!value.trim()); };
   const dictate = () => {
     if (session.current) return stop();
