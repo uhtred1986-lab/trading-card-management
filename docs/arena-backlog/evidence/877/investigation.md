@@ -154,3 +154,8 @@ non-keyword rows, consistent with its keyword `ops:[]` instruction.
 
 The browser beam regression now waits for the beam SVG rather than any SVG path
 (an unrelated icon could satisfy the old wait before board hydration completed).
+
+Both beam probes await rendered animation frames after a layout shift instead of
+assuming 180 ms guarantees a render on a busy host. The original clash timing
+probe failed once during concurrent validation and passed when run separately;
+the frame-based wait tests the hook's rendering lifecycle directly.

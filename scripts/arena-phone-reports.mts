@@ -51,7 +51,7 @@ try {
    await go(p,'attack',skin,'&staging=inplace');
    await p.waitFor('[data-attack-beam], svg:has(path[stroke-width="12"])');
    await p.eval('document.querySelector(".arena-topbar").style.paddingBottom="73px"; document.querySelectorAll("[data-arena-card]")[0].style.transform="translateY(31px)"');
-   await sleep(180);
+   await p.eval('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))))');
    const error=await p.eval<number>(`(()=>{const svg=document.querySelector('[data-attack-beam]')??document.querySelector('svg:has(path[stroke-width="12"])');const path=svg?.querySelector('path');if(!path)return 9999;const host=document.querySelector('.arena').getBoundingClientRect();const ids=${JSON.stringify([JSON.parse(readFileSync('contract/fixtures/attack.json','utf8')).view.battle.attacker,JSON.parse(readFileSync('contract/fixtures/attack.json','utf8')).view.battle.guard])};const [a,b]=ids.map(id=>[...document.querySelectorAll('[data-arena-card]')].find(c=>c.dataset.arenaCard===id&&c.getBoundingClientRect().width>0).getBoundingClientRect());const n=path.getAttribute('d').match(/-?[\\d.]+/g).map(Number);return Math.max(Math.hypot(n[0]-(a.left+a.width/2-host.left),n[1]-(a.top+a.height/2-host.top)),Math.hypot(n[4]-(b.left+b.width/2-host.left),n[5]-(b.top+b.height/2-host.top)))})()`);
    check(`${vp.name}/${skin} beam follows layout without resize/scroll`,error<2,error);
    writeFileSync(join(out,`${vp.name}-${skin}-beam.jpg`),await p.screenshot(false));
