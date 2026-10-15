@@ -13,7 +13,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { parseViewMode } from "@/lib/view-mode";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
 import { PageHeader, SectionTabs } from "@/components/ui";
-import { FilterBar } from "@/components/ui";
+import { ActiveFilterChips, FilterBar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -95,9 +95,7 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {/* The chips above own the game; the form carries the choice through a search. */}
         {search.game ? <input type="hidden" name="game" value={search.game} /> : null}
-        <FilterBar summary={`${result.total.toLocaleString()} cards`} active={[
-          search.set && `Set: ${search.set}`, search.type && `Type: ${search.type}`, search.color && `Colour: ${search.color}`, search.rarity && `Rarity: ${search.rarity}`, search.trait && `Keyword: ${search.trait}`, search.ability && `Ability: ${search.ability}`, search.owned && `Owned: ${search.owned}`,
-        ].filter(Boolean).join(" · ") || undefined}>
+        <FilterBar summary={`${result.total.toLocaleString()} cards`} active={<ActiveFilterChips path="/cards" params={{...viewParams,view}} keys={["q", "set", "type", "color", "rarity", "trait", "ability", "owned"]} />}>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <input type="search" name="q" defaultValue={search.q ?? ""} placeholder="Name, number (BT18-020), character…" className={`${select} col-span-2`} autoComplete="off" />
         <select name="color" defaultValue={search.color ?? ""} className={select}>

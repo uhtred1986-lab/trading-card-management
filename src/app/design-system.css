@@ -33,3 +33,10 @@ html[data-skin] body::before{content:"";position:fixed;inset:0;z-index:-1;pointe
 @media(max-width:1023px){.ds-app-header>div{gap:10px}.ds-settings-layout{grid-template-columns:180px minmax(0,1fr)}}
 @media(max-width:639px){.ds-app-main{padding-top:24px!important}.ds-page-header{padding:20px;gap:16px}.ds-theme-picker select{max-width:135px;font-size:11px;padding:8px}.ds-settings-layout{grid-template-columns:1fr}.ds-settings-sidebar{position:static}.ds-settings-sidebar nav{display:flex;overflow:auto;flex-wrap:nowrap}.ds-settings-sidebar nav a{white-space:nowrap}.ds-filter-bar{padding:16px}.ds-hero{min-height:330px}.ds-app-header .tracking-widest{display:none}html[data-skin] body::before{background-position:70% center}.ds-tabs{margin-bottom:18px}}
 @media(prefers-reduced-motion:reduce){.ds-app-main *{scroll-behavior:auto}}
+/* Higher specificity than the retained legacy cel-control rules, outside game boards. */
+html[data-skin] .ds-app-main :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea),html[data-skin] .ds-theme-picker select{border:1px solid var(--ds-line);background:var(--ds-surface);color:var(--ds-ink);box-shadow:none}
+html[data-skin] .ds-app-main :is(a,button).bg-ki-500{background:var(--ds-accent);color:var(--ds-accent-ink)}
+html[data-skin] .ds-app-main .ds-panel{border-color:var(--ds-line);box-shadow:var(--ds-shadow)}
+/* Keep the scene atmospheric behind a live game's information. */
+.arena:is([data-skin="namek"],[data-skin="korin"]){background:color-mix(in srgb,var(--ds-canvas) 55%,transparent)}
+.arena:is([data-skin="night"],[data-skin="instinct"]){background-image:linear-gradient(color-mix(in srgb,var(--ds-canvas) 92%,transparent),color-mix(in srgb,var(--ds-canvas) 96%,transparent)),var(--ds-scene);background-size:cover;background-position:center}

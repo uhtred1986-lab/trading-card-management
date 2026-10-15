@@ -3,7 +3,7 @@ import { JOIN_REDEEM_PATH } from "@/lib/auth/core";
 import { isWellFormedCode, normaliseCode } from "@/lib/auth/join-code";
 import { joinAttemptAllowed } from "@/lib/auth/join-flow";
 import { StandaloneField } from "./StandaloneField";
-import { PageHeader, Panel } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 

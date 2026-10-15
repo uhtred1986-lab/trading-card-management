@@ -11,7 +11,7 @@ import { ColorPill, RarityBadge } from "@/components/ColorPill";
 import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
 import type { OwnedLeader } from "@/lib/leaders/queries";
 import { PageHeader, SectionTabs } from "@/components/ui";
-import { FilterBar } from "@/components/ui";
+import { ActiveFilterChips, FilterBar } from "@/components/ui";
 
 export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", aiEnabled }: {
   all: OwnedLeader[]; game?: Game; color?: string; q?: string; set?: string; usage?: string; aiEnabled: boolean;
@@ -41,7 +41,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
       <GameFilter path="/leaders" params={{ color, q, set, usage }} game={game} available={gamesPresent} />
 
       <form action="/leaders" className="space-y-2">
-        <FilterBar summary={`${leaders.length} matching leaders`} active={[set && `Set: ${set}`, usage && `Deck: ${usage}`].filter(Boolean).join(" · ") || undefined}>
+        <FilterBar summary={`${leaders.length} matching leaders`} active={<ActiveFilterChips path="/leaders" params={{q,game,color,set,usage}} keys={["q", "color", "set", "usage"]} />}>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <label className="col-span-2 text-xs text-space-300">Find a leader<input type="search" name="q" defaultValue={q} placeholder="Name, card number, deck strategy…" className={`${select} block w-full`} /></label>
         {game ? <input type="hidden" name="game" value={game} /> : null}

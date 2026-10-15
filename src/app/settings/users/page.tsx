@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { db } from "@/db";
 import { currentUser, requireSlPage } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";

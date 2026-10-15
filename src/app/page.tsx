@@ -7,7 +7,7 @@ import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
 import { CardImage } from "@/components/CardImage";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
-import { EmptyState, Panel } from "@/components/ui";
+import { PageHeader, EmptyState, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 

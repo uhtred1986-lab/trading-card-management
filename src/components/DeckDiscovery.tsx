@@ -53,7 +53,7 @@ export function DeckDiscovery({ decks, label, value, onChange, readyOnly = false
     {selected && <DeckFacts deck={selected} missingDescription={missingDescription} />}
     <details open={value === undefined ? true : undefined} className="space-y-3">
       <summary className="tap cursor-pointer py-2 text-sm font-semibold text-ki-300">{value === undefined ? "Find a deck" : "Change deck"} · {decks.length} available</summary>
-      <FilterBar summary={`${filtered.length} of ${decks.length} decks · showing ${Math.min(limit,filtered.length)}`} active={[filters.leader && `Leader: ${filters.leader}`, filters.group && `Type: ${filters.group}`, filters.readyOnly && "Rules ready only"].filter(Boolean).join(" · ") || undefined}>
+      <FilterBar summary={`${filtered.length} of ${decks.length} decks · showing ${Math.min(limit,filtered.length)}`} active={<>{filters.leader && <button type="button" onClick={() => update({leader:""})}>Leader: {filters.leader} ×</button>}{filters.group && <button type="button" onClick={() => update({group:""})}>Type: {filters.group} ×</button>}{filters.readyOnly && <button type="button" onClick={() => update({readyOnly:false})}>Rules ready only ×</button>}</>}>
       <div className="space-y-2">
         <label className="block text-xs text-space-300" htmlFor={`${id}-search`}>Search deck, leader or description</label>
         <input id={`${id}-search`} type="search" value={filters.q} onChange={(e) => update({q:e.target.value})} placeholder="Name, card number, strategy…" className={selectClass} />

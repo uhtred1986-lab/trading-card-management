@@ -17,7 +17,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { LiveSearch } from "@/components/LiveSearch";
 import { deckOptions } from "@/lib/decks/add";
 import { PageHeader, SectionTabs } from "@/components/ui";
-import { FilterBar } from "@/components/ui";
+import { ActiveFilterChips, FilterBar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -137,9 +137,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {game ? <input type="hidden" name="game" value={game} /> : null}
-        <FilterBar summary={`${shown} matching ${shown === 1 ? "card" : "cards"}`} active={[
-          set && `Set: ${set}`, color && `Colour: ${color}`, type && `Type: ${type}`, trait && `Keyword: ${trait}`, ability && `Ability: ${ability}`, finish && `Finish: ${finish}`, locationParam && `Location: ${locationParam === "none" ? "Not filed" : locations.find((l) => String(l.id) === locationParam)?.name ?? locationParam}`, deckParams.length > 0 && `Decks: ${deckParams.length}`, owner && `Owner: ${owner}`,
-        ].filter(Boolean).join(" · ") || undefined}>
+        <FilterBar summary={`${shown} matching ${shown === 1 ? "card" : "cards"}`} active={<ActiveFilterChips path="/collection" params={{...params,view}} keys={["q", "set", "type", "color", "trait", "ability", "finish", "location", "deck", "owner"]} />}>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <LiveSearch
           defaultValue={q}
