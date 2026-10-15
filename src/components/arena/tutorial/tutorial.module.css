@@ -1,9 +1,10 @@
-.tutorial { color: var(--color-space-100, #eef2ff); }
-.intro { min-height: 100dvh; display: grid; align-content: center; gap: 1.5rem; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: radial-gradient(ellipse at 25% 25%, #673320 0, #151829 55%, #090b16 100%); border: 1px solid #9c6535; border-radius: 1rem; }
+.tutorial { width: 100%; }
+:is(.intro, .toolbar, .coach, .notice, .lessonList) { color: #eef2ff; background-color: #141a2b; }
+.intro { min-height: 100dvh; display: grid; align-content: center; gap: .75rem; padding: max(.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: radial-gradient(ellipse at 25% 25%, #673320 0, #151829 55%, #090b16 100%); border: 1px solid #9c6535; border-radius: 1rem; }
 .introArt { display: flex; justify-content: center; }
-.dialogue { max-width: 48rem; padding: 1.5rem; border: 2px solid #e3a852; border-radius: 1rem; background: #101526; box-shadow: 0 10px 35px #0006; }
+.dialogue { max-width: 48rem; padding: 1rem; border: 2px solid #e3a852; border-radius: 1rem; background: #101526; box-shadow: 0 10px 35px #0006; }
 .dialogue h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.15; margin: .6rem 0 1rem; }
-.copy { font-size: clamp(1.05rem, 2vw, 1.4rem); line-height: 1.7; }
+.copy { font-size: clamp(1rem, 2vw, 1.4rem); line-height: 1.55; }
 .eyebrow { color: #f6c881; text-transform: uppercase; font-size: .75rem; letter-spacing: .08em; }
 .controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .75rem; }
 :is(.intro, .toolbar, .coach, .notice, .lessonList, .evidence) :is(button, summary, a) { min-height: 44px; padding: .65rem .85rem; cursor: pointer; border: 1px solid #6b718d; border-radius: .5rem; }
@@ -35,7 +36,27 @@
 
 .pointer { font-size: .85rem; line-height: 1.4; }
 @media (max-width: 639px) {
-  .tutorial :global(.arena-board) { min-height: max(420px, calc(100dvh - var(--tutorial-reserve, 150px) - 1rem)); }
+  
   .toolbar { font-size: .8rem; padding-block: .3rem; }
   .coach .eyebrow { display: none; }
 }
+
+/* Only the practice host reserves space; the real board keeps its own skins and controls. */
+.tutorial :global(.arena-board) {
+  height: max(420px, calc(100dvh - var(--tutorial-reserve, 140px) - 1rem));
+  min-height: 420px;
+}
+.toolbar { padding-block: 0; margin-bottom: .25rem; background: transparent; }
+.toolbar .controls { margin-top: 0; }
+.toolbar :is(button, summary) { padding: .45rem .7rem; }
+.coach { position: relative; gap: .65rem; padding: .5rem; line-height: 1.4; }
+.coach > img { flex: 0 0 44px; }
+.coach > div { min-width: 0; flex: 1; }
+.coach .eyebrow { display: none; }
+.coach h2 { font-size: .95rem; padding-right: 82px; line-height: 1.3; }
+.coach .pointer { margin-top: .2rem; }
+.explanation > summary { position: absolute; top: .35rem; right: .35rem; margin: 0; }
+.explanation[open] { padding-top: .75rem; }
+.practiceMenu[open] { max-width: min(100%, 32rem); }
+.introArt img { width: 130px !important; }
+@media (min-width: 820px) { .introArt img { width: 240px !important; } }
