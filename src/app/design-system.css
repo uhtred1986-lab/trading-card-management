@@ -40,3 +40,72 @@ html[data-skin] .ds-app-main .ds-panel{border-color:var(--ds-line);box-shadow:va
 /* Keep the scene atmospheric behind a live game's information. */
 .arena:is([data-skin="namek"],[data-skin="korin"]){background:color-mix(in srgb,var(--ds-canvas) 55%,transparent)}
 .arena:is([data-skin="night"],[data-skin="instinct"]){background-image:linear-gradient(color-mix(in srgb,var(--ds-canvas) 92%,transparent),color-mix(in srgb,var(--ds-canvas) 96%,transparent)),var(--ds-scene);background-size:cover;background-position:center}
+
+/* Contrast roles: information is opaque; scenery stays visible between panels.
+   Border colours must never double as neutral filled-control backgrounds. */
+:root {
+  --ds-neutral-fill: var(--ds-raised);
+  --ds-success-fill: #def3e7;
+  --ds-success-ink: #17603a;
+  --ds-warning-fill: #fff0cc;
+  --ds-warning-ink: #714600;
+  --ds-danger-fill: #fce7e7;
+  --ds-danger-ink: #9f242b;
+  --ds-danger-action: #b42332;
+  --ds-danger-action-hover: #921c29;
+}
+html:is([data-skin="night"], [data-skin="instinct"]) {
+  --ds-success-fill: #163c30;
+  --ds-success-ink: #9aefc1;
+  --ds-warning-fill: #47351b;
+  --ds-warning-ink: #ffe0a3;
+  --ds-danger-fill: #48232e;
+  --ds-danger-ink: #ffb8bf;
+}
+html[data-skin] .ds-surface { background-color: var(--ds-surface); }
+html[data-skin] .ds-badge-neutral {
+  background-color: var(--ds-neutral-fill);
+  color: var(--ds-ink);
+}
+html[data-skin] .ds-status-success {
+  background-color: var(--ds-success-fill);
+  color: var(--ds-success-ink);
+  --tw-ring-color: var(--ds-success-ink);
+}
+html[data-skin] .ds-status-warning {
+  background-color: var(--ds-warning-fill);
+  color: var(--ds-warning-ink);
+  --tw-ring-color: var(--ds-warning-ink);
+}
+html[data-skin] .ds-status-danger {
+  background-color: var(--ds-danger-fill);
+  color: var(--ds-danger-ink);
+  --tw-ring-color: var(--ds-danger-ink);
+}
+html[data-skin] .ds-button-danger,
+html[data-skin] .bg-dbs-red.text-white:not(.arena *) {
+  background-color: var(--ds-danger-action);
+  color: #fff;
+}
+html[data-skin] .ds-button-danger:hover { background-color: var(--ds-danger-action-hover); }
+html[data-skin] .ds-card-placeholder.card-aspect {
+  background: var(--ds-raised);
+  color: var(--ds-muted);
+  border-color: var(--ds-line);
+}
+/* Compatibility for existing panels/controls while they migrate to semantic classes.
+   Match complete utility prefixes, not hover variants; leave board materials alone. */
+html[data-skin] .ds-app-main :is([class^="bg-space-900/"], [class*=" bg-space-900/"]):not(.arena *) {
+  background-color: var(--ds-surface);
+}
+html[data-skin] .ds-app-main :is(.bg-space-700, [class^="bg-space-700/"], [class*=" bg-space-700/"]):not(.arena *) {
+  background-color: var(--ds-neutral-fill);
+}
+/* Game-colour labels retain their identities on predictable opaque materials. */
+html[data-skin] .ds-color-red { background: var(--ds-danger-fill); color: var(--ds-danger-ink); }
+html[data-skin] .ds-color-green { background: var(--ds-success-fill); color: var(--ds-success-ink); }
+html[data-skin] .ds-color-yellow { background: var(--ds-warning-fill); color: var(--ds-warning-ink); }
+html[data-skin] .ds-color-blue { background: #e3efff; color: #174a86; }
+html[data-skin] .ds-color-black { background: #242b35; color: #f1f5f9; }
+html[data-skin] .ds-color-white { background: #f8fafc; color: #273d49; }
+html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background: #172e50; color: #b8d8ff; }
