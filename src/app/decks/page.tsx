@@ -105,10 +105,10 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
         .map((section) => (
           <section key={section.title}>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-space-300">{section.title}</h2>
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {section.rows.map((d) => (
-                <li key={d.id}>
-                  <Link href={`/decks/${d.id}`} className="flex gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 hover:border-ki-500/50">
+                <li key={d.id} className="min-w-0">
+                  <Link href={`/decks/${d.id}`} className="flex min-w-0 gap-3 rounded-xl border border-space-700/70 bg-space-900/60 p-2 hover:border-ki-500/50">
                     <div className="w-16 shrink-0">
                       <CardImage src={d.leader?.imageUrl} alt={d.leader?.name ?? "No leader"} sizes="64px" />
                     </div>

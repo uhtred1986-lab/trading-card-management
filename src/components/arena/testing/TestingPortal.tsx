@@ -43,7 +43,7 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
       return (!q || text.includes(q)) && (release === "all" || deck.release === release)
         && (wave === "all" || (wave === "first" ? deck.firstWave : !deck.firstWave))
         && (deckStatus === "all" || deck.status === deckStatus);
-    });
+    }).sort((a, b) => releaseSort(a.release, b.release) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   }, [dashboard, query, release, wave, deckStatus]);
   const scenarios = useMemo(() => dashboard.scenarios.filter((item) => (scenarioGroup === "all" || item.group === scenarioGroup) && (scenarioStatus === "all" || item.status === scenarioStatus)), [dashboard.scenarios, scenarioGroup, scenarioStatus]);
   const deckStatusCounts = countStatuses(dashboard.decks);
@@ -87,7 +87,10 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
             <select value={deckStatus} onChange={(event) => setDeckStatus(event.target.value)} className={select}><option value="all">All statuses</option>{STATUS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           </label>
         </div>
-        {recipes.length ? <div className="space-y-2">{recipes.map((deck) => <DeckRecipe key={deck.id} deck={deck} actualDecks={dashboard.actualDecks} />)}</div> : <Empty>No deck recipes match these filters.</Empty>}
+        {recipes.length ? <div className="overflow-x-auto rounded-xl border border-space-700"><table className="w-full border-collapse text-left text-xs" aria-label="Deck coverage recipes">
+          <thead className="hidden bg-space-950/70 text-[10px] font-semibold uppercase tracking-wider text-space-400 sm:table-header-group"><tr><th scope="col" className="px-3 py-2">Release</th><th scope="col" className="px-3 py-2">Deck and leader</th><th scope="col" className="px-3 py-2">Mechanics</th><th scope="col" className="px-3 py-2">Linked deck</th><th scope="col" className="px-3 py-2">Progress</th></tr></thead>
+          <tbody>{recipes.map((deck) => <DeckRecipe key={deck.id} deck={deck} actualDecks={dashboard.actualDecks} />)}</tbody>
+        </table></div> : <Empty>No deck recipes match these filters.</Empty>}
       </section>
 
       <section aria-labelledby="scenario-title" className="space-y-3">
@@ -149,23 +152,24 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
 }
 
 function DeckRecipe({ deck, actualDecks }: { deck: TestingDeck; actualDecks: TestingDashboard["actualDecks"] }) {
+  const [expanded, setExpanded] = useState(false);
   const linked = actualDecks.find((actual) => actual.id === deck.linkedDeckId);
   const status = STATUS.find((item) => item.value === deck.status)!;
-  return <details className="group rounded-xl border border-space-700 bg-space-900/50">
-    <summary className="tap grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[4.5rem_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.3fr)_auto] sm:items-center">
-      <span className="text-xs font-semibold text-space-300">{deck.release}{deck.firstWave ? <span className="ml-1 rounded border border-ki-500/40 px-1 text-[9px] text-ki-300">Wave 1</span> : null}</span>
-      <span className="min-w-0"><span className="block truncate text-sm font-semibold text-space-100">{deck.name}</span><span className="block text-[11px] text-space-500">{deck.leaderId} · {deck.leaderName}</span></span>
-      <span className="col-span-2 flex flex-wrap gap-1 sm:col-span-1">{deck.mechanics.map((mechanic) => <span key={mechanic} className="rounded-full border border-space-700 px-2 py-0.5 text-[10px] text-space-300">{mechanic}</span>)}</span>
-      <span className="text-[11px] text-space-400 sm:block">{linked ? `Linked: ${linked.name}` : "No actual deck linked"}</span>
-      <span className={`justify-self-start rounded-full border px-2 py-1 text-[10px] font-semibold sm:justify-self-end ${status.tone}`}>{status.label}</span>
-    </summary>
-    <div className="border-t border-space-700 p-3">
+  return <>
+    <tr className="block border-t border-space-700 bg-space-900/50 sm:table-row">
+      <td className="flex items-start justify-between gap-3 px-3 pt-3 sm:table-cell sm:py-3"><span className="font-semibold text-space-500 sm:hidden">Release</span><span className="text-xs font-semibold text-space-300">{deck.release}{deck.firstWave ? <span className="ml-1 rounded border border-ki-500/40 px-1 text-[9px] text-ki-300">Wave 1</span> : null}</span></td>
+      <th scope="row" className="block px-3 py-1 sm:table-cell sm:py-3"><span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wider text-space-500 sm:hidden">Deck and leader</span><button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="tap text-left"><span className="block whitespace-normal break-words text-sm font-semibold text-space-100">{deck.name}</span><span className="block whitespace-normal break-words text-[11px] text-space-500">{deck.leaderId} · {deck.leaderName}</span><span className="sr-only">{expanded ? "Hide" : "Show"} recipe details</span></button></th>
+      <td className="flex items-start justify-between gap-3 px-3 py-1 sm:table-cell sm:py-3"><span className="font-semibold text-space-500 sm:hidden">Mechanics</span><span className="flex flex-wrap justify-end gap-1 sm:justify-start">{deck.mechanics.map((mechanic) => <span key={mechanic} className="rounded-full border border-space-700 px-2 py-0.5 text-[10px] text-space-300">{mechanic}</span>)}</span></td>
+      <td className="flex items-start justify-between gap-3 px-3 py-1 sm:table-cell sm:py-3"><span className="font-semibold text-space-500 sm:hidden">Linked deck</span><span className="whitespace-normal break-words text-right text-[11px] text-space-400 sm:text-left">{linked ? linked.name : "No actual deck linked"}</span></td>
+      <td className="flex items-center justify-between gap-3 px-3 pb-3 pt-1 sm:table-cell sm:py-3"><span className="font-semibold text-space-500 sm:hidden">Progress</span><button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className={`tap rounded-full border px-2 py-1 text-[10px] font-semibold ${status.tone}`}>{status.label} · {expanded ? "Hide" : "Edit"}</button></td>
+    </tr>
+    {expanded ? <tr className="block border-t border-space-700 sm:table-row"><td colSpan={5} className="block bg-space-900/80 p-3 sm:table-cell">
       <p className="text-xs text-space-300">{deck.description}</p>
       <p className="mt-1 text-[11px] text-space-500">Recipe {deck.id} · Source: {deck.source} · Focus cards: {deck.supportCardIds.join(", ") || "none listed"}</p>
       {deck.notes ? <p className="mt-1 text-xs text-space-400">{deck.notes}</p> : null}
-      <ProgressForm id={deck.id} version={deck.version} status={deck.status} note={deck.note} evidence={deck.evidence} action={saveTestingDeckAction} actualDecks={actualDecks} linkedDeckId={deck.linkedDeckId} />
-    </div>
-  </details>;
+      <ProgressForm key={`${deck.id}:${deck.version}`} id={deck.id} version={deck.version} status={deck.status} note={deck.note} evidence={deck.evidence} action={saveTestingDeckAction} actualDecks={actualDecks} linkedDeckId={deck.linkedDeckId} />
+    </td></tr> : null}
+  </>;
 }
 
 function ScenarioCard({ scenario }: { scenario: TestingScenario }) {
@@ -174,7 +178,7 @@ function ScenarioCard({ scenario }: { scenario: TestingScenario }) {
     <summary className="tap grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] gap-2 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
       <span className="font-mono text-[11px] font-semibold uppercase text-ki-300">{scenario.id}</span><span className="text-sm text-space-100">{scenario.name}</span><span className={`justify-self-start rounded-full border px-2 py-1 text-[10px] font-semibold ${status.tone}`}>{status.label}</span>
     </summary>
-    <div className="border-t border-space-700 p-3"><p className="text-xs leading-relaxed text-space-300">{scenario.description}</p><p className="mt-1 text-[11px] text-space-500">Source: {scenario.source}</p><ProgressForm id={scenario.id} version={scenario.version} status={scenario.status} note={scenario.note} evidence={scenario.evidence} action={saveTestingScenarioAction} /></div>
+    <div className="border-t border-space-700 p-3"><p className="text-xs leading-relaxed text-space-300">{scenario.description}</p><p className="mt-1 text-[11px] text-space-500">Source: {scenario.source}</p><ProgressForm key={`${scenario.id}:${scenario.version}`} id={scenario.id} version={scenario.version} status={scenario.status} note={scenario.note} evidence={scenario.evidence} action={saveTestingScenarioAction} /></div>
   </details>;
 }
 
@@ -184,19 +188,21 @@ function ProgressForm({ id, version, status, note, evidence, action, actualDecks
   actualDecks?: TestingDashboard["actualDecks"]; linkedDeckId?: number | null;
 }) {
   const [state, formAction] = useActionState(action, null);
+  const [fields, setFields] = useState({ status, linkedDeckId: linkedDeckId == null ? "" : String(linkedDeckId), note, evidence });
+  const setField = (name: keyof typeof fields, value: string) => setFields((previous) => ({ ...previous, [name]: value }));
   return <form action={formAction} className="mt-3 grid gap-2 sm:grid-cols-2">
     <input type="hidden" name="id" value={id} /><input type="hidden" name="version" value={version} />
     <label className={smallLabel}>Progress status
-      <select name="status" defaultValue={status} className={select}>{STATUS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+      <select name="status" value={fields.status} onChange={(event) => setField("status", event.target.value)} className={select}>{STATUS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
     </label>
     {actualDecks ? <label className={smallLabel}>Link an actual deck
-      <select name="linkedDeckId" defaultValue={linkedDeckId ?? ""} className={select}><option value="">No actual deck linked</option>{actualDecks.filter((deck) => deck.game === "dbs").map((deck) => <option key={deck.id} value={deck.id}>{deck.name}{deck.isTesting ? " · testing" : ""}</option>)}</select>
+      <select name="linkedDeckId" value={fields.linkedDeckId} onChange={(event) => setField("linkedDeckId", event.target.value)} className={select}><option value="">No actual deck linked</option>{actualDecks.filter((deck) => deck.game === "dbs").map((deck) => <option key={deck.id} value={deck.id}>{deck.name}{deck.isTesting ? " · testing" : ""}</option>)}</select>
     </label> : null}
     <label className={`${smallLabel} sm:col-span-2`}>Progress note
-      <textarea name="note" defaultValue={note} rows={2} maxLength={4000} className={input} placeholder="What remains, what was checked, or the blocker…" />
+      <textarea name="note" value={fields.note} onChange={(event) => setField("note", event.target.value)} rows={2} maxLength={4000} className={input} placeholder="What remains, what was checked, or the blocker…" />
     </label>
     <label className={`${smallLabel} sm:col-span-2`}>Evidence <span className="text-space-500">· required to mark passed</span>
-      <textarea name="evidence" defaultValue={evidence} rows={2} maxLength={4000} className={input} placeholder="Exact test command, card/skill, revision, and assertion…" />
+      <textarea name="evidence" value={fields.evidence} onChange={(event) => setField("evidence", event.target.value)} rows={2} maxLength={2000} className={input} placeholder="Exact test command, card/skill, revision, and assertion…" />
     </label>
     <div className="flex flex-wrap items-center gap-3 sm:col-span-2"><SubmitButton pendingLabel="Saving…" className="tap min-h-11 rounded-md bg-space-700 px-4 text-sm font-medium text-space-50 hover:bg-space-600">Save progress</SubmitButton><ActionNotice state={state} /></div>
   </form>;
@@ -204,38 +210,45 @@ function ProgressForm({ id, version, status, note, evidence, action, actualDecks
 
 function RecordResultForm({ dashboard, requestId }: { dashboard: TestingDashboard; requestId: string }) {
   const [state, formAction] = useActionState(recordTestingMatchAction, null);
+  return <RecordResultFields key={state?.formEpoch ?? "0"} dashboard={dashboard} requestId={requestId} state={state} formAction={formAction} />;
+}
+
+function RecordResultFields({ dashboard, requestId, state, formAction }: { dashboard: TestingDashboard; requestId: string; state: TestingActionState | null; formAction: (form: FormData) => void }) {
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const value = (name: string, initial = "") => fields[name] ?? initial;
+  const setField = (name: string, fieldValue: string) => setFields((previous) => ({ ...previous, [name]: fieldValue }));
   return <section aria-labelledby="record-result-title" className="space-y-3 rounded-xl border border-ki-500/30 bg-space-900/60 p-4">
     <div><h2 id="record-result-title" className="text-lg font-semibold text-space-50">Record a test result</h2><p className="text-xs text-space-400">Choose the catalog recipe each side used; this manual record does not change recipe status. It is not a game launcher. Local offline matches are not uploaded or imported automatically.</p></div>
     <form action={formAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <input type="hidden" name="requestId" value={requestId} />
-      <ActorFields seat="p1" label="Player 1" />
-      <ActorFields seat="p2" label="Player 2" />
+      <ActorFields seat="p1" label="Player 1" value={value} setField={setField} />
+      <ActorFields seat="p2" label="Player 2" value={value} setField={setField} />
       <label className={smallLabel}>Player 1 recipe
-        <select name="p1DeckId" required defaultValue="" className={select}><option value="" disabled>Choose a recipe</option>{dashboard.decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}</select>
+        <select name="p1DeckId" required value={value("p1DeckId")} onChange={(event) => setField("p1DeckId", event.target.value)} className={select}><option value="" disabled>Choose a recipe</option>{dashboard.decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}</select>
       </label>
       <label className={smallLabel}>Player 2 recipe
-        <select name="p2DeckId" required defaultValue="" className={select}><option value="" disabled>Choose a recipe</option>{dashboard.decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}</select>
+        <select name="p2DeckId" required value={value("p2DeckId")} onChange={(event) => setField("p2DeckId", event.target.value)} className={select}><option value="" disabled>Choose a recipe</option>{dashboard.decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}</select>
       </label>
       <label className={smallLabel}>Result
-        <select name="outcome" defaultValue="win" className={select}>{OUTCOMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+        <select name="outcome" value={value("outcome", "win")} onChange={(event) => setField("outcome", event.target.value)} className={select}>{OUTCOMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
       </label>
       <label className={smallLabel}>Winner <span className="text-space-500">· required only for Win</span>
-        <select name="winner" defaultValue="" className={select}><option value="">No winner / not a win</option><option value="p1">Player 1</option><option value="p2">Player 2</option></select>
+        <select name="winner" value={value("winner")} onChange={(event) => setField("winner", event.target.value)} className={select}><option value="">No winner / not a win</option><option value="p1">Player 1</option><option value="p2">Player 2</option></select>
       </label>
       <label className={smallLabel}>Seed <span className="text-space-500">· optional</span>
-        <input name="seed" type="number" step="1" className={input} placeholder="e.g. 641" />
+        <input name="seed" value={value("seed")} onChange={(event) => setField("seed", event.target.value)} type="number" step="1" className={input} placeholder="e.g. 641" />
       </label>
       <label className={smallLabel}>Rules revision <span className="text-space-500">· optional</span>
-        <input name="rulesRevision" maxLength={160} className={input} placeholder="Commit or interpreter revision" />
+        <input name="rulesRevision" value={value("rulesRevision")} onChange={(event) => setField("rulesRevision", event.target.value)} maxLength={160} className={input} placeholder="Commit or interpreter revision" />
       </label>
       <label className={smallLabel}>Reported cost (USD) <span className="text-space-500">· optional, manual</span>
-        <input name="reportedCostUsd" type="number" min="0" step="0.000001" className={input} placeholder="Leave blank if unknown" />
+        <input name="reportedCostUsd" value={value("reportedCostUsd")} onChange={(event) => setField("reportedCostUsd", event.target.value)} type="number" min="0" step="0.000001" className={input} placeholder="Leave blank if unknown" />
       </label>
       <label className={`${smallLabel} sm:col-span-2 lg:col-span-3`}>Evidence
-        <textarea name="evidence" rows={2} maxLength={2000} className={input} placeholder="Replay file, scenario, issue, or assertion summary" />
+        <textarea name="evidence" value={value("evidence")} onChange={(event) => setField("evidence", event.target.value)} rows={2} maxLength={2000} className={input} placeholder="Replay file, scenario, issue, or assertion summary" />
       </label>
       <label className={`${smallLabel} sm:col-span-2 lg:col-span-3`}>Notes
-        <textarea name="note" rows={2} maxLength={4000} className={input} placeholder="Setup, interruptions, limits reached, or context…" />
+        <textarea name="note" value={value("note")} onChange={(event) => setField("note", event.target.value)} rows={2} maxLength={4000} className={input} placeholder="Setup, interruptions, limits reached, or context…" />
       </label>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3"><SubmitButton pendingLabel="Recording…" className="tap min-h-11 rounded-md bg-ki-500 px-4 text-sm font-semibold text-space-950 hover:bg-ki-400">Record manual result</SubmitButton><ActionNotice state={state} /></div>
     </form>
@@ -243,17 +256,21 @@ function RecordResultForm({ dashboard, requestId }: { dashboard: TestingDashboar
   </section>;
 }
 
-function ActorFields({ seat, label }: { seat: "p1" | "p2"; label: string }) {
+function ActorFields({ seat, label, value, setField }: { seat: "p1" | "p2"; label: string; value: (name: string, initial?: string) => string; setField: (name: string, fieldValue: string) => void }) {
+  const kindName = `${seat}Kind`;
+  const modelName = `${seat}Model`;
+  const kind = value(kindName, "human");
+  const modelIsRequired = kind === "opus";
   return <fieldset className="space-y-2 rounded-lg border border-space-700 p-3">
     <legend className="px-1 text-xs font-semibold text-space-200">{label}</legend>
     <label className={smallLabel}>Actor kind
-      <select name={`${seat}Kind`} className={select}>{ACTORS.map((actor) => <option key={actor.value} value={actor.value}>{actor.label}</option>)}</select>
+      <select name={kindName} value={kind} onChange={(event) => { setField(kindName, event.target.value); if (event.target.value === "human") setField(modelName, ""); }} className={select}>{ACTORS.map((actor) => <option key={actor.value} value={actor.value}>{actor.label}</option>)}</select>
     </label>
     <label className={smallLabel}>Actor name
-      <input name={`${seat}Name`} required maxLength={120} className={input} placeholder="Person or agent label" />
+      <input name={`${seat}Name`} value={value(`${seat}Name`)} onChange={(event) => setField(`${seat}Name`, event.target.value)} required maxLength={120} className={input} placeholder="Person or agent label" />
     </label>
-    <label className={smallLabel}>Model <span className="text-space-500">· optional</span>
-      <input name={`${seat}Model`} maxLength={120} className={input} placeholder="Exact model/version if known" />
+    <label className={smallLabel}>Model <span className="text-space-500">· {modelIsRequired ? "exact version required" : kind === "human" ? "not used for humans" : "optional"}</span>
+      <input name={modelName} value={value(modelName)} onChange={(event) => setField(modelName, event.target.value)} required={modelIsRequired} disabled={kind === "human"} maxLength={120} className={input} placeholder={modelIsRequired ? "e.g. claude-opus-4-6" : "Exact model/version if known"} />
     </label>
   </fieldset>;
 }
@@ -270,9 +287,9 @@ function StatsSource({ title, stats, source }: { title: string; stats: MatchStat
 function StatTable({ rows, summary = false, matchups = false }: { rows: StatRow[]; summary?: boolean; matchups?: boolean }) {
   if (!rows.length) return <p className="rounded-md border border-dashed border-space-700 p-3 text-xs text-space-500">No matches for these filters.</p>;
   return <div className="overflow-x-auto rounded-lg border border-space-800"><table className="w-full min-w-[590px] text-left text-[11px]">
-    <thead className="bg-space-950/70 text-space-500"><tr>{!summary ? <th className="px-2 py-2 font-medium">{matchups ? "Pairing" : "Group"}</th> : null}{!summary && matchups ? <th className="px-2 py-2 font-medium">Unique games</th> : null}<th className="px-2 py-2 font-medium">{summary ? "Matches" : "Seat appearances"}</th><th className="px-2 py-2 font-medium">Completed W/L/D</th><th className="px-2 py-2 font-medium">Interrupted</th><th className="px-2 py-2 font-medium">Abandoned</th><th className="px-2 py-2 font-medium">Limit</th><th className="px-2 py-2 font-medium">Playing</th><th className="px-2 py-2 font-medium">Win rate*</th></tr></thead>
-    <tbody>{rows.map((row) => <tr key={row.key} className="border-t border-space-800 text-space-200">{!summary ? <th scope="row" className="max-w-64 truncate px-2 py-2 font-medium" title={row.label}>{row.label}</th> : null}{!summary && matchups ? <td className="px-2 py-2 tabular-nums">{row.uniqueGames}</td> : null}<td className="px-2 py-2 tabular-nums">{row.appearances}</td><td className="px-2 py-2 tabular-nums">{row.completed} · {row.wins}/{row.losses}/{row.draws}</td><td className="px-2 py-2 tabular-nums">{row.interrupted}</td><td className="px-2 py-2 tabular-nums">{row.abandoned}</td><td className="px-2 py-2 tabular-nums">{row.limit}</td><td className="px-2 py-2 tabular-nums">{row.playing}</td><td className="px-2 py-2 tabular-nums">{row.winRate == null ? "—" : `${(row.winRate * 100).toFixed(1)}%`}</td></tr>)}</tbody>
-  </table><p className="px-2 py-1 text-[10px] text-space-500">* W/(W+L); draws and unfinished games excluded. No overall match win rate.</p></div>;
+    <thead className="bg-space-950/70 text-space-500"><tr>{!summary ? <th className="px-2 py-2 font-medium">{matchups ? "Pairing" : "Group"}</th> : null}{!summary ? <th className="px-2 py-2 font-medium">Unique games</th> : null}<th className="px-2 py-2 font-medium">{summary ? "Matches" : "Seat appearances"}</th><th className="px-2 py-2 font-medium">{summary ? "Completed" : "Completed W/L/D"}</th><th className="px-2 py-2 font-medium">{summary ? "Draws" : "Interrupted"}</th>{!summary ? <th className="px-2 py-2 font-medium">Abandoned</th> : null}{!summary ? <th className="px-2 py-2 font-medium">Limit</th> : null}{!summary ? <th className="px-2 py-2 font-medium">Playing</th> : null}{!summary ? <th className="px-2 py-2 font-medium">Win rate*</th> : null}</tr></thead>
+    <tbody>{rows.map((row) => <tr key={row.key} className="border-t border-space-800 text-space-200">{!summary ? <th scope="row" className="max-w-64 truncate px-2 py-2 font-medium" title={row.label}>{row.label}</th> : null}{!summary ? <td className="px-2 py-2 tabular-nums">{row.uniqueGames}</td> : null}<td className="px-2 py-2 tabular-nums">{summary ? row.games : row.appearances}</td><td className="px-2 py-2 tabular-nums">{summary ? row.completed : `${row.completed} · ${row.wins}/${row.losses}/${row.draws}`}</td><td className="px-2 py-2 tabular-nums">{summary ? row.draws : row.interrupted}</td>{!summary ? <td className="px-2 py-2 tabular-nums">{row.abandoned}</td> : null}{!summary ? <td className="px-2 py-2 tabular-nums">{row.limit}</td> : null}{!summary ? <td className="px-2 py-2 tabular-nums">{row.playing}</td> : null}{!summary ? <td className="px-2 py-2 tabular-nums">{row.winRate == null ? "—" : `${(row.winRate * 100).toFixed(1)}%`}</td> : null}</tr>)}</tbody>
+  </table><p className="px-2 py-1 text-[10px] text-space-500">{summary ? "Match totals have no player perspective; draws are shown separately. No overall match win rate." : "* W/(W+L); draws and unfinished games excluded."}</p></div>;
 }
 
 function ActionNotice({ state }: { state: TestingActionState | null }) {
@@ -287,6 +304,12 @@ function scenarioGroups(rows: TestingScenario[]) { const order: TestingScenario[
 function groupLabel(group: TestingScenario["group"]) { return group === "family" ? "Rules families" : group === "strategy" ? "AI strategy benchmarks" : group === "white_cell_rule" ? "White Cell rules · WC-R" : "White Cell strategy · WC-A"; }
 function recipeName(decks: TestingDashboard["decks"], id: string) { return decks.find((deck) => deck.id === id)?.name ?? `Recipe ${id}`; }
 function actorLabel(actor: { kind: ActorKind; name: string; model: string | null }) { return `${actor.name} · ${ACTORS.find((item) => item.value === actor.kind)?.label ?? actor.kind}${actor.model ? ` / ${actor.model}` : ""}`; }
-function releaseSort(a: string, b: string) { const n = (value: string) => Number(value.match(/\d+/)?.[0] ?? 0); return n(a) - n(b) || a.localeCompare(b); }
+function releaseSort(a: string, b: string) {
+  const prefix = (value: string) => value.match(/^[a-z]+/i)?.[0].toUpperCase() ?? "";
+  const family = (value: string) => ({ BT: 0, SD: 1 } as Record<string, number>)[value] ?? 2;
+  const fa = prefix(a); const fb = prefix(b);
+  return family(fa) - family(fb) || (family(fa) === 2 ? fa.localeCompare(fb) : 0)
+    || Number(a.match(/\d+/)?.[0] ?? 0) - Number(b.match(/\d+/)?.[0] ?? 0) || a.localeCompare(b);
+}
 function formatUsdMicros(micros: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(micros / 1_000_000); }
 function outcomeLabel(outcome: MatchOutcome, winner: "p1" | "p2" | null) { if (outcome === "win") return `${winner === "p1" ? "Player 1" : "Player 2"} win`; return OUTCOMES.find((item) => item.value === outcome)?.label ?? outcome; }

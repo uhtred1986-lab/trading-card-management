@@ -109,8 +109,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_minmax(300px,380px)]">
-        <div className="space-y-4">
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
+        <div className="min-w-0 space-y-4">
           {zones.map((zone) => {
             const rows = deck.cards.filter((c) => c.zone === zone);
             if (!rows.length && zone !== "main") return null;
@@ -164,7 +164,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           })}
         </div>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <DeckBuilder deckId={deck.id} game={deck.game} />
           <DeckAI
             deckId={deck.id}

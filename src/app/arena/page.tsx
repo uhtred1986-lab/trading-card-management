@@ -125,6 +125,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
           </p>
         ) : (
           <PlayPicker
+            key={`${showTestingDecks}:${initialDeck}:${initialClaudeDeck}:${playable.map((d) => d.id).join(",")}`}
             decks={playable.map((d) => ({ id: d.id, name: d.name, isTesting: d.isTesting, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
             initialDeck={initialDeck}
             initialClaudeDeck={initialClaudeDeck}

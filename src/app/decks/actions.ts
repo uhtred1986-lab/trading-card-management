@@ -22,6 +22,10 @@ function revalidate(deckId?: number) {
   revalidatePath("/");
   if (deckId) revalidatePath(`/decks/${deckId}`);
 }
+function revalidateTestingPickers() {
+  revalidatePath("/arena");
+  revalidatePath("/arena/offline");
+}
 
 /** Used by the DeckPicker on the add screens: create and return, no redirect. */
 export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, isTesting = false): Promise<DeckOption> {
@@ -33,6 +37,7 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, 
     .values({ name: clean, game: gameOr(game), isTesting, owner: await currentOwner() })
     .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, isTesting: decks.isTesting, game: decks.game });
   revalidate();
+  if (isTesting) revalidateTestingPickers();
   return { ...row, game: gameOr(row.game) };
 }
 
@@ -47,6 +52,7 @@ export async function createDeckForm(formData: FormData) {
     .values({ name, game, isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   revalidate();
+  if (isTesting) revalidateTestingPickers();
   redirect(`/decks/${row.id}`);
 }
 
@@ -60,6 +66,7 @@ export async function updateDeck(id: number, patch: { name?: string; game?: Game
   // Moving a built deck to another box moves the cards in it.
   if (patch.locationId !== undefined) await fileDeckAtLocation(db, id);
   revalidate(id);
+  if (patch.isTesting !== undefined) revalidateTestingPickers();
 }
 
 export async function updateDeckForm(formData: FormData) {
@@ -108,10 +115,11 @@ export async function duplicateDeck(id: number): Promise<number> {
   if (!src) throw new Error("Deck not found");
   const [row] = await db
     .insert(decks)
-    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, owner: await currentOwner() })
+    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, isTesting: src.isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   await db.execute(sql`insert into deck_cards (deck_id, card_id, zone, quantity) select ${row.id}, card_id, zone, quantity from deck_cards where deck_id = ${id}`);
   revalidate();
+  if (src.isTesting) revalidateTestingPickers();
   return row.id;
 }
 
