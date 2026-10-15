@@ -1,10 +1,14 @@
 # Arena testing progress
 
-This is the progress entry point for #827. Update it when an evidence artifact is
-reviewed, not merely when a deck compiles or a game finishes. Last updated with PR #824.
+The persisted progress page is **Arena → Testing & stats** (`/arena/testing`, admin access).
+It contains 64 proposed deck recipes and 55 scenarios, editable progress/evidence,
+actual-deck links, manually recorded results and separate server Arena statistics.
+This file is the planning/evidence index for #827; live progress belongs in the portal.
+Update evidence only after review, not merely because a deck compiles or a game finishes.
 
 - [Complete deck proposal: two per BT1–BT31, plus starters](arena-proposed-decks.md)
 - [24 scenario families, run limits and cost validation](arena-deck-coverage-plan.md)
+- [General local-AI strategy benchmarks and promotion protocol](arena-strategy-validation.md)
 - [White Cell: rule and opponent decision checks](arena-white-cell-validation.md)
 - Known current-deck rule gaps: #825. Stronger local opponent: #826.
 
@@ -15,8 +19,8 @@ reviewed, not merely when a deck compiles or a game finishes. Last updated with 
 | Release/Leader/mechanic proposal | Prepared | 62 booster candidates; 16 first-wave decks including two starter controls. |
 | Final new deck quantities and legality | Pending | Check restrictions and required support before assembly; candidate recipes are not accepted decks. |
 | Existing starter controls | Existing audited baseline | SD5/SD15 source lists and named proofs in `arena-offline-deck-audit.md`. |
-| Small scenarios | Planned, existing proofs reusable | 24 families; each real card ability still needs a named evidence mapping. |
-| Combined PR #824 code gates | Passed | Typecheck, lint, full tests, production build; reviewed contract output. |
+| Small scenarios | Planned, existing proofs reusable | 24 rule families, 12 general strategy benchmarks, 12 White Cell rule cases and 7 White Cell strategy cases; exact variants remain to be built. |
+| Combined PR #824 code gates | Passed | Integrated typecheck, lint, full tests and production build; isolated browser persistence/filtering checks at 390/1440 widths. |
 | Broad stored-rule diagnostic sample | 39/40 complete; one known interruption | `arena-backlog/evidence/backlog-completion/captured-fuzz-summary.json`; SD13-05 repair approved. Not an ability coverage claim. |
 | New bounded local search | Evaluated; not promoted | 41–39 over 80 held-out games; no justified stronger-difficulty claim. |
 | Opus cost rate and account credit validation | Pending | Existing static price table is not current billing verification. |

@@ -1,7 +1,8 @@
 # Combined backlog validation — PR #824
 
 Coordinator review covers the integrated search/evaluation, diagnostics/replay, optional
-exact choice, Bond/native keyword fixes, reviewed data refresh commands and cost migration.
+exact choice, Bond/native keyword fixes, reviewed data refresh commands, cost migration,
+Arena testing portal and online/local testing-deck filtering.
 The owner requested grouping related work and delegated implementation to cheaper workers.
 
 ## Evidence
@@ -25,7 +26,8 @@ The owner requested grouping related work and delegated implementation to cheape
   predeclared strength gate. No difficulty is shipped. Chrome policy/Worker evidence and
   the initial performance miss are preserved in `../663/` and `arena-policy-strength.md`.
 - Authenticated backlog drift check: 244 canonical files clean against GitHub.
-- No player UI changed in this PR. The owner waived physical-phone acceptance testing.
+- Player UI changes: Arena navigation and testing-deck toggles; deck create/edit flags;
+  the admin testing portal. The owner waived physical-phone acceptance testing.
   The deck naming affordance and release validation corpus are tracked in #827.
 - First 26-rule live refresh is recorded in `rule-refresh.json`. The separate approved
   eleven-rule plus owner-condition repair runs after matching production deployment;
@@ -33,8 +35,9 @@ The owner requested grouping related work and delegated implementation to cheape
 
 Full integrated `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`
 all passed under Node 24 with DATABASE_URL unset. Five existing lint warnings remain
-in the checked-in prototype JavaScript; there are no lint errors. The final additional
-changes are documentation/evidence and the reviewed generated probe digest.
+in the checked-in prototype JavaScript; there are no lint errors. The final integrated run includes the portal and testing flags and passed in full.
+The initial combined run caught a guard-order violation in `createDeckForm`; it was
+fixed and the complete four-command chain rerun successfully.
 
 ## Delegation review
 
@@ -43,6 +46,12 @@ Coordinator review required semantic fixups for Battle-Card-only counting and en
 versus name parsing, plus tests for paid Bond and mixed action prices. The search and
 coverage workers delivered the broader runtime/evaluation changes. The coordinator
 reviewed combined semantics, protected data writes and evidence and owns final gates.
+
+The cheaper UI worker delivered the portal and deck forms. Coordinator/browser review
+required fixes for truncated recipe IDs, stale hidden picker selections, copied testing
+flags, exact Opus model validation, form-reset data loss, statistics denominators and
+mobile overflow. Backend/coverage workers delivered persistence, sample-aware statistics
+and planning data; independent read-only review found no remaining data/privacy blockers.
 
 ## Remaining scope
 
@@ -53,3 +62,23 @@ reviewed combined semantics, protected data writes and evidence and owns final g
   a bounded Opus comparison pilot. No paid call was made for the proposal.
 
 The O5 tracker #637 remains open; this PR does not claim every printed rule is supported.
+
+## Portal and testing-deck evidence
+
+- Migration 0052 adds the testing flag (false for existing decks) and three tables;
+  64 recipes and 55 scenarios start planned. GET is read-only. No new dependency.
+- PGlite verifies durable reload, CAS conflicts, idempotent recording, malformed
+  winners/costs/evidence, exact Opus model labels, mirrored unique-game/seat counts,
+  same-seat filters and legacy interrupted/model provenance.
+- Testing flag proof covers scoped database reads, download propagation, update
+  fingerprints, legacy packs, unchanged engine inputs and both-seat filtering.
+- Local browser viewport checks use isolated Postgres fixtures, not production data.
+  The portal, Arena, decks and deck details fit 390 and 1440 widths. Local picker
+  tests cover both seats, toggling back to normal decks and all-testing empty states.
+- General strategic benchmark families AI-01..12 are planned, not new passing tests.
+  No paid Opus calls ran; proposed budgets and manual cost reports are labelled.
+- Browser interaction proof passes: progress survives reload; rejected saves retain
+  inputs; long recipe IDs record intact; manual unknown-cost results persist; online
+  hide/show resets both selected testing decks. Deck create/edit flags persist and
+  preserve existing notes. Card-art URLs were unavailable in this isolated browser
+  environment, so before/after images show the app's image fallback.

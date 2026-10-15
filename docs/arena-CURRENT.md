@@ -40,8 +40,14 @@ require measured gains; tactical success alone does not establish stronger gener
 
 ## Coverage plan and progress
 
-[Testing progress](arena-testing-progress.md) is the user-facing index for the proposed
-16-deck first wave, 62-deck booster expansion, small scenarios, White Cell decision
+The persisted page **Arena → Testing & stats** (`/arena/testing`, admin access) tracks
+64 recipes, 55 scenarios, progress/evidence and separate manual/server match statistics.
+Actual decks can be marked testing and are hidden by default in online and local
+new-game selectors; players can opt in. Downloaded decks need Update after a flag change.
+Local match results remain device-only until manually recorded.
+
+[Testing progress](arena-testing-progress.md) is the planning index for the proposed
+16-deck first wave, 62-deck booster expansion, small scenarios, [general strategic benchmarks](arena-strategy-validation.md), White Cell decision
 benchmarks and bounded Opus budget. These are proposed recipes and explicit progress
 states, not a claim that new lists or paid comparisons have already run.
 
