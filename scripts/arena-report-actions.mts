@@ -11,6 +11,7 @@ try{
    await p.setCookie('arenaSkin',skin,base);
    await p.goto(`${base}/arena/preview?fixture=play&skin=${skin}&pace=step&staging=inplace`);await p.waitFor('.arena');await p.settle(300);
    await p.rightClick('[data-arena-card="p1#0"] button');
+   await p.tap('[aria-label="Show card details and actions"]');
    await p.waitFor('[data-review-basic-actions] button');
    assert.match(await p.eval<string>('document.querySelector("[data-review-basic-actions]").textContent'),/Attack/);
    assert.ok(await p.eval('!document.querySelector("[data-review-basic-actions]").textContent.includes("Charge")'),'Main Phase never offers Charge');

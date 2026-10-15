@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readerAbilities,readerText,hasReviewedRulesArea} from '../../src/components/arena/card-reader-model';
+import type {CardView} from '../../src/lib/arena/view';
+const card={id:'a',cardId:'BT1-056',name:'Son Goku',hidden:false,flipped:false,text:'[Auto] Draw 1.<br>[Evolve] &lt;Gotenks&gt;',abilities:[]} as unknown as CardView;
+assert.equal(readerAbilities({...card,hidden:true}).length,0);
+assert.equal(readerText('[Evolve] <Gotenks><br><b>Draw</b> &amp; choose.'),'[Evolve] <Gotenks>\nDraw & choose.');
+assert.equal(readerAbilities(card).length,2);
+assert.ok(hasReviewedRulesArea(card));
+assert.equal(hasReviewedRulesArea({...card,cardId:'UNKNOWN'}),false);
+assert.equal(hasReviewedRulesArea({...card,cardId:'BT1-072',flipped:true}),false);
+const ability={skillIndex:0,kind:'activate',category:'manual',text:'[Activate:Main] Draw 1.',tags:['Activate:Main'],origin:'copied',availability:'notEvaluated',costPreview:{state:'incomplete'}};
+const copied=readerAbilities({...card,abilities:[ability]} as unknown as CardView)[0];
+assert.equal(copied.copied,true);assert.equal(copied.offered,false);assert.equal(copied.state,'Added ability');
+console.log('Card reader: concealed cards, literal selectors, unknown layouts and added-ability separation pass.');
