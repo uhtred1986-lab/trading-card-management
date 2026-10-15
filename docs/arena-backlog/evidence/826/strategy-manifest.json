@@ -1,0 +1,469 @@
+{
+  "version": 1,
+  "requestId": "ae6ec359-8085-45bc-81d3-4353bd0983ae",
+  "source": "decision_cases",
+  "runner": {
+    "id": "arena-policy-strategy",
+    "version": "1",
+    "gitCommit": "9dd250d8d886d7cb63fa8355674d42bf231b3376",
+    "dirtyTreeSha256": null
+  },
+  "protocol": {
+    "id": "resource-search-826-strategy",
+    "revision": "resource-search-826-v1"
+  },
+  "fixtures": [
+    {
+      "key": "826-numeric-keywords",
+      "sourceId": "826-numeric-keywords",
+      "runtimeRevision": "a826000000000000000000000000000000000826",
+      "bundleSha256": "d12974a647731ad4f3c8b7149dbe4e1d0159e4afe26ea2c05894acbf2b0b4fd9",
+      "rulesSha256": "65ddeda08acf196b1c9eed450099f2a3d78608bb1de80dfa98bf290de2cd09f7",
+      "catalogSha256": "c42334745f888916ac763ec52cee538f04d6d5dc135ed510c5cc6f9773aa106c",
+      "programsSha256": "508f72e1d9236a56609463ec8b7542a580304933a8069d1819763d4cfc746325",
+      "p1DeckSha256": "1a1818f6e6bcb2d4ab3df9f55f0cdfc5cd04b236e9d8fa0e8bb69f9546414441",
+      "p2DeckSha256": "e7a43ca4cda66de0ac944cc6e74503cd2c0913fe14eca5a3414103e12d315a9c",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [
+    {
+      "key": "heuristic-v1",
+      "version": "heuristic-v1",
+      "sha256": "7cc1bb61c7ce2809c52db5931a7f73b17322912f1da64cbe36856d3499c8e158"
+    },
+    {
+      "key": "search-v2-d2",
+      "version": "resource-search-v2-depth-2",
+      "sha256": "cc0168bf3a73ec85faa7950ae8cbe41dc625bf352be2fbfe30abb182c9fda686"
+    },
+    {
+      "key": "search-v2-d3",
+      "version": "resource-search-v2-depth-3",
+      "sha256": "376149868d5806e4abe0afd9fb05e8c12d0df9089739d1c7090ed32eebd765cb"
+    }
+  ],
+  "results": [
+    {
+      "key": "ai-01-own-combo-lethal-heuristic-v1",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 1,
+      "evidenceSha256": "575b2710cd7abd57ce8128c97fb45dabc1c890434f6df300941a6e8c67c2618c"
+    },
+    {
+      "key": "ai-01-own-combo-lethal-search-v2-d2",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "evidenceSha256": "ed32ccdc336f2df8edb31372b9ef9c02221bf3621ea4b004478290cc1827db06"
+    },
+    {
+      "key": "ai-01-own-combo-lethal-search-v2-d3",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "evidenceSha256": "b6519f54601ddf1eb1417a6c7ea524d4a1f43bc1ee48ff325639c50bd98593c2"
+    },
+    {
+      "key": "ai-01-life-replenishment-heuristic-v1",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "evidenceSha256": "c119488346da586abf018ecd5b70846dbe782398599a90a931d0f8612d155acc"
+    },
+    {
+      "key": "ai-01-life-replenishment-search-v2-d2",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "evidenceSha256": "b40def1fc97eb88a18517c5f9e12474dbfb8fd727ccd01980d665557115b76a9"
+    },
+    {
+      "key": "ai-01-life-replenishment-search-v2-d3",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "evidenceSha256": "cc72b4bbaa8810d95e8965c6670ff48ad8e5537630195e7aed9457417872977b"
+    },
+    {
+      "key": "ai-05-critical-first-heuristic-v1",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 6,
+      "evidenceSha256": "7cbda28cf0d68a136e5a7ae79cd4ef6d58231dd824a458a05453662100009ce9"
+    },
+    {
+      "key": "ai-05-critical-first-search-v2-d2",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "evidenceSha256": "492b1db0da9ce3698a52b742304bc82c94281e231aba6b83426d084307550686"
+    },
+    {
+      "key": "ai-05-critical-first-search-v2-d3",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "evidenceSha256": "9b49c1b0eab1b3b8a5a7606ee1ce05f3eda234f68e4cdeebe8810c1b2cad0cef"
+    },
+    {
+      "key": "ai-05-normal-first-heuristic-v1",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "evidenceSha256": "8e408431d17c4b1a395ade52cfdebadc91e4854a75705d2b61a1781d1497f57e"
+    },
+    {
+      "key": "ai-05-normal-first-search-v2-d2",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "evidenceSha256": "e61e591c157d32656f26510838433cdfad2dfa8c5d1fd6c21868342e51b17d85"
+    },
+    {
+      "key": "ai-05-normal-first-search-v2-d3",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "evidenceSha256": "b2c77c1fe5377db1d8f94bccb5a208b49ffa2e3e627c4b5239c3297893b62626"
+    },
+    {
+      "key": "ai-02-defer-first-defense-heuristic-v1",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "fail",
+      "horizonSteps": 6,
+      "evidenceSha256": "6d1a79ae8ccf09b14c4aeffef6af09bd0e8133352d397309b934cb9eeff3d5f6"
+    },
+    {
+      "key": "ai-02-defer-first-defense-search-v2-d2",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "evidenceSha256": "b05b8694cf9d8124e2c20de360d869905e59604ee85ecf0b25d5a83d5486d87e"
+    },
+    {
+      "key": "ai-02-defer-first-defense-search-v2-d3",
+      "kind": "decision_case",
+      "fixtureKey": "826-numeric-keywords",
+      "sourceScenarioId": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "assertion": "acceptable_action",
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "evidenceSha256": "b14efdb488ac1018e9ea982bd1ab8dc9312c0eda4850bc82297ab116ca9ad98e"
+    }
+  ]
+}
