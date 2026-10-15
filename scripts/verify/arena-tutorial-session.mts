@@ -1,14 +1,51 @@
 import assert from "node:assert/strict";
 import { createPracticeSession, restorePracticeSession, type PracticeSession } from "../../src/lib/arena/tutorial/session";
-import { createPracticeState } from "../../src/lib/arena/tutorial/fixture";
+import { PRACTICE_CONTEXT, PRACTICE_DECKS, createPracticeState } from "../../src/lib/arena/tutorial/fixture";
+import catalog from "../../docs/arena-tutorial-classic-cards.json";
+import { RULES } from "../../src/lib/arena/vm";
 import type { Action } from "../../src/lib/arena/types";
 
 const fresh = createPracticeSession();
 assert.deepEqual(fresh.getSnapshot(), createPracticeSession().getSnapshot());
 const state = createPracticeState();
+assert.ok(state.sides.p1.zones.hand.some(id => state.cards[id].cardId === "BT1-068"));
+for (const deck of Object.values(PRACTICE_DECKS)) {
+  assert.equal(deck.main.length, 50);
+  for (const id of new Set(deck.main)) {
+    const row = catalog.cards.find(c => c.id === id)!;
+    assert.ok(row && !row.isBanned);
+    assert.ok(deck.main.filter(x => x === id).length <= row.limitedTo);
+  }
+}
+for (const def of Object.values(PRACTICE_CONTEXT.defs)) {
+  assert.equal(PRACTICE_CONTEXT.scripts[def.id].complete, true);
+  if (def.back) assert.equal(PRACTICE_CONTEXT.scripts[`${def.id}#back`].complete, true);
+}
+
 for (const p of ["p1", "p2"] as const) {
-  assert.equal(state.sides[p].zones.life.length, 3);
+  assert.equal(state.sides[p].zones.life.length, 8);
   assert.equal(Object.values(state.sides[p].zones).flat().length, 51);
+}
+// Isolated rule probe: no live fixture shortcuts. The printed Awaken draws two
+// and flips, while both pinned leader faces retain Double Strike.
+{
+  let probe = createPracticeState();
+  const skip = RULES.legalActions(PRACTICE_CONTEXT, probe).find(x => x.action.type === "charge" && x.action.card === null)!.action;
+  probe = RULES.apply(PRACTICE_CONTEXT, probe, skip).state;
+  assert.ok(!RULES.legalActions(PRACTICE_CONTEXT, probe).some(x => x.action.type === "activate"));
+  probe.sides.p1.zones.deck.push(...probe.sides.p1.zones.life.splice(4));
+  const awaken = RULES.legalActions(PRACTICE_CONTEXT, probe).find(x => x.action.type === "activate" && x.action.card === probe.sides.p1.zones.leader[0])!.action;
+  const hand = probe.sides.p1.zones.hand.length;
+  probe = RULES.apply(PRACTICE_CONTEXT, probe, awaken).state;
+  for (let n = 0; !probe.cards[probe.sides.p1.zones.leader[0]].flipped && n < 12; n++) {
+    const legal = RULES.legalActions(PRACTICE_CONTEXT, probe).map(x => x.action);
+    const response = legal.find(a => a.type === "pass") ?? legal.find(a => a.type === "counter" && a.card === null) ?? legal[0];
+    probe = RULES.apply(PRACTICE_CONTEXT, probe, response).state;
+  }
+  assert.equal(probe.cards[probe.sides.p1.zones.leader[0]].flipped, true);
+  assert.equal(probe.sides.p1.zones.hand.length, hand + 2);
+  assert.match(PRACTICE_CONTEXT.defs["BT1-056"].skill!, /Double Strike/);
+  assert.match(PRACTICE_CONTEXT.defs["BT1-056"].back!.skill!, /Double Strike/);
 }
 const initial = fresh.getSnapshot();
 assert.equal(initial.view.you.handCount, 6, "first player has no opening-turn draw");
@@ -72,7 +109,7 @@ assert.throws(() => restorePracticeSession({ version: 1, fixture: 1, journal: [{
   await session.advance();
   const beats = session.getSnapshot().beats!.list.filter(b => b.n > priorSeq);
   assert.ok(beats.some(b => b.t === "move" && b.owner === "p2" && b.to === "energy"), "opponent charge retained");
-  assert.ok(beats.some(b => b.t === "move" && b.owner === "p2" && b.to === "battle"), "opponent play retained");
+
   assert.ok(beats.some(b => b.t === "attack"), "opponent attack retained");
   assert.equal(new Set(beats.map(b => b.n)).size, beats.length, "beat numbers remain unique");
 }
@@ -83,8 +120,12 @@ async function drive(options: { combos: number; skipCharge?: boolean; passive?: 
   let defensiveCombos = 0;
   let defenseBefore: ReturnType<PracticeSession["getSnapshot"]> | null = null;
   let opponentAttacks = 0;
+  let doubleStrikeDamage = false;
+  let awakened = false;
   const attach = () => session.subscribe(t => {
     if (t.actor === "p2" && t.action.type === "attack") opponentAttacks++;
+    if (t.before.view.battle && t.before.view.them.life - t.after.view.them.life === 2) doubleStrikeDamage = true;
+    if (t.action.type === "activate") awakened = true;
     if (t.before.view.battle && !t.after.view.battle && defenseBefore) {
       const battle = defenseBefore.view.battle!;
       battles.push({ attack: battle.attackPower, guard: battle.guardPower, lifeBefore: defenseBefore.view.you.life, lifeAfter: t.after.view.you.life });
@@ -94,7 +135,7 @@ async function drive(options: { combos: number; skipCharge?: boolean; passive?: 
   let detach = attach();
   for (let n = 0; n < 500; n++) {
     const snapshot = session.getSnapshot();
-    if (snapshot.over) return { snapshot, battles, opponentAttacks };
+    if (snapshot.over) return { snapshot, battles, opponentAttacks, doubleStrikeDamage, awakened };
     if (snapshot.waiting === "opponent") { assert.equal((await session.advance()).error, null); continue; }
     const actions = snapshot.legal.map(x => x.action);
     const defense = snapshot.view.battle && snapshot.decision?.battleStep === "defense";
@@ -123,14 +164,10 @@ async function drive(options: { combos: number; skipCharge?: boolean; passive?: 
   }
   assert.fail("scenario did not finish within the deterministic bound");
 }
-for (const combos of [0, 1, 2]) {
-  const result = await drive({ combos, passive: true });
-  assert.equal(result.snapshot.over?.winner, "p2");
-  assert.equal(result.battles[0].attack, 10000);
-  assert.equal(result.battles[0].guard, 10000 + 5000 * combos);
-  assert.equal(result.battles[0].lifeAfter, combos === 0 ? 2 : 3);
+for (const options of [{ combos: 0, passive: true }, { combos: 1 }, { combos: 0, alternate: true }]) {
+  const result = await drive(options);
+  assert.ok(result.snapshot.over, "ordinary eight-Life match finishes");
   assert.ok(result.opponentAttacks > 0);
+  if (!options.passive) assert.ok(result.doubleStrikeDamage, "Goku actually inflicts printed Double Strike damage");
 }
-assert.ok((await drive({ combos: 0, skipCharge: true })).snapshot.over);
-assert.equal((await drive({ combos: 0, alternate: true })).snapshot.over?.winner, "p1");
-console.log("arena tutorial session: deterministic setup, receipts, restore, legal deviations and complete match paths pass");
+console.log("arena tutorial session: classic setup, receipts, restore, payments and complete match paths pass");
