@@ -57,7 +57,8 @@ class TrainingSession implements PracticeSession {
   refresh(): void { for (const w of this.watchers) w.onSnapshot(this.getSnapshot()); }
   private commit(action: Action, basedOn: number, requestId: string, actor: PlayerId): SessionResult {
     const fingerprint = canonical({ action, basedOn });
-    const receipt = this.receipts.get(requestId);
+    const receiptKey = `${actor}:${requestId}`;
+    const receipt = this.receipts.get(receiptKey);
     if (receipt) return receipt.fingerprint === fingerprint ? receipt.result : { error: "That request was already used for another action." };
     let result: SessionResult;
     if (!requestId || requestId.length > 200) return { error: "Invalid request identifier." };
@@ -70,7 +71,7 @@ class TrainingSession implements PracticeSession {
       catch (error) {
         if (!(error instanceof IllegalAction)) throw error;
         result = { error: "That payment or action is not available now." };
-        this.receipts.set(requestId, { fingerprint, result });
+        this.receipts.set(receiptKey, { fingerprint, result });
         return result;
       }
       this.state = applied.state;
@@ -78,12 +79,12 @@ class TrainingSession implements PracticeSession {
       this.journal.push(structuredClone({ action, basedOn, requestId }));
       this.current = this.snapshot();
       result = { error: null };
-      this.receipts.set(requestId, { fingerprint, result });
+      this.receipts.set(receiptKey, { fingerprint, result });
       this.refresh();
       for (const listener of this.listeners) listener({ action: structuredClone(action), actor, before, after: this.getSnapshot() });
       return result;
     }
-    this.receipts.set(requestId, { fingerprint, result });
+    this.receipts.set(receiptKey, { fingerprint, result });
     return result;
   }
   async act(action: Action, basedOn: number, requestId: string): Promise<SessionResult> { return this.commit(action, basedOn, requestId, "p1"); }

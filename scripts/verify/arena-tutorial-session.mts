@@ -47,6 +47,19 @@ assert.throws(() => restorePracticeSession({ version: 1, fixture: 1, journal: [{
   assert.equal(session.getSnapshot().view.you.battle.length, 1);
   assert.deepEqual(restorePracticeSession(session.serialize()).getSnapshot(), session.getSnapshot());
 }
+// Human request names cannot collide with deterministic opponent receipt names.
+{
+  const session = createPracticeSession();
+  let snapshot = session.getSnapshot();
+  const skip = snapshot.legal.find(x => x.action.type === "charge" && x.action.card === null)!.action;
+  assert.equal((await session.act(skip, 0, "opponent:2")).error, null);
+  snapshot = session.getSnapshot();
+  assert.equal((await session.act(snapshot.legal.find(x => x.action.type === "endMain")!.action, 1, "end-collision")).error, null);
+  assert.equal((await session.advance()).error, null);
+  assert.ok(session.getSnapshot().game.revision > 2);
+  assert.equal(session.getSnapshot().waiting, "you");
+  assert.deepEqual(restorePracticeSession(session.serialize()).getSnapshot(), session.getSnapshot());
+}
 // A batched advance retains every numbered public beat even if React renders only its last snapshot.
 {
   const session = createPracticeSession();
