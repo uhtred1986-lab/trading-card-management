@@ -15,7 +15,7 @@ export type PolicyRngProvenance =
 export interface ManifestFixture {
   key: string;
   sourceId: string;
-  runtimeRevision: string;
+  runtimeRevision: string | null;
   bundleSha256: string;
   rulesSha256: string | null;
   catalogSha256: string | null;
@@ -171,8 +171,8 @@ function enumValue<T extends string>(value: unknown, choices: readonly T[]): val
 
 function validFixture(value: unknown): value is ManifestFixture {
   if (!record(value) || !exactKeys(value, ["key", "sourceId", "runtimeRevision", "bundleSha256", "rulesSha256", "catalogSha256", "programsSha256", "p1DeckSha256", "p2DeckSha256", "p1RecipeId", "p2RecipeId"])) return false;
-  return cleanString(value.key, 128, SLUG) && str(value.sourceId, 160) && str(value.runtimeRevision, 200)
-    && HEX_256.test(String(value.bundleSha256)) && hashOrNull(value.rulesSha256) && hashOrNull(value.catalogSha256)
+  return cleanString(value.key, 128, SLUG) && str(value.sourceId, 160) && nullableString(value.runtimeRevision, 200)
+    && typeof value.bundleSha256 === "string" && HEX_256.test(value.bundleSha256) && hashOrNull(value.rulesSha256) && hashOrNull(value.catalogSha256)
     && hashOrNull(value.programsSha256) && hashOrNull(value.p1DeckSha256) && hashOrNull(value.p2DeckSha256)
     && nullableString(value.p1RecipeId, 128, SLUG) && nullableString(value.p2RecipeId, 128, SLUG);
 }
@@ -183,7 +183,7 @@ function validPolicy(value: unknown): value is ManifestPolicy {
 function validRunner(value: unknown): value is ManifestRunner {
   return record(value) && exactKeys(value, ["id", "version", "gitCommit", "dirtyTreeSha256"])
     && enumValue(value.id, RUNNERS) && str(value.version, 160)
-    && cleanString(value.gitCommit, 40, /^[a-f0-9]{7,40}$/i) && hashOrNull(value.dirtyTreeSha256);
+    && cleanString(value.gitCommit, 40, /^[a-f0-9]{40}$/i) && hashOrNull(value.dirtyTreeSha256);
 }
 function validProtocol(value: unknown): value is { id: string; revision: string } {
   return record(value) && exactKeys(value, ["id", "revision"]) && cleanString(value.id, 128, SLUG) && str(value.revision, 200);
@@ -206,7 +206,9 @@ function validScenarioResult(value: unknown): value is ScenarioCaseResult {
     && (value.seed === null || integer(value.seed, -2_147_483_648))
     && (value.seat === null || value.seat === "p1" || value.seat === "p2") && enumValue(value.outcome, OUTCOMES)
     && integer(value.steps, 0, 1_000_000) && integer(value.differenceCount, 0, 1_000_000)
-    && (value.browserAgreement === null || typeof value.browserAgreement === "boolean") && validEvidenceHash(value.evidenceSha256);
+    && (value.browserAgreement === null || typeof value.browserAgreement === "boolean")
+    && (value.outcome !== "pass" || value.differenceCount === 0 && value.browserAgreement !== false)
+    && validEvidenceHash(value.evidenceSha256);
 }
 function validDecisionResult(value: unknown): value is DecisionCaseResult {
   return record(value) && exactKeys(value, ["key", "kind", "fixtureKey", "sourceScenarioId", "portalScenarioId", "policyKey", "seed", "seat", "initialPolicyRng", "assertion", "outcome", "horizonSteps", "evidenceSha256"])
@@ -229,8 +231,11 @@ function validPolicyGameResult(value: unknown): value is PolicyGameResult {
     || !integer(value.guardTrips, 0, 1_000_000) || !(value.stopKind === null || enumValue(value.stopKind, STOP_KINDS))
     || !(value.reportedCostMicros === null || integer(value.reportedCostMicros)) || !validEvidenceHash(value.evidenceSha256)) return false;
   if ((value.outcome === "win" && value.winner !== value.candidateSeat)
-    || (value.outcome === "loss" && value.winner === value.candidateSeat)
+    || (value.outcome === "loss" && (value.winner === null || value.winner === value.candidateSeat))
     || ((value.outcome === "draw" || value.outcome === "interrupted" || value.outcome === "limit" || value.outcome === "illegal") && value.winner !== null)) return false;
+  if ((value.outcome === "win" || value.outcome === "loss" || value.outcome === "draw") && value.stopKind !== null) return false;
+  if ((value.outcome === "interrupted" && !["interrupted", "notAsked", "noSeat"].includes(String(value.stopKind)))
+    || (value.outcome === "limit" && value.stopKind !== "limit") || (value.outcome === "illegal" && value.stopKind !== "illegal")) return false;
   return true;
 }
 
@@ -242,7 +247,7 @@ export function validateEvaluationManifest(value: unknown): ManifestValidation {
     const common = ["version", "source", "requestId", "runner", "protocol", "fixtures", "policies", "results"];
     if (source === "policy_eval") common.splice(3, 0, "seedSet");
     if (!exactKeys(value, common)) return { ok: false, reason: "Manifest has missing or unknown fields." };
-    if (value.version !== 1 || !UUID.test(String(value.requestId))) return { ok: false, reason: "Unsupported manifest version or invalid request ID." };
+    if (value.version !== 1 || typeof value.requestId !== "string" || !UUID.test(value.requestId)) return { ok: false, reason: "Unsupported manifest version or invalid request ID." };
     if (!validRunner(value.runner) || !validProtocol(value.protocol)) return { ok: false, reason: "Runner, source revision, or frozen protocol is invalid." };
     if (!Array.isArray(value.fixtures) || value.fixtures.length < 1 || value.fixtures.length > 100 || !value.fixtures.every(validFixture)) return { ok: false, reason: "Fixture pins are invalid or exceed the limit." };
     if (!Array.isArray(value.policies) || value.policies.length > 64 || !value.policies.every(validPolicy)) return { ok: false, reason: "Policy pins are invalid or exceed the limit." };
@@ -257,21 +262,21 @@ export function validateEvaluationManifest(value: unknown): ManifestValidation {
       const results = value.results as ScenarioCaseResult[];
       resultKeys.push(...results.map((result) => result.key));
       if (!results.every((result) => fixtureKeys.includes(result.fixtureKey))) return { ok: false, reason: "Scenario result references an unknown fixture." };
-      return uniqueResults(value, resultKeys, { ok: true, value: value as unknown as ScenarioManifest });
+      return uniqueResults(resultKeys, { ok: true, value: value as unknown as ScenarioManifest });
     }
     if (source === "decision_cases") {
       if (value.runner.id !== "arena-policy-strategy" || value.seedSet !== undefined || !value.policies.every(validPolicy) || !value.results.every(validDecisionResult)) return { ok: false, reason: "Decision-case manifest does not match its runner contract." };
       const results = value.results as DecisionCaseResult[];
       resultKeys.push(...results.map((result) => result.key));
       if (!results.every((result) => fixtureKeys.includes(result.fixtureKey) && policyKeys.includes(result.policyKey))) return { ok: false, reason: "Decision result references an unknown fixture or policy." };
-      return uniqueResults(value, resultKeys, { ok: true, value: value as unknown as DecisionManifest });
+      return uniqueResults(resultKeys, { ok: true, value: value as unknown as DecisionManifest });
     }
     if (source === "policy_eval") {
       if (value.runner.id !== "arena-policy-eval" || !enumValue(value.seedSet, ["dev", "holdout", "custom"] as const) || !value.results.every(validPolicyGameResult)) return { ok: false, reason: "Policy evaluation manifest does not match its runner contract." };
       const results = value.results as PolicyGameResult[];
       resultKeys.push(...results.map((result) => result.key));
       if (!results.every((result) => fixtureKeys.includes(result.fixtureKey) && policyKeys.includes(result.candidatePolicyKey) && policyKeys.includes(result.baselinePolicyKey))) return { ok: false, reason: "Game result references an unknown fixture or policy." };
-      return uniqueResults(value, resultKeys, { ok: true, value: value as unknown as PolicyEvalManifest });
+      return uniqueResults(resultKeys, { ok: true, value: value as unknown as PolicyEvalManifest });
     }
     return { ok: false, reason: "Unknown manifest source." };
   } catch {
@@ -279,7 +284,7 @@ export function validateEvaluationManifest(value: unknown): ManifestValidation {
   }
 }
 
-function uniqueResults(value: Record<string, unknown>, keys: string[], success: ManifestValidation): ManifestValidation {
+function uniqueResults(keys: string[], success: ManifestValidation): ManifestValidation {
   return new Set(keys).size === keys.length ? success : { ok: false, reason: "Result keys must be unique within a run." };
 }
 
