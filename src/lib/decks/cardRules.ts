@@ -1,21 +1,23 @@
 /**
- * Deck-building rules that are printed on the cards themselves.
+ * Deck-building keyword rules. Some cards repeat their rule text; others, like
+ * Masters [Ultimate], are defined in the rule manual.
  *
- * Two exist in this game, and both are pooled limits across a keyword rather
- * than the usual per-card 4:
+ * These are pooled deck limits rather than the usual per-card 4:
  *
  *   [Dragon Ball]  "You can include as many copies of cards with [Dragon Ball]
  *                   in your deck as you like, as long as the total number
  *                   doesn't exceed 7."
  *   [Super Combo]  "You can only include up to 4 cards with [Super Combo] in
  *                   your deck."
+ *   [Ultimate]     A player may only have up to one card with [Ultimate] in
+ *                   their deck (Masters Rule Manual §22-14-2).
  *
  * The first one also *lifts* the copy limit — six of one Dragon Ball is legal —
  * so without reading it a deck like that gets wrongly flagged.
  *
  * Rules are read from the text of the cards in the deck, so a future keyword
- * works without a code change; the two known ones are also listed as a
- * fallback for a deck whose Dragon Balls happen not to print the reminder.
+ * works without a code change; known keyword limits are also listed as a
+ * fallback for card pools where the cards do not print their reminder text.
  */
 
 export interface KeywordDeckRule {
@@ -36,6 +38,7 @@ const POOLED_CAPPED = /only include up to (\d+) cards? with \[([^\]]+)\]/i;
 export const KNOWN_RULES: KeywordDeckRule[] = [
   { keyword: "Dragon Ball", max: 7, unlimitedCopies: true },
   { keyword: "Super Combo", max: 4, unlimitedCopies: false },
+  { keyword: "Ultimate", max: 1, unlimitedCopies: false },
 ];
 
 export function parseDeckRules(skill: string | null | undefined): KeywordDeckRule[] {

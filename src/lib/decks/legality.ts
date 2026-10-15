@@ -18,7 +18,9 @@ import { hasKeyword, rulesFor } from "./cardRules";
  *
  * dbs — official Rule Manual v4.00 §6-1 (Masters): 1 leader, a **50-to-60**
  * card main deck (6-1-3), up to **10** Z-cards (6-1-4), 4 copies of a card
- * number unless the card says otherwise (6-1-5-1). The app used to enforce the
+ * number unless the card says otherwise (6-1-5-1), and Z-Cards belong in the
+ * Z-Deck (14-1-3). [Ultimate] has a pooled one-card deck limit (22-14-2).
+ * The app used to enforce the
  * older line's "exactly 50, Z-deck 8"; the arena engine reads the same manual,
  * so both now agree (owner's decision, 3 Sep 2026).
  *
@@ -143,8 +145,10 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
     e.n += r.quantity;
     perCard.set(r.cardId, e);
   }
-  // Pooled keyword limits printed on the cards ([Dragon Ball], [Super Combo]).
-  const rules = rulesFor(rows);
+  // Pooled keyword limits ([Dragon Ball], [Super Combo], Masters [Ultimate]).
+  const allRules = rulesFor(rows);
+  // [Ultimate] is a Masters keyword limit, not a cross-brand deck rule.
+  const rules = game === "dbs" ? allRules : allRules.filter((rule) => rule.keyword.toLowerCase() !== "ultimate");
   const keywordRules: KeywordRuleUse[] = [];
   for (const rule of rules) {
     const members = rows.filter((r) => r.zone !== "side" && hasKeyword(r, rule.keyword));
@@ -180,9 +184,11 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
       flag(r, "illegal", `${r.cardType.toLowerCase()} cards are not deck cards`);
       continue;
     }
-    const isLeaderCard = r.cardType.endsWith("LEADER");
+    const isLeaderCard = r.cardType === "LEADER";
     if (r.zone === "leader" && !isLeaderCard) flag(r, "illegal", "not a Leader card");
     if (r.zone !== "leader" && isLeaderCard) flag(r, "illegal", "Leader cards belong in the leader slot");
+    if (game === "dbs" && r.zone === "main" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck");
+    if (game === "dbs" && r.zone === "leader" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck, not the Leader slot");
     if (r.zone === "z" && !r.cardType.startsWith("Z-")) flag(r, "illegal", "only Z- cards go in the Z-Deck");
     if (r.zone !== "leader" && leaderColors.size > 0 && r.colors.length > 0 && !r.colors.includes("Colorless") && !r.colors.some((c) => leaderColors.has(c))) {
       // Fusion World forbids off-colour cards outright; the original game

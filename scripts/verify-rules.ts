@@ -347,6 +347,16 @@ assert.match(legality([row("L", "leader", 1), ...fullMain, ...zed(11)]).issues.f
 // A Z-deck card's own limit wins over the default of 4.
 assert.equal(legality([row("Z1", "z", 7, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"], undefined);
 assert.equal(legality([row("Z1", "z", 9, { cardType: "Z-BATTLE", limitedTo: 7 })]).flags["z:Z1"]?.label, "9 copies, limit 7");
+// 6-1-3/6-1-4 and 14-1-3: Z-Cards are not main-deck cards, and Z-Leaders
+// belong in the Z-Deck rather than being mistaken for ordinary Leaders.
+const zInMain = legality([row("L", "leader", 1), ...fullMain, row("ZM", "main", 1, { cardType: "Z-BATTLE" })]);
+assert.equal(zInMain.flags["main:ZM"]?.label, "Z-Cards belong in the Z-Deck");
+const nonZInZ = legality([row("B1", "z", 1, { cardType: "BATTLE" })]);
+assert.equal(nonZInZ.flags["z:B1"]?.label, "only Z- cards go in the Z-Deck");
+const zLeaderInZ = legality([row("L", "leader", 1), ...fullMain, row("ZL", "z", 1, { cardType: "Z-LEADER" })]);
+assert.equal(zLeaderInZ.flags["z:ZL"], undefined, "Z-LEADER is a Z-Card, not an ordinary Leader slot card");
+const zLeaderInLeader = legality([row("ZL", "leader", 1, { cardType: "Z-LEADER" })]);
+assert.equal(zLeaderInLeader.flags["leader:ZL"]?.label, "not a Leader card");
 
 // Off-colour is a warning: it is shown, but does not by itself make a deck illegal.
 const offColour = legality([row("L", "leader", 1), row("B1", "main", 4, { colors: ["Blue"] })]);
@@ -403,8 +413,11 @@ assert.equal(mixed.issues.filter((i) => i.cardId === "BT18-020").length, 1);
 // ── Deck-building rules printed on the cards themselves ───────────────────
 const DB_TEXT = "[Dragon Ball] (You can include as many copies of cards with [Dragon Ball] in your deck as you like, as long as the total number doesn't exceed 7.) [Activate: Main] Draw 1 card.";
 const SC_TEXT = "[Super Combo] (You can only include up to 4 cards with [Super Combo] in your deck.) [Auto] Something.";
+const ULT_TEXT = "[Ultimate] [Auto] Something.";
 assert.deepEqual(parseDeckRules(DB_TEXT), [{ keyword: "Dragon Ball", max: 7, unlimitedCopies: true }]);
 assert.deepEqual(parseDeckRules(SC_TEXT), [{ keyword: "Super Combo", max: 4, unlimitedCopies: false }]);
+const fusionUltimate = legality([fw("FL", "leader", 1), fw("FU", "main", 1, { skill: ULT_TEXT }), ...fwMain], "fusion");
+assert.equal(fusionUltimate.keywordRules.some((r) => r.keyword === "Ultimate"), false, "Masters Ultimate limit is not applied to Fusion World");
 // The reminder text is printed in lower case on some cards.
 assert.deepEqual(parseDeckRules("[super combo] (You can only include up to 4 cards with [super combo] in your deck"), [{ keyword: "Super Combo", max: 4, unlimitedCopies: false }]);
 // Carrying a keyword means printing it as a leading tag. Merely naming one in
@@ -447,6 +460,21 @@ const combos = legality([row("L", "leader", 1), row("SC1", "main", 3, { skill: S
 assert.equal(combos.status, "illegal");
 assert.ok(combos.issues.some((i) => /6 \[Super Combo\] cards/.test(i.message)));
 assert.equal(legality([row("L", "leader", 1), row("SC1", "main", 4, { skill: SC_TEXT }), ...fill(46)]).status, "legal");
+// 22-14-2: [Ultimate] has a pooled one-card limit even across different IDs.
+// Mentioning the keyword in another card's effect does not make that card carry it.
+assert.equal(hasKeyword({ skill: "[Auto] Choose 1 [Ultimate] card from your deck." }, "Ultimate"), false);
+assert.deepEqual(rulesFor([{ skill: "[Auto] Choose 1 [Ultimate] card from your deck." }]), []);
+assert.equal(legality([row("L", "leader", 1), row("U1", "main", 1, { skill: ULT_TEXT }), ...fullMain]).status, "legal", "one Ultimate is legal");
+const ultimates = legality([
+  row("L", "leader", 1),
+  row("U1", "main", 1, { skill: ULT_TEXT }),
+  row("U2", "main", 1, { skill: ULT_TEXT }),
+  row("REF", "main", 1, { skill: "[Auto] Choose 1 [Ultimate] card from your deck." }),
+  ...fill(47),
+]);
+assert.equal(ultimates.status, "illegal");
+assert.ok(ultimates.issues.some((i) => /2 \[Ultimate\] cards.*at most 1/.test(i.message)));
+assert.deepEqual(ultimates.keywordRules.find((r) => r.keyword === "Ultimate"), { keyword: "Ultimate", max: 1, used: 2, unlimitedCopies: false });
 
 // ── CardTrader collector numbers ──────────────────────────────────────────
 const bp = (n: string | null) => ({ id: 1, name: "x", game_id: 9, expansion_id: 1, fixed_properties: n == null ? {} : { collector_number: n } });
