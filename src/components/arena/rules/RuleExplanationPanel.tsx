@@ -92,7 +92,7 @@ export function RuleExplanationPanel({ id, version, actions, initial, onApproved
   </div>;
   return <section aria-label="Explain this skill" className="space-y-3 rounded-xl border border-space-600 p-3 text-space-100">
     <h3 className="font-bold text-space-50">Describe how this skill should work</h3>
-    {decision?.kind === "supported" ? <details><summary className="tap cursor-pointer text-sm underline">Edit the explanation / request a different draft</summary>{editor}</details> : editor}
+    {decision?.kind === "supported" ? <details onToggle={(event) => { if (!event.currentTarget.open) stop(); }}><summary className="tap cursor-pointer text-sm underline">Edit the explanation / request a different draft</summary>{editor}</details> : editor}
     {error && <p role="alert" className="text-sm text-loss">{error}</p>}
     {decision?.kind === "question" && <div role="status" className="space-y-2 rounded-lg bg-space-800 p-3"><h4 className="font-bold">One point needs clarification</h4><p>{decision.question}</p><p className="text-sm text-space-300">Add your answer to the explanation above, including the original context, then request a new draft.</p><details><summary className="tap cursor-pointer">Claude’s reading so far</summary><p>{decision.meaning}</p></details></div>}
     {decision?.kind === "invalid" && <p role="alert" className="text-loss">Invalid AI output: {decision.error}</p>}
