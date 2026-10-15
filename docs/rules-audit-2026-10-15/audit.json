@@ -26,7 +26,19 @@
     },
     "protectedRecordsUnchanged": 85,
     "untargetedProgramsUnchanged": 13593,
-    "unexpectedChanges": []
+    "unexpectedChanges": [],
+    "unreadCardTypes": {
+      "LEADER": 192,
+      "BATTLE": 1031,
+      "EXTRA": 214,
+      "UNISON": 61,
+      "Z-LEADER": 31,
+      "Z-BATTLE": 72,
+      "Z-EXTRA": 30,
+      "Z-UNISON": 23,
+      "ENERGY MARKER": 40
+    },
+    "unreadNonMarkerCards": 1654
   },
   "compilerErrors": [],
   "missingExpectedSkillRecords": 0,
@@ -279,8 +291,7 @@
     "No card-specific official Q&A was fetched in this census; implementation must check it or state absence.",
     "Catalog contains 40 energy-marker records flagged dbs; retained in raw count pending product/data classification review.",
     "No private deck contents, owner identifiers, database URLs or stored explanations are published."
-  ]
-,
+  ],
   "cards": [
     {"cardId":"BT1-001","name":"Champa","setCode":"BT1","cardType":"LEADER","status":"unresolved","skills":[{"side":"front","skillIndex":0,"printed":"[Auto] [Once per turn] When your Battle Card attacks a Leader Card, if the attacking card has 15000 or more power, draw 1 card.","kind":"auto","status":"unresolved","storedStatus":"open","originalUnread":["if the attacking card has 15000 or more power","draw 1 card"],"remainingStoredUnread":["if the attacking card has 15000 or more power","draw 1 card"],"currentCompilerUnread":["if the attacking card has 15000 or more power","draw 1 card"],"currentCompilerReading":"","samePrinted":true,"runtimeSupport":{"unsupported":["if the attacking card has 15000 or more power","draw 1 card","the Auto rule has no readable WHEN trigger"],"unknown":[]},"mechanicalTriage":[{"text":"if the attacking card has 15000 or more power","mechanism":"phrasing only","shape":"if the attacking card has N or more power"},{"text":"draw 1 card","mechanism":"phrasing only","shape":"draw N card"}],"ownerRuling":null}]},
     {"cardId":"BT1-003","name":"Hit","setCode":"BT1","cardType":"LEADER","status":"unresolved","skills":[{"side":"back","skillIndex":10,"printed":"[Auto] [Once per turn] When your opponent activates [Blocker], you may place 1 red card from your hand into the Drop Area. If you do so, negate that [Blocker].","kind":"auto","status":"unresolved","storedStatus":"open","originalUnread":["negate that [Blocker]"],"remainingStoredUnread":["negate that [Blocker]"],"currentCompilerUnread":["negate that [Blocker]"],"currentCompilerReading":"you may: choose 1 red card in your hand, move the chosen cards to drop","samePrinted":true,"runtimeSupport":{"unsupported":["negate that [Blocker]","the Auto rule has no readable WHEN trigger"],"unknown":[]},"mechanicalTriage":[{"text":"negate that [Blocker]","mechanism":"skill negation","shape":"negate that [blocker]"}],"ownerRuling":null}]},

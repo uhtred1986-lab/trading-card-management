@@ -10,7 +10,7 @@ The two bounded search experiments did not pass their strength promotion gates (
 
 The existing `arena:vs` script uses a first-legal-move human stand-in and writes server game records. It does **not** compare the actual local policy against Claude. The paid campaign needs an isolated duel runner, durable spending reservations and pinned masked observations, rather than another run of that smoke script.
 
-The live rule audit found 1,714 Masters cards / 1,985 unread skills. A guarded refresh repaired 22 reviewed stale skill records on 22 cards. **Remaining: 1,694 cards / 1,963 skills.** Twenty cards lost their last unread skill; two retain a different gap. All remain drafts requiring review. No affected unread card is currently in the 29 saved decks; missing triggers, runtime support and strategic behavior remain separate concerns. The complete [audit report](rules-audit-2026-10-15/README.md), [card checklist](rules-audit-2026-10-15/cards.md) and [machine-readable evidence](rules-audit-2026-10-15/audit.json) retain every affected face and skill.
+The live rule audit found 1,714 Masters cards / 1,985 unread skills. A guarded refresh repaired 22 reviewed stale skill records on 22 cards. **Remaining: 1,694 catalog entries / 1,963 skills, including 40 Energy Markers (1,654 non-marker cards).** Twenty cards lost their last unread skill; two retain a different gap. All remain drafts requiring review. No affected unread card is currently in the 29 saved decks; missing triggers, runtime support and strategic behavior remain separate concerns. The complete [audit report](rules-audit-2026-10-15/README.md), [card checklist](rules-audit-2026-10-15/cards.md) and [machine-readable evidence](rules-audit-2026-10-15/audit.json) retain every affected face and skill.
 
 ## Milestone 30: make computer play visible and reliable
 
@@ -50,7 +50,7 @@ Prioritize these bounded repairs:
 1. P-616/front/20: fresh compilation incorrectly reads a total of seven `<GT>`-named cards across energy, Z-Energy, Battle and Drop as one in energy. Preserve its unread record and prove both threshold/area boundaries before refresh.
 2. Review the other eight clean parses held for runtime/context concerns; clean text alone does not earn support.
 3. Implement the owner’s social-card ruling for P-514–P-516 and P-588–P-592: **show a compliment, then acknowledge the instruction**. The explanations are already recorded on all eight cards via `arena:rule`; visible behavior is pending.
-4. Verify classification and representation of the 40 `M-*` Energy Marker records tagged `dbs`. Retain them in the raw census until the source/product semantics are checked.
+4. Verify classification and representation of the 40 Energy Marker records tagged `dbs`. Retain them in the raw census until the source/product semantics are checked.
 5. Work repeated shapes through shared compiler fixes, updating each card’s checklist and exact positive/negative scenario evidence. Favor requested decks and the qualified release corpus over a catalog-wide percentage.
 
 Use the delivered #830/#831 guided review workflow. Further improvements should make the grouped queue easier to work through and preserve context, rather than introduce another editor or force manual confirmation of every compiler gap. Ask the owner only when a real ruling or missing input remains; ordinary unsupported wording is engineering work.

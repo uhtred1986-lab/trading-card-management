@@ -2,7 +2,7 @@
 
 [Consolidated repair issue #907](https://github.com/uhtred1986-lab/trading-card-management/issues/907) · [Rules milestone 32](https://github.com/uhtred1986-lab/trading-card-management/milestone/32) · [Complete card checklist](cards.md) · [Machine-readable audit](audit.json)
 
-The live census found **1,714 cards / 1,985 skills** with unread clauses. A reviewed targeted refresh fixed **22 skills on 22 cards**, leaving **1,694 cards / 1,963 skills**. Twenty cards lost their last unread skill; two still have a different unread skill. These are compiler drafts, not approvals.
+The live census found **1,714 cards / 1,985 skills** with unread clauses. A reviewed targeted refresh fixed **22 skills on 22 cards**, leaving **1,694 cards / 1,963 skills**. Twenty cards lost their last unread skill; two still have a different unread skill. These are compiler drafts, not approvals. The remaining 1,694 catalog entries include 40 Energy Markers; excluding those markers, **1,654 non-marker cards** still have unread skills.
 
 | Measure | Before | After |
 | --- | ---: | ---: |
@@ -29,7 +29,7 @@ Offline compilation of all 6,552 Masters cards at `e486c64b` had no exceptions a
 - **Held clean parses:** P-616/front/20, BT7-040/front/10, BT7-083/front/10, BT7-086/front/10, BT3-090/front/0, DB2-177/front/40, EB1-68/front/10, EX19-01/front/10 and BT26-119/front/10 remain unchanged. Runtime/context warnings and semantic review prevent blanket refresh. Their full evidence is in audit.json.
 - **Confirmed wrong reading:** P-616 requires a total of seven or more `<GT>`-named cards across energy, Z-Energy, Battle and Drop, but fresh compilation reads one or more in energy. Preserve the unread record until an exact multi-area threshold fixture and negative boundary prove the repair. A clean parse is insufficient.
 - **Owner decision received:** P-514–P-516 and P-588–P-592 print “You and your opponent compliment each other.” The owner chose **show a compliment, then acknowledge the instruction**. This ruling is saved on all eight records. Visible implementation and an acknowledgement scenario are still open; no empty program was substituted.
-- **Classification review:** 40 `M-*` Energy Marker records are tagged `dbs` and included in the raw unread count. Verify product/catalog classification and how marker instructions should be represented before excluding them or inventing card effects. This audit did not change game tags.
+- **Classification review:** 40 Energy Marker records are tagged `dbs` and included in the raw unread count. Verify product/catalog classification and how marker instructions should be represented before excluding them or inventing card effects. This audit did not change game tags.
 - **Remaining engineering queue:** the other unresolved records are indexed by full printed face/skill and unread clauses. Their complete semantics have not all been individually adjudicated. Shared wording/mechanism buckets are triage hints, not authoritative diagnoses; do not ask the owner to interpret every parser gap.
 
 ## Shared-shape triage
@@ -67,3 +67,7 @@ These are clause occurrences, not distinct cards or verified engineering diagnos
 6. Update glossary alongside compiler behavior, diff readings/gaps, run the required local checks and retain exact scenario/replay evidence. A game win cannot close a skill’s correctness acceptance.
 
 The delivered #830/#831 guided review workflow is the base. Any further UI work should add useful grouping, context and a direct queue link rather than create a second editor or require manual per-card busywork.
+
+## Final local validation
+
+TypeScript, lint (five pre-existing prototype warnings), all 91 pure rules-engine suites, full `npm test` and production build passed. Tests/build ran with DATABASE_URL unset. Audit cardinalities and card-type totals were checked, and all twelve new issue bodies/metadata were compared with their canonical files. The repository-wide backlog drift tool stops on existing `848.md` missing `stage`; this does not affect the direct checks of these twelve files. No UI, engine or policy code changed. See [validation.json](validation.json).
