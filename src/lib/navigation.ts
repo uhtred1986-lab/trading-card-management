@@ -62,5 +62,5 @@ export function isFullBleed(pathname: string): boolean {
 export function isArenaShell(pathname: string): boolean {
   // The offline shell's setup (#783) is a phone screen with its own way back; its board goes
   // full-bleed on its own (`useMatchScreen`), since the path is the same for both.
-  return pathname === "/arena" || pathname === "/arena/offline" || pathname === "/arena/feedback" || pathname === "/arena/rules/review" || /^\/arena\/match\/\d+$/.test(pathname);
+  return pathname === "/arena" || pathname === "/arena/offline" || pathname === "/arena/feedback" || pathname === "/arena/rules/review" || /^\/arena\/rules\/build\/\d+$/.test(pathname) || /^\/arena\/match\/\d+$/.test(pathname);
 }

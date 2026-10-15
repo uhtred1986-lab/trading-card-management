@@ -53,7 +53,15 @@ export function WorkbenchKeys({ prev, next, skip, current }: { prev: string | nu
   }, [router, prev, next, skip]);
 
   useEffect(() => {
-    document.querySelector('[data-queue-row][aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+    // Scroll only the list, preserving the page's guided entry and the sticky app header.
+    const row = document.querySelector<HTMLElement>('[data-queue-row][aria-current="true"]');
+    const pane = row?.closest<HTMLElement>("[data-rule-queue]");
+    if (!row || !pane) return;
+    const item = row.getBoundingClientRect();
+    const bounds = pane.getBoundingClientRect();
+    const top = pane.querySelector("[data-queue-filters]")?.getBoundingClientRect().bottom ?? bounds.top;
+    if (item.top < top) pane.scrollTop += item.top - top;
+    else if (item.bottom > bounds.bottom) pane.scrollTop += item.bottom - bounds.bottom;
   }, [current]);
 
   return (

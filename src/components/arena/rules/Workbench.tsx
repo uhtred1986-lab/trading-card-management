@@ -19,7 +19,7 @@ import { WorkbenchKeys } from "./WorkbenchKeys";
  * record's action bar pinned at the foot of it (`ACTION_BAR_ID`); on a phone
  * the panes stack in one column and the bar is pinned above the tab bar.
  */
-const STATE_LABEL: Record<RuleStatus, string> = { open: "Open", draft: "Draft", confirmed: "Confirmed", corrected: "Corrected" };
+const STATE_LABEL: Record<RuleStatus, string> = { open: "Unread", draft: "To review", confirmed: "Approved", corrected: "Corrected" };
 const STATE_ORDER: RuleStatus[] = ["open", "draft", "confirmed", "corrected"];
 
 /**
@@ -69,12 +69,12 @@ export function Workbench({
   /** The groups, when the queue is grouped: they take the place of the rows and the record. */
   grouped?: React.ReactNode;
   /** Hrefs into this queue from the open rule: the keys, Skip, and where Confirm goes on to. */
-  nav?: { prev: string | null; next: string | null; skip: string | null; after: string };
+  nav?: { prev: string | null; next: string | null; skip: string | null; after: string; here?: string };
 }) {
   return (
     <div className={`grid grid-cols-1 gap-3 pb-24 lg:pb-0 ${grouped ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[300px_minmax(0,1fr)_280px]"} lg:items-start`}>
-      <aside className="rounded-xl border border-space-700/70 bg-space-900/50 lg:sticky lg:top-3 lg:max-h-[calc(100vh-6rem)] lg:overflow-auto">
-        <div className={`space-y-2 p-3 ${grouped ? "" : "sticky top-0 z-10 border-b border-space-700/70 bg-space-900"}`}>{head}</div>
+      <aside data-rule-queue className="max-lg:max-h-[45dvh] max-lg:overflow-auto rounded-xl border border-space-700/70 bg-space-900/50 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-auto">
+        <div data-queue-filters className={`space-y-2 p-3 ${grouped ? "" : "sticky top-0 z-10 border-b border-space-700/70 bg-space-900"}`}>{head}</div>
         {!grouped && (
           <>
             <ol>
@@ -94,7 +94,7 @@ export function Workbench({
                       <Glyph status={r.status as RuleStatus} />
                       <span className="min-w-0">
                         <span className="text-sm font-medium text-space-100">{r.name}</span>
-                        <span className="ml-1.5 font-mono text-[10px] text-space-500">{r.cardId}</span>
+                        <span className="ml-1.5 font-mono text-[10px] text-space-500">{r.cardId} · skill {Math.floor(r.skillIndex / 10) + 1}{r.side === "back" ? " · awakened side" : ""}</span>
                         {reason && <span className="mt-0.5 block truncate text-[11px] text-space-400">{reason}</span>}
                       </span>
                       {r.decks.length > 0 && (
@@ -117,9 +117,9 @@ export function Workbench({
         <main className="min-w-0">{grouped}</main>
       ) : (
         <>
-          <main className="min-w-0">{record ? <RuleRecord key={record.id} {...record} nav={nav ? { skip: nav.skip, after: nav.after } : undefined} /> : <p className="p-6 text-center text-sm text-space-400">Pick a rule on the left.</p>}</main>
+          <main className="min-w-0"><p className="mb-2 text-sm text-space-300">2. Compare printed text with the interpretation → 3. Approve, edit or review later</p>{record ? <RuleRecord key={record.id} {...record} nav={nav ? { skip: nav.skip, after: nav.after, here: nav.here } : undefined} /> : <p className="p-6 text-center text-sm text-space-400">Pick a rule on the left.</p>}</main>
 
-          <aside className="flex flex-col lg:sticky lg:top-3 lg:max-h-[calc(100vh-1.5rem)]">
+          <aside className="flex flex-col lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)]">
             <div className="min-h-0 space-y-3 lg:flex-1 lg:overflow-auto">
               {probe && <ProbePane key={probe.ruleId} ruleId={probe.ruleId} scenarios={probe.scenarios} />}
               {record && (
@@ -149,7 +149,7 @@ export function Workbench({
               )}
             </div>
             {/* The record's action bar renders here (a portal): pinned above the tab bar on a phone, the foot of this pane on the computer. */}
-            {record && <div id={ACTION_BAR_ID} className="fixed inset-x-0 bottom-14 z-20 sm:bottom-0 lg:static lg:mt-3 lg:shrink-0 lg:overflow-visible lg:rounded-xl lg:border lg:border-space-700/70" />}
+            {record && <div id={ACTION_BAR_ID} className="relative z-10 mt-3 lg:static lg:mt-3 lg:shrink-0 lg:overflow-visible lg:rounded-xl lg:border lg:border-space-700/70" />}
           </aside>
         </>
       )}

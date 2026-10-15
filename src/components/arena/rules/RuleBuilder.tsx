@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
-import { blankRuleAction, saveRuleAction } from "@/app/arena/actions";
+import { saveRuleAction } from "@/app/arena/actions";
 import { parseRule, printRule, type LangError, type Rule } from "@/lib/arena/lang";
 import { clauseOfPath, problemsOf, ruleReading, CLAUSE_WORDS } from "@/lib/arena/lang/blocks";
 import type { RuleClause, RulePath } from "@/lib/arena/lang/path";
@@ -97,18 +97,10 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
       else setSaved(true);
     });
   };
-  const blank = () => {
-    setError(null);
-    run(async () => {
-      const res = await blankRuleAction(ruleId, "the block builder cannot say this card yet");
-      if (res.error) setError(res.error);
-      else setSaved(true);
-    });
-  };
 
   const printed = card?.printed.replace(/\s+/g, " ").trim() ?? "";
   const mark = card?.unread[0] ?? null;
-  const tabs = [{ key: "blocks", label: "Blocks" }, { key: "text", label: "Text" }, ...(teachTabs ?? []).map((t) => ({ key: t.key, label: t.label }))];
+  const tabs = [{ key: "blocks", label: "Edit blocks" }, { key: "text", label: "Advanced text" }, ...(teachTabs ?? []).map((t) => ({ key: t.key, label: t.label }))];
   const teach = teachTabs?.find((t) => t.key === tab);
 
   if (saved)
@@ -118,15 +110,19 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
         <p className="max-w-xs text-sm text-space-300">The rule is stored as corrected by you. A later compiler run never overwrites it.</p>
         <p className="max-w-sm text-sm text-space-200">{reading}</p>
         <Link href={backHref} className={primary}>
-          Back to the rule
+          Return to review
         </Link>
       </div>
     );
 
   return (
-    <div className="space-y-3 pb-40 sm:pb-24">
+    <div className="min-w-0 space-y-3 pb-40 sm:pb-24">
+      <div className="rounded-xl border border-space-700 bg-space-900/60 p-3 text-sm text-space-200">
+        <p className="font-semibold">Correct → Test → Save and return</p>
+        <p>Change the interpretation below, compare the test results with what you expect, then save the correction. Discard leaves the saved rule unchanged. Test judgments save separately.</p>
+      </div>
       {card && (
-        <div className="sticky top-0 z-20 -mx-4 border-b border-space-700 bg-space-950/95 px-4 py-2 backdrop-blur">
+        <div className="sticky top-0 z-10 sm:top-16 -mx-4 border-b border-space-700 bg-space-950/95 px-4 py-2 backdrop-blur">
           <div className="text-[11px] text-space-400">
             {card.name} · <span className="font-mono">{card.cardId}</span>
           </div>
@@ -150,11 +146,15 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
       )}
 
       <div className="rounded-2xl border border-gain/40 bg-gain/5 px-4 py-3" aria-live="polite">
-        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-space-400">The engine will</div>
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-space-400">Current interpretation</div>
         <p className="mt-0.5 text-[15px] leading-snug text-space-50">{reading}</p>
       </div>
 
-      <div role="tablist" aria-label="How to build it" className="grid gap-1 rounded-xl bg-space-900 p-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+      <details className="rounded-xl border border-space-700 p-3 text-sm text-space-300">
+        <summary className="cursor-pointer">Editor modes and optional AI help</summary>
+        <p className="mt-2">Edit blocks is the default: set when the skill happens, what you pay, requirements and effects. Advanced text edits the same rule in its technical language. In my words and Like a card request an AI draft; review the result before saving.</p>
+      </details>
+      <div role="tablist" aria-label="How to build it" className="grid grid-cols-2 gap-1 rounded-xl bg-space-900 p-1 sm:grid-cols-4">
         {tabs.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => choose(t.key)} className={`tap rounded-lg px-2 py-1.5 text-sm font-semibold ${tab === t.key ? "bg-ki-500/20 text-space-50 ring-1 ring-ki-500/60" : "text-space-400"}`}>
             {t.label}
@@ -200,20 +200,16 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
             </details>
           )}
 
-      <details className="rounded-xl border border-space-700 bg-space-900/40 p-3 text-[12px] text-space-400">
-        <summary className="cursor-pointer text-space-300">The card cannot be said in blocks</summary>
-        <p className="mt-1">
-          A piece the language has no block for yet is a language issue, not something to approximate here. Say which piece is missing on the feedback page, and store the skill as doing nothing until it exists.
-        </p>
-        <button type="button" disabled={pending || !canSave} className={`${btn} mt-2 border-loss/50 text-loss`} onClick={blank}>
-          Mark as does nothing
-        </button>
+      <details className="rounded-xl border border-space-700 bg-space-900/40 p-3 text-sm text-space-300">
+        <summary className="cursor-pointer">Need a rule the editor cannot express?</summary>
+        <p className="mt-2">Keep the existing interpretation and report the missing behavior. Saving an empty rule would make the engine skip the skill; it does not fix missing support.</p>
+        <Link href="/arena/feedback" target="_blank" className="tap mt-2 inline-flex underline">Report missing support (opens a new tab)</Link>
       </details>
 
-      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 border-t border-space-700 bg-space-950/95 px-4 py-3 backdrop-blur sm:bottom-0">
+      <div className="fixed inset-x-0 bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-20 border-t border-space-700 bg-space-950/95 px-4 py-3 backdrop-blur sm:bottom-0">
         <div className="mx-auto flex max-w-3xl items-center gap-2">
           <Link href={backHref} className={btn}>
-            Cancel
+            Discard
           </Link>
           <div className="min-w-0 flex-1 text-[11px]" aria-live="polite">
             {pending ? (
@@ -231,7 +227,7 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
             ) : null}
           </div>
           <button type="button" className={primary} disabled={pending || !canSave || problems.length > 0 || tab === "text"} onClick={save}>
-            Save rule
+            Save correction
           </button>
         </div>
       </div>
