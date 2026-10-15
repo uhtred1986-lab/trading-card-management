@@ -10,15 +10,23 @@
  * and visible own combos are modelled; counters, skill triggers, cost reducers,
  * extra attacks and future turns remain outside this model.
  */
-import { answerFor, type MenuDecision, type Policy, type PolicyInput } from "./contract";
+import { answerFor, DECISION_WINDOWS, type MenuDecision, type Policy, type PolicyInput } from "./contract";
 import { localPolicy } from "./combat";
 import { cardValue, lifeLoss } from "./main";
 import type { CardFacts } from "./observation";
 import { nextInt, type PolicyRng } from "./rng";
 
-export const SEARCH_VERSION = 2;
-export const SEARCH_PROTOCOL_REVISION = "resource-search-826-v1";
+export const SEARCH_VERSION = 3;
+export const SEARCH_PROTOCOL_REVISION = "resource-frontier-dev-v1";
 export const SEARCH_LIMITS = { nodes: 4096, bytes: 256 * 1024, samples: 8, depth: 3, decisions: 32, cards: 16, hand: 32, resources: 8, life: 8 } as const;
+export const SEARCH_CACHE_LIMITS = { entries:64, bytes:64*1024, indexBytes:256, entryBytes:128, coverBytes:96 } as const;
+export const SEARCH_STATUSES = ["searched","unsupported","nodes","memory","deadline","cancelled"] as const;
+export const SEARCH_WINDOWS = [...DECISION_WINDOWS,"other"] as const;
+export const SEARCH_PHASES = ["main","offense","defense","other"] as const;
+export const SEARCH_REASONS = ["complete","disabled_configuration","not_search_window","baseline_action","decision_limit","opponent_hand_limit","life_limit","unison",
+  "missing_leader","board_limit","hidden_or_missing_power","unknown_strike","defense_extra_attacks","resource_limit","defense_hidden_hand","defense_board",
+  "missing_attack_facts","missing_battle_facts","no_scored_root","nonpositive_attack","node_budget","memory_budget","deadline","cancelled","memory_pressure"] as const;
+export type SearchReason = typeof SEARCH_REASONS[number];
 export type SearchStop = "deadline" | "cancelled" | "memory";
 /** The host supplies a monotonic deadline/cancellation/memory-pressure check.
  * It must be cheap, non-blocking and must never read match state. Without it,
@@ -30,10 +38,19 @@ export interface SearchOptions {
   samples?: number;
   depth?: number;
   stop?: () => SearchStop | null;
+  /** Developer experiment only; unchanged uncached behavior is the default. */
+  frontierCache?: boolean;
+  /** May only reduce the fixed cache ceiling; useful for budget proofs. */
+  frontierCacheBytes?: number;
 }
+export interface FrontierCacheReport {enabled:boolean;hits:number;misses:number;entries:number;retainedBytes:number;skipped:number}
 export interface SearchReport {
   version: typeof SEARCH_VERSION;
-  status: "searched" | "unsupported" | "nodes" | "memory" | "deadline" | "cancelled";
+  status: typeof SEARCH_STATUSES[number];
+  window:typeof SEARCH_WINDOWS[number];
+  phase:typeof SEARCH_PHASES[number];
+  reason:SearchReason;
+  cache:FrontierCacheReport;
   nodes: number;
   /** Conservative structural reservation, not measured process/JS heap usage. */
   reservedBytes: number;
@@ -113,15 +130,20 @@ const resourcesOf = (input: PolicyInput): Resource[] => {
 export function searchDecision(input: PolicyInput, rng: PolicyRng, options: SearchOptions = {}, heuristic: Policy = localPolicy()): SearchResult {
   const fallback = heuristic(input, rng);
   let nodes = 0, reservedBytes = 0, samples = 0;
-  const result = (status: SearchReport["status"], chosen = fallback): SearchResult => ({ ...chosen, version: SEARCH_VERSION, status, nodes, reservedBytes, samples });
+  const cache:FrontierCacheReport={enabled:options.frontierCache===true,hits:0,misses:0,entries:0,retainedBytes:0,skipped:0};
+  const window:SearchReport["window"]=DECISION_WINDOWS.find((w)=>w===input.decisions.window) ?? "other";
+  const phase:SearchReport["phase"]=input.decisions.window==="main"?"main":input.decisions.window==="combo"?(input.observation.turnPlayer===input.observation.seat?"offense":"defense"):"other";
+  const result = (status: SearchReport["status"], chosen = fallback, reason:SearchReason=status==="searched"?"complete":status==="nodes"?"node_budget":status==="memory"?"memory_pressure":status==="unsupported"?"no_scored_root":status): SearchResult =>
+    ({ ...chosen, version: SEARCH_VERSION, status, window,phase,reason,cache:{...cache},nodes,reservedBytes,samples });
+  const unsupported=(reason:SearchReason)=>result("unsupported",fallback,reason);
   const firstStop = options.stop?.();
-  if (firstStop) return result(firstStop);
+  if (firstStop) return result(firstStop,fallback,firstStop==="memory"?"memory_pressure":firstStop);
   const cap = bound(options.nodes, SEARCH_LIMITS.nodes);
   const bytes = bound(options.bytes, SEARCH_LIMITS.bytes);
   const depth = options.depth === undefined ? 2 : bound(options.depth, SEARCH_LIMITS.depth);
   const count = bound(options.samples, SEARCH_LIMITS.samples);
   if (!cap) return result("nodes");
-  if (!bytes) return result("memory");
+  if (!bytes) return result("memory",fallback,"memory_budget");
   const { observation: o, decisions: ds } = input;
   const baseline = ds.decisions.find((d) => d.id === fallback.answer.id);
   const main = ds.window === "main";
@@ -130,20 +152,31 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
   // First defensive subcase has only a Leader and known own combo resources;
   // hidden offensive pumps and future blocker/counter/activation timing remain
   // with the unchanged heuristic rather than a guessed defense promise.
-  if (defense && (o.them.handCount !== 0 || o.you.battle.length !== 0)) return result("unsupported");
-  if (!depth || !count || !main && !offense && !defense || main && (baseline?.kind !== "menu" || !["attack", "endMain"].includes(baseline.type))
-    || ds.decisions.length > SEARCH_LIMITS.decisions || o.them.handCount > SEARCH_LIMITS.hand
-    || o.you.life > SEARCH_LIMITS.life || o.them.life > SEARCH_LIMITS.life || o.you.unison || o.them.unison) return result("unsupported");
+  if (defense && o.them.handCount !== 0) return unsupported("defense_hidden_hand");
+  if (defense && o.you.battle.length !== 0) return unsupported("defense_board");
+  if (!depth || !count) return unsupported("disabled_configuration");
+  if (!main && !offense && !defense) return unsupported("not_search_window");
+  if (main && (baseline?.kind !== "menu" || !["attack", "endMain"].includes(baseline.type))) return unsupported("baseline_action");
+  if(ds.decisions.length>SEARCH_LIMITS.decisions) return unsupported("decision_limit");
+  if(o.them.handCount>SEARCH_LIMITS.hand) return unsupported("opponent_hand_limit");
+  if(o.you.life>SEARCH_LIMITS.life || o.them.life>SEARCH_LIMITS.life) return unsupported("life_limit");
+  if(o.you.unison || o.them.unison) return unsupported("unison");
   const own = [o.you.leader, ...o.you.battle].filter((c): c is CardFacts => !!c);
   const enemy = [o.them.leader, ...o.them.battle].filter((c): c is CardFacts => !!c);
-  if (!o.you.leader || !o.them.leader || own.length + enemy.length > SEARCH_LIMITS.cards || ![...own, ...enemy].every(supported)) return result("unsupported");
-  if([...own,...enemy].some((c)=>strike(c)===null) || defense && enemy.some((c)=>keyword(c,"victory strike") || keyword(c,"dual attack") || keyword(c,"triple attack"))) return result("unsupported");
+  if(!o.you.leader || !o.them.leader) return unsupported("missing_leader");
+  if(own.length+enemy.length>SEARCH_LIMITS.cards) return unsupported("board_limit");
+  if(![...own,...enemy].every(supported)) return unsupported("hidden_or_missing_power");
+  if([...own,...enemy].some((c)=>strike(c)===null)) return unsupported("unknown_strike");
+  if(defense && enemy.some((c)=>keyword(c,"victory strike") || keyword(c,"dual attack") || keyword(c,"triple attack"))) return unsupported("defense_extra_attacks");
   const resources = resourcesOf(input);
-  if (resources.length > SEARCH_LIMITS.resources) return result("unsupported");
+  if (resources.length > SEARCH_LIMITS.resources) return unsupported("resource_limit");
   // Explicit bounded workspace, including common Life slots and own resources.
   reservedBytes = 2048 + ds.decisions.length * 512 + count * (SEARCH_LIMITS.life + 2) * 8
     + (depth + 2) * (4096 + 2 ** resources.length * 96) + (own.length + enemy.length + resources.length) * 256;
-  if (reservedBytes > bytes) return result("memory");
+  if (reservedBytes > bytes) return result("memory",fallback,"memory_budget");
+  const cacheCapacity=cache.enabled?Math.min(bound(options.frontierCacheBytes,SEARCH_CACHE_LIMITS.bytes),bytes-reservedBytes):0;
+  const frontiers=cacheCapacity>=SEARCH_CACHE_LIMITS.indexBytes?new Map<string,Cover[]>():null;
+  if(frontiers) {cache.retainedBytes=SEARCH_CACHE_LIMITS.indexBytes;reservedBytes+=cache.retainedBytes;}
   let exhausted: SearchReport["status"] | null = null;
   const step = () => {
     exhausted = options.stop?.() ?? (nodes >= cap ? "nodes" : null);
@@ -153,6 +186,18 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
   // Resource subsets are actual power/cost, not interchangeable 5k tokens.
   // Every subset node counts; no partial frontier escapes a budget failure.
   const covers = (spent: number, energy: number, excluded: Set<string>, required?: string): Cover[] => {
+    let key="";
+    if(frontiers) {
+      if(!step()) return [];
+      let excludedMask=0;
+      for(let i=0;i<resources.length;i++) if(excluded.has(resources[i].card.id)) excludedMask|=1<<i;
+      const index=required?resources.findIndex((r)=>r.card.id===required):-1;
+      // -1 means no requirement; -2 means a required card outside this model.
+      key=`${spent}/${energy}/${excludedMask}/${required && index===-1?-2:index}`;
+      const found=frontiers.get(key);
+      if(found) {cache.hits++;return found;}
+      cache.misses++;
+    }
     const out: Cover[] = [];
     const walk = (i: number, mask: number, power: number, paid: number, cost: number) => {
       if (!step()) return;
@@ -164,7 +209,16 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
       walk(i + 1, mask, power, paid, cost);
       if (!exhausted && !(spent & (1 << i)) && !excluded.has(r.card.id) && paid + r.energy <= energy) walk(i + 1, mask | (1 << i), power + r.power, paid + r.energy, cost + r.cost);
     };
-    walk(0, 0, 0, 0, 0); return out;
+    walk(0, 0, 0, 0, 0);
+    // Never retain a partial frontier. Capacity only disables insertion; it
+    // never discards a legal search or changes the scoring model.
+    if(cache.enabled && !exhausted) {
+      const size=SEARCH_CACHE_LIMITS.entryBytes+out.length*SEARCH_CACHE_LIMITS.coverBytes;
+      if(frontiers && frontiers.size<SEARCH_CACHE_LIMITS.entries && cache.retainedBytes+size<=cacheCapacity) {
+        frontiers.set(key,out);cache.entries++;cache.retainedBytes+=size;reservedBytes+=size;
+      } else cache.skipped++;
+    }
+    return out;
   };
   const fieldSpent = (spent: number, id: string) => resources.some((r, i) => r.field && r.card.id === id && !!(spent & (1 << i)));
   let next = rng;
@@ -183,7 +237,7 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
   // At the offense window the current attack is fixed; future Leader attacks
   // use only public active attackers. Restrictions/extra attacks stay approximate.
   if (offense && o.battle) for (let a = 0; a < own.length; a++) if (own[a].mode === "active") attacks.push({ decision: menu[0], attacker: own[a], target: o.them.leader, a, t: enemy.findIndex((c) => c.id === o.them.leader!.id) });
-  if (attacks.some((a) => !a.attacker || !a.target)) return result("unsupported");
+  if (attacks.some((a) => !a.attacker || !a.target)) return unsupported("missing_attack_facts");
   const leader = enemy.findIndex((c) => c.id === o.them.leader!.id);
   const restMask = enemy.reduce((mask,c,i) => c.mode === "rest" ? mask | (1 << i) : mask, 0);
   const initial = (combo: number): Position => ({ used: 0, killed: 0, rested: restMask, life: o.them.life, combo, lifeCursor: 0, spent: 0, energy: o.you.activeEnergy });
@@ -240,7 +294,7 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
     for (const a of attacks) { let total=0; for (const w of worlds) { total+=fight(a,initial(w.combo),depth,w.life); if(exhausted) return result(exhausted); } consider(a.decision.id,total); }
   } else if (offense && o.battle) {
     const attacker = own.find((c) => c.id === o.battle!.attacker), target = enemy.find((c) => c.id === o.battle!.guard);
-    if (!attacker || !target) return result("unsupported");
+    if (!attacker || !target) return unsupported("missing_battle_facts");
     const a = { decision: menu[0], attacker,target,a:own.indexOf(attacker),t:enemy.indexOf(target) };
     for (const d of menu.filter((d) => d.type === "combo" || d.type === "pass")) {
       const pumps = d.type === "pass" ? [{mask:0,power:0,energy:0,cost:0}] : covers(0,o.you.activeEnergy,new Set([attacker.id]),String(d.action.card));
@@ -251,7 +305,7 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
     }
   } else if (defense && o.battle && o.battle.guard === o.you.leader.id) {
     const current = enemy.find((c) => c.id === o.battle!.attacker);
-    if (!current) return result("unsupported");
+    if (!current) return unsupported("missing_battle_facts");
     const future = enemy.filter((c) => c.id !== current.id && c.mode === "active");
     // Defensive subcase: known generic combo cards and public one-attack threats.
     // Counters/blockers/activations/extra attacks remain with the heuristic.
@@ -289,11 +343,12 @@ export function searchDecision(input: PolicyInput, rng: PolicyRng, options: Sear
       } total-=best; if(exhausted) return result(exhausted); }
       consider(d.id,total);
     }
-  } else return result("unsupported");
+  } else return unsupported("missing_battle_facts");
   const finalStop=options.stop?.();
-  if(finalStop) return result(finalStop);
-  return bestId && Number.isFinite(bestScore) && !(main && baseline?.kind === "menu" && baseline.type === "endMain" && bestScore <= 0)
-    ? result("searched",{answer:answerFor(ds,bestId),rng:next}) : result("unsupported");
+  if(finalStop) return result(finalStop,fallback,finalStop==="memory"?"memory_pressure":finalStop);
+  if(!bestId || !Number.isFinite(bestScore)) return unsupported("no_scored_root");
+  if(main && baseline?.kind === "menu" && baseline.type === "endMain" && bestScore<=0) return unsupported("nonpositive_attack");
+  return result("searched",{answer:answerFor(ds,bestId),rng:next});
 }
 
 /** Opt-in adapter; callers must explicitly choose this policy. The shipped
@@ -303,7 +358,8 @@ export function searchPolicy(options: SearchOptions = {}, report?: (value: Searc
   const heuristic = localPolicy();
   return (input, rng) => {
     const result = searchDecision(input, rng, options, heuristic);
-    report?.({ version: result.version, status: result.status, nodes: result.nodes, reservedBytes: result.reservedBytes, samples: result.samples });
-    return { answer: result.answer, rng: result.rng };
+    const {answer,rng:nextRng,...metrics}=result;
+    report?.(metrics);
+    return { answer, rng:nextRng };
   };
 }

@@ -8,6 +8,7 @@ import { playDuel } from "./arena-policy-duel";
 import { localPolicy } from "../../src/lib/arena/policy/combat";
 import { uniformPolicy } from "../../src/lib/arena/policy/contract";
 import { searchPolicy } from "../../src/lib/arena/policy/search";
+import { searchTelemetry, recordSearchTelemetry, type SearchTelemetry } from "../lib/arena-search-telemetry";
 import type { ReplayBundleRecord } from "../../src/lib/arena/replay-core";
 import type { PlayerId } from "../../src/lib/arena/types";
 
@@ -20,6 +21,7 @@ export interface Job {
   testSeat: PlayerId;
   /** O5 experiment only: search versus the frozen heuristic, both seats. */
   search?: boolean;
+  frontierCache?:boolean;
 }
 
 export interface JobResult {
@@ -34,16 +36,17 @@ export interface JobResult {
   trace: string;
   guards: number;
   steps: { ms: number; window: string }[];
-  search?: { statuses: Record<string, number>; maxNodes: number; reservedBytes: number };
+  search?: { statuses: Record<string, number>; maxNodes: number; reservedBytes: number;telemetry:SearchTelemetry };
 }
 
 export async function runJobs(jobs: Job[], maxMoves: number): Promise<JobResult[]> {
   const local = localPolicy();
   const out: JobResult[] = [];
   for (const j of jobs) {
-    const search = { statuses: {} as Record<string, number>, maxNodes: 0, reservedBytes: 0 };
-    const candidate = j.search ? searchPolicy({}, (r) => {
+    const search = { statuses: {} as Record<string, number>, maxNodes: 0, reservedBytes: 0,telemetry:searchTelemetry() };
+    const candidate = j.search ? searchPolicy({frontierCache:j.frontierCache===true}, (r) => {
       search.statuses[r.status] = (search.statuses[r.status] ?? 0) + 1;
+      recordSearchTelemetry(search.telemetry,r);
       search.maxNodes = Math.max(search.maxNodes, r.nodes);
       search.reservedBytes = Math.max(search.reservedBytes, r.reservedBytes);
     }) : local;
