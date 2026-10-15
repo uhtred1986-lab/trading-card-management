@@ -137,14 +137,17 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
             </option>
           ))}
         </select>
-        <select name="ability" defaultValue={search.ability ?? ""} className={select}>
-          <option value="">Any ability keyword</option>
-          {abilities.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
+        <label className="min-w-0 text-xs font-semibold text-space-200">
+          <span className="mb-1 block">Ability keyword</span>
+          <select name="ability" defaultValue={search.ability ?? ""} className={`${select} w-full min-w-0`}>
+            <option value="">Any ability</option>
+            {abilities.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="flex gap-2">
           <select name="owned" defaultValue={search.owned ?? ""} className={`${select} flex-1`}>
             <option value="">Owned or not</option>

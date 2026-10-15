@@ -245,14 +245,17 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             </option>
           ))}
         </select>
-        <select name="ability" defaultValue={ability ?? ""} className={select}>
-          <option value="">Any ability keyword</option>
-          {abilities.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
+        <label className="min-w-0 text-xs font-semibold text-space-200">
+          <span className="mb-1 block">Ability keyword</span>
+          <select name="ability" defaultValue={ability ?? ""} className={`${select} w-full min-w-0`}>
+            <option value="">Any ability</option>
+            {abilities.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
         <select name="sort" defaultValue={sort} className={select}>
           <option value="recent">Recently added</option>
           <option value="value">Highest value</option>
