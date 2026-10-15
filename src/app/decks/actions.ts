@@ -85,6 +85,14 @@ export async function updateDeckForm(formData: FormData) {
   await updateDeck(id, patch);
 }
 
+export async function renameDeckForm(formData: FormData) {
+  await requireSignedIn();
+  const id = Number(formData.get("id"));
+  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
+  if (!Number.isInteger(id) || id <= 0 || !name) return;
+  await updateDeck(id, { name });
+}
+
 /**
  * Where the deck is kept. Saved on the spot rather than with the rest of the
  * settings form: an uncontrolled `<select defaultValue>` is re-applied by React

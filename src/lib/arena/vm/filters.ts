@@ -35,7 +35,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { keywordsInSkills, parseSkills } from "../text/cards";
+import { identityKey, keywordsInSkills, parseSkills } from "../text/cards";
 import { emptyFilter, type CardFilter } from "../text/filters";
 import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
@@ -341,9 +341,11 @@ function baseTypeOf(type: string): string {
 const hasKeyword = (keywords: KeywordSkill[], name: KeywordSkill["name"]) => keywords.some((k) => k.name === name);
 
 /** A name asked for whole: case-insensitive, which is how the catalog's capitalisation varies. */
-const same = (values: readonly string[], name: string) => values.some((v) => v.toLowerCase() === name.toLowerCase());
+// Printed skill text normalizes these apostrophes (text/cards.ts), whereas
+// catalog identity arrays retain them: Cooler’s Armored Squadron is one trait.
+const same = (values: readonly string[], name: string) => values.some((v) => identityKey(v) === identityKey(name));
 /** A name asked for in part ("<Son Goku> in its character name"), the loose twin of `same` and only for the phrases that mean it. */
-const part = (values: readonly string[], piece: string) => values.some((v) => v.toLowerCase().includes(piece.toLowerCase()));
+const part = (values: readonly string[], piece: string) => values.some((v) => identityKey(v).includes(identityKey(piece)));
 
 const text = (value: AttrValue | undefined): string | null => (typeof value === "string" ? value : null);
 const number = (value: AttrValue | undefined): number | null => (typeof value === "number" ? value : null);

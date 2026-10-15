@@ -2792,13 +2792,25 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "play": {
+        // Each attempted play owns this fact, including no legal target or
+        // a suspended counter window; a preceding successful play is no proof.
+        (frame.did ??= {}).play = false;
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const targets = h.resolveRef(frame, op.target).filter((id) => !h.forbids("play", { player: master, card: id, bySkill: true }));
-        if (!targets.length) break;
+        const candidates = h.resolveRef(frame, op.target);
+        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: true }));
+        const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
+        // 22-5-7: a paid keyword evolution that fails to play and has not
+        // left hand is put in Drop. A printed Drop evolution already is there.
+        const failedEvolution = () => {
+          if (evolution) for (const id of candidates) if (h.areaOf(id) === "hand") h.move(id, "drop", h.ownerOf(id), { reason: "rule" });
+        };
+        if (!targets.length) { failedEvolution(); break; }
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
-        (frame.did ??= {}).play = true;
+        // 22-5-5-1: an explicit evolution cannot degrade into an ordinary
+        // play if the chosen base left/changed or the optional choice was none.
+        if (evolution && (!onto || h.areaOf(onto) !== "battle" || h.masterOf(onto) !== master)) { failedEvolution(); break; }
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.

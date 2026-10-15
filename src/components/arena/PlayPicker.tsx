@@ -103,6 +103,7 @@ export function PlayPicker({
     {hiddenTestingDeckName ? <p className="text-xs text-space-400">The link points to testing deck <span className="font-medium text-space-200">{hiddenTestingDeckName}</span>. It stays hidden until you show testing decks above.</p> : null}
     <DeckDiscovery label="Your deck" decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} />
     <DeckPreviewSheet deckId={deck.id} deckName={deck.name} />
+    <Link href={`/decks/${deck.id}`} className="tap inline-flex min-h-10 items-center text-xs font-medium text-ki-300 hover:text-ki-200">Open selected deck details →</Link>
     <details><summary className="tap cursor-pointer py-2 text-sm text-space-300">Rule readiness{isLocked ? " — locked" : ""}</summary><Readiness deck={deck} /></details>
     <p className="text-xs text-space-400">Masters decks only. Fusion World uses different rules.</p>
   </section>;

@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import Link from "next/link";
 import type { ActorKind, MatchOutcome, MatchStats, ProgressStatus, StatRow, TestingDashboard, TestingDeck, TestingScenario } from "@/lib/arena/testing/types";
 import { SubmitButton } from "@/components/SubmitButton";
-import { recordTestingMatchAction, saveTestingDeckAction, saveTestingScenarioAction, type TestingActionState } from "@/app/arena/testing/actions";
+import { importEvaluationRunAction, recordTestingMatchAction, saveTestingDeckAction, saveTestingScenarioAction, type TestingActionState } from "@/app/arena/testing/actions";
+import type { ImportedRunSummary } from "@/lib/arena/testing/run-manifest";
+import preparedRecipes from "@/lib/arena/testing/prepared-recipes.json";
 
 const STATUS: { value: ProgressStatus; label: string; tone: string }[] = [
   { value: "planned", label: "Planned", tone: "border-space-600 text-space-300" },
@@ -29,7 +32,7 @@ const input = "tap w-full rounded-md border border-space-700 bg-space-950 px-2 p
 const select = `${input} pr-8`;
 const smallLabel = "block space-y-1 text-xs text-space-300";
 
-export function TestingPortal({ dashboard, filter, requestId }: { dashboard: TestingDashboard; filter: { actorKind?: ActorKind; model?: string; deckId?: string }; requestId: string }) {
+export function TestingPortal({ dashboard, filter, requestId, importedRuns }: { dashboard: TestingDashboard; filter: { actorKind?: ActorKind; model?: string; deckId?: string }; requestId: string; importedRuns: ImportedRunSummary[] }) {
   const [query, setQuery] = useState("");
   const [release, setRelease] = useState("all");
   const [wave, setWave] = useState("first");
@@ -49,6 +52,8 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
   const deckStatusCounts = countStatuses(dashboard.decks);
   const scenarioStatusCounts = countStatuses(dashboard.scenarios);
   const recordedCost = dashboard.recordedStats.cost;
+  const preparedLegalCount = preparedRecipes.recipes.filter((recipe) => recipe.catalogLegality === "legal").length;
+  const preparedBlockedCount = preparedRecipes.recipes.length - preparedLegalCount;
 
   return (
     <div className="space-y-6">
@@ -93,6 +98,15 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
         </table></div> : <Empty>No deck recipes match these filters.</Empty>}
       </section>
 
+      <section aria-labelledby="prepared-recipes-title" className="space-y-3">
+        <div>
+          <h2 id="prepared-recipes-title" className="text-lg font-semibold text-space-50">Prepared deck lists</h2>
+          <p className="text-xs text-space-400">{preparedRecipes.recipes.length} read-only proposals · {preparedLegalCount} pass the app catalog legality check; {preparedBlockedCount} historical recipe{preparedBlockedCount === 1 ? " is" : "s are"} blocked. Quantities are drafts, not strategy or rule qualification, and do not create or link an actual deck.</p>
+          <p className="mt-1 break-words text-[11px] text-space-500">Checked {preparedRecipes.checkedAt.slice(0, 10)} against the app’s current catalog restrictions. The catalog snapshot is not an independent official ban-list review. {preparedRecipes.source} Source commit {preparedRecipes.sourceCommit.slice(0, 12)}.</p>
+        </div>
+        <div className="space-y-2">{preparedRecipes.recipes.map((recipe) => <PreparedRecipeCard key={recipe.id} recipe={recipe} />)}</div>
+      </section>
+
       <section aria-labelledby="scenario-title" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div><h2 id="scenario-title" className="text-lg font-semibold text-space-50">Scenario checklists</h2><p className="text-xs text-space-400">Scenario status needs exact evidence before it can be marked passed. Rules-family coverage, general AI strategy benchmarks, and White Cell rules and strategy are separate groups.</p></div>
@@ -115,6 +129,8 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
           </section>
         ))}</div> : <Empty>No scenarios match these filters.</Empty>}
       </section>
+
+      <RunEvidenceSection runs={importedRuns} />
 
       <section aria-labelledby="match-stats-title" className="space-y-4">
         <div><h2 id="match-stats-title" className="text-lg font-semibold text-space-50">Match statistics</h2><p className="text-xs text-space-400">Manual results and existing server Arena games are reported separately. {dashboard.sources.local}</p></div>
@@ -149,6 +165,79 @@ export function TestingPortal({ dashboard, filter, requestId }: { dashboard: Tes
       </section>
     </div>
   );
+}
+
+function RunEvidenceSection({ runs }: { runs: ImportedRunSummary[] }) {
+  const [state, formAction] = useActionState(importEvaluationRunAction, null);
+  return <section aria-labelledby="imported-runs-title" className="space-y-3">
+    <div><h2 id="imported-runs-title" className="text-lg font-semibold text-space-50">Test run history</h2><p className="text-xs text-space-400">Latest 40 runs. Importing the same file again adds no duplicates. Imports never alter recipe or scenario progress, and do not contain replay traces or private game state.</p></div>
+    <form key={state?.formEpoch ?? "0"} action={formAction} onReset={(event) => event.preventDefault()} className="grid gap-3 rounded-xl border border-space-700 bg-space-900/50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <label className={smallLabel}>Test run JSON file <span className="text-space-500">· maximum 512 KiB</span>
+        <input name="manifest" type="file" accept="application/json,.json" required className={`${input} file:mr-3 file:rounded file:border-0 file:bg-space-700 file:px-3 file:py-1 file:text-xs file:text-white`} />
+      </label>
+      <SubmitButton pendingLabel="Checking and importing…" className="tap min-h-11 rounded-md border border-ki-500/50 px-4 text-sm font-medium text-ki-200 hover:bg-space-800">Import test results</SubmitButton>
+      <div className="sm:col-span-2"><ActionNotice state={state} /></div>
+    </form>
+    {runs.length ? <div className="space-y-2">{runs.map((run) => <ImportedRunCard key={run.id} run={run} />)}</div> : <Empty>No test runs have been imported.</Empty>}
+  </section>;
+}
+
+function ImportedRunCard({ run }: { run: ImportedRunSummary }) {
+  const source = run.source === "policy_eval" ? `Policy evaluation · ${run.seedSet ?? "seed set unknown"}` : run.source === "decision_cases" ? "Strategy decision cases" : "Arena scenarios";
+  const outcomes = run.outcomes.map((item) => `${item.count} ${item.outcome}`).join(" · ") || "No result summary";
+  const knownCost = formatUsdMicros(run.reportedCostMicros);
+  return <article className="rounded-xl border border-space-700 bg-space-900/50 p-3">
+    <details>
+    <summary className="tap grid cursor-pointer list-none gap-1 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <span className="text-sm font-semibold text-space-100">{source} · {run.resultCount} results</span>
+      <span className="text-[11px] text-space-400">{new Date(run.recordedAt).toLocaleString()}</span>
+      <span className="text-[11px] text-space-300 sm:col-span-2">{outcomes}</span>
+    </summary>
+    <div className="mt-3 grid gap-2 border-t border-space-700 pt-3 text-xs text-space-300 sm:grid-cols-2">
+      <p className="break-all sm:col-span-2">Run {run.requestId} · protocol {run.protocolId}@{run.protocolRevision}</p>
+      <p>Runner: <span className="font-mono">{run.runnerId}@{run.runnerVersion}</span></p>
+      <p>Source commit: <span className="font-mono">{run.gitCommit}</span></p>
+      <p className="break-all sm:col-span-2">Worktree: {run.dirtyTreeSha256 ? <><span className="font-mono">dirty · {run.dirtyTreeSha256}</span></> : "declared clean by the runner"}</p>
+      <p>{run.fixtureCount} pinned fixture records · {run.unpinnedFixtures ? `${run.unpinnedFixtures} runtime revision(s) unavailable` : "runtime revisions recorded"}</p>
+      <p>{run.mappedScenarioResults} result(s) explicitly mapped to portal scenarios; unmapped results remain visible in the immutable manifest.</p>
+      <p className="sm:col-span-2">Full-run result counts: {outcomes}</p>
+      {run.resultPreviews.length ? <div className="sm:col-span-2"><p className="font-medium text-space-200">Recent result rows (up to 5)</p><ul className="mt-1 space-y-1">{run.resultPreviews.map((result) => <li key={result.key} className="break-words rounded-md border border-space-800 px-2 py-1 text-[11px]">
+        <span className="font-mono text-space-200">{result.key}</span> · {result.kind.replaceAll("_", " ")} · {result.outcome}
+        {result.sourceScenarioId ? ` · case ${result.sourceScenarioId}` : ""}{result.portalScenarioId ? ` → ${result.portalScenarioId}` : " · unmapped"}
+        {result.policyKey ? ` · policy ${result.policyKey}` : ""}{result.baselinePolicyKey ? ` vs ${result.baselinePolicyKey}` : ""}
+        {result.fixtureKey ? ` · fixture ${result.fixtureKey}` : ""}{result.seed != null ? ` · seed ${result.seed}` : ""}{result.seat ? ` · seat ${result.seat}` : ""}
+        {result.steps != null ? ` · ${result.kind === "decision_case" ? "horizon" : "steps"} ${result.steps}` : ""}{result.differenceCount != null ? ` · differences ${result.differenceCount}` : ""}
+      </li>)}</ul><p className="mt-1 text-[10px] text-space-500">Rows are a bounded preview; outcome totals cover the full immutable import.</p></div> : null}
+      {run.policyGames ? <p className="sm:col-span-2">Reported policy-run cost: {knownCost} across {run.pricedPolicyGames} of {run.policyGames} games. Unknown costs remain unknown; these reported values are not provider invoices.</p> : null}
+      <p className="text-space-500 sm:col-span-2">Stored {new Date(run.recordedAt).toISOString()} · Reimporting the same manifest adds no duplicate records.</p>
+    </div>
+    </details>
+    <Link href={`/arena/testing/runs/${run.id}`} className="tap mt-2 inline-flex min-h-10 items-center text-sm font-medium text-ki-300 hover:text-ki-200">View results →</Link>
+  </article>;
+}
+
+type PreparedRecipe = (typeof preparedRecipes.recipes)[number];
+
+function PreparedRecipeCard({ recipe }: { recipe: PreparedRecipe }) {
+  const blocked = recipe.catalogLegality === "illegal";
+  return <details className="rounded-xl border border-space-700 bg-space-900/50">
+    <summary className="tap grid cursor-pointer list-none gap-1 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <span className="text-sm font-semibold text-space-100">{recipe.name}</span>
+      <span className={`justify-self-start rounded-full border px-2 py-1 text-[10px] font-semibold ${blocked ? "border-loss/60 text-loss" : "border-gain/50 text-gain"}`}>{blocked ? "Catalog blocked" : "Catalog legal"}</span>
+      <span className="text-[11px] text-space-400 sm:col-span-2">{recipe.release} · Leader {recipe.leaderId} {recipe.leaderName} · {recipe.mainCount} main{recipe.zCount ? ` · ${recipe.zCount} Z` : ""} · Draft only · qualification {recipe.qualification}</span>
+    </summary>
+    <div className="space-y-3 border-t border-space-700 p-3">
+      <p className="break-words text-xs text-space-300">{recipe.notes.join(" ")}</p>
+      {recipe.legalityIssues.length ? <div><h3 className="text-xs font-semibold text-space-200">Catalog checks</h3><ul className="mt-1 space-y-1">{recipe.legalityIssues.map((issue) => <li key={`${issue.cardId}:${issue.message}`} className={`break-words text-xs ${issue.severity === "illegal" ? "text-loss" : "text-space-400"}`}>{issue.severity}: {issue.message}</li>)}</ul></div> : <p className="text-xs text-space-400">No catalog legality issues were found in this check.</p>}
+      {recipe.compilerGapCards.length ? <p className="break-words text-xs text-ki-300">Fresh compilation reported rule-program gaps for {recipe.compilerGapCards.join(", ")}. This is a compiler diagnostic, not a stored-rule readiness verdict.</p> : null}
+      <div className="min-w-0 overflow-x-auto rounded-lg border border-space-700">
+        <table className="w-full min-w-[34rem] text-left text-xs" aria-label={`${recipe.name} proposed quantities`}>
+          <thead className="bg-space-950 text-[10px] uppercase tracking-wider text-space-400"><tr><th scope="col" className="px-2 py-2">Card</th><th scope="col" className="px-2 py-2">Name</th><th scope="col" className="px-2 py-2">Zone</th><th scope="col" className="px-2 py-2">Qty</th></tr></thead>
+          <tbody>{recipe.cards.map((card) => <tr key={`${card.zone}:${card.id}`} className="border-t border-space-800"><th scope="row" className="whitespace-nowrap px-2 py-1.5 font-mono text-space-300">{card.id}</th><td className="px-2 py-1.5 text-space-200">{card.name}</td><td className="px-2 py-1.5 text-space-400">{card.zone}</td><td className="px-2 py-1.5 tabular-nums text-space-200">{card.quantity}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>;
 }
 
 function DeckRecipe({ deck, actualDecks }: { deck: TestingDeck; actualDecks: TestingDashboard["actualDecks"] }) {

@@ -61,7 +61,7 @@ import type { EngineContext, GameEvent } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule } from "./effects";
+import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, skillNegated } from "./effects";
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow } from "./battle";
@@ -513,7 +513,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
         const r = state.resolving?.card === id && !state.resolving.replaced ? state.resolving : null;
-        resolvePlay(ctx, game, state, ev, id, opts.player, {
+        const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : opts.mode,
           onto: opts.onto,
           negated: opts.negated,
@@ -521,7 +521,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
           ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
           ...(opts.using ? { using: opts.using } : {}),
-        });
+        }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
+        if (played) (frame.did ??= {}).play = true;
         if (r) state.resolving = null;
       }
       state.programs.unshift(frame);
@@ -564,14 +565,17 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null },
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId },
 ): void {
   const from = zoneOf(state, id);
+  const returnInfo = from === "battle" ? attrsNow(ctx, game, state, id) : undefined;
+  const sourceNegated = from === "battle"
+    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
   // redirect changes `to`, a substitute keeps the card where it is.
-  const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}) });
+  const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) return;
   to = route.to;
   const fromOwner = from ? ownerOfZone(state, id) : null;
@@ -624,7 +628,9 @@ function moveTo(
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
-  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner, args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
+    ...(returnInfo && to === "hand" ? { subjectInfo: returnInfo } : {}), ...(sourceNegated && to === "warp" ? { sourceNegated } : {}),
+    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`

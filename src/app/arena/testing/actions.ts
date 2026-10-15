@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { recordTestingMatch, updateTestingDeck, updateTestingScenario } from "@/lib/arena/testing/store";
+import { importEvaluationRun, recordTestingMatch, updateTestingDeck, updateTestingScenario } from "@/lib/arena/testing/store";
+import { MAX_MANIFEST_BYTES, parseEvaluationManifestJson } from "@/lib/arena/testing/run-manifest";
 import type { ActorKind, MatchOutcome, ProgressStatus, RecordTestingMatchInput } from "@/lib/arena/testing/types";
 import { requireSl } from "@/lib/auth";
 
@@ -10,6 +11,26 @@ export interface TestingActionState {
   error?: string;
   message?: string;
   formEpoch?: string;
+}
+
+export async function importEvaluationRunAction(_previous: TestingActionState | null, form: FormData): Promise<TestingActionState> {
+  await requireSl();
+  const file = form.get("manifest");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a versioned Arena run manifest JSON file." };
+  if (file.size > MAX_MANIFEST_BYTES) return { error: "Manifest exceeds the 512 KiB import limit. Import the allowlisted manifest, not a replay or snapshot." };
+  let raw: string;
+  try { raw = await file.text(); }
+  catch { return { error: "Could not read that manifest file." }; }
+  const parsed = parseEvaluationManifestJson(raw);
+  if (!parsed.ok) return { error: parsed.reason };
+  try {
+    const imported = await importEvaluationRun(db, parsed.value);
+    if (!imported.ok) return { error: imported.reason === "invalid" ? imported.detail ?? "The manifest is invalid." : "This request ID was already imported with different content." };
+    revalidatePath("/arena/testing");
+    return { message: imported.replayed ? "This manifest was already imported; no duplicates were added." : "Versioned run evidence imported. Coverage progress was not changed.", formEpoch: `${imported.runId}:${Date.now()}` };
+  } catch {
+    return { error: "Could not save this run right now. Check run history before retrying." };
+  }
 }
 
 const text = (form: FormData, key: string, max = 4000) => String(form.get(key) ?? "").trim().slice(0, max);

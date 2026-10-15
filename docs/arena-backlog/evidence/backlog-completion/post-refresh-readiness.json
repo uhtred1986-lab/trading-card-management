@@ -1,0 +1,13 @@
+{
+  "deployedCommit": "1996255ea874bca8349ec64328ea4712e23505b0",
+  "decks": 25,
+  "ready": 19,
+  "missingLeader": 3,
+  "blockedPrintedCards": [
+    "BT29-029",
+    "BT3-096",
+    "BT3-098",
+    "BT3-112"
+  ],
+  "note": "Readiness is not complete rule coverage or strategic validation. Remaining supported-play gaps tracked in #825."
+}

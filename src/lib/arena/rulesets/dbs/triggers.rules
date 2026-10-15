@@ -17,10 +17,11 @@
 --     itself, so `attackDeclared(target: leader)` is a part in the attack and
 --     not a place.
 --
---   watcher: controller | opponent | both
+--   watcher: controller | opponent | both | fromHolder
 --     Whose cards in play are asked, when the moment is not the answering
 --     card's own. `controller` is the side the event is about (the moved
 --     card's master, the damaged player); `opponent` is the other one.
+--     `fromHolder` is the original area holder carried by a movement.
 --     Left out, only the card the event is about answers.
 --
 --   WHERE
@@ -250,6 +251,19 @@ DEFINE TRIGGER leftBattleToDrop
   BIND "self"
   text: "when this card goes from a Battle Area to the Drop"
 
+-- BT29-029: "your Battle Area" is the original holder's, including a
+-- borrowed card returning to its owner's hand (9-6-9-1-1/2).
+DEFINE TRIGGER yourCardReturnedToHand
+  ON moved(from: battle, to: hand, watcher: fromHolder)
+  BIND "subject"
+  text: "when a card is returned from your Battle Area to its owner's hand"
+
+-- BT3-112: Battle Area OR deck, and no restriction on the movement's cause.
+DEFINE TRIGGER battleOrDeckToWarp
+  ON moved(from: [battle, deck], to: warp)
+  BIND "self"
+  text: "when this card goes from your Battle Area or deck to the Warp"
+
 -- §9-6-9-3 — when this card goes from a Battle Area to the Drop in Hidden
 -- Mode. A card that moves face down answers to no other moment of its own
 -- (`matchTriggers`); this is the "unless specified otherwise" (BT28-117).
@@ -385,9 +399,9 @@ DEFINE TRIGGER blockerUsed
   BIND "self"
   text: "when this card activates [Blocker]"
 
--- §22-5 — when a card evolves into this card
+-- §22-5-2-3/4 — successful evolution, distinct from keyword activation.
 DEFINE TRIGGER evolvedInto
-  ON keywordActivated(keyword: Evolve)
+  ON evolved(to: battle)
   BIND "subject"
   text: "when a card evolves into this card"
 

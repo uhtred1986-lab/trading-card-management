@@ -9,7 +9,7 @@ Seven booster releases, two decks each, plus the two existing starter controls. 
 | Release | Proposed deck name | Leader (actual catalog name) | Target keyword/mechanic | Printed supporting cards | Why first |
 |---|---|---|---|---|---|
 | BT3 | Bardock — Great Ape cleanup | BT3-082 — Bardock | Blocker; combo-end Evolve | BT3-098 — Hidden Power Great Ape Fasha; BT3-096 — Hidden Power Great Ape Tora | Open combo-end/evolution follow-up |
-| BT3 | Trunks — Over Realm return | BT3-108 — Trunks | Over Realm 3; Battle/deck→Warp self Auto | BT3-112 — Unrelenting Assault Trunks | Open movement-trigger follow-up |
+| BT3 | Trunks — Over Realm return | BT3-108 — Trunks | Over Realm 3; Battle/deck→Warp self Auto | BT3-112 — Unrelenting Assault Trunks | Historical scenario: BT3-112 is marked banned in the current app catalog; separate legal control prepared |
 | BT5 | Pilaf — Wish / Desire | BT5-002 — Pilaf | Wish; Dragon Ball; all-area Desire | BT5-024 — Oolong's Wish; BT5-119 — World Peace | Reviewed identity/World Peace regressions |
 | BT5 | Black Masked Saiyan — Warp pressure | BT5-105 — Black Masked Saiyan | Burst 3; Critical | BT5-111 — Black Masked Saiyan, the Devastator | Distinct Black Saiyan archetype |
 | BT6 | Gogeta — Br fusion | BT6-001 — Son Goku and Vegeta | Union-Fusion | BT6-012 — Veku, Contents Under Pressure | Fusion prerequisites and payment control |
@@ -26,6 +26,14 @@ Seven booster releases, two decks each, plus the two existing starter controls. 
 | SD15 | Pride of the Saiyans starter control | SD15-01 — Vegeta | Spirit Boost 1; Dual Attack; Unison markers | SD15-03 — Son Goku, Spirit Boost Warrior; SD15-02 — SS Cabba, Spirit Resonance | Existing audited owner-amended starter; specified costs known |
 
 The SD5/SD15 starting quantities come from the existing `scripts/arena-deck-audit.mts` lists. SD15 uses the recorded owner amendment (BT10-008 ×1, BT5-023 ×3); it must not silently revert to the older illegal printed quantity. Proposed booster decks can use appropriate older support cards where needed, while their featured Leader and mechanic cards remain explicit.
+
+## Prepared quantities: first batch
+
+Seven reviewable lists are now recorded in `src/lib/arena/testing/prepared-recipes.json`: White Cell, Great Ape, Cooler, the original Trunks proposal, two audited starters, and a separate Trunks Over Realm control. Each has 50 main-deck cards; White Cell also has four Z-Battle cards. Six pass the app catalog’s current legality checks. This is not independent verification of the latest official ban list or an engine/strategy qualification.
+
+**The original Trunks return recipe is blocked:** app catalog metadata checked on 15 October 2026 marks BT3-112 banned. Keep its Warp-return ability as a historical rules scenario. The separate control omits BT3-112 and therefore does not cover that ability. Names, exact quantities, ingredient notes and remaining compiler gaps are available in the Arena testing portal’s prepared-list section. No new live decks were created.
+
+The remaining first-wave proposals still need exact quantities. Fresh compiler gaps are diagnostics, not a substitute for checking the current stored rules, including owner corrections. In particular, the new White Cell list must be qualified independently of the owner’s existing White Cell deck.
 
 ## Small scenarios to run before whole games
 

@@ -674,6 +674,8 @@ export type Trigger =
   | "droppedByOpponent"
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
+  | "yourCardReturnedToHand"
+  | "battleOrDeckToWarp"
   /**
    * "When [or "If"] this card is placed in your Drop Area from your hand by a
    * skill" (SD13-05, BT7-127, BT11-022): the hand's side of `droppedFromBattle`.

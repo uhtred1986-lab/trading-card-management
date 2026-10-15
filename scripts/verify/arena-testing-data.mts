@@ -11,11 +11,27 @@ import { drizzle } from "drizzle-orm/pglite";
 import { eq } from "drizzle-orm";
 import * as schema from "../../src/db/schema.ts";
 import type { Db } from "../../src/db/index.ts";
-import { ensureTestingCatalog, getTestingDashboard, recordTestingMatch, setDeckTesting, updateTestingDeck, updateTestingScenario, serverTestingStats } from "../../src/lib/arena/testing/store.ts";
+import { ensureTestingCatalog, getImportedEvaluationRunDetail, getTestingDashboard, importEvaluationRun, listImportedEvaluationRuns, recordTestingMatch, setDeckTesting, updateTestingDeck, updateTestingScenario, serverTestingStats } from "../../src/lib/arena/testing/store.ts";
 import { TESTING_DECK_CATALOG, TESTING_SCENARIO_CATALOG } from "../../src/lib/arena/testing/catalog.ts";
 import { aggregateMatches, type StatsMatch } from "../../src/lib/arena/testing/stats.ts";
 import { getDeck, listDecks } from "../../src/lib/decks/queries.ts";
 import type { RecordTestingMatchInput } from "../../src/lib/arena/testing/types.ts";
+
+const digest = "a".repeat(64);
+const runBase = {
+  version: 1 as const,
+  requestId: "20000000-0000-4000-8000-000000000001",
+  runner: { id: "arena-scenario" as const, version: "1", gitCommit: "b".repeat(40), dirtyTreeSha256: null },
+  protocol: { id: "scenario-v1", revision: "c".repeat(40) },
+  fixtures: [{ key: "fixture-a", sourceId: "fixture-1", runtimeRevision: null, bundleSha256: digest,
+    rulesSha256: digest, catalogSha256: null, programsSha256: digest, p1DeckSha256: null, p2DeckSha256: null,
+    p1RecipeId: null, p2RecipeId: null }],
+  policies: [],
+  source: "scenario" as const,
+  results: [{ key: "setup", kind: "scenario_case" as const, fixtureKey: "fixture-a", sourceScenarioId: "setup",
+    portalScenarioId: "family-01-awaken", seed: 1, seat: "p1" as const, outcome: "pass" as const,
+    steps: 10, differenceCount: 0, browserAgreement: true, evidenceSha256: digest }],
+};
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "arena-testing-db-"));
 let client = new PGlite(directory);
@@ -44,6 +60,75 @@ try {
   assert.ok(first.scenarios.every((d) => d.status === "planned"));
   assert.equal(first.recordedStats.matches.games, 0);
   const deck = first.decks[0]; const scenario = first.scenarios[0];
+  const imported = await importEvaluationRun(db, runBase);
+  assert.ok(imported.ok && !imported.replayed, "first manifest import writes one immutable run");
+  const duplicateImport = await importEvaluationRun(db, { ...runBase, results: runBase.results.map((row) => ({ ...row })) });
+  assert.ok(duplicateImport.ok && duplicateImport.replayed, "same request ID/content is idempotent despite object key ordering");
+  assert.deepEqual(await importEvaluationRun(db, { ...runBase, protocol: { ...runBase.protocol, revision: "d".repeat(40) } }), { ok: false, reason: "idempotency_conflict" });
+  assert.equal((await db.select().from(schema.arenaTestingRunResults)).length, 1, "a retry cannot duplicate result rows");
+  assert.equal((await getTestingDashboard(db)).scenarios.find((row) => row.id === "family-01-awaken")!.status, "planned", "imported evidence never auto-passes portal progress");
+  const gameRun = {
+    ...runBase, requestId: "20000000-0000-4000-8000-000000000002", source: "policy_eval" as const,
+    runner: { ...runBase.runner, id: "arena-policy-eval" as const }, seedSet: "dev" as const,
+    policies: [{ key: "candidate", version: "search-v2-d2", sha256: digest }, { key: "baseline", version: "heuristic-v1", sha256: digest }],
+    results: [null, 0].map((reportedCostMicros, index) => ({ key: `game-${index}`, kind: "policy_game" as const, fixtureKey: "fixture-a",
+      candidatePolicyKey: "candidate", baselinePolicyKey: "baseline", seedIndex: index, seed: 641 + index, candidateSeat: "p1" as const,
+      initialPolicyRng: { p1: { mode: "deterministic" as const, v: null, seed: null, n: null }, p2: { mode: "seeded" as const, v: 1 as const, seed: 642, n: index } },
+      outcome: index === 0 ? "win" as const : "draw" as const, winner: index === 0 ? "p1" as const : null, moves: 20, turn: 5,
+      damageDealt: 4, damageTaken: 2, guardTrips: 0, stopKind: null, reportedCostMicros, evidenceSha256: digest })),
+  };
+  const importedGames = await importEvaluationRun(db, gameRun);
+  assert.ok(importedGames.ok && !importedGames.replayed);
+  if (importedGames.ok) {
+    const policyDetail = await getImportedEvaluationRunDetail(db, importedGames.runId);
+    assert.equal(policyDetail?.source, "policy_eval");
+    assert.equal(policyDetail?.policies[0].version, "search-v2-d2");
+    assert.equal(policyDetail?.results[0].kind, "policy_game");
+  }
+  const importHistory = await listImportedEvaluationRuns(db);
+  const gameHistory = importHistory.find((row) => row.requestId === gameRun.requestId)!;
+  assert.equal(gameHistory.policyGames, 2);
+  assert.equal(gameHistory.pricedPolicyGames, 1, "unknown cost remains distinct from explicitly free");
+  assert.equal(gameHistory.reportedCostMicros, 0);
+  const savedGameRun = (await db.select().from(schema.arenaTestingRuns).where(eq(schema.arenaTestingRuns.requestId, gameRun.requestId)))[0];
+  assert.deepEqual(savedGameRun.manifest.policies.map((policy) => policy.key), ["candidate", "baseline"]);
+  const savedGameResults = await db.select().from(schema.arenaTestingRunResults).where(eq(schema.arenaTestingRunResults.runId, savedGameRun.id));
+  assert.equal(savedGameResults[0].payload.kind, "policy_game");
+  if (savedGameResults[0].payload.kind === "policy_game") {
+    assert.equal(savedGameResults[0].payload.initialPolicyRng.p1.mode, "deterministic");
+    assert.equal(savedGameResults[0].payload.seed, 641);
+    assert.equal(savedGameResults[0].payload.reportedCostMicros, null, "unknown cost is preserved in the immutable result");
+  }
+  const explicitlyFree = savedGameResults.find((row) => row.resultKey === "game-1")!;
+  assert.equal(explicitlyFree.payload.kind === "policy_game" ? explicitlyFree.payload.reportedCostMicros : null, 0, "$0 stays explicitly free in stored results");
+  const appendOnlyError = (error: unknown) => error instanceof Error && (error.message.includes("append-only") || error.cause instanceof Error && error.cause.message.includes("append-only"));
+  await assert.rejects(() => db.update(schema.arenaTestingRuns).set({ runnerVersion: "changed" }).where(eq(schema.arenaTestingRuns.id, savedGameRun.id)), appendOnlyError);
+  await assert.rejects(() => db.delete(schema.arenaTestingRunResults).where(eq(schema.arenaTestingRunResults.id, savedGameResults[0].id)), appendOnlyError);
+  const scenarioHistory = importHistory.find((row) => row.requestId === runBase.requestId)!;
+  assert.equal(scenarioHistory.unpinnedFixtures, 1, "unavailable runtime revision stays visibly unpinned");
+  assert.equal(scenarioHistory.mappedScenarioResults, 1, "catalog mapping is explicit and queryable");
+  const bulkRun = { ...runBase, requestId: "20000000-0000-4000-8000-000000000003",
+    results: Array.from({ length: 250 }, (_, index) => ({ ...runBase.results[0], key: `setup-${index}`, portalScenarioId: null })) };
+  const importedBulk = await importEvaluationRun(db, bulkRun);
+  assert.ok(importedBulk.ok);
+  const afterBulk = await listImportedEvaluationRuns(db);
+  assert.ok(afterBulk.every((row) => row.resultPreviews.length > 0), "each recent run retains a preview when a newer bulk run has many rows");
+  assert.equal(afterBulk.find((row) => row.requestId === bulkRun.requestId)!.resultPreviews.length, 5, "large runs are bounded to five preview rows");
+  if (importedBulk.ok) {
+    const pageTen = await getImportedEvaluationRunDetail(db, importedBulk.runId, { page: 10, outcome: "pass", fixtureKey: "fixture-a" });
+    assert.equal(pageTen?.totalMatches, 250);
+    assert.equal(pageTen?.page, 10);
+    assert.equal(pageTen?.results.length, 25);
+    assert.equal(pageTen?.fixtureTotals[0].count, 250, "detail view carries per-fixture outcome counts independently of filters");
+    assert.equal(await getImportedEvaluationRunDetail(db, importedBulk.runId, { fixtureKey: "missing" }), null);
+  }
+  const badScenarioMapping = { ...runBase, requestId: "20000000-0000-4000-8000-000000000004",
+    results: runBase.results.map((row) => ({ ...row, portalScenarioId: "not-a-catalog-scenario" })) };
+  assert.deepEqual(await importEvaluationRun(db, badScenarioMapping), { ok: false, reason: "invalid", detail: "Manifest references an unknown portal scenario ID." });
+  const badRecipeMapping = { ...runBase, requestId: "20000000-0000-4000-8000-000000000005",
+    fixtures: runBase.fixtures.map((fixture) => ({ ...fixture, p1RecipeId: "not-a-catalog-recipe" })) };
+  assert.deepEqual(await importEvaluationRun(db, badRecipeMapping), { ok: false, reason: "invalid", detail: "Manifest references an unknown portal recipe ID." });
+  assert.equal((await db.select().from(schema.arenaTestingRuns)).length, 3, "invalid catalog references create no run or result rows");
   const update = { id: deck.id, expectedVersion: 0, status: "in_progress" as const, note: "First real test", evidence: "", linkedDeckId: fresh.id };
   const outcomes = await Promise.all([updateTestingDeck(db, update), updateTestingDeck(db, { ...update, note: "A stale competing edit" })]);
   assert.equal(outcomes.filter((o) => o.ok).length, 1, "one CAS writer wins");
@@ -78,6 +163,7 @@ try {
   }
   let dashboard = await getTestingDashboard(db);
   assert.equal(dashboard.recordedStats.matches.games, 5);
+  assert.equal((await listImportedEvaluationRuns(db)).length, 3, "run receipts survive a database restart");
   assert.equal(dashboard.recordedStats.matches.completed, 2);
   assert.equal(dashboard.recordedStats.matches.draws, 1);
   assert.equal(dashboard.recordedStats.matches.interrupted, 1);
@@ -139,5 +225,5 @@ try {
   assert.equal(dashboard.recentMatches.find((m) => m.requestId === match.requestId)!.reportedCostMicros, null);
   assert.equal(dashboard.actualDecks.find((d) => d.id === fresh.id)!.isTesting, true);
   assert.deepEqual(TESTING_SCENARIO_CATALOG.reduce((s, r) => ({ ...s, [r.group]: s[r.group] + 1 }), { family: 0, strategy: 0, white_cell_rule: 0, white_cell_strategy: 0 }), { family: 24, strategy: 12, white_cell_rule: 12, white_cell_strategy: 7 });
-  console.log("arena-testing-data: additive migrations; 64 planned recipes/55 scenarios; durable reload/CAS; manual idempotency/validation; mirror/filter/matchup/cost denominators; interrupted and mixed/unknown server-model provenance; testing flag default verified");
+  console.log("arena-testing-data: additive migrations; immutable manifest imports/idempotency/reload; no auto-progress; explicit mapping/unpinned revisions/unknown-vs-zero costs; 64 planned recipes/55 scenarios; durable CAS; manual idempotency; mirror/filter/matchup/cost denominators; server-model provenance; testing flag default verified");
 } finally { await client.close(); fs.rmSync(directory, { recursive: true, force: true }); }

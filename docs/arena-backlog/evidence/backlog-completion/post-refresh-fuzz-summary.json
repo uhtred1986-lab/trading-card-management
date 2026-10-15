@@ -1,0 +1,12 @@
+{
+  "deployedCommit": "1996255ea874bca8349ec64328ea4712e23505b0",
+  "games": 40,
+  "counts": {
+    "completed": 40,
+    "interrupted": 0,
+    "action-limit": 0,
+    "crash": 0
+  },
+  "interruptions": [],
+  "note": "Random legal play on captured stored rules; not ability coverage or strategic strength evidence. Detailed traces remain private."
+}

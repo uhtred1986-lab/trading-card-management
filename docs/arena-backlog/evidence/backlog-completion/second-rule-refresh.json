@@ -1,0 +1,119 @@
+{
+  "portal": {
+    "recipes": 64,
+    "scenarios": 55,
+    "manual_results": 0,
+    "progressed_recipes": 0,
+    "progressed_scenarios": 0,
+    "flagged_decks": 0
+  },
+  "rules": [
+    {
+      "id": 663,
+      "card": "BT28-102",
+      "side": "front",
+      "skill": 10,
+      "version": 2,
+      "status": "draft"
+    },
+    {
+      "id": 1600,
+      "card": "BT3-109",
+      "side": "front",
+      "skill": 20,
+      "version": 6,
+      "status": "draft"
+    },
+    {
+      "id": 2803,
+      "card": "BT5-024",
+      "side": "front",
+      "skill": 0,
+      "version": 2,
+      "status": "draft"
+    },
+    {
+      "id": 3487,
+      "card": "BT31-001",
+      "side": "back",
+      "skill": 0,
+      "version": 6,
+      "status": "draft"
+    },
+    {
+      "id": 4948,
+      "card": "BT5-119",
+      "side": "front",
+      "skill": 0,
+      "version": 2,
+      "status": "draft"
+    },
+    {
+      "id": 5279,
+      "card": "SD13-05",
+      "side": "front",
+      "skill": 0,
+      "version": 5,
+      "status": "corrected"
+    },
+    {
+      "id": 5425,
+      "card": "SD8-03",
+      "side": "front",
+      "skill": 10,
+      "version": 6,
+      "status": "draft"
+    },
+    {
+      "id": 9332,
+      "card": "BT6-062",
+      "side": "front",
+      "skill": 10,
+      "version": 6,
+      "status": "draft"
+    },
+    {
+      "id": 10364,
+      "card": "BT10-091",
+      "side": "front",
+      "skill": 0,
+      "version": 2,
+      "status": "draft"
+    },
+    {
+      "id": 10456,
+      "card": "BT3-030",
+      "side": "front",
+      "skill": 10,
+      "version": 5,
+      "status": "draft"
+    },
+    {
+      "id": 10694,
+      "card": "BT29-040",
+      "side": "front",
+      "skill": 0,
+      "version": 2,
+      "status": "draft"
+    },
+    {
+      "id": 11805,
+      "card": "BT30-106",
+      "side": "front",
+      "skill": 10,
+      "version": 2,
+      "status": "draft"
+    }
+  ],
+  "ownerProgramPreserved": true,
+  "costs": [
+    {
+      "id": "BT31-087",
+      "specified_cost": "{k}"
+    },
+    {
+      "id": "SD13-02",
+      "specified_cost": "{g}{g}"
+    }
+  ]
+}

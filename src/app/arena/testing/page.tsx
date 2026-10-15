@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import { requireSlPage } from "@/lib/auth";
-import { getTestingDashboard } from "@/lib/arena/testing/store";
+import { getTestingDashboard, listImportedEvaluationRuns } from "@/lib/arena/testing/store";
 import type { ActorKind, StatsFilter } from "@/lib/arena/testing/types";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { TestingPortal } from "@/components/arena/testing/TestingPortal";
@@ -23,7 +23,7 @@ export default async function ArenaTestingPage({ searchParams }: { searchParams:
     model,
     deckId: validDeckId,
   };
-  const dashboard = await getTestingDashboard(db, filter);
+  const [dashboard, importedRuns] = await Promise.all([getTestingDashboard(db, filter), listImportedEvaluationRuns(db)]);
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-3 py-4 pb-24 sm:px-6 sm:py-6">
@@ -32,7 +32,7 @@ export default async function ArenaTestingPage({ searchParams }: { searchParams:
         <h1 className="text-xl font-semibold text-space-50 sm:text-2xl">Testing &amp; stats</h1>
         <p className="max-w-3xl text-sm text-space-300">Plan coverage by release and ability, keep exact scenario evidence, and record manual test results. Server Arena games and recorded results stay separate.</p>
       </header>
-      <TestingPortal dashboard={dashboard} filter={filter} requestId={randomUUID()} />
+      <TestingPortal dashboard={dashboard} filter={filter} requestId={randomUUID()} importedRuns={importedRuns} />
     </main>
   );
 }

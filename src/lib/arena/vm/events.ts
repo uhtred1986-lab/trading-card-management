@@ -67,6 +67,10 @@ export interface Moment {
   card?: string;
   controller?: PlayerId;
   args: Record<string, PatternValue>;
+  /** Private original-open-area information for movement Autos (9-6-9-1). */
+  subjectInfo?: import("./cards").Attrs;
+  /** Auto indexes negated before a Battle-to-Warp move cleared old effects. */
+  sourceNegated?: number[];
 }
 
 /**
@@ -91,7 +95,7 @@ export function log(ev: GameEvent[], event: GameEvent): number {
  * be silent — so the two are separate names and not a flag.
  */
 export function fire(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment): VmPending[] {
-  return pendAutos(ctx, game, state, moment);
+  return pendAutos(ctx, game, state, moment, undefined, moment.subjectInfo);
 }
 
 /**
@@ -109,7 +113,7 @@ export function fire(ctx: EngineContext, game: GameDefinition, state: VmState, m
  */
 export function emit(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], moment: Moment, shown: GameEvent | null = null): number {
   const at = shown ? log(ev, shown) : -1;
-  pendAutos(ctx, game, state, moment);
+  pendAutos(ctx, game, state, moment, undefined, moment.subjectInfo);
   return at;
 }
 

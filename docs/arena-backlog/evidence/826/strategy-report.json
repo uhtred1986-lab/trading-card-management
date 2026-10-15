@@ -1,0 +1,465 @@
+{
+  "runner": {
+    "id": "arena-policy-strategy",
+    "version": "1",
+    "gitCommit": "9dd250d8d886d7cb63fa8355674d42bf231b3376",
+    "dirtyTreeSha256": null
+  },
+  "protocol": {
+    "id": "resource-search-826-strategy",
+    "revision": "resource-search-826-v1"
+  },
+  "scope": "Declared synthetic subcases only; not whole AI benchmark passes.",
+  "records": [
+    {
+      "key": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "fail",
+      "horizonSteps": 1,
+      "detail": {
+        "acceptableFirst": false,
+        "objective": false,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 0,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 1,
+        "comboCards": 1,
+        "battles": 1,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-01-own-combo-lethal",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 2,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 1,
+        "comboCards": 1,
+        "battles": 1,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 3,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 3,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-01-life-replenishment",
+      "portalScenarioId": "ai-01",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 3,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "fail",
+      "horizonSteps": 6,
+      "detail": {
+        "acceptableFirst": false,
+        "objective": false,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 2,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 2,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-critical-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 2,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 1,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 1,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-05-normal-first",
+      "portalScenarioId": "ai-05",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 3,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 8,
+        "energySpent": 0,
+        "comboCards": 0,
+        "battles": 1,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "heuristic-v1",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "fail",
+      "horizonSteps": 6,
+      "detail": {
+        "acceptableFirst": false,
+        "objective": false,
+        "life": 0,
+        "energySpent": 1,
+        "comboCards": 1,
+        "battles": 2,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "search-v2-d2",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 1,
+        "energySpent": 1,
+        "comboCards": 3,
+        "battles": 2,
+        "stop": null
+      }
+    },
+    {
+      "key": "ai-02-defer-first-defense",
+      "portalScenarioId": "ai-02",
+      "policyKey": "search-v2-d3",
+      "seed": 826,
+      "seat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82602,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "horizonSteps": 8,
+      "detail": {
+        "acceptableFirst": true,
+        "objective": true,
+        "life": 1,
+        "energySpent": 1,
+        "comboCards": 3,
+        "battles": 2,
+        "stop": null
+      }
+    }
+  ]
+}

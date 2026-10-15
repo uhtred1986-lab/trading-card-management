@@ -120,10 +120,12 @@ export interface PlayOptions {
   /** 22-45-3: markers carried across from the Unison this one replaced ([Empower], #157) — read before it left. */
   carry?: { from: string; n: number };
   /**
-   * 22-15: the keyword whose own move this play is ([Over Realm]'s `play …
+   * 22-5/22-15: the keyword identity of the play (including Evolve's variant).
+   * [Over Realm]'s `play …
    * using: "Over Realm"`), carried onto the arrival's `moved` moment —
    * "when this card is played using [Over Realm]" asks for it, and an ordinary
-   * play, which carries none, is never that moment.
+   * play, which carries none, is never that moment. Evolve-family plays
+   * separately announce success after landing, not keyword activation.
    */
   using?: string;
 }
@@ -169,7 +171,9 @@ export function resolvePlay(
   card: string,
   player: PlayerId,
   opts: PlayOptions = {},
-): void {
+  /** The host's skill mover, after counter/base validation; never serialized. */
+  moveXenoBase?: (base: string) => void,
+): boolean {
   const inst = state.cards[card];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) throw new RulesetBroken(state.game, `there is no card ${card} to play`);
@@ -179,7 +183,14 @@ export function resolvePlay(
   // the Leader Area (6-1-4); the old Leader goes under it and does not leave
   // the area (3-5-3). [Evolve] and [Union-Absorb]'s hosts are in the area
   // their type is played into anyway (#155).
-  const host = opts.onto;
+  const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
+  const base = opts.onto;
+  if (evolution && (!base || findCard(state, base)?.zone !== "battle" || findCard(state, base)?.owner !== player)) return false;
+  if (opts.using === "Xeno-Evolve" && base) {
+    if (!moveXenoBase) throw new RulesetBroken(state.game, "Xeno-Evolve requires the host's skill mover");
+    moveXenoBase(base);
+  }
+  const host = opts.using === "Xeno-Evolve" ? undefined : base;
   const hostZone = host !== undefined && host !== card ? (findCard(state, host)?.zone ?? null) : null;
   const to = hostZone && hostZone === SETUP_ZONES.leader ? hostZone : PLAY_ZONES[baseTypeOf(printed)];
   // A `NotYet` and not a `RulesetBroken`: the only way here is a skill whose
@@ -249,6 +260,12 @@ export function resolvePlay(
     addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: opts.negated, source: card });
     log(ev, { type: "note", text: `${def.name} was played with its skills negated` });
   }
+  const arrived = findCard(state, card);
+  const success = arrived?.zone === to && arrived.owner === player && (!host || state.cards[card].under.includes(host));
+  // 22-5-2-3/4: evolution is a successful play, separate from using the
+  // keyword from hand. Failed/countered plays and ordinary stacks have none.
+  if (success && evolution) fire(ctx, game, state, { event: "evolved", card, controller: player, args: { to } });
+  return success;
 }
 
 /**
