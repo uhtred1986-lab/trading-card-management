@@ -4,6 +4,14 @@ Last updated: 15 October 2026
 
 ## Current work
 
+New readiness planning (15 October): [execution plan](arena-readiness-plan-2026-10-15.md)
+tracks built-in opponent discoverability/reliability (#896–#900), a prepared Claude API
+campaign (#901–#906; owner-approved $20 pilot / $100 inclusive total), and the single
+unread-rule repair queue (#907). The [live audit](rules-audit-2026-10-15/README.md)
+found 1,714 affected cards / 1,985 skills; a guarded 22-skill refresh leaves 1,694
+cards / 1,963 unread skills. The eight social-promo rulings are recorded; visible
+compliment/acknowledgement implementation remains open. No paid calls ran.
+
 The original delivery programme #581 is complete. All eight child trackers are closed;
 #518 and provider tracker #511 were accepted after the owner confirmed production testing works.
 The continuing programme is [O5, #637](arena-backlog/o5-tracking.md): reliable deck admission,
