@@ -3,7 +3,7 @@
  * #642: run named, database-free scenarios on the pinned rules engine and print compact evidence.
  *
  *   npm run arena:scenario -- [scenario ids | all] [--seed N] [--revision SHA] [--bundle file.json]
- *                             [--write-bundle file.json] [--browser] [--list]
+ *                             [--write-bundle file.json] [--manifest-out file.json] [--browser] [--list]
  *
  * Scenarios (`scripts/verify/arena-scenarios.ts`): `setup`, `battle`, `pending-choice`, and
  * `mismatch-demo` (deliberately wrong; only runs when named). Each plays the engine's own legal
@@ -21,13 +21,15 @@
  * `--bundle` takes a replay bundle with decks, e.g. one written by `--write-bundle`. No database.
  */
 import fs from "node:fs";
-import { MAX_DIFFS, SCENARIOS, runScenarios, scenarioIds, type Evidence } from "./verify/arena-scenarios.ts";
+import { MAX_DIFFS, SCENARIOS, runScenario, runScenarios, scenarioIds, type Evidence } from "./verify/arena-scenarios.ts";
 import { fixtureBundle, FIXTURE_REVISION } from "./verify/arena-browser-fixture.ts";
-import { canonicalJson, type ReplayBundleRecord } from "../src/lib/arena/replay-core.ts";
+import { canonicalJson, sha256Hex, type ReplayBundleRecord } from "../src/lib/arena/replay-core.ts";
+import { evaluationRunnerPin } from "./lib/evaluation-provenance.ts";
+import { scenarioManifest, type ScenarioAttempt } from "./lib/scenario-manifest.ts";
 
 function usage(message: string): never {
   console.error(`arena:scenario: ${message}`);
-  console.error("Usage: npm run arena:scenario -- [ids|all] [--seed N] [--revision SHA] [--bundle file.json] [--write-bundle file.json] [--browser] [--list]");
+  console.error("Usage: npm run arena:scenario -- [ids|all] [--seed N] [--revision SHA] [--bundle file.json] [--write-bundle file.json] [--manifest-out file.json] [--browser] [--list]");
   process.exit(2);
 }
 
@@ -39,7 +41,7 @@ const flag = (name: string): string | undefined => {
   if (v === undefined || v.startsWith("--")) usage(`${name} needs a value`);
   return v;
 };
-const valued = new Set(["--seed", "--revision", "--bundle", "--write-bundle"]);
+const valued = new Set(["--seed", "--revision", "--bundle", "--write-bundle", "--manifest-out"]);
 const positional = argv.filter((a, i) => !a.startsWith("--") && !valued.has(argv[i - 1] ?? ""));
 for (const a of argv) if (a.startsWith("--") && !valued.has(a) && !["--browser", "--list"].includes(a)) usage(`unknown flag ${a}`);
 
@@ -66,12 +68,31 @@ if (out) {
 }
 
 const input = { bundle, seed, interpreterRevision: revision ?? null };
+const manifestOut = flag("--manifest-out");
+const runnerPin = manifestOut ? evaluationRunnerPin("arena-scenario", "1") : null;
+const attempts: ScenarioAttempt[] = [];
 let evidence: Evidence[];
-try {
-  evidence = await runScenarios(ids, input);
-} catch (error) {
-  console.error(`arena:scenario: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+if (manifestOut) {
+  evidence = [];
+  // Export mode retains every attempted case, including interpreter failures.
+  for (const id of ids) {
+    const attempt: ScenarioAttempt = { id, seed: seed ?? SCENARIOS.find((s) => s.id === id)!.seed };
+    try {
+      attempt.evidence = await runScenario(id, input);
+      evidence.push(attempt.evidence);
+    } catch (error) {
+      attempt.error = error instanceof Error ? error.message : String(error);
+      console.error(`arena:scenario: ${attempt.error}`);
+    }
+    attempts.push(attempt);
+  }
+} else {
+  try {
+    evidence = await runScenarios(ids, input);
+  } catch (error) {
+    console.error(`arena:scenario: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
 
 interface BrowserSide {
@@ -82,7 +103,7 @@ interface BrowserSide {
 let browserInfo: { agreement: Map<string, BrowserSide>; error?: string } | null = null;
 if (argv.includes("--browser")) browserInfo = await runInBrowser(evidence);
 
-let failed = 0;
+let failed = attempts.filter((a) => a.error !== undefined).length;
 for (const e of evidence) {
   const browser = browserInfo?.agreement.get(e.scenario);
   const record = { ...e, runtime: "node", ...(browser ? { browser } : {}) };
@@ -101,7 +122,18 @@ if (browserInfo?.error) {
   failed++;
   console.error(`FAIL browser: ${browserInfo.error}`);
 }
-console.log(JSON.stringify({ summary: { scenarios: evidence.length, passed: evidence.filter((e) => e.pass).length, failed, browser: browserInfo ? !browserInfo.error : null } }));
+if (manifestOut && runnerPin) {
+  if (canonicalJson(evaluationRunnerPin("arena-scenario", "1")) !== canonicalJson(runnerPin)) throw new Error("Runner source changed during evaluation; rerun before exporting evidence.");
+  const manifest = await scenarioManifest({
+    bundle, interpreterRevision: input.interpreterRevision, runner: runnerPin,
+    protocolRevision: await sha256Hex(fs.readFileSync("scripts/verify/arena-scenarios.ts", "utf8")),
+    attempts, browser: browserInfo,
+  });
+  fs.writeFileSync(manifestOut, JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
+  fs.chmodSync(manifestOut, 0o600);
+  console.error(`arena:scenario: wrote ${manifest.results.length} allowlisted results`);
+}
+console.log(JSON.stringify({ summary: { scenarios: manifestOut ? attempts.length : evidence.length, passed: evidence.filter((e) => e.pass).length, failed, browser: browserInfo ? !browserInfo.error : null } }));
 process.exit(failed ? 1 : 0);
 
 /** Run the same scenarios in a headless-Chrome module worker, offline, and compare whole records. */

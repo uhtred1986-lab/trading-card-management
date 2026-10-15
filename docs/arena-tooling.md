@@ -641,6 +641,7 @@ $env:DATABASE_URL=''; npm run arena:scenario -- battle               # one scena
 $env:DATABASE_URL=''; npm run arena:scenario -- pending-choice --seed 641 --revision a641000000000000000000000000000000000641
 $env:DATABASE_URL=''; npm run arena:scenario -- --browser            # also in a headless-Chrome module worker, offline
 $env:DATABASE_URL=''; npm run arena:scenario -- --bundle bundle.json # a replay bundle with decks (see --write-bundle)
+$env:DATABASE_URL=''; npm run arena:scenario -- --manifest-out run.json # small evidence file for Testing & stats
 npm run arena:scenario -- --list                                     # ids, seeds, descriptions
 ```
 
@@ -660,6 +661,13 @@ npm run arena:scenario -- --list                                     # ids, seed
   compiler's own rules for eight made-up cards and the shipped DBS ruleset). The scenarios are
   pinned to that fixture and seed: another seed or bundle may legitimately reach other prompts, and
   then fails with a diagnostic naming the step rather than skipping it.
+- **Portal evidence.** `--manifest-out` writes an allowlisted versioned manifest, including
+  unsuccessful attempts. It contains source/bundle/deck hashes, seeds, pass/fail/error,
+  checked-step counts and evidence digests; never the underlying state, actions or diagnostic
+  text. Git HEAD plus a digest of dirty tracked/untracked source identifies the executed tree;
+  a source change during the run refuses export. Ignored credentials are excluded. The synthetic
+  cases deliberately have no inferred portal scenario or recipe mapping. Exporting a file does
+  not write the database or mark a checklist passed. Keep full diagnostic output locally.
 - **Output** (stdout) is one JSON object per scenario: `scenario`, `seed`, `engine`,
   `interpreterRevision`, `bundleHash`/`rulesetHash`/`catalogHash`/`programsHash`, `pass`, `moves`,
   `checked`/`steps`, `final` (phase, turn, prompt), `hashes` (state, last step's events, legal moves,
