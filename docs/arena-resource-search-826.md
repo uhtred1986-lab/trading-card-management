@@ -1,6 +1,6 @@
 # Resource-aware bounded search (#826)
 
-Search v2 remains an explicitly selected experiment. The shipped heuristic and difficulty settings are unchanged. Development produced useful tactical corrections but **no measured whole-game strength gain**: depth 2 and depth 3 each finished 7–9 against the frozen heuristic on 16 audited games. The fresh holdout has not run.
+Search v2 remains an explicitly selected experiment. The shipped heuristic and difficulty settings are unchanged. Development produced useful tactical corrections but **no measured whole-game strength gain**: depth 2 and depth 3 each finished 7–9 against the frozen heuristic on 16 audited games. The first +20M attempt was interrupted by an environment restart after 107 recorded console outcomes; it is retained as partial evidence, not a completed holdout. The frozen +30M run uses durable per-game checkpoints.
 
 ## Model and boundaries
 
@@ -39,12 +39,12 @@ The two runs use dev indices 0–1 for AvA, AvB, BvA and BvB, each from both sea
 
 All 32 games completed, with zero illegal decisions and 90 hidden-twin checks per candidate. Node timings came from concurrent development processes, so they are not browser or mobile budget evidence. Two seeds provide little strength information. Depth three has no demonstrated advantage and causes more fallback. Retained per-game seed/seat/winner/completion/search/fallback/timing summaries are [dev-depth2.json](arena-backlog/evidence/826/dev-depth2.json) and [dev-depth3.json](arena-backlog/evidence/826/dev-depth3.json).
 
-## Proposed freeze, requiring coordinator review
+## Reviewed freeze
 
-`scripts/verify/arena-search-protocol.ts` predeclares depth 2, the complete seed lists, thresholds and RNG formulas. Fresh engine seeds use base **20,000,000**, fixture bases 649–652, indices 0–39, each played from both seats: 160 paired deals / 320 games. The v1 +10M holdouts are consumed and are never presented as fresh. The candidate/engine integrated source and fixture/policy hashes must be reviewed and frozen before running this command:
+`scripts/verify/arena-search-protocol.ts` predeclares depth 2, the complete seed lists, thresholds and RNG formulas. Fresh engine seeds use base **30,000,000**, fixture bases 649–652, indices 0–39, each played from both seats: 160 paired deals / 320 games. The v1 +10M holdouts and interrupted +20M range are consumed and are never presented as fresh. The candidate/engine integrated source and fixture/policy hashes must be reviewed and frozen before running this command:
 
 ```sh
-npx tsx scripts/arena-search-eval.mts --seed-set holdout --allow-holdout --seeds 40 --depth 2 --max-moves 3000 --out /tmp/search826-holdout.json --manifest /tmp/search826-holdout-manifest.json
+npx tsx scripts/arena-search-eval.mts --seed-set holdout --allow-holdout --seeds 40 --depth 2 --max-moves 3000 --checkpoint /tmp/search826-checkpoint.json --out /tmp/search826-holdout.json --manifest /tmp/search826-holdout-manifest.json
 ```
 
 The statistical gate requires all 160 curated pairs, at least 20 decisive pairs, a pooled paired-win 95% Wilson lower bound above 0.5, and no fixture whose paired-win interval upper bound is below 0.5. Every fixture interval and an insufficient-power marker are reported; pooled success would not establish every matchup. All games must complete, with zero illegal decisions, execution/privacy failures. Failed/interrupted/limited attempts remain in the denominator. Promotion additionally requires the independent held-out tactical coverage review and browser worker p95 <=30ms, max <=300ms, retained heap <=16MiB, Node policy p95 <=5ms and search reservation <=256KiB. Browser timing and heap checks are external gates; `strengthEligible` alone never promotes a policy. If the gate fails, retain the negative result and reserve a new seed range for any retuned candidate.
