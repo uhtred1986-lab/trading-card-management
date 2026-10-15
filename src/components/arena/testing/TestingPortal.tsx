@@ -6,6 +6,7 @@ import type { ActorKind, MatchOutcome, MatchStats, ProgressStatus, StatRow, Test
 import { SubmitButton } from "@/components/SubmitButton";
 import { importEvaluationRunAction, recordTestingMatchAction, saveTestingDeckAction, saveTestingScenarioAction, type TestingActionState } from "@/app/arena/testing/actions";
 import type { ImportedRunSummary } from "@/lib/arena/testing/run-manifest";
+import preparedRecipes from "@/lib/arena/testing/prepared-recipes.json";
 
 const STATUS: { value: ProgressStatus; label: string; tone: string }[] = [
   { value: "planned", label: "Planned", tone: "border-space-600 text-space-300" },
@@ -51,6 +52,8 @@ export function TestingPortal({ dashboard, filter, requestId, importedRuns }: { 
   const deckStatusCounts = countStatuses(dashboard.decks);
   const scenarioStatusCounts = countStatuses(dashboard.scenarios);
   const recordedCost = dashboard.recordedStats.cost;
+  const preparedLegalCount = preparedRecipes.recipes.filter((recipe) => recipe.catalogLegality === "legal").length;
+  const preparedBlockedCount = preparedRecipes.recipes.length - preparedLegalCount;
 
   return (
     <div className="space-y-6">
@@ -93,6 +96,15 @@ export function TestingPortal({ dashboard, filter, requestId, importedRuns }: { 
           <thead className="hidden bg-space-950/70 text-[10px] font-semibold uppercase tracking-wider text-space-400 sm:table-header-group"><tr><th scope="col" className="px-3 py-2">Release</th><th scope="col" className="px-3 py-2">Deck and leader</th><th scope="col" className="px-3 py-2">Mechanics</th><th scope="col" className="px-3 py-2">Linked deck</th><th scope="col" className="px-3 py-2">Progress</th></tr></thead>
           <tbody>{recipes.map((deck) => <DeckRecipe key={deck.id} deck={deck} actualDecks={dashboard.actualDecks} />)}</tbody>
         </table></div> : <Empty>No deck recipes match these filters.</Empty>}
+      </section>
+
+      <section aria-labelledby="prepared-recipes-title" className="space-y-3">
+        <div>
+          <h2 id="prepared-recipes-title" className="text-lg font-semibold text-space-50">Prepared deck lists</h2>
+          <p className="text-xs text-space-400">{preparedRecipes.recipes.length} read-only proposals · {preparedLegalCount} pass the app catalog legality check; {preparedBlockedCount} historical recipe{preparedBlockedCount === 1 ? " is" : "s are"} blocked. Quantities are drafts, not strategy or rule qualification, and do not create or link an actual deck.</p>
+          <p className="mt-1 break-words text-[11px] text-space-500">Checked {preparedRecipes.checkedAt.slice(0, 10)} against the app’s current catalog restrictions. The catalog snapshot is not an independent official ban-list review. {preparedRecipes.source} Source commit {preparedRecipes.sourceCommit.slice(0, 12)}.</p>
+        </div>
+        <div className="space-y-2">{preparedRecipes.recipes.map((recipe) => <PreparedRecipeCard key={recipe.id} recipe={recipe} />)}</div>
       </section>
 
       <section aria-labelledby="scenario-title" className="space-y-3">
@@ -202,6 +214,30 @@ function ImportedRunCard({ run }: { run: ImportedRunSummary }) {
     </details>
     <Link href={`/arena/testing/runs/${run.id}`} className="tap mt-2 inline-flex min-h-10 items-center text-sm font-medium text-ki-300 hover:text-ki-200">View results →</Link>
   </article>;
+}
+
+type PreparedRecipe = (typeof preparedRecipes.recipes)[number];
+
+function PreparedRecipeCard({ recipe }: { recipe: PreparedRecipe }) {
+  const blocked = recipe.catalogLegality === "illegal";
+  return <details className="rounded-xl border border-space-700 bg-space-900/50">
+    <summary className="tap grid cursor-pointer list-none gap-1 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <span className="text-sm font-semibold text-space-100">{recipe.name}</span>
+      <span className={`justify-self-start rounded-full border px-2 py-1 text-[10px] font-semibold ${blocked ? "border-loss/60 text-loss" : "border-gain/50 text-gain"}`}>{blocked ? "Catalog blocked" : "Catalog legal"}</span>
+      <span className="text-[11px] text-space-400 sm:col-span-2">{recipe.release} · Leader {recipe.leaderId} {recipe.leaderName} · {recipe.mainCount} main{recipe.zCount ? ` · ${recipe.zCount} Z` : ""} · Draft only · qualification {recipe.qualification}</span>
+    </summary>
+    <div className="space-y-3 border-t border-space-700 p-3">
+      <p className="break-words text-xs text-space-300">{recipe.notes.join(" ")}</p>
+      {recipe.legalityIssues.length ? <div><h3 className="text-xs font-semibold text-space-200">Catalog checks</h3><ul className="mt-1 space-y-1">{recipe.legalityIssues.map((issue) => <li key={`${issue.cardId}:${issue.message}`} className={`break-words text-xs ${issue.severity === "illegal" ? "text-loss" : "text-space-400"}`}>{issue.severity}: {issue.message}</li>)}</ul></div> : <p className="text-xs text-space-400">No catalog legality issues were found in this check.</p>}
+      {recipe.compilerGapCards.length ? <p className="break-words text-xs text-ki-300">Fresh compilation reported rule-program gaps for {recipe.compilerGapCards.join(", ")}. This is a compiler diagnostic, not a stored-rule readiness verdict.</p> : null}
+      <div className="min-w-0 overflow-x-auto rounded-lg border border-space-700">
+        <table className="w-full min-w-[34rem] text-left text-xs" aria-label={`${recipe.name} proposed quantities`}>
+          <thead className="bg-space-950 text-[10px] uppercase tracking-wider text-space-400"><tr><th scope="col" className="px-2 py-2">Card</th><th scope="col" className="px-2 py-2">Name</th><th scope="col" className="px-2 py-2">Zone</th><th scope="col" className="px-2 py-2">Qty</th></tr></thead>
+          <tbody>{recipe.cards.map((card) => <tr key={`${card.zone}:${card.id}`} className="border-t border-space-800"><th scope="row" className="whitespace-nowrap px-2 py-1.5 font-mono text-space-300">{card.id}</th><td className="px-2 py-1.5 text-space-200">{card.name}</td><td className="px-2 py-1.5 text-space-400">{card.zone}</td><td className="px-2 py-1.5 tabular-nums text-space-200">{card.quantity}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>;
 }
 
 function DeckRecipe({ deck, actualDecks }: { deck: TestingDeck; actualDecks: TestingDashboard["actualDecks"] }) {
