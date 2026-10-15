@@ -172,6 +172,14 @@ export const LESSONS = [
   "why": "Awakening is optional and uses the existing card ability controls."
 },
   {
+  "id": "classic.evolve",
+  "anchor": "Legal Evolve ability on a Battle Card.",
+  "copy": "Read the offered Evolve ability and its cost before choosing it. Evolve plays a Battle Card onto an eligible Battle Card; Awakening flips your Leader and is a different ability.",
+  "evidence": "Accepted engine activation; explanation alone is not gameplay evidence.",
+  "recovery": "Inspect the offered card and eligible target, or keep considering other legal moves.",
+  "why": "Use the printed Evolve requirements and the board’s legal targets."
+},
+  {
   "id": "classic.response",
   "anchor": "Actual card ability and current prompt.",
   "copy": "Read the response shown on the board: a Counter can interrupt an attack, while Blocker redirects it to your Battle Card. Choose a legal response or decline it.",
@@ -228,7 +236,7 @@ export function lessonReducer(state: LearningProgress, event: LearningEvent): Le
   if (event.type === "skip") return { ...state, skipped: [...new Set([...state.skipped, event.id])] };
   if (event.type === "prediction") return { ...state, predictions: { ...state.predictions, [event.id]: event.answer } };
   if (event.type === "acknowledge") {
-    if (!event.id.startsWith("intro.") && !["t1.first-turn", "wrapup", "classic.awaken"].includes(event.id)) return state;
+    if (!event.id.startsWith("intro.") && !["t1.first-turn", "wrapup", "classic.awaken", "classic.evolve"].includes(event.id)) return state;
     return { ...state, completed: [...new Set([...state.completed, event.id])] };
   }
   const { before, after, action, actor } = event;
@@ -274,7 +282,9 @@ export function currentLesson(progress: LearningProgress, snapshot?: Snapshot): 
         if (snapshot.view.turnPlayer !== snapshot.view.you.player) return get(unseen("opp.attack-predict") ? "opp.attack-predict" : "opp.defend");
         return get("t2.offense-combo");
       }
+      if (prompt === "main" && unseen("classic.evolve") && snapshot.legal.some(l => l.action.type === "activate" && l.action.onto && /evolve/i.test(l.label))) return get("classic.evolve");
       if (prompt === "main" && unseen("classic.awaken") && snapshot.legal.some(l => l.action.type === "activate" && l.action.card === snapshot.view.you.leader?.id && /awaken/i.test(l.label))) return get("classic.awaken");
+      if (prompt === "main" && !snapshot.legal.some(l => l.action.type === "play")) return get(snapshot.legal.some(l => l.action.type === "attack") ? "t2.attack-target" : "t1.end");
     }
     if (snapshot.view.turnPlayer !== snapshot.view.you.player) return get(snapshot.view.battle ? "opp.tie" : "opp.observe");
     if (snapshot.view.battle) return get("t2.resolve");
@@ -293,4 +303,42 @@ export function affordabilityPrompt(snapshot: Snapshot) {
 }
 export function handoffReady(progress: LearningProgress): boolean {
   return progress.ownTurns >= 2 && (progress.defended || progress.skipped.includes("opp.defend")) && progress.ownBattleResolved;
+}
+
+/** Small phone coach: current legal choices take priority over curriculum history. */
+export const BADGE_GLOSSARY = "BLK = Blocker: redirects an attack to that Battle Card. RVG = Revenge: when attacked, KO the attacking Battle Card after battle. STR marks a Strike ability; read its exact card text. These are skills, not colors. Phase markers show progress; they are not navigation buttons.";
+export function compactCoach(lessonId: string, snapshot: Snapshot): { instruction: string; concept: string } {
+  const say = (instruction: string, concept: string) => ({ instruction, concept });
+  const prompt = snapshot.view.prompt.kind;
+  if (snapshot.view.over) return say("The match has ended. Review a lesson or start again.", "Life, deck and card effects determine the result. Your accepted moves are recorded in Lessons.");
+  if (snapshot.waiting === "you") {
+    if (prompt === "charge") return say("Tap a hand card, then Charge it. Pass means no charge this turn.", "That card leaves your hand and stays in Energy. Rest energy to pay costs; it readies again next turn.");
+    if (["chooseCards", "chooseMode", "payCost", "optionalCost", "orderPending", "replaceMove"].includes(prompt)) return say("Follow the current card prompt and confirm your choice.", "Read the card’s ability and the number of selections required. Only the choices offered here are legal; reviewing a card does not commit it.");
+    if (prompt === "counter") return say("Choose a legal Counter response, or the offered decline option.", "A Counter interrupts at its printed timing; read whether it negates the attack. Declining this window lets the battle continue.");
+    if (prompt === "blocker") return say("Choose an offered Blocker to redirect the attack, or the offered decline option.", "Blocker rests your eligible Battle Card and makes it the defender. It does not negate the attack; a Counter may do that instead.");
+    if (prompt === "zEnergyFromCombo") return say("Choose one eligible combo card for Z-Energy, or decline.", "Combo cards normally go to Drop after battle. A zero energy combo cost still spends the card; it does not return to your hand.");
+    if (prompt === "combo") {
+      const attacking = snapshot.view.turnPlayer === snapshot.view.you.player;
+      return say(`Choose Combo to boost your ${attacking ? "attacker" : "defender"}, or Pass to finish your combo step.`, "Playing a card does not add combo power. Combo uses a hand card or eligible Battle Card for this battle only; zero energy cost still spends it. The attacker wins ties.");
+    }
+    if (prompt === "main") {
+      if (lessonId === "classic.awaken" && snapshot.legal.some(l => l.action.type === "activate" && l.action.card === snapshot.view.you.leader?.id && /awaken/i.test(l.label))) return say("Read your Leader’s Awaken ability, then choose whether to activate it.", "These BT1 Leaders Awaken at four Life or less: flip the Leader and draw two. Evolve is a separate Battle Card ability, not another name for Awakening.");
+      if (lessonId === "classic.evolve" && snapshot.legal.some(l => l.action.type === "activate" && l.action.onto && /evolve/i.test(l.label))) return say("Inspect the offered Evolve ability, its cost and eligible Battle Card target.", "Evolve plays a Battle Card onto another Battle Card. Awakening instead flips a Leader. Choose Evolve only if you want to use that legal ability.");
+      const play = snapshot.legal.some(l => l.action.type === "play");
+      const leaderAttack = snapshot.legal.some(l => l.action.type === "attack" && l.action.attacker === snapshot.view.you.leader?.id);
+      if (!play) {
+        const energy = snapshot.view.you.energy.length;
+        if (leaderAttack) return say("Choose your Leader, then an offered attack target. A normal Leader attack costs no energy.", `${energy === 0 ? "You have no energy after declining charge. " : "No hand card can be played now. "}The attacker wins ties. Combos are separate choices during battle.`);
+        const attack = snapshot.legal.some(l => l.action.type === "attack");
+        if (attack) return say("Choose an offered attacker and legal target, or End turn.", "No hand card can be played now. Playing and Combo are separate actions; combo power applies only during battle. The attacker wins ties.");
+        return say("Choose End turn. On your next Charge Phase, tap a hand card, then Charge it.", `${energy === 0 ? "You have no energy to pay for cards. " : "No play or attack is legal now. "}${snapshot.view.turn === 1 ? "The first player cannot attack on their first turn. " : ""}Pass only declines a prompt; it does not end your turn.`);
+      }
+      if (["t2.attack-target", "changed-board.predict"].includes(lessonId) && snapshot.legal.some(l => l.action.type === "attack")) return say("Choose an Active attacker, then an offered target. Confirm the attack when prompted.", "You can attack a Leader or a rested Battle Card when legal. A normal Leader attack costs no energy. Combo power is added separately during battle; the attacker wins ties.");
+      return say("Tap a playable hand card, review it, then choose Play and confirm its payment.", "Rest energy to pay; it stays in Energy. Playing a Battle Card uses its battle power, not its combo power. Combo is a separate battle action that spends a card.");
+    }
+  }
+  if (snapshot.view.battle) return say("Watch the current battle resolve and follow the next response prompt.", "Compare final power after combos: the attacker wins ties. A successful Leader hit takes Life; a defeated Battle Card goes to Drop. Combo boosts last only this battle.");
+  if (snapshot.view.turnPlayer !== snapshot.view.you.player) return say("Watch the opponent’s turn; respond when the board offers you a choice.", "They ready their rested cards, draw, and may charge. Energy stays in its area when rested to pay. Phase markers show progress, not navigation.");
+  const lesson = LESSONS.find(l => l.id === lessonId);
+  return say(lesson?.copy ?? "Read the current board prompt and choose an offered legal action.", "Tap a card to inspect it. Phase markers show progress; use the board’s action controls to make a move.");
 }
