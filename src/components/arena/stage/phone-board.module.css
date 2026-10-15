@@ -161,6 +161,5 @@
 
 @media (min-width: 1280px) {
  .handCards { padding-bottom: 36px; }
- .board :global(.arena-field.arena-hand) { --arena: 1.15; }
  .board :global(.arena-slot:not(.arena-slot-lifted):not(.arena-slot-land)) { display: none; }
 }

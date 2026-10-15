@@ -1339,8 +1339,8 @@ export function ArenaStage({
         ref={boardRef}
         // Below sm the board runs to the screen's edges (the page keeps a
         // 0.5 rem gutter for everything else), so its edge line is flush.
-        // From lg the board has one match strip over the field and hand, with
-        // the decision above card review in the contextual right column.
+        // From lg the board has one match strip over the field and hand. On
+        // desktop the decision sits beside the hand and card review stays right.
         className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-xl:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
@@ -1548,9 +1548,8 @@ export function ArenaStage({
           {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
-          {/* CSS places this single decision panel under the hand on phones and
-              above inspection on desktop. Its React instance stays mounted
-              while a card is pinned or hovered, preserving focused controls. */}
+          {/* This single decision panel stays with the hand on phones and moves
+              beside it on desktop, while inspection stays in the right column. */}
           <div className="arena-context xl:min-h-0 xl:[grid-area:side]">
           <div className={`${phoneStyles.dock} sticky bottom-0 z-30 xl:static xl:z-auto xl:shrink-0`}>
             <PromptPanel
@@ -1592,7 +1591,7 @@ export function ArenaStage({
               onNext={playback.next}
             />
           </div>
-          {wide && <div className="hidden xl:block xl:min-h-0 xl:flex-1">
+          {wide && <div className="hidden xl:block xl:min-h-0 xl:flex-1 xl:[grid-area:side]">
           <InspectorColumn
             tab={deskTab}
             onTab={setDeskTab}
