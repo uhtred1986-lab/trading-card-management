@@ -131,6 +131,7 @@ export function ArenaStage({
   adminDebug = null,
   menu = null,
   decklists,
+  onTutorialState,
 }: {
   /**
    * The transport (#648): snapshots in, actions out, connection status, and the
@@ -140,6 +141,8 @@ export function ArenaStage({
    * pass its own.
    */
   session: ArenaSession;
+  /** Practice host observes readiness; board controls and animation retain priority. */
+  onTutorialState?: (state: { busy: boolean; reviewOpen: boolean; targeting: boolean }) => void;
   snapshot: Snapshot;
   skin?: ArenaSkin;
   staging?: ArenaStaging;
@@ -759,6 +762,10 @@ export function ArenaStage({
   const searchKey = `${view.prompt.question}|${choices.map((c) => c.id).join(",")}`;
   const searching = choices.length > 0 && playable && !busy && view.prompt.player === view.you.player;
   const searchOpen = searching && closedSearch !== searchKey;
+  useEffect(() => {
+    onTutorialState?.({ busy, reviewOpen: !!sheet || !!attackPick || searchOpen || moreOpen, targeting: isTargeting });
+  }, [busy, sheet, attackPick, searchOpen, moreOpen, isTargeting, onTutorialState]);
+
   const chooseNone = taps.bare.find((i) => legal[i].action.type === "choose" && (legal[i].action as { cards: string[] }).cards.length === 0) ?? null;
   const refusedChoices = rejected.flatMap((r) => r.action.type === "choose" && r.action.cards.length === 1
     ? [{ card: cardOf(r.action.cards[0]), reason: r.why.map((why) => why.kind === "target" ? why.reason : why.kind).join(" · "), label: locate(r.action.cards[0])?.zone === "leader" ? "Leader" : cardOf(r.action.cards[0])?.keywords.includes("Barrier") ? "Barrier" : "No" }]
