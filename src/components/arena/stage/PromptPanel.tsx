@@ -139,6 +139,9 @@ export function PromptPanel({
   )));
   // Ordinary Main phase needs a turn control, not a permanent instruction bar.
   // Actual decisions, errors and step playback retain the full panel below.
+  // Automatic presentation needs no bottom narration bar. Manual step mode
+  // still needs its Next control; the board keeps Fast-forward available.
+  if (playing && pace !== "step" && !error) return null;
   const quietMain = view.prompt.kind === "main" && !view.over && !overOutcome && !playing && !bad && !isTargeting && !searching && !onRetry;
   if (quietMain) return <div className="flex items-center justify-end gap-2 px-3 py-2" data-arena-quiet-controls>
     <button type="button" className="arena-iconbtn tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-100" aria-label="Open player guidance" aria-haspopup="dialog" onClick={() => setDetailOpen(true)}>?</button>
