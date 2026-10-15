@@ -1,0 +1,975 @@
+{
+  "status": "infrastructure_interrupted",
+  "runnerCommit": "965244a2",
+  "seedBase": 20000000,
+  "plannedGames": 320,
+  "completedConsoleRows": 107,
+  "finalReportAvailable": false,
+  "partialConsoleSha256": "e64b32f7d13640738572b31487cd9916a2a83ab8fccccb521dd39fd24ffc5c42",
+  "reason": "Managed environment restart terminated the evaluator before final manifest/report export. Console outcomes are partial diagnostics, excluded from promotion and not imported as complete run evidence. Range retired; no policy tuning from these results.",
+  "records": [
+    {
+      "fixture": "AvA",
+      "index": 0,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 172,
+      "searched": 10,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvA",
+      "index": 0,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 180,
+      "searched": 4,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvA",
+      "index": 1,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 180,
+      "searched": 10,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 1,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 130,
+      "searched": 20,
+      "nodeFallback": 7
+    },
+    {
+      "fixture": "AvA",
+      "index": 2,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 267,
+      "searched": 11,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 2,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 152,
+      "searched": 17,
+      "nodeFallback": 3
+    },
+    {
+      "fixture": "AvA",
+      "index": 3,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 229,
+      "searched": 34,
+      "nodeFallback": 2
+    },
+    {
+      "fixture": "AvA",
+      "index": 3,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 233,
+      "searched": 17,
+      "nodeFallback": 32
+    },
+    {
+      "fixture": "AvA",
+      "index": 4,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 256,
+      "searched": 8,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 4,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 256,
+      "searched": 11,
+      "nodeFallback": 4
+    },
+    {
+      "fixture": "AvA",
+      "index": 5,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 186,
+      "searched": 13,
+      "nodeFallback": 3
+    },
+    {
+      "fixture": "AvA",
+      "index": 5,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 215,
+      "searched": 26,
+      "nodeFallback": 18
+    },
+    {
+      "fixture": "AvA",
+      "index": 6,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 184,
+      "searched": 5,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 6,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 156,
+      "searched": 10,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvA",
+      "index": 7,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 231,
+      "searched": 20,
+      "nodeFallback": 8
+    },
+    {
+      "fixture": "AvA",
+      "index": 7,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 179,
+      "searched": 19,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 8,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 210,
+      "searched": 15,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvA",
+      "index": 8,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 200,
+      "searched": 18,
+      "nodeFallback": 24
+    },
+    {
+      "fixture": "AvA",
+      "index": 9,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 191,
+      "searched": 3,
+      "nodeFallback": 16
+    },
+    {
+      "fixture": "AvA",
+      "index": 9,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 239,
+      "searched": 19,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvA",
+      "index": 10,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 191,
+      "searched": 3,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 10,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 157,
+      "searched": 5,
+      "nodeFallback": 21
+    },
+    {
+      "fixture": "AvA",
+      "index": 11,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 198,
+      "searched": 14,
+      "nodeFallback": 2
+    },
+    {
+      "fixture": "AvA",
+      "index": 11,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 156,
+      "searched": 5,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 12,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 234,
+      "searched": 23,
+      "nodeFallback": 8
+    },
+    {
+      "fixture": "AvA",
+      "index": 12,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 205,
+      "searched": 23,
+      "nodeFallback": 3
+    },
+    {
+      "fixture": "AvA",
+      "index": 13,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 244,
+      "searched": 9,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvA",
+      "index": 13,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 228,
+      "searched": 37,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvA",
+      "index": 14,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 165,
+      "searched": 17,
+      "nodeFallback": 10
+    },
+    {
+      "fixture": "AvA",
+      "index": 14,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 208,
+      "searched": 13,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvA",
+      "index": 15,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 213,
+      "searched": 6,
+      "nodeFallback": 32
+    },
+    {
+      "fixture": "AvA",
+      "index": 15,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 229,
+      "searched": 9,
+      "nodeFallback": 21
+    },
+    {
+      "fixture": "AvA",
+      "index": 16,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 166,
+      "searched": 28,
+      "nodeFallback": 2
+    },
+    {
+      "fixture": "AvA",
+      "index": 16,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 241,
+      "searched": 16,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvA",
+      "index": 17,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 281,
+      "searched": 0,
+      "nodeFallback": 17
+    },
+    {
+      "fixture": "AvA",
+      "index": 17,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 281,
+      "searched": 8,
+      "nodeFallback": 17
+    },
+    {
+      "fixture": "AvA",
+      "index": 18,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 178,
+      "searched": 23,
+      "nodeFallback": 0
+    },
+    {
+      "fixture": "AvA",
+      "index": 18,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 127,
+      "searched": 13,
+      "nodeFallback": 17
+    },
+    {
+      "fixture": "AvA",
+      "index": 19,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 252,
+      "searched": 37,
+      "nodeFallback": 8
+    },
+    {
+      "fixture": "AvA",
+      "index": 19,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 274,
+      "searched": 10,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvA",
+      "index": 20,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 204,
+      "searched": 8,
+      "nodeFallback": 16
+    },
+    {
+      "fixture": "AvA",
+      "index": 20,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 202,
+      "searched": 19,
+      "nodeFallback": 7
+    },
+    {
+      "fixture": "AvA",
+      "index": 21,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 203,
+      "searched": 19,
+      "nodeFallback": 3
+    },
+    {
+      "fixture": "AvA",
+      "index": 21,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 192,
+      "searched": 9,
+      "nodeFallback": 33
+    },
+    {
+      "fixture": "AvA",
+      "index": 22,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 227,
+      "searched": 9,
+      "nodeFallback": 13
+    },
+    {
+      "fixture": "AvA",
+      "index": 22,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 208,
+      "searched": 24,
+      "nodeFallback": 13
+    },
+    {
+      "fixture": "AvA",
+      "index": 23,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 272,
+      "searched": 16,
+      "nodeFallback": 7
+    },
+    {
+      "fixture": "AvA",
+      "index": 23,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 293,
+      "searched": 15,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvA",
+      "index": 24,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 217,
+      "searched": 3,
+      "nodeFallback": 37
+    },
+    {
+      "fixture": "AvA",
+      "index": 24,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 213,
+      "searched": 12,
+      "nodeFallback": 20
+    },
+    {
+      "fixture": "AvA",
+      "index": 25,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 239,
+      "searched": 22,
+      "nodeFallback": 13
+    },
+    {
+      "fixture": "AvA",
+      "index": 25,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 230,
+      "searched": 20,
+      "nodeFallback": 16
+    },
+    {
+      "fixture": "AvA",
+      "index": 26,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 165,
+      "searched": 10,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 26,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 205,
+      "searched": 26,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvA",
+      "index": 27,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 208,
+      "searched": 9,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvA",
+      "index": 27,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 183,
+      "searched": 7,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 28,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 228,
+      "searched": 3,
+      "nodeFallback": 13
+    },
+    {
+      "fixture": "AvA",
+      "index": 28,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 219,
+      "searched": 11,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvA",
+      "index": 29,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 205,
+      "searched": 3,
+      "nodeFallback": 10
+    },
+    {
+      "fixture": "AvA",
+      "index": 29,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 205,
+      "searched": 5,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvA",
+      "index": 30,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 179,
+      "searched": 19,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvA",
+      "index": 30,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 217,
+      "searched": 28,
+      "nodeFallback": 11
+    },
+    {
+      "fixture": "AvA",
+      "index": 31,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 138,
+      "searched": 9,
+      "nodeFallback": 18
+    },
+    {
+      "fixture": "AvA",
+      "index": 31,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 144,
+      "searched": 13,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 32,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 223,
+      "searched": 21,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvA",
+      "index": 32,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 208,
+      "searched": 5,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvA",
+      "index": 33,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 182,
+      "searched": 13,
+      "nodeFallback": 4
+    },
+    {
+      "fixture": "AvA",
+      "index": 33,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 187,
+      "searched": 17,
+      "nodeFallback": 11
+    },
+    {
+      "fixture": "AvA",
+      "index": 34,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 155,
+      "searched": 20,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvA",
+      "index": 34,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 239,
+      "searched": 13,
+      "nodeFallback": 0
+    },
+    {
+      "fixture": "AvA",
+      "index": 35,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 154,
+      "searched": 12,
+      "nodeFallback": 2
+    },
+    {
+      "fixture": "AvA",
+      "index": 35,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 247,
+      "searched": 9,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvA",
+      "index": 36,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 200,
+      "searched": 22,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvA",
+      "index": 36,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 179,
+      "searched": 3,
+      "nodeFallback": 17
+    },
+    {
+      "fixture": "AvA",
+      "index": 37,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 167,
+      "searched": 11,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 37,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 246,
+      "searched": 4,
+      "nodeFallback": 22
+    },
+    {
+      "fixture": "AvA",
+      "index": 38,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 158,
+      "searched": 9,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvA",
+      "index": 38,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 151,
+      "searched": 17,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvA",
+      "index": 39,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 128,
+      "searched": 17,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvA",
+      "index": 39,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 159,
+      "searched": 1,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvB",
+      "index": 0,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 248,
+      "searched": 25,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvB",
+      "index": 0,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 251,
+      "searched": 24,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvB",
+      "index": 1,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 199,
+      "searched": 8,
+      "nodeFallback": 5
+    },
+    {
+      "fixture": "AvB",
+      "index": 1,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 185,
+      "searched": 21,
+      "nodeFallback": 18
+    },
+    {
+      "fixture": "AvB",
+      "index": 2,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 209,
+      "searched": 16,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvB",
+      "index": 2,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 192,
+      "searched": 17,
+      "nodeFallback": 9
+    },
+    {
+      "fixture": "AvB",
+      "index": 3,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 181,
+      "searched": 3,
+      "nodeFallback": 24
+    },
+    {
+      "fixture": "AvB",
+      "index": 3,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 183,
+      "searched": 10,
+      "nodeFallback": 10
+    },
+    {
+      "fixture": "AvB",
+      "index": 4,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 182,
+      "searched": 9,
+      "nodeFallback": 6
+    },
+    {
+      "fixture": "AvB",
+      "index": 4,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 196,
+      "searched": 6,
+      "nodeFallback": 11
+    },
+    {
+      "fixture": "AvB",
+      "index": 5,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 172,
+      "searched": 12,
+      "nodeFallback": 7
+    },
+    {
+      "fixture": "AvB",
+      "index": 5,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 130,
+      "searched": 16,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvB",
+      "index": 6,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 201,
+      "searched": 10,
+      "nodeFallback": 1
+    },
+    {
+      "fixture": "AvB",
+      "index": 6,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 228,
+      "searched": 0,
+      "nodeFallback": 11
+    },
+    {
+      "fixture": "AvB",
+      "index": 7,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 261,
+      "searched": 29,
+      "nodeFallback": 18
+    },
+    {
+      "fixture": "AvB",
+      "index": 7,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 195,
+      "searched": 4,
+      "nodeFallback": 16
+    },
+    {
+      "fixture": "AvB",
+      "index": 8,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 200,
+      "searched": 11,
+      "nodeFallback": 14
+    },
+    {
+      "fixture": "AvB",
+      "index": 8,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 221,
+      "searched": 30,
+      "nodeFallback": 2
+    },
+    {
+      "fixture": "AvB",
+      "index": 9,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 238,
+      "searched": 27,
+      "nodeFallback": 8
+    },
+    {
+      "fixture": "AvB",
+      "index": 9,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 235,
+      "searched": 9,
+      "nodeFallback": 36
+    },
+    {
+      "fixture": "AvB",
+      "index": 10,
+      "candidateSeat": "p1",
+      "reportedWinner": "baseline",
+      "moves": 192,
+      "searched": 14,
+      "nodeFallback": 15
+    },
+    {
+      "fixture": "AvB",
+      "index": 10,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 216,
+      "searched": 24,
+      "nodeFallback": 12
+    },
+    {
+      "fixture": "AvB",
+      "index": 11,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 216,
+      "searched": 23,
+      "nodeFallback": 17
+    },
+    {
+      "fixture": "AvB",
+      "index": 11,
+      "candidateSeat": "p2",
+      "reportedWinner": "test",
+      "moves": 183,
+      "searched": 11,
+      "nodeFallback": 31
+    },
+    {
+      "fixture": "AvB",
+      "index": 12,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 197,
+      "searched": 5,
+      "nodeFallback": 20
+    },
+    {
+      "fixture": "AvB",
+      "index": 12,
+      "candidateSeat": "p2",
+      "reportedWinner": "baseline",
+      "moves": 193,
+      "searched": 4,
+      "nodeFallback": 16
+    },
+    {
+      "fixture": "AvB",
+      "index": 13,
+      "candidateSeat": "p1",
+      "reportedWinner": "test",
+      "moves": 259,
+      "searched": 4,
+      "nodeFallback": 8
+    }
+  ]
+}
