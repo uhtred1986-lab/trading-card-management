@@ -1,4 +1,5 @@
 "use client";
+import { CardReader } from "./CardReader";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Spotlight } from "@/lib/arena/games";
@@ -9,7 +10,6 @@ export type { InspectorChip };
 import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { newestFirst, type StoryLine } from "@/lib/arena/story";
 import { cardImage } from "@/lib/catalog/card-image";
-import { ArenaCard } from "./ArenaCard";
 import { useCardEndpoints } from "./stage/use-card-endpoints";
 
 export function Counter({ label, value }: { label: string; value: number }) {
@@ -290,15 +290,7 @@ export function DockedInspector({
   return (
     <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
       {basicActions}
-      {card.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- the board has already loaded this URL.
-        <img src={cardImage(card.imageUrl, "medium")} alt="" className="card-aspect mx-auto w-[clamp(6.5rem,16dvh,9.5rem)] rounded-lg object-cover" />
-      ) : (
-        // A card with no art (a test deck): its drawn face, as on the board.
-        <div className="arena-inspect-art flex justify-center">
-          <ArenaCard card={{ ...card, mode: "active" }} width={77} />
-        </div>
-      )}
+      <div data-desktop-reader><CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" /></div>
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
         {pinned && (
@@ -315,7 +307,7 @@ export function DockedInspector({
       <ChipRow chips={chips} />
       {stats}
       <div className="space-y-1.5">{actions}</div>
-      <CardDetail card={card} narrator={narrator} battle={battle} figures={false} />
+      <details><summary className="tap min-h-11 cursor-pointer py-3 text-sm">More card details</summary><CardDetail card={card} narrator={narrator} battle={battle} figures={false} /></details>
     </div>
   );
 }

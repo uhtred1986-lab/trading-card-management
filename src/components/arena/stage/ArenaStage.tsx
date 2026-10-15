@@ -100,11 +100,11 @@ import { quietSkills } from "./quiet-skills";
  * what flies it there and back, so it may exist in exactly one place.
  */
 /**
- * Whether the board is wide enough for the docked inspector (Tailwind `lg`).
+ * Whether the board is wide enough for the docked inspector (Tailwind `xl`).
  * Behaviour only — the column itself is shown by CSS, so there is nothing to
  * mismatch on hydration. False on the server, which has no pointer to hover.
  */
-const WIDE = "(min-width: 1024px)";
+const WIDE = "(min-width: 1280px)";
 
 type ArenaDecklist = {
   name: string;
@@ -1341,7 +1341,7 @@ export function ArenaStage({
         // 0.5 rem gutter for everything else), so its edge line is flush.
         // From lg the board has one match strip over the field and hand, with
         // the decision above card review in the contextual right column.
-        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-lg:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
+        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-xl:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
         data-response-window={defending ? view.prompt.kind : undefined}
@@ -1371,15 +1371,15 @@ export function ArenaStage({
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
-        <div className="flex min-w-0 flex-1 flex-col lg:contents">
+        <div className="flex min-w-0 flex-1 flex-col xl:contents">
           {/* One desktop match strip: turn and phase are said here, while the
               board's two resource strips show life and energy at their zones.
               It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
+          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center xl:h-auto" : "h-[52px] sm:h-[52px] xl:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] xl:min-h-[60px] xl:flex-wrap xl:gap-x-4 xl:gap-y-1 xl:px-3 xl:py-1 xl:[grid-area:top]`}>
             {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
-            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
+            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 xl:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
@@ -1392,12 +1392,12 @@ export function ArenaStage({
               </div>
             )}
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
-              <span className="hidden lg:contents"><SpeedButton /></span>
+              <span className="hidden xl:contents"><SpeedButton /></span>
               <button
                 type="button"
                 onClick={() => view.them.leader && setSheet(view.them.leader)}
                 disabled={!view.them.leader}
-                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center disabled:opacity-40 lg:hidden"
+                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center disabled:opacity-40 xl:hidden"
                 aria-label="Review cards in play"
               >
                 <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1405,7 +1405,7 @@ export function ArenaStage({
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
-              {/* From lg: the battle log, the inspector's second tab. */}
+              {/* From xl: the battle log, the inspector's second tab. */}
               <button
                 type="button"
                 onClick={() => wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((open) => !open)}
@@ -1427,20 +1427,20 @@ export function ArenaStage({
             </div>
           </div>
           {/* The phase words under the bar; from lg they are the left column's list. */}
-          <div className="h-[30px] shrink-0 lg:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
+          <div className="h-[30px] shrink-0 xl:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
             <PhaseChips view={view} cue={feedback.phase} className="arena-phases-row h-full overflow-hidden px-2" />
           </div>
 
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
               drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
-          <div className={`flex min-w-0 flex-1 flex-col lg:min-h-0 lg:[grid-area:field] ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
+          <div className={`flex min-w-0 flex-1 flex-col xl:min-h-0 xl:[grid-area:field] ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
 
             {/* The field: their strip, their row with their leader first, the
                 lane, your row, your strip. Open sky — no panel round it. */}
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
-            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[440px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
+            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[440px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
               <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
@@ -1462,7 +1462,7 @@ export function ArenaStage({
                 />
                 <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
                   {logOpen && (
-                    <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
+                    <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 xl:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-space-300">Battle log</span>
                         <button type="button" onClick={() => setLogOpen(false)} className="arena-iconbtn tap -my-2 -mr-2 flex h-11 w-11 items-center justify-center" aria-label="Close battle log">
@@ -1527,7 +1527,7 @@ export function ArenaStage({
           </div>
 
           {/* The fan, and the moves that have no card, in the grid's hand row. */}
-          <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-end lg:[grid-area:hand]">
+          <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col xl:justify-end xl:[grid-area:hand]">
           {playable && !playback.playing && !isTargeting && overflowBare.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
               {overflowBare.map(({ i, l }) => (
@@ -1551,8 +1551,8 @@ export function ArenaStage({
           {/* CSS places this single decision panel under the hand on phones and
               above inspection on desktop. Its React instance stays mounted
               while a card is pinned or hovered, preserving focused controls. */}
-          <div className="arena-context lg:min-h-0 lg:[grid-area:side]">
-          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:z-auto lg:shrink-0`}>
+          <div className="arena-context xl:min-h-0 xl:[grid-area:side]">
+          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 xl:static xl:z-auto xl:shrink-0`}>
             <PromptPanel
               view={view}
               decision={live.decision}
@@ -1592,7 +1592,7 @@ export function ArenaStage({
               onNext={playback.next}
             />
           </div>
-          {wide && <div className="hidden lg:block lg:min-h-0 lg:flex-1">
+          {wide && <div className="hidden xl:block xl:min-h-0 xl:flex-1">
           <InspectorColumn
             tab={deskTab}
             onTab={setDeskTab}
@@ -1725,7 +1725,7 @@ export function ArenaStage({
               </MenuSection>
             )}
             {/* From lg the log is the right column's second tab. */}
-            <div className="lg:hidden">
+            <div className="xl:hidden">
               <MenuSection title="Log">
                 <button
                   type="button"
@@ -1751,7 +1751,7 @@ export function ArenaStage({
             </MenuSection>
             <MenuSection title="Combat effects"><ImmersionSettings /></MenuSection>
             <MenuSection title="Board">
-              <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
+              <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm xl:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
                 {session.chooseStaging && <StagingToggle staging={staging} onChoose={session.chooseStaging} />}
                 {session.chooseSkin && <SkinToggle skin={skin} onChoose={session.chooseSkin} />}
@@ -1766,7 +1766,7 @@ export function ArenaStage({
                     setMoreOpen(false);
                     setZonesOpen(true);
                   }}
-                  className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden"
+                  className="tap min-h-11 rounded border border-space-600 px-3 text-sm xl:hidden"
                   aria-label="Inspect public zones"
                 >
                   Zones: Drop, Warp, Z-Deck, Z-Energy

@@ -2,7 +2,7 @@
 .face { position: relative; flex-shrink: 0; width: min(84%, 380px, calc((100cqh - 8px) * .716)); aspect-ratio: 63 / 88; transform: translateX(var(--reader-drag, 0px)); transition: transform 160ms ease-out; filter: drop-shadow(0 10px 15px #001f3d40); animation: arrive 160ms ease-out; }
 .art { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; user-select: none; }
 .placeholder { display: grid; place-items: center; height: 100%; border-radius: 12px; background: #14364b; color: white; padding: 20px; }
-.anchored { position: absolute; bottom: 11%; left: 50%; width: min(88vw, 480px); transform: translateX(-50%); max-height: 43%; display: flex; flex-direction: column; gap: 7px; padding: 5px; overflow-y: auto; overscroll-behavior: contain; border-radius: 9px; scrollbar-width: thin; touch-action: pan-y; }
+.anchored { position: absolute; bottom: 11%; left: 50%; width: min(88vw, calc(100cqw - 8px), 480px); transform: translateX(-50%); max-height: 43%; display: flex; flex-direction: column; gap: 7px; padding: 5px; overflow-y: auto; overscroll-behavior: contain; border-radius: 9px; scrollbar-width: thin; touch-action: pan-y; }
 .ability { flex-shrink: 0; display: block; width: 100%; min-height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); text-align: left; box-shadow: 0 3px 10px #002d4c33; cursor: default; }
 .ability[data-available] { border-color: #34ead6; box-shadow: 0 0 0 2px #34ead655, 0 0 12px #34ead680; }
 .info:focus-visible { outline: 3px solid #ffc14f; outline-offset: -3px; }

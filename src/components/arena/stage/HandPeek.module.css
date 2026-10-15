@@ -13,3 +13,8 @@
 .popup [data-reader-drag-handle] { touch-action: none; }
 
 .popup [data-reader-drag-handle] { rotate: -2deg; }
+
+@media (min-width: 768px) {
+ .popup { left: calc(50% - 240px); right: calc(50% - 240px); top: max(28px, 6dvh); }
+ .hint { font-size: 13px; }
+}
