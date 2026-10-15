@@ -15,8 +15,8 @@ import { SEARCH_HOLDOUT_PROTOCOL, SEARCH_EVAL_SETS } from "./arena-search-protoc
 const {bundle,cases}=await strategyCases();
 const freshSeeds=Object.values(SEARCH_HOLDOUT_PROTOCOL.engineSeeds).flat();
 assert.equal(freshSeeds.length,160);assert.equal(new Set(freshSeeds).size,160);
-assert.ok(freshSeeds.every((seed)=>seed>20_000_000 && seed<21_000_000));
-assert.equal(SEARCH_EVAL_SETS.holdout.base,20_000_000,"consumed v1 +10M seeds are never reused as fresh");
+assert.ok(freshSeeds.every((seed)=>seed>30_000_000 && seed<31_000_000));
+assert.equal(SEARCH_EVAL_SETS.holdout.base,30_000_000,"consumed +10M and interrupted +20M seeds are never reused as fresh");
 const {records}=await runStrategyCases();
 assert.equal(records.length,15);
 assert.ok(records.every((row)=>row.outcome!=="error" && row.outcome!=="interrupted"));
