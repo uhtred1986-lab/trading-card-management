@@ -1,0 +1,32 @@
+# Real-card tactical decisions — #827
+
+These three minimal positions and one negative control exercise actual printed skills on the rules engine. They use cards present in the prepared White Cell, SD15 and SD5 lists. They do **not** qualify those complete decks or pass the linked portal scenario families. The White case is a bounded WC-A03 resource-preservation example; it does not cover that item's Regeneration/Cell Jr. choices or energy restoration.
+
+Sources are the public app CardDefs in the read-only catalog snapshot captured on 15 October 2026, frozen verbatim in `scripts/verify/arena-real-card-tactics-fixture.ts`, plus `docs/rules/rulemanual.txt`. The scenario script checks prepared-list membership. Its 50-card repeated support lists only supply instances for minimal staging; they are not proposed legal deck quantities. No production rules, deck flags or portal pass statuses are written.
+
+| Position and printed evidence | Independently derived objective and controls |
+| --- | --- |
+| **WC-A03: turn-long activation versus one-battle combo.** White Cell recipe `bt31-116-white-cell-reveal-evolve`: BT31-129 **Cell, Perfect Form** has 25000 power; BT31-142 **Cell's Kamehameha** costs 2, says “Draw 1 card,” then one white **Battle Card** gets “+10000 power for the turn.” Its opponent-removal clause applies only “if it's your turn.” BT31-132 **Cell, Ominous Larva** is a free +5000 combo. Two SD5-03 **SSB Son Goku, at the Apex** attackers have 25000 power each. | Begin at the opponent-turn defensive Combo window with Cell rested, two Active White energy and Kamehameha/Larva in hand. Pay 2 and target Cell: its 35000 guard survives both 25000 attacks with **zero combo cards**, preserving Larva; consuming the Extra and drawing one leaves two cards in hand. A Larva combo gives 30000 for the first battle only; the second 25000 tie KOs Cell. Passing loses Cell immediately. Manual **8-4-4/5/6** adds only the current Combo Area and gives ties to the attacker. The expected line invokes no Leader buff, no Hidden price and no opponent-turn removal. |
+| **AI-01: a real two-swing finish.** SD15 recipe `sd15-01-pride-of-the-saiyans-starter-control`: SD15-03 **Son Goku, Spirit Boost Warrior** has 20000 power and `[Double Strike][Dual Attack]`. Its Rest-mode +1000 permanent requires a red cost-2 Unison, absent here. | One Active Goku, no energy/hand, opponent SD5 Leader at four Life with no initial hand/energy. Attack twice: two damage, one restand, two damage; no combo or energy spent. Manual **22-7-2-1** gives Double Strike two damage; **22-8-3/3-1** reactivates Dual Attack once, so the second attack ends rested. Damage adds Life cards to hand (**5-10**); those fixture Life cards are actual SD5-03, whose combo costs 1 energy, unusable at zero energy. Awaken would neither create energy nor raise the defending Leader above 20000. This is a public-board two-attack continuation, not evidence that the search model plans arbitrary extra attacks. |
+| **AI-10: useful payment and last-Life refusal.** SD5 recipe `sd5-01-crimson-saiyan-starter-control`: SD5-04 **Reborn Might SS4 Son Goku**, 25000 power, Main once per turn: “Choose 1 card from your life and add it to your hand: Switch this card to Active Mode, and if you have 2 or less life, this card gains [triple strike] … for the duration of the turn.” | With Goku rested, own Life 3, opponent Life 3, no hand/energy, paying leaves Life 2 and grants Triple Strike: one attack wins. The drawn Life card is not needed. With own Life 1, the same payment immediately loses before a useful attack; ending the turn preserves that Life. Manual **5-8-2-2** requires full action payment, **22-7-2-2** gives Triple Strike three damage, and interruptive loss processing **21-2-2-1** loses at zero Life. These controls disprove a blanket rule to decline all Life payments. |
+
+Run locally, with no database or paid provider:
+
+```sh
+env -u DATABASE_URL npx tsx scripts/verify/arena-real-card-tactics.mts
+```
+
+The script asserts seven explicit engine continuations (three White choices, one Dual Attack line, safe restand, fatal restand and last-Life decline). It then measures the unchanged heuristic and depth-2/depth-3 search policies through `policyTurn`/`localStep`. Policies receive restricted observations and their own RNG only. Each measured position is compared with two hidden-identity/order permutations; the input and chosen answer must match. This demonstrates privacy of the decision, not equal outcomes for every possible hidden state. Opponent responses are fixed legal continuations; these are tactical objectives under stated bounds, not universal win-rate claims.
+
+## Frozen baseline
+
+`docs/arena-backlog/evidence/827/real-card-tactics-baseline.json` was recorded on deployed engine/policy base **66fc0964** before any fix. It records fixture/scenario and policy source SHA-256 hashes, seed 827, fixed policy seeds 82701/82702, 12 measurements and 36 candidate decision positions (72 hidden twins).
+
+| Case | Heuristic | Search depth 2 | Search depth 3 |
+| --- | --- | --- | --- |
+| White turn buff versus combo | Fail | Fail | Fail |
+| SD15 Dual Attack finish | Pass | Pass | Pass |
+| SD5 safe restand / Triple Strike finish | Pass | Pass | Pass |
+| SD5 refuse last-Life payment | Fail | Fail | Fail |
+
+In the White failure each policy spends Larva as a combo, spends no energy and loses Cell on the second battle. In the last-Life failure each policy activates SD5-04 and loses at zero Life. The baseline remains historical evidence after changes; a successful script exit means the oracle/privacy checks passed and measurements completed, **not** that all measured policy decisions passed. Failures stay explicit. No automatic portal qualification follows from this run.
