@@ -85,7 +85,7 @@ export function PromptPanel({
   // engine's own hint is the classic board's and stays as written.
   /** Below lg the decision's detail (window, stakes, assumptions) is one tap away (#783); from lg it is always shown. */
   const [detailOpen, setDetailOpen] = useState(false);
-  const boardHint = view.prompt.kind === "main" ? "drag a glowing card up to play it, or tap a ready card to attack." : view.prompt.hint;
+  const boardHint = view.prompt.kind === "main" ? "drag a glowing card to play; tap a ready card to attack." : view.prompt.hint;
   // The Charge phase names its gesture (rd-04): a tap on a finger, a double-click on a mouse.
   const chargeLine = view.prompt.kind === "charge" && yourTurn && playable && moves > 0;
   // One line, never a heading over a sentence (`docs/arena-redesign/` frame
@@ -171,7 +171,7 @@ export function PromptPanel({
       ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
           {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
-          <span className="line-clamp-3">{line}</span>
+          <span className={phaseLevel && !bad ? undefined : "line-clamp-3"}>{line}</span>
         </p>
       )}
 

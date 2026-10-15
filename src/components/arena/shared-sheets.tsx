@@ -762,7 +762,8 @@ export function CardSheet({
         </div>
 
         {!fullArt && card.text && <button type="button" className="tap mx-4 mb-2 min-h-11 shrink-0 rounded-lg border border-space-500 px-3 text-sm font-semibold text-space-50" onClick={() => {
-          body.current?.querySelector("[data-printed-card-text]")?.scrollIntoView({ block: "start" });
+          const text = body.current?.querySelector<HTMLDetailsElement>("[data-printed-card-text]");
+          if (text) { text.open = true; text.scrollIntoView({ block: "start" }); }
         }}>Read card text ↓</button>}
         {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
           {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = sourceItems.filter((item) => matchesFilter(item, filter)); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
@@ -853,7 +854,7 @@ export function CardSheet({
           className="tap mx-4 mt-3 flex min-h-11 w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
         >
           <span>Close</span>
-          <span className="text-xs font-normal text-space-200">or swipe down</span>
+          <span className="text-xs font-normal text-space-200">Swipe here to close</span>
         </button>}
       </div>
     </SheetDialog>

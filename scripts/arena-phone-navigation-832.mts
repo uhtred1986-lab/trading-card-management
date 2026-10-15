@@ -16,6 +16,8 @@ assert.ok(first);
 match = applyMove(match, first.action).match;
 assert.equal(match.state.prompt.kind, "mulligan");
 const snapshot = projectSnapshot(match, "p1", { id: 832 });
+// The engine fixture uses synthetic cards, without catalog artwork.
+for (const card of snapshot.view.you.hand ?? []) card.imageUrl = null;
 writeFileSync(fixture, JSON.stringify(snapshot));
 const browser = await Browser.launch();
 const checks: object[] = [];
@@ -38,8 +40,10 @@ try {
       await page.settle(250);
       assert.ok(await page.eval<number>("document.querySelector('.arena-review-body').scrollTop") > 0, "real touch scroll reaches details");
       assert.equal(await page.eval("document.querySelector('[data-arena-review]').dataset.arenaReview"), card.id, "scroll keeps the same card open");
+      await page.eval("document.querySelector('[data-printed-card-text]').open = false");
       await page.tap("[data-arena-review] > button");
       await page.settle(200);
+      assert.equal(await page.eval("document.querySelector('[data-printed-card-text]').open"), true, "Read card text reopens collapsed text");
       assert.equal(await page.eval(`(() => {const r=document.querySelector('[data-printed-card-text]').getBoundingClientRect();const b=document.querySelector('.arena-review-body').getBoundingClientRect();return r.top<b.bottom && r.bottom>b.top})()`), true, "Read card text jumps to visible written text");
       await page.swipe(".arena-review-body", 0, 150);
       await page.settle(250);
@@ -59,6 +63,7 @@ try {
       await page.tap('[data-phone-app-menu] summary');
       await page.waitFor('[data-phone-app-menu][open]');
       assert.equal(await page.eval("[...document.querySelectorAll('[data-phone-app-menu] a')].some(a=>a.textContent==='Leaders')"), true);
+      assert.equal(await page.eval("(() => { const r=document.querySelector('[data-phone-app-menu] nav').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()"), true, "Menu fits even the narrow phone viewport");
       writeFileSync(`${out}/menu-${width}-${skin}.jpg`, await page.screenshot(false));
       await page.tap('[data-phone-app-menu] a[href="/leaders"]');
       await page.waitFor('nav[aria-label="Primary"] a[href="/decks"]');

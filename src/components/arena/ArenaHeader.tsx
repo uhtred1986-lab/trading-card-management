@@ -67,7 +67,6 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <PhoneAppMenu isSl={sl} arenaHeader />
           <Link href="/arena?tab=games#games" className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50 sm:hidden">
             Games
           </Link>
@@ -125,6 +124,7 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
               </div>
             </div>
           </details>
+          <PhoneAppMenu isSl={sl} arenaHeader />
         </div>
       </div>
 
