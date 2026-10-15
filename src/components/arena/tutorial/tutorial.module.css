@@ -60,3 +60,18 @@
 .practiceMenu[open] { max-width: min(100%, 32rem); }
 .introArt img { width: 130px !important; }
 @media (min-width: 820px) { .introArt img { width: 240px !important; } }
+
+/* Keep Explain beside the heading, never over the instruction below it. */
+.coach h2 { min-height: 44px; display: flex; align-items: center; }
+.concept { margin-top: .3rem; font-size: .8rem; line-height: 1.4; color: #d6dced; }
+.explanationBody { max-height: min(20dvh, 12rem); overflow-y: auto; overscroll-behavior: contain; padding: .25rem .25rem .5rem 0; }
+.explanationBody > p + p { margin-top: .5rem; }
+
+/* The coach reduces the available viewport, but the native battle dock and
+   hand still need their normal space. Allow page scrolling instead of clipping. */
+@media (max-width: 1023px) {
+  .tutorial :global(.arena-board) {
+    height: auto;
+    min-height: max(760px, calc(100dvh - var(--tutorial-reserve, 140px) - 1.5rem));
+  }
+}
