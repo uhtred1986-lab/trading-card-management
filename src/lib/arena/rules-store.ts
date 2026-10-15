@@ -29,6 +29,11 @@ export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
 export type RuleSource = "compiler" | "claude" | "user";
 export type Side = "front" | "back";
 
+/** Reminder accessories remain in the catalog/history, outside skill review.
+ * Their behavior lives in game.rules setup and costs.rules (1-14, 6-2-1-11).
+ */
+export const REVIEWABLE_CARD = sql<boolean>`upper(trim(${cards.cardType})) <> 'ENERGY MARKER'`;
+
 export interface RuntimeSupport {
   /** Known reasons a record cannot be fully carried out by the rules engine. */
   unsupported: string[];
@@ -364,13 +369,15 @@ export async function markRuleSeen(db: Db, cardId: string, side: Side, skillInde
 
 /** A person accepted the draft as it stands. */
 export async function confirmRule(db: Db, id: number): Promise<void> {
-  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(eq(cardRules.id, id));
+  const reviewable = db.select({ id: cards.id }).from(cards).where(REVIEWABLE_CARD);
+  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.cardId, reviewable)));
 }
 
 /** Guided review uses the exact displayed record, including edits that do not bump version. */
 export async function confirmReviewedRule(db: Db, id: number, expected: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const [row] = await tx.select().from(cardRules).where(eq(cardRules.id, id)).for("update");
+    const [found] = await tx.select({ rule: cardRules }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, id))).for("update", { of: cardRules });
+    const row = found?.rule;
     if (!row || !expected || reviewVersion(row) !== expected) throw new Error("This skill changed. Reload it and review the current interpretation before approving.");
     if (row.status !== "draft" || row.unread.length) throw new Error("Only a complete unapproved draft can be approved.");
     await confirmRule(tx as unknown as Db, id);
@@ -379,7 +386,8 @@ export async function confirmReviewedRule(db: Db, id: number, expected: string):
 
 /** Caller holds the proposal lock; this locks the rule against all normal saveRule UPDATEs. */
 export async function saveReviewedExplanation(db: Db, id: number, expected: string, rule: Rule, explanation: string): Promise<RuleRow> {
-  const [row] = await db.select().from(cardRules).where(eq(cardRules.id, id)).for("update");
+  const [found] = await db.select({ rule: cardRules }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, id))).for("update", { of: cardRules });
+  const row = found?.rule;
   if (!row || !expected || reviewVersion(row) !== expected) throw new Error("This skill changed. Request a new draft and review it before approving.");
   if (row.status === "confirmed" || row.status === "corrected") throw new Error("Reopen the approved interpretation before replacing it.");
   return saveRule(db, { cardId: row.cardId, side: row.side as Side, skillIndex: row.skillIndex,
@@ -438,7 +446,8 @@ export async function countRules(db: Db, cardIds?: string[]): Promise<RuleCounts
   const rows = await db
     .select({ status: cardRules.status, n: sql<number>`count(*)::int` })
     .from(cardRules)
-    .where(cardIds ? inArray(cardRules.cardId, [...new Set(cardIds)]) : undefined)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(and(REVIEWABLE_CARD, cardIds ? inArray(cardRules.cardId, [...new Set(cardIds)]) : undefined))
     .groupBy(cardRules.status);
   for (const r of rows) if (r.status in out) out[r.status as RuleStatus] = r.n;
   return out;
@@ -461,7 +470,7 @@ export async function worklist(db: Db, cardIds: string[]): Promise<WorklistRow[]
     .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(inArray(cardRules.cardId, ids));
+    .where(and(REVIEWABLE_CARD, inArray(cardRules.cardId, ids)));
   return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
 }
 
@@ -470,7 +479,7 @@ export async function ruleById(db: Db, id: number): Promise<WorklistRow | null> 
     .select({ rule: cardRules, name: cards.name, setCode: cards.setCode })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(eq(cardRules.id, id));
+    .where(and(REVIEWABLE_CARD, eq(cardRules.id, id)));
   return r ? { ...r.rule, name: r.name, setCode: r.setCode } : null;
 }
 
@@ -480,7 +489,8 @@ export async function siblingsOf(db: Db, row: Pick<RuleRow, "id" | "pattern">): 
   const rows = await db
     .select({ cardId: cardRules.cardId })
     .from(cardRules)
-    .where(and(eq(cardRules.pattern, row.pattern), ne(cardRules.id, row.id)));
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(and(REVIEWABLE_CARD, eq(cardRules.pattern, row.pattern), ne(cardRules.id, row.id)));
   const ids = [...new Set(rows.map((r) => r.cardId))];
   return { count: ids.length, ids: ids.slice(0, 5) };
 }
@@ -516,7 +526,7 @@ const COST_UNKNOWN = sql<boolean>`(${cards.energyCost} = 'X' and coalesce(${card
 
 /** The filter as SQL, minus the parts that are not columns. `ignoreStatus` is for the segment counts. */
 function rulePredicate(f: RuleFilter, ignoreStatus = false): SQL | undefined {
-  const cs: (SQL | undefined)[] = [];
+  const cs: (SQL | undefined)[] = [REVIEWABLE_CARD];
   if (f.cardIds) cs.push(f.cardIds.length ? inArray(cardRules.cardId, [...new Set(f.cardIds)]) : sql`false`);
   // A mechanism is a property of an open row, so asking for one asks for open rows.
   if (f.mechanism) cs.push(eq(cardRules.status, "open"));
@@ -594,6 +604,7 @@ export async function setsWithRules(db: Db): Promise<{ setCode: string; n: numbe
     .select({ setCode: cards.setCode, n: sql<number>`count(*)::int` })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(REVIEWABLE_CARD)
     .groupBy(cards.setCode);
   return rows.sort((a, b) => a.setCode.localeCompare(b.setCode));
 }
