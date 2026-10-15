@@ -5,7 +5,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, wr
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { externalCheckpointPath, loadEvaluationCheckpoint, saveEvaluationCheckpoint, checkpointChecks, type EvaluationPins, type EvaluationRecord } from "../lib/arena-search-checkpoint.ts";
+import { externalCheckpointPath, loadEvaluationCheckpoint, saveEvaluationCheckpoint, syncCheckpointDirectory, checkpointChecks, type EvaluationPins, type EvaluationRecord } from "../lib/arena-search-checkpoint.ts";
 
 const folder=mkdtempSync(join(tmpdir(),"arena-checkpoint-proof-"));
 const checkpoint=join(folder,"unit.json"),hash="a".repeat(64),rng={v:1 as const,seed:1,n:0};
@@ -16,12 +16,23 @@ const row:EvaluationRecord={fixture:"a",k:0,seat:"p1",result:{over:false,winner:
   policyMs:[.1],search:{searched:1},maxNodes:1,maxReservationBytes:2048,nodeHeapAfterBytes:1,checks:{privacyChecks:2,nontrivialTwins:2,executionFailures:0}};
 const requestId=randomUUID();
 try {
+  const calls:string[]=[];
+  const io={open:()=>{calls.push("open");return 7;},sync:(fd:number)=>{assert.equal(fd,7);calls.push("sync");},close:(fd:number)=>{assert.equal(fd,7);calls.push("close");}};
+  syncCheckpointDirectory(checkpoint,"win32",io);assert.deepEqual([...calls],[],"Windows skips only unsupported parent-directory sync");
+  syncCheckpointDirectory(checkpoint,"linux",io);assert.deepEqual([...calls],["open","sync","close"],"Linux still opens, fsyncs and closes the directory");
+  const openError=Object.assign(new Error("permission denied"),{code:"EACCES"});
+  assert.throws(()=>syncCheckpointDirectory(checkpoint,"linux",{...io,open:()=>{throw openError;}}),(error)=>error===openError,"genuine Linux open failure propagates");
+  const syncError=Object.assign(new Error("IO failure"),{code:"EIO"});calls.length=0;
+  assert.throws(()=>syncCheckpointDirectory(checkpoint,"linux",{...io,sync:()=>{calls.push("sync");throw syncError;}}),(error)=>error===syncError,"genuine Linux fsync failure propagates");
+  assert.deepEqual([...calls],["open","sync","close"],"directory closes even after fsync fails");
+  const closeError=Object.assign(new Error("close IO failure"),{code:"EIO"});
+  assert.throws(()=>syncCheckpointDirectory(checkpoint,"linux",{...io,close:()=>{throw closeError;}}),(error)=>error===closeError,"genuine close failure propagates");
   assert.equal(externalCheckpointPath(checkpoint),checkpoint);
   assert.throws(()=>externalCheckpointPath(resolve(".arena-checkpoint.json")),/outside every repository checkout/);
-  symlinkSync(process.cwd(),join(folder,"checkout"),"dir");
+  symlinkSync(process.cwd(),join(folder,"checkout"),process.platform==="win32"?"junction":"dir");
   assert.throws(()=>externalCheckpointPath(join(folder,"checkout","ignored.json")),/outside every repository checkout/);
   saveEvaluationCheckpoint(checkpoint,pins,requestId,[row]);
-  assert.equal(statSync(checkpoint).mode&0o777,0o600);
+  if(process.platform!=="win32") assert.equal(statSync(checkpoint).mode&0o777,0o600);
   const saved=loadEvaluationCheckpoint(checkpoint,pins);
   assert.equal(saved.requestId,requestId);assert.deepEqual(saved.records,[row]);
   writeFileSync(`${checkpoint}.tmp-abandoned`,"{partial");
@@ -46,7 +57,7 @@ try {
   const errorRow={...structuredClone(row),seat:"p2" as const,checks:{privacyChecks:1,nontrivialTwins:1,executionFailures:1}};
   errorRow.result.stopKind="interrupted";errorRow.result.stopped="execution failure: preserved diagnostic";
   chmodSync(checkpoint,0o644);saveEvaluationCheckpoint(checkpoint,pins,requestId,[row,errorRow]);
-  assert.equal(statSync(checkpoint).mode&0o777,0o600);
+  if(process.platform!=="win32") assert.equal(statSync(checkpoint).mode&0o777,0o600);
   assert.deepEqual(loadEvaluationCheckpoint(checkpoint,pins).checks,{privacyChecks:3,nontrivialTwins:3,executionFailures:1},"error attempts and counters survive reload");
 
   const path=join(folder,"evaluation.json"),report=join(folder,"report.json"),manifest=join(folder,"manifest.json");
@@ -77,5 +88,5 @@ try {
   assert.ok(!/641 dev\[/.test(rerun.output),"completed resume executes zero games");
   const refused=await run(["--checkpoint",path]);assert.notEqual(refused.code,0);assert.match(refused.output,/checkpoint already exists/);
   assert.deepEqual(JSON.parse(readFileSync(path,"utf8")),complete,"refused overwrite leaves saved games intact");
-  console.log(`arena-search-checkpoint: actual SIGKILL after${originalPrefix.length}/8 attempts; resumed to8 unique rows with identical prefix/RNG pins/counters/requestId, complete resume executes0 games; 9 pin mismatches, corruption, malformed outcomes, ordering, private modes and checkout/symlink refusal passed`);
+  console.log(`arena-search-checkpoint: actual SIGKILL after${originalPrefix.length}/8 attempts; resumed to8 unique rows with identical prefix/RNG pins/counters/requestId, complete resume executes0 games; 9 pin mismatches, corruption, malformed outcomes, ordering, POSIX modes where supported and checkout/link refusal; Windows sync branch and strict Linux IO-error propagation passed`);
 } finally {rmSync(folder,{recursive:true,force:true});}

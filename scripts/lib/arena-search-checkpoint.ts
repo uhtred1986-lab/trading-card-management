@@ -24,6 +24,21 @@ export interface EvaluationPins {
 export interface EvaluationCheckpoint {
   format:"arena-search-checkpoint-v1";requestId:string;pins:EvaluationPins;records:EvaluationRecord[];checks:EvaluationChecks;integritySha256:string;
 }
+interface DirectorySyncIo {
+  open:(path:string,flags:"r")=>number;
+  sync:(fd:number)=>void;
+  close:(fd:number)=>void;
+}
+/** Windows cannot flush this read-only directory handle through Node/libuv.
+ * File fsync and rename remain mandatory there; metadata power-loss durability
+ * is weaker than POSIX. Do not catch/ignore real open or fsync failures on POSIX.
+ * The IO seam lets the proof verify both platform branches and error propagation.
+ */
+export function syncCheckpointDirectory(path:string,platform:NodeJS.Platform=process.platform,io:DirectorySyncIo={open:openSync,sync:fsyncSync,close:closeSync}):void {
+  if(platform==="win32") return;
+  const directory=io.open(dirname(path),"r");
+  try {io.sync(directory);}finally {io.close(directory);}
+}
 const hash=(value:unknown)=>createHash("sha256").update(canonicalJson(value)).digest("hex");
 const integer=(value:unknown)=>typeof value==="number" && Number.isSafeInteger(value) && value>=0;
 const finite=(value:unknown)=>typeof value==="number" && Number.isFinite(value) && value>=0;
@@ -80,8 +95,9 @@ export function loadEvaluationCheckpoint(path:string,pins:EvaluationPins):Evalua
   return value;
 }
 
-/** Write+fsync a private temporary file, atomically replace, then fsync its
- * directory. A killed writer leaves either the previous or next complete file.
+/** Write+fsync a temporary file, atomically replace, then fsync its directory
+ * on POSIX. Mode0600 restricts POSIX access; Windows inherits directory ACLs.
+ * A killed POSIX writer leaves the previous or next complete file.
  * Orphan temporary files are never considered completed games on resume. */
 export function saveEvaluationCheckpoint(path:string,pins:EvaluationPins,requestId:string,records:EvaluationRecord[]):EvaluationCheckpoint {
   validateRecords(records,pins);
@@ -93,7 +109,7 @@ export function saveEvaluationCheckpoint(path:string,pins:EvaluationPins,request
     fd=openSync(temporary,"wx",0o600);
     writeFileSync(fd,`${JSON.stringify(value)}\n`);fsyncSync(fd);closeSync(fd);fd=null;
     renameSync(temporary,path);
-    const directory=openSync(dirname(path),"r");try {fsyncSync(directory);}finally {closeSync(directory);}
+    syncCheckpointDirectory(path);
   } finally {
     if(fd!==null) closeSync(fd);
     if(existsSync(temporary)) unlinkSync(temporary);
