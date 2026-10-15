@@ -52,7 +52,7 @@ function CombatBeat({ moment, reducedMotion, durationMs, onSkip }: CombatBannerP
 
   return (
     <div className={`${styles.overlay} ${reducedMotion ? styles.reduced : ""}`} style={style} data-combat-banner={moment.outcome}>
-      <div className={`${styles.banner} ${styles[moment.outcome]}`}>
+      <div className={`${styles.banner} ${styles[moment.outcome]} ${!character ? styles.neutral : ""}`}>
         <div className={styles.speedfield} aria-hidden="true" />
         <div className={styles.farfield} aria-hidden="true" />
         <div className={styles.energy} aria-hidden="true" />

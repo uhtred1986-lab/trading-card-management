@@ -39,6 +39,7 @@ export function ArenaImmersion({ gameId, beat, cardOf, art, viewer, reducedMotio
     return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
   }, [prefs.sound]);
   useEffect(() => () => arenaAudio.stop(), [gameId]);
-  const moment = prefs.banners && visible && !suppressed ? combatMoment(gameId, beat, cardOf, art) : null;
-  return <CombatBanner moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} />;
+  const moment = combatMoment(gameId, beat, cardOf, art);
+  // Keep the keyed beat mounted while obscured, so restoring visibility cannot replay it.
+  return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /></div>;
 }

@@ -12,7 +12,7 @@
   top: 28%;
   left: 0;
   right: 0;
-  height: clamp(150px, 29vw, 260px);
+  height: clamp(210px, 40vw, 280px);
   isolation: isolate;
   overflow: hidden;
   transform: skewY(-3deg);
@@ -88,7 +88,7 @@
 .track > div { height: 100%; background: #c9ffff; box-shadow: 0 0 12px #88faff; transform-origin: left; animation: power var(--beat-duration) ease-out both; }
 .skip {
   position: absolute;
-  top: calc(28% + clamp(150px, 29vw, 260px) + 20px);
+  top: calc(28% + clamp(210px, 40vw, 280px) + 20px);
   right: 10px;
   min-height: 44px;
   padding: 7px 12px;
@@ -118,3 +118,7 @@
   .word { inset: 0; display: grid; place-items: center; font-size: 20px; transform: none; }
   .skip { top: calc(42% + 64px); }
 }
+
+.neutral .word { inset: 0; display: grid; place-items: center; max-width: none; font-size: clamp(36px, 8vw, 64px); }
+.reduced .neutral .word { font-size: 20px; }
+@media (prefers-reduced-motion: reduce) { .neutral .word { font-size: 20px; } }

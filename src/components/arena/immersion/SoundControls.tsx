@@ -27,7 +27,7 @@ export function SoundControls({ enabled, volume, onEnabled, onVolume }: SoundCon
           onEnabled(!enabled);
         }}
       >
-        Sound: {enabled ? "on" : "off"}
+        Combat sound: {enabled ? "on" : "off"}
       </button>
       {enabled && (
         <label className="flex items-center gap-2">
