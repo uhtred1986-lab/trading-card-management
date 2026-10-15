@@ -87,7 +87,7 @@ export async function recordTestingMatchAction(previous: TestingActionState | nu
   const evidence = text(form, "evidence", 2000);
   if (!validRequestId(requestId)) return recordError(previous, "This form expired. Reload before recording the result again.");
   for (const seat of ["p1", "p2"] as const) {
-    if (text(form, `${seat}Kind`, 24) === "opus" && !/^opus[-._]\d/i.test(text(form, `${seat}Model`, 120))) {
+    if (text(form, `${seat}Kind`, 24) === "opus" && !/opus[-._]\d/i.test(text(form, `${seat}Model`, 120))) {
       return recordError(previous, `Enter the exact versioned Opus model for ${seat === "p1" ? "Player 1" : "Player 2"} (for example, claude-opus-4-6).`);
     }
   }

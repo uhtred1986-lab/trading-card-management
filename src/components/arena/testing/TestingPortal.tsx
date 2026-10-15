@@ -190,7 +190,7 @@ function ProgressForm({ id, version, status, note, evidence, action, actualDecks
   const [state, formAction] = useActionState(action, null);
   const [fields, setFields] = useState({ status, linkedDeckId: linkedDeckId == null ? "" : String(linkedDeckId), note, evidence });
   const setField = (name: keyof typeof fields, value: string) => setFields((previous) => ({ ...previous, [name]: value }));
-  return <form action={formAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+  return <form action={formAction} onReset={(event) => event.preventDefault()} className="mt-3 grid gap-2 sm:grid-cols-2">
     <input type="hidden" name="id" value={id} /><input type="hidden" name="version" value={version} />
     <label className={smallLabel}>Progress status
       <select name="status" value={fields.status} onChange={(event) => setField("status", event.target.value)} className={select}>{STATUS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
@@ -219,7 +219,7 @@ function RecordResultFields({ dashboard, requestId, state, formAction }: { dashb
   const setField = (name: string, fieldValue: string) => setFields((previous) => ({ ...previous, [name]: fieldValue }));
   return <section aria-labelledby="record-result-title" className="space-y-3 rounded-xl border border-ki-500/30 bg-space-900/60 p-4">
     <div><h2 id="record-result-title" className="text-lg font-semibold text-space-50">Record a test result</h2><p className="text-xs text-space-400">Choose the catalog recipe each side used; this manual record does not change recipe status. It is not a game launcher. Local offline matches are not uploaded or imported automatically.</p></div>
-    <form action={formAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <form action={formAction} onReset={(event) => event.preventDefault()} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <input type="hidden" name="requestId" value={requestId} />
       <ActorFields seat="p1" label="Player 1" value={value} setField={setField} />
       <ActorFields seat="p2" label="Player 2" value={value} setField={setField} />
