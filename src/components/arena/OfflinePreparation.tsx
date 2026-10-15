@@ -5,6 +5,7 @@ import type { InstallProgress, PackStore } from "@/lib/arena/local/pack-store";
 import { isPreparedDevice } from "@/lib/arena/local/shell";
 import { devicePackUrl, deviceDeckIds, readDevicePack } from "@/lib/arena/local/device-decks";
 import { DeviceDecks } from "./DeviceDecks";
+import { Panel } from "@/components/ui";
 import {
   PrepareError, assess, clearOfflineData, deleteSavedMatches, fetchLatest, formatBytes, friendlyError, listSavedMatches, prepareShell, readFacts,
   requestPersistence, storageUsage, updateAvailable, type DeviceFacts, type Friendly, type Latest, type Part, type SavedMatch, type Usage,
@@ -21,7 +22,6 @@ import {
  * Wording is the player's: no storage, worker or version vocabulary on the face of the page.
  */
 
-const panel = "rounded-xl border border-space-700/70 bg-space-900/60 p-4";
 const primary = "tap inline-flex items-center justify-center rounded-lg bg-ki-500 px-4 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-40";
 const quiet = "tap inline-flex items-center justify-center rounded-lg border border-space-600 bg-space-900 px-4 py-2 text-sm text-space-100 hover:border-space-400 disabled:opacity-40";
 const danger = "tap inline-flex items-center justify-center rounded-lg border border-loss/60 bg-loss/10 px-4 py-2 text-sm font-medium text-space-50 hover:bg-loss/20 disabled:opacity-40";
@@ -183,7 +183,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
     : staged || marked || readiness.pack ? "Not ready yet" : "Not prepared for offline play";
 
   return (
-    <section aria-label="Offline play" className={`${panel} space-y-3`}>
+    <Panel aria-label="Offline play" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Offline play</h2>
         <span data-offline-status={!readiness ? "checking" : readiness.ready ? "ready" : "not-ready"} className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wider ${readiness?.ready ? "border-ki-500/60 text-ki-300" : "border-space-700 text-space-400"}`}>
@@ -323,7 +323,7 @@ export function OfflinePreparation({ store, revision, pointerPack, onChanged, on
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 

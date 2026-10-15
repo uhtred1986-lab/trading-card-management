@@ -7,7 +7,7 @@ import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { formatCents, formatPct } from "@/lib/money";
 import { CardImage } from "@/components/CardImage";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
-import { PageHeader, Panel, EmptyState } from "@/components/ui";
+import { EmptyState, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +52,21 @@ export default async function DashboardPage() {
 
   return (
     <div className="ds-page space-y-6">
-      <PageHeader title="Collection" eyebrow="Your cards" description="A live view of what you own, what it is worth, and how its value is moving." actions={<div className="ds-actions"><Link href="/collection" className="ds-button-secondary">View collection</Link><Link href="/arena" className="ds-button">Play in the Arena</Link></div>}>
-        <p className="text-xs text-space-400">
-          Prices {pricesRun?.finishedAt ? `as of ${pricesRun.finishedAt.toISOString().slice(0, 10)}` : "not synced"}
-          {usdEur ? ` · 1 USD = ${usdEur.toFixed(4)} EUR` : ""}
-        </p>
-      </PageHeader>
+      <section className="ds-hero" aria-labelledby="home-hero-title">
+        <div className="ds-hero-content">
+          <p className="ds-eyebrow">Dragon Ball Super Card Game</p>
+          <h1 id="home-hero-title">Collect with purpose. Play with power.</h1>
+          <p className="ds-description">Your collection, its value, and your next match are ready when you are.</p>
+          <div className="ds-actions">
+            <Link href="/arena" className="ds-button">Enter the Arena</Link>
+            <Link href="/collection" className="ds-button-secondary">My collection</Link>
+          </div>
+          <p className="mt-4 text-xs text-space-400">
+            Prices {pricesRun?.finishedAt ? `as of ${pricesRun.finishedAt.toISOString().slice(0, 10)}` : "not synced"}
+            {usdEur ? ` · 1 USD = ${usdEur.toFixed(4)} EUR` : ""}
+          </p>
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label="Current value" value={formatCents(s.valueEurCents)} hint={`${s.copiesWithValue}/${s.copies} copies priced`} />

@@ -8,6 +8,7 @@ import { MatchSetup } from "./MatchSetup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckPreviewSheet } from "./DeckPreviewSheet";
 import { CardImage } from "@/components/CardImage";
+import { Panel } from "@/components/ui";
 import "./journey-entry.css";
 
 export interface PlayDeck {
@@ -174,11 +175,11 @@ export function PlayPicker({
       </div>
   </>;
   return <div className="journey-entry space-y-5">
-    <JourneyDeckPicker decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} onContinue={() => {
+    <Panel className="journey-picker-panel"><JourneyDeckPicker decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} onContinue={() => {
       const mobile = setup.current?.querySelector<HTMLButtonElement>("[data-match-setup-open]");
       if (mobile && getComputedStyle(mobile).display !== "none") mobile.click();
       else { setup.current?.scrollIntoView({ block: "start" }); setup.current?.focus(); }
-    }} />
+    }} /></Panel>
     <div ref={setup} tabIndex={-1} className="journey-setup space-y-3 outline-none">
     <div className="hidden sm:block"><p className="journey-eyebrow">MATCH SETUP</p><h2 className="text-xl font-semibold text-space-50">Your next match</h2><p className="text-sm text-space-300">Choose your opponent, then start.</p></div>
     <MatchSetup action={action} own={own} opponent={opponentSection} ownValid={!isLocked} opponentValid={!otherLocked && (!needsOtherDeck || !!other)}

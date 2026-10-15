@@ -8,7 +8,7 @@ forms, readiness decisions, and game board layouts.
 
 | Route | Status | Behavior and visual changes |
 |---|---|---|
-| `/` | Migrated | The live collection dashboard now has a themed heading and direct Collection and Arena actions. The empty state links to card entry and catalog. Existing valuation, spend, gain/loss, copy counts, movers, and by-game/set/rarity breakdowns remain backed by their original queries. |
+| `/` | Migrated | The live collection dashboard now opens with the illustrated `ds-hero`, “Collect with purpose. Play with power.” and direct Arena and Collection actions. The empty state links to card entry and catalog. Existing valuation, spend, gain/loss, copy counts, movers, and by-game/set/rarity breakdowns remain backed by their original queries. |
 | `/meta` | Migrated | Added shared heading, filter summary, and empty state; retained the live leaderboard, game filter, placement rows, and decklist purchase links. |
 | `/meta/news` | Migrated | Added shared heading, filter summary, empty state, and panels; retained catalog-backed cards grouped by set and official news links. |
 | `/arena` | Migrated | Added themed entry heading and real Play, Games, Learn, and On this device links. Games remains the existing query-backed history view; current matches, invitations, testing-deck toggle, deck readiness, opponent choices, and cost confirmation are preserved. |
@@ -30,9 +30,12 @@ forms, readiness decisions, and game board layouts.
 
 - `MatchSetup` adopts themed panel surfaces for the deck, opponent, and review steps. It retains the
   phone modal, desktop form, step validation, focus handling, and only-submit-on-review behavior.
-- `PlayPicker`, `GamesList`, `ContinueStrip`, `Invitations`, `MatchWaiting`, `LocalMatchSetup`,
-  `OfflinePreparation`, `Tutorial`, `LocalArena`, and preview stage components keep their existing
-  behavior and data contracts. Their consumers receive the new page shells where appropriate.
+- `PlayPicker` and `LocalMatchSetup` adopt `Panel` around the deck picker. `GamesList`, game rows,
+  `ContinueStrip`, and `Invitations` adopt `Panel` while retaining their link targets, forms, and
+  state. `OfflinePreparation` adopts `Panel` as its outer container; its warnings and destructive
+  confirmation choices are unchanged.
+- `MatchWaiting`, `DeviceDecks`, `Tutorial`, `LocalArena`, and preview stage components keep their
+  existing behavior and data contracts. Full-bleed board consumers remain without a page shell.
 - `ArenaHeader` remains unchanged; its existing Play, Rules, Testing, Games, and options links stay
   available alongside the new Arena section destinations.
 - `SkinToggle`, `BoardSettingsSheet`, and `session/LocalArena.tsx` are deliberately excluded for the
