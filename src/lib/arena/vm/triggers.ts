@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -98,7 +98,7 @@ export interface VmPending {
   trigger: string;
   /** The card the moment happened to, when that is another card (`BIND "subject"`). */
   subject?: string;
-  /** §9-6-9-1-3 information of a pre-announced movement subject in its new area. */
+  /** §9-6-9-1 information: original Battle Area, or a pre-announced new area. */
   subjectInfo?: Attrs;
   /** Internal identity of the 8-5-6 subject occurrence, across pause/reload. */
   cleanupOccurrence?: string;
@@ -213,8 +213,13 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
 /** `watcher: controller | opponent | both`, as sides of the table. `controller` is the side the moment is about. */
 function watching(state: VmState, trigger: TriggerDef, moment: Moment, watcher: PatternValue): PlayerId[] {
   if (watcher === "both") return [...PLAYERS];
+  if (watcher === "fromHolder") {
+    const holder = moment.args.fromHolder;
+    if (holder !== "p1" && holder !== "p2") throw new RulesetBroken(state.game, `the ${moment.event} moment has no original area holder for ${trigger.name}`);
+    return [holder];
+  }
   if (watcher !== "controller" && watcher !== "opponent") {
-    throw new RulesetBroken(state.game, `trigger ${JSON.stringify(trigger.name)} watches ${JSON.stringify(watcher)}, and a watcher is controller, opponent or both`);
+    throw new RulesetBroken(state.game, `trigger ${JSON.stringify(trigger.name)} watches ${JSON.stringify(watcher)}, and a watcher is controller, opponent, both or fromHolder`);
   }
   // A moment fired without saying whose it is cannot answer "the side the event
   // is about", and a silent empty list here would be a skill that never fires
@@ -319,7 +324,17 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
+      if (match.trigger === "battleOrDeckToWarp" && moment.sourceNegated?.includes(sk.index)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // A qualified hand-return must become pending at the movement, not
+      // first discover whether it qualified when another Auto has resolved.
+      if (match.trigger === "yourCardReturnedToHand") {
+        const first = showing.scripts.bySkill[sk.index]?.ops[0];
+        if (first?.op === "if" && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter) {
+          if (!subjectInfo) throw new NotYet("recover original Battle Area information for a hand-return Auto", "#825");
+          if (!predicateOf(first.cond.sel.filter, game)(subjectInfo)) continue;
+        }
+      }
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
       // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is
@@ -330,6 +345,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (!at || !outside.includes(at as never)) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
       if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && comboBattleEndSelf(sk)) continue;
+      // 8-5-10-1 names the actual 8-5-8 cleanup departure, not an
+      // arbitrary mid-battle exit. This also covers no-hand-source wordings.
+      if (match.trigger === "comboed" && comboBattleEndSelf(sk) && game.triggers.comboToDrop && moment.args.cleanupSpecial !== true) continue;
       if (moment.args.cleanupSpecial === true && !comboBattleEndSelf(sk)) continue;
       // The named Cell/CELL Jr. is qualified at the *play* moment, before an
       // Auto price or another pending Auto can alter it. A current cost read
@@ -360,6 +378,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // cannot answer a generic battleEnd or a mid-battle Combo Area exit,
       // even if an older/manual record names the broader trigger.
       if (comboBattleEndOpponentTurn(sk) && state.turnPlayer === master) continue;
+      if (comboBattleEndYourTurn(sk) && state.turnPlayer !== master) continue;
       if (comboBattleEndFromHand(sk)) {
         if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd" || !["cleanup", "departures", "battleEndCheckpoint"].includes(state.battle.endCombo?.stage ?? "")) continue;
         const origin = comboOrigin ?? state.battle.comboOrigins?.[match.card];

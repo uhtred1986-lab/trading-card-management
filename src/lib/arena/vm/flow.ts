@@ -1429,6 +1429,11 @@ export interface MoveCause {
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
   const fromHolder = findCard(state, id)?.owner;
+  // BT29-029 / 9-6-9-1-2: read the returned card before leaving ends
+  // source effects or control loans. Keep this on the private moment only.
+  const returnInfo = from === "battle" ? attrsNow(ctx, game, state, id) : undefined;
+  const sourceNegated = from === "battle"
+    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // 9-10: a replacement stands in front of a card leaving play, and a
@@ -1470,7 +1475,10 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
-  emit(ctx, game, state, ev, movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder), shown);
+  const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
+  if (returnInfo && to === "hand") moment.subjectInfo = returnInfo;
+  if (sourceNegated && to === "warp") moment.sourceNegated = sourceNegated;
+  emit(ctx, game, state, ev, moment, shown);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
   // deck a card passes through on the way to being dealt. `hookBodiesFor`

@@ -74,11 +74,21 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * same precedent as "when you play or combo with this card" below.
  */
 /** The combo card's own end-of-battle wording enters pending at 8-5-9. */
-const COMBO_BATTLE_END = /^at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
+const COMBO_BATTLE_END = /^(?:during your turn,\s*)?at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
 const COMBO_BATTLE_END_FROM_HAND = new RegExp(`${COMBO_BATTLE_END.source} from your hand\\b`);
 export function comboBattleEndSelf(sk: Skill): boolean {
   return COMBO_BATTLE_END.test(effectHead(maskNames(sk.effect).text));
 }
+/** BT3-096/098: the same cleanup occurrence, only on this card's owner's turn. */
+export function comboBattleEndYourTurn(sk: Skill): boolean {
+  const head = effectHead(maskNames(sk.effect).text);
+  return COMBO_BATTLE_END.test(head) && /^during your turn,/.test(head);
+}
+
+/** A moved subject qualified in its original Battle Area (BT29-029, 9-6-9-1-2). */
+export const RETURNED_FROM_YOUR_BATTLE = /^when (?:a|an|1) (.+?) is returned from your battle area to its owner'?s hand$/i;
+/** No cause restriction is printed (BT3-112), unlike deckToWarpBySkill. */
+const BATTLE_OR_DECK_TO_WARP = /^when this card is sent to the warp from your battle area or deck(?:,|\.|$)/;
 /**
  * BT6-010 / BT2-010 require this very copy to have entered this battle's
  * Combo Area from hand. Both interpreters check the captured source when
@@ -223,6 +233,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // above because that one *does* name a cause, and a KO is not it.
     case "leftBattleToDrop":
       return /when this card is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area(?!\s+by)/.test(head);
+    case "yourCardReturnedToHand":
+      return RETURNED_FROM_YOUR_BATTLE.test(head.split(/,|\./, 1)[0]);
+    case "battleOrDeckToWarp":
+      return BATTLE_OR_DECK_TO_WARP.test(head);
     // 21-14: a card of *yours* being KO'd, watched by the rest of your board —
     // "when your blue <Son Goku> card is KO'd, you may play this card from your
     // hand" — and the same from the other side of the table. `koed` is the

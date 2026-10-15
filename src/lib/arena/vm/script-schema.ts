@@ -449,12 +449,21 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       },
       {
         name: "using",
-        type: { enum: ["Over Realm"] },
-        offCard: "the keyword whose own move this play is — [Over Realm]'s (22-15) — carried onto the arrival's `moved` moment, so \"when this card is played using [Over Realm]\" (`playedUsingOverRealm`) answers that play and not an ordinary one",
+        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve"] },
       },
     ],
-    sentence: "play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}",
-    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5)',
+    sentence: (raw, r) => {
+      const op = raw as OpOf<"play">;
+      if (op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve") {
+        const base = op.onto && "sel" in op.onto && op.onto.sel.filter
+          ? describeSelector({ side: "you", area: "battle", filter: op.onto.sel.filter, count: 1 }).replace(/^1 /, "") : "base";
+        const source = "sel" in op.target && op.target.sel.area === "drop" ? " from its Drop Area" : "";
+        const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
+        return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
+      }
+      return renderTemplate("play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}", raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
+    },
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15).',
   },
   switchMode: {
     fields: [

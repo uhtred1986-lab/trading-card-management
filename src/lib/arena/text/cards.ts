@@ -751,10 +751,13 @@ export function backCharactersOf(def: CardDef): string[] {
   return result;
 }
 
+/** Skill text folds typographic apostrophes; catalog identity arrays do not. */
+export const identityKey = (value: string): string => value.toLowerCase().replace(/[’‘]/g, "'");
+
 /** Character names are `<Name>` in text; a card "has" a character when it is in `characters`. */
 export function hasCharacter(def: CardDef, name: string): boolean {
-  const n = name.toLowerCase();
-  return def.characters.some((c) => c.toLowerCase() === n);
+  const n = identityKey(name);
+  return def.characters.some((c) => identityKey(c) === n);
 }
 
 /**
@@ -768,8 +771,8 @@ export function hasCharacter(def: CardDef, name: string): boolean {
  * reading. See `charactersIncluding` in `filters.ts`.
  */
 export function characterIncludes(def: CardDef, part: string): boolean {
-  const n = part.toLowerCase();
-  return def.characters.some((c) => c.toLowerCase().includes(n));
+  const n = identityKey(part);
+  return def.characters.some((c) => identityKey(c).includes(n));
 }
 
 /** The same, against the printed card name: "{SS4} in its card name". */
@@ -783,13 +786,13 @@ export function namesOf(def: CardDef): string[] {
 }
 
 export function nameIncludes(def: CardDef, part: string): boolean {
-  const p = part.toLowerCase();
-  return namesOf(def).some((n) => n.toLowerCase().includes(p));
+  const p = identityKey(part);
+  return namesOf(def).some((n) => identityKey(n).includes(p));
 }
 
 export function hasTrait(def: CardDef, name: string): boolean {
-  const n = name.toLowerCase();
-  return def.traits.some((c) => c.toLowerCase() === n);
+  const n = identityKey(name);
+  return def.traits.some((c) => identityKey(c) === n);
 }
 
 /**

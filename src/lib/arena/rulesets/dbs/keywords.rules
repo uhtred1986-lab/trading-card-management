@@ -396,6 +396,9 @@ DEFINE KEYWORD Evolve
   -- activation (`onto`, offered where a price change is scoped to that base —
   -- EX03-16, `vm/activate.ts`'s `evolveOntoBases`) arrives already bound as
   -- `$base`, and is not asked for again.
+  -- #825: resolution revalidates that bound base through the counter window.
+  -- The marked play announces `evolved` only on success; the Xeno play moves
+  -- the base to Warp immediately before landing, after the counter response.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
@@ -405,10 +408,13 @@ DEFINE KEYWORD Evolve
       choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
     })
     if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
-      moveTo(target: $base, to: warp)
-      play(target: [self])
+      play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "Xeno-Evolve", counterWindow: true)
     }, else: {
-      play(target: [self], onto: $base)
+      if(cond: oneOf(value: $variant, of: ["EX-Evolve"]), then: {
+        play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "EX-Evolve", counterWindow: true)
+      }, else: {
+        play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "Evolve", counterWindow: true)
+      })
     })
   }
 

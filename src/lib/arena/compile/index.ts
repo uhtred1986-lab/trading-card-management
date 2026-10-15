@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -358,6 +358,10 @@ function compileSkillText(skill: Skill): Script {
   const spoken = taxWordings(text);
   const modal = splitModal(spoken);
   const clauses = splitClauses(modal ? modal.head : spoken);
+  // BT3-096/098: keep the own-turn condition, but consume this battle's
+  // cleanup timing as the Auto trigger rather than schedule another delay.
+  const ownComboEnd = skill.kind === "auto" && comboBattleEndYourTurn(skill);
+  if (ownComboEnd && /^during your turn$/i.test(clauses[0] ?? "")) clauses.shift();
   // [Awaken] and [Wish] check their own condition in the engine before the
   // skill is offered (22-2, 22-20), and the engine flips the Leader after the
   // effects resolve (22-2-4), so "flip this card over" in their text is not an
@@ -369,11 +373,20 @@ function compileSkillText(skill: Skill): Script {
   // that clause is dropped. A leading "if …" is a condition, not a trigger, and
   // stays — it must compile or the skill goes to the referee.
   let triggerCond: Cond | null = null;
+  let returnedFromBattle = false;
+  if (ownComboEnd) triggerCond = { kind: "isTurnPlayer" };
   // "If this card is placed in your Drop Area from your hand by a skill"
   // (SD13-05, behind a condition before the colon) is the trigger said with
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
   if (skill.kind === "auto" && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
+    const returned = RETURNED_FROM_YOUR_BATTLE.exec(trigger.trim());
+    if (returned) {
+      returnedFromBattle = true;
+      const filter = filterFor(returned[1], null);
+      if (filter === null) return { ops: [], unsupported: [trigger, ...clauses] };
+      if (filter) triggerCond = { kind: "count", sel: { special: "subject", filter }, atLeast: 1 };
+    }
     // The dropped trigger is still what the sentence is about: "When this card
     // is sent to the Warp …, add **it** to your hand" means this card. Without
     // this, the first "it" of an [Auto] has nothing to point at and the whole
@@ -482,6 +495,14 @@ function compileSkillText(skill: Skill): Script {
 
   const unsupportedBeforeHead = unsupported.length;
   let ops = compileClauseList(clauses, c, unsupported);
+  // BT29-029 / 20-16: "If you do" requires the optional play itself,
+  // not merely accepting its offer when a prohibition/replacement stops it.
+  if (returnedFromBattle && ops[0]?.op === "may" && ops[0].ops.some((op) => op.op === "play")) {
+    ops = ops.map((op) => op.op === "if" && op.cond.kind === "did" && op.cond.what === "may"
+      ? { ...op, cond: { kind: "did", what: "play" } } : op);
+    const offer = ops[0];
+    if (offer.op === "may") offer.ops = offer.ops.map((op) => op.op === "play" ? { ...op, counterWindow: true } : op);
+  }
   // Whether the head itself read clean, before the modal's own options add
   // any refusals of their own — an option's unread clause must not stop the
   // head's condition from being restored below.

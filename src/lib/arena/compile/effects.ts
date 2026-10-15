@@ -2115,6 +2115,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
   }
 
+  // BT3-096/098 / 22-5-2-3: the selected base evolves into this exact
+  // cleanup copy. Retain the base's printed filter for resolution/reload.
+  if (/^evolve it into this card$/.test(t) && /^during your turn,\s*at the end of the battle after you combo with this card,/i.test(c.raw)) {
+    if (!c.last || !c.lastTarget || !("var" in c.lastTarget)) return null;
+    const choice = [...c.choices].reverse().find((op) => op.var === c.last);
+    if (!choice || choice.sel.area !== "battle" || choice.sel.side !== "you") return null;
+    return [{ op: "play", target: { sel: { special: "self", area: "drop" } },
+      onto: { sel: { fromVar: c.last, filter: choice.sel.filter } }, using: "Evolve", counterWindow: true }];
+  }
+
   // "Play up to 1 <Majin Buu> card from your deck on top of this card"
   // (22-13-6-3). The host has to come off the phrase before the target is
   // read: "this card" at the end of it made `parseTarget` take the whole
