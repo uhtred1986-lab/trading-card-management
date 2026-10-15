@@ -17,6 +17,7 @@ const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
 const game = loaded.definition;
 const defs = Object.fromEntries((printed as CardDef[]).map(d => [d.id, d]));
 defs.CONTROL910 = card("CONTROL910", { type: "Z-UNISON", power: 20000, traits: ["Saiyan"], skill: null });
+defs.IDENTITY910 = card("IDENTITY910", { type: "Z-UNISON", traits: ["Earthling"], characters: ["Bulma"], skill: "[Permanent] This card can’t attack and gains ≪Shenron≫ in all areas." });
 defs.PAY910 = card("PAY910", { traits: ["Power Wish"], skill: null });
 const rows = Object.values(defs).flatMap(d => skillRecords(d)).map((r, i) => ({ ...r, id: i+1, status: r.unread.length ? "open" : "draft", source: "compiler", version: 1 })) as unknown as RuleRow[];
 const ctx: EngineContext = { defs: { ...CTX.defs, ...defs }, scripts: { ...CTX.scripts, ...rulesFromRows(JSON.parse(JSON.stringify(rows)), defs) } };
@@ -54,6 +55,14 @@ function board(): VmState {
   s = apply(s, {type:"chooseFirst",player:s.chooser,first:"p1"});
   for(let i=0;i<20 && s.prompt.kind!=="main";i++) s=apply(s,{type:"pass",player:(s.prompt as {player:PlayerId}).player});
   assert.equal(s.prompt.kind,"main");
+  // Advance through both turns so attack refusal is not the first-turn ban.
+  s=apply(s,{type:"endMain",player:"p1"});
+  for(let i=0;i<30 && !(s.prompt.kind==="main" && s.prompt.player==="p1");i++) {
+    const player=(s.prompt as {player:PlayerId}).player;
+    s=apply(s,s.prompt.kind==="main" ? {type:"endMain",player} : {type:"pass",player});
+  }
+  assert.equal(s.turn,3);
+  assert.equal(s.prompt.kind,"main");
   s.cards[s.sides.p1.zones.leader[0]].flipped=true;
   return s;
 }
@@ -76,6 +85,14 @@ for (const id of wishIds) for (const area of ["zDeck","unison"] as const) {
     assert.ok(!RULES.legalActions(ctx,s).some(l=>l.action.type==="attack" && l.action.attacker===target));
     assert.throws(()=>apply(s,{type:"attack",player:"p1",attacker:target,target:s.sides.p2.zones.leader[0]}));
   }
+}
+// Additive means existing traits/characters survive, including from secret areas.
+{
+  const s=board(); const target=stage(s,"IDENTITY910","zDeck");
+  const a=attrsNow(ctx,game,s,target);
+  assert.deepEqual(a.traits,["Earthling","shenron"]);
+  assert.deepEqual(a.characters,["Bulma"]);
+  assert.equal(a.name,"IDENTITY910");
 }
 // Real EX24-01 back activation, including its cost and optional target menu.
 {
@@ -108,6 +125,7 @@ for (const id of wishIds) for (const area of ["zDeck","unison"] as const) {
 {
   let s=board(); const control=stage(s,"CONTROL910","unison"); stage(s,"PAY910","zEnergy");
   assert.ok(!(attrsNow(ctx,game,s,control).traits as string[]).includes("shenron"));
+  assert.ok(RULES.legalActions(ctx,s).some(l=>l.action.type==="attack" && l.action.attacker===control),"unrestricted control Z-Unison can attack at this timing");
   s=apply(s,{type:"activate",player:"p1",card:s.sides.p1.zones.leader[0],skill:10});
   assert.equal(s.cards[control].markers,2,"non-Shenron Z-Unison never gains a marker");
   if(s.prompt.kind==="chooseCards") assert.ok(!s.prompt.choice.candidates.includes(control));
