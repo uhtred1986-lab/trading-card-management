@@ -1,5 +1,12 @@
 # Arena backlog — tracking the rebuilt compiler against the design
 
+**Current readiness plan (15 Oct 2026):** [execution plan](arena-readiness-plan-2026-10-15.md),
+[computer play milestone 30](https://github.com/uhtred1986-lab/trading-card-management/milestone/30) / #900,
+[Claude API campaign milestone 31](https://github.com/uhtred1986-lab/trading-card-management/milestone/31) / #906,
+and [consolidated rules milestone 32](https://github.com/uhtred1986-lab/trading-card-management/milestone/32) / #907.
+The owner approved $20 pilot / $100 inclusive total; paid execution follows runner/budget/preflight gates.
+Unread rules are tracked in one issue and a complete per-card index, per owner instruction.
+
 **Deck discovery and match setup (15 Oct 2026):** [milestone 24](https://github.com/uhtred1986-lab/trading-card-management/milestone/24)
 and #828 cover deck building, leader discovery, short filtered opponent lists, and a full-screen
 phone match wizard. Review: `docs/deck-setup-ux-review.md`; evidence: `docs/deck-setup-validation.md`.

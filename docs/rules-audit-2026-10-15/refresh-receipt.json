@@ -1,0 +1,252 @@
+{
+  "at": "2026-10-15T20:14:07.032Z",
+  "ids": [
+    305,
+    994,
+    1088,
+    2880,
+    4410,
+    5391,
+    5614,
+    7174,
+    7593,
+    8570,
+    8793,
+    8813,
+    8868,
+    8988,
+    10203,
+    10874,
+    11020,
+    11363,
+    12364,
+    12622,
+    13327,
+    13554
+  ],
+  "cards": [
+    "BT23-140",
+    "BT2-076",
+    "BT2-095",
+    "EX02-02",
+    "DB2-010",
+    "DB2-067",
+    "BT1-059",
+    "EB1-25",
+    "EX12-07",
+    "BT29-022",
+    "BT13-090",
+    "BT10-097",
+    "EX06-35",
+    "P-387",
+    "BT8-134",
+    "P-098",
+    "BT14-078",
+    "DB1-015",
+    "P-574",
+    "P-010",
+    "BT1-024",
+    "TB1-053"
+  ],
+  "rules": [
+    {
+      "id": 305,
+      "cardId": "BT29-022",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 994,
+      "cardId": "BT23-140",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 2,
+      "unread": []
+    },
+    {
+      "id": 1088,
+      "cardId": "P-010",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 2880,
+      "cardId": "BT2-095",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 4410,
+      "cardId": "BT8-134",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 5391,
+      "cardId": "DB2-067",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 5614,
+      "cardId": "P-574",
+      "side": "front",
+      "skillIndex": 30,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 7174,
+      "cardId": "EB1-25",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 7593,
+      "cardId": "DB1-015",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 8570,
+      "cardId": "BT13-090",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 8793,
+      "cardId": "BT10-097",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 2,
+      "unread": []
+    },
+    {
+      "id": 8813,
+      "cardId": "EX06-35",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 2,
+      "unread": []
+    },
+    {
+      "id": 8868,
+      "cardId": "BT1-024",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 8988,
+      "cardId": "TB1-053",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 10203,
+      "cardId": "EX02-02",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 10874,
+      "cardId": "BT1-059",
+      "side": "front",
+      "skillIndex": 30,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 11020,
+      "cardId": "P-098",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 11363,
+      "cardId": "EX12-07",
+      "side": "front",
+      "skillIndex": 10,
+      "status": "draft",
+      "version": 5,
+      "unread": []
+    },
+    {
+      "id": 12364,
+      "cardId": "BT14-078",
+      "side": "front",
+      "skillIndex": 30,
+      "status": "draft",
+      "version": 3,
+      "unread": []
+    },
+    {
+      "id": 12622,
+      "cardId": "BT2-076",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 13327,
+      "cardId": "P-387",
+      "side": "front",
+      "skillIndex": 20,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    },
+    {
+      "id": 13554,
+      "cardId": "DB2-010",
+      "side": "front",
+      "skillIndex": 0,
+      "status": "draft",
+      "version": 6,
+      "unread": []
+    }
+  ],
+  "guard": "existing applyReviewedRefresh compare-and-swap; preserved explanation/source; readback verified"
+}

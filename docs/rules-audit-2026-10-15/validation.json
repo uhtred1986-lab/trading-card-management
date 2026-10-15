@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-15T20:23:08.502830+00:00",
+  "node": "v24.19.0",
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed; five existing historical prototype warnings",
+    "pureRulesEngine": "91/91 passed",
+    "fullNpmTest": "passed; DATABASE_URL unset; no live database or paid provider calls",
+    "productionBuild": "passed; DATABASE_URL unset",
+    "auditIntegrity": "all 1,714 cards / 1,985 baseline skills; 1,694 remaining entries / 1,963 skills; 22 refreshed skills; card-type split verified",
+    "github": "all 12 issue bodies/metadata matched canonical files and milestones; source paths verified",
+    "backlogWideDrift": "blocked by pre-existing docs/arena-backlog/848.md missing stage; new twelve files verified directly",
+    "guardedRefresh": {
+      "rules": 13615,
+      "unreadSkills": 1963,
+      "unreadCards": 1694,
+      "statuses": {
+        "open": 1963,
+        "draft": 11590,
+        "corrected": 57,
+        "confirmed": 5
+      },
+      "protectedRecordsUnchanged": 85,
+      "untargetedProgramsUnchanged": 13593,
+      "unexpectedChanges": []
+    }
+  },
+  "scope": {
+    "appCodeChanged": false,
+    "paidApiCalls": 0,
+    "campaignSpendUsd": 0,
+    "migrations": false,
+    "productionSettingsChanged": false,
+    "uiScreenshots": "not applicable; no UI changes"
+  },
+  "artifactSha256": {
+    "refresh-receipt.json": "53af8a154ea74c0e4f2101d0d4d548d79297667f655d1183c7d937ac2cc04846",
+    "cards.md": "023e890aae7671671cfa180c3147c8577c549ab85c487592d97e1fa0754e96fe",
+    "audit.json": "5753e03d7287cd8d334f39bdb04e8b3c8b80d5d26215e7fe23692dced2a2f0dd",
+    "README.md": "541a0f6c767d0cc824d64f2611cdbd35118146ee56607045f3a2ab79d0ff25ba"
+  }
+}
