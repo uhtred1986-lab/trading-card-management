@@ -176,6 +176,9 @@ export function splitClauses(text: string): string[] {
         push(i, 1);
       } else if (
         text.startsWith(" and ", i) &&
+        // Keep an explicit self subject attached to its coordinated identity
+        // predicate. The effect reader validates the whole pair (#910).
+        !(/^this card (?:can't|cannot) attack$/i.test(text.slice(start, i).trim()) && /^ and gains?\s/i.test(text.slice(i))) &&
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
