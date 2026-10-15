@@ -1,0 +1,48 @@
+{
+  "source": {
+    "id": "arena-policy-eval",
+    "version": "2",
+    "gitCommit": "1852227ecb3c699ad17f283fdea7ea64dd062118",
+    "dirtyTreeSha256": null
+  },
+  "games": 320,
+  "wins": 142,
+  "losses": 178,
+  "draws": 0,
+  "completed": 320,
+  "illegal": 0,
+  "interrupted": 0,
+  "limited": 0,
+  "executionFailures": 0,
+  "paired": {
+    "wonBoth": 11,
+    "split": 120,
+    "lostBoth": 29,
+    "decisivePairs": 40,
+    "winCi95": [
+      0.16108016247667337,
+      0.42834955806210573
+    ],
+    "denominator": "Decisive paired deals; excludes 120 split pairs. No draw-containing pairs occurred."
+  },
+  "privacyChecks": 1763,
+  "nontrivialHiddenTwins": 1763,
+  "strengthEligible": false,
+  "defaultChanged": false,
+  "browser": {
+    "games": 8,
+    "parity": {
+      "worker": true,
+      "thread": true
+    },
+    "workerStepP95Ms": 27.40000000037253,
+    "workerStepMaxMs": 81.80000000074506,
+    "retainedBytes": 8068212,
+    "unfinished": 0,
+    "guardTrips": 0,
+    "timingContext": "Shared Linux host with concurrent final checks and holdout. These measured worker limits passed; this is not physical-device acceptance."
+  },
+  "maxFixturePolicyP95Ms": 1.961505000013858,
+  "maxStructuralReservationBytes": 137856,
+  "laterChanges": "Capability inventory metadata, documentation, and checkpoint Windows portability only; policy and engine files unchanged from evaluated source."
+}

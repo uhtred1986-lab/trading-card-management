@@ -25,7 +25,7 @@ Update evidence only after review, not merely because a deck compiles or a game 
 | Combined PR #824 code gates | Merged and deployed | Integrated typecheck, lint, full tests and production build; isolated browser persistence/filtering checks at 390/1440 widths. |
 | Broad stored-rule diagnostic sample | 40/40 complete after approved refresh | `arena-backlog/evidence/backlog-completion/post-refresh-fuzz-summary.json`; zero interruptions/crashes/action limits. Not an ability coverage claim. |
 | First bounded search | Evaluated; not promoted | V1: 41–39 over 80 held-out games; consumed seeds remain regression evidence. |
-| Resource-aware search | Implemented; experimental | Five declared AI-01/02/05 subcases run through the engine; depth 2 and 3 each 7–9 in 16 development games. Fresh integrated holdout pending; no default change. |
+| Resource-aware search | Evaluated; not promoted | Five declared AI-01/02/05 subcases run through the engine; depth 2 and 3 each 7–9 in 16 development games. Fresh holdout: 142–178 over 320 completed games; paired interval 16.11–42.83%, not promoted. |
 | Test result imports | Implemented; review in progress | Versioned scenario/strategy/game manifests, immutable stored runs, paginated case results, explicit mappings and reported costs. Imports do not auto-pass a deck or scenario. |
 | Opus cost rate and account credit validation | Pending | Existing static price table is not current billing verification. |
 | Opus pilot | Not started | 0 paid comparison games; $0 campaign spend. Suggested 8 games / $20 cap. |

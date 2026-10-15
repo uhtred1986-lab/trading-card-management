@@ -1,6 +1,6 @@
 # Resource-aware bounded search (#826)
 
-Search v2 remains an explicitly selected experiment. The shipped heuristic and difficulty settings are unchanged. Development produced useful tactical corrections but **no measured whole-game strength gain**: depth 2 and depth 3 each finished 7–9 against the frozen heuristic on 16 audited games. The first +20M attempt was interrupted by an environment restart after 107 recorded console outcomes; it is retained as partial evidence, not a completed holdout. The frozen +30M run uses durable per-game checkpoints.
+Search v2 remains an explicitly selected experiment. The shipped heuristic and difficulty settings are unchanged. Development produced useful tactical corrections but **no measured whole-game strength gain**: depth 2 and depth 3 each finished 7–9 against the frozen heuristic on 16 audited games. The first +20M attempt was interrupted by an environment restart after 107 recorded console outcomes; it is retained as partial evidence, not a completed holdout. The completed +30M run used durable per-game checkpoints and finished **142–178**. Its paired confidence interval is wholly below 50%; the candidate is not promoted.
 
 ## Model and boundaries
 
@@ -54,3 +54,42 @@ Both CLI exporters accept `--manifest FILE`. They pin source before and after th
 Focused validation: search regression, strategy proof, policy boundary, manifest parser, TypeScript and changed-file ESLint passed. The coordinator owns combined gates, browser budgets, final integrated freeze and holdout authorization.
 
 Clean-tree strategy receipts at implementation commit `9dd250d8d886d7cb63fa8355674d42bf231b3376` are [strategy-manifest.json](arena-backlog/evidence/826/strategy-manifest.json) and [strategy-report.json](arena-backlog/evidence/826/strategy-report.json). The manifest's 15 rows include all three heuristic failures. It validates against the integrated 512 KiB importer. Browser receipts now identify the current search version/depth and include runner source and fixture/policy digests, with a source-change check across measurement.
+
+## Completed fresh holdout
+
+The reviewed candidate ran at clean source `1852227ecb3c699ad17f283fdea7ea64dd062118`.
+All 320 games completed: **142 wins, 178 losses**, no draws, illegal actions,
+interruptions, action limits or execution failures. All 1,763 nontrivial hidden
+twins agreed. The 160 paired deals produced 11 won-both, 120 split and 29 lost-both
+pairs. On the 40 decisive pairs, the paired-win 95% Wilson interval was
+**16.11–42.83%**; split pairs are excluded from that conditional interval. No
+draw-containing pairs occurred. This fails the strength gate and provides evidence
+of regression in this two-starter corpus, despite the tactical subcase gains.
+
+| Matchup (A = audited SD15; B = audited SD5) | Candidate W–L | Won / split / lost pairs | Decisive paired 95% interval |
+|---|---|---|---|
+| A versus A | 31–49 | 2 / 27 / 11 | 4.33–42.24% |
+| A versus B | 38–42 | 3 / 32 / 5 | 13.68–69.43% |
+| B versus A | 36–44 | 1 / 34 / 5 | 3.01–56.35% |
+| B versus B | 37–43 | 5 / 27 / 8 | 17.71–64.48% |
+
+Every individual matchup has fewer than 20 decisive pairs and retains its
+insufficient-power marker. A versus A also fails the per-fixture regression gate.
+The default remains the existing heuristic; there is no new hard difficulty.
+
+Eight development games agreed exactly between Node, the module Worker and the
+4×-throttled main-thread comparison. Worker step p95 was 27.4 ms, max 81.8 ms,
+retained heap 8,068,212 bytes; all passed the declared worker limits. Maximum
+fixture Node policy p95 was 1.962 ms and structural search reservation 137,856
+bytes. Measurements ran on the shared Linux host alongside other validation, not
+a physical phone. The throttled main-thread p95/max (142.1/356.7 ms) are separate
+diagnostics, not the Worker gate. Zero unfinished games or guard trips occurred
+in the browser comparison. Budget success does not override the strength failure.
+
+Retained evidence: [aggregate summary](arena-backlog/evidence/826/holdout-summary.json),
+[all game outcomes](arena-backlog/evidence/826/holdout-30m.json),
+[importable manifest](arena-backlog/evidence/826/holdout-30m-manifest.json), and
+[browser parity/budgets](arena-backlog/evidence/826/browser-v2.json). Subsequent
+review fixes change only capability metadata, checkpoint Windows portability and
+documentation; the evaluated policy and engine files are unchanged. The +30M seeds
+are now consumed. Any retuned candidate needs a new reviewed freeze and fresh range.
