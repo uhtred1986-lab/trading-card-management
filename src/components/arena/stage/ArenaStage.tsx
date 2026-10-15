@@ -1784,7 +1784,7 @@ export function ArenaStage({
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
-        <ArenaImmersion gameId={session.gameId} beat={beat} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} suppressed={!!sheet || moreOpen || !!notice || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
+        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} suppressed={!!sheet || moreOpen || !!notice || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
         <ClashBeam beat={beat} hostRef={boardRef} />
         <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
 
