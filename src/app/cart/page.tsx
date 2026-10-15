@@ -15,6 +15,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { saveCartSettingsForm } from "./actions";
 import { requireSignedInPage, type Viewer } from "@/lib/auth";
 import { assertOwnDeck } from "@/lib/auth/ownership";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -98,22 +99,14 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-5">
-      <div>
-        {deckId ? (
-          <Link href={`/decks/${deckId}`} className="text-xs text-space-300 hover:text-ki-300">
-            ← Deck
-          </Link>
-        ) : null}
-        <h1 className="text-xl font-semibold text-space-50">Cart optimiser</h1>
-        <p className="text-sm text-space-300">
-          Cheapest combination of CardTrader sellers to cover a want-list, shipping counted once per seller.{" "}
+      <PageHeader title="Cart optimiser" eyebrow={deckId ? <Link href={`/decks/${deckId}`}>Deck</Link> : "Shopping"} description={<>Cheapest combination of CardTrader sellers to cover a want-list, shipping counted once per seller. {" "}
           {!cardTraderConfigured() ? (
             <span className="text-loss">No CardTrader token configured.</span>
           ) : !cardTraderEnabled() ? (
             <span className="text-ki-300">Live calls are disabled (CARDTRADER_ENABLED=false) — working from cached listings only.</span>
           ) : null}
-        </p>
-      </div>
+        </>} />
+      <SectionTabs items={[{href:"/collection",label:"Collection"},{href:"/decks",label:"Decks"},{href:"/cart",label:"Cart",active:true}]} />
 
       <WantList rows={await listWants(db, viewer.owner, viewer.kind === "sl")} />
 

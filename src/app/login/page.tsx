@@ -1,4 +1,5 @@
 import { JOIN_PAGE, LOGIN_START_PATH, PASSWORD_LOGIN_PATH, googleConfigured } from "@/lib/auth/core";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +23,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const google = googleConfigured(process.env);
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col gap-5 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold text-space-50">
-          <span className="text-ki-400">DBS</span> Card Companion
-        </h1>
-        <p className="mt-1 text-sm text-space-300">Sign in to see your collection, decks and the arena.</p>
-      </div>
+    <main className="ds-page mx-auto flex max-w-sm flex-col gap-5 py-10">
+      <PageHeader title={<><span className="text-ki-400">DBS</span> Card Companion</>} eyebrow="Welcome" description="Sign in to see your collection, decks and the arena." />
 
       {message ? (
         <p role="alert" className="rounded-lg bg-dbs-red p-3 text-sm font-medium text-white">
@@ -42,16 +38,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </a>
       ) : null}
 
-      <div className="rounded-lg border border-space-700/70 bg-space-900/40 p-3 text-sm">
+      <Panel className="text-sm">
         <p className="text-space-300">Have a username and password?</p>
         <a href={PASSWORD_LOGIN_PATH} className="tap mt-2 inline-flex items-center rounded-md border border-space-600 px-3 py-1.5 text-space-100 hover:bg-space-800">
           Sign in with password
         </a>
-      </div>
+      </Panel>
 
       <a href={JOIN_PAGE} className="tap rounded-lg border border-space-600 px-4 py-3 text-center text-sm text-space-100 hover:bg-space-800">
         Got a join code from your SL? Enter it here
       </a>
-    </div>
+    </main>
   );
 }

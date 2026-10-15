@@ -6,6 +6,7 @@ import type { PackFacts } from "./local-board";
 import { useRef } from "react";
 import { JourneyDeckPicker } from "../PlayPicker";
 import { MatchSetup } from "../MatchSetup";
+import { Panel } from "@/components/ui";
 
 const MISSING = "This device pack does not include deck descriptions. The leader and card list below help identify the deck.";
 
@@ -40,11 +41,11 @@ export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs,
   const own = decks.find((d) => d.id === mine);
   const other = decks.find((d) => d.id === theirs);
   return <section aria-label="New match" className="space-y-3">
-    <JourneyDeckPicker decks={decks} value={mine} onChange={setMine} disabled={busy} onContinue={() => {
+    <Panel className="journey-picker-panel"><JourneyDeckPicker decks={decks} value={mine} onChange={setMine} disabled={busy} onContinue={() => {
       const mobile = setup.current?.querySelector<HTMLButtonElement>("[data-match-setup-open]");
       if (mobile && getComputedStyle(mobile).display !== "none") mobile.click();
       else { setup.current?.scrollIntoView({ block: "start" }); setup.current?.focus(); }
-    }} />
+    }} /></Panel>
     <div ref={setup} tabIndex={-1} className="journey-setup space-y-3 outline-none">
     <div className="hidden sm:block"><p className="journey-eyebrow">LOCAL PRACTICE</p><h2 className="text-xl font-semibold text-space-100">Your next match</h2></div>
     <MatchSetup busy={busy} ownValid={!!own} opponentValid={!!other}

@@ -14,6 +14,7 @@ import { DeckPicker } from "./DeckPicker";
 import { OwnerPicker } from "./OwnerPicker";
 import { LocationPicker } from "./LocationPicker";
 import type { StorageLocation } from "@/lib/collection/locations";
+import { Panel } from "@/components/ui";
 
 interface Saved {
   /** One id per physical card saved — undo removes them all. */
@@ -135,7 +136,7 @@ export function QuickCapture({ owner, decks, owners, locations }: { owner: strin
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";
 
   return (
-    <div className="mx-auto max-w-md space-y-4">
+    <Panel className="mx-auto max-w-md space-y-4 p-4">
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
 
       <OwnerPicker owners={owners} value={asOwner} onChange={setAsOwner} label="These cards belong to" />
@@ -365,6 +366,6 @@ export function QuickCapture({ owner, decks, owners, locations }: { owner: strin
           </ul>
         </section>
       ) : null}
-    </div>
+    </Panel>
   );
 }

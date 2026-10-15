@@ -10,6 +10,8 @@ import { ColorPill, RarityBadge } from "@/components/ColorPill";
 
 import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
 import type { OwnedLeader } from "@/lib/leaders/queries";
+import { PageHeader, SectionTabs } from "@/components/ui";
+import { ActiveFilterChips, FilterBar } from "@/components/ui";
 
 export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", aiEnabled }: {
   all: OwnedLeader[]; game?: Game; color?: string; q?: string; set?: string; usage?: string; aiEnabled: boolean;
@@ -31,21 +33,16 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">My leaders</h1>
-          <p className="text-sm text-space-300">
-            {leaders.length} leader{leaders.length === 1 ? "" : "s"} owned · {withDeck} with a deck · {built} built
-          </p>
-        </div>
-        <Link href="/cards?type=LEADER" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
+      <PageHeader title="My leaders" eyebrow="Cards" description={`${leaders.length} leaders owned · ${withDeck} with a deck · ${built} built`} actions={<Link href="/cards?type=LEADER" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
           Browse all leaders
-        </Link>
-      </div>
+        </Link>} />
+      <SectionTabs items={[{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders",active:true},{href:"/collection",label:"Collection"},{href:"/decks",label:"Decks"}]} />
 
       <GameFilter path="/leaders" params={{ color, q, set, usage }} game={game} available={gamesPresent} />
 
-      <form action="/leaders" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+      <form action="/leaders" className="space-y-2">
+        <FilterBar summary={`${leaders.length} matching leaders`} active={<ActiveFilterChips path="/leaders" params={{q,game,color,set,usage}} keys={["q", "color", "set", "usage"]} />}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <label className="col-span-2 text-xs text-space-300">Find a leader<input type="search" name="q" defaultValue={q} placeholder="Name, card number, deck strategy…" className={`${select} block w-full`} /></label>
         {game ? <input type="hidden" name="game" value={game} /> : null}
         <select aria-label="Leader colour" name="color" defaultValue={color ?? ""} className={select}>
@@ -56,6 +53,9 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
             </option>
           ))}
         </select>
+        </div>
+        </FilterBar>
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:flex sm:flex-wrap sm:items-end">
         <label className="min-w-0 text-xs text-space-300">Set<select name="set" defaultValue={set} className={`${select} block w-full`}><option value="">Any set</option>{sets.map(([code,name]) => <option key={code} value={code}>{code} · {name}</option>)}</select></label>
         <label className="min-w-0 text-xs text-space-300">Deck availability<select name="usage" defaultValue={usage} className={`${select} block w-full`}><option value="">Any leader</option><option value="with">Has a deck</option><option value="without">No deck yet</option><option value="built">Has a built deck</option></select></label>
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Filter</button>
@@ -64,6 +64,7 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
             Clear
           </Link>
         ) : null}
+        </div></details>
       </form>
 
       {leaders.length === 0 ? (

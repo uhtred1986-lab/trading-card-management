@@ -9,6 +9,7 @@ import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
 import { reviewSetForm } from "./actions";
 import { requireSlPage } from "@/lib/auth";
+import { EmptyState, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -35,31 +36,29 @@ export default async function SetReviewPage({ params }: { params: Promise<{ code
   const m = new Map(meta.map((r) => [r.id, r]));
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
+    <main className="ds-page space-y-5">
+      <PageHeader eyebrow="AI set analysis" title={`Set review · ${code}`} description={set.name} actions={<>
           <Link href={`/cards?set=${code}`} className="text-xs text-space-300 hover:text-ki-300">
             ← {set.name}
           </Link>
-          <h1 className="text-xl font-semibold text-space-50">Set review · {code}</h1>
           {run ? (
             <p className="text-xs text-space-400">
               Generated {run.createdAt.toISOString().slice(0, 10)} · {run.inputTokens} in / {run.outputTokens} out tokens
             </p>
           ) : null}
-        </div>
+        </>}>
         <form action={reviewSetForm}>
           <input type="hidden" name="code" value={code} />
           <SubmitButton disabled={!hasAnthropic()} pendingLabel="Reviewing…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
             {review ? "Re-run review" : "Review this set with Claude"}
           </SubmitButton>
         </form>
-      </div>
+      </PageHeader>
 
       {!review ? (
-        <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
+        <EmptyState title="No set review yet">
           {hasAnthropic() ? "No review yet. Claude reads every card in the set and picks out standouts, archetypes and sleepers." : "Set ANTHROPIC_API_KEY to enable set reviews."}
-        </p>
+        </EmptyState>
       ) : (
         <>
           <p className="text-space-100">{review.overview}</p>
@@ -122,6 +121,6 @@ export default async function SetReviewPage({ params }: { params: Promise<{ code
           ) : null}
         </>
       )}
-    </div>
+    </main>
   );
 }

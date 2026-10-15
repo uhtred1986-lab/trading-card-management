@@ -5,10 +5,10 @@ import { createPortal, flushSync } from "react-dom";
 import { chooseSkin, chooseStaging } from "@/app/arena/actions";
 import { feel, feelPrefs, serverFeelPrefs, setFeelPrefs, subscribeFeel } from "@/lib/arena/feel";
 import { PACES, pacePref, serverPacePref, setPacePref, subscribePace, type Pace } from "@/lib/arena/pace";
-import { ARENA_SKINS, type ArenaSkin } from "@/lib/arena/skin";
+import { ARENA_SKINS, SKIN_LABELS, type ArenaSkin } from "@/lib/arena/skin";
 import { ARENA_STAGINGS, STAGING_LABEL, type ArenaStaging } from "@/lib/arena/staging";
 
-const SKIN_LABEL: Record<ArenaSkin, string> = { anime: "Sky", night: "Night" };
+
 const PACE_LABEL: Record<Pace, string> = { slow: "Slow", normal: "Normal", step: "Step" };
 
 /**
@@ -74,7 +74,7 @@ function Body({ skin, staging, onClose }: { skin: ArenaSkin; staging: ArenaStagi
         </button>
       </header>
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
-        <Row label="Sky or night">
+        <Row label="World theme">
           {ARENA_SKINS.map((s) => (
             <Seg
               key={s}
@@ -86,7 +86,7 @@ function Body({ skin, staging, onClose }: { skin: ArenaSkin; staging: ArenaStagi
                 })
               }
             >
-              {SKIN_LABEL[s]}
+              {SKIN_LABELS[s]}
             </Seg>
           ))}
         </Row>

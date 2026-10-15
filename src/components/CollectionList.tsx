@@ -9,6 +9,7 @@ import type { DeckOption } from "@/lib/decks/add";
 import type { StorageLocation } from "@/lib/collection/locations";
 import { formatCents } from "@/lib/money";
 import { CardImage } from "./CardImage";
+import { Panel } from "@/components/ui";
 
 const NONE = "__none";
 const NEW = "__new";
@@ -84,7 +85,7 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
 
   return (
     <div className="space-y-2">
-      <div className="overflow-x-auto rounded-xl border border-space-700/70 bg-space-900/40">
+      <Panel className="overflow-x-auto p-0">
         <table className="w-full min-w-[620px] border-collapse text-sm">
           <thead className="border-b border-space-700 bg-space-900/80">
             <tr>
@@ -184,7 +185,7 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
             })}
           </tbody>
         </table>
-      </div>
+      </Panel>
 
       {note ? <p className="text-xs text-gain">{note}</p> : null}
 

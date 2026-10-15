@@ -2,6 +2,7 @@ import Link from "next/link";
 import { modeLabel, seatOf } from "@/lib/arena/games";
 import { RematchButton } from "./RematchButton";
 import { resolveOutcome } from "@/lib/arena/outcome";
+import { Panel } from "@/components/ui";
 
 /** The row shape `listGames` / `listPlayingGames` return. */
 export interface GameRowData {
@@ -51,7 +52,7 @@ export function ContinueStrip({ game, me }: { game: GameRowData; me: string | nu
   const versus = game.mode === "versus";
   const watching = versus && move?.startsWith("waiting");
   return (
-    <Link href={`/arena/${game.id}`} className="tap flex min-h-16 items-center gap-3 rounded-xl border border-ki-500/50 bg-ki-500/10 px-4 py-2 hover:border-ki-500">
+    <Panel className="p-0 border-ki-500/50 bg-ki-500/10"><Link href={`/arena/${game.id}`} className="tap flex min-h-16 items-center gap-3 rounded-xl px-4 py-2 hover:border-ki-500">
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-space-50">
           {watching ? "Watch" : "Continue"} vs {opponentLabel(game, me)}
@@ -64,7 +65,7 @@ export function ContinueStrip({ game, me }: { game: GameRowData; me: string | nu
       <span aria-hidden className="text-ki-300">
         &rarr;
       </span>
-    </Link>
+    </Link></Panel>
   );
 }
 
@@ -75,7 +76,7 @@ function GameRow({ g, me }: { g: GameRowData; me: string | null }) {
   const watching = g.status === "playing" && versus && !!move?.startsWith("waiting");
   const action = "tap flex min-w-24 items-center justify-center rounded-lg border border-space-600 px-3 text-sm font-semibold text-space-50 hover:border-ki-500/60";
   return (
-    <li className="flex min-h-16 items-center gap-3 rounded-xl border border-space-700/70 bg-space-900/50 px-3 py-2">
+    <li><Panel className="flex min-h-16 items-center gap-3 px-3 py-2">
       <Link href={`/arena/${g.id}`} className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-space-50">
           {g.p1Name} <span className="text-space-500">vs</span> {g.p2Name}
@@ -98,7 +99,7 @@ function GameRow({ g, me }: { g: GameRowData; me: string | null }) {
           View
         </Link>
       )}
-    </li>
+    </Panel></li>
   );
 }
 
@@ -122,7 +123,7 @@ export function GamesList({
 }) {
   const tab = (active: boolean) => `tap flex flex-1 items-center justify-center rounded-md text-sm font-semibold ${active ? "bg-space-700 text-space-50" : "text-space-300 hover:text-space-50"}`;
   return (
-    <section id="games" className="space-y-3">
+    <Panel id="games" className="space-y-3">
       <h2 className="text-xs uppercase tracking-widest text-space-400">Games</h2>
       <nav aria-label="Games" className="flex gap-1 rounded-lg bg-space-900 p-1 sm:hidden">
         <Link href="/arena?tab=games" replace aria-current={list === "now" ? "page" : undefined} className={tab(list === "now")}>
@@ -156,6 +157,6 @@ export function GamesList({
           </ul>
         )}
       </div>
-    </section>
+    </Panel>
   );
 }

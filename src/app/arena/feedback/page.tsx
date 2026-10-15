@@ -6,6 +6,7 @@ import { listRemoteIssues, getFeedbackGitHubLink } from "@/lib/github";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { setFeedbackStatus, syncFeedbackToGitHubAction, syncAllFeedbackAction } from "../actions";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -62,13 +63,14 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
   );
 
   return (
-    <div className="space-y-4">
+    <div className="ds-page space-y-4">
       <ArenaHeader side="other" />
-      <h1 className="text-lg font-semibold tracking-tight text-space-50">What you told the arena</h1>
-      <p className="text-sm text-space-300">
+      <PageHeader title="What you told the Arena" eyebrow="Feedback" description={
+        <>
         Everything said from inside the arena, in one place: bugs reported from the board, cards explained on the backlog, and rules set by hand. Either player in a 1 v 1 can file one, and it says who
         did. A bug carries the whole game with it — the state, every move made, and what was on offer — so it can be replayed exactly as it was seen.
-      </p>
+        </>
+      } />
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {tab("open", "Open")}

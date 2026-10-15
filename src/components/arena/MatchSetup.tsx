@@ -26,7 +26,7 @@ export function MatchSetup({ own, opponent, review, footer, fields, action, ownV
   return <>
     <button data-match-setup-open ref={opener} type="button" onClick={() => {setStep(0);setOpen(true);}} disabled={busy} className="tap w-full rounded-xl bg-ki-500 px-4 py-4 text-base font-semibold text-space-950 sm:hidden">Set up a match</button>
     <form action={action} className="hidden space-y-4 sm:block" data-desktop-setup>
-      {fields}<div className="grid items-start gap-4 lg:grid-cols-2"><div>{own}</div><div>{opponent}</div></div>{footer}
+      {fields}<div className="grid items-start gap-4 lg:grid-cols-2"><section className="ds-panel space-y-4" aria-label="Deck setup">{own}</section><section className="ds-panel space-y-4" aria-label="Opponent setup">{opponent}</section></div>{footer}
     </form>
     <dialog ref={dialog} aria-labelledby="match-setup-title" onClose={() => {setOpen(false);opener.current?.focus();}} className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-space-950 p-0 text-space-100 backdrop:bg-black/70 sm:hidden" data-match-wizard>
       {open && <form action={action} className="flex h-full min-h-0 flex-col" onSubmit={(e) => { if (step < 2 || !ownValid || !opponentValid) {e.preventDefault();if(step<2 && valid) setStep(step+1);} }}>
@@ -36,9 +36,9 @@ export function MatchSetup({ own, opponent, review, footer, fields, action, ownV
           <button type="button" disabled={busy} onClick={() => dialog.current?.close()} className="tap rounded-lg border border-space-600 px-3 py-2 text-sm">Close</button>
         </header>
         <div ref={scroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
-          <div style={{display:step===0?undefined:"none"}}>{own}</div>
-          <div style={{display:step===1?undefined:"none"}}>{opponent}</div>
-          {step===2 && review}
+          <section className="ds-panel space-y-4" aria-label="Deck setup" style={{display:step===0?undefined:"none"}}>{own}</section>
+          <section className="ds-panel space-y-4" aria-label="Opponent setup" style={{display:step===1?undefined:"none"}}>{opponent}</section>
+          {step===2 && <section className="ds-panel space-y-4" aria-label="Review match">{review}</section>}
         </div>
         <footer className="shrink-0 space-y-2 border-t border-space-700 bg-space-950 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {step>0 && <button type="button" disabled={busy} onClick={() => setStep(step-1)} className="tap rounded-lg border border-space-600 px-4 py-2 text-sm">Back</button>}

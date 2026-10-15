@@ -13,6 +13,8 @@ import { providerPanels } from "@/lib/ai/panel";
 import { loadSettings } from "@/lib/ai/settings-db";
 import { currentSession, isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
+import { PageHeader, Panel } from "@/components/ui";
+import { SKIN_LABELS } from "@/lib/arena/skin";
 
 export const dynamic = "force-dynamic";
 /** Sync actions can run for a couple of minutes on Vercel's fluid compute. */
@@ -35,40 +37,31 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-xl font-semibold text-space-50">Settings & data sync</h1>
-        {session ? (
-          <form action={signOut} className="ml-auto flex items-baseline gap-2 text-xs text-space-400">
-            <span>signed in as {session.email}</span>
-            <button type="submit" className="tap rounded-md border border-space-600 px-3 py-1 text-space-100 hover:bg-space-800">
-              Sign out
-            </button>
-          </form>
-        ) : null}
-      </div>
+      <PageHeader title="Settings & data sync" eyebrow="Workspace" description="Appearance, AI providers and catalog refresh controls." actions={session ? <form action={signOut} className="flex items-baseline gap-2 text-xs text-space-400"><span>signed in as {session.email}</span><button type="submit" className="tap ds-button-secondary">Sign out</button></form> : null} />
+      <nav className="flex flex-wrap gap-2 text-sm" aria-label="Settings sections"><a className="ds-button-secondary" href="#appearance">Appearance</a><a className="ds-button-secondary" href="#ai">AI & integrations</a><a className="ds-button-secondary" href="#sync">Data & sync</a></nav>
 
-      <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+      <Panel id="appearance" className="text-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-semibold text-space-50">Look</h2>
           <div className="flex gap-2">
-            {(["anime", "night"] as const).map((s) => (
+            {(["anime", "night", "namek", "korin", "instinct"] as const).map((s) => (
               <form key={s} action={chooseSkinAction.bind(null, s)}>
                 <SubmitButton
                   pendingLabel="Switching…"
                   className={`tap rounded-md border px-3 py-1 text-xs ${skin === s ? "border-ki-500 bg-ki-500/15 text-space-50" : "border-space-600 text-space-100 hover:bg-space-800"}`}
                 >
-                  {s === "anime" ? "Anime sky" : "Night table"}
+                  {SKIN_LABELS[s]}
                 </SubmitButton>
               </form>
             ))}
           </div>
         </div>
         <p className="mt-1 text-xs text-space-300">The whole app, this device only. The anime sky is the default; the night table is the dark board the app was designed on.</p>
-      </section>
+      </Panel>
 
       <TurnLighting prefs={lighting} />
 
-      <section className="grid gap-3 md:grid-cols-2">
+      <section id="sync" className="grid gap-3 md:grid-cols-2 scroll-mt-6">
         <SyncCard
           title="Card catalog"
           source="deckplanet — both games: Dragon Ball Super (legacy + Masters) and Fusion World, with text, bans, prints and images"
@@ -127,7 +120,7 @@ export default async function SettingsPage() {
         <p className="mt-1 text-xs text-space-300">Keep a list of binders, boxes and shelves, then file individual copies — or a whole selection at once — so you can find a card when you want it.</p>
       </section>
 
-      <AiSettingsBlock settings={aiSettings} panels={aiPanels} admin={aiAdmin} />
+      <div id="ai" className="scroll-mt-6"><AiSettingsBlock settings={aiSettings} panels={aiPanels} admin={aiAdmin} /></div>
 
       <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
         <h2 className="mb-2 font-semibold text-space-50">Integrations</h2>

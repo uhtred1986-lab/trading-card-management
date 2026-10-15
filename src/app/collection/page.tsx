@@ -16,6 +16,8 @@ import { CopiesPopover } from "@/components/CopiesPopover";
 import { ViewToggle } from "@/components/ViewToggle";
 import { LiveSearch } from "@/components/LiveSearch";
 import { deckOptions } from "@/lib/decks/add";
+import { PageHeader, SectionTabs } from "@/components/ui";
+import { ActiveFilterChips, FilterBar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -110,22 +112,15 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">My collection</h1>
-          <p className="text-sm text-space-300">
-            {s.copies} copies · {s.uniqueCards} unique · worth {formatCents(s.valueEurCents)}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader title="My collection" eyebrow="Collection" description={`${s.copies} copies · ${s.uniqueCards} unique · worth ${formatCents(s.valueEurCents)}`} actions={<>
           <Link href="/collection/archived" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-200 hover:bg-space-800">
             Archived
           </Link>
           <Link href="/add" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
             + Add cards
           </Link>
-        </div>
-      </div>
+      </>} />
+      <SectionTabs items={[{href:"/collection",label:"Collection",active:true},{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders"},{href:"/decks",label:"Decks"}]} />
 
       <GameFilter path="/collection" params={{ ...params, view: view === "grid" ? undefined : view }} game={game} available={gamesPresent} />
 
@@ -138,10 +133,22 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         </span>
       </div>
 
-      <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
+      <form action="/collection" className="space-y-2">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {game ? <input type="hidden" name="game" value={game} /> : null}
+        <FilterBar summary={`${shown} matching ${shown === 1 ? "card" : "cards"}`} active={<ActiveFilterChips path="/collection" params={{...params,view}} keys={["q", "set", "type", "color", "trait", "ability", "finish", "location", "deck", "owner"]} />}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <LiveSearch
+          defaultValue={q}
+          placeholder="Filter by name or number"
+          className="col-span-2"
+          params={{set,game,color,type,trait,ability,sort:sort === "recent" ? undefined : sort,finish,view:view === "grid" ? undefined : view,location:locationParam,deck:deckParams,owner}}
+        />
+        <select name="color" defaultValue={color ?? ""} className={select}><option value="">Any colour</option>{COLORS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+        </div>
+        </FilterBar>
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
         {/* The same filters in both views — a grid tile counts only the copies that match. */}
         <select name="location" defaultValue={locationParam ?? ""} className={select}>
           <option value="">Anywhere</option>
@@ -194,38 +201,11 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             <option value="none">No owner set</option>
           </select>
         )}
-        <LiveSearch
-          defaultValue={q}
-          placeholder="Filter by name or number"
-          className="col-span-2"
-          params={{
-            set,
-            game,
-            color,
-            type,
-            trait,
-            ability,
-            sort: sort === "recent" ? undefined : sort,
-            finish,
-            view: view === "grid" ? undefined : view,
-            location: locationParam,
-            deck: deckParams,
-            owner,
-          }}
-        />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((st) => (
             <option key={st.code} value={st.code}>
               {st.code} · {st.name}
-            </option>
-          ))}
-        </select>
-        <select name="color" defaultValue={color ?? ""} className={select}>
-          <option value="">Any colour</option>
-          {COLORS.map((c) => (
-            <option key={c} value={c}>
-              {c}
             </option>
           ))}
         </select>
@@ -263,6 +243,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           <option value="number">Set / number</option>
         </select>
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Apply</button>
+        </div></details>
       </form>
 
       {shown === 0 ? (

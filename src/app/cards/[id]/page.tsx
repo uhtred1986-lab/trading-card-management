@@ -22,6 +22,7 @@ import { deckOptions } from "@/lib/decks/add";
 import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { SubmitButton } from "@/components/SubmitButton";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
       </div>
 
       <div className="space-y-5">
+        <SectionTabs items={[{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders"},{href:"/collection",label:"Collection"},{href:"/decks",label:"Decks"}]} />
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-space-300">
             <span className="font-mono">{card.id}</span>
@@ -107,7 +109,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             </Link>
             <span className="rounded bg-space-800 px-1.5 py-px uppercase">{card.set.line}</span>
           </div>
-          <h1 className="mt-1 text-2xl font-semibold text-space-50">{card.name}</h1>
+          <PageHeader title={card.name} eyebrow={card.id} />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <TypeBadge type={card.cardType} />
             <RarityBadge code={card.rarityCode} />

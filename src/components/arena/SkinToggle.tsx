@@ -1,28 +1,8 @@
 "use client";
-
 import { useTransition } from "react";
-import type { ArenaSkin } from "@/lib/arena/skin";
-
-/**
- * Night table or anime sky, from the board itself.
- *
- * A cookie rather than `localStorage`, unlike the buzz and sound toggles
- * beside it: a re-skin read on the client would flash the night board on
- * every load, so the server reads the cookie and sends the right markup.
- * The button names the skin you would switch *to*, as the old board toggle did.
- */
+import { ARENA_SKINS, SKIN_LABELS, skinFrom, type ArenaSkin } from "@/lib/arena/skin";
+/** All worlds are reachable from the board, preserving its existing action boundary. */
 export function SkinToggle({ skin, onChoose }: { skin: ArenaSkin; onChoose: (skin: ArenaSkin) => Promise<void> }) {
   const [pending, start] = useTransition();
-  const next: ArenaSkin = skin === "anime" ? "night" : "anime";
-  return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => start(() => onChoose(next))}
-      className="tap whitespace-nowrap uppercase tracking-widest text-space-600 hover:text-ki-400 disabled:opacity-50"
-      title={`Switch to the ${next === "anime" ? "anime sky" : "night table"}`}
-    >
-      {next === "anime" ? "anime sky" : "night table"}
-    </button>
-  );
+  return <label className="ds-theme-picker"><span className="sr-only">Board theme</span><select aria-label="Board theme" disabled={pending} value={skin} onChange={e => { const next = skinFrom(e.target.value); start(() => onChoose(next)); }}>{ARENA_SKINS.map(key => <option key={key} value={key}>{SKIN_LABELS[key]}</option>)}</select></label>;
 }

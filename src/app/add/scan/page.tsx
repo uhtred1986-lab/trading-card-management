@@ -8,6 +8,7 @@ import { getBatch, listOpenBatches } from "@/lib/scan/batches";
 import { ScanFlow } from "@/components/ScanFlow";
 import { SubmitButton } from "@/components/SubmitButton";
 import { deleteBatchForm } from "./actions";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +35,8 @@ export default async function ScanPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline gap-3">
-        <Link href="/add" className="text-xs text-space-300 hover:text-ki-300">
-          ← Add
-        </Link>
-        <h1 className="text-xl font-semibold text-space-50">Scan cards</h1>
-        {active ? <span className="text-xs text-space-400">{active.batch.name}</span> : null}
-      </div>
+      <PageHeader title="Scan cards" eyebrow={<Link href="/add">Add cards</Link>} description={active?.batch.name} />
+      <SectionTabs items={[{href:"/add",label:"Add cards"},{href:"/add/quick",label:"Quick capture"},{href:"/add/scan",label:"Scan",active:true},{href:"/add/bulk",label:"Bulk entry"}]} />
 
       {batchId && !active ? (
         <p className="rounded-xl border border-space-700 p-3 text-sm text-space-300">

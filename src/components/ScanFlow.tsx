@@ -11,6 +11,7 @@ import type { DeckOption } from "@/lib/decks/add";
 import type { ItemPatch, ScanItemRow, ScanMode, ScanPhotoMeta } from "@/lib/scan/batches";
 import { downscaleImage } from "@/lib/scan/downscale";
 import { CardImage } from "./CardImage";
+import { Panel } from "@/components/ui";
 import { CardSearchInput, type CardHit } from "./CardSearchInput";
 import { DeckPicker } from "./DeckPicker";
 import { OwnerPicker } from "./OwnerPicker";
@@ -272,7 +273,7 @@ export function ScanFlow({
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1 text-xs text-space-100";
 
   return (
-    <div className="space-y-4">
+    <Panel className="space-y-4 p-3">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
         <div className="flex rounded-md border border-space-600 p-0.5 text-sm">
           {(["single", "batch"] as const).map((m) => (
@@ -426,7 +427,7 @@ export function ScanFlow({
           </ul>
         </div>
       ) : null}
-    </div>
+    </Panel>
   );
 }
 

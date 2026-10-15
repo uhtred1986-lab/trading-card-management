@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CardImage } from "./CardImage";
 import { ColorPill, RarityBadge, TypeBadge } from "./ColorPill";
 import type { CardTileData } from "./CardTile";
+import { Panel } from "@/components/ui";
 
 export interface CardListRow {
   card: CardTileData;
@@ -19,7 +20,7 @@ export function CardList({ rows }: { rows: CardListRow[] }) {
   const head = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-space-400";
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-space-700/70 bg-space-900/40">
+    <Panel className="overflow-x-auto p-0">
       <table className="w-full min-w-[560px] border-collapse text-sm">
         <thead className="border-b border-space-700 bg-space-900/80">
           <tr>
@@ -77,6 +78,6 @@ export function CardList({ rows }: { rows: CardListRow[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </Panel>
   );
 }

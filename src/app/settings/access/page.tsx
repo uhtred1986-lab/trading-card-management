@@ -4,6 +4,7 @@ import { requireSlPage } from "@/lib/auth";
 import { listSls, playersOverview, unassignedOwners } from "@/lib/auth/access";
 import { isSlEmail } from "@/lib/auth/core";
 import { AccessAdmin } from "@/components/settings/AccessAdmin";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +20,13 @@ export default async function AccessPage() {
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <Link href="/settings" className="text-xs text-space-300 hover:text-ki-300">
-          ← Settings
-        </Link>
-        <h1 className="text-xl font-semibold text-space-50">Users & access</h1>
-        <span className="ml-auto text-xs text-space-400">signed in as {me.email ?? me.login ?? "local dev"}</span>
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Users & access" eyebrow="Settings" description="Manage player access, join codes and ownership." actions={<span className="text-xs text-space-400">signed in as {me.email ?? me.login ?? "local dev"}</span>} />
 
-      <p className="rounded-xl border border-space-700/70 bg-space-900/40 p-3 text-xs text-space-300">
+      <Panel className="text-sm text-space-300">
         <span className="text-space-100">Players</span> join with a one-time code from here and stay signed in on that phone. They see only their own cards and decks, and can use everything except
         Settings and the arena&apos;s rules workbench. <span className="text-space-100">SLs</span> sign in with Google and see everyone&apos;s.
-      </p>
+      </Panel>
 
       <AccessAdmin
         isOwner={isOwner}

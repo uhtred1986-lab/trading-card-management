@@ -5,6 +5,7 @@ import { deckOptions } from "@/lib/decks/add";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
 import { QuickCapture } from "@/components/QuickCapture";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +16,8 @@ export default async function QuickPage() {
   const [decks, owners, locations] = await Promise.all([deckOptions(db, { scope }), ownerOptions(db, owner, viewer.kind === "player"), listLocations(db, false, scope)]);
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline gap-3">
-        <Link href="/add" className="text-xs text-space-300 hover:text-ki-300">
-          ← Add
-        </Link>
-        <h1 className="text-xl font-semibold text-space-50">Quick capture</h1>
-        <span className="ml-auto text-xs text-space-400">{owner ? `as ${owner}` : "no login — owner not recorded"}</span>
-      </div>
+      <PageHeader title="Quick capture" eyebrow={<Link href="/add">Add cards</Link>} description={owner ? `Adding as ${owner}` : "No login — owner not recorded"} />
+      <SectionTabs items={[{href:"/add",label:"Add cards"},{href:"/add/quick",label:"Quick capture",active:true},{href:"/add/scan",label:"Scan"},{href:"/add/bulk",label:"Bulk entry"}]} />
       <QuickCapture owner={owner} decks={decks} owners={owners} locations={locations} />
     </div>
   );

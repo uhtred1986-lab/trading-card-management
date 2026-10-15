@@ -2,6 +2,7 @@ import Link from "next/link";
 import { KEYWORDS, MODIFIERS, READING_RULES, SKILL_TYPES, SUPPORT_LABEL, keywordsByGroup, type Support } from "@/lib/arena/glossary";
 import { loadDbs } from "@/lib/arena/rulesets";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const metadata = { title: "Keywords the engine knows" };
 
@@ -35,16 +36,12 @@ export default async function KeywordsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">Keywords the engine knows</h1>
+      <PageHeader title="Keywords the engine knows" eyebrow="Arena rules reference" description={`Compare card meanings with current arena behavior. ${total} keywords are listed; ${approximate} have known approximations.`}>
         <Link href="/arena/rules" className="ml-auto text-xs text-space-300 hover:text-ki-300">
           ← The rules of your cards
         </Link>
-      </div>
-      <p className="text-sm text-space-300">
-        Find a keyword to compare its card meaning with the arena’s current behavior. {total} keywords are listed; {approximate} have known approximations, explained below. Choose a category to jump to it.
-
-      </p>
+      </PageHeader>
+      <p className="text-sm text-space-300">Choose a category to jump to it.</p>
 
       <nav className="flex flex-wrap gap-1.5 text-[11px]">
         {groups.map((g) => (
@@ -68,7 +65,7 @@ export default async function KeywordsPage() {
           <h2 className="text-xs uppercase tracking-widest text-space-400">{g.label}</h2>
           <ul className="space-y-2">
             {g.entries.map((k) => (
-              <li key={k.name} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+              <li key={k.name}><Panel className="p-3">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="font-mono text-sm font-medium text-space-100">{k.tag}</span>
                   {k.also?.map((a) => (
@@ -90,7 +87,7 @@ export default async function KeywordsPage() {
                   {k.engineRules}
                 </p>
                 <p className="mt-1 font-mono text-[10px] text-space-600">Rule Manual {k.section}</p>
-              </li>
+              </Panel></li>
             ))}
           </ul>
         </section>

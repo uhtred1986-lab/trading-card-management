@@ -11,6 +11,7 @@ import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { InviteShare } from "@/components/arena/InviteShare";
 import { MatchWaiting } from "@/components/arena/MatchWaiting";
 import { cancelMatchAction, joinMatchForm } from "../../actions";
+import { PageHeader, Panel, EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -56,10 +57,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   if (mine) {
     return (
-      <div className="space-y-4">
+      <div className="ds-page space-y-4">
       <ArenaHeader side="other" />
-      <div className="mx-auto max-w-md space-y-4 py-6 text-center">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">Waiting for your opponent</h1>
+      <div className="mx-auto max-w-md space-y-4">
+        <PageHeader title="Waiting for your opponent" eyebrow="Arena · Match" />
+        <Panel className="space-y-4 text-center">
         {hostSide}
         <MatchWaiting matchId={id} />
         <p className="text-sm text-space-300">Send them this link. They pick a deck on it and the game starts on both phones.</p>
@@ -74,6 +76,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </SubmitButton>
           </form>
         </div>
+        </Panel>
       </div>
       </div>
     );
@@ -85,23 +88,24 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const firstReady = decks.find((d) => !isLocked(ready.get(d.id)))?.id;
 
   return (
-    <div className="space-y-4">
+    <div className="ds-page space-y-4">
     <ArenaHeader side="other" />
-    <div className="mx-auto max-w-md space-y-4 py-6">
-      <h1 className="text-center text-lg font-semibold tracking-tight text-space-50">{match.hostUser} invites you to play</h1>
+    <div className="mx-auto max-w-md space-y-4">
+      <PageHeader title={`${match.hostUser} invites you to play`} eyebrow="Arena · Match" />
+      <Panel className="space-y-4">
       {hostSide}
       {!me ? (
         <p className="text-center text-sm text-space-300">A 1 v 1 needs two logins. Sign in with your own to join.</p>
       ) : taken ? (
         <p className="text-center text-sm text-space-300">Someone else is joining this match.</p>
       ) : decks.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-space-700 p-4 text-center text-sm text-space-300">
+        <EmptyState title="No deck ready to join">
           You have no deck ready to play: it needs a leader and 50 cards, from the original game.{" "}
           <Link href="/decks" className="text-ki-300 hover:underline">
             Build one
           </Link>
           .
-        </p>
+        </EmptyState>
       ) : (
         <form action={joinMatchForm} className="space-y-3">
           <input type="hidden" name="match" value={id} />
@@ -137,6 +141,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           ← Arena
         </Link>
       </p>
+      </Panel>
     </div>
     </div>
   );
