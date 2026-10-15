@@ -36,38 +36,14 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
   };
   const filteredCount = run.results.length;
 
-  return <main className="mx-auto max-w-7xl space-y-5 px-3 py-4 pb-24 sm:px-6 sm:py-6">
+  return <main className="mx-auto max-w-7xl min-w-0 space-y-5 overflow-x-hidden px-3 py-4 pb-24 sm:px-6 sm:py-6">
     <ArenaHeader side="testing" />
     <Link href="/arena/testing" className="tap inline-flex min-h-9 items-center text-sm text-ki-300 hover:text-ki-200">← Back to Testing &amp; stats</Link>
     <header className={panel}>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-ki-300">Immutable imported run</p>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-ki-300">Imported test run</p>
       <h1 className="mt-1 text-xl font-semibold text-space-50 sm:text-2xl">{source}</h1>
       <p className="mt-1 break-all font-mono text-xs text-space-400">Run {run.requestId} · {run.resultCount} result rows · {new Date(run.recordedAt).toLocaleString()}</p>
-      <div className="mt-3 grid gap-2 text-xs text-space-300 sm:grid-cols-2">
-        <p>Runner: <span className="font-mono">{run.runner.id}@{run.runner.version}</span></p>
-        <p>Protocol: <span className="font-mono">{run.protocol.id}@{run.protocol.revision}</span></p>
-        <p>Runner commit: <span className="break-all font-mono">{run.runner.gitCommit}</span></p>
-        <p className="break-all">Worktree: {run.runner.dirtyTreeSha256 ? <span className="font-mono">dirty · {run.runner.dirtyTreeSha256}</span> : "runner declared clean"}</p>
-      </div>
     </header>
-
-    <section className={panel} aria-labelledby="fixtures-title">
-      <h2 id="fixtures-title" className="text-base font-semibold text-space-100">Pinned fixtures</h2>
-      <div className="mt-2 grid gap-3 lg:grid-cols-2">{run.fixtures.map((fixture) => <article key={fixture.key} className="rounded-lg border border-space-700 p-3">
-        <h3 className="text-sm font-semibold text-space-100">{fixture.key} · {fixture.sourceId}</h3>
-        <dl className="mt-2 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-2 gap-y-1 break-all text-[11px] text-space-300">
-          <dt>Runtime revision</dt><dd className="font-mono">{fixture.runtimeRevision ?? "unavailable; this run is unpinned"}</dd>
-          <dt>Bundle SHA-256</dt><dd className="font-mono">{fixture.bundleSha256}</dd>
-          <dt>Rules SHA-256</dt><dd className="font-mono">{fixture.rulesSha256 ?? "not recorded"}</dd>
-          <dt>Catalog SHA-256</dt><dd className="font-mono">{fixture.catalogSha256 ?? "not recorded"}</dd>
-          <dt>Programs SHA-256</dt><dd className="font-mono">{fixture.programsSha256 ?? "not recorded"}</dd>
-          <dt>P1 deck</dt><dd className="font-mono">{fixture.p1RecipeId ?? "recipe unmapped"} · {fixture.p1DeckSha256 ?? "hash unavailable"}</dd>
-          <dt>P2 deck</dt><dd className="font-mono">{fixture.p2RecipeId ?? "recipe unmapped"} · {fixture.p2DeckSha256 ?? "hash unavailable"}</dd>
-        </dl>
-      </article>)}</div>
-      <h3 className="mt-4 text-sm font-semibold text-space-200">Pinned policies</h3>
-      {run.policies.length ? <div className="mt-2 overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[32rem] text-left text-xs"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Policy key</th><th className="px-2 py-2">Version</th><th className="px-2 py-2">SHA-256</th></tr></thead><tbody>{run.policies.map((policy) => <tr key={policy.key} className="border-t border-space-800"><th scope="row" className="px-2 py-2 font-mono text-space-200">{policy.key}</th><td className="px-2 py-2 text-space-300">{policy.version}</td><td className="break-all px-2 py-2 font-mono text-[10px] text-space-300">{policy.sha256}</td></tr>)}</tbody></table></div> : <p className="mt-1 text-xs text-space-500">This runner does not use a policy comparison.</p>}
-    </section>
 
     <section className={panel} aria-labelledby="fixture-results-title">
       <h2 id="fixture-results-title" className="text-base font-semibold text-space-100">Outcome counts by fixture</h2>
@@ -75,7 +51,7 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
       {run.fixtureTotals.length ? <div className="mt-2 overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[34rem] text-left text-xs"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Fixture</th><th className="px-2 py-2">Result kind</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Count</th></tr></thead><tbody>{run.fixtureTotals.map((item) => <tr key={`${item.fixtureKey}:${item.kind}:${item.outcome}`} className="border-t border-space-800"><th scope="row" className="px-2 py-2 font-mono">{item.fixtureKey}</th><td className="px-2 py-2">{item.kind.replaceAll("_", " ")}</td><td className="px-2 py-2">{item.outcome}</td><td className="px-2 py-2 tabular-nums">{item.count}</td></tr>)}</tbody></table></div> : <p className="mt-2 text-xs text-space-500">No result counts available.</p>}
     </section>
 
-    <section className="space-y-3" aria-labelledby="cases-title">
+    <section className="min-w-0 space-y-3" aria-labelledby="cases-title">
       <div><h2 id="cases-title" className="text-base font-semibold text-space-100">Case results</h2><p className="text-xs text-space-400">Review every result page. Evidence is a digest only; raw replays, game state, actions, and prompts are not uploaded.</p></div>
       <form method="GET" className="grid gap-2 rounded-xl border border-space-700 bg-space-900/50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <label className="block space-y-1 text-xs text-space-300">Fixture
@@ -87,7 +63,7 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
         <button className="tap min-h-11 rounded-md border border-space-600 px-4 text-sm text-space-100 hover:bg-space-800">Filter cases</button>
       </form>
       <p className="text-[11px] text-space-500">Showing {filteredCount} row(s) on page {run.page} of {run.pageCount} · {run.totalMatches} match these filters.</p>
-      {run.results.length ? <div className="overflow-x-auto rounded-xl border border-space-700"><table className="w-full min-w-[74rem] text-left text-[11px]"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Case</th><th className="px-2 py-2">Fixture</th><th className="px-2 py-2">Portal mapping</th><th className="px-2 py-2">Policy</th><th className="px-2 py-2">Seed / seat</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Assertions / metrics</th><th className="px-2 py-2">Evidence SHA-256</th></tr></thead>
+      {run.results.length ? <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border border-space-700"><table className="w-full min-w-[74rem] text-left text-[11px]"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Case</th><th className="px-2 py-2">Fixture</th><th className="px-2 py-2">Portal mapping</th><th className="px-2 py-2">Policy</th><th className="px-2 py-2">Seed / seat</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Assertions / metrics</th><th className="px-2 py-2">Evidence SHA-256</th></tr></thead>
         <tbody>{run.results.map((result) => <ResultRow key={result.key} result={result} />)}</tbody></table></div> : <p className="rounded-xl border border-dashed border-space-700 p-5 text-sm text-space-400">No cases match these filters.</p>}
       <nav aria-label="Result pages" className="flex items-center justify-between gap-3 text-sm">
         {run.page > 1 ? <Link className="tap rounded-md border border-space-700 px-3 py-2 text-space-200" href={hrefForPage(run.page - 1)}>← Previous 25</Link> : <span />}
@@ -95,6 +71,31 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
         {run.page < run.pageCount ? <Link className="tap rounded-md border border-space-700 px-3 py-2 text-space-200" href={hrefForPage(run.page + 1)}>Next 25 →</Link> : <span />}
       </nav>
     </section>
+
+    <details className={panel}>
+      <summary className="tap cursor-pointer text-base font-semibold text-space-100">Versions and reproducibility</summary>
+      <div className="mt-3 grid min-w-0 gap-2 break-all text-xs text-space-300 sm:grid-cols-2">
+        <p>Runner: <span className="font-mono">{run.runner.id}@{run.runner.version}</span></p>
+        <p>Protocol: <span className="font-mono">{run.protocol.id}@{run.protocol.revision}</span></p>
+        <p>Runner commit: <span className="font-mono">{run.runner.gitCommit}</span></p>
+        <p>Worktree: {run.runner.dirtyTreeSha256 ? <span className="font-mono">dirty · {run.runner.dirtyTreeSha256}</span> : "runner declared clean"}</p>
+      </div>
+      <h2 className="mt-4 text-base font-semibold text-space-100">Pinned fixtures</h2>
+      <div className="mt-2 grid min-w-0 gap-3 lg:grid-cols-2">{run.fixtures.map((fixture) => <article key={fixture.key} className="min-w-0 rounded-lg border border-space-700 p-3">
+        <h3 className="break-words text-sm font-semibold text-space-100">{fixture.key} · {fixture.sourceId}</h3>
+        <dl className="mt-2 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-2 gap-y-1 break-all text-[11px] text-space-300">
+          <dt>Runtime revision</dt><dd className="font-mono">{fixture.runtimeRevision ?? "unavailable; this run is unpinned"}</dd>
+          <dt>Bundle SHA-256</dt><dd className="font-mono">{fixture.bundleSha256}</dd>
+          <dt>Rules SHA-256</dt><dd className="font-mono">{fixture.rulesSha256 ?? "not recorded"}</dd>
+          <dt>Catalog SHA-256</dt><dd className="font-mono">{fixture.catalogSha256 ?? "not recorded"}</dd>
+          <dt>Programs SHA-256</dt><dd className="font-mono">{fixture.programsSha256 ?? "not recorded"}</dd>
+          <dt>P1 deck</dt><dd className="font-mono">{fixture.p1RecipeId ?? "recipe unmapped"} · {fixture.p1DeckSha256 ?? "hash unavailable"}</dd>
+          <dt>P2 deck</dt><dd className="font-mono">{fixture.p2RecipeId ?? "recipe unmapped"} · {fixture.p2DeckSha256 ?? "hash unavailable"}</dd>
+        </dl>
+      </article>)}</div>
+      <h3 className="mt-4 text-sm font-semibold text-space-200">Pinned policies</h3>
+      {run.policies.length ? <div className="mt-2 min-w-0 max-w-full overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[32rem] text-left text-xs"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Policy key</th><th className="px-2 py-2">Version</th><th className="px-2 py-2">SHA-256</th></tr></thead><tbody>{run.policies.map((policy) => <tr key={policy.key} className="border-t border-space-800"><th scope="row" className="px-2 py-2 font-mono text-space-200">{policy.key}</th><td className="px-2 py-2 text-space-300">{policy.version}</td><td className="break-all px-2 py-2 font-mono text-[10px] text-space-300">{policy.sha256}</td></tr>)}</tbody></table></div> : <p className="mt-1 text-xs text-space-500">This runner does not use a policy comparison.</p>}
+    </details>
   </main>;
 }
 

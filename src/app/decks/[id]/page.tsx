@@ -25,7 +25,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { OfflineDeck } from "@/components/arena/OfflineDeck";
 import { checkOfflineDecks } from "@/lib/arena/offline-decks";
 import { runtimeRevision } from "@/lib/arena/replay-bundle";
-import { deleteDeckForm, duplicateDeckForm, importDeckListForm, updateDeckForm } from "../actions";
+import { deleteDeckForm, duplicateDeckForm, importDeckListForm, renameDeckForm, updateDeckForm } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,19 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </Link>
             ) : null}
           </div>
-          <h1 className="break-words text-2xl font-semibold text-space-50">{deck.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="break-words text-2xl font-semibold text-space-50">{deck.name}</h1>
+            <details className="relative">
+              <summary className="tap cursor-pointer rounded-md border border-space-600 px-3 py-1.5 text-xs font-medium text-ki-300 hover:border-ki-500/60">Rename</summary>
+              <form action={renameDeckForm} className="mt-2 grid w-full max-w-sm gap-2 rounded-lg border border-space-700 bg-space-900 p-3 sm:absolute sm:left-0 sm:z-20 sm:w-80">
+                <input type="hidden" name="id" value={deck.id} />
+                <label className="text-xs text-space-300">New deck name
+                  <input name="name" defaultValue={deck.name} maxLength={120} required className={input} />
+                </label>
+                <SubmitButton pendingLabel="Renaming…" className="tap min-h-10 justify-self-start rounded-md bg-space-700 px-3 text-sm text-space-50 hover:bg-space-600">Save name</SubmitButton>
+              </form>
+            </details>
+          </div>
           <DeckDescription text={deck.description} />
           <div className="flex flex-wrap items-center gap-1 text-sm text-space-300">
             {leader ? (

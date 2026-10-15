@@ -158,15 +158,15 @@ export function TestingPortal({ dashboard, filter, requestId, importedRuns }: { 
 function RunEvidenceSection({ runs }: { runs: ImportedRunSummary[] }) {
   const [state, formAction] = useActionState(importEvaluationRunAction, null);
   return <section aria-labelledby="imported-runs-title" className="space-y-3">
-    <div><h2 id="imported-runs-title" className="text-lg font-semibold text-space-50">Imported evaluator and scenario runs</h2><p className="text-xs text-space-400">Latest 40 immutable, versioned runs. Importing the same file again adds no duplicates. Imports never alter recipe or scenario progress, and do not contain replay traces or private game state.</p></div>
+    <div><h2 id="imported-runs-title" className="text-lg font-semibold text-space-50">Test run history</h2><p className="text-xs text-space-400">Latest 40 runs. Importing the same file again adds no duplicates. Imports never alter recipe or scenario progress, and do not contain replay traces or private game state.</p></div>
     <form key={state?.formEpoch ?? "0"} action={formAction} onReset={(event) => event.preventDefault()} className="grid gap-3 rounded-xl border border-space-700 bg-space-900/50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-      <label className={smallLabel}>Allowlisted run manifest JSON <span className="text-space-500">· maximum 512 KiB</span>
-        <input name="manifest" type="file" accept="application/json,.json" required className={`${input} file:mr-3 file:rounded file:border-0 file:bg-space-700 file:px-3 file:py-1 file:text-xs file:text-space-100`} />
+      <label className={smallLabel}>Test run JSON file <span className="text-space-500">· maximum 512 KiB</span>
+        <input name="manifest" type="file" accept="application/json,.json" required className={`${input} file:mr-3 file:rounded file:border-0 file:bg-space-700 file:px-3 file:py-1 file:text-xs file:text-white`} />
       </label>
-      <SubmitButton pendingLabel="Validating and importing…" className="tap min-h-11 rounded-md border border-ki-500/50 px-4 text-sm font-medium text-ki-200 hover:bg-space-800">Import run evidence</SubmitButton>
+      <SubmitButton pendingLabel="Checking and importing…" className="tap min-h-11 rounded-md border border-ki-500/50 px-4 text-sm font-medium text-ki-200 hover:bg-space-800">Import test results</SubmitButton>
       <div className="sm:col-span-2"><ActionNotice state={state} /></div>
     </form>
-    {runs.length ? <div className="space-y-2">{runs.map((run) => <ImportedRunCard key={run.id} run={run} />)}</div> : <Empty>No evaluator or scenario runs have been imported.</Empty>}
+    {runs.length ? <div className="space-y-2">{runs.map((run) => <ImportedRunCard key={run.id} run={run} />)}</div> : <Empty>No test runs have been imported.</Empty>}
   </section>;
 }
 
@@ -174,19 +174,21 @@ function ImportedRunCard({ run }: { run: ImportedRunSummary }) {
   const source = run.source === "policy_eval" ? `Policy evaluation · ${run.seedSet ?? "seed set unknown"}` : run.source === "decision_cases" ? "Strategy decision cases" : "Arena scenarios";
   const outcomes = run.outcomes.map((item) => `${item.count} ${item.outcome}`).join(" · ") || "No result summary";
   const knownCost = formatUsdMicros(run.reportedCostMicros);
-  return <details className="rounded-xl border border-space-700 bg-space-900/50">
-    <summary className="tap grid cursor-pointer list-none gap-1 p-3 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+  return <article className="rounded-xl border border-space-700 bg-space-900/50 p-3">
+    <details>
+    <summary className="tap grid cursor-pointer list-none gap-1 marker:hidden [&::-webkit-details-marker]:hidden sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <span className="text-sm font-semibold text-space-100">{source} · {run.resultCount} results</span>
       <span className="text-[11px] text-space-400">{new Date(run.recordedAt).toLocaleString()}</span>
-      <span className="break-all font-mono text-[10px] text-space-500 sm:col-span-2">Run {run.requestId} · protocol {run.protocolId}@{run.protocolRevision}</span>
+      <span className="text-[11px] text-space-300 sm:col-span-2">{outcomes}</span>
     </summary>
-    <div className="grid gap-2 border-t border-space-700 p-3 text-xs text-space-300 sm:grid-cols-2">
+    <div className="mt-3 grid gap-2 border-t border-space-700 pt-3 text-xs text-space-300 sm:grid-cols-2">
+      <p className="break-all sm:col-span-2">Run {run.requestId} · protocol {run.protocolId}@{run.protocolRevision}</p>
       <p>Runner: <span className="font-mono">{run.runnerId}@{run.runnerVersion}</span></p>
       <p>Source commit: <span className="font-mono">{run.gitCommit}</span></p>
       <p className="break-all sm:col-span-2">Worktree: {run.dirtyTreeSha256 ? <><span className="font-mono">dirty · {run.dirtyTreeSha256}</span></> : "declared clean by the runner"}</p>
       <p>{run.fixtureCount} pinned fixture records · {run.unpinnedFixtures ? `${run.unpinnedFixtures} runtime revision(s) unavailable` : "runtime revisions recorded"}</p>
       <p>{run.mappedScenarioResults} result(s) explicitly mapped to portal scenarios; unmapped results remain visible in the immutable manifest.</p>
-      <p className="sm:col-span-2">Results: {outcomes}</p>
+      <p className="sm:col-span-2">Full-run result counts: {outcomes}</p>
       {run.resultPreviews.length ? <div className="sm:col-span-2"><p className="font-medium text-space-200">Recent result rows (up to 5)</p><ul className="mt-1 space-y-1">{run.resultPreviews.map((result) => <li key={result.key} className="break-words rounded-md border border-space-800 px-2 py-1 text-[11px]">
         <span className="font-mono text-space-200">{result.key}</span> · {result.kind.replaceAll("_", " ")} · {result.outcome}
         {result.sourceScenarioId ? ` · case ${result.sourceScenarioId}` : ""}{result.portalScenarioId ? ` → ${result.portalScenarioId}` : " · unmapped"}
@@ -196,9 +198,10 @@ function ImportedRunCard({ run }: { run: ImportedRunSummary }) {
       </li>)}</ul><p className="mt-1 text-[10px] text-space-500">Rows are a bounded preview; outcome totals cover the full immutable import.</p></div> : null}
       {run.policyGames ? <p className="sm:col-span-2">Reported policy-run cost: {knownCost} across {run.pricedPolicyGames} of {run.policyGames} games. Unknown costs remain unknown; these reported values are not provider invoices.</p> : null}
       <p className="text-space-500 sm:col-span-2">Stored {new Date(run.recordedAt).toISOString()} · Reimporting the same manifest adds no duplicate records.</p>
-      <Link href={`/arena/testing/runs/${run.id}`} className="tap inline-flex min-h-10 items-center text-sm font-medium text-ki-300 hover:text-ki-200 sm:col-span-2">Review all {run.resultCount} results, pins, and evidence hashes →</Link>
     </div>
-  </details>;
+    </details>
+    <Link href={`/arena/testing/runs/${run.id}`} className="tap mt-2 inline-flex min-h-10 items-center text-sm font-medium text-ki-300 hover:text-ki-200">View results →</Link>
+  </article>;
 }
 
 function DeckRecipe({ deck, actualDecks }: { deck: TestingDeck; actualDecks: TestingDashboard["actualDecks"] }) {
