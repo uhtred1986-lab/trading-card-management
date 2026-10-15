@@ -41,20 +41,20 @@ No first-wave Opus game has run.
 
 | Release | Deck / Leader ID | Target | Current evidence or blocker | New list / scenario / local run / Opus |
 |---|---|---|---|---|
-| BT3 | Bardock — Great Ape cleanup (BT3-082) | Blocker; combo-end Evolve | Combo-end Evolve gap #825 | Proposed / pending mapping / not run for this recipe / not run |
-| BT3 | Trunks — Over Realm return (BT3-108) | Over Realm 3; Battle/deck→Warp self Auto | Warp self-trigger gap #825 | Proposed / pending mapping / not run for this recipe / not run |
+| BT3 | Bardock — Great Ape cleanup (BT3-082) | Blocker; combo-end Evolve | Combo-end Evolve gap #825 | Draft quantities / pending mapping / not run for this recipe / not run |
+| BT3 | Trunks — Over Realm return (BT3-108) | Over Realm 3; Battle/deck→Warp self Auto | Warp self-trigger gap #825 | Draft quantities / pending mapping / not run for this recipe / not run |
 | BT5 | Pilaf — Wish / Desire (BT5-002) | Wish; Dragon Ball; all-area Desire | World Peace and identity regression proofs | Proposed / pending mapping / not run for this recipe / not run |
 | BT5 | Black Masked Saiyan — Warp pressure (BT5-105) | Burst 3; Critical | New printed-card cases pending | Proposed / pending mapping / not run for this recipe / not run |
 | BT6 | Gogeta — Br fusion (BT6-001) | Union-Fusion | Union-Fusion baseline proof; new deck pending | Proposed / pending mapping / not run for this recipe / not run |
 | BT6 | Paragus — Broly recovery (BT6-053) | Optional exact two-card payment; KO/removed Auto | Optional exact payment proof in #824 | Proposed / pending mapping / not run for this recipe / not run |
 | BT27 | Mechikabura — multiple attacks (BT27-092) | Triple Attack; Deflect | Native Triple Attack proof in #824 | Proposed / pending mapping / not run for this recipe / not run |
 | BT27 | Piccolo — Namekian revival (BT27-045) | Revive Blue/Green; Energy-Exhaust | Revive baseline; target-card mapping pending | Proposed / pending mapping / not run for this recipe / not run |
-| BT29 | Cooler — Squadron return loop (BT29-029) | Swap 5; Battle→hand watcher | Qualified hand-return watcher gap #825 | Proposed / pending mapping / not run for this recipe / not run |
+| BT29 | Cooler — Squadron return loop (BT29-029) | Swap 5; Battle→hand watcher | Qualified hand-return watcher gap #825 | Draft quantities / pending mapping / not run for this recipe / not run |
 | BT29 | Vegeta — Saiyan evolution (BT29-057) | EX-Evolve | Evolve baseline; target-card mapping pending | Proposed / pending mapping / not run for this recipe / not run |
 | BT30 | Brianne — Maiden stack play (BT30-082) | Play onto; card name in skill text | Stack/name-target regression exists | Proposed / pending mapping / not run for this recipe / not run |
 | BT30 | Super Saiyans United — red attacks (BT30-001) | Dual Attack | Native attack baseline; new deck pending | Proposed / pending mapping / not run for this recipe / not run |
 | BT31 | Gogeta — widened fusion (BT31-001) | Union-Fusion; Revenge | Union areas proof; approved stored-row refresh | Proposed / pending mapping / not run for this recipe / not run |
-| BT31 | White Cell — reveal/evolve (BT31-116) | EX-Evolve; Dual Attack; Revealed/Hidden energy | Existing deck 29 gate accepted; targeted strategy unproven | Proposed / pending mapping / not run for this recipe / not run |
+| BT31 | White Cell — reveal/evolve (BT31-116) | EX-Evolve; Dual Attack; Revealed/Hidden energy | Existing deck 29 gate accepted; targeted strategy unproven | Draft quantities / pending mapping / not run for this recipe / not run |
 | SD5 | Crimson Saiyan starter control (SD5-01) | Swap 8; Barrier; Double Strike | Audited SD5 starter control | Baseline list / mapping pending / baseline evidence / not run |
 | SD15 | Pride of the Saiyans starter control (SD15-01) | Spirit Boost 1; Dual Attack; Unison markers | Audited owner-amended SD15 starter control | Baseline list / mapping pending / baseline evidence / not run |
 
