@@ -50,14 +50,14 @@ const sameTurn = (policy: ReturnType<typeof localPolicy>, initial = match) => {
 };
 assert.equal(sameTurn(searchPolicy()).state.phase, "over", "search's actual two-attack line wins this turn");
 assert.notEqual(sameTurn(localPolicy()).state.phase, "over", "frozen heuristic misses the same-turn win");
-// Added after the candidate was frozen for O5 holdouts; no search tuning from
-// these results. Three attackers require re-planning beyond the two-ply horizon.
+// Historical v1 tactical holdouts are now consumed regression cases. V2 models
+// their Life replenishment but still does not promise a finish from a sample.
 const threeHits = stage(opening, {
   p1: { hand: [], energy: [], leaderMode: "rest", battle: Array.from({ length: 3 }, () => ({ cardId: "M-R2", mode: "active" as const })) },
   p2: { hand: [], energy: [], life: 3, battle: [{ cardId: "M-WEAK", mode: "rest" }] },
 });
 const heldoutThree = sameTurn(searchPolicy(), threeHits);
-assert.notEqual(heldoutThree.state.phase, "over", "negative tactical holdout: real Life-to-hand combo resources prevent the predicted three-hit finish");
+assert.notEqual(heldoutThree.state.phase, "over", "consumed v1 negative: real Life-to-hand resources still prevent this three-hit finish");
 assert.notEqual(sameTurn(localPolicy(), threeHits).state.phase, "over", "heuristic also fails to finish this holdout");
 const blocked = stage(opening, {
   p1: { hand: [], energy: [], leaderMode: "rest", battle: [{ cardId: "M-R2", mode: "active" }] },
