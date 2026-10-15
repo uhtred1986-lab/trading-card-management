@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { combatMoment, soundCue } from '../../src/lib/arena/immersion/events';
+import type { CardView } from '../../src/lib/arena/view';
+const card = {id:'blocker',cardId:'unknown',name:'Unmapped',hidden:false,flipped:false} as CardView;
+const seen:string[]=[];const lookup=(id:string)=>{seen.push(id);return card};
+assert.equal(combatMoment(7,{t:'block',n:1,guard:'original',by:'blocker'},lookup,{})?.outcome,'block');
+assert.deepEqual(seen,['blocker']);
+assert.equal(combatMoment(7,{t:'clash',n:2,attacker:'a',guard:'g',attackPower:1,guardPower:2,hit:false},lookup,{})?.outcome,'repelled');
+assert.equal(combatMoment(7,{t:'attack',n:3,attacker:'a',target:'g'},()=>({...card,hidden:true}),{})?.character,null);
+assert.equal(combatMoment(7,{t:'negated',n:4},()=>{throw Error('negate needs no identity')},{})?.character,null);
+assert.equal(combatMoment(7,{t:'draw',n:5,player:'p1',card:null},lookup,{}),null);
+assert.equal(soundCue({t:'over',n:6,winner:null,reason:'draw'},'p1'),null);
+assert.equal(soundCue({t:'clash',n:7,attacker:'a',guard:'g',hit:true,attackPower:2,guardPower:1},'p1'),'hit');
+console.log('Immersion: actual blocker, resolved result, hidden/unknown fallback and cue routing pass.');
