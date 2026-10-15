@@ -12,16 +12,17 @@ Use one issue per reviewed tranche. Keep changes limited to `public/arena/charac
 
 ## Reviewed catalog mappings
 
-For every proposed mapping, include one exact row from the Masters catalog and its printed face:
+For every proposed mapping, include one exact row from the Masters catalog, its printed face, and the inspected card artwork URL/hash with a written form-level visual comparison to the sprite sheet:
 
-| Card number | Face (`front` / `back`) | Exact printed face name | Catalog character field | Sheet id | Evidence / reviewer |
-|---|---|---|---|---|---|
-| | | | | | |
+| Card number | Face (`front` / `back`) | Exact printed face name | Catalog character field | Sheet id | Card-art URL + SHA-256 | Visual form review |
+|---|---|---|---|---|---|---|
+| | | | | | | |
 
 Mappings are exact triples of card number, face, and printed face name. Do not add a broad
 character-name rule, aliases, substring matching, or inferred forms. Leave unreviewed cards and
 faces on the `null` fallback. A mapping for a back face requires that the catalog has that exact
-back name and character evidence.
+back name and character evidence. Inspect the card art itself: catalog character tags alone do not
+prove a form match. Keep transformations or ambiguous forms pending with no mapping.
 
 ## Validation
 

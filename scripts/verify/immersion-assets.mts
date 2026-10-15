@@ -10,6 +10,7 @@ type CatalogRow = {
   card_character: string[] | null;
   card_back_name: string | null;
   card_back_character: string[] | null;
+  card_type: string;
 };
 
 const root = process.cwd();
@@ -54,6 +55,15 @@ for (const mapping of manifest.mappings) {
   const catalogCharacters = mapping.face === "front" ? row.card_character : row.card_back_character;
   assert.equal(mapping.name, catalogName, `${mapping.cardId} ${mapping.face} mapping name differs from catalog`);
   assert.ok(catalogCharacters?.length, `${mapping.cardId} ${mapping.face} has no catalog character evidence`);
+  assert.equal(row.card_type, "BATTLE", `${mapping.cardId} is not a visually reviewed Battle example`);
+  assert.equal(mapping.evidence.cardType, row.card_type, `${mapping.cardId} card type evidence drift`);
+  assert.equal(
+    mapping.evidence.reviewedCardArtUrl,
+    `https://storage.googleapis.com/deckplanet_card_images/${mapping.cardId}.png`,
+    `${mapping.cardId} reviewed art URL must use the catalog image source`,
+  );
+  assert.match(mapping.evidence.reviewedCardArtSha256, /^[a-f0-9]{64}$/, `${mapping.cardId} needs reviewed art hash`);
+  assert.ok(mapping.evidence.visualReview.trim(), `${mapping.cardId} needs visual form review notes`);
   assert.deepEqual(mapping.evidence.catalogCharacter, row.card_character, `${mapping.cardId} front evidence drift`);
   assert.equal(mapping.evidence.catalogCardName, row.card_name, `${mapping.cardId} front name evidence drift`);
   if (mapping.face === "back") {

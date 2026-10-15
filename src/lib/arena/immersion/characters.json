@@ -1,35 +1,245 @@
 {
   "version": 1,
   "source": {
-    "kind": "prototype-sprite-sheets",
+    "kind": "generated-character-sprite-sheets",
     "repositoryPath": "/workspace/sites/arena-kamehameha/dist/characters",
-    "license": "Not recorded in prototype source; confirm before redistribution beyond this application."
+    "provenance": "Generated with OpenAI image generation for this project in the user-requested session; the prototype sheets were copied unchanged.",
+    "license": "Generated for this project; no third-party source artwork was used."
   },
   "characters": [
-    { "id": "goku", "name": "Goku", "sheet": "/arena/characters/goku.png", "sha256": "6cb7e3bb895ec34f3d9caff3dcedbe7937c9bfbb7a1c6af930d14b72466a6893", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "vegeta", "name": "Vegeta", "sheet": "/arena/characters/vegeta.png", "sha256": "45e3f5a7ec2838912140a97fb4ef4ac1a5c9f2a3a414f8738ebbbad5f0b13c65", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "gohan", "name": "Gohan", "sheet": "/arena/characters/gohan.png", "sha256": "e6e7e02f5b4c1f5935135573798f74aa3e6e1993506610d975e7889af0c83ce5", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "piccolo", "name": "Piccolo", "sheet": "/arena/characters/piccolo.png", "sha256": "a1d88d98ada5612e05d7c07bb3acaabe8c3c3a73ff8fa200984840ef8e56d6b7", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "krillin", "name": "Krillin", "sheet": "/arena/characters/krillin.png", "sha256": "72afb1053ff3e3dab9b726a2579f0f136109d2708737107aed6b1fb8679fdafe", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "frieza", "name": "Frieza", "sheet": "/arena/characters/frieza.png", "sha256": "933a8d3e2352d58c48e78ee44e9f34172e1cfc1528e2b40ff04aa18e9be663d6", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "cell", "name": "Cell", "sheet": "/arena/characters/cell.png", "sha256": "0184ef234fe65a4d8482d89704918ac6fe4774272ed38c679918562891fc8d86", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] },
-    { "id": "buu", "name": "Majin Buu", "sheet": "/arena/characters/buu.png", "sha256": "6212f219c428b7841657c936c24b58d221e58cbca37a5a2c05a0df5b974e7e9a", "width": 2172, "height": 724, "frames": ["attack", "guard", "hit"] }
+    {
+      "id": "goku",
+      "name": "Goku",
+      "sheet": "/arena/characters/goku.png",
+      "sha256": "6cb7e3bb895ec34f3d9caff3dcedbe7937c9bfbb7a1c6af930d14b72466a6893",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "vegeta",
+      "name": "Vegeta",
+      "sheet": "/arena/characters/vegeta.png",
+      "sha256": "45e3f5a7ec2838912140a97fb4ef4ac1a5c9f2a3a414f8738ebbbad5f0b13c65",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "gohan",
+      "name": "Gohan",
+      "sheet": "/arena/characters/gohan.png",
+      "sha256": "e6e7e02f5b4c1f5935135573798f74aa3e6e1993506610d975e7889af0c83ce5",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "piccolo",
+      "name": "Piccolo",
+      "sheet": "/arena/characters/piccolo.png",
+      "sha256": "a1d88d98ada5612e05d7c07bb3acaabe8c3c3a73ff8fa200984840ef8e56d6b7",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "krillin",
+      "name": "Krillin",
+      "sheet": "/arena/characters/krillin.png",
+      "sha256": "72afb1053ff3e3dab9b726a2579f0f136109d2708737107aed6b1fb8679fdafe",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "frieza",
+      "name": "Frieza",
+      "sheet": "/arena/characters/frieza.png",
+      "sha256": "933a8d3e2352d58c48e78ee44e9f34172e1cfc1528e2b40ff04aa18e9be663d6",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cell",
+      "name": "Cell",
+      "sheet": "/arena/characters/cell.png",
+      "sha256": "0184ef234fe65a4d8482d89704918ac6fe4774272ed38c679918562891fc8d86",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "buu",
+      "name": "Majin Buu",
+      "sheet": "/arena/characters/buu.png",
+      "sha256": "6212f219c428b7841657c936c24b58d221e58cbca37a5a2c05a0df5b974e7e9a",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    }
   ],
   "mappings": [
-    { "cardId": "BT18-030", "face": "front", "name": "Son Goku", "characterId": "goku", "evidence": { "catalogCardName": "Son Goku", "catalogCharacter": ["Son Goku"] } },
-    { "cardId": "BT18-030", "face": "back", "name": "Son Goku, Another World Fighter", "characterId": "goku", "evidence": { "catalogCardName": "Son Goku", "catalogCharacter": ["Son Goku"], "catalogBackName": "Son Goku, Another World Fighter", "catalogBackCharacter": ["Son Goku"] } },
-    { "cardId": "BT27-001", "face": "front", "name": "Vegeta", "characterId": "vegeta", "evidence": { "catalogCardName": "Vegeta", "catalogCharacter": ["Vegeta"] } },
-    { "cardId": "BT27-001", "face": "back", "name": "SSB Vegeta, Saiyan Pride", "characterId": "vegeta", "evidence": { "catalogCardName": "Vegeta", "catalogCharacter": ["Vegeta"], "catalogBackName": "SSB Vegeta, Saiyan Pride", "catalogBackCharacter": ["Vegeta"] } },
-    { "cardId": "BT22-083", "face": "front", "name": "Son Gohan, Unpredicted Blow", "characterId": "gohan", "evidence": { "catalogCardName": "Son Gohan, Unpredicted Blow", "catalogCharacter": ["Son Gohan"] } },
-    { "cardId": "BT27-045", "face": "front", "name": "Piccolo", "characterId": "piccolo", "evidence": { "catalogCardName": "Piccolo", "catalogCharacter": ["Piccolo"] } },
-    { "cardId": "BT27-045", "face": "back", "name": "Piccolo, Brotherhood Bonds", "characterId": "piccolo", "evidence": { "catalogCardName": "Piccolo", "catalogCharacter": ["Piccolo"], "catalogBackName": "Piccolo, Brotherhood Bonds", "catalogBackCharacter": ["Piccolo"] } },
-    { "cardId": "BT29-001", "face": "front", "name": "Krillin", "characterId": "krillin", "evidence": { "catalogCardName": "Krillin", "catalogCharacter": ["Krillin"] } },
-    { "cardId": "BT29-001", "face": "back", "name": "Krillin, Grown-Up Support", "characterId": "krillin", "evidence": { "catalogCardName": "Krillin", "catalogCharacter": ["Krillin"], "catalogBackName": "Krillin, Grown-Up Support", "catalogBackCharacter": ["Krillin"] } },
-    { "cardId": "BT21-101", "face": "front", "name": "Frieza", "characterId": "frieza", "evidence": { "catalogCardName": "Frieza", "catalogCharacter": ["Frieza"] } },
-    { "cardId": "BT21-101", "face": "back", "name": "Frieza, The Emperor Who Swore Revenge", "characterId": "frieza", "evidence": { "catalogCardName": "Frieza", "catalogCharacter": ["Frieza"], "catalogBackName": "Frieza, The Emperor Who Swore Revenge", "catalogBackCharacter": ["Frieza"] } },
-    { "cardId": "EX20-01", "face": "front", "name": "Cell", "characterId": "cell", "evidence": { "catalogCardName": "Cell", "catalogCharacter": ["Cell"] } },
-    { "cardId": "EX20-01", "face": "back", "name": "Cell, Return of the Ultimate Lifeform", "characterId": "cell", "evidence": { "catalogCardName": "Cell", "catalogCharacter": ["Cell"], "catalogBackName": "Cell, Return of the Ultimate Lifeform", "catalogBackCharacter": ["Cell"] } },
-    { "cardId": "BT30-044", "face": "front", "name": "Majin Buu", "characterId": "buu", "evidence": { "catalogCardName": "Majin Buu", "catalogCharacter": ["Majin Buu"] } },
-    { "cardId": "BT30-044", "face": "back", "name": "Majin Buu, Ultimate Majin", "characterId": "buu", "evidence": { "catalogCardName": "Majin Buu", "catalogCharacter": ["Majin Buu"], "catalogBackName": "Majin Buu, Ultimate Majin", "catalogBackCharacter": ["Majin Buu"] } }
+    {
+      "cardId": "BT10-037",
+      "face": "front",
+      "name": "Son Goku",
+      "characterId": "goku",
+      "evidence": {
+        "catalogCardName": "Son Goku",
+        "catalogCharacter": [
+          "Son Goku"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-037.png",
+        "reviewedCardArtSha256": "ad6b2cf58b3340fd391bc2a1af9cd2716465c8e6cfc35f8547331a2d9d05b821",
+        "visualReview": "Black-haired Goku in the orange gi, matching the sheet; no Super Saiyan or other transformation is depicted."
+      }
+    },
+    {
+      "cardId": "BT1-038",
+      "face": "front",
+      "name": "Vegeta",
+      "characterId": "vegeta",
+      "evidence": {
+        "catalogCardName": "Vegeta",
+        "catalogCharacter": [
+          "Vegeta"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-038.png",
+        "reviewedCardArtSha256": "aa49ac7369d2e856b7208db289fc4b79308f45d945079ba30587292d6b7223f4",
+        "visualReview": "Black-haired Vegeta in Saiyan armor, matching the sheet; no Super Saiyan form is depicted."
+      }
+    },
+    {
+      "cardId": "BT4-028",
+      "face": "front",
+      "name": "Son Gohan",
+      "characterId": "gohan",
+      "evidence": {
+        "catalogCardName": "Son Gohan",
+        "catalogCharacter": [
+          "Son Gohan: Adolescence"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT4-028.png",
+        "reviewedCardArtSha256": "6a99599f49b7865d7a516989c9efd17351e086770ebe7ed635bcf200d9445c27",
+        "visualReview": "Adolescent Son Gohan with black hair and a purple gi, matching the sheet; no Super Saiyan form is depicted."
+      }
+    },
+    {
+      "cardId": "BT14-008",
+      "face": "front",
+      "name": "Piccolo",
+      "characterId": "piccolo",
+      "evidence": {
+        "catalogCardName": "Piccolo",
+        "catalogCharacter": [
+          "Piccolo"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT14-008.png",
+        "reviewedCardArtSha256": "98de85a60a74816d297bcdf1dcffa0b7b14946bd0b4175dba3dab91fe8751142",
+        "visualReview": "Piccolo in his standard green Namekian appearance; no fusion or altered form is depicted."
+      }
+    },
+    {
+      "cardId": "BT7-061",
+      "face": "front",
+      "name": "Krillin",
+      "characterId": "krillin",
+      "evidence": {
+        "catalogCardName": "Krillin",
+        "catalogCharacter": [
+          "Krillin"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-061.png",
+        "reviewedCardArtSha256": "c140e76c07a68868fa41983c7ad646e51e3b46e541f0af4a0a6bcb4276d8192e",
+        "visualReview": "Adult bald Krillin in an orange gi, matching the sheet."
+      }
+    },
+    {
+      "cardId": "BT10-074",
+      "face": "front",
+      "name": "Frieza",
+      "characterId": "frieza",
+      "evidence": {
+        "catalogCardName": "Frieza",
+        "catalogCharacter": [
+          "Frieza"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-074.png",
+        "reviewedCardArtSha256": "ab95b301942465ab2a2a7459e5285e27edaa03690e35a7f5d3fe7a568d5fb6e9",
+        "visualReview": "Frieza in the white-bodied, purple-accented final form shown by the sheet; no alternate form is depicted."
+      }
+    },
+    {
+      "cardId": "XD3-10",
+      "face": "front",
+      "name": "Cell, Perfection Reclaimed",
+      "characterId": "cell",
+      "evidence": {
+        "catalogCardName": "Cell, Perfection Reclaimed",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD3-10.png",
+        "reviewedCardArtSha256": "fa9ec17c93e0ee1dc1e409cbd2aaefa0639851b40da4055e6c4a89d034abde69",
+        "visualReview": "Cell in the green, black-plated perfect form with wing shells shown by the sheet."
+      }
+    },
+    {
+      "cardId": "DB1-030",
+      "face": "front",
+      "name": "Majin Buu",
+      "characterId": "buu",
+      "evidence": {
+        "catalogCardName": "Majin Buu",
+        "catalogCharacter": [
+          "Majin Buu"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/DB1-030.png",
+        "reviewedCardArtSha256": "906889998c30e58eec63bd36665601dce7c79a8884d95eb8c823c2c70daa0f98",
+        "visualReview": "Round, pink Majin Buu with the black tunic, white pants, and cape shown by the sheet."
+      }
+    }
   ]
 }
