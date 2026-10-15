@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { confirmRuleAction, reopenRuleAction, undoConfirmAction } from "@/app/arena/actions";
-import { askClaudeAction, flagWrongAction, unflagWrongAction } from "@/app/arena/rules/review/actions";
+import { flagWrongAction, unflagWrongAction } from "@/app/arena/rules/review/actions";
+import { requestExplanationAction, approveExplanationAction, retryExplanationIssueAction } from "@/app/arena/rules/review/explanation-actions";
+import { RuleExplanationPanel, type ExplanationActions } from "./RuleExplanationPanel";
+import { RuleReading } from "./RuleReading";
+import type { Rule } from "@/lib/arena/lang/ast";
 import { CardImage } from "@/components/CardImage";
 import { AdminContext, useArenaAdmin } from "@/components/arena/admin-context";
 import { WRONG_REASONS, approvalProblem, builderHref, reviewText, type ClauseTag, type ReviewText, type WrongReason } from "@/lib/arena/rule-review";
@@ -22,7 +26,9 @@ import type { FlagReceipt, ReviewItem } from "@/lib/arena/rule-review-store";
  * from its toast.
  */
 
-type ReviewProps = { items: ReviewItem[]; scope: string; backHref: string; reviewHref?: string; flagged?: number; flaggedOnly?: boolean; startId?: number | null };
+type ReviewProps = { items: ReviewItem[]; scope: string; backHref: string; reviewHref?: string; flagged?: number; flaggedOnly?: boolean; startId?: number | null; explanationActions?: ExplanationActions; confirmAction?: typeof confirmRuleAction };
+const LIVE_EXPLANATION: ExplanationActions = { request: requestExplanationAction, approve: approveExplanationAction, retry: retryExplanationIssueAction };
+
 type Verdict = "right" | "all" | "wrong" | "skip";
 type Undo =
   | { kind: "right"; at: number; id: number }
@@ -71,7 +77,7 @@ export function RuleReview({ admin, ...props }: ReviewProps & { admin: boolean }
   );
 }
 
-function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/review", flagged = 0, flaggedOnly = false, startId }: ReviewProps) {
+function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/review", flagged = 0, flaggedOnly = false, startId, explanationActions = LIVE_EXPLANATION, confirmAction = confirmRuleAction }: ReviewProps) {
   const admin = useArenaAdmin();
   const [items, setItems] = useState(() => {
     const first = initial.findIndex((x) => x.id === startId);
@@ -90,6 +96,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
   const [reason, setReason] = useState<WrongReason | null>(null);
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
+  const [explaining, setExplaining] = useState(false);
 
   const done = at >= items.length;
   const item = done ? null : items[at];
@@ -104,6 +111,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
     return k < 0 ? items.length : k;
   };
   const go = (v: Record<number, Verdict>, undo: Undo, say: string) => {
+    setExplaining(false);
     setVerdicts(v);
     setHistory((h) => [...h, undo]);
     setAt(nextFrom(at, v));
@@ -119,7 +127,8 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
   const right = () => {
     if (!item) return;
     start(async () => {
-      const res = await confirmRuleAction(item.id);
+      if (!item.reviewVersion) return fail("Reload this skill before approving its exact interpretation.");
+      const res = await confirmAction(item.id, item.reviewVersion);
       if (res.error) return fail(res.error);
       go({ ...verdicts, [item.id]: "right" }, { kind: "right", at, id: item.id }, `Approved the previous skill: ${item.name}. Interpretation saved; test evidence is separate.`);
     });
@@ -135,16 +144,6 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
       const res = await flagWrongAction(item.id, { tag: p.tag, path: p.path, reason, note });
       if (res.error || !res.receipt) return fail(res.error ?? "the flag was not saved");
       go({ ...verdicts, [item.id]: "wrong" }, { kind: "wrong", at, receipt: res.receipt }, `Mismatch reported for the previous skill: ${item.name}. Its interpretation is unchanged.`);
-    });
-  };
-  const askClaude = () => {
-    if (!item) return;
-    start(async () => {
-      const res = await askClaudeAction(item.id, { decks: item.decks, firedIn: item.firedIn });
-      if (res.item) setItems((xs) => xs.map((x) => (x.id === item.id ? res.item! : x)));
-      setPick(null);
-      if (res.error) fail(res.error);
-      else setToast({ text: "Claude drafted it · check it", undo: false });
     });
   };
   const undo = () => {
@@ -225,7 +224,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
         </div>
       )}
 
-      <p className="my-2 text-sm text-space-300">Choose scope → Compare skill → Decide</p>
+      <p className="my-2 text-sm text-space-300">Describe → Review the rule → Approve</p>
       <p className="mb-2 text-xs text-space-400">{initial.length} eligible skill{initial.length === 1 ? "" : "s"}{!flaggedOnly && flagged ? ` · ${flagged} reported mismatches excluded` : flaggedOnly ? " · reported mismatches" : ""}.</p>
       <div className="mb-2 flex flex-wrap gap-3 text-sm">
         <Link href={backHref} className="underline">Change scope / find a card</Link>
@@ -243,7 +242,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
         <Clear empty={items.length === 0} tally={tally} backHref={backHref} />
       ) : (
         <>
-          <div className="flex flex-1 flex-col gap-3.5 pb-64 pt-3">
+          <div className="flex flex-1 flex-col gap-3.5 pb-8 pt-3">
             <div className="flex items-center gap-3">
               {mode === "card" && <CardImage src={item.imageUrl} alt={item.name} sizes="60px" className="w-[60px] shrink-0" />}
               <div className="min-w-0">
@@ -256,6 +255,21 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
               </div>
             </div>
 
+            <section aria-label="Printed skill" className="rounded-xl border border-space-700 p-3">
+              <h3 className="mb-2 text-sm font-bold text-space-300">Printed on the card</h3>
+              <p className="whitespace-pre-wrap text-base leading-relaxed text-space-50">{item.printed}</p>
+            </section>
+            {!text.blank && !explaining && <>
+              <RuleReading title="Current interpretation" rule={{ kind: item.tag, trigger: item.trigger, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />
+              {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={`${actBtn} bg-gain text-space-950`}>Approve current interpretation</button>}
+            </>}
+            {admin ? <RuleExplanationPanel key={item.id} id={item.id} version={item.reviewVersion ?? ""} actions={explanationActions} initial={item.pendingExplanation} onWorking={setExplaining}
+              onApproved={() => go({ ...verdicts, [item.id]: "right" }, { kind: "right", at, id: item.id }, `Approved the exact proposed skill: ${item.name}.`)} />
+              : <p className="text-sm text-space-300">Read-only: only an arena admin can request or approve a rule draft.</p>}
+            <button type="button" disabled={pending} onClick={skip} className={`${actBtn} border border-space-600 text-space-100`}>Review later / next skill</button>
+            <details className="space-y-3 rounded-xl border border-space-700 p-3">
+              <summary className="tap cursor-pointer font-semibold text-space-300">More details and manual corrections</summary>
+              {!text.blank && explaining && <RuleReading title="Previous interpretation" rule={{ kind: item.tag, trigger: item.trigger, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />}
             <nav aria-label="Compare this skill" className="grid grid-cols-2 gap-2">
               <button type="button" aria-pressed={step === "printed"} onClick={() => setStep("printed")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "printed" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>1. Printed on card</button>
               <button type="button" aria-pressed={step === "interpretation"} onClick={() => setStep("interpretation")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "interpretation" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>2. Interpretation</button>
@@ -311,9 +325,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
             </>}
 
             {mode === "card" && <CardFacts item={item} text={text} />}
-          </div>
-
-          <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-space-950 from-70% to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+          <div className="mt-3">
             <div className="mx-auto max-w-xl">
               {step === "interpretation" && !text.blank && <p className="mb-2 text-center text-xs text-space-300">Approve saves your review. Report records a mismatch. Later leaves it queued.</p>}
               {step === "printed" ? (
@@ -333,8 +345,8 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
                   <Link href={builderHref(item.id, `${reviewHref}${reviewHref.includes("?") ? "&" : "?"}rule=${item.id}${flaggedOnly ? "&flagged=1" : ""}`)} className={`${actBtn} border-[1.5px] border-violet-500/60 bg-violet-500/10 text-violet-500`}>
                     Edit interpretation
                   </Link>
-                  <button type="button" disabled={pending} onClick={askClaude} className={`${actBtn} arena-impact bg-violet-600 text-[17px] text-white`}>
-                    {pending ? "Asking…" : "Draft with Claude"}
+                  <button type="button" disabled={pending} onClick={() => { setStep("interpretation"); document.querySelector("textarea")?.focus(); }} className={`${actBtn} arena-impact bg-violet-600 text-[17px] text-white`}>
+                    Describe above to draft
                   </button>
                 </div>
               ) : (
@@ -345,12 +357,15 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
                   <button type="button" disabled={pending} onClick={skip} className={`${actBtn} border border-space-600 bg-space-800/60 text-space-50`}>
                     Review later
                   </button>
-                  <button type="button" disabled={pending || !!approvalProblem(item)} onClick={right} className={`${actBtn} col-span-2 bg-gain text-space-950`}>
+                  <button type="button" disabled={pending || explaining || !!approvalProblem(item)} onClick={right} className={`${actBtn} col-span-2 bg-gain text-space-950`}>
                     Approve interpretation
                   </button>
                 </div>
               )}
             </div>
+          </div>
+
+            </details>
           </div>
 
           {sheet && (

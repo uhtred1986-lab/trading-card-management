@@ -21,6 +21,8 @@ import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
 import { parseSkills, skillLines } from "./text/cards";
+import { reviewVersion } from "./rule-review-version";
+import type { Rule } from "./lang/ast";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -308,8 +310,9 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
         confirmedAt: w.status === "confirmed" ? new Date() : existing.confirmedAt,
         updatedAt: new Date(),
       })
-      .where(eq(cardRules.id, existing.id))
+      .where(and(eq(cardRules.id, existing.id), w.source === "claude" ? inArray(cardRules.status, ["open", "draft"]) : undefined))
       .returning();
+    if (!row) throw new Error("An approved or corrected interpretation cannot be overwritten by a Claude draft. Reopen it first.");
     return row;
   }
   if (w.printed == null || w.kind == null) throw new Error(`no rule row for ${w.cardId} ${w.side} [${w.skillIndex}] and no printed line to create one from`);
@@ -362,6 +365,25 @@ export async function markRuleSeen(db: Db, cardId: string, side: Side, skillInde
 /** A person accepted the draft as it stands. */
 export async function confirmRule(db: Db, id: number): Promise<void> {
   await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(eq(cardRules.id, id));
+}
+
+/** Guided review uses the exact displayed record, including edits that do not bump version. */
+export async function confirmReviewedRule(db: Db, id: number, expected: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx.select().from(cardRules).where(eq(cardRules.id, id)).for("update");
+    if (!row || !expected || reviewVersion(row) !== expected) throw new Error("This skill changed. Reload it and review the current interpretation before approving.");
+    if (row.status !== "draft" || row.unread.length) throw new Error("Only a complete unapproved draft can be approved.");
+    await confirmRule(tx as unknown as Db, id);
+  });
+}
+
+/** Caller holds the proposal lock; this locks the rule against all normal saveRule UPDATEs. */
+export async function saveReviewedExplanation(db: Db, id: number, expected: string, rule: Rule, explanation: string): Promise<RuleRow> {
+  const [row] = await db.select().from(cardRules).where(eq(cardRules.id, id)).for("update");
+  if (!row || !expected || reviewVersion(row) !== expected) throw new Error("This skill changed. Request a new draft and review it before approving.");
+  if (row.status === "confirmed" || row.status === "corrected") throw new Error("Reopen the approved interpretation before replacing it.");
+  return saveRule(db, { cardId: row.cardId, side: row.side as Side, skillIndex: row.skillIndex,
+    ...rule, source: "claude", status: "confirmed", explanation });
 }
 
 /**

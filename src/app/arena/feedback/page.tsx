@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { arenaFeedback, arenaGames, cards as cardsTable } from "@/db/schema";
 import { listRemoteIssues, getFeedbackGitHubLink } from "@/lib/github";
@@ -33,7 +33,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
     db
       .select()
       .from(arenaFeedback)
-      .where(status ? eq(arenaFeedback.status, status) : undefined)
+      .where(and(ne(arenaFeedback.kind, "rule-proposal"), status ? eq(arenaFeedback.status, status) : undefined))
       .orderBy(desc(arenaFeedback.createdAt))
       .limit(100),
     listRemoteIssues(),
