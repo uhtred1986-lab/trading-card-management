@@ -1,0 +1,2635 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Offline candidate research; no named technique audio or runtime mapping is approved.",
+  "source": {
+    "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=1",
+    "pagination": "Cached flattened array; API page count and retrieval time unavailable in this cache.",
+    "researchDate": "2026-10-15",
+    "retrievalDate": null,
+    "sha256": "7a49c1d6451bc57724ff79b3add45ab23e546866c31a03ea0d590634e4b66f69",
+    "rows": 6552,
+    "authority": "Third-party catalog transcription; printed-card/official alias review still required."
+  },
+  "method": {
+    "fields": [
+      "card_name",
+      "card_skill_unstyled",
+      "card_back_name",
+      "card_back_skill_unstyled"
+    ],
+    "matching": "Case-insensitive literal alias, Unicode letter/number boundaries; excludes HTML tags. No fuzzy, character, art, substring, or transliteration inference.",
+    "deduplication": "One record per catalog id and face per candidate; alternate print ids remain explicit. Distinct card-number count is separate.",
+    "counts": "Literal title/skill occurrences in this cached sample, including quoted references to other cards; not usage, popularity, character ownership, or an attack execution claim.",
+    "aliasEvidence": "No official alias sources verified offline. Grouped alternate names are research hypotheses, not verified equivalences.",
+    "quotes": "Exact cached unstyled field strings; HTML breaks retained. Not a claim of image-verified printed transcription."
+  },
+  "candidates": [
+    {
+      "id": "kamehameha",
+      "aliases": [
+        {
+          "text": "Kamehameha",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 62,
+      "matchedPrintFaceCount": 60,
+      "distinctCardNumberCount": 60,
+      "matches": [
+        {
+          "catalogId": 52,
+          "cardNumber": "BT15-001",
+          "variantOf": null,
+          "face": "back",
+          "title": "SS Son Goten, Kamehameha Miracle",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "SS Son Goten, Kamehameha Miracle",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 14
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 54,
+          "cardNumber": "BT15-003",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Gohan, Kamehameha Miracle",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "SS Son Gohan, Kamehameha Miracle",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 14
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 58,
+          "cardNumber": "BT15-007",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Goku, Kamehameha Miracle",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "SS Son Goku, Kamehameha Miracle",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 13
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 426,
+          "cardNumber": "BT16-092",
+          "variantOf": null,
+          "face": "front",
+          "title": "Realm of the Gods - Black Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Realm of the Gods - Black Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 26
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 614,
+          "cardNumber": "BT17-109",
+          "variantOf": null,
+          "face": "front",
+          "title": "Instant Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Instant Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1340,
+          "cardNumber": "P-428",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Goten, Familial Fellowship",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[blocker]\n[br]\n[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Saiyan≫ or ≪Earthling≫ card -- both red and with an energy cost of 3 or less -- among them to your hand, then shuffle your deck. \n[br]\n[activate: main] [limit 1] {r}, if your Leader is a red <Son Goten> card, you have 4 or more energy, and you discard this card from your hand: Play up to 1 {SS Son Gohan, Kamehameha Miracle} from your hand or Drop with a marker on it, then play up to 1 {SS Son Goku, Kamehameha Miracle} from your hand or Drop.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 416
+                },
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 512
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1732,
+          "cardNumber": "BT20-056",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Full-Strength Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Son Goku, Full-Strength Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 24
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1734,
+          "cardNumber": "BT20-082",
+          "variantOf": null,
+          "face": "front",
+          "title": "Goku's Kamehameha Deflection",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Goku's Kamehameha Deflection",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1935,
+          "cardNumber": "BT21-053",
+          "variantOf": null,
+          "face": "front",
+          "title": "Uub, Intercepting Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Uub, Intercepting Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 18
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1945,
+          "cardNumber": "BT21-070",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell, Perfect Resurrection",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[z-awaken]{g}{g}, when your life is at 3 or less: Green <Cell>.<br>[auto] When this card is placed in your Leader Area, this card gets +5000 power for the turn.<br>[auto] When this card attacks, draw 1 card, choose up to 1 of your opponent's Battle Cards, and KO it.<br>[activate: battle][once per turn] Activate an [activate: battle] skill on 1 green Extra with both {Cell} and {Kamehameha} in its card name without paying its energy cost.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 380
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1964,
+          "cardNumber": "BT21-098",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell's Full-Power Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Cell's Full-Power Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 18
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1995,
+          "cardNumber": "BT21-145",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell, Ultimate Lifeform of Despair",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[energy-exhaust][double strike][dual attack]<br>[successor]{g}{y}{1}<br>[permanent] If your Leader is a green <Cell> and you have a green ≪Android≫ in your energy other than this card, negate this card's [energy-exhaust] in all areas.<br>[auto] When this card is played using a [successor] skill that was activated by choosing 1 or more each of <Android 17>, <Android 18>, and <Cell> for their skill costs, choose up to 1 of your opponent's Battle Cards and KO it, add up to 1 {Cell's Full-Power Kamehameha} from your deck, then shuffle your deck.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 496
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2027,
+          "cardNumber": "BT22-054",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goten",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[Activate: Main][Once per turn] Look at up to 5 cards from the top of your deck and add up to 1 green &lt;Son Gohan: Adolescence&gt; or &lt;Son Goten&gt; card to your hand, then shuffle your deck.<br>[Awaken] When your life is at 4 or less or you have 2 or more energy and you have a {Family Kamehameha, Emotions Delivered} in your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 292
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2031,
+          "cardNumber": "BT22-059",
+          "variantOf": null,
+          "face": "front",
+          "title": "Family Kamehameha, Emotions Delivered",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Family Kamehameha, Emotions Delivered",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2054,
+          "cardNumber": "SD23-01",
+          "variantOf": null,
+          "face": "back",
+          "title": "SSB Vegito, Shining Warrior",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[auto][once per turn] If you have a {Final Kamehameha} in your Battle Area: When you activate a [union] skill, draw 1 card.\n<br>\n[auto][once per turn] When this card attacks, draw 1 card.\n[activate: main][once per turn] Choose up to 1 of your black <Vegito> cards and it gets +5000 power for the turn.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 43
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2057,
+          "cardNumber": "SD23-04",
+          "variantOf": null,
+          "face": "front",
+          "title": "Final Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Final Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2060,
+          "cardNumber": "SD23-07",
+          "variantOf": null,
+          "face": "front",
+          "title": "SSB Vegito, Beyond Shining",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[deflect]\n[br]\n[union-potara] [limit 1] <Son Goku> and <Vegeta> card, both black.\n[br]\n[activate: main] [once per turn]{b}, if you have a {Final Kamehameha} in your Battle  Area: Switch this card to Active Mode.\n[br]\n[activate: battle] [once per turn] of your black <Vegito> card is in a battle: Use up to 1 card from under this card in a combo with its skills negated for the turn.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 145
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2076,
+          "cardNumber": "BT22-057",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Goku, Emotions Delivered",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[deflect]<br>[auto][limit 1]{g}: When this card is played, choose up to 1 of your {SS Son Gohan & SS Son Goten, Emotions Delivered} cards and switch it to Active Mode.<br>[auto]{g}, if your {SS Son Gohan & SS Son Goten, Emotions Delivered} is in a battle and you switch this card to Rest Mode: When an [activate: battle] skill activates on your {Family Kamehameha, Emotions Delivered}, your card that's in a battle gets +10000 power and [triple strike] for the battle.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 353
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2115,
+          "cardNumber": "BT22-086",
+          "variantOf": null,
+          "face": "front",
+          "title": "Goku's Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Goku's Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2145,
+          "cardNumber": "BT22-121",
+          "variantOf": null,
+          "face": "front",
+          "title": "SSB Vegito, Ultimate Battle",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[deflect][double strike]<br>[union-potara][limit 1]{b}: <Son Goku> card and <Vegeta> card, both black.<br>[auto] If you have a {Final Kamehameha} in your Battle Area: When this card is played, choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp.<br>[auto]{b}, if you have 4 or more energy and you place 2 cards from under this card in your Drop: When this card attacks, your opponent sends 1 card from their hand to their Warp, this card gets +10000 power for the turn, and switch this card to Active Mode at the end of the battle.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 134
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2146,
+          "cardNumber": "BT22-122",
+          "variantOf": null,
+          "face": "front",
+          "title": "SSB Vegito, All-Around Warrior",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[Deflect][Blocker]<br>[Union-Potara][Limit 1] If your opponent has 2 or more energy: &lt;Son Goku&gt; card and &lt;Vegeta&gt; card, both black.<br>[Permanent] If you have a {Final Kamehameha} in your Battle Area and this card would be removed from your Battle Area by an opponent's skill or KO'd, place 2 cards from under this card in your Drop instead.<br>[Auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost of 5 or less and send it to its owner's Warp.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 180
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2200,
+          "cardNumber": "P-527",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Trunks, Assistance in a Battle to the Death",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[auto][limit 1]{g}, if your green card with both <Son Gohan: Adolescence> and <Son Goten> is in a battle: When this card is used in a combo, your opponent discards 1 card from their hand.<br>[activate: main][limit 1]{g}, if you have 2 or more energy and you have a {Family Kamehameha, Emotions Delivered} in your Battle Area: Play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 273
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2264,
+          "cardNumber": "EX23-03",
+          "variantOf": null,
+          "face": "front",
+          "title": "10x Kamehameha, Mighty Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "10x Kamehameha, Mighty Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2265,
+          "cardNumber": "EX23-12",
+          "variantOf": null,
+          "face": "front",
+          "title": "Black Kamehameha, Mighty Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Black Kamehameha, Mighty Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2266,
+          "cardNumber": "EX23-21",
+          "variantOf": null,
+          "face": "front",
+          "title": "Limit Ultra Kamehameha, Mighty Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Limit Ultra Kamehameha, Mighty Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 12
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2267,
+          "cardNumber": "EX23-30",
+          "variantOf": null,
+          "face": "front",
+          "title": "20x Kaio-ken Kamehameha, Mighty Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "20x Kaio-ken Kamehameha, Mighty Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 13
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2268,
+          "cardNumber": "EX23-38",
+          "variantOf": null,
+          "face": "front",
+          "title": "First Kamehameha, Mighty Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "First Kamehameha, Mighty Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2283,
+          "cardNumber": "P-550",
+          "variantOf": null,
+          "face": "front",
+          "title": "Body and Soul 10x Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Body and Soul 10x Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 18
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2429,
+          "cardNumber": "BT23-103",
+          "variantOf": null,
+          "face": "front",
+          "title": "Kamehameha, Omen of Victory",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Kamehameha, Omen of Victory",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2552,
+          "cardNumber": "BT24-124",
+          "variantOf": null,
+          "face": "front",
+          "title": "Sparking Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Sparking Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 3678,
+          "cardNumber": "BT2-069",
+          "variantOf": null,
+          "face": "back",
+          "title": "Father-Son Kamehameha　Goku&Gohan",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Father-Son Kamehameha　Goku&Gohan",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 3781,
+          "cardNumber": "BT9-128",
+          "variantOf": null,
+          "face": "back",
+          "title": "Father-Son Kamehameha Goku & Gohan Return",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Father-Son Kamehameha Goku & Gohan Return",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4139,
+          "cardNumber": "BT1-082",
+          "variantOf": null,
+          "face": "front",
+          "title": "Family Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Family Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4276,
+          "cardNumber": "EX13-34",
+          "variantOf": null,
+          "face": "front",
+          "title": "Max Power Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Max Power Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 10
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4288,
+          "cardNumber": "P-160",
+          "variantOf": null,
+          "face": "front",
+          "title": "Moon-Destroying Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Moon-Destroying Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 16
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4315,
+          "cardNumber": "BT11-151",
+          "variantOf": null,
+          "face": "front",
+          "title": "Instant Transmission 10x Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Instant Transmission 10x Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 25
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4318,
+          "cardNumber": "TB2-049",
+          "variantOf": null,
+          "face": "front",
+          "title": "Feet Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Feet Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4450,
+          "cardNumber": "BT10-057",
+          "variantOf": null,
+          "face": "front",
+          "title": "God-Slicing Black Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "God-Slicing Black Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 18
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4456,
+          "cardNumber": "BT4-121",
+          "variantOf": null,
+          "face": "front",
+          "title": "Dark Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Dark Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4476,
+          "cardNumber": "BT6-103",
+          "variantOf": null,
+          "face": "front",
+          "title": "Full-Power Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Full-Power Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4499,
+          "cardNumber": "BT10-122",
+          "variantOf": null,
+          "face": "front",
+          "title": "Burning Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Burning Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4507,
+          "cardNumber": "BT9-132",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell's Earth-Destroying Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Cell's Earth-Destroying Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 24
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4538,
+          "cardNumber": "DB1-039",
+          "variantOf": null,
+          "face": "front",
+          "title": "Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5035,
+          "cardNumber": "BT7-062",
+          "variantOf": null,
+          "face": "front",
+          "title": "Kamehameha Blast Yamcha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Kamehameha Blast Yamcha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5423,
+          "cardNumber": "BT4-096",
+          "variantOf": null,
+          "face": "front",
+          "title": "10x Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "10x Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 4
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5481,
+          "cardNumber": "BT9-131",
+          "variantOf": null,
+          "face": "front",
+          "title": "Ultra Instinct Goku's Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Ultra Instinct Goku's Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 22
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5924,
+          "cardNumber": "EX10-02",
+          "variantOf": null,
+          "face": "front",
+          "title": "Master Roshi, Kamehameha Origins",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Master Roshi, Kamehameha Origins",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 14
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 6435,
+          "cardNumber": "P-158",
+          "variantOf": null,
+          "face": "front",
+          "title": "Master Roshi, Martial Master",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[auto] When you play this card, choose 1 card in your life and add it to your hand.<br>[activate: main]{1}, choose 1 card in your life and add it to your hand: Choose up to 1 {Moon-Destroying Kamehameha} from your deck, add it to your hand, shuffle your deck, then negate this skill for the duration of the game.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 192
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 6461,
+          "cardNumber": "BT2-098",
+          "variantOf": null,
+          "face": "front",
+          "title": "Father-Son Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Father-Son Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 6997,
+          "cardNumber": "BT8-104",
+          "variantOf": null,
+          "face": "front",
+          "title": "Super Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Super Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7955,
+          "cardNumber": "EX24-26",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Goku, Help From Above",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[blocker] [activate: main][limit 1] If your Leader is {SS Son Gohan & SS Son Goten, Brothers} and you place 1 card from your hand and 1 of your Z-Energy into their owner's Drop: Play this card from under {Family Kamehameha, Emotions Delivered} in your Battle Area, then place up to 1 green <Son Goku> card with an energy cost of 2 from your Z-Deck under a Z-Extra in your Battle Area. [activate: main] Remove this card from the game: Reduce the [auto] skill cost of {Family Kamehameha, Emotions Delivered} in your Battle Area by {g} for the turn.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 212
+                },
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 474
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8120,
+          "cardNumber": "BT26-029",
+          "variantOf": null,
+          "face": "front",
+          "title": "Polar Strike 10x Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Polar Strike 10x Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 17
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8335,
+          "cardNumber": "BT27-049",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Energy Build-Up",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[Deflect][Dual Attack]\n[br]\n[Activate: Main][Limit 1]{g}, if your Leader is a green ≪Adventure≫ card and your opponent has 3 or more energy: Draw 1 card and play this card from your hand.\n[br]\n[Activate: Main][Limit 1] If your <Master Roshi> card is in play: Choose up to 1 of your opponent's Battle Cards, KO it, and during this turn, the next time you activate the [Activate: Battle] skill on {Kamehameha Energy Release} in your hand, reduce the skill cost by {g}.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 396
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8341,
+          "cardNumber": "BT27-061",
+          "variantOf": null,
+          "face": "front",
+          "title": "Kamehameha Energy Release",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Kamehameha Energy Release",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8344,
+          "cardNumber": "BT27-052",
+          "variantOf": null,
+          "face": "front",
+          "title": "Master Roshi, Adventure Companion",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[Permanent] If your <Son Goku: Childhood> card is in play, you may activate {Kamehameha Energy Release} from your hand without paying its energy cost.\n[br]\n[Activate: Main][Limit 1]{g}, if your Leader is a green ≪Adventure≫ card and you have 3 or more energy: Draw 1 card and play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 77
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 9661,
+          "cardNumber": "BT29-028",
+          "variantOf": null,
+          "face": "front",
+          "title": "3-Man Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "3-Man Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 10486,
+          "cardNumber": "BT30-150",
+          "variantOf": null,
+          "face": "front",
+          "title": "Family Kamehameha, Miracle Blast",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Family Kamehameha, Miracle Blast",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 10963,
+          "cardNumber": "BT31-052",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS4 Gogeta, the Light Protecting the Universe",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Kamehameha",
+              "quote": "[deflect] [barrier] [dual attack]\n[br]\n[union-fusion] {g}{g}{1}, draw 1 card: Mono green <Son Goku: GT> card and mono-green <Vegeta: GT> card.\n[br]\n[auto] [once per turn] When your opponent activates a [counter] skill, your opponent discards 1 card from their hand.\n[br]\n[activate: main] [limit 1] {g}: Activate the [activate: main] skill of up to 1 {Big Bang Kamehameha} in your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 360
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 10964,
+          "cardNumber": "BT31-053",
+          "variantOf": null,
+          "face": "front",
+          "title": "Big Bang Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Big Bang Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 11131,
+          "cardNumber": "BT31-142",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell's Kamehameha",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Kamehameha",
+              "quote": "Cell's Kamehameha",
+              "occurrences": [
+                {
+                  "exactMention": "Kamehameha",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "final-flash",
+      "aliases": [
+        {
+          "text": "Final Flash",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 2,
+      "matchedPrintFaceCount": 2,
+      "distinctCardNumberCount": 2,
+      "matches": [
+        {
+          "catalogId": 3839,
+          "cardNumber": "BT9-133",
+          "variantOf": null,
+          "face": "front",
+          "title": "Vegeta's Final Flash",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Final Flash",
+              "quote": "Vegeta's Final Flash",
+              "occurrences": [
+                {
+                  "exactMention": "Final Flash",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 3968,
+          "cardNumber": "P-171",
+          "variantOf": null,
+          "face": "front",
+          "title": "Revenge Final Flash",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Final Flash",
+              "quote": "Revenge Final Flash",
+              "occurrences": [
+                {
+                  "exactMention": "Final Flash",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "galick-gun",
+      "aliases": [
+        {
+          "text": "Galick Gun",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 2,
+      "matchedPrintFaceCount": 2,
+      "distinctCardNumberCount": 2,
+      "matches": [
+        {
+          "catalogId": 4167,
+          "cardNumber": "BT8-088",
+          "variantOf": null,
+          "face": "front",
+          "title": "Super Galick Gun",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Galick Gun",
+              "quote": "Super Galick Gun",
+              "occurrences": [
+                {
+                  "exactMention": "Galick Gun",
+                  "offset": 6
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4213,
+          "cardNumber": "BT2-063",
+          "variantOf": null,
+          "face": "front",
+          "title": "Father-Son Galick Gun",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Galick Gun",
+              "quote": "Father-Son Galick Gun",
+              "occurrences": [
+                {
+                  "exactMention": "Galick Gun",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "big-bang-attack",
+      "aliases": [
+        {
+          "text": "Big Bang Attack",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 1,
+      "matchedPrintFaceCount": 1,
+      "distinctCardNumberCount": 1,
+      "matches": [
+        {
+          "catalogId": 4563,
+          "cardNumber": "P-253",
+          "variantOf": null,
+          "face": "front",
+          "title": "Revenge Big Bang Attack",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Big Bang Attack",
+              "quote": "Revenge Big Bang Attack",
+              "occurrences": [
+                {
+                  "exactMention": "Big Bang Attack",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "masenko",
+      "aliases": [
+        {
+          "text": "Masenko",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 0,
+      "matchedPrintFaceCount": 0,
+      "distinctCardNumberCount": 0,
+      "matches": []
+    },
+    {
+      "id": "special-beam-cannon",
+      "aliases": [
+        {
+          "text": "Special Beam Cannon",
+          "status": "unverified-alias",
+          "officialSources": []
+        },
+        {
+          "text": "Makankosappo",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 20,
+      "matchedPrintFaceCount": 18,
+      "distinctCardNumberCount": 17,
+      "matches": [
+        {
+          "catalogId": 2062,
+          "cardNumber": "BT22-003",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Gohan, Awakening to Beast",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[double strike]<br>[z-awaken]{r}{r}, when your life is at 3 or less: Red <Son Gohan: SH> card.<br>[auto] If you place 1 card from your Z-Energy in your Drop: When this card is placed in a Leader Area, place up to 1 {Special Beam Cannon, Inherited Power} from your Z-Deck in the Battle Area.<br>[auto] When this card attacks, draw 1 card.<br>[auto] At the end of your turn, choose all of your red <Piccolo: SH> cards and switch them to Active Mode.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 216
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2064,
+          "cardNumber": "BT22-007",
+          "variantOf": null,
+          "face": "front",
+          "title": "Special Beam Cannon, Inherited Power",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Special Beam Cannon",
+              "quote": "Special Beam Cannon, Inherited Power",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2065,
+          "cardNumber": "BT22-009",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Gohan, Beast Roar",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[dual attack]<br>[auto][limit 1] If you have a {Special Beam Cannon, Inherited Power} in your Battle Area and this card is attacking: When your opponent activates a [counter] skill, choose up to 1 of your opponent's Leaders, and it gets -5000 power for the turn.<br>[activate: main][limit 1]{r}{r}, if your Leader is a red ≪Saiyan≫ card and you have 4 or more energy: Play this card from your hand, choose up to 1 of your opponent's Battle Cards, and it gets -30000 power for the turn.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 48
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2330,
+          "cardNumber": "BT23-037",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Blocker]<br>[Permanent] If you have a blue &lt;Son Goku&gt; card without [Barrier] in play, your blue &lt;Piccolo&gt; cards can't be attacked.<br>[Auto] When this card attacks, draw 1 card, then add up to 1 card from your life to your hand.<br>[Auto] When your life becomes 6 or when your {Piercing Special Beam Cannon}'s [Auto] skill activates, draw 1 card, then flip this card over.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 300
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2330,
+          "cardNumber": "BT23-037",
+          "variantOf": null,
+          "face": "back",
+          "title": "Son Goku & Piccolo, Rag-Tag Alliance",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Auto] When this card attacks, draw 1 card.<br>[Auto] If you have a {Piercing Special Beam Cannon} in your Battle Area: At the start of your opponent's Main Phase, you may flip this card over. If you do, switch this card and up to 1 of your energy to Active Mode, this card gets +5000 power for the turn, then choose up to 1 of your blue &lt;Piccolo&gt; cards and it gains [Barrier] for the turn.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 78
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2332,
+          "cardNumber": "BT23-039",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Strategy of Sacrifice",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Auto][Limit 1] If you have a {Piercing Special Beam Cannon} in your Battle Area and you switch this card to Rest Mode: When your blue &lt;Piccolo&gt; card's attack is negated by an opponent's skill, choose up to 1 of your blue &lt;Piccolo&gt; cards with an energy cost of 6 or less and switch it to Active Mode, then your opponent can't activate [Blocker] for the turn.<br>[Auto] When this card is KO'd by one of your skills, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and place it at the bottom of its owner's deck.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 40
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2334,
+          "cardNumber": "BT23-041",
+          "variantOf": null,
+          "face": "front",
+          "title": "Piercing Special Beam Cannon",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Special Beam Cannon",
+              "quote": "Piercing Special Beam Cannon",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 9
+                }
+              ]
+            },
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[auto][limit 1] If your Leader is a mono-blue <Son Goku> card and you remove this card from the game: When your blue <Piccolo> card attacks, the attacking card gains [critical] for the battle, then reduce the energy cost of the next {Piercing Special Beam Cannon} you place in your Battle Area this turn by {u}. Additionally, you may choose 1 of your blue <Son Goku> Battle Cards and KO it. If you do, choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck, then the attacking card gets +15000 power for the battle.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 243
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2336,
+          "cardNumber": "BT23-043",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Combo With an Old Enemy",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[dual attack][blocker]<br>[auto][once per turn] When this card attacks, choose up to 1 of your opponent's Battle Cards with an energy cost greater than your opponent's energy and place it at the bottom of its owner's deck.<br>[activate: main][limit 1]{u}, if your Leader's back side is {Son Goku & Piccolo, Rag-Tag Alliance}, you have 3 or more energy, and you have a {Piercing Special Beam Cannon} in your Battle Area: Draw 1 card and play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 378
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2337,
+          "cardNumber": "BT23-044",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Savior Emotions",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[blocker]<br>[auto] When this card is played, play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn.<br>[activate: main][limit 1]{u}, if your Leader's back side is {Son Goku & Piccolo, Rag-Tag Alliance} and you have a {Piercing Special Beam Cannon} in your Battle Area: Play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 301
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2338,
+          "cardNumber": "BT23-045",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Rage Against Saiyan",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[critical]<br>[auto] When this card is played, play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn.<br>[activate: main][limit 1]{u}, if your Leader's back side is {Son Goku & Piccolo, Rag-Tag Alliance} and you have a {Piercing Special Beam Cannon} in your Battle Area: Play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 302
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2340,
+          "cardNumber": "BT23-047",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Gohan, Encounter",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 &lt;Son Goku&gt; or &lt;Piccolo&gt; card―both blue and with an energy cost of 5 or less―to your hand, then shuffle your deck.<br>[Auto][Limit 1] Send this card from your Drop to your Warp: When a {Piercing Special Beam Cannon} is placed in your Battle Area, draw 1 card, add up to 1 card from your life to your hand, then discard 1 card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 300
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2343,
+          "cardNumber": "BT23-050",
+          "variantOf": null,
+          "face": "front",
+          "title": "Piccolo, Holding Back",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[activate: main][limit 1]{u}, if your Leader's back side is {Son Goku & Piccolo, Rag-Tag Alliance} and you have a {Piercing Special Beam Cannon} in your Battle Area: Draw 1 card and play this card from your hand.<br>[activate: battle][once per turn]{u}, if it's your opponent's turn: Choose up to 1 of your blue <Son Goku> cards with an energy cost of 3 and switch it to Active Mode, then choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and return it to its owner's hand at the end of the battle.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 124
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2344,
+          "cardNumber": "BT23-051",
+          "variantOf": null,
+          "face": "front",
+          "title": "Piccolo, Counter",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[activate: main][limit 1]{u}, if your Leader's back side is {Son Goku & Piccolo, Rag-Tag Alliance} and you have a {Piercing Special Beam Cannon} in your Battle Area: Draw 1 card and play this card from your hand.<br>[activate: battle][once per turn]{u}, if it's your opponent's turn: Choose up to 1 of your blue <Son Goku> cards with an energy cost of 3 and switch it to Active Mode, then choose up to 1 of your cards and it gets +5000 power for the battle.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 124
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2345,
+          "cardNumber": "BT23-052",
+          "variantOf": null,
+          "face": "front",
+          "title": "Krillin, Warm-Up Opponent",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Auto] When this card is played, draw 1 card.<br>[Auto][Limit 1] Send this card from your Drop to your Warp: When a {Piercing Special Beam Cannon} is placed in your Battle Area, draw 1 card, add up to 1 card from your life to your hand, then discard 1 card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 126
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2362,
+          "cardNumber": "BT23-069",
+          "variantOf": null,
+          "face": "front",
+          "title": "Captured",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Counter: Attack][Limit 1] If you have a blue &lt;Son Goku&gt; card in play: Negate the attack, then choose up to 1 of your opponent's Battle Cards and it can't attack for the turn.<br>[Permanent] If you have a {Piercing Special Beam Cannon} in your Battle Area, reduce the energy cost of this card in your hand by 2.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 221
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2454,
+          "cardNumber": "P-557",
+          "variantOf": null,
+          "face": "front",
+          "title": "Piccolo, Ready to Fire",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[counter: counter][limit 1] If your Leader is a blue card with both <Son Goku> and <Piccolo>: Draw 1 card, play this card, and this card gets +5000 power until the end of your opponent's turn.<br>[permanent] If you have a {Piercing Special Beam Cannon} in your Battle Area, reduce the energy cost of this card in your hand by 2.<br>[activate: battle][limit 1]{u}: Switch this card to Active Mode.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 232
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4245,
+          "cardNumber": "BT4-068",
+          "variantOf": null,
+          "face": "front",
+          "title": "Special Beam Cannon",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Special Beam Cannon",
+              "quote": "Special Beam Cannon",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5022,
+          "cardNumber": "BT7-060",
+          "variantOf": null,
+          "face": "front",
+          "title": "Piccolo, Special Beam Cannon Unleashed",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Special Beam Cannon",
+              "quote": "Piccolo, Special Beam Cannon Unleashed",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 9
+                }
+              ]
+            },
+            {
+              "field": "skill",
+              "alias": "Special Beam Cannon",
+              "quote": "[Permanent] If you have a green &lt;Son Goku&gt; card with 20000 power in play in your Battle Area and {Piccolo, Special Beam Cannon Unleashed} isn't in play in your Battle Area, you can play this card from your hand without paying its energy cost.<br>[Activate: Main][Once per turn] Choose 1 &lt;Son Goku&gt; card with 20000 power or more in your Battle Area and place it in its owner's Drop Area: Choose oneー<br>・Choose up to 1 of your opponent's Battle Cards with an energy cost of 2 or less, ignoring [Barrier], and KO it. If you KO'd a card, your opponent chooses 2 cards in their hand and places them in their Drop Area.<br>・Choose up to 1 of your opponent's Battle Cards and KO it.",
+              "occurrences": [
+                {
+                  "exactMention": "Special Beam Cannon",
+                  "offset": 113
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "destructo-disc",
+      "aliases": [
+        {
+          "text": "Destructo Disc",
+          "status": "unverified-alias",
+          "officialSources": []
+        },
+        {
+          "text": "Destructo Disk",
+          "status": "unverified-alias",
+          "officialSources": []
+        },
+        {
+          "text": "Kienzan",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 3,
+      "matchedPrintFaceCount": 3,
+      "distinctCardNumberCount": 3,
+      "matches": [
+        {
+          "catalogId": 6131,
+          "cardNumber": "DB2-067",
+          "variantOf": null,
+          "face": "front",
+          "title": "Krillin, Destructo Disc Unleashed",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Destructo Disc",
+              "quote": "Krillin, Destructo Disc Unleashed",
+              "occurrences": [
+                {
+                  "exactMention": "Destructo Disc",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 6639,
+          "cardNumber": "TB1-053",
+          "variantOf": null,
+          "face": "front",
+          "title": "Destructo Disk Krillin",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Destructo Disk",
+              "quote": "Destructo Disk Krillin",
+              "occurrences": [
+                {
+                  "exactMention": "Destructo Disk",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8903,
+          "cardNumber": "BT28-025",
+          "variantOf": null,
+          "face": "front",
+          "title": "Destructo Disk",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Destructo Disk",
+              "quote": "Destructo Disk",
+              "occurrences": [
+                {
+                  "exactMention": "Destructo Disk",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "solar-flare",
+      "aliases": [
+        {
+          "text": "Solar Flare",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 3,
+      "matchedPrintFaceCount": 3,
+      "distinctCardNumberCount": 3,
+      "matches": [
+        {
+          "catalogId": 5491,
+          "cardNumber": "TB3-063",
+          "variantOf": null,
+          "face": "front",
+          "title": "Solar Flare",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Solar Flare",
+              "quote": "Solar Flare",
+              "occurrences": [
+                {
+                  "exactMention": "Solar Flare",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7380,
+          "cardNumber": "EB1-36",
+          "variantOf": null,
+          "face": "front",
+          "title": "Goku's Solar Flare",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Solar Flare",
+              "quote": "Goku's Solar Flare",
+              "occurrences": [
+                {
+                  "exactMention": "Solar Flare",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 11127,
+          "cardNumber": "BT31-138",
+          "variantOf": null,
+          "face": "front",
+          "title": "Cell's Solar Flare",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Solar Flare",
+              "quote": "Cell's Solar Flare",
+              "occurrences": [
+                {
+                  "exactMention": "Solar Flare",
+                  "offset": 7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "death-beam",
+      "aliases": [
+        {
+          "text": "Death Beam",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 1,
+      "matchedPrintFaceCount": 1,
+      "distinctCardNumberCount": 1,
+      "matches": [
+        {
+          "catalogId": 4509,
+          "cardNumber": "BT9-109",
+          "variantOf": null,
+          "face": "front",
+          "title": "Emperor's Death Beam",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Beam",
+              "quote": "Emperor's Death Beam",
+              "occurrences": [
+                {
+                  "exactMention": "Death Beam",
+                  "offset": 10
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "death-ball",
+      "aliases": [
+        {
+          "text": "Death Ball",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 11,
+      "matchedPrintFaceCount": 11,
+      "distinctCardNumberCount": 11,
+      "matches": [
+        {
+          "catalogId": 4274,
+          "cardNumber": "BT8-021",
+          "variantOf": null,
+          "face": "front",
+          "title": "Flaming Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Flaming Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4327,
+          "cardNumber": "BT10-090",
+          "variantOf": null,
+          "face": "front",
+          "title": "Dark Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Dark Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4468,
+          "cardNumber": "BT5-075",
+          "variantOf": null,
+          "face": "front",
+          "title": "Shocking Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Shocking Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4488,
+          "cardNumber": "BT9-130",
+          "variantOf": null,
+          "face": "front",
+          "title": "Frieza's Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Frieza's Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7165,
+          "cardNumber": "BT4-021",
+          "variantOf": null,
+          "face": "front",
+          "title": "Revenge Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Revenge Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7213,
+          "cardNumber": "BT5-104",
+          "variantOf": null,
+          "face": "front",
+          "title": "Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8116,
+          "cardNumber": "BT26-023",
+          "variantOf": null,
+          "face": "front",
+          "title": "Super 17, Absorbing Power",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Death Ball",
+              "quote": "[Auto] When this card is played, place up to 1 {Power-Infused Shocking Death Ball} from your Z-Deck into your Battle Area, then choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.\n[br]\n[Activate: Battle][Limit 1]{r}, if your Leader's back side is a red <Super 17> card, you have 2 or more energy, and you have 1 or more <Android 17> card and 1 or more <Hell Fighter 17> card in your Combo Area: Play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 71
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8124,
+          "cardNumber": "BT26-007",
+          "variantOf": null,
+          "face": "front",
+          "title": "Power-Infused Shocking Death Ball",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Power-Infused Shocking Death Ball",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 23
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8128,
+          "cardNumber": "BT26-024",
+          "variantOf": null,
+          "face": "front",
+          "title": "Super 17, Attack Commenced",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Death Ball",
+              "quote": "[Auto] When this card is played, draw 1 card, then place up to 1 {Power-Infused Shocking Death Ball} from your Z-Deck into your Battle Area.\n[br]\n[Activate: Battle][Limit 1]{r}, if your Leader's back side is a red <Super 17> card, you have 2 or more energy, and you have 1 or more <Android 17> card and 1 or more <Hell Fighter 17> card in your Combo Area: Play this card from your hand.",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 89
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 8130,
+          "cardNumber": "BT26-030",
+          "variantOf": null,
+          "face": "front",
+          "title": "Power Absorption and Release",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Death Ball",
+              "quote": "[Barrier][Field]\n[br]\n[Auto] When your red <Super 17> card is played, place up to 1 red <Android 17> or <Hell Fighter 17> card from your Combo Area under your Leader.\n[br]\n[Auto] When your {Power-Infused Shocking Death Ball} leaves the Battle Area, place up to 1 red <Android 17> or <Hell Fighter 17> card from your Drop under your Leader.",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 213
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 9776,
+          "cardNumber": "BT29-139",
+          "variantOf": null,
+          "face": "front",
+          "title": "Revenge Death Ball Final",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Death Ball",
+              "quote": "Revenge Death Ball Final",
+              "occurrences": [
+                {
+                  "exactMention": "Death Ball",
+                  "offset": 8
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "supernova",
+      "aliases": [
+        {
+          "text": "Supernova",
+          "status": "unverified-alias",
+          "officialSources": []
+        },
+        {
+          "text": "Super Nova",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 0,
+      "matchedPrintFaceCount": 0,
+      "distinctCardNumberCount": 0,
+      "matches": []
+    },
+    {
+      "id": "spirit-bomb",
+      "aliases": [
+        {
+          "text": "Spirit Bomb",
+          "status": "unverified-alias",
+          "officialSources": []
+        }
+      ],
+      "reviewStatus": "candidate-pending-review",
+      "voice": "unavailable",
+      "runtimeMappingApproved": false,
+      "mentionCount": 19,
+      "matchedPrintFaceCount": 15,
+      "distinctCardNumberCount": 15,
+      "matches": [
+        {
+          "catalogId": 1317,
+          "cardNumber": "BT19-008",
+          "variantOf": null,
+          "face": "front",
+          "title": "SS Son Goku, Spirit Bomb Absorbed",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "SS Son Goku, Spirit Bomb Absorbed",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 13
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1393,
+          "cardNumber": "BT19-030",
+          "variantOf": null,
+          "face": "front",
+          "title": "Spirit Bomb Unleashed",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Spirit Bomb Unleashed",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1628,
+          "cardNumber": "BT20-084",
+          "variantOf": null,
+          "face": "back",
+          "title": "Son Goku & Vegeta, Path to Victory",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[Auto] When this card attacks, draw 1 card.<br>[Auto][Once per turn] When a card is placed under a {Spirit Bomb} in your Battle Area, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.<br>[Activate: Main] Activate up to 1 {Spirit Bomb} from your deck, shuffle your deck, and negate this skill for the game.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 100
+                },
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 247
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1631,
+          "cardNumber": "BT20-098",
+          "variantOf": null,
+          "face": "front",
+          "title": "Vegeta, Buying Time",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[Unique]<br>[Permanent] While your Leader is a yellow &lt;Son Goku&gt; card and there are 6 or fewer cards under a {Spirit Bomb} in your Battle Area, this card gets +11000 power.<br>[Auto] When this card is played, draw 1 card.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 116
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1633,
+          "cardNumber": "BT20-112",
+          "variantOf": null,
+          "face": "front",
+          "title": "Spirit Bomb",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Spirit Bomb",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1635,
+          "cardNumber": "BT20-087",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Spirit Bomb Hope",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Son Goku, Spirit Bomb Hope",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 10
+                }
+              ]
+            },
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[z-awaken]{y}, when your life is at 4 or less: Yellow <Son Goku>.<br>[z-stack 1] Yellow <Son Goku> Leader with Z-Energy cost of 4. (When putting this card into play/on top of your Leader from your Z-Deck, place up to 1 of the specified cards from your Z-Deck under this card.)<br>[activate: main][once per turn] Place 1 card from your hand under a {Spirit Bomb} in your Battle Area: Draw 2 cards.<br>[activate: main] If there are 7 or more cards under a {Spirit Bomb} in your Battle Area: Remove this card from the game, place up to 1 <Son Goku> Z-Leader from under your Leader on top of your Leader, and if you placed a card, you may switch your Leader to Active Mode.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 349
+                },
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 455
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1638,
+          "cardNumber": "BT20-089",
+          "variantOf": null,
+          "face": "front",
+          "title": "Hercule, Rallying Hope",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[Barrier]<br>[Activate: Main] Switch this card to Rest Mode: You may choose any number of your Battle Cards and switch them to Rest Mode. If you do, for each Battle Card switched to Rest Mode by this skill other than this card, you may place the top card of your deck under a {Spirit Bomb} in your Battle Area.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 277
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 1639,
+          "cardNumber": "BT20-101",
+          "variantOf": null,
+          "face": "front",
+          "title": "Hercule, Expecting the Unexpected",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[unique]<br>[permanent] This card can't be KO'd while it's in Rest Mode.<br>[permanent]  If your Leader is yellow, and has both <Son Goku> and <Vegeta> card and you have a yellow <Dende> card in play, reduce the energy cost of this card in your hand by {y}.<br>[activate: main] Switch this card to Rest Mode: You may choose any number of your Battle Cards and switch them to Rest Mode. If you do, for each Battle Card switched to Rest Mode by this skill other than this card, you may place the top card of your deck under a {Spirit Bomb} in your Battle Area.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 525
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 2287,
+          "cardNumber": "EX23-52",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Final Spirit Bomb",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Son Goku, Final Spirit Bomb",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 16
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4156,
+          "cardNumber": "BT3-034",
+          "variantOf": null,
+          "face": "front",
+          "title": "Ultimate Spirit Bomb Son Goku",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Ultimate Spirit Bomb Son Goku",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 9
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 4373,
+          "cardNumber": "BT3-057",
+          "variantOf": null,
+          "face": "front",
+          "title": "Finishing Spirit Bomb Son Goku",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Finishing Spirit Bomb Son Goku",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 10
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 5088,
+          "cardNumber": "BT14-071",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Spirit Bomb Unleashed",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Son Goku, Spirit Bomb Unleashed",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 10
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 6648,
+          "cardNumber": "TB1-075",
+          "variantOf": null,
+          "face": "front",
+          "title": "Full Power Spirit Bomb Son Goku",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Full Power Spirit Bomb Son Goku",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 11
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7842,
+          "cardNumber": "BT25-130",
+          "variantOf": null,
+          "face": "front",
+          "title": "Son Goku, Ultimate Spirit Bomb",
+          "evidence": [
+            {
+              "field": "title",
+              "alias": "Spirit Bomb",
+              "quote": "Son Goku, Ultimate Spirit Bomb",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 19
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "catalogId": 7926,
+          "cardNumber": "P-611",
+          "variantOf": null,
+          "face": "front",
+          "title": "Vegito, Hope for the Majin",
+          "evidence": [
+            {
+              "field": "skill",
+              "alias": "Spirit Bomb",
+              "quote": "[Auto] When this card attacks, draw 1 card, place this card from the Battle Area in its owner's Drop at the end of the battle, choose up to 1 yellow <Son Goku> card in your Battle Area or Drop, add it to your Z-Energy with its skills negated for the turn, then choose up to 1 yellow <Vegeta> card in your Battle Area or Drop and place it under {Spirit Bomb} in your Battle Area.\n[br]\n[Activate: Main][Limit 1]{y}, if you have {Spirit Bomb} in your Battle Area: Play this card from your hand, then choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.",
+              "occurrences": [
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 345
+                },
+                {
+                  "exactMention": "Spirit Bomb",
+                  "offset": 427
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
