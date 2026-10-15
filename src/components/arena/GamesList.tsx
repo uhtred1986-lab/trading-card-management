@@ -56,7 +56,7 @@ export function ContinueStrip({ game, me }: { game: GameRowData; me: string | nu
         <span className="block text-sm font-semibold text-space-50">
           {watching ? "Watch" : "Continue"} vs {opponentLabel(game, me)}
         </span>
-        <span className="block truncate text-xs text-space-300">
+        <span className="block break-words text-xs text-space-300">
           turn {game.turn}
           {move ? ` · ${move}` : ""} · {game.p1Name} v {game.p2Name}
         </span>

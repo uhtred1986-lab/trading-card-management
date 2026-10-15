@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PhoneAppMenu } from "./PhoneAppMenu";
 import { BottomTabs } from "./BottomTabs";
 import { HeaderNav } from "./HeaderNav";
-import { isArenaShell, isFullBleed, secondaryItems } from "@/lib/navigation";
+import { isArenaShell, isFullBleed } from "@/lib/navigation";
 import { useMatchOnScreen } from "@/lib/match-screen";
 
 /**
@@ -42,8 +43,9 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
     );
   }
 
-  // Below `sm` an Arena page is the whole app: no header, no tab bar, insets handled here.
+  // Arena pages use their own phone header. Focused review tasks keep their own way back.
   const shell = isArenaShell(pathname);
+  const focused = pathname === "/arena/rules/review" || /^\/arena\/rules\/build\/\d+$/.test(pathname);
 
   // The tree keeps its shape when a board claims the screen (`matchOnScreen`): the header and the tabs
   // give way to null in their own slots, so the page under them — and the match it holds — is not
@@ -58,27 +60,21 @@ export function AppShell({ children, isSl }: { children: React.ReactNode; isSl: 
           </Link>
           <HeaderNav isSl={isSl} />
           {/* The five bottom tabs cannot grow, so everything else lives here on a phone (Arena is the first tab). */}
-          <div className="ml-auto flex gap-1 sm:hidden">
-            {secondaryItems(isSl).filter((item) => item.href !== "/arena").map((item) => (
-              <Link key={item.href} href={item.href} className="tap flex items-center rounded-md px-2 text-xs text-space-300 hover:text-space-50">
-                {item.short ?? item.label}
-              </Link>
-            ))}
-          </div>
+          {!shell && <PhoneAppMenu isSl={isSl} />}
         </div>
       </header>}
 
       {/* Extra bottom padding clears the phone tab bar; it collapses at `sm`. */}
       <main
         className={matchOnScreen ? BLEED : `mx-auto w-full max-w-7xl flex-1 app-safe-x sm:pb-8 sm:pt-5 ${
-          shell ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5"
+          focused ? "pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]" : "pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5"
         }`}
         style={matchOnScreen ? { overscrollBehavior: "none" } : undefined}
       >
         {children}
       </main>
 
-      {shell || matchOnScreen ? null : <BottomTabs />}
+      {focused || matchOnScreen ? null : <BottomTabs />}
     </>
   );
 }

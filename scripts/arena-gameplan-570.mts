@@ -12,7 +12,7 @@ import { planActions, planCtx, planState } from "./verify/gameplan-fixture-570.t
 const base = process.argv.find((arg) => arg.startsWith("--base="))?.slice(7) ?? "http://localhost:3024";
 const fixtureDir = resolve(process.argv.find((arg) => arg.startsWith("--fixture-dir="))?.slice(14) ?? "contract/fixtures");
 const before = process.argv.includes("--before");
-const evidence = resolve("docs/arena-backlog/evidence/570");
+const evidence = resolve(process.argv.find((arg) => arg.startsWith("--evidence="))?.slice(11) ?? "docs/arena-backlog/evidence/570");
 const boardPath = join(fixtureDir, "u08-gameplan-board.json");
 const proofPath = join(fixtureDir, "u08-gameplan-proof.json");
 const assets = resolve("docs/arena-backlog/evidence/546/assets");
@@ -61,7 +61,10 @@ try {
       assert(await page.eval<boolean>("[...document.querySelectorAll('img')].some(img => img.complete && img.naturalWidth > 0)"), "real artwork painted");
       writeFileSync(join(evidence, `${before ? "before" : "after-board"}-${viewport.name}-${skin}.jpg`), await page.screenshot(false));
       if (before) continue;
-      await page.tap("[data-gameplan] button");
+      assert.equal(await page.eval<number>("document.querySelectorAll('.arena-bar [data-gameplan]').length"), 0, "planner does not crowd the turn prompt");
+      await page.tap('[aria-label="Open arena settings and counts"]');
+      await page.waitFor("[data-plan-open]");
+      await page.tap("[data-plan-open]");
       await page.waitFor("#gameplan-first");
       const firstIndex = planMoves(snapshot.legal, "p1").findIndex((move) => sameValue(move.action, actions[0]));
       assert(firstIndex >= 0);
@@ -86,7 +89,8 @@ try {
       await keyboard.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
       await sleep(250);
       assert.equal(await page.eval<number>("document.querySelectorAll('[data-plan-step]').length"), 0, "clearing the plan discards projections");
-      assert.equal(await page.eval<string>("document.querySelector('[data-gameplan] button').textContent.trim()"), "Preview game plan", "keyboard clear closes the planner");
+      assert.equal(await page.eval<string>("document.querySelector('#gameplan-first').value"), "-1", "keyboard clear resets the preview without playing a move");
+      assert.deepEqual(await page.eval("window.__arenaSent ?? []"), [], "preview never sends a game move");
     } finally { await page.close(); }
   }
   if (!before) {
@@ -105,7 +109,10 @@ try {
       await page.waitFor("[data-decision-summary]");
       await page.settle(550);
       await page.eval("document.querySelector('nextjs-portal')?.remove()");
-      await page.tap("[data-gameplan] button");
+      assert.equal(await page.eval<number>("document.querySelectorAll('.arena-bar [data-gameplan]').length"), 0, "planner does not crowd the turn prompt");
+      await page.tap('[aria-label="Open arena settings and counts"]');
+      await page.waitFor("[data-plan-open]");
+      await page.tap("[data-plan-open]");
       await page.waitFor("#gameplan-first");
       const firstIndex = planMoves(snapshot.legal, "p1").findIndex((move) => sameValue(move.action, actions[0]));
       assert(firstIndex >= 0);

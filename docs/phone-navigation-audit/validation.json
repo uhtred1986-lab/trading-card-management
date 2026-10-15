@@ -1,0 +1,23 @@
+{
+  "baseMain": "a63e7bd49cf41e06377d614471853b148dba4c5c",
+  "implementationCommit": "4722772a",
+  "database": "sanitized secondary local PostgreSQL only",
+  "typecheck": "passed after final code changes",
+  "lint": "passed: 0 errors, 5 existing prototype warnings",
+  "fullTestSuite": "passed; latest main included before run",
+  "productionBuild": "passed with final UI changes",
+  "browserProofs": {
+    "mulliganNavigation": "360/390 wide, both skins; touch scrolling, text jump/reopen, no submitted move, paging reset, bounded menu, Leaders-to-Decks navigation",
+    "phoneInteractions": "360 x 800/650, both skins; zoom, paging, attack/cancel and responses",
+    "gameplan": "390/1440 wide, both skins; two moves, retry, clear, 200% text, no game moves"
+  },
+  "tinyFishRuns": [
+    "93d8c4be-f9fc-476d-a292-dbc271dce587",
+    "069e24a4-9928-4b95-b43f-99cab4086f3d"
+  ],
+  "limits": [
+    "Tiny Fish live session was desktop; supplementary phone review used captured screens.",
+    "Physical Android/Safari scrolling not verified.",
+    "Full original scroll failure did not reproduce in Chromium; hidden text and gesture ambiguity addressed."
+  ]
+}
