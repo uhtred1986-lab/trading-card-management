@@ -182,7 +182,7 @@ export function Hand({
               className={`${styles.handCard} relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{
                 marginLeft: i === 0 ? 0 : step - card,
-                zIndex: i + 1,
+                zIndex: !browsing && up ? 60 : i + 1,
                 // Keep horizontal swipes for browsing while retaining vertical drags.
                 touchAction: browsing ? "none" : handlers ? (wide ? "none" : "pan-x") : undefined,
                 transform: visiblePeek?.id === c.id ? "translateY(-12px)" : undefined,
