@@ -17,6 +17,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { LiveSearch } from "@/components/LiveSearch";
 import { deckOptions } from "@/lib/decks/add";
 import { PageHeader, SectionTabs } from "@/components/ui";
+import { FilterBar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -132,10 +133,24 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
         </span>
       </div>
 
-      <form action="/collection" className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
+      <form action="/collection" className="space-y-2">
         {finish ? <input type="hidden" name="finish" value={finish} /> : null}
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {game ? <input type="hidden" name="game" value={game} /> : null}
+        <FilterBar summary={`${shown} matching ${shown === 1 ? "card" : "cards"}`} active={[
+          set && `Set: ${set}`, color && `Colour: ${color}`, type && `Type: ${type}`, trait && `Keyword: ${trait}`, ability && `Ability: ${ability}`, finish && `Finish: ${finish}`, locationParam && `Location: ${locationParam === "none" ? "Not filed" : locations.find((l) => String(l.id) === locationParam)?.name ?? locationParam}`, deckParams.length > 0 && `Decks: ${deckParams.length}`, owner && `Owner: ${owner}`,
+        ].filter(Boolean).join(" · ") || undefined}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <LiveSearch
+          defaultValue={q}
+          placeholder="Filter by name or number"
+          className="col-span-2"
+          params={{set,game,color,type,trait,ability,sort:sort === "recent" ? undefined : sort,finish,view:view === "grid" ? undefined : view,location:locationParam,deck:deckParams,owner}}
+        />
+        <select name="color" defaultValue={color ?? ""} className={select}><option value="">Any colour</option>{COLORS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+        </div>
+        </FilterBar>
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4">
         {/* The same filters in both views — a grid tile counts only the copies that match. */}
         <select name="location" defaultValue={locationParam ?? ""} className={select}>
           <option value="">Anywhere</option>
@@ -188,38 +203,11 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             <option value="none">No owner set</option>
           </select>
         )}
-        <LiveSearch
-          defaultValue={q}
-          placeholder="Filter by name or number"
-          className="col-span-2"
-          params={{
-            set,
-            game,
-            color,
-            type,
-            trait,
-            ability,
-            sort: sort === "recent" ? undefined : sort,
-            finish,
-            view: view === "grid" ? undefined : view,
-            location: locationParam,
-            deck: deckParams,
-            owner,
-          }}
-        />
         <select name="set" defaultValue={set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((st) => (
             <option key={st.code} value={st.code}>
               {st.code} · {st.name}
-            </option>
-          ))}
-        </select>
-        <select name="color" defaultValue={color ?? ""} className={select}>
-          <option value="">Any colour</option>
-          {COLORS.map((c) => (
-            <option key={c} value={c}>
-              {c}
             </option>
           ))}
         </select>
@@ -257,6 +245,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           <option value="number">Set / number</option>
         </select>
         <button className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">Apply</button>
+        </div></details>
       </form>
 
       {shown === 0 ? (

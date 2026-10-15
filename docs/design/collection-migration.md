@@ -6,11 +6,11 @@ This workstream applies the shared theme primitives to collection, catalog, deck
 
 | Route | Status | Retained behavior / notes |
 |---|---|---|
-| `/collection` | Migrated header and collection navigation | Grid/copy views, game and facet filters, owner/location/deck filters, valuation, bulk actions and copy editing retained. Existing filter form has not yet been converted to progressive disclosure. |
+| `/collection` | Migrated header, navigation and progressive filters | Grid/copy views, game and facet filters, owner/location/deck filters, valuation, bulk actions and copy editing retained. Search and colour remain visible; other facets are disclosed, with active filters and result count visible. |
 | `/collection/archived` | Migrated header and collection navigation | Archived rows and restore/delete behavior retained. |
-| `/cards` | Migrated header and catalog navigation | Both games, URL filters, view modes, pagination and card links retained. Existing filter form has not yet been converted to progressive disclosure. |
+| `/cards` | Migrated header, navigation and progressive filters | Both games, URL filters, view modes, pagination and card links retained. Search and colour remain visible; secondary facets are disclosed, with active filters and result count visible. |
 | `/cards/[id]` | Migrated title and contextual navigation | Card faces, prices, lots, ownership controls, add-to-deck and marketplace content retained. |
-| `/leaders` | Migrated via `LeaderLibrary` header and navigation | Owned leader data, filters, deck creation and catalog links retained. Its filter form has not yet been converted to progressive disclosure. |
+| `/leaders` | Migrated via `LeaderLibrary` header, navigation and progressive filters | Owned leader data, filters, deck creation and catalog links retained. Search, game and colour remain visible; set and deck availability are disclosed, with active filters and result count visible. |
 | `/decks` | Migrated header and deck navigation | Game/owner scope, built/virtual lists, discovery and creation actions retained. |
 | `/decks/[id]` | Migrated deck title and contextual navigation | Full deck editor, zones, quantity/copy allocation, legality, AI, swaps, cart and offline controls retained. |
 | `/add` | Migrated header and collection navigation | Open scan batches and entry-method destinations retained. |
@@ -21,8 +21,8 @@ This workstream applies the shared theme primitives to collection, catalog, deck
 
 ## Component scope
 
-The routes continue to use the existing `CollectionList`, `CardList`, `DeckDiscovery`, `DeckBuilder`, `QuickCapture`, `ScanFlow`, `BulkEntry`, `VoiceEntry`, `LeaderLibrary`, `CartTools`, and `WantList` components. Their selection state, actions and domain-specific presentation were not rewritten. This pass does not claim those component interiors have been fully restyled to the prototype component specimens.
+The routes continue to use the existing `CollectionList`, `CardList`, `DeckDiscovery`, `DeckBuilder`, `QuickCapture`, `ScanFlow`, `BulkEntry`, `VoiceEntry`, `LeaderLibrary`, `CartTools`, and `WantList` components. Their selection state, actions and domain-specific presentation were retained. `CardList`, `CollectionList`, `DeckBuilder`, and `QuickCapture` now use the shared `Panel` for their major table, builder, and capture surfaces. `DeckDiscovery` keeps its selection outside the filters, shows search and colour directly, discloses leader/type/readiness facets, and shows active facets and result count outside that disclosure. Capture and scan controls remain specialized to preserve their camera and batch workflows.
 
-## Remaining work
+## Validation and behavior
 
-Filter forms on `/collection`, `/cards`, and `/leaders` still show their existing controls directly. Converting them to the requested progressive `FilterBar` layout needs a follow-up that keeps common search/game/color controls visible and exposes selected hidden filters in an active summary. The current primitives are applied to page hierarchy and navigation only; deeper panel and component restyling remains incomplete.
+The progressive filter controls retain their original GET names and existing query parsing. Data and mutation behavior remain owned by their existing pages/actions and client components. This UI-only pass does not change database behavior or add dependencies.

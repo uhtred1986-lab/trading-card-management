@@ -13,6 +13,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { parseViewMode } from "@/lib/view-mode";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
 import { PageHeader, SectionTabs } from "@/components/ui";
+import { FilterBar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -90,11 +91,21 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
       <GameFilter path="/cards" params={viewParams} game={search.game} available={gamesPresent} />
 
-      <form className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4 lg:grid-cols-8" action="/cards">
+      <form action="/cards" className="space-y-2">
         {view !== "grid" ? <input type="hidden" name="view" value={view} /> : null}
         {/* The chips above own the game; the form carries the choice through a search. */}
         {search.game ? <input type="hidden" name="game" value={search.game} /> : null}
-        <input type="search" name="q" defaultValue={search.q ?? ""} placeholder="Name, number (BT18-020), character…" className={`${select} col-span-2 lg:col-span-3`} autoComplete="off" />
+        <FilterBar summary={`${result.total.toLocaleString()} cards`} active={[
+          search.set && `Set: ${search.set}`, search.type && `Type: ${search.type}`, search.color && `Colour: ${search.color}`, search.rarity && `Rarity: ${search.rarity}`, search.trait && `Keyword: ${search.trait}`, search.ability && `Ability: ${search.ability}`, search.owned && `Owned: ${search.owned}`,
+        ].filter(Boolean).join(" · ") || undefined}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <input type="search" name="q" defaultValue={search.q ?? ""} placeholder="Name, number (BT18-020), character…" className={`${select} col-span-2`} autoComplete="off" />
+        <select name="color" defaultValue={search.color ?? ""} className={select}>
+          <option value="">Any colour</option>{COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        </div>
+        </FilterBar>
+        <details className="ds-more-filters"><summary className="tap ds-button-secondary">More filters</summary><div className="grid grid-cols-2 gap-2 rounded-xl border border-space-700/70 bg-space-900/50 p-3 sm:grid-cols-4 lg:grid-cols-6">
         <select name="set" defaultValue={search.set ?? ""} className={select}>
           <option value="">All sets</option>
           {sets.map((s) => (
@@ -108,14 +119,6 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
           {cardTypesFor(search.game).map((t) => (
             <option key={t} value={t}>
               {t}
-            </option>
-          ))}
-        </select>
-        <select name="color" defaultValue={search.color ?? ""} className={select}>
-          <option value="">Any colour</option>
-          {COLORS.map((c) => (
-            <option key={c} value={c}>
-              {c}
             </option>
           ))}
         </select>
@@ -158,7 +161,8 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
             <option value="name">Name</option>
           </select>
         </div>
-        <button className="tap col-span-2 rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400 sm:col-span-4 lg:col-span-8">Search</button>
+        </div></details>
+        <button className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">Search</button>
       </form>
 
       {result.rows.length === 0 ? (
