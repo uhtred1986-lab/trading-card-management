@@ -20,8 +20,10 @@ try {
     await page.settle(100);
     assert.equal(await page.eval(`(window.__arenaSent??[]).length`), 0);
     assert.equal(await page.eval(`!!document.querySelector('dialog[open]')`), false);
-    await page.tap('[data-reader-ability]');
-    assert.equal(await page.eval(`document.querySelector('[data-reader-ability]').getAttribute('aria-expanded')`), 'true');
+    await page.tap('[data-reader-ability] p');
+    assert.equal(await page.eval(`document.querySelector('[data-reader-info]').getAttribute('aria-expanded')`), 'false', 'bar body cannot activate or expand an ability');
+    await page.tap('[data-reader-info]');
+    assert.equal(await page.eval(`document.querySelector('[data-reader-info]').getAttribute('aria-expanded')`), 'true');
     // A separately grabbed preview follows the finger and settles on release.
     const center = await page.eval<{x:number;y:number}>(`(()=>{const r=document.querySelector('[data-reader-face]').getBoundingClientRect();return {x:r.x+r.width*.5,y:r.y+r.height*.25}})()`);
     await page.cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });

@@ -67,3 +67,7 @@ The 1:30–1:42 reference lifts a card above the board while the original hand r
 Ability boxes now use conservative reading shorthand over reviewed rules areas (including the Leader-only attack condition and once-per-turn qualifiers). Full printed text remains on expansion. Unknown layouts retain their below-card tray. Only the artwork owns free dragging; ability text retains native vertical touch scrolling. Browsing never submits a game action.
 
 Focused proof: `scripts/arena-hand-scrub.mts` exercises continuous real touch selection before release, no submitted actions, free movement, text expansion and pointer cancellation in both themes. Existing phone attack/response checks remain applicable; no full engine/deck suite is required for these presentation changes.
+
+### Wide rule bars and individual info controls (#886)
+
+The lifted hand preview uses level, wide ability bars across the rules area, with a slight tilt on the artwork only. Each bar has its own 44px info button that expands the exact printed ability in a scrollable region; tapping the summary itself never activates or expands it. Available abilities retain an availability glow, while passive rules remain neutral. The large details header is replaced by a compact ellipsis control for the existing details/action/payment view. Continuous hand scrubbing and unknown-layout trays are preserved.

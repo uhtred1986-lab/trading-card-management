@@ -31,7 +31,7 @@ export function HandPeek({ card, handTop, skin, offset, onClose, onInspect }: {
       onPointerUp={() => { drag.current = null; setPosition({ x: 0, y: 0 }); }}
       onPointerCancel={() => { drag.current = null; setPosition({ x: 0, y: 0 }); }}
       onClickCapture={e => { if (moved.current) { e.preventDefault(); e.stopPropagation(); moved.current = false; } }}>
-      <div className={styles.tools}><button onClick={onInspect}>Details & actions</button><button onClick={onClose} aria-label="Close hand preview">×</button></div>
+      <div className={styles.tools}><button onClick={onInspect} aria-label="Card details and actions" title="Card details and actions">⋯</button><button onClick={onClose} aria-label="Close hand preview">×</button></div>
       <CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" />
       <p className={styles.hint}>Slide across your hand to browse</p>
     </section>
