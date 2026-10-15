@@ -104,9 +104,9 @@
 .skip:focus-visible { outline: 2px solid #b9faff; outline-offset: 2px; }
 @keyframes rush { to { transform: translateX(180px); } }
 @keyframes reveal { 0% { opacity: 0; } 10%, 82% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes charge { from { transform: translateX(-16%) scale(.92); } to { transform: translateX(15%) scale(1.05); } }
+@keyframes charge { 0% { transform: translateX(-25%) scale(.84); } 35% { transform: translateX(-4%) scale(1); } 65% { transform: translateX(0) scale(1.04); } 100% { transform: translateX(24%) scale(1.1); } }
 @keyframes brace { from { transform: translateX(-5%); } 18%, 100% { transform: translateX(5%); } }
-@keyframes recoil { from { transform: translateX(0) rotate(0); } to { transform: translateX(12%) rotate(8deg); } }
+@keyframes recoil { 0% { transform: translateX(0) rotate(0); filter: drop-shadow(0 0 9px var(--accent)); } 22% { transform: translateX(15%) rotate(8deg); filter: brightness(1.6) drop-shadow(0 0 18px var(--accent)); } 45% { transform: translateX(4%) rotate(-3deg); } 100% { transform: translateX(12%) rotate(5deg); } }
 @keyframes power { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .reduced .banner { top: 42%; height: 54px; transform: none; box-shadow: none; animation: none; }
 .reduced .speedfield, .reduced .farfield, .reduced .figure, .reduced .energy, .reduced .name, .reduced .track { display: none; }

@@ -1,0 +1,32 @@
+.overlay { position: absolute; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; contain: paint; --accent: #7eeaff; }
+.stage { position: absolute; top: 27%; inset-inline: 3%; height: 250px; border: 1px solid var(--accent); border-radius: 16px; overflow: hidden; background: #07182ff2; box-shadow: 0 0 35px #0009; animation: receipt var(--duration) ease both; }
+.title { position: absolute; top: 16px; inset-inline: 18px; text-align: center; color: var(--accent); font-size: clamp(18px, 4vw, 26px); }
+.aura { position: absolute; inset: 0; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%); }
+.path { position: absolute; inset: 60px 20px 50px; }
+.source, .destination { position: absolute; bottom: 0; max-width: 45%; color: #e2f6ff; font-size: 12px; }
+.source { left: 0; }.destination { right: 0; text-align: right; }
+.rail { position: absolute; left: 12%; right: 12%; top: 45%; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+.card { position: absolute; top: 5%; left: calc(50% - 30px); width: 60px; height: 86px; display: grid; place-items: center; border: 2px solid var(--accent); border-radius: 7px; background: repeating-linear-gradient(45deg,#10294c 0 7px,#193e63 7px 9px); color: white; box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 40%, transparent); font-size: 28px; }
+.moving { animation: transit var(--duration) cubic-bezier(.2,.7,.2,1) both; }
+.flipping { animation: flip var(--duration) ease-in-out both; }
+.resolving { animation: resolve var(--duration) ease both; }
+.receipt { position: absolute; bottom: 14px; inset-inline: 14px; text-align: center; color: #e9f6ff; font-size: 12px; }
+.skip { pointer-events: auto; position: absolute; top: calc(27% + 262px); right: 3%; min-height: 44px; border: 1px solid #9cbfd5; border-radius: 8px; padding: 8px 12px; background: #07182ff2; color: white; cursor: pointer; }
+.skip:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.swap { --accent: #69ddff; }.swap .resolving { animation-name: exchange; }
+.union { --accent: #dcadff; }.union .aura { background: radial-gradient(circle at 30% 50%, #b58aff55, transparent 45%),radial-gradient(circle at 70% 50%, #ffb5d855, transparent 45%); }
+.union .resolving { animation-name: union; }
+.evolve { --accent: #ffd480; }.evolve .resolving { animation-name: ascend; }
+.awaken { --accent: #ffe69b; }.warp { --accent: #c09aff; }.drop { --accent: #f5a994; }.play { --accent: #9bffd3; }
+.warp .moving { animation-name: warp; }.drop .moving { animation-name: drop; }
+@keyframes receipt { 0% { opacity: 0; } 12%,85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes transit { 0%,10% { left: 2%; transform: scale(.8) rotate(-7deg); } 75%,100% { left: calc(98% - 60px); transform: scale(1) rotate(0); } }
+@keyframes warp { 0%,10% { left: 2%; transform: scale(1); } 75%,100% { left: calc(98% - 60px); transform: scale(.45) rotate(180deg); } }
+@keyframes drop { 0%,10% { left: 2%; transform: translateY(-12px); } 75%,100% { left: calc(98% - 60px); transform: translateY(14px) rotate(12deg); } }
+@keyframes flip { 0%,15% { transform: rotateY(0); } 50% { transform: rotateY(90deg); } 85%,100% { transform: rotateY(180deg); } }
+@keyframes resolve { 0% { transform: scale(.8); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes exchange { 0% { transform: translateX(-40px) rotate(-12deg); } 50% { transform: translateX(40px) rotate(12deg); } 100% { transform: translateX(0); } }
+@keyframes union { 0% { transform: scale(.65); box-shadow: -40px 0 20px #b58aff88,40px 0 20px #ffb5d888; } 75%,100% { transform: scale(1.05); box-shadow: 0 0 30px var(--accent); } }
+@keyframes ascend { 0% { transform: translateY(22px) scale(.8); } 75%,100% { transform: translateY(-8px) scale(1.1); } }
+.reduced .stage { height: 80px; animation: none; }.reduced .path,.reduced .aura { display: none; }.reduced .title { top: 10px; }.reduced .skip { top: calc(27% + 92px); }
+@media(prefers-reduced-motion: reduce) { .stage { height: 80px; animation: none; }.path,.aura { display: none; }.title { top: 10px; }.skip { top: calc(27% + 92px); } }
