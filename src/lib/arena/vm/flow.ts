@@ -47,6 +47,7 @@ import { RulesetBroken } from "./errors";
 import { emit, log, type Moment } from "./events";
 import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./triggers";
 import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
+import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
@@ -800,7 +801,22 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const named = state.cards[next.card]?.cardId ?? next.card;
   const showing = skillsShowing(ctx, state, next.card);
   const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
-  const program = showing.scripts.bySkill[next.skillIndex];
+  // Bare Attack/Revenge lines deliberately have no card_rules row: their
+  // entire behavior is the declared keyword DO/battleEnd hook (22-8/22-9).
+  // Do not confuse that with a missing printed effect. A priced/qualified
+  // line or an explicit unread record must still take the interruption path.
+  const nativeBattleKeyword = skill?.kind === "keyword"
+    && (skill.keyword?.name === "Attack" || skill.keyword?.name === "Revenge")
+    && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
+  const program = showing.scripts.bySkill[next.skillIndex]
+    ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  // A pending trigger can wait behind other Autos; check Bond again when this
+  // one is actually activated (22-21-3). In particular, do so before deciding
+  // whether a secret-area Auto must be revealed.
+  if (skill?.kind === "auto" && bondIsValid(ctx, game, state, next.master, skill) === false) {
+    if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s [Bond ${skill.bond}] condition does not hold, so its skill does not activate` });
+    return true;
+  }
   // #741: the queue was swept before the order was asked; this is the same
   // rule for the one taken off it, in case a use was spent in between.
   if (skill && usesLeft(state, next.master, next.card, skill) === 0) {

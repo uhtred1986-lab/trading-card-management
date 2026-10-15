@@ -1,0 +1,229 @@
+{
+  "date": "2026-10-15",
+  "catalogCards": 6552,
+  "skillsCompared": 13615,
+  "changedSkills": 22,
+  "unchangedSkills": 13593,
+  "unreadClausesBefore": 3363,
+  "unreadClausesAfter": 3363,
+  "review": {
+    "everyOtherRecordFieldUnchanged": true,
+    "opsOnlyOptionalPlainMultiCardChoiceTransformation": true,
+    "everyChangedPrintedSkillHasOptionalPlainCount2Or5": true,
+    "replacementChoiceAlreadyRequiredInFull": true,
+    "all22ReadingsReviewedAgainstPrintedText": true
+  },
+  "changes": [
+    {
+      "card": "TB3-052",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you play this card, you may choose 2 non-black Battle Cards in your opponent's Drop Area and place them at the bottom of their deck in any order. If you do, draw 1 card.",
+      "before": "choose up to 2 non-black Battle Cards in your opponent's Drop Area, move the chosen cards to deck, if you took all 2: draw 1",
+      "after": "you may: choose 2 non-black Battle Cards in your opponent's Drop Area, move the chosen cards to deck, if you took all 2: draw 1",
+      "unread": []
+    },
+    {
+      "card": "BT3-109",
+      "side": "front",
+      "skill": 20,
+      "printed": "[Auto] When a card evolves into this card, if your Leader Card is black, you may choose 5 cards from your Warp and place them in the Drop Area. If you do so, send all of your opponent's Battle Cards to their Warp.",
+      "before": "if your leader is Black: choose up to 5 cards in your Warp, move the chosen cards to drop, if you took all 5: move all Battle Cards in your opponent's Battle Area to warp",
+      "after": "if your leader is Black: you may: choose 5 cards in your Warp, move the chosen cards to drop, if you took all 5: move all Battle Cards in your opponent's Battle Area to warp",
+      "unread": []
+    },
+    {
+      "card": "BT5-045",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you play this card, you may choose 2 non-black Battle Cards from your opponent's Drop Area and place them at the bottom of your opponent's deck in any order. If you do, draw 1 card.",
+      "before": "choose up to 2 non-black Battle Cards in your opponent's Drop Area, if you took all 2: draw 1",
+      "after": "you may: choose 2 non-black Battle Cards in your opponent's Drop Area, if the offer was taken: draw 1",
+      "unread": [
+        "place them at the bottom of your opponent's deck in any order"
+      ]
+    },
+    {
+      "card": "BT6-043",
+      "side": "front",
+      "skill": 0,
+      "printed": "[permanent] If this card would be removed from your Battle Area by an opponent's skill, you may choose 2 cards from your hand and place them in your Drop Area instead.",
+      "before": "if this card would be removed from the Battle Area by an opponent's skill, you may have this happen instead: choose up to 2 cards in your hand, move the chosen cards to drop",
+      "after": "if this card would be removed from the Battle Area by an opponent's skill, you may have this happen instead: choose 2 cards in your hand, move the chosen cards to drop",
+      "unread": []
+    },
+    {
+      "card": "BT3-108",
+      "side": "back",
+      "skill": 10,
+      "printed": "[Auto] When this card attacks, draw 1 card. Then, you may choose 5 cards in your Drop Area and send them to your Warp. If you do so, this card gains +5000 power and [Double Strike] (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+      "before": "draw 1, choose up to 5 cards in your Drop Area, move the chosen cards to warp, if you took all 5: this card +5000 power for the turn, this card gains [Double Strike] for the turn",
+      "after": "draw 1, you may: choose 5 cards in your Drop Area, move the chosen cards to warp, if you took all 5: this card +5000 power for the turn, this card gains [Double Strike] for the turn",
+      "unread": []
+    },
+    {
+      "card": "SD8-03",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 7 from your hand and play it.",
+      "before": "choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+      "after": "you may: choose 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+      "unread": []
+    },
+    {
+      "card": "BT10-095",
+      "side": "front",
+      "skill": 20,
+      "printed": "[+1][Activate: Main] You may choose 2 yellow cards in your hand and discard them. If you do, draw 2 cards.",
+      "before": "choose up to 2 yellow cards in your hand, move the chosen cards to drop, if you took all 2: draw 2",
+      "after": "you may: choose 2 yellow cards in your hand, move the chosen cards to drop, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "EX14-02",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Auto] If your Leader Card is a blue <Trunks: Future> card: When this card is played, you may choose 2 blue Battle Cards in your hand and place them in your life face up. If you do, add 2 cards from your life to your hand.",
+      "before": "if your leader is Blue <trunks: future>: choose up to 2 blue Battle Cards in your hand, move the chosen cards to life face up, if you took all 2: choose 2 cards in your Life Area, move the chosen cards to hand",
+      "after": "if your leader is Blue <trunks: future>: you may: choose 2 blue Battle Cards in your hand, move the chosen cards to life face up, if you took all 2: choose 2 cards in your Life Area, move the chosen cards to hand",
+      "unread": []
+    },
+    {
+      "card": "BT6-108",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you combo with this card, if your Leader Card is black, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "before": "if your leader is Black: choose up to 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "after": "if your leader is Black: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "BT6-020",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you combo with this card, if your Leader Card is red, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "before": "if your leader is Red: choose up to 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "after": "if your leader is Red: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "P-075",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Auto][Sparking 7] (This skill takes effect when you have 7 or more cards in your Drop Area.) When this card attacks, if your Leader Card is black, you may choose 2 cards in your life and send it to its owner's Warp. If you do, choose up to 1 card in your opponent's life and send it to its owner's Warp.",
+      "before": "if your leader is Black: choose up to 2 cards in your Life Area, move the chosen cards to warp, if you took all 2: choose up to 1 card in your opponent's Life Area, move the chosen cards to warp",
+      "after": "if your leader is Black: you may: choose 2 cards in your Life Area, move the chosen cards to warp, if you took all 2: choose up to 1 card in your opponent's Life Area, move the chosen cards to warp",
+      "unread": []
+    },
+    {
+      "card": "BT6-045",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you combo with this card, if your Leader Card is blue, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "before": "if your leader is Blue: choose up to 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "after": "if your leader is Blue: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "BT6-095",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you combo with this card, if your Leader Card is yellow, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "before": "if your leader is Yellow: choose up to 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "after": "if your leader is Yellow: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "BT6-062",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 6 from your hand and play it.",
+      "before": "if your leader is Green \u226afrieza's army\u226b: choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 6 in your hand, play the chosen cards",
+      "after": "if your leader is Green \u226afrieza's army\u226b: you may: choose 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 6 in your hand, play the chosen cards",
+      "unread": []
+    },
+    {
+      "card": "BT9-068",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Counter: Attack] Negate the attack, then you may choose 2 of your Battle Cards and switch them to Rest Mode. If you switched 2 Battle Cards to Rest Mode, your opponent can only attack with Battle Cards one more time for the duration of the turn.",
+      "before": "negate the attack, choose up to 2 Battle Cards in your Battle Area, switch the chosen cards to rest mode",
+      "after": "negate the attack, you may: choose 2 Battle Cards in your Battle Area, switch the chosen cards to rest mode",
+      "unread": [
+        "If you switched 2 Battle Cards to Rest Mode",
+        "your opponent can only attack with Battle Cards one more time for the duration of the turn"
+      ]
+    },
+    {
+      "card": "P-080",
+      "side": "front",
+      "skill": 20,
+      "printed": "[Auto] When you play this card, you may choose 2 cards in your hand and place them in your Drop Area. If you do, your opponent chooses 2 cards in their hand and places them in their Drop Area.",
+      "before": "choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: opponent discards 2",
+      "after": "you may: choose 2 cards in your hand, move the chosen cards to drop, if you took all 2: opponent discards 2",
+      "unread": []
+    },
+    {
+      "card": "BT6-066",
+      "side": "front",
+      "skill": 0,
+      "printed": "[Auto] When you combo with this card, if your Leader Card is green, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "before": "if your leader is Green: choose up to 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "after": "if your leader is Green: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+      "unread": []
+    },
+    {
+      "card": "P-156",
+      "side": "front",
+      "skill": 10,
+      "printed": "[auto] When this card is removed from a Battle Area by a skill, if you have 4 or more energy, you may choose 2 cards from your hand and place them in your Drop Area, then choose 1 of your yellow energy and switch it to Rest Mode. If you did both, choose up to 1 {Unyielding Victory Son Goku} and 1 {Unyielding Victory Jackie Chun} from your deck, play them, then shuffle your deck.",
+      "before": "if there are 4 or more cards in your Energy Area: choose up to 2 cards in your hand, move the chosen cards to drop, choose 1 yellow card in your Energy Area, switch the chosen cards to rest mode",
+      "after": "if there are 4 or more cards in your Energy Area: you may: choose 2 cards in your hand, move the chosen cards to drop, choose 1 yellow card in your Energy Area, switch the chosen cards to rest mode",
+      "unread": [
+        "If you did both",
+        "choose up to 1 {Unyielding Victory Son Goku}",
+        "1 {Unyielding Victory Jackie Chun} from your deck",
+        "play them",
+        "shuffle your deck"
+      ]
+    },
+    {
+      "card": "BT14-084",
+      "side": "front",
+      "skill": 20,
+      "printed": "[Auto] If your opponent has 3 or more energy: When this card is removed from your Battle Area by a skill or KO'd, you may choose 2 cards in your hand and discard them. If you do, choose up to 1 mono-green <Broly: Br> card with an energy cost of 6 or 7 in your hand and play it.",
+      "before": "if there are 3 or more cards in your opponent's Energy Area: choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 mono-colour green <Broly: Br> card with an energy cost of 6 or mono-colour green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+      "after": "if there are 3 or more cards in your opponent's Energy Area: you may: choose 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 mono-colour green <Broly: Br> card with an energy cost of 6 or mono-colour green <Broly: Br> card with an energy cost of 7 in your hand, play the chosen cards",
+      "unread": []
+    },
+    {
+      "card": "BT15-140",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Activate: Main/Battle][Limit 1] Your opponent places the top card of their deck in their Drop Area. Additionally, you may choose 2 black cards in your hand and discard them. If you do, your opponent can only attack with Battle Cards one more time for the turn.",
+      "before": "1 from the top of the deck to the Drop, choose up to 2 black cards in your hand, move the chosen cards to drop",
+      "after": "1 from the top of the deck to the Drop, you may: choose 2 black cards in your hand, move the chosen cards to drop",
+      "unread": [
+        "your opponent can only attack with Battle Cards one more time for the turn"
+      ]
+    },
+    {
+      "card": "P-153",
+      "side": "front",
+      "skill": 10,
+      "printed": "[Activate: Main] If you have 4 or more energy: You may choose 2 \u226aWorld Tournament\u226b cards in any Battle Areas, negate their skills for the duration of the turn, and place them in their owner's Drop Areas. If you do, play this card from your hand, and you can't activate {King Piccolo, Limitless Power}'s [Activate: Main] skill for the duration of the turn.",
+      "before": "if there are 4 or more cards in your Energy Area: choose up to 2 \u226aWorld Tournament\u226b cards you have in play, negate the skills of the chosen cards for the turn, move the chosen cards to drop, if you took all 2: choose this card, play the chosen cards",
+      "after": "if there are 4 or more cards in your Energy Area: you may: choose 2 \u226aWorld Tournament\u226b cards you have in play, negate the skills of the chosen cards for the turn, move the chosen cards to drop, if you took all 2: choose this card, play the chosen cards",
+      "unread": []
+    },
+    {
+      "card": "BT6-061",
+      "side": "front",
+      "skill": 30,
+      "printed": "[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green <Broly: Br> card with an energy cost of 8 from your hand and play it.",
+      "before": "choose up to 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 8 in your hand, play the chosen cards",
+      "after": "you may: choose 2 cards in your hand, move the chosen cards to drop, if you took all 2: choose up to 1 green <Broly: Br> card with an energy cost of 8 in your hand, play the chosen cards",
+      "unread": []
+    }
+  ]
+}

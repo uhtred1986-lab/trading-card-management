@@ -1,0 +1,20 @@
+{
+  "games": 40,
+  "counts": {
+    "completed": 39,
+    "interrupted": 1,
+    "action-limit": 0,
+    "crash": 0
+  },
+  "snapshot": "private production-deck capture after first 26-rule refresh, before approved second refresh",
+  "remainingInterruption": {
+    "card": "SD13-05",
+    "skill": 0,
+    "seed": 331640952,
+    "actions": 99,
+    "turn": 8,
+    "cause": "stored condition metadata missing; approved metadata-only refresh prepared"
+  },
+  "comparisonCaution": "Global random stream depends on prior game actions. Before/after 40-game totals are not a paired-seed strength comparison.",
+  "scope": "Random legal play does not prove unused abilities or all printed rules; readiness blockers are tracked separately."
+}

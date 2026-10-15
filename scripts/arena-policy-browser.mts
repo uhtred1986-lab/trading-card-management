@@ -3,7 +3,11 @@
  * #651: the complete local policy in a real browser — per-decision latency in a module Web Worker, and
  * the proof that it plays the same games there as in Node.
  *
- *   npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json]
+ *   npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--fixtures a,b]
+ *
+ * --search opts into the O5 approximate attack-sequence policy versus the frozen
+ * heuristic. Both policies retain current menu legality; it enables no player
+ * difficulty. Heap is measured in the actual Worker, before and after GC.
  *
  * It starts headless Chrome through `scripts/lib/cdp.mts`, serves the repo's TypeScript as native ES
  * modules (`scripts/lib/module-server.mts`) and plays, per fixture of `scripts/verify/arena-policy-fixtures.mts`
@@ -29,12 +33,12 @@ import { runJobs, type Job, type JobResult } from "./verify/arena-policy-browser
 
 function usage(message: string): never {
   console.error(`arena:policy-browser: ${message}`);
-  console.error("Usage: npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json]");
+  console.error("Usage: npm run arena:policy-browser -- [--seeds N] [--throttle R] [--max-moves N] [--total-timeout S] [--audit] [--json] [--search] [--fixtures a,b]");
   process.exit(2);
 }
 const argv = process.argv.slice(2);
-const valued = new Set(["--seeds", "--throttle", "--max-moves", "--total-timeout"]);
-const flags = new Set(["--json", "--audit"]);
+const valued = new Set(["--seeds", "--throttle", "--max-moves", "--total-timeout", "--fixtures"]);
+const flags = new Set(["--json", "--audit", "--search"]);
 for (const a of argv) if (a.startsWith("--") && !valued.has(a) && !flags.has(a)) usage(`unknown flag ${a}`);
 const int = (name: string, fallback: number): number => {
   const i = argv.indexOf(name);
@@ -48,13 +52,20 @@ const THROTTLE = int("--throttle", 4);
 const MAX_MOVES = int("--max-moves", 3000);
 const TOTAL_MS = int("--total-timeout", 900) * 1000;
 const JSON_OUT = argv.includes("--json");
+const SEARCH = argv.includes("--search");
 if (SEEDS < 1) usage("--seeds must be at least 1");
 
 try { findChrome(); } catch (error) { console.error(`arena:policy-browser: ${(error as Error).message}`); process.exit(2); }
 
 const fixtures = argv.includes("--audit") ? await loadAuditFixtures() : await loadFixtures();
+const fi = argv.indexOf("--fixtures");
+if (fi >= 0) {
+  const wanted = (argv[fi + 1] ?? "").split(",");
+  if (wanted.some((name) => !fixtures.some((f) => f.name === name))) usage("--fixtures contains an unknown name");
+  fixtures.splice(0, fixtures.length, ...fixtures.filter((f) => wanted.includes(f.name)));
+}
 const jobs: Job[] = fixtures.flatMap((f) =>
-  Array.from({ length: SEEDS * 2 }, (_, g): Job => ({ fixture: f.name, bundle: f.bundle, revision: f.revision, gameSeed: gameSeed(SEED_SETS.dev, f.seed, Math.floor(g / 2)), policySeed: 7919 + g, testSeat: g % 2 === 0 ? "p1" : "p2" })),
+  Array.from({ length: SEEDS * 2 }, (_, g): Job => ({ fixture: f.name, bundle: f.bundle, revision: f.revision, gameSeed: gameSeed(SEED_SETS.dev, f.seed, Math.floor(g / 2)), policySeed: 7919 + g, testSeat: g % 2 === 0 ? "p1" : "p2", ...(SEARCH ? { search: true } : {}) })),
 );
 
 const PAGE = `<!doctype html><meta charset="utf-8"><title>arena policy browser</title>
@@ -62,10 +73,11 @@ const PAGE = `<!doctype html><meta charset="utf-8"><title>arena policy browser</
   globalThis.__jobs = null;
   globalThis.__worker = () => new Promise((resolve, reject) => {
     const w = new Worker("/scripts/verify/arena-policy-worker.ts", { type: "module" });
+    globalThis.__workerRef = w;
     w.onerror = (e) => { e.preventDefault && e.preventDefault(); reject(new Error(String((e && (e.message || e.filename)) || "worker failed to load"))); };
     w.onmessage = (e) => {
       if (e.data && e.data.ready) w.postMessage({ jobs: globalThis.__jobs, maxMoves: globalThis.__maxMoves });
-      else { w.terminate(); e.data.ok ? resolve(e.data.results) : reject(new Error(e.data.error)); }
+      else { e.data.ok ? resolve(e.data.results) : reject(new Error(e.data.error)); }
     };
   });
   globalThis.__thread = () => import("/scripts/verify/arena-policy-browser-jobs.ts").then((m) => m.runJobs(globalThis.__jobs, globalThis.__maxMoves));
@@ -100,14 +112,30 @@ const key = (r: JobResult) => `${r.fixture}/${r.gameSeed}/${r.testSeat}: ${r.ove
 
 let failed = false;
 const report: Record<string, unknown> = {};
+let workerSession: string | null = null;
+browser.on((method, params) => {
+  if (method === "Target.attachedToTarget" && params?.targetInfo?.type === "worker" && String(params.targetInfo.url).includes("arena-policy-worker")) {
+    workerSession = String(params.sessionId);
+    void browser.send("Runtime.runIfWaitingForDebugger", {}, workerSession);
+  }
+});
 try {
   const nodeResults = await runJobs(jobs, MAX_MOVES);
   const page = await browser.page({ name: "desk", width: 1440, height: 900, mobile: false });
+  await page.cdp("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
   await page.goto(`${server.origin}/`, 60000);
   report.userAgent = await page.eval<string>("navigator.userAgent");
   // Posted as one JSON string: the bundles are plain data.
   await page.eval(`globalThis.__jobs = JSON.parse(${JSON.stringify(JSON.stringify(jobs))}); globalThis.__maxMoves = ${MAX_MOVES}; 0`);
   const workerResults = await inPage<JobResult[]>(page, "globalThis.__worker()");
+  report.workerHeap = { usedBytes: null as number | null, retainedBytes: null as number | null };
+  if (workerSession) {
+    const used = await browser.send<{ usedSize: number }>("Runtime.getHeapUsage", {}, workerSession);
+    await browser.send("HeapProfiler.collectGarbage", {}, workerSession);
+    const retained = await browser.send<{ usedSize: number }>("Runtime.getHeapUsage", {}, workerSession);
+    report.workerHeap = { usedBytes: used.usedSize, retainedBytes: retained.usedSize };
+  }
+  await page.eval("globalThis.__workerRef.terminate(); 0");
   let threadResults: JobResult[] | null = null;
   if (THROTTLE > 1) {
     await page.cdp("Emulation.setCPUThrottlingRate", { rate: THROTTLE });
@@ -118,6 +146,8 @@ try {
   const same = (got: JobResult[]) => got.length === want.length && got.every((r, i) => key(r) === want[i]);
   const agree = { worker: same(workerResults), thread: threadResults ? same(threadResults) : null };
   report.games = jobs.length;
+  report.candidate = SEARCH ? "search-v1 vs frozen local heuristic" : "local heuristic vs uniform";
+  if (SEARCH) report.search = workerResults.map((r) => ({ fixture: r.fixture, gameSeed: r.gameSeed, seat: r.testSeat, over: r.over, winner: r.winner, stopKind: r.stopKind, trace: r.trace, ...r.search }));
   report.agreeWithNode = agree;
   report.node = summary(nodeResults);
   report.worker = summary(workerResults);
@@ -143,7 +173,7 @@ try {
 if (JSON_OUT) console.log(JSON.stringify(report, null, 2));
 else {
   const line = (name: string, d: ReturnType<typeof dist>) => `  ${name.padEnd(14)} n=${String(d.n).padEnd(6)} p50 ${d.p50.toFixed(2)}  p90 ${d.p90.toFixed(2)}  p95 ${d.p95.toFixed(2)}  p99 ${d.p99.toFixed(2)}  max ${d.max.toFixed(1)}`;
-  console.log(`${report.userAgent ?? "(no browser)"}\n${jobs.length} games (${SEEDS} seeds x 2 seats x ${fixtures.length} fixtures), local policy vs uniform; browser == Node: ${JSON.stringify(report.agreeWithNode)}`);
+  console.log(`${report.userAgent ?? "(no browser)"}\n${jobs.length} games (${SEEDS} seeds x 2 seats x ${fixtures.length} fixtures), ${report.candidate}; browser == Node: ${JSON.stringify(report.agreeWithNode)}`);
   for (const name of ["node", "worker", `mainThread${THROTTLE}x`]) {
     const s = report[name] as ReturnType<typeof summary> | undefined;
     if (!s) continue;

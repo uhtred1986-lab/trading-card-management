@@ -110,7 +110,7 @@ async function liveDecks(db: Db, scope: OwnerScope, deckIds: number[]): Promise<
   if (!ids.length) return out;
   const scoped = deckScope(scope);
   const visible = await db
-    .select({ id: decksTable.id, name: decksTable.name, game: decksTable.game })
+    .select({ id: decksTable.id, name: decksTable.name, game: decksTable.game, isTesting: decksTable.isTesting })
     .from(decksTable)
     .where(scoped ? and(inArray(decksTable.id, ids), scoped) : inArray(decksTable.id, ids));
   if (!visible.length) return out;
@@ -123,7 +123,7 @@ async function liveDecks(db: Db, scope: OwnerScope, deckIds: number[]): Promise<
       illegal: (lg?.issues ?? []).filter((i) => i.severity === "illegal").map((i) => i.message),
       warnings: (lg?.issues ?? []).filter((i) => i.severity === "warning").map((i) => i.message),
     };
-    const base: OfflineDeckCheck = { deckId: d.id, key, name: d.name, ready: false, problems: [], blocking: [], listHash: null };
+    const base: OfflineDeckCheck = { deckId: d.id, key, name: d.name, ...(d.isTesting ? { isTesting: true } : {}), ready: false, problems: [], blocking: [], listHash: null };
     if (d.game !== "dbs") {
       base.problems.push("This is a Fusion World deck; the arena plays the original Dragon Ball Super Card Game only.");
       out.set(d.id, { check: base, deck: null, legality, defs: {}, scripts: {}, art: {} });
@@ -160,7 +160,7 @@ async function liveDecks(db: Db, scope: OwnerScope, deckIds: number[]): Promise<
     }
     base.blocking.sort((a, b) => a.name.localeCompare(b.name) || a.card.localeCompare(b.card));
     const deck: DeckInput = { name: input.input.name, leader: input.input.leader, main: input.input.main, ...(input.input.z?.length ? { z: input.input.z } : {}) };
-    base.listHash = await deckListHash(deck);
+    base.listHash = await deckListHash(deck, d.isTesting);
     base.ready = base.problems.length === 0 && base.blocking.length === 0;
     out.set(d.id, { check: base, deck, legality, defs, scripts, art });
   }
@@ -178,7 +178,7 @@ export async function checkOfflineDecks(db: Db, scope: OwnerScope, deckIds: numb
  * the live records (the player's deck must play offline as it does online); their art stays the
  * starters' verified picture.
  */
-export function deviceOfflinePackInput(starters: MakeOfflinePackInput, live: { key: string; name: string; deck: DeckInput; legality: PackDeck["legality"]; defs: Record<string, CardDef>; scripts: Record<string, CardScripts>; art: Record<string, CardArt> }[]): MakeOfflinePackInput {
+export function deviceOfflinePackInput(starters: MakeOfflinePackInput, live: { key: string; name: string; isTesting?: boolean; deck: DeckInput; legality: PackDeck["legality"]; defs: Record<string, CardDef>; scripts: Record<string, CardScripts>; art: Record<string, CardArt> }[]): MakeOfflinePackInput {
   if (!live.length) return starters;
   const defs = { ...starters.defs };
   const scripts = { ...starters.scripts };
@@ -198,7 +198,7 @@ export function deviceOfflinePackInput(starters: MakeOfflinePackInput, live: { k
     scripts,
     art,
     source: { ...starters.source, audit: `${starters.source.audit}${PLAYER_DECKS_SOURCE}` },
-    decks: [...starters.decks, ...live.map((d) => ({ key: d.key, name: d.name, source: "Your deck (the app's database)", deck: d.deck, legality: d.legality }))],
+    decks: [...starters.decks, ...live.map((d) => ({ key: d.key, name: d.name, ...(d.isTesting ? { isTesting: true } : {}), source: "Your deck (the app's database)", deck: d.deck, legality: d.legality }))],
   };
 }
 
@@ -217,7 +217,7 @@ export async function buildDeviceOfflinePack(db: Db, scope: OwnerScope, deckIds:
   if (blocked.length) throw new OfflineDeckRefused("blocked", `${blocked.map((c) => `"${c.name}"`).join(", ")} cannot be played offline yet.`, checks);
   const input = deviceOfflinePackInput(starters, ids.map((id) => {
     const d = live.get(id)!;
-    return { key: d.check.key, name: d.check.name, deck: d.deck!, legality: d.legality, defs: d.defs, scripts: d.scripts, art: d.art };
+    return { key: d.check.key, name: d.check.name, isTesting: d.check.isTesting, deck: d.deck!, legality: d.legality, defs: d.defs, scripts: d.scripts, art: d.art };
   }));
   const pack = await makeOfflinePack(input);
   // The plain-word gate and the pack's own qualification must agree; a disagreement is a bug, not a pack.

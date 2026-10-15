@@ -2317,11 +2317,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       if (named) sel = "sel" in named ? { ...named.sel } : { fromVar: named.var, count: 1 };
     }
     if (!sel) return null;
-    // 5-2-4: "you may" is what makes a choice declinable, and the prefix is
-    // stripped from `t` before any pattern sees it.
+    // 20-16 / #538: "you may choose N" offers a plain multi-card choice as a
+    // whole. compileEffect wraps it in `may`; accepting it owes N, declining
+    // chooses nothing. Making it up-to moved partial payments before "if you
+    // do" checked their count (BT3-109, BT6-062, SD8-03). A one-card choice
+    // already expresses exactly-one-or-decline as up to 1. Printed ranges,
+    // "up to", "all" and "any number" keep their existing readings.
     if (/^(?:you may|you can|the player may)\s+/i.test(clause.trim())) {
       sel.count ??= 1;
-      sel.upTo = true;
+      if (sel.upTo || sel.minCount !== undefined || sel.count < 2 || sel.count >= 99) sel.upTo = true;
     }
     // "…with power less than or equal to **the chosen card's** power"
     // (BT19-096): `parseFilter` cannot know which variable that is — only the

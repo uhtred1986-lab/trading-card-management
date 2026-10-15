@@ -11,6 +11,7 @@ import { DeckPreviewSheet } from "./DeckPreviewSheet";
 export interface PlayDeck {
   id: number;
   name: string;
+  isTesting?: boolean;
   description?: string | null;
   colors?: string[];
   leaderId?: string | null;
@@ -50,6 +51,9 @@ export function PlayPicker({
   canVersus,
   versusNote,
   action,
+  showTestingDecks,
+  testingToggleHref,
+  hiddenTestingDeckName,
 }: {
   decks: PlayDeck[];
   initialDeck: number;
@@ -58,6 +62,9 @@ export function PlayPicker({
   canVersus: boolean;
   versusNote: string;
   action: (formData: FormData) => void | Promise<void>;
+  showTestingDecks: boolean;
+  testingToggleHref: string;
+  hiddenTestingDeckName: string | null;
 }) {
   const [deckId, setDeckId] = useState(initialDeck);
   const [claudeDeck, setClaudeDeck] = useState(initialClaudeDeck);
@@ -84,9 +91,16 @@ export function PlayPicker({
   const choices: DiscoveryDeck[] = decks.map((d) => ({
     id: String(d.id), name: d.name, description: d.description ?? null,
     colors: d.colors ?? [], leaderId: d.leaderId, leaderName: d.leaderName, leaderImage: d.leaderImage,
-    group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, locked: locked(d),
+    group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, locked: locked(d), note: d.isTesting ? "Testing deck" : undefined,
   }));
   const own = <section aria-label="Your deck" className="space-y-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-space-400">Testing decks are {showTestingDecks ? "shown" : "hidden by default"}.</p>
+      <Link href={testingToggleHref} className="tap rounded-md border border-space-700 px-2.5 py-1.5 text-xs text-space-300 hover:border-ki-500/60 hover:text-space-50" aria-label={showTestingDecks ? "Hide testing decks" : "Show testing decks"}>
+        {showTestingDecks ? "Hide testing decks" : "Show testing decks"}
+      </Link>
+    </div>
+    {hiddenTestingDeckName ? <p className="text-xs text-space-400">The link points to testing deck <span className="font-medium text-space-200">{hiddenTestingDeckName}</span>. It stays hidden until you show testing decks above.</p> : null}
     <DeckDiscovery label="Your deck" decks={choices} value={String(deckId)} onChange={(id) => setDeckId(Number(id))} />
     <DeckPreviewSheet deckId={deck.id} deckName={deck.name} />
     <details><summary className="tap cursor-pointer py-2 text-sm text-space-300">Rule readiness{isLocked ? " — locked" : ""}</summary><Readiness deck={deck} /></details>

@@ -17,13 +17,14 @@ export interface DeckOption {
   id: number;
   name: string;
   isBuilt: boolean;
+  isTesting: boolean;
   game: Game;
 }
 
 /** The decks a card can be added to; `scope` (`OwnerScope`) keeps a player to their own. */
 export async function deckOptions(db: Db, opts: { game?: Game; scope?: OwnerScope } = {}): Promise<DeckOption[]> {
   const rows = await db
-    .select({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game })
+    .select({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, isTesting: decks.isTesting, game: decks.game })
     .from(decks)
     .where(and(opts.game ? eq(decks.game, opts.game) : undefined, deckScope(opts.scope)))
     .orderBy(decks.name);

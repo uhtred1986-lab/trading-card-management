@@ -165,7 +165,7 @@ async function main() {
   assert.equal(playerNeedsRefresh(vp!, later(SESSION_REFRESH_AFTER_SECONDS)), true);
 
   // ── SL-only paths and the player's decision ──
-  for (const p of ["/settings", "/settings/access", "/settings/users", "/arena/rules", "/arena/rules/review", "/arena/review", "/arena/feedback", "/arena/12/debug", "/sets/BT18/review"])
+  for (const p of ["/settings", "/settings/access", "/settings/users", "/arena/rules", "/arena/rules/review", "/arena/testing", "/arena/testing/scenarios", "/arena/review", "/arena/feedback", "/arena/12/debug", "/sets/BT18/review"])
     assert.equal(isSlOnlyPath(p), true, p);
   for (const p of ["/", "/collection", "/decks/3", "/arena", "/arena/12", "/arena/match/4", "/sets/BT18", "/settingsx", "/me", "/cart"]) assert.equal(isSlOnlyPath(p), false, p);
   assert.equal(isPublicPath(JOIN_PAGE), true);

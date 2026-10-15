@@ -13,7 +13,7 @@ import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
  * Play (`/arena`) and Rules (`/arena/rules`), plus the feedback page.
  * Not used on the board (`/arena/[id]`), which is full-bleed.
  *
- * Wide screens get an ARENA wordmark, a Play | Rules switch (real links, the
+ * Wide screens get an ARENA wordmark, a Play | Rules | Testing switch (real links, the
  * current one carries `aria-current="page"`) and a ⋯ menu. Phones get ARENA,
  * a Games button and ⋯, with no switch — the phone is the Arena, and the
  * Rules Workbench is made for the computer (spec decision 6).
@@ -33,7 +33,7 @@ export function readable(c: RuleCounts): string {
 
 const item = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-100 hover:bg-space-800";
 
-export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "other"; kpis?: ArenaKpis }) {
+export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "testing" | "other"; kpis?: ArenaKpis }) {
   // The Rules side, rule review, feedback and the engine setting are SL-only (docs/architecture/auth.md); a player is not shown the way in.
   const sl = await isArenaAdmin();
   // Board settings show the same cookies the game page reads (`/arena/[id]`).
@@ -56,6 +56,11 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
           {sl ? (
             <Link href="/arena/rules" aria-current={side === "rules" ? "page" : undefined} className={seg(side === "rules")}>
               Rules
+            </Link>
+          ) : null}
+          {sl ? (
+            <Link href="/arena/testing" aria-current={side === "testing" ? "page" : undefined} className={seg(side === "testing")}>
+              Testing &amp; stats
             </Link>
           ) : null}
         </nav>
@@ -90,6 +95,12 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "ot
                     <span>
                       Rule review
                       <small className="block text-[11px] text-space-400">Check how the engine reads your cards&rsquo; text</small>
+                    </span>
+                  </Link>
+                  <Link href="/arena/testing" aria-current={side === "testing" ? "page" : undefined} className={item}>
+                    <span>
+                      Testing &amp; stats
+                      <small className="block text-[11px] text-space-400">Deck coverage, test notes and results</small>
                     </span>
                   </Link>
                   <Link href="/arena/feedback" className={item}>

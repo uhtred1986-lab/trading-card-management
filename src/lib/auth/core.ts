@@ -297,6 +297,7 @@ export function isPublicPath(pathname: string): boolean {
 export function isSlOnlyPath(pathname: string): boolean {
   if (pathname === "/settings" || pathname.startsWith("/settings/")) return true;
   if (pathname === "/arena/rules" || pathname.startsWith("/arena/rules/")) return true;
+  if (pathname === "/arena/testing" || pathname.startsWith("/arena/testing/")) return true;
   if (pathname === "/arena/review" || pathname === "/arena/feedback") return true;
   if (/^\/arena\/\d+\/debug$/.test(pathname)) return true;
   if (/^\/sets\/[^/]+\/review$/.test(pathname)) return true;

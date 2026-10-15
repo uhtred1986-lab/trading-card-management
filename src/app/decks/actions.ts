@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
-import { currentOwner, currentScope, requireSignedIn } from "@/lib/auth";
+import { currentOwner, currentScope, requireSignedIn, requireSl } from "@/lib/auth";
 import { assertOwnDeck } from "@/lib/auth/ownership";
 import { cardTypesFor, COLORS, quickSearch } from "@/lib/catalog/queries";
 import { DEFAULT_GAME, gameOr, type Game } from "@/lib/catalog/games";
@@ -20,18 +20,25 @@ function revalidate(deckId?: number) {
   revalidatePath("/decks");
   revalidatePath("/collection");
   revalidatePath("/");
+  revalidatePath("/arena");
+  revalidatePath("/arena/testing");
   if (deckId) revalidatePath(`/decks/${deckId}`);
+}
+function revalidateTestingPickers() {
+  revalidatePath("/arena/offline");
 }
 
 /** Used by the DeckPicker on the add screens: create and return, no redirect. */
-export async function createDeckAction(name: string, game: Game = DEFAULT_GAME): Promise<DeckOption> {
-  await requireSignedIn();
+export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, isTesting = false): Promise<DeckOption> {
+  if (isTesting) await requireSl();
+  else await requireSignedIn();
   const clean = name.trim().slice(0, 120) || "Untitled deck";
   const [row] = await db
     .insert(decks)
-    .values({ name: clean, game: gameOr(game), owner: await currentOwner() })
-    .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game });
+    .values({ name: clean, game: gameOr(game), isTesting, owner: await currentOwner() })
+    .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, isTesting: decks.isTesting, game: decks.game });
   revalidate();
+  if (isTesting) revalidateTestingPickers();
   return { ...row, game: gameOr(row.game) };
 }
 
@@ -39,16 +46,20 @@ export async function createDeckForm(formData: FormData) {
   await requireSignedIn();
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
   const game = gameOr(formData.get("game"));
+  const isTesting = formData.get("isTesting") === "on";
+  if (isTesting) await requireSl();
   const [row] = await db
     .insert(decks)
-    .values({ name, game, owner: await currentOwner() })
+    .values({ name, game, isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   revalidate();
+  if (isTesting) revalidateTestingPickers();
   redirect(`/decks/${row.id}`);
 }
 
-export async function updateDeck(id: number, patch: { name?: string; game?: Game; description?: string | null; metaNotes?: string | null; locationId?: number | null }) {
-  await assertOwnDeck(await requireSignedIn(), id);
+export async function updateDeck(id: number, patch: { name?: string; game?: Game; description?: string | null; metaNotes?: string | null; locationId?: number | null; isTesting?: boolean }) {
+  const viewer = patch.isTesting === undefined ? await requireSignedIn() : await requireSl();
+  await assertOwnDeck(viewer, id);
   await db
     .update(decks)
     .set({ ...patch, updatedAt: new Date() })
@@ -56,19 +67,22 @@ export async function updateDeck(id: number, patch: { name?: string; game?: Game
   // Moving a built deck to another box moves the cards in it.
   if (patch.locationId !== undefined) await fileDeckAtLocation(db, id);
   revalidate(id);
+  if (patch.isTesting !== undefined) revalidateTestingPickers();
 }
 
 export async function updateDeckForm(formData: FormData) {
   await requireSignedIn();
   const id = Number(formData.get("id"));
-  await updateDeck(id, {
+  const patch = {
     name: String(formData.get("name") ?? "").trim() || "Untitled deck",
     // Switching games re-flags the cards already in the deck rather than
     // removing them; the deck page then shows what no longer belongs.
     game: gameOr(formData.get("game")),
     description: (formData.get("description") as string)?.trim() || null,
     metaNotes: (formData.get("metaNotes") as string)?.trim() || null,
-  });
+    ...(formData.has("manageTesting") ? { isTesting: formData.get("isTesting") === "on" } : {}),
+  };
+  await updateDeck(id, patch);
 }
 
 /**
@@ -102,10 +116,11 @@ export async function duplicateDeck(id: number): Promise<number> {
   if (!src) throw new Error("Deck not found");
   const [row] = await db
     .insert(decks)
-    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, owner: await currentOwner() })
+    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, isTesting: src.isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   await db.execute(sql`insert into deck_cards (deck_id, card_id, zone, quantity) select ${row.id}, card_id, zone, quantity from deck_cards where deck_id = ${id}`);
   revalidate();
+  if (src.isTesting) revalidateTestingPickers();
   return row.id;
 }
 
