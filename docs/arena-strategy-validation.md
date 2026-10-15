@@ -274,12 +274,12 @@ measured delivery. The concrete code work for #826/#827 is:
    RNG independent, work/memory caps and exact fallback. Any future real-engine
    rollout adapter requires a separately reviewed information-set design; passing
    the current full match to search would violate this contract.
-5. **Automate evidence ingestion.** Extend the evaluation/scenario runners to
-   emit a versioned run manifest and compact result artifact, then add an
-   authenticated idempotent import into the testing store. This is future work:
-   today's portal supports manual evidence/results and existing server-game stats,
-   and does not silently upload device journals. Keep replay/private state in
-   restricted artifacts and show aggregate metrics plus evidence links.
+5. **Use persisted evaluation evidence.** Evaluation/scenario runners now emit
+   versioned manifests, and the portal provides authenticated, idempotent imports
+   with immutable results and filtered run details. Import reviewed manifests
+   after approval; this does not silently upload device journals or automatically
+   qualify decks/scenarios. Keep replay/private state in restricted artifacts
+   and show aggregate metrics plus evidence links.
 6. **Measure and enable.** Run `scripts/arena-policy-eval.mts` with frozen settings
    and fresh paired holdouts, retaining per-archetype uncertainty and known tactic
    failures. Measure browser Worker latency and fallback rates. Only a passing
