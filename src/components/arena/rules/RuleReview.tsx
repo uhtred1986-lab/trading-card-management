@@ -47,6 +47,7 @@ const TONE: Record<ClauseTag | "UNREAD", { line: string; text: string; chip: str
 };
 const SEG: Record<Verdict, string> = { right: "bg-gain", all: "bg-gain", wrong: "bg-loss", skip: "bg-space-500" };
 const actBtn = "tap flex h-[60px] min-w-0 items-center justify-center gap-1.5 whitespace-normal rounded-2xl px-2 text-sm font-semibold disabled:opacity-50";
+const approvalBtn = "tap flex min-h-[60px] min-w-0 items-center justify-center gap-1.5 whitespace-normal rounded-xl border border-space-500 bg-space-900 px-3 py-2 text-sm font-semibold text-space-100 disabled:opacity-50";
 
 function Chip({ tag, className = "" }: { tag: ClauseTag | "UNREAD"; className?: string }) {
   return <span className={`shrink-0 rounded-md px-1.5 py-1 text-[11px] font-extrabold leading-none tracking-widest ${TONE[tag].chip} ${className}`}>{tag}</span>;
@@ -96,7 +97,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
   const [reason, setReason] = useState<WrongReason | null>(null);
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
-  const [explaining, setExplaining] = useState(false);
+  const [explaining, setExplaining] = useState(!!items[0]?.pendingExplanation);
 
   const done = at >= items.length;
   const item = done ? null : items[at];
@@ -261,7 +262,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
             </section>
             {!text.blank && !explaining && <>
               <RuleReading title="Current interpretation" rule={{ kind: item.tag, trigger: item.trigger, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />
-              {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={`${actBtn} bg-space-50 text-space-950`}>Approve current interpretation</button>}
+              {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={approvalBtn}>Approve current interpretation</button>}
             </>}
             {admin ? <RuleExplanationPanel key={item.id} id={item.id} version={item.reviewVersion ?? ""} actions={explanationActions} initial={item.pendingExplanation} onWorking={setExplaining}
               onApproved={() => go({ ...verdicts, [item.id]: "right" }, { kind: "right", at, id: item.id }, `Approved the exact proposed skill: ${item.name}.`)} />
@@ -357,7 +358,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
                   <button type="button" disabled={pending} onClick={skip} className={`${actBtn} border border-space-600 bg-space-800/60 text-space-50`}>
                     Review later
                   </button>
-                  <button type="button" disabled={pending || explaining || !!approvalProblem(item)} onClick={right} className={`${actBtn} col-span-2 bg-space-50 text-space-950`}>
+                  <button type="button" disabled={pending || explaining || !!approvalProblem(item)} onClick={right} className={`${approvalBtn} col-span-2`}>
                     Approve interpretation
                   </button>
                 </div>
