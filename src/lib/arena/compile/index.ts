@@ -179,6 +179,12 @@ function unionFusionAreasPermit(text: string): Op | null {
   return { op: "permit", what: "unionFusionAreas", target: { sel: { special: "self" } }, until: "game", filter };
 }
 
+/** 22-5-3-1: one standing permission, not a choice followed by a free play. */
+function evolveEnergyBasesPermit(text: string): Op | null {
+  if (!/^when using this card['’]s \[evolve\] skill from your hand,? you can choose battle cards from your energy and play this card in active mode\.?$/i.test(text.trim())) return null;
+  return { op: "permit", what: "evolveEnergyBases", target: { sel: { special: "self" } }, until: "game" };
+}
+
 /**
  * 22-30-3 with a substitute payment (BT22-035, BT22-140): "[Permanent] If your
  * Leader is …, you can activate your [Aegis] skill by sending 1 yellow card and
@@ -273,6 +279,8 @@ function compileSkillText(skill: Skill): Script {
   if (scoped) return { ops: [scoped], unsupported: [] };
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
+  const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
+  if (evolveAreas) return { ops: [evolveAreas], unsupported: [] };
   const aegisAlt = c.permanent ? aegisAltPermit(text) : null;
   if (aegisAlt) {
     const rest = aegisAlt.head ? compileSkillText({ ...skill, effect: aegisAlt.head }) : { ops: [], unsupported: [] as string[] };

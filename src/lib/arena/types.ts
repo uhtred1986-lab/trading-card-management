@@ -402,6 +402,9 @@ export interface Permission {
    * [Union] skill of a red <Veku> or <Gogeta> card from your hand. If you do,
    * send the chosen cards to their owner's Warp" (BT31-001, owner's ruling of
    * 13 Oct 2026). `filter` says which cards' [Union-Fusion] it widens.
+   * `evolveEnergyBases`: this hand copy's Evolve-family skill may choose a
+   * qualifying own Battle Card in energy and enter Active Mode on that path
+   * (22-5-3-1); it does not extend the skill's activation-source area.
    * `aegisAltDrop` (BT22-035): while the card granting it is in play, its
    * master may pay any of their [Aegis] skills by sending one card of each of
    * `filter.colors` from their Drop to their Warp instead of the hand cards of
@@ -410,7 +413,7 @@ export interface Permission {
    * paid by sending 1 card from the opponent's hand to the bottom of their deck
    * instead. Both stand beside the hand payment, which stays the player's choice.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "aegisAltDrop" | "aegisAltOpponentHand";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }

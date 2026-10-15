@@ -406,7 +406,7 @@ export type Cond =
    * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
    * the card using the line, not of the card granting it.
    */
-  | { kind: "permits"; what: "unionFusionAreas" | "aegisAlt" }
+  | { kind: "permits"; what: "unionFusionAreas" | "evolveEnergyBases" | "aegisAlt" }
   /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
@@ -995,7 +995,7 @@ export type Op =
    * opponent's hand to the bottom of their deck; the second is the target
    * card's own [Aegis] only.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "aegisAltDrop" | "aegisAltOpponentHand"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1220,6 +1220,9 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
+   * through the Counter: Play window, including a leave-and-return. */
+  evolutionBase?: { card: string; zoneEpoch: number };
   /** #624: optional Revive hand payment before determining additional costs.
    * Additive at state version 10: older suspended frames execute their stored
    * program/payment history; never infer or replay a previously paid cost. */
@@ -2810,7 +2813,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
         // 22-5-5-1: an explicit evolution cannot degrade into an ordinary
         // play if the chosen base left/changed or the optional choice was none.
-        if (evolution && (!onto || h.areaOf(onto) !== "battle" || h.masterOf(onto) !== master)) { failedEvolution(); break; }
+        const energyBase = evolution && onto && h.areaOf(onto) === "energy" && h.condHolds(frame, { kind: "permits", what: "evolveEnergyBases" });
+        if (evolution && (!onto || (h.areaOf(onto) !== "battle" && !energyBase) || h.masterOf(onto) !== master)) { failedEvolution(); break; }
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
