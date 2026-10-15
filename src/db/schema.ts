@@ -867,6 +867,55 @@ export const arenaTestingMatches = pgTable("arena_testing_matches", {
   check("arena_testing_matches_evidence_check", sql`${t.outcome} not in ('win','draw') or length(trim(${t.evidence})) > 0`),
 ]);
 
+/** Immutable, allowlisted imports from deterministic Arena runners. */
+export const arenaTestingRuns = pgTable("arena_testing_runs", {
+  id: serial("id").primaryKey(),
+  requestId: text("request_id").notNull().unique(),
+  fingerprint: text("fingerprint").notNull(),
+  source: text("source").notNull(),
+  runnerId: text("runner_id").notNull(),
+  runnerVersion: text("runner_version").notNull(),
+  gitCommit: text("git_commit").notNull(),
+  dirtyTreeSha256: text("dirty_tree_sha256"),
+  protocolId: text("protocol_id").notNull(),
+  protocolRevision: text("protocol_revision").notNull(),
+  seedSet: text("seed_set"),
+  resultCount: integer("result_count").notNull(),
+  /** Full, validated allowlisted manifest; never raw replay or engine state. */
+  manifest: jsonb("manifest").$type<import("@/lib/arena/testing/run-manifest").EvaluationManifest>().notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("arena_testing_runs_recorded_idx").on(t.recordedAt),
+  index("arena_testing_runs_source_idx").on(t.source, t.recordedAt),
+  check("arena_testing_runs_source_check", sql`${t.source} in ('scenario','decision_cases','policy_eval')`),
+  check("arena_testing_runs_fingerprint_check", sql`${t.fingerprint} ~ '^[a-f0-9]{64}$'`),
+  check("arena_testing_runs_git_commit_check", sql`${t.gitCommit} ~ '^[a-fA-F0-9]{40}$'`),
+  check("arena_testing_runs_dirty_hash_check", sql`${t.dirtyTreeSha256} is null or ${t.dirtyTreeSha256} ~ '^[a-f0-9]{64}$'`),
+  check("arena_testing_runs_result_count_check", sql`${t.resultCount} between 1 and 5000`),
+]);
+
+/** Indexed result projection for immutable run history and catalog mapping. */
+export const arenaTestingRunResults = pgTable("arena_testing_run_results", {
+  id: serial("id").primaryKey(),
+  runId: integer("run_id").notNull().references(() => arenaTestingRuns.id, { onDelete: "cascade" }),
+  resultKey: text("result_key").notNull(),
+  kind: text("kind").notNull(),
+  fixtureKey: text("fixture_key").notNull(),
+  sourceScenarioId: text("source_scenario_id"),
+  portalScenarioId: text("portal_scenario_id"),
+  outcome: text("outcome").notNull(),
+  seed: integer("seed"),
+  seat: text("seat"),
+  payload: jsonb("payload").$type<import("@/lib/arena/testing/run-manifest").EvaluationManifestResult>().notNull(),
+}, (t) => [
+  uniqueIndex("arena_testing_run_results_key_unique").on(t.runId, t.resultKey),
+  index("arena_testing_run_results_scenario_idx").on(t.portalScenarioId, t.outcome),
+  index("arena_testing_run_results_fixture_idx").on(t.fixtureKey, t.kind),
+  check("arena_testing_run_results_kind_check", sql`${t.kind} in ('scenario_case','decision_case','policy_game')`),
+  check("arena_testing_run_results_outcome_check", sql`${t.outcome} in ('pass','fail','interrupted','error','win','loss','draw','limit','illegal')`),
+  check("arena_testing_run_results_seat_check", sql`${t.seat} is null or ${t.seat} in ('p1','p2')`),
+]);
+
 /** One durable accounting receipt per Arena provider call, including calls whose move later lost the game-revision CAS. */
 export const arenaAiUsage = pgTable(
   "arena_ai_usage",

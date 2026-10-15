@@ -129,19 +129,87 @@ export interface PolicyEvalManifest extends ManifestBase {
 export type EvaluationManifest = ScenarioManifest | DecisionManifest | PolicyEvalManifest;
 export type EvaluationManifestResult = ScenarioCaseResult | DecisionCaseResult | PolicyGameResult;
 
+export interface ImportedRunSummary {
+  id: number;
+  requestId: string;
+  source: RunSource;
+  runnerId: RunnerId;
+  runnerVersion: string;
+  gitCommit: string;
+  dirtyTreeSha256: string | null;
+  protocolId: string;
+  protocolRevision: string;
+  seedSet: PolicyEvalManifest["seedSet"] | null;
+  resultCount: number;
+  fixtureCount: number;
+  unpinnedFixtures: number;
+  mappedScenarioResults: number;
+  policyGames: number;
+  pricedPolicyGames: number;
+  reportedCostMicros: number;
+  outcomes: { outcome: string; count: number }[];
+  resultPreviews: ImportedResultPreview[];
+  recordedAt: string;
+}
+
+export interface ImportedResultPreview {
+  key: string;
+  kind: EvaluationManifestResult["kind"];
+  fixtureKey: string;
+  sourceScenarioId: string | null;
+  portalScenarioId: string | null;
+  outcome: string;
+  seed: number | null;
+  seat: "p1" | "p2" | null;
+  policyKey: string | null;
+  baselinePolicyKey: string | null;
+  steps: number | null;
+  differenceCount: number | null;
+}
+
+export interface ImportedRunFixtureTotal {
+  fixtureKey: string;
+  kind: EvaluationManifestResult["kind"];
+  outcome: string;
+  count: number;
+}
+
+export interface ImportedRunDetail {
+  id: number;
+  requestId: string;
+  source: RunSource;
+  runner: ManifestRunner;
+  protocol: ManifestBase["protocol"];
+  seedSet: PolicyEvalManifest["seedSet"] | null;
+  fixtures: ManifestFixture[];
+  policies: ManifestPolicy[];
+  resultCount: number;
+  totalMatches: number;
+  recordedAt: string;
+  fixtureTotals: ImportedRunFixtureTotal[];
+  results: EvaluationManifestResult[];
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  fixtureFilter: string;
+  outcomeFilter: string;
+}
+
 export type ManifestValidation =
   | { ok: true; value: EvaluationManifest }
   | { ok: false; reason: string };
 
 const HEX_256 = /^[a-f0-9]{64}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,127}$/;
+const TOKEN_TEXT = /^[A-Za-z0-9][A-Za-z0-9._:+-]*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RUNNERS: readonly RunnerId[] = ["arena-scenario", "arena-policy-strategy", "arena-policy-eval"];
 const OUTCOMES: readonly RunOutcome[] = ["pass", "fail", "interrupted", "error"];
 const GAME_OUTCOMES = ["win", "loss", "draw", "interrupted", "limit", "illegal"] as const;
 const STOP_KINDS = ["illegal", "interrupted", "notAsked", "limit", "noSeat"] as const;
 const MAX_RESULTS = 5000;
-const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
+// Stay below Next Server Actions' default 1 MiB request limit.
+export const MAX_MANIFEST_BYTES = 512 * 1024;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -162,8 +230,8 @@ function integer(value: unknown, min = 0, max = 2_147_483_647): value is number 
 function hashOrNull(value: unknown): value is string | null {
   return value === null || typeof value === "string" && HEX_256.test(value);
 }
-function str(value: unknown, max: number): value is string {
-  return cleanString(value, max);
+function tokenText(value: unknown, max: number): value is string {
+  return cleanString(value, max, TOKEN_TEXT);
 }
 function enumValue<T extends string>(value: unknown, choices: readonly T[]): value is T {
   return typeof value === "string" && choices.includes(value as T);
@@ -171,22 +239,22 @@ function enumValue<T extends string>(value: unknown, choices: readonly T[]): val
 
 function validFixture(value: unknown): value is ManifestFixture {
   if (!record(value) || !exactKeys(value, ["key", "sourceId", "runtimeRevision", "bundleSha256", "rulesSha256", "catalogSha256", "programsSha256", "p1DeckSha256", "p2DeckSha256", "p1RecipeId", "p2RecipeId"])) return false;
-  return cleanString(value.key, 128, SLUG) && str(value.sourceId, 160) && nullableString(value.runtimeRevision, 200)
+  return cleanString(value.key, 128, SLUG) && tokenText(value.sourceId, 160) && nullableString(value.runtimeRevision, 200, TOKEN_TEXT)
     && typeof value.bundleSha256 === "string" && HEX_256.test(value.bundleSha256) && hashOrNull(value.rulesSha256) && hashOrNull(value.catalogSha256)
     && hashOrNull(value.programsSha256) && hashOrNull(value.p1DeckSha256) && hashOrNull(value.p2DeckSha256)
     && nullableString(value.p1RecipeId, 128, SLUG) && nullableString(value.p2RecipeId, 128, SLUG);
 }
 function validPolicy(value: unknown): value is ManifestPolicy {
   return record(value) && exactKeys(value, ["key", "version", "sha256"]) && cleanString(value.key, 128, SLUG)
-    && str(value.version, 160) && typeof value.sha256 === "string" && HEX_256.test(value.sha256);
+    && tokenText(value.version, 160) && typeof value.sha256 === "string" && HEX_256.test(value.sha256);
 }
 function validRunner(value: unknown): value is ManifestRunner {
   return record(value) && exactKeys(value, ["id", "version", "gitCommit", "dirtyTreeSha256"])
-    && enumValue(value.id, RUNNERS) && str(value.version, 160)
+    && enumValue(value.id, RUNNERS) && tokenText(value.version, 160)
     && cleanString(value.gitCommit, 40, /^[a-f0-9]{40}$/i) && hashOrNull(value.dirtyTreeSha256);
 }
 function validProtocol(value: unknown): value is { id: string; revision: string } {
-  return record(value) && exactKeys(value, ["id", "revision"]) && cleanString(value.id, 128, SLUG) && str(value.revision, 200);
+  return record(value) && exactKeys(value, ["id", "revision"]) && cleanString(value.id, 128, SLUG) && tokenText(value.revision, 200);
 }
 function validRng(value: unknown): value is PolicyRngProvenance {
   if (!record(value) || !exactKeys(value, ["mode", "v", "seed", "n"])) return false;
@@ -290,7 +358,7 @@ function uniqueResults(keys: string[], success: ManifestValidation): ManifestVal
 
 /** The portal accepts a small manifest, never the underlying replay artifact. */
 export function parseEvaluationManifestJson(text: string): ManifestValidation {
-  if (new TextEncoder().encode(text).byteLength > MAX_MANIFEST_BYTES) return { ok: false, reason: "Manifest exceeds the 2 MiB import limit." };
+  if (new TextEncoder().encode(text).byteLength > MAX_MANIFEST_BYTES) return { ok: false, reason: "Manifest exceeds the 512 KiB import limit." };
   try {
     return validateEvaluationManifest(JSON.parse(text) as unknown);
   } catch {

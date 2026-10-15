@@ -2,12 +2,13 @@
  * uses the supplied Db, so PGlite exercises the production queries without Neon.
  */
 import { createHash } from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { arenaTestingDecks, arenaTestingScenarios, arenaTestingMatches, decks } from "@/db/schema";
+import { arenaTestingDecks, arenaTestingScenarios, arenaTestingMatches, arenaTestingRuns, arenaTestingRunResults, decks } from "@/db/schema";
 import { rows } from "@/db/rows";
 import { resolveOutcome, type OutcomeState } from "../outcome";
 import { TESTING_DECK_CATALOG, TESTING_SCENARIO_CATALOG } from "./catalog";
+import { MAX_MANIFEST_BYTES, validateEvaluationManifest, type EvaluationManifest, type EvaluationManifestResult, type ImportedResultPreview, type ImportedRunDetail, type ImportedRunSummary } from "./run-manifest";
 import { aggregateMatches, type StatsMatch } from "./stats";
 import type { DeckProgressUpdate, MatchActor, MutationResult, ProgressStatus, ProgressUpdate, RecordTestingMatchInput, StatsFilter, TestingDashboard, TestingDeck, TestingMatch, TestingScenario } from "./types";
 
@@ -113,6 +114,182 @@ export async function recordTestingMatch(db: Db, input: RecordTestingMatchInput)
   const [existing] = await db.select().from(arenaTestingMatches).where(eq(arenaTestingMatches.requestId, clean.requestId));
   if (!existing || existing.fingerprint !== fingerprint) return { ok: false, reason: "idempotency_conflict" };
   return { ok: true, value: matchView(existing), replayed: true };
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function resultProjection(runId: number, result: EvaluationManifestResult) {
+  return {
+    runId,
+    resultKey: result.key,
+    kind: result.kind,
+    fixtureKey: result.fixtureKey,
+    sourceScenarioId: "sourceScenarioId" in result ? result.sourceScenarioId : null,
+    portalScenarioId: "portalScenarioId" in result ? result.portalScenarioId : null,
+    outcome: result.outcome,
+    seed: result.kind === "policy_game" ? result.seed : result.seed,
+    seat: result.kind === "policy_game" ? result.candidateSeat : result.seat,
+    payload: result,
+  };
+}
+
+/** Append-only, idempotent import. Validates again at the persistence boundary. */
+export async function importEvaluationRun(db: Db, input: unknown): Promise<
+  { ok: true; runId: number; replayed: boolean } | { ok: false; reason: "invalid" | "idempotency_conflict"; detail?: string }
+> {
+  const checked = validateEvaluationManifest(input);
+  if (!checked.ok) return { ok: false, reason: "invalid", detail: checked.reason };
+  const manifest = checked.value;
+  const recipeIds = manifest.fixtures.flatMap((fixture) => [fixture.p1RecipeId, fixture.p2RecipeId]).filter((id): id is string => id !== null);
+  const scenarioIds = manifest.results.flatMap((result) => "portalScenarioId" in result && result.portalScenarioId ? [result.portalScenarioId] : []);
+  if (recipeIds.some((id) => !TESTING_DECK_CATALOG.some((deck) => deck.id === id))) return { ok: false, reason: "invalid", detail: "Manifest references an unknown portal recipe ID." };
+  if (scenarioIds.some((id) => !TESTING_SCENARIO_CATALOG.some((scenario) => scenario.id === id))) return { ok: false, reason: "invalid", detail: "Manifest references an unknown portal scenario ID." };
+  await ensureTestingCatalog(db);
+  const canonical = canonicalJson(manifest);
+  if (Buffer.byteLength(canonical, "utf8") > MAX_MANIFEST_BYTES) return { ok: false, reason: "invalid", detail: "Manifest exceeds the 512 KiB import limit." };
+  const fingerprint = createHash("sha256").update(canonical).digest("hex");
+  return db.transaction(async (tx) => {
+    if (recipeIds.length) {
+      const rows = await tx.select({ id: arenaTestingDecks.id }).from(arenaTestingDecks).where(inArray(arenaTestingDecks.id, recipeIds));
+      if (new Set(rows.map((row) => row.id)).size !== new Set(recipeIds).size) return { ok: false as const, reason: "invalid" as const, detail: "Manifest references a recipe missing from the portal catalog." };
+    }
+    if (scenarioIds.length) {
+      const rows = await tx.select({ id: arenaTestingScenarios.id }).from(arenaTestingScenarios).where(inArray(arenaTestingScenarios.id, scenarioIds));
+      if (new Set(rows.map((row) => row.id)).size !== new Set(scenarioIds).size) return { ok: false as const, reason: "invalid" as const, detail: "Manifest references a scenario missing from the portal catalog." };
+    }
+    const [inserted] = await tx.insert(arenaTestingRuns).values({
+      requestId: manifest.requestId, fingerprint, source: manifest.source, runnerId: manifest.runner.id,
+      runnerVersion: manifest.runner.version, gitCommit: manifest.runner.gitCommit,
+      dirtyTreeSha256: manifest.runner.dirtyTreeSha256, protocolId: manifest.protocol.id,
+      protocolRevision: manifest.protocol.revision, seedSet: manifest.source === "policy_eval" ? manifest.seedSet : null,
+      resultCount: manifest.results.length, manifest,
+    }).onConflictDoNothing({ target: arenaTestingRuns.requestId }).returning({ id: arenaTestingRuns.id });
+    if (inserted) {
+      await tx.insert(arenaTestingRunResults).values(manifest.results.map((result) => resultProjection(inserted.id, result)));
+      return { ok: true as const, runId: inserted.id, replayed: false };
+    }
+    const [existing] = await tx.select({ id: arenaTestingRuns.id, fingerprint: arenaTestingRuns.fingerprint })
+      .from(arenaTestingRuns).where(eq(arenaTestingRuns.requestId, manifest.requestId));
+    if (!existing || existing.fingerprint !== fingerprint) return { ok: false as const, reason: "idempotency_conflict" as const };
+    return { ok: true as const, runId: existing.id, replayed: true };
+  });
+}
+
+/** Small history projection only; immutable result details stay in the database. */
+export async function listImportedEvaluationRuns(db: Db, limit = 40): Promise<ImportedRunSummary[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) return fail("run history limit");
+  const runs = await db.select({
+    id: arenaTestingRuns.id, requestId: arenaTestingRuns.requestId, source: arenaTestingRuns.source,
+    runnerId: arenaTestingRuns.runnerId, runnerVersion: arenaTestingRuns.runnerVersion,
+    gitCommit: arenaTestingRuns.gitCommit, dirtyTreeSha256: arenaTestingRuns.dirtyTreeSha256,
+    protocolId: arenaTestingRuns.protocolId, protocolRevision: arenaTestingRuns.protocolRevision,
+    seedSet: arenaTestingRuns.seedSet, resultCount: arenaTestingRuns.resultCount,
+    fixtureCount: sql<number>`jsonb_array_length(${arenaTestingRuns.manifest}->'fixtures')::int`,
+    unpinnedFixtures: sql<number>`(select count(*) from jsonb_array_elements(${arenaTestingRuns.manifest}->'fixtures') as fixture where fixture->'runtimeRevision' = 'null'::jsonb)::int`,
+    policyGames: sql<number>`(select count(*) from jsonb_array_elements(${arenaTestingRuns.manifest}->'results') as item where item->>'kind' = 'policy_game')::int`,
+    pricedPolicyGames: sql<number>`(select count(*) from jsonb_array_elements(${arenaTestingRuns.manifest}->'results') as item where item->>'kind' = 'policy_game' and item->'reportedCostMicros' <> 'null'::jsonb)::int`,
+    reportedCostMicros: sql<number>`coalesce((select sum((item->>'reportedCostMicros')::bigint) from jsonb_array_elements(${arenaTestingRuns.manifest}->'results') as item where item->>'kind' = 'policy_game' and item->'reportedCostMicros' <> 'null'::jsonb),0)::double precision`,
+    recordedAt: arenaTestingRuns.recordedAt,
+  }).from(arenaTestingRuns).orderBy(desc(arenaTestingRuns.recordedAt), desc(arenaTestingRuns.id)).limit(limit);
+  if (!runs.length) return [];
+  const runIds = runs.map((run) => run.id);
+  const rankedResults = db.select({
+    id: arenaTestingRunResults.id, runId: arenaTestingRunResults.runId, resultKey: arenaTestingRunResults.resultKey,
+    kind: arenaTestingRunResults.kind, fixtureKey: arenaTestingRunResults.fixtureKey,
+    sourceScenarioId: arenaTestingRunResults.sourceScenarioId, portalScenarioId: arenaTestingRunResults.portalScenarioId,
+    outcome: arenaTestingRunResults.outcome, seed: arenaTestingRunResults.seed, seat: arenaTestingRunResults.seat,
+    payload: arenaTestingRunResults.payload,
+    rowNumber: sql<number>`row_number() over (partition by ${arenaTestingRunResults.runId} order by ${arenaTestingRunResults.id} desc)`.as("row_number"),
+  }).from(arenaTestingRunResults).where(inArray(arenaTestingRunResults.runId, runIds)).as("ranked_arena_run_results");
+  const [outcomes, mappings, previewsRaw] = await Promise.all([
+    db.select({ runId: arenaTestingRunResults.runId, outcome: arenaTestingRunResults.outcome, count: sql<number>`count(*)::int` })
+      .from(arenaTestingRunResults).where(inArray(arenaTestingRunResults.runId, runIds))
+      .groupBy(arenaTestingRunResults.runId, arenaTestingRunResults.outcome),
+    db.select({ runId: arenaTestingRunResults.runId, count: sql<number>`count(*)::int` })
+      .from(arenaTestingRunResults).where(and(inArray(arenaTestingRunResults.runId, runIds), sql`${arenaTestingRunResults.portalScenarioId} is not null`))
+      .groupBy(arenaTestingRunResults.runId),
+    db.select({ runId: rankedResults.runId, resultKey: rankedResults.resultKey,
+      kind: rankedResults.kind, fixtureKey: rankedResults.fixtureKey,
+      sourceScenarioId: rankedResults.sourceScenarioId, portalScenarioId: rankedResults.portalScenarioId,
+      outcome: rankedResults.outcome, seed: rankedResults.seed, seat: rankedResults.seat,
+      payload: rankedResults.payload }).from(rankedResults).where(lte(rankedResults.rowNumber, 5)).orderBy(desc(rankedResults.id)),
+  ]);
+  const outcomeMap = new Map<number, { outcome: string; count: number }[]>();
+  for (const row of outcomes) outcomeMap.set(row.runId, [...(outcomeMap.get(row.runId) ?? []), { outcome: row.outcome, count: row.count }]);
+  const mappingMap = new Map(mappings.map((row) => [row.runId, row.count]));
+  const previewMap = new Map<number, ImportedResultPreview[]>();
+  for (const row of previewsRaw) {
+    const previous = previewMap.get(row.runId) ?? [];
+    if (previous.length >= 5) continue;
+    const payload = row.payload;
+    previewMap.set(row.runId, [...previous, {
+      key: row.resultKey, kind: row.kind as ImportedResultPreview["kind"], fixtureKey: row.fixtureKey,
+      sourceScenarioId: row.sourceScenarioId, portalScenarioId: row.portalScenarioId, outcome: row.outcome,
+      seed: row.seed, seat: row.seat as ImportedResultPreview["seat"],
+      policyKey: payload.kind === "decision_case" ? payload.policyKey : payload.kind === "policy_game" ? payload.candidatePolicyKey : null,
+      baselinePolicyKey: payload.kind === "policy_game" ? payload.baselinePolicyKey : null,
+      steps: payload.kind === "scenario_case" ? payload.steps : payload.kind === "decision_case" ? payload.horizonSteps : null,
+      differenceCount: payload.kind === "scenario_case" ? payload.differenceCount : null,
+    }]);
+  }
+  return runs.map((run) => ({
+    ...run,
+    source: run.source as ImportedRunSummary["source"],
+    runnerId: run.runnerId as ImportedRunSummary["runnerId"],
+    seedSet: run.seedSet as ImportedRunSummary["seedSet"],
+    recordedAt: iso(run.recordedAt),
+    outcomes: outcomeMap.get(run.id) ?? [],
+    mappedScenarioResults: mappingMap.get(run.id) ?? 0,
+    resultPreviews: previewMap.get(run.id) ?? [],
+  }));
+}
+
+const IMPORTED_OUTCOMES = ["pass", "fail", "interrupted", "error", "win", "loss", "draw", "limit", "illegal"] as const;
+const IMPORTED_PAGE_SIZE = 25;
+
+/** Bounded full-case review. Result payloads contain only validated manifest fields. */
+export async function getImportedEvaluationRunDetail(db: Db, runId: number, options: { page?: number; fixtureKey?: string; outcome?: string } = {}): Promise<ImportedRunDetail | null> {
+  if (!Number.isSafeInteger(runId) || runId < 1) return null;
+  const [run] = await db.select({ id: arenaTestingRuns.id, requestId: arenaTestingRuns.requestId,
+    source: arenaTestingRuns.source, seedSet: arenaTestingRuns.seedSet,
+    resultCount: arenaTestingRuns.resultCount, recordedAt: arenaTestingRuns.recordedAt,
+    manifest: arenaTestingRuns.manifest }).from(arenaTestingRuns).where(eq(arenaTestingRuns.id, runId));
+  if (!run) return null;
+  const manifest = run.manifest as EvaluationManifest;
+  const fixtureFilter = options.fixtureKey ?? "";
+  const outcomeFilter = options.outcome ?? "";
+  if (fixtureFilter && !manifest.fixtures.some((fixture) => fixture.key === fixtureFilter)) return null;
+  if (outcomeFilter && !(IMPORTED_OUTCOMES as readonly string[]).includes(outcomeFilter)) return null;
+  const filters = [eq(arenaTestingRunResults.runId, runId)];
+  if (fixtureFilter) filters.push(eq(arenaTestingRunResults.fixtureKey, fixtureFilter));
+  if (outcomeFilter) filters.push(eq(arenaTestingRunResults.outcome, outcomeFilter));
+  const predicate = and(...filters)!;
+  const [totalRows, grouped] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(arenaTestingRunResults).where(predicate),
+    db.select({ fixtureKey: arenaTestingRunResults.fixtureKey, kind: arenaTestingRunResults.kind,
+      outcome: arenaTestingRunResults.outcome, count: sql<number>`count(*)::int` })
+      .from(arenaTestingRunResults).where(eq(arenaTestingRunResults.runId, runId))
+      .groupBy(arenaTestingRunResults.fixtureKey, arenaTestingRunResults.kind, arenaTestingRunResults.outcome),
+  ]);
+  const total = totalRows[0]?.count ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / IMPORTED_PAGE_SIZE));
+  const page = Math.min(pageCount, Math.max(1, Number.isInteger(options.page) ? options.page! : 1));
+  const pageRows = await db.select({ payload: arenaTestingRunResults.payload }).from(arenaTestingRunResults)
+    .where(predicate).orderBy(arenaTestingRunResults.resultKey).limit(IMPORTED_PAGE_SIZE).offset((page - 1) * IMPORTED_PAGE_SIZE);
+  return {
+    id: run.id, requestId: run.requestId, source: run.source as ImportedRunDetail["source"],
+    runner: manifest.runner, protocol: manifest.protocol, seedSet: run.seedSet as ImportedRunDetail["seedSet"],
+    fixtures: manifest.fixtures, policies: manifest.policies, resultCount: run.resultCount, totalMatches: total, recordedAt: iso(run.recordedAt),
+    fixtureTotals: grouped.map((row) => ({ fixtureKey: row.fixtureKey, kind: row.kind as ImportedRunDetail["fixtureTotals"][number]["kind"], outcome: row.outcome, count: row.count })),
+    results: pageRows.map((row) => row.payload), page, pageSize: IMPORTED_PAGE_SIZE, pageCount, fixtureFilter, outcomeFilter,
+  };
 }
 
 interface ServerRow {
