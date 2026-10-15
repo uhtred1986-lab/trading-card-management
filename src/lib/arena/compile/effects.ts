@@ -775,6 +775,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .replace(/^(places|puts|sends|returns|adds|switches|removes|discards|kos|plays|draws|reveals)\b/, (v) => THIRD_PERSON[v]);
   let m: RegExpExecArray | null;
 
+  // An omitted subject at this particular conjunction is unambiguously self
+  // (#910). Reuse both readers, accepting only an identity gain: no guessing
+  // from previous sentences, choices, other subjects or area qualifiers.
+  const coordinatedIdentity = /^this card (?:can't|cannot) attack and (gains? .+)$/.exec(t);
+  if (coordinatedIdentity) {
+    const identity = compileClause(`this card ${coordinatedIdentity[1]}`, c);
+    const prohibition = compileClause("this card can't attack", c);
+    return identity?.length === 1 && identity[0].op === "gains" && prohibition
+      ? [...prohibition, ...identity] : null;
+  }
+
   // "Your opponent chooses 1 card in their hand and places it in their Drop
   // Area" says the discard twice: the choosing *is* the discard, and this half
   // is where the cards were already sent. Reading it as a second move made it

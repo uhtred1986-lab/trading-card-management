@@ -1,0 +1,220 @@
+[
+  {
+    "id": "BT25-138",
+    "name": "Son Goku, Accidental Wish",
+    "type": "Z-UNISON",
+    "colors": [
+      "Red"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 2,
+    "power": 20000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+2][Activate: Main] Choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.\n[br]\n[-7][Activate: Main] During your opponent's next turn, when your Leader is attacked, the power of the attacking card becomes 1, then that card's power return to its original value at the end of the battle. You can't activate skills on copies of this card during your next turn.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-139",
+    "name": "Son Goku Vs. Frieza, Final Battle Wish",
+    "type": "Z-UNISON",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 1,
+    "power": 20000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+1][Activate: Main] At the end of the turn, switch up to 1 of your energy to Active Mode.\n[br]\n[-7][Activate: Main] Choose all of you and your opponent's Battle Cards, ignoring [Barrier], place them at the bottom of their owners' decks in any order, add up to 1 <Son Goku> card and up to 1 <Frieza> card -- both mono-blue and with an energy cost of 7 or less -- from your deck to your hand, then shuffle your deck.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-140",
+    "name": "Krillin, Wish After Conflict",
+    "type": "Z-UNISON",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 2,
+    "power": 15000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+2][Activate: Main] Choose up to 1 of your opponent's Battle Cards with an energy cost of 5 or less and place it at the bottom of its owner's deck.\n[br]\n[-7][Activate: Main] Your Leader gains the following skill until the end of your opponent's turn--\n[br]\n\"[Permanent] Negate the keyword skills on all of your opponent's Battle Cards\"",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-141",
+    "name": "Oolong, Split-Second Wish",
+    "type": "Z-UNISON",
+    "colors": [
+      "Green"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 1,
+    "power": 15000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+1][Activate: Main] Your opponent discards 1 card their hand.\n[br]\n[-7][Activate: Main] During your opponent's next turn, if your opponent would draw a card by the skill of a non-Leader Card, you place up to 1 Battle Card from your opponent's Drop at the top of its owner's deck instead. You can't activate skills on copies of this card during your next turn.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-142",
+    "name": "Zamasu, Scheme Wish",
+    "type": "Z-UNISON",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 1,
+    "power": 15000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+1][Activate: Main] Choose 1 of your Battle Cards with an energy cost of 3 or less, negate its skills for the game, and your opponent gains control of it for the game: Choose up to 1 of your opponent's Battle Cards and gain control of it.\n[br]\n[-7][Activate: Main] Choose up to 1 of your Battle Cards and it gains [Indestructible] until the end of your opponent's turn. You can't activate skills on copies of this card during your next turn.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-143",
+    "name": "Android 17, Wish for Restored Universes",
+    "type": "Z-UNISON",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 2,
+    "power": 15000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+2][Activate: Main] Choose up to 2 of your opponent's Battle Cards and/or Unisons and switch them to Rest Mode.\n[br]\n[-7][Activate: Main] Choose up to 1 of your opponent's cards and switch it to Rest Mode, play up to 1 Battle Card from your Drop with its skills negated for the game, and you can't play Battle Cards until the end of your opponent's turn.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "BT25-144",
+    "name": "Cheelai, Wish for the Fighting to End",
+    "type": "Z-UNISON",
+    "colors": [
+      "Black"
+    ],
+    "energyCost": null,
+    "zEnergyCost": 1,
+    "power": 20000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card can't attack and gains ≪Shenron≫ in all areas.\n[br]\n[+1][Activate: Main] Look at up to 3 cards from the top of your deck, place up to 1 Battle Card in its owner's Drop or send it to its owner's Warp, then place the rest at the bottom of your deck in any order.\n[br]\n[-7][Activate: Main] Choose 1 of your Battle Cards and send it to its owner's Warp: Add up to 3 Battle Cards with energy costs between 3 and 7 from your Warp to your hand.",
+    "characters": [
+      ""
+    ],
+    "traits": [
+      ""
+    ],
+    "back": null
+  },
+  {
+    "id": "EX24-01",
+    "name": "Son Goku",
+    "type": "LEADER",
+    "colors": [
+      "Red"
+    ],
+    "energyCost": null,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[permanent] You can only include Z-Unisons in your Z-Deck. [activate: main] Switch this card to Rest Mode: Add up to 2 ≪Power Wish≫ cards from your deck to your hand, then shuffle your deck. [wish] If you have a total of 7 or more ≪Power Wish≫ cards with different card names among all cards in your Z-Energy and/or Drop: Switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.",
+    "characters": [
+      "Son Goku"
+    ],
+    "traits": [
+      "Saiyan",
+      "Power Wish"
+    ],
+    "back": {
+      "name": "Son Goku, Story of a Forming Wish",
+      "power": 15000,
+      "skill": "[auto][once per turn] When your ≪Shenron≫ Z-Unison leaves the Unison Area, add up to 1 ≪Power Wish≫ card from your deck to your hand for every 1 specified cost on that card, then shuffle your deck. [activate: main] Place 1 ≪Power Wish≫ card from your Z-Energy at the bottom of your deck: Choose up to 1 of your ≪Shenron≫ Z-Unisons and add 1 marker to it."
+    }
+  },
+  {
+    "id": "EX24-03",
+    "name": "Pilaf, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": [
+      "Red"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 4000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[auto] When this card is played, draw 1 card. [activate: main][limit 1] If your Leader is a ≪Power Wish≫ card, you have 2 or more energy, and you add this card in your hand to your Z-Energy: During this turn, ignore the specified costs on ≪Shenron≫ Z-Unisons in your Z-Deck.",
+    "characters": [
+      "Pilaf"
+    ],
+    "traits": [
+      "Earthling",
+      "Power Wish"
+    ],
+    "back": null
+  },
+  {
+    "id": "EX24-07",
+    "name": "Great Ape Son Goku, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": [
+      "Green"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[auto] When this card is played, choose up to 1 of your opponent's Unisons and remove a marker from it, and this card gains [critical] for the turn. [activate: main][limit 1]{1}, if your Leader is a ≪Power Wish≫ card and you have a ≪Shenron≫ Z-Unison in play: Play this card from your hand.",
+    "characters": [
+      "Son Goku: Childhood"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Power Wish"
+    ],
+    "back": null
+  }
+]
