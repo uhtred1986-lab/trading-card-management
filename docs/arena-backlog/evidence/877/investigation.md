@@ -152,14 +152,18 @@ unknown fields/colours, and a fake-provider missing-field → corrected-rule ret
 The native keyword prompt also explicitly limits its nonempty-ops requirement to
 non-keyword rows, consistent with its keyword `ops:[]` instruction.
 
-The browser beam regression now waits for the beam SVG rather than any SVG path
-(an unrelated icon could satisfy the old wait before board hydration completed).
+The targeting probe waits for the beam SVG rather than any SVG path, which
+could be an unrelated icon. Both beam probes await rendered animation frames
+after a layout shift rather than relying on a fixed delay, and the clash probe
+finishes card entrance animations before measuring the deliberate shift.
 
-Both beam probes await rendered animation frames after a layout shift instead of
-assuming 180 ms guarantees a render on a busy host. The original clash timing
-probe failed once during concurrent validation and passed when run separately;
-the frame-based wait tests the hook's rendering lifecycle directly.
+The combined source passes typecheck, lint (five existing prototype warnings),
+and the production build. Fresh browser validation passes all 36 phone-report
+checks, all action/playback checks in both skins at phone/desktop sizes, the two
+short-phone Charge checks at 200% text, and the in/out-of-battle no-target notice
+checks (automatic dismissal, one held advance, zero game actions).
 
-The clash layout probe also finishes card entrance animations before applying
-its deliberate shift, so its endpoint comparison measures that shift rather
-than racing an unrelated entrance animation.
+The complete `env -u DATABASE_URL npm test` chain also passed on the combined
+branch, including the required approval/CAS/protected-record proofs and the new
+complete-proposal repair checks. No live database, paid provider, migration or
+production deployment was needed for this review.
