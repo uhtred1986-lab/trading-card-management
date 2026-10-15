@@ -40,3 +40,10 @@ This is targeted contrast verification, not an exhaustive accessibility certific
 Authenticated/live-data screens and every hover, focus or gameplay state were not rendered.
 The compatibility styles deliberately exclude live-board descendants, whose materials
 remain separately owned. Scenery remains visible between information panels.
+
+Phone/desktop screenshots were compared with the pre-fix leader fixture. Layout structure
+and controls remain aligned; opaque materials are the intended visual difference. Two
+remaining automated screenshot flags were checked using individual text ranges after
+fonts settled: phone navigation measured 10.87:1 and the Anime Sky placeholder 5.52:1.
+The original flags sampled a transient development overlay or unrelated pixels inside
+a multiline bounding box rather than the label background.
