@@ -122,3 +122,16 @@
 .neutral .word { inset: 0; display: grid; place-items: center; max-width: none; font-size: clamp(36px, 8vw, 64px); }
 .reduced .neutral .word { font-size: 20px; }
 @media (prefers-reduced-motion: reduce) { .neutral .word { font-size: 20px; } }
+
+/* Resolved impacts own the center; attack buildup keeps its narrower cut-in. */
+.impact { background: radial-gradient(ellipse at center, #071326bb, #07132655 70%, transparent); }
+.impact .banner { top: 22%; height: clamp(250px, 48vw, 350px); border-block-width: 4px; }
+.impact .word { font-size: clamp(40px, 9vw, 82px); text-shadow: 4px 4px #042849, -1px -1px #042849; }
+.impact .skip { top: calc(22% + clamp(250px, 48vw, 350px) + 20px); }
+.impact.reduced { background: none; }
+.impact.reduced .banner { top: 42%; height: 54px; }
+.impact.reduced .word { font-size: 20px; }
+.impact.reduced .skip { top: calc(42% + 64px); }
+@media (prefers-reduced-motion: reduce) {
+  .impact { background: none; }.impact .banner { top: 42%; height: 54px; }.impact .word { font-size: 20px; }.impact .skip { top: calc(42% + 64px); }
+}
