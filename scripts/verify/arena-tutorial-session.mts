@@ -33,6 +33,37 @@ assert.deepEqual(restorePracticeSession(fresh.serialize()).getSnapshot(), fresh.
 assert.throws(() => restorePracticeSession({ ...fresh.serialize(), fixture: 999 }));
 assert.throws(() => restorePracticeSession({ version: 1, fixture: 1, journal: [{ action: first, basedOn: 7, requestId: "bad" }] }));
 
+// Explicit selected-energy declarations use the real engine payment validator.
+{
+  const session = restorePracticeSession(fresh.serialize());
+  const snapshot = session.getSnapshot();
+  const play = snapshot.legal.find(x => x.action.type === "play")!.action;
+  assert.equal(play.type, "play");
+  if (play.type !== "play") throw new Error("expected training play");
+  assert.ok((await session.act({ ...play, pay: ["not-energy"] }, snapshot.game.revision, "bad-pay")).error);
+  assert.equal(session.getSnapshot().game.revision, snapshot.game.revision);
+  assert.equal((await session.act({ ...play, pay: [snapshot.view.you.energy[0].id] }, snapshot.game.revision, "selected-pay")).error, null);
+  assert.equal(session.getSnapshot().view.you.activeEnergy, 0);
+  assert.equal(session.getSnapshot().view.you.battle.length, 1);
+  assert.deepEqual(restorePracticeSession(session.serialize()).getSnapshot(), session.getSnapshot());
+}
+// A batched advance retains every numbered public beat even if React renders only its last snapshot.
+{
+  const session = createPracticeSession();
+  let before = session.getSnapshot();
+  const skip = before.legal.find(x => x.action.type === "charge" && x.action.card === null)!.action;
+  await session.act(skip, before.game.revision, "skip");
+  before = session.getSnapshot();
+  await session.act(before.legal.find(x => x.action.type === "endMain")!.action, before.game.revision, "end");
+  const priorSeq = session.getSnapshot().beats?.seq ?? 0;
+  await session.advance();
+  const beats = session.getSnapshot().beats!.list.filter(b => b.n > priorSeq);
+  assert.ok(beats.some(b => b.t === "move" && b.owner === "p2" && b.to === "energy"), "opponent charge retained");
+  assert.ok(beats.some(b => b.t === "move" && b.owner === "p2" && b.to === "battle"), "opponent play retained");
+  assert.ok(beats.some(b => b.t === "attack"), "opponent attack retained");
+  assert.equal(new Set(beats.map(b => b.n)).size, beats.length, "beat numbers remain unique");
+}
+
 async function drive(options: { combos: number; skipCharge?: boolean; passive?: boolean; alternate?: boolean }) {
   let session: PracticeSession = createPracticeSession();
   const battles: { attack: number; guard: number; lifeBefore: number; lifeAfter: number }[] = [];

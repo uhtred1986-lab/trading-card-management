@@ -1,6 +1,7 @@
 import { capabilitiesOf, type ArenaSession, type SessionResult, type WatchOptions } from "../../../components/arena/session/contract";
 import { buildSnapshot, type Snapshot } from "../snapshot-core";
-import type { Beats } from "../beats";
+import { appendBeats, type Beats } from "../beats";
+import { IllegalAction } from "../vm/common";
 import type { Action, PlayerId } from "../types";
 import { RULES, type VmState } from "../vm";
 import { PRACTICE_ART, PRACTICE_CONTEXT, PRACTICE_FIXTURE_VERSION, PRACTICE_GAME_ID, createPracticeState } from "./fixture";
@@ -18,6 +19,16 @@ function canonical(value: unknown): string {
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 }
 const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
+// The board can supply explicit energy with an otherwise enumerated declaration.
+// RULES.apply remains responsible for validating that selection.
+function offeredAction(action: Action): Action {
+  if ("pay" in action) {
+    const declaration = { ...action };
+    delete declaration.pay;
+    return declaration;
+  }
+  return action;
+}
 
 class TrainingSession implements PracticeSession {
   readonly gameId = PRACTICE_GAME_ID;
@@ -51,12 +62,19 @@ class TrainingSession implements PracticeSession {
     let result: SessionResult;
     if (!requestId || requestId.length > 200) return { error: "Invalid request identifier." };
     if (basedOn !== this.journal.length) result = { error: "The board has changed. Refresh and try again." };
-    else if (action.player !== actor || !RULES.legalActions(PRACTICE_CONTEXT, this.state).some(x => same(x.action, action))) result = { error: "That action is not available now." };
+    else if (action.player !== actor || !RULES.legalActions(PRACTICE_CONTEXT, this.state).some(x => same(offeredAction(x.action), offeredAction(action)))) result = { error: "That action is not available now." };
     else {
       const before = this.getSnapshot();
-      const applied = RULES.apply(PRACTICE_CONTEXT, this.state, action);
+      let applied: ReturnType<typeof RULES.apply>;
+      try { applied = RULES.apply(PRACTICE_CONTEXT, this.state, action); }
+      catch (error) {
+        if (!(error instanceof IllegalAction)) throw error;
+        result = { error: "That payment or action is not available now." };
+        this.receipts.set(requestId, { fingerprint, result });
+        return result;
+      }
       this.state = applied.state;
-      this.beats = RULES.toBeats(PRACTICE_CONTEXT, this.state, applied.events, this.beats?.seq ?? 0);
+      this.beats = appendBeats(this.beats, RULES.toBeats(PRACTICE_CONTEXT, this.state, applied.events, this.beats?.seq ?? 0));
       this.journal.push(structuredClone({ action, basedOn, requestId }));
       this.current = this.snapshot();
       result = { error: null };
