@@ -374,7 +374,7 @@ export function BattleVerdict({
 }: {
   beat: NumberedBeat | null;
   sideOf: (card: string) => "yours" | "theirs" | null;
-  /** Both leaders' instance ids: a hit on one of them is a BREAK THROUGH, on anything else a K.O. */
+  /** Both leaders' instance ids: a hit on one of them is a BREAK THROUGH. */
   leaders?: readonly (string | undefined)[];
 }) {
   if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
@@ -382,7 +382,7 @@ export function BattleVerdict({
   const winner = beat.hit ? beat.attacker : beat.guard;
   // The word is only a name for the engine's verdict (`hit`) and for who the
   // guard was; it decides nothing.
-  const word = !beat.hit ? "HELD!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : "K.O.";
+  const word = !beat.hit ? "HELD!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : "HIT!";
   const side = sideOf(winner);
   return <VerdictWord key={beat.n} word={word} tone={side === "yours" ? "good" : !beat.hit || side !== "theirs" ? "calm" : "bad"} />;
 }

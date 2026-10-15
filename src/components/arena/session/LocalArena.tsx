@@ -194,6 +194,23 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
   const availableDecks = selectableDecks(facts?.decks ?? [], showTesting);
   const selected = selectedDeckKeys(availableDecks, mine, theirs);
 
+  // Setup owns a separate image lease so changing its deck pack cannot revoke
+  // URLs that an open match still uses. Nothing here requires the network.
+  const [setupArt, setSetupArt] = useState<LocalArt | null>(null);
+  const setupHash = facts?.hash;
+  const setupStore = installed?.store;
+  useEffect(() => {
+    if (!setupHash || !setupStore) return;
+    let disposed = false;
+    let lease: LocalArt | null = null;
+    void loadLocalArt(setupStore, setupHash).then((art) => {
+      if (disposed) { art.revoke(); return; }
+      lease = art;
+      setSetupArt(art);
+    }).catch(() => { /* CardImage retains its normal unavailable-art fallback. */ });
+    return () => { disposed = true; lease?.revoke(); };
+  }, [setupHash, setupStore]);
+
   /** The installed pack's images as object URLs (#780), kept while the same pack is played and freed when another is chosen. */
   async function artFor(hash: string): Promise<ReadonlyMap<string, string> | undefined> {
     if (!installed) return undefined;
@@ -373,7 +390,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
               </label>
             )}
             {!availableDecks.length && <p className="text-sm text-space-300">This pack contains only testing decks. Turn on “Show testing decks” to start a match.</p>}
-            <LocalMatchSetup facts={{ ...facts, decks: availableDecks }} mine={selected.mine} theirs={selected.theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} busy={busy} pendingLabel={phase.kind === "opening" ? phase.what : "Preparing…"} start={() => void start()} />
+            <LocalMatchSetup artUrls={setupArt?.hash === facts.hash ? setupArt.urls : undefined} facts={{ ...facts, decks: availableDecks }} mine={selected.mine} theirs={selected.theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} busy={busy} pendingLabel={phase.kind === "opening" ? phase.what : "Preparing…"} start={() => void start()} />
           </div>
         )}
       </div>
@@ -428,7 +445,7 @@ function BoardView({ board, stage, onSwitch, onLeave }: { board: LocalBoard; sta
       {notice && <Notice notice={notice} onAction={(a) => void act(a)} />}
       {snapshot ? (
         <div id="board" className="scroll-mt-2">
-          <ArenaStage key={board.matchId} session={board} snapshot={snapshot} decklists={board.decklists} skin={stage.skin} staging={stage.staging} lighting={stage.lighting} menu={menu} />
+          <ArenaStage key={board.matchId} session={board} snapshot={snapshot} decklists={board.decklists} skin={stage.skin} staging={stage.staging} lighting={stage.lighting} menu={menu} onExit={() => void onLeave(!!snapshot?.over)} />
         </div>
       ) : (
         !notice && <p className="text-sm text-space-300">Opening the match…</p>

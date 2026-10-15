@@ -46,9 +46,7 @@ try {
     await open("phone-ux-attack-pick");
     const snap = fixture("phone-ux-attack-pick");
     await page.tap(`[data-arena-card="${snap.view.you.battle[0].id}"]`);
-    await page.waitFor("[data-arena-review]");
-    const selector = await page.eval<string>(`(() => {const button=[...document.querySelectorAll('[data-arena-review] button')].find(e=>e.textContent.includes('Attack with')); if(!button)throw Error('Attack action missing');button.setAttribute('data-test-attack','');return '[data-test-attack]';})()`);
-    await page.tap(selector);
+    assert.equal(await page.eval("!!document.querySelector('[data-arena-review]')"), false, "ready card enters targeting directly");
     await page.waitFor("[data-target-label]");
     await shot("attack-pick");
     await page.eval(`document.querySelector('[data-arena-card="${snap.view.them.leader.id}"] button').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`);
@@ -57,16 +55,14 @@ try {
     await shot('targeting-review');
     await page.tap('[aria-label="Close card review"]');
     await page.tap(`[data-arena-card="${snap.view.them.leader.id}"]`);
-    await page.waitFor("[data-attack-summary]");
-    assert.ok(await page.eval("document.querySelector('[data-attack-summary]').getBoundingClientRect().height >= 80"), "attack summary must have visible height");
-    assert.equal(await page.eval("document.querySelectorAll('[data-attack-role]').length"), 2);
-    const overlap = await page.eval(`(() => {const summary=document.querySelector('[data-attack-summary]').getBoundingClientRect();return [...document.querySelectorAll('.arena-row,.arena-pstrip')].some(e=>{const r=e.getBoundingClientRect();return r.top<summary.bottom && r.bottom>summary.top});})()`);
-    assert.equal(overlap, false, "attack summary must stay between player rows");
-    assert.equal(await page.eval("document.documentElement.scrollHeight > innerHeight + 2"), false);
-    await shot("attack-confirm");
-    await page.tap('[data-attack-confirm] [data-pass-action]');
-    await page.settle(100);
+    await page.settle(150);
     assert.equal(await page.eval("!!document.querySelector('[data-attack-confirm]')"), false);
+    const attacks = await page.eval<Array<{type:string;attacker:string;target:string}>>('window.__arenaSent ?? []');
+    assert.equal(attacks.length, 1);
+    assert.equal(attacks[0].type, 'attack');
+    assert.equal(attacks[0].attacker, snap.view.you.battle[0].id);
+    assert.equal(attacks[0].target, snap.view.them.leader.id);
+    await shot("attack-declared");
     for (const kind of ['counter', 'blocker']) {
       await open(`phone-ux-${kind}`);
       await page.tap('[data-defend-action]');
@@ -77,7 +73,7 @@ try {
       assert.ok(sent[0].card, 'active response sends the chosen card, not a pass');
       await shot(`${kind}-chosen`);
     }
-    console.log(`${height}-${skin}: full-screen arrows/swipe and staged attack/cancel passed`);
+    console.log(`${height}-${skin}: full-screen arrows/swipe and direct attack and response choices passed`);
     await page.close();
   }
 } finally { await browser.close(); }

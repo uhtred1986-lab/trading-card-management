@@ -29,13 +29,14 @@ function LocalCards({ facts, deckKey }: { facts: PackFacts; deckKey: string }) {
   return <details><summary className="tap cursor-pointer py-2 text-sm text-ki-300">See the cards</summary><ul className="space-y-1 text-sm text-space-200">{[...names].map(([id,n]) => <li key={id} className="break-words">{n}× {facts.pack.bundle.payload.defs[id]?.name ?? id} · {id}</li>)}</ul></details>;
 }
 
-export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs, setSeat, busy, pendingLabel, start }: {
+export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs, setSeat, busy, pendingLabel, start, artUrls }: {
+  artUrls?: ReadonlyMap<string, string>;
   facts: PackFacts; mine:string; theirs:string; seat:"p1"|"p2";
   setMine:(id:string)=>void; setTheirs:(id:string)=>void; setSeat:(seat:"p1"|"p2")=>void;
   busy:boolean; pendingLabel:string; start:()=>void;
 }) {
   const setup = useRef<HTMLDivElement>(null);
-  const decks = localDeckChoices(facts);
+  const decks = localDeckChoices(facts).map((deck) => ({ ...deck, leaderImage: deck.leaderImage ? artUrls?.get(deck.leaderImage) ?? deck.leaderImage : null }));
   const own = decks.find((d) => d.id === mine);
   const other = decks.find((d) => d.id === theirs);
   return <section aria-label="New match" className="space-y-3">

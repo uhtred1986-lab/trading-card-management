@@ -8,7 +8,7 @@ import type { PublicOutcome } from "@/lib/arena/outcome";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
-import { isGhostAction, shortLabel } from "../shared";
+import { Sheet, isGhostAction, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
 
 export function PromptPanel({
@@ -137,6 +137,20 @@ export function PromptPanel({
   ) : (
     responseQuestion ?? ask
   )));
+  // Ordinary Main phase needs a turn control, not a permanent instruction bar.
+  // Actual decisions, errors and step playback retain the full panel below.
+  const quietMain = view.prompt.kind === "main" && !view.over && !overOutcome && !playing && !bad && !isTargeting && !searching && !onRetry;
+  if (quietMain) return <div className="flex items-center justify-end gap-2 px-3 py-2" data-arena-quiet-controls>
+    <button type="button" className="arena-iconbtn tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-100" aria-label="Open player guidance" aria-haspopup="dialog" onClick={() => setDetailOpen(true)}>?</button>
+    {(busy || waitingOnServer) && <span role="status" className="mr-auto text-xs text-space-200">{waitingOnServer ? `${view.them.name} is thinking…` : "Sending move…"}</span>}
+    {inlineBare.map(({ i, l }) => <button key={i} type="button" disabled={busy || waitingOnServer} onClick={() => onSend(l.action)} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50 disabled:opacity-50">{l.action.type === "endMain" ? "End turn" : shortLabel(l.label)}</button>)}
+    {detailOpen && <Sheet title="Player guidance" onClose={() => setDetailOpen(false)}>
+      <p className="text-sm text-space-100">{line}</p>
+      <p className="text-sm text-space-200">Tap a ready card, then its target to attack. Hold a card to read its rules and choose other skills. Tap a hand card to review its play cost.</p>
+      <p className="text-sm text-space-200">{attacksRemaining} {attacksRemaining === 1 ? "card can" : "cards can"} still attack.</p>
+      {battleDetails}
+    </Sheet>}
+  </div>;
   return (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
