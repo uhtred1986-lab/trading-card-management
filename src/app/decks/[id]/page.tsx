@@ -26,6 +26,7 @@ import { OfflineDeck } from "@/components/arena/OfflineDeck";
 import { checkOfflineDecks } from "@/lib/arena/offline-decks";
 import { runtimeRevision } from "@/lib/arena/replay-bundle";
 import { deleteDeckForm, duplicateDeckForm, importDeckListForm, renameDeckForm, updateDeckForm } from "../actions";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="space-y-5">
+      <SectionTabs items={[{href:"/decks",label:"Decks",active:true},{href:"/leaders",label:"Leaders"},{href:"/collection",label:"Collection"},{href:"/cards",label:"Catalog"}]} />
       <div className="flex flex-wrap items-start gap-4">
         <div className={`shrink-0 ${leader?.backImageUrl ? "w-48 sm:w-64" : "w-24 sm:w-32"}`}>
           <CardFaces front={leader?.imageUrl} back={leader?.backImageUrl} name={leader?.name ?? "No leader"} backName={leader?.backName} sizes="128px" priority />
@@ -85,7 +87,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="break-words text-2xl font-semibold text-space-50">{deck.name}</h1>
+            <PageHeader title={deck.name} eyebrow={deck.game === "dbs" ? "Masters deck" : "Fusion World deck"} />
             <details className="relative">
               <summary className="tap cursor-pointer rounded-md border border-space-600 px-3 py-1.5 text-xs font-medium text-ki-300 hover:border-ki-500/60">Rename</summary>
               <form action={renameDeckForm} className="mt-2 grid w-full max-w-sm gap-2 rounded-lg border border-space-700 bg-space-900 p-3 sm:absolute sm:left-0 sm:z-20 sm:w-80">

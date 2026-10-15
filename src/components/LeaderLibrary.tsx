@@ -10,6 +10,7 @@ import { ColorPill, RarityBadge } from "@/components/ColorPill";
 
 import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
 import type { OwnedLeader } from "@/lib/leaders/queries";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", aiEnabled }: {
   all: OwnedLeader[]; game?: Game; color?: string; q?: string; set?: string; usage?: string; aiEnabled: boolean;
@@ -31,17 +32,10 @@ export function LeaderLibrary({ all, game, color, q = "", set = "", usage = "", 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">My leaders</h1>
-          <p className="text-sm text-space-300">
-            {leaders.length} leader{leaders.length === 1 ? "" : "s"} owned · {withDeck} with a deck · {built} built
-          </p>
-        </div>
-        <Link href="/cards?type=LEADER" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
+      <PageHeader title="My leaders" eyebrow="Cards" description={`${leaders.length} leaders owned · ${withDeck} with a deck · ${built} built`} actions={<Link href="/cards?type=LEADER" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-100 hover:bg-space-800">
           Browse all leaders
-        </Link>
-      </div>
+        </Link>} />
+      <SectionTabs items={[{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders",active:true},{href:"/collection",label:"Collection"},{href:"/decks",label:"Decks"}]} />
 
       <GameFilter path="/leaders" params={{ color, q, set, usage }} game={game} available={gamesPresent} />
 

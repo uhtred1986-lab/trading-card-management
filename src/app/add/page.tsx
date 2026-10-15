@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { listOpenBatches } from "@/lib/scan/batches";
 import { requireSignedInPage } from "@/lib/auth";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,8 @@ export default async function AddPage() {
   const open = await listOpenBatches(db);
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-xl font-semibold text-space-50">Add cards</h1>
+      <PageHeader title="Add cards" eyebrow="Collection" description="Choose the fastest way to add cards to your collection." />
+      <SectionTabs items={[{href:"/collection",label:"Collection"},{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders"},{href:"/decks",label:"Decks"}]} />
       {open.length ? (
         <Link href="/add/scan" className="block rounded-xl border border-ki-500/40 bg-ki-500/5 p-3 text-sm hover:border-ki-500">
           <span className="font-semibold text-ki-300">

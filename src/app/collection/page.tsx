@@ -16,6 +16,7 @@ import { CopiesPopover } from "@/components/CopiesPopover";
 import { ViewToggle } from "@/components/ViewToggle";
 import { LiveSearch } from "@/components/LiveSearch";
 import { deckOptions } from "@/lib/decks/add";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -110,22 +111,15 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-space-50">My collection</h1>
-          <p className="text-sm text-space-300">
-            {s.copies} copies · {s.uniqueCards} unique · worth {formatCents(s.valueEurCents)}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader title="My collection" eyebrow="Collection" description={`${s.copies} copies · ${s.uniqueCards} unique · worth ${formatCents(s.valueEurCents)}`} actions={<>
           <Link href="/collection/archived" className="tap rounded-md border border-space-600 px-3 py-1.5 text-sm text-space-200 hover:bg-space-800">
             Archived
           </Link>
           <Link href="/add" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
             + Add cards
           </Link>
-        </div>
-      </div>
+      </>} />
+      <SectionTabs items={[{href:"/collection",label:"Collection",active:true},{href:"/cards",label:"Catalog"},{href:"/leaders",label:"Leaders"},{href:"/decks",label:"Decks"}]} />
 
       <GameFilter path="/collection" params={{ ...params, view: view === "grid" ? undefined : view }} game={game} available={gamesPresent} />
 

@@ -12,6 +12,7 @@ import { CardList } from "@/components/CardList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { parseViewMode } from "@/lib/view-mode";
 import { requireSignedInPage, currentScope } from "@/lib/auth";
+import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -77,18 +78,15 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-xl font-semibold text-space-50">Card catalog</h1>
-        <p className="flex flex-wrap items-center gap-3 text-sm text-space-300">
-          {result.total.toLocaleString()} card{result.total === 1 ? "" : "s"}
+      <PageHeader title="Card catalog" eyebrow="Cards" description={`${result.total.toLocaleString()} cards`} actions={<div className="flex items-center gap-3">
           {search.set ? (
             <Link href={`/sets/${search.set}/review`} className="rounded-md border border-space-600 px-2 py-1 text-xs text-space-100 hover:bg-space-800">
               AI set review
             </Link>
           ) : null}
           <ViewToggle path="/cards" params={viewParams} view={view} />
-        </p>
-      </div>
+      </div>} />
+      <SectionTabs items={[{href:"/cards",label:"Catalog",active:true},{href:"/leaders",label:"Leaders"},{href:"/collection",label:"Collection"},{href:"/decks",label:"Decks"}]} />
 
       <GameFilter path="/cards" params={viewParams} game={search.game} available={gamesPresent} />
 
