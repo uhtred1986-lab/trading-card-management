@@ -10,9 +10,11 @@ Update evidence only after review, not merely because a deck compiles or a game 
 - [24 scenario families, run limits and cost validation](arena-deck-coverage-plan.md)
 - [General local-AI strategy benchmarks and promotion protocol](arena-strategy-validation.md)
 - [White Cell: rule and opponent decision checks](arena-white-cell-validation.md)
+- [Import test results and inspect run history](arena-evaluation-imports.md)
+- [Resource-aware search: exact tactical cases, limitations and evaluation](arena-resource-search-826.md)
 - Known current-deck rule gaps: #825. Stronger local opponent: #826.
 
-## Status at this handoff
+## Current implementation status
 
 | Item | Status | Evidence / next step |
 |---|---|---|
@@ -22,7 +24,9 @@ Update evidence only after review, not merely because a deck compiles or a game 
 | Small scenarios | Planned, existing proofs reusable | 24 rule families, 12 general strategy benchmarks, 12 White Cell rule cases and 7 White Cell strategy cases; exact variants remain to be built. |
 | Combined PR #824 code gates | Merged and deployed | Integrated typecheck, lint, full tests and production build; isolated browser persistence/filtering checks at 390/1440 widths. |
 | Broad stored-rule diagnostic sample | 40/40 complete after approved refresh | `arena-backlog/evidence/backlog-completion/post-refresh-fuzz-summary.json`; zero interruptions/crashes/action limits. Not an ability coverage claim. |
-| New bounded local search | Evaluated; not promoted | 41–39 over 80 held-out games; no justified stronger-difficulty claim. |
+| First bounded search | Evaluated; not promoted | V1: 41–39 over 80 held-out games; consumed seeds remain regression evidence. |
+| Resource-aware search | Implemented; experimental | Five declared AI-01/02/05 subcases run through the engine; depth 2 and 3 each 7–9 in 16 development games. Fresh integrated holdout pending; no default change. |
+| Test result imports | Implemented; review in progress | Versioned scenario/strategy/game manifests, immutable stored runs, paginated case results, explicit mappings and reported costs. Imports do not auto-pass a deck or scenario. |
 | Opus cost rate and account credit validation | Pending | Existing static price table is not current billing verification. |
 | Opus pilot | Not started | 0 paid comparison games; $0 campaign spend. Suggested 8 games / $20 cap. |
 | Full Opus campaign | Not started | Suggested 40 games / $100 total cap, inclusive of pilot. |
