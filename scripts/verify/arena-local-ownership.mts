@@ -408,7 +408,7 @@ lap("steal");
     const at = sup.snapshot!.game.revision;
     plan.next = fault;
     const answer = await sup.advanceRaw(2);
-    assert.ok(answer.ok, `an AI batch with the worker killed ${fault} persisting it: answered`);
+    assert.ok(answer.ok, `an AI batch with the worker killed ${fault} persisting it: answered; ${JSON.stringify({ answer, state: sup.state, revision: sup.snapshot?.game.revision })}`);
     assert.ok(sup.snapshot!.game.revision > at, `${fault}: the AI moved on`);
     check(sup.snapshot!);
     report.push(`AI batch killed ${fault} persisting`);
