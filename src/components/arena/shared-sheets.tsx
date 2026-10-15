@@ -10,6 +10,7 @@ import { DEFAULT_NARRATOR, plainText, type Narrator } from "./shared-model";
 import { useArenaAdmin } from "./admin-context";
 import { cardImage } from "@/lib/catalog/card-image";
 import phoneStyles from "./stage/phone-board.module.css";
+import { CardReader } from "./CardReader";
 
 /** What a card is putting into the open battle, and the figure it is part of. */
 export interface BattleShare {
@@ -571,8 +572,8 @@ export const CLOSE_PX = 90;
  * Reads one finished gesture. Horizontal wins when it is the longer of the
  * two, so a slightly slanted swipe still pages; a downward one only closes.
  */
-export function swipeOf(dx: number, dy: number): "next" | "prev" | "close" | null {
-  if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) return dx < 0 ? "next" : "prev";
+export function swipeOf(dx: number, dy: number, elapsedMs = Infinity): "next" | "prev" | "close" | null {
+  if ((Math.abs(dx) >= SWIPE_PX || (Math.abs(dx) >= 24 && elapsedMs < 220)) && Math.abs(dx) > Math.abs(dy) * 1.2) return dx < 0 ? "next" : "prev";
   if (dy >= CLOSE_PX && dy > Math.abs(dx)) return "close";
   return null;
 }
@@ -594,7 +595,7 @@ function Thumb({ card, yours, current, index, total, onJump, status }: { card: C
       data-arena-thumb={card.id}
       aria-current={current ? "true" : undefined}
       aria-label={`${card.name}, ${index + 1} of ${total}`}
-      className="relative flex h-[56px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
+      className="relative flex snap-center h-[56px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 flex-col items-center justify-end gap-0.5 pb-0.5"
     >
       {card.imageUrl && !card.hidden ? (
         // eslint-disable-next-line @next/next/no-img-element -- a strip swatch; the board has already loaded this URL.
@@ -658,7 +659,9 @@ export function CardSheet({
   resolveCard?: (id: string) => CardView | null;
   onPreviewPayment?: (ids: string[]) => void;
 }) {
-  const [fullArt, setFullArt] = useState(false);
+  const [fullArt, setFullArt] = useState(reviewMode !== "targeting");
+  const [showAbilities, setShowAbilities] = useState(true);
+  const [readerDirection, setReaderDirection] = useState<"next" | "prev">("next");
   const [opponentBig, setOpponentBig] = useState(false);
   const [ownSize, setOwnSize] = useState<"full" | "top">("full");
   const [handFilter, setHandFilter] = useState<"All" | "Playable" | "Counters">("All");
@@ -676,7 +679,7 @@ export function CardSheet({
   const pager = at >= 0 && !!onJump;
   const go = (to: number) => {
     const target = items[to];
-    if (pager && target) onJump!(target.card);
+    if (pager && target) { setReaderDirection(to < at ? "prev" : "next"); onJump!(target.card); }
   };
 
   // Keys, for a tablet with a keyboard: the pager has the same three moves.
@@ -698,7 +701,7 @@ export function CardSheet({
 
   // Native scrolling owns vertical gestures in the body. A cancelled pointer
   // must never become a close or a page change.
-  const drag = useRef<{ x: number; y: number; inBody: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; at: number; inBody: boolean } | null>(null);
   const swipedAt = useRef(0);
   const body = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -714,28 +717,39 @@ export function CardSheet({
   }, [ownSize]);
   useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [card.id]);
   const begin = (e: React.PointerEvent) => {
-    drag.current = { x: e.clientX, y: e.clientY, inBody: !!body.current?.contains(e.target as Node) };
+    if ((e.target as HTMLElement).closest("[data-card-strip]")) { drag.current = null; return; }
+    drag.current = { x: e.clientX, y: e.clientY, at: performance.now(), inBody: !!body.current?.contains(e.target as Node) || !!(e.target as HTMLElement).closest("[data-reader-boxes]") };
+    if (!(e.target as HTMLElement).closest("button, input, a")) e.currentTarget.setPointerCapture(e.pointerId);
   };
   const end = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
+    (e.currentTarget.querySelector("[data-reader-face]") as HTMLElement | null)?.style.removeProperty("--reader-drag");
     if (!d || e.type === "pointercancel") return;
-    const s = swipeOf(e.clientX - d.x, e.clientY - d.y);
+    const s = swipeOf(e.clientX - d.x, e.clientY - d.y, performance.now() - d.at);
     if (!s || (s === "close" && d.inBody)) return;
     swipedAt.current = Date.now();
     if (s === "close") onClose();
     else go(at + (s === "next" ? 1 : -1));
   };
 
+  const previousImage = items[at - 1]?.card.hidden ? null : items[at - 1]?.card.imageUrl;
+  const nextImage = items[at + 1]?.card.hidden ? null : items[at + 1]?.card.imageUrl;
+  useEffect(() => {
+    // Warm only the adjacent visible faces; never request concealed card art.
+    for (const url of [previousImage, nextImage]) if (url) { const image = new Image(); image.src = cardImage(url, "full"); }
+  }, [previousImage, nextImage]);
+  const quickMoves = basicMoves.length ? basicMoves : moves.filter(move => move.legal.action.type === "play");
+  const needsPlayReview = (move: SheetMove) => move.legal.action.type === "play" && (!!move.legal.paymentPreview || (!!move.choicePreview && move.choicePreview.state !== "notEvaluated"));
   const position = pager ? `${sequence!.label} ${at + 1} / ${items.length}` : null;
 
   return (
     <SheetDialog label={`${card.name}${position ? `, ${position}` : ""}`} onClose={onClose} fullScreen={fullArt}>
       <div
         data-arena-review={card.id}
-        data-review-mode={reviewMode === "opponent" && !opponentBig ? "opponent-peek" : reviewMode}
+        data-review-mode={reviewMode === "opponent" && !opponentBig && !fullArt ? "opponent-peek" : reviewMode}
         data-review-size={ownSize}
-        className={`${phoneStyles.cardReview} relative flex min-h-0 w-full touch-none select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
+        className={`${phoneStyles.cardReview} relative flex min-h-0 w-full touch-auto select-none flex-col overscroll-contain border border-space-700 bg-space-900 ${fullArt ? `${phoneStyles.fullscreenReview} h-[100dvh] max-h-[100dvh] max-w-none rounded-none` : "pt-2 max-h-[88dvh] max-w-md rounded-t-2xl pb-6 sm:max-w-lg sm:rounded-2xl sm:pb-4"}`}
         // The button a swipe ends on must not also be pressed.
         onClickCapture={(e) => {
           if (Date.now() - swipedAt.current < 200) {
@@ -744,21 +758,28 @@ export function CardSheet({
           }
         }}
         onPointerDown={begin}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d || !fullArt) return;
+          const dx = e.clientX - d.x;
+          if (Math.abs(dx) <= Math.abs(e.clientY - d.y) * 1.2) return;
+          (e.currentTarget.querySelector("[data-reader-face]") as HTMLElement | null)?.style.setProperty("--reader-drag", `${Math.max(-70, Math.min(70, dx * .35))}px`);
+        }}
         onPointerUp={end}
         onPointerCancel={end}
       >
-        <div className="mb-1 flex min-h-[48px] shrink-0 items-center justify-between gap-2 px-4">
+        <div className="mb-1 flex min-h-[48px] touch-none shrink-0 items-center justify-between gap-2 px-4">
           {!fullArt && <span className="h-1 w-10 rounded-full bg-space-600" aria-hidden />}
           {fullArt && position && <p className="min-w-0 flex-1 whitespace-nowrap text-center text-xs font-semibold text-space-100" aria-live="polite">{at + 1} / {items.length}</p>}
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => reviewMode === "opponent" ? (opponentBig ? onClose() : setOpponentBig(true)) : setFullArt((value) => !value)}
-              aria-label={reviewMode === "opponent" ? opponentBig ? "Return to board" : "Make opponent card bigger" : fullArt ? (currentManualCount ? `Show current abilities and details (${currentManualCount})` : "Show card details") : "Show card image only"}
-              aria-pressed={reviewMode === "opponent" ? opponentBig : fullArt}
+              onClick={() => { setFullArt((value) => !value); setOpponentBig(true); }}
+              aria-label={fullArt ? "Show card details and actions" : "Show enlarged card"}
+              aria-pressed={fullArt}
               className="tap flex h-[44px] min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-space-600 bg-space-900 px-2 text-xs font-semibold text-space-100 hover:border-ki-400"
             >
-              {reviewMode === "opponent" ? opponentBig ? "Board" : "Bigger" : fullArt ? (currentManualCount ? `Abilities now (${currentManualCount})` : "Details") : "Zoom"}
+              {fullArt ? (currentManualCount ? `Actions (${currentManualCount})` : "Details") : "Card view"}
             </button>
             <button type="button" data-sheet-initial-focus onClick={onClose} aria-label="Close card review" className="tap flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] items-center justify-center rounded-full border border-space-600 bg-space-900 text-lg leading-none text-space-100">×</button>
           </div>
@@ -772,25 +793,26 @@ export function CardSheet({
           {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = sourceItems.filter((item) => matchesFilter(item, filter)); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
         </div>}
         {fullArt ? (
-          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-space-950/70 px-2" aria-label="Full card artwork">
-            {card.imageUrl && !card.hidden ? (
-              // eslint-disable-next-line @next/next/no-img-element -- the full-art modal view reuses the catalog's existing image URL.
-              <img src={cardImage(card.imageUrl, "medium")} alt={card.name} className="h-full w-full select-none object-contain" draggable={false} />
-            ) : (
-              <div className="grid h-full w-full place-items-center rounded-xl border border-space-600 bg-space-800 p-6 text-center text-space-100">
-                <span>{card.hidden ? "Face-down card" : card.name}</span>
+          <>
+            <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-1">
+              <div className="min-w-0"><h3 className="truncate text-base font-bold text-space-50">{card.hidden ? "Face-down card" : card.name}</h3><p className="text-[11px] text-space-300">{where ?? sequence?.label}{pager ? " · Flick left or right" : ""}</p></div>
+              <button type="button" className="tap min-h-11 shrink-0 rounded-lg border border-space-600 px-3 text-xs text-space-100" aria-pressed={showAbilities} onClick={() => setShowAbilities(value => !value)}>{showAbilities ? "Artwork only" : "Show abilities"}</button>
+            </div>
+            <CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities={showAbilities} direction={readerDirection} />
+            {pager && <div className="flex shrink-0 items-center gap-1 px-2" data-card-strip>
+              <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="tap h-11 w-11 shrink-0 rounded-full border border-space-500 text-xl text-space-50 disabled:opacity-30">‹</button>
+              <div className="relative flex min-w-0 flex-1 snap-x snap-proximity touch-pan-x overflow-x-auto pt-1.5" role="group" aria-label={`${sequence!.label}, all cards`}>
+                {items.map((it, i) => <Thumb key={it.card.id} card={it.card} yours={it.yours} current={i === at} index={i} total={items.length} onJump={() => go(i)} status={it.status} />)}
               </div>
-            )}
-            {pager && (
-              <>
-                <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="absolute left-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">‹</button>
-                <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="absolute right-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">›</button>
-              </>
-            )}
-          </div>
+              <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="tap h-11 w-11 shrink-0 rounded-full border border-space-500 text-xl text-space-50 disabled:opacity-30">›</button>
+            </div>}
+            {quickMoves.length > 0 && <div className="flex max-h-24 shrink-0 flex-wrap gap-2 overflow-y-auto px-4 py-2" data-reader-actions>
+              {quickMoves.map(move => <button type="button" key={move.index} onClick={() => needsPlayReview(move) ? setFullArt(false) : onPick(move)} className="tap min-h-11 flex-1 rounded-xl border border-ki-500 bg-space-800 px-3 py-2 text-sm font-semibold text-space-50">{move.targets ? "Attack · choose target" : needsPlayReview(move) ? "Review play" : move.legal.label}<span className="block text-xs font-normal text-space-200">{move.targets ? `${move.targets} ${move.targets === 1 ? "target" : "targets"}` : priceOf(move.legal.action, card, move.legal.label, move.legal.cost)}</span></button>)}
+            </div>}
+          </>
         ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
-          {basicMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
-            <ActionRows card={card} side={side} moves={basicMoves} rejected={[]} onPick={onPick} narrator={narrator} docked basicOnly />
+          {quickMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
+            <ActionRows card={card} side={side} moves={quickMoves} rejected={[]} onPick={onPick} narrator={narrator} docked basicOnly resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           </div>}
         {reviewMode === "own" && !fullArt && <div className="mx-4 mb-2 flex gap-1 rounded-full border border-space-600 p-1" role="group" aria-label="Card size">
           {(["full", "top"] as const).map((layout) => <button key={layout} type="button" aria-pressed={ownSize === layout} onClick={() => setOwnSize(layout)} className={`tap min-h-11 flex-1 rounded-full px-3 text-xs font-bold ${ownSize === layout ? "bg-space-50 text-space-900" : "text-space-100"}`}>{layout === "full" ? "Full card" : "Top half"}</button>)}
@@ -804,7 +826,7 @@ export function CardSheet({
                 {at + 1} / {items.length}
               </span>
             </p>
-            <div className="flex min-w-0 flex-1 touch-pan-x overflow-x-auto pt-1.5" role="group" aria-label={`${sequence!.label}, all cards`}>
+            <div data-card-strip className="relative flex min-w-0 flex-1 snap-x snap-proximity touch-pan-x overflow-x-auto pt-1.5" role="group" aria-label={`${sequence!.label}, all cards`}>
               {items.map((it, i) => (
                 <Thumb key={it.card.id} card={it.card} yours={it.yours} current={i === at} index={i} total={items.length} onJump={() => go(i)} status={it.status} />
               ))}
@@ -851,14 +873,14 @@ export function CardSheet({
               <StatTiles card={card} leader={leader} />
             </div>
           </div>
-          <ActionRows card={card} side={side} moves={moves.filter((move) => !basicMoves.includes(move))} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
+          <ActionRows card={card} side={side} moves={moves.filter((move) => !quickMoves.includes(move))} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} printedOpen />
         </div>}
 
         {!fullArt && <button
           type="button"
           onClick={onClose}
-          className="tap mx-4 mt-3 flex min-h-11 w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
+          className="tap touch-none mx-4 mt-3 flex min-h-11 w-[calc(100%-2rem)] shrink-0 items-center justify-between rounded-xl border-2 border-space-500 px-4 py-2 text-left text-sm font-bold text-space-50 hover:border-ki-400"
         >
           <span>Close</span>
           <span className="text-xs font-normal text-space-200">Swipe here to close</span>

@@ -51,3 +51,11 @@ On the board, tapping a ready card selects its legal targets; tapping a target d
 Combat banners distinguish declaration, actual blocker, resolved clash, negate, damage and KO. A hit does not imply a KO. Skill presentation uses named skill beats for Swap/Union/Evolve/flip motifs, and move beats for actual Battle/Drop/Warp source and destination receipts. Public card faces are displayed only when the masked view/capture agrees; concealed cards use neutral art. These are individual event presentations, not a reconstruction of unreported material stacks. The printed rules and existing skill text remain available. Routine draws and charges do not create extra banners.
 
 Focused verification: changed-file lint, TypeScript, skill/immersion adapters, phone gesture checks in both skins, deck-selection submission and phone/desktop layout smoke. No full engine/deck suite is needed for this presentation-only change.
+
+## Card handling (#882)
+
+Inspection now opens an enlarged card reader with a persistent card strip. Flick horizontally, tap a thumbnail or use the arrows to browse the same visible hand/board group. Short deliberate flicks are accepted; vertical ability scrolling and native thumbnail-strip scrolling do not navigate. Reading, expanding and swiping never submit a game action. Target inspection retains the compact review so the target remains in context.
+
+Readable boxes come from visible ability rows (or printed text when rows are absent), with the snapshot's availability. The reviewed bundled classic tutorial layouts anchor the boxes at the printed rules block. This is a block-level reading overlay, not detected per-line OCR coordinates. Unknown layouts use a tray below the image; copied abilities stay in their own tray instead of pretending to be printed. Artwork-only mode and the full details/actions panel remain available. Full-size original URLs are requested where the catalog offers them; adjacent visible cards are prefetched, never concealed faces. Dense boxes scroll and expand, and missing images retain the readable text tray.
+
+Video basis: the attack box over Charmander's printed attack at approximately 02:04 and the card inspection/browsing throughout the supplied TCG recording. No engine changes or full deck/engine test run.
