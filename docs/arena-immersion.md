@@ -41,3 +41,13 @@ Workers: GPT-6 Luna handled asset data/import tooling; GPT-6.1 Sol handled banne
 Tutorial integration: PR #861 currently contains an earlier immersion snapshot. When reconciling after #862, retain the final `events={beats}` prop, local-only Skip effect callback, latest visibility lifecycle and reduced-motion audio observer. Keep its new `onTutorialState` callback/readiness effect. Do not reintroduce `onSkip={playback.skip}` from that older snapshot. The Tutorial host's readiness gate keeps coaching behind existing board interaction/animation.
 
 Follow-ons: #856 retains named technique/voice approval; #850 now links 12 inventory-backed batches (#863–#874). The initial inventory found 25 eligible Masters decks and 314 distinct cards across 114 labels; no test flags or exact known-training-recipe names matched. This does not prove undocumented training decks are absent. Hardware FPS/audibility and remaining release evidence stay explicit in #858.
+
+## Player journey (#880)
+
+The deck picker leads with the selected leader and searchable deck tiles. Its Play action opens the existing setup; validation, turn order and opening-hand choices are unchanged. Installed local decks use device artwork in setup as well as in the match.
+
+On the board, tapping a ready card selects its legal targets; tapping a target declares the attack. Inspect/hold still opens the complete card rules and other skills. This removes the phone review/confirm detour, not counter, blocker, combo or payment windows. Main phase has a standalone End turn button and a `?` guidance sheet. Waiting/error and actual decision controls remain visible. Exit uses the local host's save/leave path where applicable.
+
+Combat banners distinguish declaration, actual blocker, resolved clash, negate, damage and KO. A hit does not imply a KO. Skill presentation uses named skill beats for Swap/Union/Evolve/flip motifs, and move beats for actual Battle/Drop/Warp source and destination receipts. Public card faces are displayed only when the masked view/capture agrees; concealed cards use neutral art. These are individual event presentations, not a reconstruction of unreported material stacks. The printed rules and existing skill text remain available. Routine draws and charges do not create extra banners.
+
+Focused verification: changed-file lint, TypeScript, skill/immersion adapters, phone gesture checks in both skins, deck-selection submission and phone/desktop layout smoke. No full engine/deck suite is needed for this presentation-only change.

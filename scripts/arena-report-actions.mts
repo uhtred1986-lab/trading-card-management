@@ -18,12 +18,6 @@ try{
    await p.tap('[data-review-basic-actions] button');
    assert.deepEqual(await p.eval('window.__arenaSent??[]'),[],'Attack button starts target selection rather than submitting');
    await p.tap('[data-arena-card="p2#0"] button');
-   if(vp.mobile){
-    await p.waitFor('[data-attack-stakes]');
-    assert.deepEqual(await p.eval('window.__arenaSent??[]'),[],'phone target still needs confirmation');
-    writeFileSync(`${out}/${vp.name}-${skin}-attack-confirm.jpg`,await p.screenshot(false));
-    await p.eval('[...document.querySelectorAll("button")].find(b=>b.textContent==="Confirm attack").click()');
-   }
    assert.deepEqual(await p.eval('window.__arenaSent'),[{type:'attack',player:'p1',attacker:'p1#0',target:'p2#0'}]);
    await p.goto(`${base}/arena/preview?fixture=attack&skin=${skin}&pace=step&staging=inplace&fx=clash-hit`);
    await p.waitFor('.arena-fx-beam',20000);

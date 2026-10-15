@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { useImmersionPreferences } from "@/lib/arena/immersion/preferences";
+
 import { ArenaImmersion, ImmersionSettings } from "../immersion/ArenaImmersion";
 
 import { GamePlanPanel } from "./GamePlanPanel";
@@ -132,6 +135,7 @@ export function ArenaStage({
   menu = null,
   decklists,
   onTutorialState,
+  onExit,
 }: {
   /**
    * The transport (#648): snapshots in, actions out, connection status, and the
@@ -163,9 +167,12 @@ export function ArenaStage({
    * debug view), drawn in the menu sheet's Game section.
    */
   menu?: React.ReactNode;
+  /** A local host can save/close its session before leaving the board. */
+  onExit?: () => void;
   /** Decklists supplied by the host only when that host is allowed to show them. */
   decklists?: Partial<Record<PlayerId, ArenaDecklist>>;
 }) {
+  const immersionPrefs = useImmersionPreferences();
   const [pending, startTransition] = useTransition();
   const [advancing, setAdvancing] = useState(false);
   const [advanceFailed, setAdvanceFailed] = useState(false);
@@ -626,10 +633,9 @@ export function ArenaStage({
       if (idx != null) {
         const action = legal[idx].action;
         if (action.type === "attack") {
-          if (wide) return send(action);
-          setAttackPick({ action: idx, attacker: action.attacker, target: action.target });
-          setSheet(null);
-          return;
+          // Choosing a legal target declares the attack. The engine still owns
+          // every counter, block, combo and payment window that follows.
+          return send(action);
         }
       }
       const targetWhy = targetReasonOf(id);
@@ -679,19 +685,10 @@ export function ArenaStage({
       } else refuse(id, why);
       return;
     }
-    // Only attacks: straight to picking a target, as before. Anything richer —
-    // several moves, or a move beside a refusal — is a sheet with the prices
-    // and the reasons on it. Charging is a one-way trip from hand to energy,
-    // so it always goes through the sheet for an explicit second tap, even
-    // when it is the card's only option — a misclick here is too costly.
+    // A ready card goes straight to legal targets. Its other skills and full
+    // rules remain available through the inspect gesture and card review.
     const targets = targetsOf(id);
-    if (targets && options.every((i) => legal[i].action.type === "attack") && !why?.length) {
-      if (!wide) {
-        const card = cardOf(id);
-        if (card) { setSheet(card); return; }
-      }
-      return select(id);
-    }
+    if (targets && Object.keys(targets).length > 0) return select(id);
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
@@ -1154,8 +1151,8 @@ export function ArenaStage({
     }
     const failed = rejected.find((r) => cardIdOf(r.action) === id && r.action.type === "play");
     const need = failed?.why.find((w) => w.kind === "energy" || w.kind === "energyColour");
-    if (need?.kind === "energy") return `Need ${need.need} ⚡`;
-    if (need?.kind === "energyColour") return `Need ${need.need} ${need.colour} ⚡`;
+    if (need?.kind === "energy") return `Play · ${need.need} ⚡`;
+    if (need?.kind === "energyColour") return `Play · ${need.need} ${need.colour} ⚡`;
     const card = cardOf(id);
     if (card?.abilities?.some((ability) => ability.category === "counter") || rejected.some((r) => cardIdOf(r.action) === id && r.action.type === "counter")) return "Counter";
     return null;
@@ -1295,8 +1292,8 @@ export function ArenaStage({
     }
     const allWhy = rejectedFor(id).flatMap((r) => r.why);
     const why = card.abilities?.length ? allWhy.filter((item) => !isStructuralRequirement(item)) : allWhy;
-    const short = why.find((w) => w.kind === "energy");
-    if (short) chips.push({ label: pill(short).replace("short", "energy short"), tone: "bad" });
+    const short = inHand(id) ? why.find((w) => w.kind === "energy") : undefined;
+    if (short) chips.push({ label: `Play cost · ${pill(short).replace("short", "energy short")}`, tone: "bad" });
     if (reason) {
       const other = why.find((w) => w.kind !== "energy");
       if (other) chips.push({ label: pill(other), tone: "bad" });
@@ -1380,7 +1377,7 @@ export function ArenaStage({
               It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
-            <span className="arena-title arena-num hidden text-[19px] leading-none lg:inline">Arena</span>
+            {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
             <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (
@@ -1395,7 +1392,7 @@ export function ArenaStage({
               </div>
             )}
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
-              <SpeedButton />
+              <span className="hidden lg:contents"><SpeedButton /></span>
               <button
                 type="button"
                 onClick={() => view.them.leader && setSheet(view.them.leader)}
@@ -1411,8 +1408,8 @@ export function ArenaStage({
               {/* From lg: the battle log, the inspector's second tab. */}
               <button
                 type="button"
-                onClick={() => setDeskTab((t) => (t === "log" ? "play" : "log"))}
-                className="arena-iconbtn tap hidden h-11 w-11 items-center justify-center lg:flex"
+                onClick={() => wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((open) => !open)}
+                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center"
                 aria-label="Battle log"
                 aria-pressed={deskTab === "log"}
               >
@@ -1463,7 +1460,7 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (held ?? story.at(-1) ?? null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1525,7 +1522,7 @@ export function ArenaStage({
               {/* Who won the fight, named. Outside the stagings on purpose: it must
                   appear on all three, and a battle that has already closed by the
                   time the beats arrive has no staging left to carry it. */}
-              <BattleVerdict beat={beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
+              <BattleVerdict beat={immersionPrefs.banners ? null : beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
             </section>
           </div>
 

@@ -8,6 +8,8 @@ export interface CombatMoment {
   outcome: CombatOutcome;
   character: CombatCharacter | null;
   pose: CombatPose;
+  /** Exact receipt from a damage/KO beat, never inferred from a clash. */
+  caption?: string;
   /** Only an approved exact-text technique mapping may supply this. */
   technique?: string;
 }

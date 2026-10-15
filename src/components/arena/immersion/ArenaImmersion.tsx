@@ -7,6 +7,8 @@ import { combatMoment, soundCue } from "@/lib/arena/immersion/events";
 import { arenaAudio } from "@/lib/arena/immersion/audio";
 import { useImmersionPreferences, setImmersionPreferences } from "@/lib/arena/immersion/preferences";
 import { CombatBanner } from "./CombatBanner";
+import { skillMoment } from "@/lib/arena/immersion/skills";
+import { SkillBanner } from "./SkillBanner";
 import { SoundControls } from "./SoundControls";
 
 function watchVisibility(notify: () => void) { document.addEventListener("visibilitychange", notify); return () => document.removeEventListener("visibilitychange", notify); }
@@ -51,6 +53,7 @@ export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, redu
   }, [prefs.sound]);
   useEffect(() => () => arenaAudio.stop(), [gameId]);
   const moment = combatMoment(gameId, beat, cardOf, art);
+  const skill = skillMoment(gameId, beat, { cardOf, art, viewer });
   // Keep the keyed beat mounted while obscured, so restoring visibility cannot replay it.
-  return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /></div>;
+  return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /><SkillBanner moment={skill} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /></div>;
 }

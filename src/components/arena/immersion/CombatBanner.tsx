@@ -51,14 +51,14 @@ function CombatBeat({ moment, reducedMotion, durationMs, onSkip }: CombatBannerP
   const style = { "--beat-duration": `${duration}ms` } as CSSProperties;
 
   return (
-    <div className={`${styles.overlay} ${reducedMotion ? styles.reduced : ""}`} style={style} data-combat-banner={moment.outcome}>
+    <div className={`${styles.overlay} ${moment.outcome === "hit" || moment.outcome === "repelled" || moment.outcome === "negated" ? styles.impact : ""} ${reducedMotion ? styles.reduced : ""}`} style={style} data-combat-banner={moment.outcome}>
       <div className={`${styles.banner} ${styles[moment.outcome]} ${!character ? styles.neutral : ""}`}>
         <div className={styles.speedfield} aria-hidden="true" />
         <div className={styles.farfield} aria-hidden="true" />
         <div className={styles.energy} aria-hidden="true" />
         {character && <div className={`${styles.figure} ${styles[pose]}`} aria-hidden="true" style={{ backgroundImage: `url(${JSON.stringify(character.sheet)})`, ...frame }} />}
         {character && <span className={styles.name}>{character.name}</span>}
-        <span className={styles.word} role="status">{moment.outcome.toUpperCase()}</span>
+        <span className={styles.word} role="status">{moment.caption ?? moment.outcome.toUpperCase()}</span>
         <div className={styles.track} aria-hidden="true"><div /></div>
       </div>
       <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip effect</button>

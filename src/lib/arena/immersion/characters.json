@@ -282,6 +282,22 @@
         "reviewedCardArtSha256": "15818c006f2c845e97d1b97c9478533f29e4bb5b2270f9a23d959eb234f119ad",
         "visualReview": "Visually inspected the front: adult bald Krillin, consistent with the sheet. The awakened back is intentionally unmapped."
       }
+    },
+    {
+      "cardId": "BT1-056",
+      "face": "front",
+      "name": "Son Goku",
+      "characterId": "goku",
+      "evidence": {
+        "catalogCardName": "Son Goku",
+        "catalogCharacter": [
+          "Son Goku"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-056-front.png",
+        "reviewedCardArtSha256": "1c84dc6a31ab8d76a27685a6d6311c46b644b4e04408fcac84c8bcd37d4eae6b",
+        "visualReview": "Inspected the bundled classic tutorial front: black-haired Son Goku in orange gi with blue undershirt and wristbands, matching the Goku sheet. Awakened face intentionally unmapped."
+      }
     }
   ],
   "sources": [

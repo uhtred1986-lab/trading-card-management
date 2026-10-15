@@ -104,9 +104,9 @@
 .skip:focus-visible { outline: 2px solid #b9faff; outline-offset: 2px; }
 @keyframes rush { to { transform: translateX(180px); } }
 @keyframes reveal { 0% { opacity: 0; } 10%, 82% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes charge { from { transform: translateX(-16%) scale(.92); } to { transform: translateX(15%) scale(1.05); } }
+@keyframes charge { 0% { transform: translateX(-25%) scale(.84); } 35% { transform: translateX(-4%) scale(1); } 65% { transform: translateX(0) scale(1.04); } 100% { transform: translateX(24%) scale(1.1); } }
 @keyframes brace { from { transform: translateX(-5%); } 18%, 100% { transform: translateX(5%); } }
-@keyframes recoil { from { transform: translateX(0) rotate(0); } to { transform: translateX(12%) rotate(8deg); } }
+@keyframes recoil { 0% { transform: translateX(0) rotate(0); filter: drop-shadow(0 0 9px var(--accent)); } 22% { transform: translateX(15%) rotate(8deg); filter: brightness(1.6) drop-shadow(0 0 18px var(--accent)); } 45% { transform: translateX(4%) rotate(-3deg); } 100% { transform: translateX(12%) rotate(5deg); } }
 @keyframes power { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .reduced .banner { top: 42%; height: 54px; transform: none; box-shadow: none; animation: none; }
 .reduced .speedfield, .reduced .farfield, .reduced .figure, .reduced .energy, .reduced .name, .reduced .track { display: none; }
@@ -122,3 +122,16 @@
 .neutral .word { inset: 0; display: grid; place-items: center; max-width: none; font-size: clamp(36px, 8vw, 64px); }
 .reduced .neutral .word { font-size: 20px; }
 @media (prefers-reduced-motion: reduce) { .neutral .word { font-size: 20px; } }
+
+/* Resolved impacts own the center; attack buildup keeps its narrower cut-in. */
+.impact { background: radial-gradient(ellipse at center, #071326bb, #07132655 70%, transparent); }
+.impact .banner { top: 22%; height: clamp(250px, 48vw, 350px); border-block-width: 4px; }
+.impact .word { font-size: clamp(40px, 9vw, 82px); text-shadow: 4px 4px #042849, -1px -1px #042849; }
+.impact .skip { top: calc(22% + clamp(250px, 48vw, 350px) + 20px); }
+.impact.reduced { background: none; }
+.impact.reduced .banner { top: 42%; height: 54px; }
+.impact.reduced .word { font-size: 20px; }
+.impact.reduced .skip { top: calc(42% + 64px); }
+@media (prefers-reduced-motion: reduce) {
+  .impact { background: none; }.impact .banner { top: 42%; height: 54px; }.impact .word { font-size: 20px; }.impact .skip { top: calc(42% + 64px); }
+}
