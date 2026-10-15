@@ -1,7 +1,10 @@
 # Immersion character asset tranche request
 
-Use one issue per reviewed tranche. Keep changes limited to `public/arena/characters/`,
-`src/lib/arena/immersion/characters.json`, and this validator if its rules need extending.
+Use one issue per reviewed tranche. Put the candidate sheets under `public/arena/characters/` before import.
+The candidate JSON uses version 1 with `sources`, `characters`, and `mappings` arrays; every source records
+`kind`, `provenance`, and `license`. Keep changes limited to `public/arena/characters/`,
+`src/lib/arena/immersion/characters.json`, `src/lib/arena/immersion/pack-validation.ts`,
+`scripts/import-arena-character-pack.mts`, and this validator if its rules need extending.
 
 ## Source and provenance
 
@@ -29,12 +32,20 @@ prove a form match. Keep transformations or ambiguous forms pending with no mapp
 Run the focused validator against the checked-in catalog snapshot:
 
 ```sh
-npx tsx scripts/verify/immersion-assets.mts work/masters-catalog.json
+npx tsx scripts/verify/immersion-assets.mts
+npx tsx scripts/verify/immersion-assets.mts --catalog work/masters-catalog.json
 ```
 
-The validator checks asset hashes, dimensions, frame metadata, unique ids and paths, exact catalog
-face/name evidence, mapping uniqueness, and coverage of every character in the tranche. Record the
-command and result here:
+The validator checks asset hashes, PNG alpha, the 3:1 sheet ratio, frame metadata, safe unique paths,
+exact catalog face/name evidence when a catalog is supplied, mapping uniqueness, and mapping coverage.
+Dry-run merge by default, then use `--write` only after reviewing the report:
+
+```sh
+npx tsx scripts/import-arena-character-pack.mts candidate.json
+npx tsx scripts/import-arena-character-pack.mts --write candidate.json
+```
+
+Record the validator/import command and result here:
 
 - Result:
 - Any mappings intentionally deferred and why:

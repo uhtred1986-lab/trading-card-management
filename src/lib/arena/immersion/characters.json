@@ -1,11 +1,5 @@
 {
   "version": 1,
-  "source": {
-    "kind": "generated-character-sprite-sheets",
-    "repositoryPath": "/workspace/sites/arena-kamehameha/dist/characters",
-    "provenance": "Generated with OpenAI image generation for this project in the user-requested session; the prototype sheets were copied unchanged.",
-    "license": "Generated for this project; no third-party source artwork was used."
-  },
   "characters": [
     {
       "id": "goku",
@@ -240,6 +234,62 @@
         "reviewedCardArtSha256": "906889998c30e58eec63bd36665601dce7c79a8884d95eb8c823c2c70daa0f98",
         "visualReview": "Round, pink Majin Buu with the black tunic, white pants, and cape shown by the sheet."
       }
+    },
+    {
+      "cardId": "BT18-030",
+      "face": "front",
+      "name": "Son Goku",
+      "characterId": "goku",
+      "evidence": {
+        "catalogCardName": "Son Goku",
+        "catalogCharacter": [
+          "Son Goku"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT18-030.png",
+        "reviewedCardArtSha256": "6523bb041ad67d04adf145abde4e9c9530bd84fe12fe96ec75460f6cd2006d15",
+        "visualReview": "Visually inspected the front: black-haired Goku in an orange gi, consistent with the sheet. The awakened back is intentionally unmapped."
+      }
+    },
+    {
+      "cardId": "BT27-045",
+      "face": "front",
+      "name": "Piccolo",
+      "characterId": "piccolo",
+      "evidence": {
+        "catalogCardName": "Piccolo",
+        "catalogCharacter": [
+          "Piccolo"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT27-045.png",
+        "reviewedCardArtSha256": "dca0e51ad56962bd6ea6024adb61ad24df2a634c536173b9f568a3873a353708",
+        "visualReview": "Visually inspected the front: base Piccolo, with no fusion or other transformation. The awakened back is intentionally unmapped."
+      }
+    },
+    {
+      "cardId": "BT29-001",
+      "face": "front",
+      "name": "Krillin",
+      "characterId": "krillin",
+      "evidence": {
+        "catalogCardName": "Krillin",
+        "catalogCharacter": [
+          "Krillin"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT29-001.png",
+        "reviewedCardArtSha256": "15818c006f2c845e97d1b97c9478533f29e4bb5b2270f9a23d959eb234f119ad",
+        "visualReview": "Visually inspected the front: adult bald Krillin, consistent with the sheet. The awakened back is intentionally unmapped."
+      }
+    }
+  ],
+  "sources": [
+    {
+      "kind": "generated-character-sprite-sheets",
+      "repositoryPath": "/workspace/sites/arena-kamehameha/dist/characters",
+      "provenance": "Generated with OpenAI image generation for this project in the user-requested session; the prototype sheets were copied unchanged.",
+      "license": "Generated for this project; no third-party source artwork was used."
     }
   ]
 }
