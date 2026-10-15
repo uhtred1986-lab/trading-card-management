@@ -25,8 +25,17 @@ Printed fixture definitions contain public card information only. No collection
 or deck membership is included. No live records are written or approved.
 
 Compiler comparison uses the 6,552-card Masters snapshot. `compiler-diff.json`
-records the complete changed programs and unread clauses, including changes
-that preserve unread text. Runtime deployment does not refresh existing stored
+records all 34 changed skills: 17 acquire defender filters; 17 unsafe
+compound/postfix readings become unread rather than continuing to claim an
+incorrect blanket prohibition. Postfix marker conditions describe the attacker,
+so they must never be parsed as defender marker filters. This is a correctness
+change, not a claim that all 34 complete cards become playable.
+
+Some affected skills have independent old parser gaps: for example P-373 binds
+the preceding chosen Combo card rather than its described opposing attackers,
+and EX03-08's full conditional contains a separate Leader requirement. Their
+full before/after programs remain in the delta; adding the defender filter does
+not resolve those independent clauses or justify a blind refresh. Runtime deployment does not refresh existing stored
 rows; affected compiler-owned draft records require a separate guarded review.
 
 Validation receipt is recorded in the pull request after required checks finish.
