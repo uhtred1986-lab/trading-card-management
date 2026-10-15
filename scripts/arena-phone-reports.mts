@@ -14,7 +14,7 @@ const source = JSON.parse(readFileSync('contract/fixtures/play.json','utf8')) as
 const search = structuredClone(source);
 const choice = { ...search.view.you.battle[0], id: 'report-choice', name: 'Synthetic eligible search card' };
 search.view.you.choices = [choice];
-search.view.prompt = { ...search.view.prompt, kind: 'chooseCards', player: 'p1', question: 'Choose up to 1 among the top 3', hint: 'Synthetic bounded search' };
+search.view.prompt = { kind: 'chooseCards', player: 'p1', question: 'Choose up to 1 among the top 3', hint: 'Synthetic bounded search', min: 0, max: 1 };
 search.legal = [{ action: { type: 'choose', player: 'p1', cards: [choice.id] }, label: 'Choose card' },{ action: { type: 'choose', player: 'p1', cards: [] }, label: 'Choose none' }];
 search.taps = { byCard: { [choice.id]: [0] }, bare: [1], attackTargets: {}, whyByCard: {} };
 search.rejected = [source.view.you.leader!,source.view.them.leader!,...source.view.you.hand!].map(c=>({action:{type:'choose',player:'p1',cards:[c.id]},label:'Wrong target',why:[{kind:'target',reason:'Outside this search'}]}));
