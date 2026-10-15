@@ -290,3 +290,22 @@ function board(battle: string, energy: string[], hand: string[], seed = 7290) {
 }
 
 console.log("#729/#731: [Swap] reveals only the specified card, and BT4-079's action price is paid on the strict host");
+
+// #877: the reported BT4-084 skill 1, against the current 22-22 manual rather
+// than the older play-then-return parenthetical reminder on this print.
+{
+  const a = board("BT4-084", ["YEL729", "YEL729"], ["BT4-077", "OFF731C3", "BT4-079"]);
+  const energy = [...a.s.sides.p1.zones.energy];
+  assert.ok(offered(a.s, a.swapper), "Gohan's Swap is offered in Main from Battle with a specified cost-3 replacement");
+  const paid = activate(a.s, a.swapper);
+  assert.deepEqual(energy.map((id) => paid.state.cards[id].mode), ["rest", "rest"], "both yellow energy paid before choosing the revealed replacement");
+  assert.deepEqual(candidates(paid.state), [a.hand[0]], "exactly cost 3 and Goku's Lineage; neither off-trait nor cost 1 qualifies");
+  const done = choose(paid.state, [a.hand[0]]);
+  const returnAt = at(done.events, (e) => e.type === "move" && e.card === a.swapper && e.to === "hand");
+  const playAt = at(done.events, (e) => e.type === "move" && e.card === a.hand[0] && e.to === "battle");
+  assert.ok(returnAt >= 0 && playAt > returnAt, "22-22-3/4: source returns as cost before replacement enters Battle");
+  assert.ok(done.state.sides.p1.zones.hand.includes(a.swapper));
+  assert.ok(done.state.sides.p1.zones.battle.includes(a.hand[0]));
+  const tooLittle = board("BT4-084", ["YEL729"], ["BT4-077"]);
+  assert.ok(!offered(tooLittle.s, tooLittle.swapper), "one yellow energy is insufficient");
+}

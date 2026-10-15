@@ -1,0 +1,52 @@
+[
+  {
+    "viewport": "phone",
+    "skin": "anime",
+    "attackTargetConfirmed": true,
+    "clashEndpointError": 0.00037595781676299156
+  },
+  {
+    "viewport": "phone",
+    "skin": "night",
+    "attackTargetConfirmed": true,
+    "clashEndpointError": 0.0004867094877440608
+  },
+  {
+    "viewport": "desk",
+    "skin": "anime",
+    "attackTargetConfirmed": true,
+    "clashEndpointError": 0.0003780203182252861
+  },
+  {
+    "viewport": "desk",
+    "skin": "night",
+    "attackTargetConfirmed": true,
+    "clashEndpointError": 0.00036184870890060213
+  },
+  {
+    "width": 390,
+    "height": 667,
+    "text": "200%",
+    "charge": true,
+    "geometry": {
+      "top": 213.046875,
+      "bottom": 327.046875,
+      "bodyTop": 213.046875,
+      "bodyBottom": 520,
+      "vh": 667
+    }
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "text": "200%",
+    "charge": true,
+    "geometry": {
+      "top": 201.171875,
+      "bottom": 315.171875,
+      "bodyTop": 201.171875,
+      "bodyBottom": 397,
+      "vh": 568
+    }
+  }
+]

@@ -7,6 +7,7 @@ import type { NumberedBeat } from "@/lib/arena/beats";
 import type { BoardView, CardView } from "@/lib/arena/view";
 import { StageCard } from "./StageCard";
 import type { CardState } from "../ArenaCard";
+import { useCardEndpoints } from "./use-card-endpoints";
 
 /**
  * The pieces a battle staging is made of, and the one place the fight is
@@ -416,25 +417,15 @@ export function ClashBeam({ beat, hostRef }: { beat: NumberedBeat | null; hostRe
  * (above the cards, below the verdict) and the measured box are set here.
  */
 function ClashFx({ from, to, held, hostRef }: { from: string; to: string; held: boolean; hostRef: React.RefObject<HTMLDivElement | null> }) {
-  const [geo, setGeo] = useState<{ x: number; y: number; len: number; ang: number; box: { x: number; y: number; w: number; h: number } } | null>(null);
-  useEffect(() => {
-    const host = hostRef.current;
-    const a = host?.querySelector(`[data-arena-card="${CSS.escape(from)}"]`);
-    const b = host?.querySelector(`[data-arena-card="${CSS.escape(to)}"]`);
-    if (!host || !a || !b) return setGeo(null);
-    const h = host.getBoundingClientRect();
-    const ra = a.getBoundingClientRect();
-    const rb = b.getBoundingClientRect();
-    const x1 = ra.left + ra.width / 2 - h.left;
-    const y1 = ra.top + ra.height / 2 - h.top;
-    const x2 = rb.left + rb.width / 2 - h.left;
-    const y2 = rb.top + rb.height / 2 - h.top;
-    setGeo({ x: x1, y: y1, len: Math.hypot(x2 - x1, y2 - y1), ang: (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI, box: { x: rb.left - h.left, y: rb.top - h.top, w: rb.width, h: rb.height } });
-  }, [from, to, hostRef]);
-  if (!geo) return null;
+  const endpoints = useCardEndpoints(from, to, hostRef);
+  if (!endpoints) return null;
+  const { from: a, to: b } = endpoints;
+  const x = a.x + a.w / 2, y = a.y + a.h / 2;
+  const dx = b.x + b.w / 2 - x, dy = b.y + b.h / 2 - y;
+  const geo = { x, y, len: Math.hypot(dx, dy), ang: Math.atan2(dy, dx) * 180 / Math.PI, box: b };
   return (
     <>
-      <span className="arena-fx-beam" style={{ left: geo.x, top: geo.y, width: geo.len, zIndex: 45, "--ang": `${geo.ang}deg` } as React.CSSProperties} aria-hidden />
+      <span data-clash-beam={`${from}:${to}`} className="arena-fx-beam" style={{ left: geo.x, top: geo.y, width: geo.len, zIndex: 45, "--ang": `${geo.ang}deg` } as React.CSSProperties} aria-hidden />
       {held && <span className="arena-fx-shield" style={{ left: geo.box.x - 24, top: geo.box.y - 24, width: geo.box.w + 48, height: geo.box.h + 48, zIndex: 44 }} aria-hidden />}
     </>
   );

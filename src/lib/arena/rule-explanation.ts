@@ -21,9 +21,25 @@ export const ExplanationSchema = z.object({
   meaning: z.string().min(1).max(2000),
   confident: z.boolean(),
   question: z.string().max(2000),
-  ruleJson: z.string().max(30000),
+  ruleJson: z.string().max(30000).describe('Serialized complete rule JSON: exactly kind, trigger (string array, [] when there is no WHEN; never null), cost, cond, ops.'),
   missingCapability: z.string().max(2000),
-}).strict();
+}).strict().superRefine((answer, ctx) => {
+  if (!answer.confident || answer.question.trim() || answer.missingCapability.trim()) return;
+  // Validate inside the serialized field at generation time too, so generateJson's
+  // existing bounded repair retry gets the actual error rather than saving bad output.
+  try {
+    const json = JSON.parse(answer.ruleJson);
+    const shapeProblem = proposalShapeProblem(json);
+    if (shapeProblem) {
+      ctx.addIssue({ code: "custom", path: ["ruleJson"], message: shapeProblem });
+      return;
+    }
+    const checked = readRule(json, json?.kind);
+    if ("error" in checked) ctx.addIssue({ code: "custom", path: ["ruleJson"], message: checked.error.message });
+  } catch {
+    ctx.addIssue({ code: "custom", path: ["ruleJson"], message: "Provide structurally valid complete rule JSON." });
+  }
+});
 export type ExplanationAnswer = z.infer<typeof ExplanationSchema>;
 export type ExplanationDecision =
   | { kind: "supported"; rule: Rule; meaning: string; reading: string }
@@ -40,6 +56,19 @@ function keysProblem(value: unknown, allowed: string[]): boolean {
   return !value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => !allowed.includes(key));
 }
 
+/** Generation and review require the same complete, closed proposal shape. */
+function proposalShapeProblem(json: unknown): string | null {
+  const completeKeys = ["kind", "trigger", "cost", "cond", "ops"];
+  if (keysProblem(json, completeKeys) || !completeKeys.every((key) => Object.hasOwn(json as object, key))) return "A complete rule must contain exactly kind, trigger, cost, cond and ops.";
+  const cost = (json as Rule).cost;
+  if (cost && (keysProblem(cost, ["text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"]) ||
+      keysProblem(cost.orbs, ["any", ...COLORS]) ||
+      (Array.isArray(cost.either) && cost.either.some((group) => !Array.isArray(group) || group.some((color) => !(COLORS as readonly unknown[]).includes(color)))) ||
+      (cost.x && keysProblem(cost.x, ["min", "max"])) ||
+      (cost.payWith !== undefined && (!Array.isArray(cost.payWith) || cost.payWith.some((payer) => keysProblem(payer, ["sel", "as"])))))) return "The proposed cost contains unknown fields.";
+  return null;
+}
+
 export function explainDecision(raw: unknown, kind: string, printed: string, skillIndex = 0): ExplanationDecision {
   const parsed = ExplanationSchema.safeParse(raw);
   if (!parsed.success) return { kind: "invalid", error: "Claude's answer did not match the explanation format. Nothing was changed." };
@@ -50,20 +79,15 @@ export function explainDecision(raw: unknown, kind: string, printed: string, ski
   if (answer.missingCapability.trim()) return { kind: "unsupported", missing: [answer.missingCapability.trim()], meaning: answer.meaning, proposed: answer.ruleJson };
   let json: unknown;
   try { json = JSON.parse(answer.ruleJson); } catch { return { kind: "invalid", error: "The proposed complete rule is not JSON. Nothing was changed." }; }
-  const completeKeys = ["kind", "trigger", "cost", "cond", "ops"];
-  if (keysProblem(json, completeKeys) || !completeKeys.every((key) => Object.hasOwn(json as object, key))) return { kind: "invalid", error: "A complete rule must contain exactly kind, trigger, cost, cond and ops." };
-  const cost = (json as Rule).cost;
-  if (cost && (keysProblem(cost, ["text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"]) ||
-      keysProblem(cost.orbs, ["any", ...COLORS]) ||
-      (Array.isArray(cost.either) && cost.either.some((group) => !Array.isArray(group) || group.some((color) => !(COLORS as readonly unknown[]).includes(color)))) ||
-      (cost.x && keysProblem(cost.x, ["min", "max"])) ||
-      (cost.payWith !== undefined && (!Array.isArray(cost.payWith) || cost.payWith.some((payer) => keysProblem(payer, ["sel", "as"])))))) return { kind: "invalid", error: "The proposed cost contains unknown fields." };
+  const shapeProblem = proposalShapeProblem(json);
+  if (shapeProblem) return { kind: "invalid", error: shapeProblem };
   // readRule checks every operation/condition/selector/ref and closes nested keys.
   // Bad external values may also throw inside the pre-existing cost validator.
   try {
     const checked = readRule(json, kind);
     if ("error" in checked) return { kind: "invalid", error: checked.error.message };
     const rule = checked.rule;
+    if (kind === "keyword") return { kind: "question", meaning: answer.meaning, question: "This keyword uses the engine's native activation, payment and resolution. An ordinary THEN program cannot replace that lifecycle. Review the keyword's native rule and Try it before approving a change." };
     if (!rule.ops.length) return { kind: "invalid", error: "The response contains no effect steps. An intentional blank must be set explicitly in the manual builder." };
     const support = runtimeSupportOfRow({ ...rule, printed, unread: [] });
     if (support.unsupported.length) return { kind: "unsupported", missing: support.unsupported, meaning: answer.meaning, proposed: printRule(rule) };

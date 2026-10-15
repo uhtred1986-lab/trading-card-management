@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
 import type { Action, LegalAction, RejectedAction, Requirement } from "@/lib/arena/types";
 import { effectLine } from "@/lib/arena/effects";
 import { pill, priceOf, refusal, stepText } from "@/lib/arena/wording";
@@ -388,6 +387,7 @@ export function ActionRows({
   docked = false,
   resolveCard,
   onPreviewPayment,
+  basicOnly = false,
 }: {
   card: CardView;
   side: SideView | null;
@@ -403,6 +403,8 @@ export function ActionRows({
   docked?: boolean;
   resolveCard?: (id: string) => CardView | null;
   onPreviewPayment?: (ids: string[]) => void;
+  /** Compact legal Charge/Attack rows before the review's artwork. */
+  basicOnly?: boolean;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
@@ -473,7 +475,7 @@ export function ActionRows({
   };
   return (
     <>
-      <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />
+      {!basicOnly && <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />}
       {moves.filter((move) => !abilities.some((line) => offeredMoves(line, card, abilities, [move]).length > 0)).map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
@@ -490,8 +492,8 @@ export function ActionRows({
           </div>
         );
       })}
-      {refusals.map(refusalRow)}
-      {otherActions.length > 0 && (
+      {!basicOnly && refusals.map(refusalRow)}
+      {!basicOnly && otherActions.length > 0 && (
         <details className="rounded-lg border border-space-700 bg-space-800/30 px-3 py-2" data-other-actions>
           <summary className="cursor-pointer text-xs font-semibold text-space-200">Other actions ({otherActions.length})</summary>
           <div className="mt-2 space-y-2">{otherActions.map(refusalRow)}</div>
@@ -661,6 +663,7 @@ export function CardSheet({
   const [ownSize, setOwnSize] = useState<"full" | "top">("full");
   const [handFilter, setHandFilter] = useState<"All" | "Playable" | "Counters">("All");
   const currentManualCount = card.abilities ? abilityPanelRows(card.abilities).manual.length : 0;
+  const basicMoves = moves.filter((move) => move.legal.action.type === "charge" || move.legal.action.type === "attack");
   const sourceItems = sequence?.items ?? [];
   const matchesFilter = (item: ReviewSequence["items"][number], filter: "All" | "Playable" | "Counters") => filter === "All" || (filter === "Playable"
     ? item.playable ?? ["playable", "targets", "noTarget", "skill"].includes(item.status ?? "")
@@ -768,6 +771,27 @@ export function CardSheet({
         {pager && sequence?.label === "Your hand" && sourceItems.length > 6 && !fullArt && <div className="flex gap-2 px-4 pb-2" role="group" aria-label="Filter hand cards">
           {(["All", "Playable", "Counters"] as const).map((filter) => <button key={filter} type="button" aria-pressed={handFilter === filter} onClick={() => { setHandFilter(filter); const matches = sourceItems.filter((item) => matchesFilter(item, filter)); if (matches[0]) onJump?.(matches[0].card); }} className={`tap min-h-11 rounded-full border px-3 text-xs font-bold ${handFilter === filter ? "border-ki-400 text-ki-300" : "border-space-600 text-space-100"}`}>{filter}</button>)}
         </div>}
+        {fullArt ? (
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-space-950/70 px-2" aria-label="Full card artwork">
+            {card.imageUrl && !card.hidden ? (
+              // eslint-disable-next-line @next/next/no-img-element -- the full-art modal view reuses the catalog's existing image URL.
+              <img src={cardImage(card.imageUrl, "medium")} alt={card.name} className="h-full w-full select-none object-contain" draggable={false} />
+            ) : (
+              <div className="grid h-full w-full place-items-center rounded-xl border border-space-600 bg-space-800 p-6 text-center text-space-100">
+                <span>{card.hidden ? "Face-down card" : card.name}</span>
+              </div>
+            )}
+            {pager && (
+              <>
+                <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="absolute left-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">‹</button>
+                <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="absolute right-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">›</button>
+              </>
+            )}
+          </div>
+        ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
+          {basicMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
+            <ActionRows card={card} side={side} moves={basicMoves} rejected={[]} onPick={onPick} narrator={narrator} docked basicOnly />
+          </div>}
         {reviewMode === "own" && !fullArt && <div className="mx-4 mb-2 flex gap-1 rounded-full border border-space-600 p-1" role="group" aria-label="Card size">
           {(["full", "top"] as const).map((layout) => <button key={layout} type="button" aria-pressed={ownSize === layout} onClick={() => setOwnSize(layout)} className={`tap min-h-11 flex-1 rounded-full px-3 text-xs font-bold ${ownSize === layout ? "bg-space-50 text-space-900" : "text-space-100"}`}>{layout === "full" ? "Full card" : "Top half"}</button>)}
         </div>}
@@ -788,25 +812,8 @@ export function CardSheet({
           </div>
         )}
 
-        {fullArt ? (
-          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-space-950/70 px-2" aria-label="Full card artwork">
-            {card.imageUrl && !card.hidden ? (
-              // eslint-disable-next-line @next/next/no-img-element -- the full-art modal view reuses the catalog's existing image URL.
-              <img src={cardImage(card.imageUrl, "medium")} alt={card.name} className="h-full w-full select-none object-contain" draggable={false} />
-            ) : (
-              <div className="grid h-full w-full place-items-center rounded-xl border border-space-600 bg-space-800 p-6 text-center text-space-100">
-                <span>{card.hidden ? "Face-down card" : card.name}</span>
-              </div>
-            )}
-            {pager && (
-              <>
-                <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="absolute left-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">‹</button>
-                <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="absolute right-2 top-1/2 grid h-[44px] w-[44px] -translate-y-1/2 place-items-center rounded-full border-2 border-space-500 bg-space-900/95 text-xl font-black leading-none text-space-50 shadow-md disabled:border-space-600 disabled:text-space-300">›</button>
-              </>
-            )}
-          </div>
-        ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
-          <div className="flex gap-3">
+
+          <div className="arena-review-heading flex gap-3">
             <div className="arena-review-art-wrap relative w-[128px] shrink-0 self-start">
               {card.imageUrl && !card.hidden ? (
                 // eslint-disable-next-line @next/next/no-img-element -- transient sheet; the board has already loaded this URL.
@@ -844,7 +851,7 @@ export function CardSheet({
               <StatTiles card={card} leader={leader} />
             </div>
           </div>
-          <ActionRows card={card} side={side} moves={moves} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
+          <ActionRows card={card} side={side} moves={moves.filter((move) => !basicMoves.includes(move))} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} printedOpen />
         </div>}
 
@@ -864,7 +871,6 @@ export function CardSheet({
 export function SearchSheet({
   prompt,
   choices,
-  refused = [],
   indexOf,
   none,
   onPick,
@@ -872,7 +878,6 @@ export function SearchSheet({
 }: {
   prompt: PromptView;
   choices: CardView[];
-  refused?: { card: CardView; reason: string; label?: string }[];
   /** The index into `legal` that chooses this card, if any. */
   indexOf: (id: string) => number | undefined;
   /** The index of "choose none", when the prompt allows it. */
@@ -913,16 +918,6 @@ export function SearchSheet({
           </button>
         );
       })}
-      {refused.filter((item) => !choices.some((choice) => choice.id === item.card.id)).map(({ card, reason, label }) => (
-        <div key={`refused:${card.id}`} className="flex w-full items-center gap-3 rounded-lg border border-loss/40 bg-loss/5 px-2 py-2 text-left sm:px-3" data-refused-target={card.id}>
-          {card.imageUrl ? <Image src={cardImage(card.imageUrl, "thumb")} alt="" width={48} height={67} unoptimized className="card-aspect w-10 shrink-0 rounded object-cover opacity-50 sm:w-12" /> : <span className="card-aspect w-10 shrink-0 rounded bg-space-700 sm:w-12" />}
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-space-100">{card.name}</span>
-            <span className="block whitespace-normal text-xs leading-snug text-loss">Cannot choose: {reason}</span>
-          </span>
-          <span className="shrink-0 rounded-full border border-loss/60 px-2 py-px text-[10px] font-semibold text-loss">✕ {label ?? (card.keywords.includes("Barrier") ? "Barrier" : "No")}</span>
-        </div>
-      ))}
       {none != null && (
         <button
           type="button"
