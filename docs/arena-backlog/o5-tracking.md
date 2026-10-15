@@ -18,9 +18,19 @@ After the offline MVP, admit more Masters decks through capability and cross-dec
 
 - [x] #662 — Superseded by owner-selected automatic deck qualification in #793.
 - [x] #793 — Automatic deck qualification delivered; the owner waived the remaining production phone test.
-- [ ] #663 — O5-02: Prototype bounded search using sampled unknown information
-- [ ] #664 — O5-03: Evaluate search strength and expose evidence-backed difficulty levels
-- [ ] #665 — O5-04: Measure whether an arena MCP wrapper would improve agent workflows
+- [x] #663 — O5-02: Prototype bounded search using sampled unknown information
+- [x] #664 — O5-03: Evaluate search strength and expose evidence-backed difficulty levels
+- [x] #665 — O5-04: Measure whether an arena MCP wrapper would improve agent workflows
+
+## Continuing coverage work
+
+- [ ] #825 — Restore the observed Cooler, Trunks and Great Ape rule gaps in current decks.
+- [ ] #826 — Model combat resources and demonstrate a stronger opponent on fresh holdouts.
+- [ ] #827 — Named release deck pairs, card-level scenarios, clearer deck naming and bounded Opus evaluation; proposed [coverage plan](../arena-deck-coverage-plan.md).
+
+The initial search experiment is delivered with a negative strength result; no new difficulty
+was enabled. The MCP development/testing evaluation concluded the existing tools suffice.
+The programme remains open for the concrete coverage and strength work above.
 
 ## Order and hot files
 

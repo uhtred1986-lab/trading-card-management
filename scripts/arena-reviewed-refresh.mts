@@ -44,6 +44,7 @@ for (const a of approved) {
 }
 if(mode==="--plan") {
   fs.writeFileSync(file,JSON.stringify(plan,null,2),{mode:0o600});
+  fs.chmodSync(file,0o600);
   console.log(JSON.stringify({planned:plan.rules.length,catalogErrata:plan.catalog!.id,held:3,write:false}));
 } else {
   const saved: ReviewedRefresh=JSON.parse(fs.readFileSync(file,"utf8"));

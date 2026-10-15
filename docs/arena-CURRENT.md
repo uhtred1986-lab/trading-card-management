@@ -28,13 +28,22 @@ match runs and card-specific scenarios remain necessary to find interactions it 
 The current coverage work records typed interruption causes and reproducible private replay
 artifacts, and can repeat a captured real-deck corpus without further database reads.
 
-The three historical optional exact-count drafts remain held in production until their corrected
-compiler behavior is reviewed and explicitly approved for refresh. They are BT3-109/front/20,
-BT6-062/front/10 and SD8-03/front/10. Do not overwrite corrected or confirmed user rules.
+PR #824 corrects optional exact-count behavior and includes the separately approved follow-up
+refresh of eleven compiler records, SD13-05 condition metadata, and two verified specified costs.
+The three formerly held records are BT3-109/front/20, BT6-062/front/10 and SD8-03/front/10.
+Apply the rule refresh only after the matching production deployment is Ready; the PR closeout
+records application and readback. Preserve corrected or confirmed user programs.
 
 Opponent search must use only the restricted observation, keep its RNG separate, return legal
 engine actions, respect work budgets, and fall back to the existing heuristic. Difficulty labels
 require measured gains; tactical success alone does not establish stronger general play.
+
+## Coverage plan and progress
+
+[Testing progress](arena-testing-progress.md) is the user-facing index for the proposed
+16-deck first wave, 62-deck booster expansion, small scenarios, White Cell decision
+benchmarks and bounded Opus budget. These are proposed recipes and explicit progress
+states, not a claim that new lists or paid comparisons have already run.
 
 ## Entry points
 
