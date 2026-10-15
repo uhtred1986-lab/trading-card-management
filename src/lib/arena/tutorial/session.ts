@@ -43,7 +43,7 @@ class TrainingSession implements PracticeSession {
   private current: Snapshot = this.snapshot();
   private snapshot(): Snapshot {
     return buildSnapshot({ id: this.gameId, revision: this.journal.length, mode: "sparring", status: this.state.phase === "over" ? "over" : "playing",
-      p1Name: "You", p2Name: "Training opponent", ctx: PRACTICE_CONTEXT, state: this.state,
+      p1Name: "You · Goku", p2Name: "Frieza", ctx: PRACTICE_CONTEXT, state: this.state,
       legal: RULES.legalActions(PRACTICE_CONTEXT, this.state), log: [], beats: this.beats, spotlight: null,
       spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: "p2", viewer: "p1", images: PRACTICE_ART });
   }
@@ -96,9 +96,11 @@ class TrainingSession implements PracticeSession {
       // Only select current legal actions; never hold an expected card across a prompt.
       const leader = this.state.sides.p2.zones.leader[0];
       const target = this.state.sides.p1.zones.leader[0];
-      const action = legal.find(a => a.type === "charge" && a.card !== null)
-        ?? legal.find(a => a.type === "play" && this.state.sides.p2.zones.battle.length === 0)
+      const action = legal.find(a => a.type === "activate" && a.card === leader && !this.state.cards[leader].flipped)
+        ?? legal.find(a => a.type === "charge" && a.card !== null)
+        ?? legal.find(a => a.type === "play" && this.state.sides.p2.zones.battle.length === 0 && Number(PRACTICE_CONTEXT.defs[this.state.cards[a.card].cardId].energyCost) <= 2)
         ?? legal.find(a => a.type === "attack" && a.attacker === leader && a.target === target)
+        ?? legal.find(a => a.type === "attack" && a.target === target)
         ?? legal.find(a => a.type === "endMain")
         ?? legal.find(a => a.type === "pass")
         ?? legal.find(a => a.type === "zEnergyFromCombo" && a.card === null)

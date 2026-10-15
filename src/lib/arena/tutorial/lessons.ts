@@ -1,12 +1,12 @@
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { Action, PlayerId } from "@/lib/arena/types";
 
-export const CURRICULUM_VERSION = "masters-first-match:1.0.0";
+export const CURRICULUM_VERSION = "masters-first-match:2.0.0";
 export const LESSONS = [
   {
     "id": "intro.goal",
     "anchor": "Leader card and match objective; anchor the actual Leader area and match status.",
-    "copy": "Welcome to the World Tournament! Your Leader is the star of your team. Keep your Leader in the game and reduce your opponent’s Life to zero to win. In this match, we’ll learn one turn and one battle together.",
+    "copy": "Welcome! You’re playing Son Goku against Frieza with real cards from Galactic Battle, the first Masters release. Each player starts with eight Life. Reduce Frieza’s Life to zero to win. I’ll guide your first turns, then you can finish on your own.",
     "evidence": "Screen acknowledged, or opening skipped.",
     "recovery": "Want to see this again? Replay the welcome from Lessons.",
     "why": "A full game can end in different ways. We’ll practice battle damage today; other victory and loss conditions are a later lesson."
@@ -17,7 +17,7 @@ export const LESSONS = [
     "copy": "Your hand is what you can choose from. Life is face-down protection. Your deck is where new cards come from. When a card is spent, it often goes to the Drop Area.",
     "evidence": "Screen acknowledged or skipped.",
     "recovery": "Point to your hand, Life, and deck on the board. You can replay this screen any time.",
-    "why": "A regular Masters game starts with eight cards in Life. This practice match starts with three so we can finish sooner."
+    "why": "This match uses two 50-card teaching decks built from real BT1 cards, not a sealed starter product. Both players start with the usual eight Life."
   },
   {
     "id": "intro.numbers",
@@ -30,7 +30,7 @@ export const LESSONS = [
   {
     "id": "intro.energy",
     "anchor": "Active and rested Energy Area cards, with their real orientation/status.",
-    "copy": "Ready energy can pay a cost. Rested energy has been used for now. At the start of your turn, your rested cards become ready again.",
+    "copy": "Charge a card from your hand into your Energy Area. It stays there: rest it to pay a cost, then ready it again at the start of your turn. Charging does not send it to Drop.",
     "evidence": "Screen acknowledged or skipped.",
     "recovery": "Find one ready energy card. The board shows whether each energy is ready or rested.",
     "why": "The rules call these Active Mode and Rest Mode. The Charge Phase switches rested cards to active."
@@ -38,15 +38,15 @@ export const LESSONS = [
   {
     "id": "intro.ready",
     "anchor": "The real turn/phase indicator and lesson guidance control.",
-    "copy": "You’ll make the choices. I’ll point out what the board means. Use the guidance control whenever you like: turn hints off, or turn them back on. You can replay a lesson, too. Ready? Let’s play!",
+    "copy": "Goku has Double Strike: a successful Leader hit deals two damage. Both Leaders can Awaken at four Life or less; read their new side when they flip. Every printed ability is active. You make the choices, and can turn hints off anytime.",
     "evidence": "Screen acknowledged or skipped; begin the tutorial scenario.",
     "recovery": "No rush. Skip the opening now and replay it from Lessons whenever you like.",
-    "why": "The match uses the Masters rules engine. The training cards are simplified so the lesson can focus on turns and battles."
+    "why": "These are actual Masters cards and abilities. Card text can change the normal rules. Use the board’s card review and legal choices; nothing is replaced with a tutorial-only action."
   },
   {
     "id": "t1.charge",
     "anchor": "Real Charge Phase and hand-to-Energy Area action.",
-    "copy": "You may charge one card from your hand as energy, or keep every card. Which card could you spare? You can also choose not to charge.",
+    "copy": "Charge moves a hand card to Energy, where it stays to pay costs. Tap a card, then confirm Charge it; or choose not to charge this turn.",
     "evidence": "Session records a charge or the phase advances with no charge. Merely clicking a card is not completion.",
     "recovery": "Changed your mind? Before confirming, choose a different card or cancel. Keeping your hand is a real choice.",
     "why": "You may place one card from hand in your Energy Area during your Charge Phase. Charging is optional."
@@ -54,15 +54,15 @@ export const LESSONS = [
   {
     "id": "t1.affordability",
     "anchor": "Prediction anchored to visible energy count and the real card inspector.",
-    "copy": "Quick prediction: this red card costs 1. You have [N] ready red energy. Can you pay its cost right now?",
+    "copy": "Inspect a Battle Card’s cost and your ready energy. Can you play it right now?",
     "evidence": "Prediction answer recorded separately from gameplay; retry or skip is allowed. No action or phase change occurs.",
-    "recovery": "Yes feedback when [N] is at least 1: You have enough ready red energy to pay this red cost of 1. No feedback when [N] is 0: You do not have a ready red energy to pay this red cost. Rested energy cannot pay right now. Retry or skip.",
+    "recovery": "Compare the real card cost, required colors and ready energy. The board checks the payment and any card restrictions before you commit.",
     "why": "Card cost is paid by switching the required energy to Rest Mode. The normal play flow confirms the payment before the card is played."
   },
   {
     "id": "t1.play",
     "anchor": "Actual hand card, card inspector, existing play/review and payment confirmation UI.",
-    "copy": "Inspect the one-cost Battle Card. Read its text, then play it through the board’s normal controls if you want to spend one energy.",
+    "copy": "Tap a playable Battle Card and read its ability before confirming. Its cost rests that much energy; the energy cards stay in the Energy Area.",
     "evidence": "Engine/session confirms the selected card entered play and its actual payment resolved; the follow-up uses that payment evidence.",
     "recovery": "Not that card? Close the inspector and choose another legal card. You can also leave it in your hand and continue.",
     "why": "A Battle Card can normally attack on the turn it is played, if it is Active and the attack is legal. There is no general wait-a-turn rule. Card text or effects can make exceptions."
@@ -102,7 +102,7 @@ export const LESSONS = [
   {
     "id": "opp.defend",
     "anchor": "Real Defense Step and legal combo cards in hand; standard combo UI.",
-    "copy": "It’s your Defense Step. You may use a card from your hand in a combo to raise your Leader’s power. Want to try one, or defend without a combo?",
+    "copy": "A combo spends the card even if its energy cost is zero. In this Defense Step, use a legal combo to boost your defender for this battle, or Pass. Combo cards leave hand and normally go to Drop after battle.",
     "evidence": "Combo action is confirmed and card enters Combo Area, or the learner ends the Defense Step with no combo.",
     "recovery": "Only a card with combo cost and combo power can be used. You can inspect it, cancel before confirming, or choose to do nothing.",
     "why": "A combo card adds its combo power in this battle. The card is spent from your hand and goes to the Drop Area after the battle unless you choose the real Z-Energy option."
@@ -126,7 +126,7 @@ export const LESSONS = [
   {
     "id": "t2.charge",
     "anchor": "Actual hand and Charge Phase choice.",
-    "copy": "You may charge one card again, or keep your hand. Think about the cards you might want to play before you choose.",
+    "copy": "You may move one more hand card into Energy, where it stays. Think about what you want to play before choosing which card to charge.",
     "evidence": "Confirmed charge or phase transition without a charge.",
     "recovery": "You can decline. If you charge, pick a card you are willing to spend as energy.",
     "why": "Charging adds one card to your Energy Area; it also removes that card from your choices in hand."
@@ -142,7 +142,7 @@ export const LESSONS = [
   {
     "id": "t2.offense-combo",
     "anchor": "Existing Offense Step controls and legal combo selection.",
-    "copy": "Before you finish the Offense Step, you may add a combo card to your attack. It leaves your hand and adds its combo power. Want to use one, or continue without it?",
+    "copy": "A combo spends the card even if its energy cost is zero. In this Offense Step, add combo power to your attack or Pass. The boost lasts for this battle; combo cards normally go to Drop afterward.",
     "evidence": "Combo commitment is confirmed and reported by the session, or the turn player ends the Offense Step without one.",
     "recovery": "You can cancel before confirming, choose another legal combo, or continue without a combo.",
     "why": "During a battle, the real engine may offer to place one combo card in its owner’s Z-Energy at Battle End. If that choice appears, read it and choose there. Otherwise combo cards go to the Drop Area."
@@ -164,12 +164,44 @@ export const LESSONS = [
     "why": "Turn hints off to think for yourself, or turn them on if you want a pointer. You can switch either way and replay lessons later."
   },
   {
+  "id": "classic.awaken",
+  "anchor": "Actual card ability and current prompt.",
+  "copy": "Your Leader can Awaken now: read its ability and choose whether to flip it. These Leaders draw two cards when they Awaken at four Life or less. Their new side has more power and different text.",
+  "evidence": "Accepted engine action or explicit explanation acknowledgement.",
+  "recovery": "Read the actual prompt, inspect the card, or skip this explanation.",
+  "why": "Awakening is optional and uses the existing card ability controls."
+},
+  {
+  "id": "classic.response",
+  "anchor": "Actual card ability and current prompt.",
+  "copy": "Read the response shown on the board: a Counter can interrupt an attack, while Blocker redirects it to your Battle Card. Choose a legal response or decline it.",
+  "evidence": "Accepted engine action or explicit explanation acknowledgement.",
+  "recovery": "Read the actual prompt, inspect the card, or skip this explanation.",
+  "why": "Counter costs and Blocker requirements come from the actual card; declining does not skip the entire battle."
+},
+  {
+  "id": "classic.choice",
+  "anchor": "Actual card ability and current prompt.",
+  "copy": "A card ability needs your choice now: follow the board’s selection and confirmation. Read the card text to see how many targets you can choose.",
+  "evidence": "Accepted engine action or explicit explanation acknowledgement.",
+  "recovery": "Read the actual prompt, inspect the card, or skip this explanation.",
+  "why": "Some choices are optional and some required; the existing controls enforce the printed ability."
+},
+  {
+  "id": "classic.cleanup",
+  "anchor": "Actual card ability and current prompt.",
+  "copy": "Your combo card has been spent: it normally goes to Drop after battle. If the board offers Z-Energy, you may put one eligible combo card there instead.",
+  "evidence": "Accepted engine action or explicit explanation acknowledgement.",
+  "recovery": "Read the actual prompt, inspect the card, or skip this explanation.",
+  "why": "Zero combo energy cost means no energy payment, not keeping the card in your hand."
+},
+  {
     "id": "wrapup",
     "anchor": "Match status, Life totals and lesson replay/help controls.",
-    "copy": "Great battle! This short practice match began with three Life cards. A regular Masters game begins with eight. You can replay any lesson. A player also loses if their Life or deck runs out, or if a card effect says they lose. Conceding ends a game, too. Special skills and card-by-card exceptions are lessons for another day.",
+    "copy": "Great practice! You played real Goku and Frieza decks starting at eight Life. Replay any lesson, or try again with different choices. A player loses when their Life or deck runs out, or through other rules or card effects.",
     "evidence": "Tutorial completion recorded after the scenario reaches its scripted end or the learner exits.",
     "recovery": "The match can end before this point if a real win or loss condition is reached. You can restart the practice match from the tutorial menu.",
-    "why": "Awakening is printed on particular Leaders and follows that card’s own text and conditions. This simplified Leader does not teach Awakening. Advanced skills and other win/loss conditions belong in later lessons."
+    "why": "Goku’s Double Strike deals two damage on a successful Leader attack. Awakening changes the Leader’s power and text; always inspect the current side."
   }
 ] as const;
 export type LessonId = typeof LESSONS[number]["id"];
@@ -196,7 +228,7 @@ export function lessonReducer(state: LearningProgress, event: LearningEvent): Le
   if (event.type === "skip") return { ...state, skipped: [...new Set([...state.skipped, event.id])] };
   if (event.type === "prediction") return { ...state, predictions: { ...state.predictions, [event.id]: event.answer } };
   if (event.type === "acknowledge") {
-    if (!event.id.startsWith("intro.") && !["t1.first-turn", "wrapup"].includes(event.id)) return state;
+    if (!event.id.startsWith("intro.") && !["t1.first-turn", "wrapup", "classic.awaken"].includes(event.id)) return state;
     return { ...state, completed: [...new Set([...state.completed, event.id])] };
   }
   const { before, after, action, actor } = event;
@@ -226,12 +258,38 @@ export function lessonReducer(state: LearningProgress, event: LearningEvent): Le
   }
   return next;
 }
+/** Coaching follows the current prompt even when a learner takes another legal route. */
 export function currentLesson(progress: LearningProgress, snapshot?: Snapshot): typeof LESSONS[number] {
-  const available = LESSONS.filter(l => !l.id.startsWith("intro.") && (progress.ownTurns > 1 ? !l.id.startsWith("t1.") : !l.id.startsWith("t2.") && !["changed-board.predict", "wrapup"].includes(l.id)));
-  const relevant = !snapshot ? available : snapshot.view.turnPlayer !== snapshot.view.you.player
-    ? available.filter(l => l.id.startsWith("opp.") && (snapshot.view.battle || l.id !== "opp.attack-predict" && l.id !== "opp.defend"))
-    : available.filter(l => progress.ownTurns > 1 ? l.id.startsWith("t2.") || l.id === "changed-board.predict" : l.id.startsWith("t1."));
-  return relevant.find(l => !progress.completed.includes(l.id) && !progress.skipped.includes(l.id) && !(l.id in progress.predictions)) ?? (snapshot?.view.over ? LESSONS[LESSONS.length - 1] : LESSONS.find(l => l.id === (progress.ownTurns > 1 ? "t2.attack-target" : "t1.end"))!);
+  const get = (id: string) => LESSONS.find(l => l.id === id)!;
+  const unseen = (id: string) => !progress.completed.includes(id) && !progress.skipped.includes(id) && !(id in progress.predictions);
+  if (snapshot?.view.over) return get("wrapup");
+  if (snapshot) {
+    const prompt = snapshot.view.prompt.kind;
+    if (snapshot.waiting === "you") {
+      if (["chooseCards", "chooseMode", "payCost", "optionalCost", "orderPending", "replaceMove"].includes(prompt)) return get("classic.choice");
+      if (prompt === "zEnergyFromCombo") return get("classic.cleanup");
+      if (["counter", "blocker"].includes(prompt)) return get("classic.response");
+      if (prompt === "charge") return get(progress.ownTurns > 1 ? "t2.charge" : "t1.charge");
+      if (snapshot.view.battle && prompt === "combo") {
+        if (snapshot.view.turnPlayer !== snapshot.view.you.player) return get(unseen("opp.attack-predict") ? "opp.attack-predict" : "opp.defend");
+        return get("t2.offense-combo");
+      }
+      if (prompt === "main" && unseen("classic.awaken") && snapshot.legal.some(l => l.action.type === "activate" && l.action.card === snapshot.view.you.leader?.id && /awaken/i.test(l.label))) return get("classic.awaken");
+    }
+    if (snapshot.view.turnPlayer !== snapshot.view.you.player) return get(snapshot.view.battle ? "opp.tie" : "opp.observe");
+    if (snapshot.view.battle) return get("t2.resolve");
+  }
+  const relevant = LESSONS.filter(l => progress.ownTurns > 1 ? l.id.startsWith("t2.") && !["t2.charge", "t2.offense-combo", "t2.resolve"].includes(l.id) : l.id.startsWith("t1.") && l.id !== "t1.charge");
+  return relevant.find(l => unseen(l.id)) ?? get(progress.ownTurns > 1 ? "t2.attack-target" : "t1.end");
+}
+
+export function affordabilityPrompt(snapshot: Snapshot) {
+  const candidate = [...(snapshot.view.you.hand ?? [])].filter(c => c.power !== null && c.cost !== null)
+    .sort((a, b) => Number.parseInt(a.cost!) - Number.parseInt(b.cost!))[0];
+  if (!candidate) return { question: "No Battle Card is in your hand right now; inspect your other legal choices.", feedback: "You can keep your cards and continue using the board’s legal controls." };
+  const playable = snapshot.legal.some(l => l.action.type === "play" && l.action.card === candidate.id);
+  const ready = snapshot.view.you.energy.filter(c => c.mode === "active").length;
+  return { question: `${candidate.name}: cost ${candidate.cost}, ${candidate.colors.join("/")}. Can you play it now?`, feedback: `${ready} ready energy. ${playable ? "The board offers this play; review the payment before confirming." : "This play is not available now; inspect its cost, colors and restrictions."} Energy rests to pay and stays in Energy.` };
 }
 export function handoffReady(progress: LearningProgress): boolean {
   return progress.ownTurns >= 2 && (progress.defended || progress.skipped.includes("opp.defend")) && progress.ownBattleResolved;

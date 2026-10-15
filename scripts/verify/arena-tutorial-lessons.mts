@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createPracticeSession } from "../../src/lib/arena/tutorial/session";
-import { currentLesson, handoffReady, initialProgress, lessonReducer, type LearningProgress } from "../../src/lib/arena/tutorial/lessons";
+import { currentLesson, affordabilityPrompt, handoffReady, initialProgress, lessonReducer, type LearningProgress } from "../../src/lib/arena/tutorial/lessons";
 import type { Action } from "../../src/lib/arena/types";
 
 let progress: LearningProgress = initialProgress();
@@ -9,6 +9,8 @@ let last: Parameters<typeof lessonReducer>[1] | null = null;
 session.subscribe(t => { last = { type: "transition", ...t }; progress = lessonReducer(progress, last); });
 const snapshot = session.getSnapshot();
 assert.equal(currentLesson(progress, snapshot).id, "t1.charge");
+assert.match(affordabilityPrompt(snapshot).question, /cost 1, Green/);
+assert.doesNotMatch(affordabilityPrompt(snapshot).feedback, /red/);
 const predicted = lessonReducer(progress, { type: "prediction", id: "t1.affordability", answer: "No" });
 assert.deepEqual(session.getSnapshot(), snapshot, "prediction cannot spend energy or an action");
 assert.equal(predicted.revision, -1);
@@ -18,6 +20,11 @@ for (let n = 0; n < 160; n++) {
   const before = session.getSnapshot();
   if (before.over || handoffReady(progress)) break;
   if (before.waiting === "opponent") { assert.equal((await session.advance()).error, null); continue; }
+  if (before.view.prompt.kind === "combo") {
+    const id = currentLesson({ ...progress, predictions: { "opp.attack-predict": "answered" } }, before).id;
+    assert.equal(id, before.view.turnPlayer === before.view.you.player ? "t2.offense-combo" : "opp.defend", "combo guidance follows the current attacking/defending role");
+  }
+  if (["counter", "blocker"].includes(before.view.prompt.kind)) assert.equal(currentLesson(progress, before).id, "classic.response");
   const actions = before.legal.map(x => x.action);
   const action: Action | undefined = actions.find(a => a.type === "charge" && a.card !== null)
     ?? actions.find(a => a.type === "play") ?? actions.find(a => a.type === "attack")
