@@ -31,3 +31,13 @@ Browser smoke in the actual 390×844 phone UI covered ATTACK/HIT/BLOCK/NEGATED, 
 One final integrated typecheck/lint/test/build gate is recorded in the PR. No full-deck playthrough, fuzzing, live database test or separate engine campaign is added. Hardware audibility and real-device frame timing are not established by headless browser evidence.
 
 Additional final smoke: 1440px desktop had no horizontal overflow; OS reduced motion produced no animated banner; user-gesture combat-sound opt-in and mute persisted successfully. This checks browser behavior, not physical speaker audibility.
+
+## Final integration record
+
+Combined PR #862. Final typecheck passed; full lint completed with five pre-existing warnings and no errors. The standard npm test chain passed through the tests before `arena-search-checkpoint`; its first checkpoint attempt was invalidated by changing scratch/source provenance. Scratch was excluded locally, the code committed, and only that check plus the remaining standard chain was rerun successfully. Production build passed. No second full suite was run. The reduced-motion audio observer received a final focused typecheck/lint and independent review: it baselines the first snapshot per match and coalesces only new arrivals, without replaying initial history.
+
+Workers: GPT-6 Luna handled asset data/import tooling; GPT-6.1 Sol handled banner/audio implementation; separate Sol medium review inspected integration. Review found and corrected wrong-form candidate mappings, Skip effect clearing narration, and initial-history audio replay. Exact token/dollar telemetry was unavailable; no fabricated cost estimate is recorded.
+
+Tutorial integration: PR #861 currently contains an earlier immersion snapshot. When reconciling after #862, retain the final `events={beats}` prop, local-only Skip effect callback, latest visibility lifecycle and reduced-motion audio observer. Keep its new `onTutorialState` callback/readiness effect. Do not reintroduce `onSkip={playback.skip}` from that older snapshot. The Tutorial host's readiness gate keeps coaching behind existing board interaction/animation.
+
+Follow-ons: #856 retains named technique/voice approval; #850 now links 12 inventory-backed batches (#863–#874). The initial inventory found 25 eligible Masters decks and 314 distinct cards across 114 labels; no test flags or exact known-training-recipe names matched. This does not prove undocumented training decks are absent. Hardware FPS/audibility and remaining release evidence stay explicit in #858.
