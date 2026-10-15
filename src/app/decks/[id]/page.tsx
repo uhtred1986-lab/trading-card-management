@@ -29,7 +29,8 @@ import { deleteDeckForm, duplicateDeckForm, importDeckListForm, updateDeckForm }
 export const dynamic = "force-dynamic";
 
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireSignedInPage();
+  const viewer = await requireSignedInPage();
+  const canMarkTesting = viewer.kind === "sl";
   const { id: raw } = await params;
   const id = Number(raw);
   if (!Number.isInteger(id)) notFound();
@@ -71,6 +72,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             ) : (
               <span className="rounded bg-space-800 px-1.5 py-px text-[10px] font-bold uppercase text-space-300">Virtual</span>
             )}
+            {deck.isTesting ? <span className="rounded border border-ki-500/60 px-1.5 py-px text-[10px] font-semibold uppercase text-ki-300">Testing deck</span> : null}
             <DeckStatusBadge status={deck.legality.status} />
             {deckLocation ? (
               <Link
@@ -185,6 +187,16 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 Game <span className="text-space-400">(decides which rules apply and which cards the search offers)</span>
                 <GameSelect value={deck.game} className={input} />
               </label>
+              {canMarkTesting ? (
+                <label className="flex min-h-11 items-start gap-2 text-xs text-space-300">
+                  <input type="hidden" name="manageTesting" value="1" />
+                  <input type="checkbox" name="isTesting" defaultChecked={deck.isTesting} className="mt-0.5 h-4 w-4 accent-ki-500" />
+                  <span>
+                    Testing deck
+                    <span className="block text-space-400">Hidden from Arena play pickers unless testing decks are shown.</span>
+                  </span>
+                </label>
+              ) : null}
               <label className="block text-xs text-space-300">
                 Description
                 <textarea name="description" defaultValue={deck.description ?? ""} rows={2} className={input} />

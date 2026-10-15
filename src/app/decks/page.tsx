@@ -19,7 +19,8 @@ export const dynamic = "force-dynamic";
 type Params = Record<string, string | string[] | undefined>;
 
 export default async function DecksPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requireSignedInPage();
+  const viewer = await requireSignedInPage();
+  const canMarkTesting = viewer.kind === "sl";
   const sp = await searchParams;
   const raw = Array.isArray(sp.show) ? sp.show[0] : sp.show;
   const show: "all" | "built" | "virtual" = raw === "built" || raw === "virtual" ? raw : "all";
@@ -49,11 +50,17 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
           </Link>
           <NewDeckWithClaude enabled={hasAnthropic()} />
           <NewDeckFromCard enabled={hasAnthropic()} />
-          <form action={createDeckForm} className="flex gap-2">
+          <form action={createDeckForm} className="flex flex-wrap items-center gap-2">
             <input name="name" placeholder="New deck name" className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
             {/* A deck belongs to one game from the moment it exists — its rules
                 and the cards its builder offers both follow from this. */}
             <GameSelect value={game} className="tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100" />
+            {canMarkTesting ? (
+              <label className="flex min-h-11 items-center gap-2 text-xs text-space-300">
+                <input type="checkbox" name="isTesting" className="h-4 w-4 accent-ki-500" />
+                Testing deck
+              </label>
+            ) : null}
             <SubmitButton pendingLabel="Creating…" className="tap rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
               Create
             </SubmitButton>
@@ -109,6 +116,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
                       <div className="flex items-center gap-1.5">
                         <span className="truncate font-medium text-space-50">{d.name}</span>
                         {d.isBuilt ? <span className="rounded bg-ki-500 px-1.5 py-px text-[10px] font-bold uppercase text-space-950">Built</span> : null}
+                        {d.isTesting ? <span className="rounded border border-ki-500/60 px-1.5 py-px text-[10px] font-semibold uppercase text-ki-300">Testing</span> : null}
                         {/* Only the odd one out is labelled — most decks are the original game. */}
                         {d.game !== "dbs" ? <span className="rounded border border-space-600 px-1.5 py-px text-[10px] font-semibold uppercase text-space-300">{GAME_INFO[d.game].short}</span> : null}
                         <DeckStatusBadge status={d.legality.status} small title={d.legality.issues.map((i) => i.message).join(" ")} />

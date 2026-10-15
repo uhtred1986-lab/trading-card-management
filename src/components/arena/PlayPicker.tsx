@@ -9,6 +9,7 @@ import { DeckPreviewSheet } from "./DeckPreviewSheet";
 export interface PlayDeck {
   id: number;
   name: string;
+  isTesting?: boolean;
   leaderName: string | null;
   leaderImage: string | null;
   mainCount: number;
@@ -44,6 +45,9 @@ export function PlayPicker({
   canVersus,
   versusNote,
   action,
+  showTestingDecks,
+  testingToggleHref,
+  hiddenTestingDeckName,
 }: {
   decks: PlayDeck[];
   initialDeck: number;
@@ -52,6 +56,9 @@ export function PlayPicker({
   canVersus: boolean;
   versusNote: string;
   action: (formData: FormData) => void | Promise<void>;
+  showTestingDecks: boolean;
+  testingToggleHref: string;
+  hiddenTestingDeckName: string | null;
 }) {
   const [deckId, setDeckId] = useState(initialDeck);
   const [claudeDeck, setClaudeDeck] = useState(initialClaudeDeck);
@@ -83,7 +90,13 @@ export function PlayPicker({
       <input type="hidden" name="claudeDeck" value={claudeDeck} />
 
       <section aria-label="Your deck" className="space-y-2">
-        <h2 className="text-xs uppercase tracking-widest text-space-400">Your deck</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xs uppercase tracking-widest text-space-400">Your deck</h2>
+          <Link href={testingToggleHref} className="tap rounded-md border border-space-700 px-2.5 py-1.5 text-xs text-space-300 hover:border-ki-500/60 hover:text-space-50" aria-label={showTestingDecks ? "Hide testing decks" : "Show testing decks"}>
+            {showTestingDecks ? "Hide testing decks" : "Show testing decks"}
+          </Link>
+        </div>
+        {hiddenTestingDeckName ? <p className="text-xs text-space-400">The link points to testing deck <span className="font-medium text-space-200">{hiddenTestingDeckName}</span>. It stays hidden until you show testing decks above.</p> : null}
 
         {/* Phone: one deck at a time. */}
         <div className="flex items-center gap-2 sm:hidden">
@@ -97,6 +110,7 @@ export function PlayPicker({
             <p className="mt-2 truncate text-base font-semibold text-space-50">
               {deck.name}
               {isLocked && <LockedBadge />}
+              {deck.isTesting && <TestingBadge />}
             </p>
             <p className="truncate text-xs text-space-400">
               {deck.leaderName ?? "no leader"} · {deck.mainCount} cards · {index + 1} of {decks.length}
@@ -131,6 +145,7 @@ export function PlayPicker({
                   <span className="block truncate text-sm font-medium text-space-50">
                     {d.name}
                     {locked(d) && <LockedBadge />}
+                    {d.isTesting && <TestingBadge />}
                   </span>
                   <span className="block truncate text-xs text-space-400">
                     {d.leaderName ?? "no leader"} · {d.mainCount} cards
@@ -226,6 +241,10 @@ export function PlayPicker({
 
 function LockedBadge() {
   return <span className="ml-2 rounded-full border border-loss/60 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-loss">Locked</span>;
+}
+
+function TestingBadge() {
+  return <span className="ml-1 rounded border border-ki-500/60 px-1 py-0.5 align-middle text-[9px] font-semibold uppercase tracking-wider text-ki-300">Testing</span>;
 }
 
 /**

@@ -16,12 +16,13 @@ import { startGameForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string; tab?: string; list?: string }> }) {
+export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string; tab?: string; list?: string; testing?: string }> }) {
   await requireSignedInPage();
   // `?deck=<id>` preselects a deck: GameOver's "Change deck" (#358).
   const sp = await searchParams;
   const wanted = Number(sp.deck);
   const onGames = sp.tab === "games";
+  const showTestingDecks = sp.testing === "1";
   // The engine reads the original game's rule manual and nothing else, so
   // Fusion World decks are simply not offered here (owner's decision).
   const me = await currentUser();
@@ -49,7 +50,8 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
     const avg = done.reduce((n, g) => n + g.costMicros, 0) / done.length / 10_000;
     costs[mode] = `your average ~${Math.round(avg)}¢`;
   }
-  const playable = decks.filter((d) => d.leader && d.mainCount >= 50);
+  const allPlayable = decks.filter((d) => d.leader && d.mainCount >= 50);
+  const playable = showTestingDecks ? allPlayable : allPlayable.filter((d) => !d.isTesting);
   // One query for every deck's rule readiness (#357).
   const ready = await readiness(
     db,
@@ -68,6 +70,13 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
   // A deck named in the query wins even when locked, so the picker shows why.
   const initialDeck = playable.some((d) => d.id === wanted) ? wanted : pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
   const initialClaudeDeck = pick(last.claude, readyIds.find((id) => id !== initialDeck) ?? readyIds[0] ?? playable[0]?.id ?? 0);
+  const hiddenTestingDeckName = !showTestingDecks ? allPlayable.find((d) => d.id === wanted && d.isTesting)?.name ?? null : null;
+  const toggleQuery = new URLSearchParams();
+  if (sp.deck) toggleQuery.set("deck", sp.deck);
+  if (sp.tab) toggleQuery.set("tab", sp.tab);
+  if (sp.list) toggleQuery.set("list", sp.list);
+  if (!showTestingDecks) toggleQuery.set("testing", "1");
+  const testingToggleHref = `/arena${toggleQuery.size ? `?${toggleQuery.toString()}` : ""}`;
 
   const invites = matches.length ? (
     <Invitations
@@ -99,7 +108,14 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
             — against the built-in computer player, saved here. Prepare the starter decks once and no connection is needed.
           </p>
         )}
-        {playable.length < 1 ? (
+      {playable.length < 1 && allPlayable.length > 0 ? (
+        <section className="rounded-xl border border-dashed border-space-700 p-6 text-center">
+          <p className="text-sm text-space-200">Your playable decks are marked for testing and are hidden from the default picker.</p>
+          <Link href={testingToggleHref} className="tap mt-3 inline-flex items-center justify-center rounded-lg border border-ki-500/60 px-4 py-2 text-sm font-medium text-ki-300 hover:bg-space-800">
+            Show testing decks
+          </Link>
+        </section>
+      ) : playable.length < 1 ? (
           <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
             No deck is ready to play yet. A deck needs a leader, at least 50 cards, and the original game&rsquo;s rules — the arena does not play Fusion World.{" "}
             <Link href="/decks" className="text-ki-300 hover:underline">
@@ -109,13 +125,16 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
           </p>
         ) : (
           <PlayPicker
-            decks={playable.map((d) => ({ id: d.id, name: d.name, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
+            decks={playable.map((d) => ({ id: d.id, name: d.name, isTesting: d.isTesting, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
             initialDeck={initialDeck}
             initialClaudeDeck={initialClaudeDeck}
             costs={costs}
             canVersus={canVersus}
             versusNote="Needs a second login: add one under Settings → Users."
             action={startGameForm}
+            showTestingDecks={showTestingDecks}
+            testingToggleHref={testingToggleHref}
+            hiddenTestingDeckName={hiddenTestingDeckName}
           />
         )}
       </div>
