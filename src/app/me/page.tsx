@@ -4,6 +4,7 @@ import { requireSignedInPage } from "@/lib/auth";
 import { devicesOf } from "@/lib/auth/access";
 import { signOut } from "@/app/login/actions";
 import { disconnectMyDeviceAction } from "./actions";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +17,11 @@ export default async function MePage() {
   const devices = viewer.playerId !== null ? await devicesOf(db, viewer.playerId) : [];
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
-      <h1 className="text-xl font-semibold text-space-50">{viewer.name}</h1>
-      <p className="text-sm text-space-300">
-        Your cards and decks are filed under <span className="text-space-100">{viewer.owner}</span>. Only you and your SLs see them.
-      </p>
+    <main className="ds-page mx-auto max-w-xl space-y-4">
+      <PageHeader title={viewer.name} eyebrow="Your account" description={`Your cards and decks are filed under ${viewer.owner}. Only you and your SLs see them.`} />
 
       {viewer.via === "code" ? (
-        <section className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+        <Panel className="text-sm">
           <h2 className="font-semibold text-space-50">Your devices</h2>
           <ul className="mt-2 divide-y divide-space-700/60">
             {devices.map((d) => (
@@ -43,7 +41,7 @@ export default async function MePage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
       ) : (
         <p className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-xs text-space-300">
           You signed in with a password. Ask your SL for a join code to stay signed in on this phone without one.
@@ -55,6 +53,6 @@ export default async function MePage() {
           Sign out of this device
         </button>
       </form>
-    </div>
+    </main>
   );
 }

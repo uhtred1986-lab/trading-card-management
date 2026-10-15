@@ -6,6 +6,7 @@ import { loadReview } from "@/lib/arena/review-load";
 import { gamesWithFlags } from "@/lib/arena/review-store";
 import { currentUser, isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { fixtureData } from "./fixture";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function ArenaReviewPage({ searchParams }: { searchParams: 
   const beat = int(q.beat);
 
   if (q.fixture === "1" && process.env.NODE_ENV !== "production") {
-    return <ReviewScreen data={fixtureData({ turn, beat, all })} />;
+    return <main className="ds-page"><PageHeader title="Match review" eyebrow="Arena operations" description="Inspect flagged turns and recorded decisions." /><ReviewScreen data={fixtureData({ turn, beat, all })} /></main>;
   }
 
   const user = await currentUser();
@@ -56,5 +57,5 @@ export default async function ArenaReviewPage({ searchParams }: { searchParams: 
     beat: beat ?? null,
     fixture: false,
   };
-  return <ReviewScreen data={data} />;
+  return <main className="ds-page"><PageHeader title="Match review" eyebrow="Arena operations" description="Inspect flagged turns and recorded decisions." /><ReviewScreen data={data} /></main>;
 }
