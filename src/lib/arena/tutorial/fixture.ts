@@ -7,7 +7,7 @@ export const PRACTICE_FIXTURE_VERSION = 2;
 export const PRACTICE_GAME_ID = 841;
 export const PRACTICE_SEED = 7;
 export const PRACTICE_CARDS = (pack as unknown as EngineContext).defs;
-export const PRACTICE_CONTEXT: EngineContext = { defs: PRACTICE_CARDS, scripts: (pack as unknown as EngineContext).scripts };
+export const PRACTICE_CONTEXT: EngineContext & { scripts: NonNullable<EngineContext["scripts"]> } = { defs: PRACTICE_CARDS, scripts: (pack as unknown as { scripts: NonNullable<EngineContext["scripts"]> }).scripts };
 export const PRACTICE_ART = pack.art as Record<string, CardArt>;
 const copies = (four: string[], two: string[]) => [...four.flatMap(id => Array(4).fill(`BT1-${id}`)), ...two.flatMap(id => Array(2).fill(`BT1-${id}`))] as string[];
 export const PRACTICE_DECKS = {
