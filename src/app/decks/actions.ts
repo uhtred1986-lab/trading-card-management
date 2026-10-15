@@ -20,10 +20,11 @@ function revalidate(deckId?: number) {
   revalidatePath("/decks");
   revalidatePath("/collection");
   revalidatePath("/");
+  revalidatePath("/arena");
+  revalidatePath("/arena/testing");
   if (deckId) revalidatePath(`/decks/${deckId}`);
 }
 function revalidateTestingPickers() {
-  revalidatePath("/arena");
   revalidatePath("/arena/offline");
 }
 
