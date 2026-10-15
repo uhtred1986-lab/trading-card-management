@@ -45,3 +45,22 @@ New components should use semantic classes rather than adding more legacy utilit
 Game-colour pills use `ds-color-red/blue/green/yellow/black/white` opaque pairs;
 colourless uses the neutral badge pair. Preserve the colour names and ring identity,
 but do not place pastel foregrounds on translucent fills over scene art.
+
+### Desktop arena focus and scale
+
+On wide desktops (1280px and above), keep one decision panel between the battlefield
+and the hand. The right column is for card inspection and details. Move the panel with
+CSS grid placement so its focused controls and state are preserved; never render a
+second prompt. Phone placement stays unchanged.
+
+Use numeric `--arena` presets because hand overlap spacing reads this value. At a typical
+1576×890 desktop, normal field cards are 20% larger than the previous scale and hand
+cards approximately 21% larger. Larger monitors step up further; short viewports and
+expanded energy/response states step down. Keep energy totals visible while idle detail
+rows are collapsed. Tall decision states may scroll vertically, but must not cover the
+field or hand. Preserve horizontal scrolling for crowded rows and long hands.
+
+Verified for this change with fixture previews at 390×844, 1366×768, 1440×900,
+1576×890 and 1920×1080, including normal play, response, mulligan and energy details.
+No live-data games or exhaustive game states were tested. See the desktop arena sizing
+and decision placement PR for measured card sizes and verification scope.
