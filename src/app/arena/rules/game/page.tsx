@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DBS_FILES, loadDbs } from "@/lib/arena/rulesets";
 import { leadingComment, printedByFile } from "@/lib/arena/rulesets/print-by-file";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const metadata = { title: "The game, as files" };
 
@@ -26,8 +27,8 @@ export default async function RulesGamePage() {
   if (!loaded.ok) {
     return (
       <div className="space-y-4">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">The game, as files</h1>
-        <p className="rounded-xl border border-loss/40 bg-loss/10 p-4 text-sm text-loss">The DBS ruleset does not load: {JSON.stringify(loaded.errors[0])}</p>
+        <PageHeader title="The game, as files" eyebrow="Arena rules reference" />
+        <Panel className="border-loss/40 bg-loss/10 text-sm text-loss">The DBS ruleset does not load: {JSON.stringify(loaded.errors[0])}</Panel>
       </div>
     );
   }
@@ -37,12 +38,11 @@ export default async function RulesGamePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-space-50">The game, as files</h1>
+      <PageHeader title="The game, as files" eyebrow="Arena rules reference" description="Dragon Ball Super as the rules engine reads it, printed from the parsed ruleset.">
         <Link href="/arena/rules" className="ml-auto text-xs text-space-300 hover:text-ki-300">
           ← The rules of your cards
         </Link>
-      </div>
+      </PageHeader>
       <p className="text-sm text-space-300">
         Dragon Ball Super, as the rules engine (beta) reads it — one section per <span className="font-mono text-[11px]">.rules</span> file, printed from what was actually parsed rather than the raw
         text. Read-only: editing the definition itself is a decision the owner has not made yet. The keyword bodies are on{" "}
@@ -69,9 +69,9 @@ export default async function RulesGamePage() {
             {note && <p className="whitespace-pre-wrap rounded-xl border border-space-800 bg-space-950/60 p-3 text-[12px] leading-relaxed text-space-400">{note}</p>}
             <ul className="space-y-2">
               {g.declarations.map((d) => (
-                <li key={d.id} id={d.id} className="scroll-mt-4 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+                <li key={d.id} id={d.id} className="scroll-mt-4"><Panel className="p-3">
                   <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-space-200">{d.text}</pre>
-                </li>
+                </Panel></li>
               ))}
             </ul>
           </section>

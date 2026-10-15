@@ -10,6 +10,7 @@ import { ruleById } from "@/lib/arena/rules-store";
 import type { Cond, CostRecord, Op } from "@/lib/arena/vm/script";
 import type { Trigger } from "@/lib/arena/types";
 import { probeScenarios } from "../../record";
+import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit interpretation" };
@@ -40,18 +41,11 @@ export default async function BuildRulePage({ params, searchParams }: { params: 
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-2 flex items-center gap-2">
+      <PageHeader eyebrow="Arena rules builder" title="Edit interpretation" description={`${row.name} · skill ${Math.floor(row.skillIndex / 10) + 1}${row.side === "back" ? " · awakened side" : ""} · ${row.status}`} actions={
         <Link href={back} className="tap flex items-center rounded-lg px-2 text-sm text-space-300 hover:text-space-50" aria-label="Back to the rule">
           ←
         </Link>
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-space-50">Edit interpretation</h1>
-          <p className="truncate text-[11px] text-space-400">
-            {row.name} · skill {Math.floor(row.skillIndex / 10) + 1}
-            {row.side === "back" ? " · awakened side" : ""} · {row.status}
-          </p>
-        </div>
-      </div>
+      } />
       <FullRuleBuilder
         ruleId={id}
         initialRule={rule}

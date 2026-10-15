@@ -5,6 +5,7 @@ import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
 import { emptyFilter } from "@/lib/arena/text/filters";
 import { requireSlPage } from "@/lib/auth";
+import { PageHeader, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -84,15 +85,20 @@ export default async function BuildPreviewPage({ searchParams }: { searchParams:
   const focus = openingFocus(fx.rule, q.focus ?? null, fx.card.unread);
   if (q.record === "1")
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-3xl space-y-3">
+        <PageHeader title="Rule record preview" eyebrow="Development preview" description="A synthetic rule record for checking the contextual editor." />
+        <Panel className="p-0">
         <RuleRecord {...recordOf(fx)} />
+        </Panel>
         <div id={ACTION_BAR_ID} className="mt-3 rounded-xl border border-space-700/70" />
       </div>
     );
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="mb-2 text-lg font-semibold text-space-50">Build the rule · preview</h1>
+    <div className="mx-auto max-w-3xl space-y-3">
+      <PageHeader title="Build the rule" eyebrow="Development preview" description={`Synthetic fixture: ${fx.card.name}.`} />
+      <Panel className="p-0">
       <RuleBuilder ruleId={0} initialRule={fx.rule} focusPath={focus ?? undefined} card={fx.card} backHref="/arena/rules" canSave={false} />
+      </Panel>
     </div>
   );
 }

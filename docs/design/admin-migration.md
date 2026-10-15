@@ -17,9 +17,12 @@ This workstream migrated the assigned server-rendered screens to the shared them
 | `/arena/rules/keywords` | Migrated | SL guard and glossary-backed keyword reference. |
 | `/arena/rules/language` | Migrated | SL guard and schema-backed language reference. |
 | `/arena/rules/game` | Migrated | SL guard and loaded ruleset reference. |
-| `/arena/rules/patterns` | Migrated | Existing route retained in rules navigation; its filters and results remain unchanged. |
+| `/arena/rules/patterns` | Intentionally excluded | Guarded compatibility redirect into the workbench queue; removed from navigation so it does not appear as a duplicate destination. |
 | `/arena/rules/all` | Intentionally excluded | Existing redirect into the workbench remains as-is. |
-| `/arena/rules/build/[id]`, `/arena/rules/build/preview`, `/arena/rules/review/preview` | Intentionally excluded | Builder and development preview surfaces are separate task-specific editors/previews; existing development-only preview guards and routes remain untouched. |
+| `/arena/rules/build/[id]` | Migrated frame | The contextual rule editor keeps its focused layout; shared page header added, existing rule read, guard and save capability check preserved. |
+| `/arena/rules/build/preview` | Migrated frame | Shared headers/panels added around the synthetic editor and record; SL and development-only guards retained. |
+| `/arena/rules/review/preview` | Migrated frame | Shared header/panel added around the synthetic explanation preview; SL and development-only guards retained. |
 | `/arena/review` | Migrated | SL and arena-admin guards, seat filtering and development-only fixture preview guard/data behavior. |
 | `/arena/testing` | Migrated | SL guard, dashboard filters, evidence data and existing testing portal. |
+| `/arena/testing/runs/[id]` | Migrated | SL guard, imported-run detail lookup, fixture/outcome filters, paging, score tables and evidence digest display. |
 | `/arena/[id]/debug` | Migrated | SL and arena-admin guards, versus seat restriction and all decision details. |
