@@ -94,6 +94,13 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   process you started, before you report. Leftover test runs have made every later run crawl.
 - **`npm test` must exit on its own.** A hang means something imports `@/db` where it shouldn't;
   that is a bug to fix.
+- **Policy performance has a separate strict command.** `npm test` runs the main, combat and
+  constrained-choice policy proofs with `--record-performance`: every functional, privacy,
+  deterministic work-bound, coverage and strength assertion still runs, and p50/p95/max timings
+  are reported. `npm run test:policy-performance` runs those same proofs with their original
+  strict timing ceilings (main/combat p95 5 ms, max 100 ms; choices p95 10 ms, max 200 ms).
+  Run the strict command on an idle benchmark host when assessing policy performance; shared
+  host scheduling should not turn an otherwise passing functional merge gate into a failure.
 - **Restart `next dev` after a `git checkout`**: hot reload has served stale modules and produced
   false "fixed" results.
 - **Test at the right size.** After each commit run `npm run typecheck && npm run lint` plus only

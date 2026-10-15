@@ -442,8 +442,12 @@ for (const k of DECISION_WINDOWS.filter((w) => WINDOW_HANDLERS[w].rulesEngine)) 
 assert.ok(tally.multiPicks > 0 && tally.emptyPicks > 0, `multi-card and empty picks were played (${tally.multiPicks}, ${tally.emptyPicks})`);
 assert.ok(tally.nontrivial > tally.permutations / 2, `most permuted states really differ (${tally.nontrivial} of ${tally.permutations})`);
 const cost = { p50: quantile(times, 0.5), p95: quantile(times, 0.95), max: Math.max(...times) };
-assert.ok(cost.p95 <= 10, `local policy p95 ${cost.p95.toFixed(2)} ms is within 10 ms`);
-assert.ok(cost.max <= 200, `local policy max ${cost.max.toFixed(1)} ms is within 200 ms`);
+if (process.argv.includes("--record-performance")) {
+  console.log(`PERFORMANCE RECORDED ONLY: choice policy p95 ${cost.p95.toFixed(2)} ms (limit 10), max ${cost.max.toFixed(1)} ms (limit 200)`);
+} else {
+  assert.ok(cost.p95 <= 10, `local policy p95 ${cost.p95.toFixed(2)} ms is within 10 ms`);
+  assert.ok(cost.max <= 200, `local policy max ${cost.max.toFixed(1)} ms is within 200 ms`);
+}
 
 const strength = (filter: (f: string) => boolean) => {
   const s = summarise(results.filter((x) => filter(x.fixture)));

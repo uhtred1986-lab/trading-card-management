@@ -19,9 +19,15 @@ import { flagExplanation, isFlagged, orderQueue, type WrongVerdict } from "./rul
 import type { RuleRow } from "./rules-store";
 import type { StoredProbe } from "./rules-store";
 import type { Cond, CostRecord, Op } from "./vm/script";
+import { reviewVersion } from "./rule-review-version";
+import type { SavedExplanation } from "./rule-explanation";
+import { reopenRule } from "./rules-store";
 
 /** One skill in the queue, as the phone gets it: the record, the card around it and what is known of its play. */
 export interface ReviewItem {
+  /** Exact displayed version for guarded drafting and approval. Older fixture items are read-only until refreshed. */
+  reviewVersion?: string;
+  pendingExplanation?: SavedExplanation;
   id: number;
   cardId: string;
   name: string;
@@ -61,6 +67,7 @@ function itemOf(rule: RuleRow, card: CardBits, extra: { decks: string[]; firedIn
   const probe = rule.probe as StoredProbe | null;
   const meta = [cap(card.cardType), card.colors.map(cap).join("/"), card.energyCost ? `cost ${card.energyCost}` : null].filter(Boolean).join(" · ");
   return {
+    reviewVersion: reviewVersion(rule),
     id: rule.id,
     cardId: rule.cardId,
     name: card.name,
@@ -158,6 +165,8 @@ export async function reviewQueue(db: Db, o: { cardIds: string[]; ruleIds?: numb
       sameWording: rule.status === "draft" && rule.pattern ? Math.max(0, (siblings.get(rule.pattern)?.length ?? 1) - 1) : 0,
     }),
   );
+  const pending = await pendingExplanations(db, rows.map((r) => r.rule));
+  for (const item of items) item.pendingExplanation = pending.get(item.id);
   return orderQueue(items, o.recent.fired);
 }
 
@@ -166,7 +175,36 @@ export async function reviewItemById(db: Db, id: number, extra: { decks: string[
   const [r] = await db.select({ rule: cardRules, card: CARD_BITS }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(eq(cardRules.id, id));
   if (!r) return null;
   const siblings = r.rule.status === "draft" && r.rule.pattern ? ((await draftsByPattern(db, [r.rule.pattern])).get(r.rule.pattern)?.length ?? 1) - 1 : 0;
-  return itemOf(r.rule, r.card, { ...extra, sameWording: Math.max(0, siblings) });
+  return { ...itemOf(r.rule, r.card, { ...extra, sameWording: Math.max(0, siblings) }), pendingExplanation: (await pendingExplanations(db, [r.rule])).get(id) };
+}
+
+/** Undo approval, preserving its interpretation and returning the exact fresh queue version. */
+export async function reopenReviewedRule(db: Db, id: number, extra: { decks: string[]; firedIn: number | null }): Promise<ReviewItem> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ id: cardRules.id }).from(cardRules).where(eq(cardRules.id, id)).for("update");
+    if (!row) throw new Error("No such rule.");
+    await reopenRule(tx as Db, id);
+    const item = await reviewItemById(tx as Db, id, extra);
+    if (!item) throw new Error("No such card for this rule.");
+    return item;
+  });
+}
+
+/** Resume candidates/issue receipts only for the exact record they were requested against. */
+async function pendingExplanations(db: Db, rules: RuleRow[]): Promise<Map<number, SavedExplanation>> {
+  const found = new Map<number, SavedExplanation>();
+  if (!rules.length) return found;
+  const versions = new Map(rules.map((row) => [row.id, reviewVersion(row)]));
+  const saved = await db.select({ id: arenaFeedback.id, noteId: arenaFeedback.noteId, state: arenaFeedback.state }).from(arenaFeedback)
+    .where(and(inArray(arenaFeedback.noteId, rules.map((row) => row.id)), inArray(arenaFeedback.kind, ["rule", "rule-proposal"])))
+    .orderBy(desc(arenaFeedback.id));
+  for (const row of saved) {
+    if (row.noteId == null || found.has(row.noteId)) continue;
+    const state = row.state as { type?: string; base?: string; approved?: boolean; explanation?: string; decision?: SavedExplanation["result"]["decision"]; token?: string; issueUrl?: string | null; issueError?: string | null } | null;
+    if (state?.type !== "rule-explanation-v1" || state.approved || state.base !== versions.get(row.noteId) || !state.decision || !state.token) continue;
+    found.set(row.noteId, { explanation: state.explanation ?? "", result: { decision: state.decision, proposalId: row.id, token: state.token, issueUrl: state.issueUrl ?? null, issueError: state.issueError ?? null } });
+  }
+  return found;
 }
 
 /** What Undo needs to take a Wrong verdict back exactly. */

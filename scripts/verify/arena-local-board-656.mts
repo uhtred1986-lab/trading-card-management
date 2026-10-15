@@ -77,7 +77,10 @@ function world() {
       terminate: () => { dead = true; store.close(); },
     };
     host.hello();
-    spawned.push({ port, host, kill: () => port.terminate(), dead: () => dead });
+    spawned.push({ port, host, kill: () => {
+      port.terminate();
+      for (const listener of listeners.error) listener({ message: "injected worker death" });
+    }, dead: () => dead });
     return port;
   };
   return { fake, spawn, spawned };
@@ -128,7 +131,7 @@ async function stageLoop(board: LocalBoard, w: ReturnType<typeof world>, o: { st
       if (snap.game.status === "over") return "over";
       if (o.stop?.(snap)) return "stopped";
       const r = humanAsked(snap) ? await board.act(humanPick(snap), snap.game.revision, ids()) : await board.advance();
-      assert.equal(r.error, null, `no refusal at revision ${snap.game.revision}: ${r.error}`);
+      assert.equal(r.error, null, `no refusal at revision ${snap.game.revision}: ${r.error}; ${JSON.stringify(board.state)}`);
     }
     throw new Error("the loop did not finish");
   } finally {
@@ -364,9 +367,11 @@ assert.ok(audit.hiddenIds > 1000, "and the hidden state it compared against was 
   console.log("  second tab: watched, took over, old tab fenced");
 }
 {
-  // A worker that dies under a move.
+  // An explicit worker failure exercises the board's recovery notice. Keep the
+  // normal watchdog for healthy continuation: AI work can exceed 400 ms on this
+  // in-process fixture. Silent death and watchdog expiry are proved in ownership.
   const w = world();
-  const board = await LocalBoard.start(pack, setupP1, depsOn(w, memoryPointerStore(), { supervisor: { hungMs: 400, openMs: 20000, pingMs: 0 } }));
+  const board = await LocalBoard.start(pack, setupP1, depsOn(w, memoryPointerStore()));
   await stageLoop(board, w, { stop: (s) => s.game.revision >= 16 && humanAsked(s) });
   const notices: string[] = [];
   board.subscribe(() => { const n = board.notice; if (n) notices.push(`${n.tone}:${n.headline}`); });

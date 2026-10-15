@@ -189,7 +189,7 @@ async function noteRule(id: number, note: string, resolution: string | null) {
  * (`npm run arena:reprobe`). A bulk confirm writes none — 11,375 staged games
  * inside one press is not a press — and `arena:probe --fill` catches those up.
  */
-export async function confirmRuleAction(id: number): Promise<{ error: string | null }> {
+export async function confirmRuleAction(id: number, expectedVersion?: string): Promise<{ error: string | null }> {
   await requireSl();
   // The four actions that write a rule refuse anyone but an admin (#469): the
   // block builder makes writing one from a phone easy, so the server is where
@@ -199,7 +199,10 @@ export async function confirmRuleAction(id: number): Promise<{ error: string | n
   if (!row) return { error: "no such rule" };
   const problem = approvalProblem(row);
   if (problem) return { error: problem };
-  await confirmRule(db, id);
+  if (expectedVersion !== undefined) {
+    try { await (await import("@/lib/arena/rules-store")).confirmReviewedRule(db, id, expectedVersion); }
+    catch (error) { return { error: error instanceof Error ? error.message : "This skill changed; reload before approving." }; }
+  } else await confirmRule(db, id);
   const found = await probeRuleFor(id);
   if (found) {
     const run = probe(found.rule, found.scenarios[0]);

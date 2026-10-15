@@ -41,6 +41,9 @@ export interface SyncResult {
   errors: Array<{ id: string | number; error: string }>;
 }
 
+/** Review candidates are private staging records, not bug/coding reports. */
+export const feedbackIssueEligible = (feedback: { kind: string }): boolean => feedback.kind !== "rule-proposal";
+
 export const DEFAULT_REPO = "uhtred1986-lab/trading-card-management";
 
 /**
@@ -592,6 +595,7 @@ export async function syncFeedbackItem(
   repo?: string,
   cachedRemote?: GitHubIssue[]
 ): Promise<{ issue: GitHubIssue; action: "created" | "updated" | "closed" | "noop" }> {
+  if (!feedbackIssueEligible(feedback)) throw new Error("A supported rule proposal is not coding feedback and cannot be synced as an issue.");
   const targetRepo = repo || getGitHubConfig().repo;
   const remote = cachedRemote || (await listRemoteIssues(targetRepo, { forceRefresh: false }));
   const existing = matchFeedbackToGitHubIssue(feedback, remote);
@@ -659,6 +663,8 @@ export async function syncAllFeedbackItems(
   feedbackList: FeedbackItem[],
   repo?: string
 ): Promise<SyncResult> {
+  feedbackList = feedbackList.filter(feedbackIssueEligible);
+  if (!feedbackList.length) return { total: 0, created: 0, updated: 0, closed: 0, errors: [] };
   const targetRepo = repo || getGitHubConfig().repo;
   let created = 0;
   let updated = 0;
