@@ -11,6 +11,7 @@ import { buildConflicts, decksReservingFor } from "@/lib/decks/reservations";
 import { CardFaces } from "@/components/CardFaces";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
+import { DeckDescription } from "@/components/DeckDiscovery";
 import { DeckBuilder } from "@/components/DeckBuilder";
 import { DeckAI } from "@/components/DeckAI";
 import { SwapSuggestions } from "@/components/SwapSuggestions";
@@ -81,7 +82,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </Link>
             ) : null}
           </div>
-          <h1 className="text-2xl font-semibold text-space-50">{deck.name}</h1>
+          <h1 className="break-words text-2xl font-semibold text-space-50">{deck.name}</h1>
+          <DeckDescription text={deck.description} />
           <div className="flex flex-wrap items-center gap-1 text-sm text-space-300">
             {leader ? (
               <>
@@ -163,7 +165,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <aside className="space-y-4">
-          <DeckBuilder deckId={deck.id} game={deck.game} />
+          <DeckBuilder key={`${deck.id}:${deck.game}`} deckId={deck.id} game={deck.game} />
           <DeckAI
             deckId={deck.id}
             aiSummary={deck.aiSummary}

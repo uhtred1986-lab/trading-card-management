@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { buildDeckAction, searchLeadersAction, type LeaderChoice } from "@/app/leaders/actions";
-import { GAME_INFO } from "@/lib/catalog/games";
+import { GAME_INFO, parseGame, type Game } from "@/lib/catalog/games";
 import { CardImage } from "./CardImage";
 
 /**
@@ -18,6 +19,9 @@ import { CardImage } from "./CardImage";
 export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [game, setGame] = useState<Game | undefined>();
+  const [color, setColor] = useState("");
+  const sequence = useRef(0);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<LeaderChoice[]>([]);
   const [picked, setPicked] = useState<LeaderChoice | null>(null);
@@ -26,9 +30,12 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
   const [drafting, startDraft] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); sequence.current++; }, []);
 
-  const search = (next: string) => {
+  const search = (next: string, nextGame: Game | null | undefined = game, nextColor = color) => {
+    const request = ++sequence.current;
+    setError(null);
+    setHits([]);
     setQ(next);
     setPicked(null);
     if (timer.current) clearTimeout(timer.current);
@@ -36,7 +43,10 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
       setHits([]);
       return;
     }
-    timer.current = setTimeout(() => startSearch(async () => setHits(await searchLeadersAction(next))), 200);
+    timer.current = setTimeout(() => startSearch(async () => {
+      try { const result = await searchLeadersAction(next, nextGame ?? undefined, nextColor); if (request === sequence.current) setHits(result); }
+      catch { if (request === sequence.current) setError("Could not search leaders. Try again."); }
+    }), 200);
   };
 
   const draft = () => {
@@ -71,7 +81,12 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
         </button>
       </div>
 
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        <label className="min-w-0 text-xs text-space-300">Game<select value={game ?? ""} onChange={(e) => {const g=parseGame(e.target.value);setGame(g);search(q,g ?? null,color);}} className="tap w-full rounded-md border border-space-600 bg-space-900 px-2 text-sm"><option value="">Both games</option><option value="dbs">Masters</option><option value="fusion">Fusion World</option></select></label>
+        <label className="min-w-0 text-xs text-space-300">Colour<select value={color} onChange={(e) => {setColor(e.target.value);search(q,game,e.target.value);}} className="tap w-full rounded-md border border-space-600 bg-space-900 px-2 text-sm"><option value="">Any colour</option>{["Red","Blue","Green","Yellow","Black","White","Colorless"].map((c) => <option key={c}>{c}</option>)}</select></label>
+      </div>
       <input
+        aria-label="Search leaders for a new deck"
         autoFocus
         value={q}
         onChange={(e) => search(e.target.value)}
@@ -85,11 +100,12 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
             <CardImage src={picked.imageUrl} alt={picked.name} sizes="40px" />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-space-50">{picked.name}</span>
+            <span className="block break-words text-sm font-medium text-space-50">{picked.name}</span>
             <span className="text-[11px] text-space-400">
               {/* The leader decides the game, so the draft's rules follow from this pick. */}
               {picked.id} · {GAME_INFO[picked.game].short} · {picked.colors.join("/")} · {picked.owned ? `you own ${picked.owned}` : "not in your collection"}
             </span>
+            <Link href={`/cards/${encodeURIComponent(picked.id)}`} className="tap block text-sm text-ki-300">Read leader abilities</Link>
           </div>
         </div>
       ) : (
@@ -98,12 +114,12 @@ export function NewDeckWithClaude({ enabled }: { enabled: boolean }) {
           {!searching && q.trim().length >= 2 && hits.length === 0 ? <li className="px-1 py-2 text-xs text-space-400">No leader matches that.</li> : null}
           {hits.map((l) => (
             <li key={l.id}>
-              <button onClick={() => setPicked(l)} className="flex w-full items-center gap-2 rounded-md p-1 text-left hover:bg-space-800">
+              <button type="button" onClick={() => setPicked(l)} className="tap flex w-full items-center gap-2 rounded-md p-1 text-left hover:bg-space-800">
                 <div className="w-8 shrink-0">
                   <CardImage src={l.imageUrl} alt={l.name} sizes="32px" />
                 </div>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-space-100">{l.name}</span>
+                  <span className="block break-words text-sm text-space-100">{l.name}</span>
                   <span className="text-[11px] text-space-400">
                     {l.id} · {l.colors.join("/")}
                     {l.game !== "dbs" ? ` · ${GAME_INFO[l.game].short}` : ""}

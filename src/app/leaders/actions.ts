@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { and, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ownedCards } from "@/db/schema";
-import { quickSearch } from "@/lib/catalog/queries";
-import { gameOr, type Game } from "@/lib/catalog/games";
+import { COLORS, quickSearch } from "@/lib/catalog/queries";
+import { gameOr, parseGame, type Game } from "@/lib/catalog/games";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { suggestDeck } from "@/lib/ai/deck-builder";
 import { currentOwner, currentScope, requireSignedIn } from "@/lib/auth";
@@ -31,10 +31,10 @@ export interface LeaderChoice {
  * towards is exactly the case where you don't have the leader yet. Both games
  * are searched, and picking one settles which rules the draft is built to.
  */
-export async function searchLeadersAction(q: string): Promise<LeaderChoice[]> {
+export async function searchLeadersAction(q: string, game?: Game, color?: string): Promise<LeaderChoice[]> {
   await requireSignedIn();
   if (q.trim().length < 2) return [];
-  const leaders = await quickSearch(db, q, 12, "LEADER");
+  const leaders = await quickSearch(db, q, 12, "LEADER", parseGame(game), COLORS.includes(color ?? "") ? color : undefined);
   if (leaders.length === 0) return [];
   const counts = await db
     .select({ cardId: ownedCards.cardId, n: sql<number>`count(*)::int` })

@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { currentOwner, currentScope, requireSignedIn } from "@/lib/auth";
 import { assertOwnDeck } from "@/lib/auth/ownership";
-import { quickSearch } from "@/lib/catalog/queries";
+import { cardTypesFor, COLORS, quickSearch } from "@/lib/catalog/queries";
 import { DEFAULT_GAME, gameOr, type Game } from "@/lib/catalog/games";
 import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
 import { zoneForType, type DeckOption } from "@/lib/decks/add";
@@ -266,10 +266,10 @@ export async function createDeckWithCardAction(cardId: string, name: string): Pr
 }
 
 /** Typeahead for the builder's search box, scoped to the deck's game. */
-export async function searchCardsAction(q: string, game?: Game) {
+export async function searchCardsAction(q: string, game?: Game, cardType?: string, color?: string) {
   await requireSignedIn();
   if (q.trim().length < 2) return [];
-  return quickSearch(db, q, 15, undefined, game ? gameOr(game) : undefined);
+  return quickSearch(db, q, 15, cardTypesFor(game).includes(cardType ?? "") ? cardType : undefined, game ? gameOr(game) : undefined, COLORS.includes(color ?? "") ? color : undefined);
 }
 
 export type BuildDeckFromCardResponse = { ok: true; deckId: number; leaderName: string; mainCount: number; toBuy: number } | { ok: false; error: string };
