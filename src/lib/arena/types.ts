@@ -326,6 +326,8 @@ export interface Prohibition {
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */
   filter?: CardFilter;
+  /** Attack declarations only: the prospective defender, not the attacker. */
+  attackTarget?: CardFilter;
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
   /**
