@@ -10,6 +10,7 @@ export interface PracticeTransition { action: Action; actor: PlayerId; before: S
 interface Entry { action: Action; requestId: string; basedOn: number }
 export interface PracticeSave { version: 1; fixture: number; journal: Entry[] }
 export interface PracticeSession extends ArenaSession {
+  advance(): Promise<SessionResult>;
   getSnapshot(): Snapshot;
   subscribe(listener: (transition: PracticeTransition) => void): () => void;
   serialize(): PracticeSave;
