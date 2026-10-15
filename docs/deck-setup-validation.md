@@ -64,7 +64,7 @@ The saved transcript is `docs/arena-backlog/evidence/828/local-browser.log`.
 
 Final checks pass on Node 24: `npm run typecheck`, `npm run lint`, `npm test`, and
 `npm run build`, with `DATABASE_URL` unset. Lint reports five existing warnings under
-`docs/arena-redesign/prototype/` and no errors. The read-only backlog drift check also passes.
+`docs/arena-redesign/prototype/` and no errors. The backlog check reports local sources clean; its Node GitHub fetch failed, so it skipped live issue-state comparison. Issue #828’s open state, milestone and labels were verified separately with the GitHub CLI (the closed local status is the closing PR convention).
 The full test, build and lint transcripts are saved beside the screenshots. A malformed pack's
 metadata is refused before rendering, with a regression assertion in the new PGlite proof.
 No migration, new dependency, Snapshot/engine change, live database access, paid AI call or
