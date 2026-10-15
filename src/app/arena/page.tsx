@@ -94,6 +94,10 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-5">
       <ArenaHeader side="play" />
+      <Link href="/arena/tutorial" className="tap block rounded-xl border border-ki-500/50 bg-space-900 p-4 text-ki-200 hover:bg-space-800">
+        <strong>Learn to play Masters</strong>
+        <span className="mt-1 block text-sm text-space-300">A guided practice match with the World Tournament Announcer. No deck needed.</span>
+      </Link>
       {/* Phone: `?tab=games` is a screen of its own, so the play screen steps aside below `sm`; the desktop keeps both. Otherwise the Games list is desktop-only. */}
       <div className={`space-y-5 ${onGames ? "hidden sm:block" : ""}`}>
         {/* The Continue strip is the first thing under the header (ah-05), then any open invitation. */}
