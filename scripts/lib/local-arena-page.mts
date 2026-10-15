@@ -28,7 +28,7 @@ export const choosePack = (page: Page, text: string) =>
   })()`);
 
 export const clickText = (page: Page, text: string) =>
-  page.eval<boolean>(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)}) && !x.disabled); if (!b) return false; b.click(); return true; })()`);
+  page.eval<boolean>(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)}) && !x.disabled && x.getClientRects().length > 0); if (!b) return false; b.click(); return true; })()`);
 
 export const textOf = (page: Page) => page.eval<string>(`document.body.innerText`);
 
@@ -195,4 +195,46 @@ export class WorkerTaps {
     }
     return n;
   }
+}
+
+/** #828: choose through the real bounded pickers and phone wizard, without changing match state.
+ * The phone release runner supplies real coordinate taps; desktop probes use DOM activation.
+ */
+export async function chooseLocalSetup(page: Page, mine: string, theirs: string, seat: "p1" | "p2", tap?: (selector: string) => Promise<void>) {
+  await until(page, `!!document.querySelector('section[aria-label="New match"]')`, 60000);
+  const activate = async (selector: string) => {
+    if(tap) await tap(selector);
+    else await page.eval(`document.querySelector(${JSON.stringify(selector)}).click();0`);
+    await sleep(100);
+  };
+  const mobile = await page.eval<boolean>(`innerWidth < 640`);
+  if (mobile && !await page.eval<boolean>(`!!document.querySelector('dialog[open]')`)) {
+    await activate('[data-match-setup-open]');
+    await until(page, `!!document.querySelector('dialog[open]')`);
+  }
+  const scope = mobile ? "dialog[open]" : "[data-desktop-setup]";
+  async function choose(label: string, key: string) {
+    const field = `${scope} [data-deck-discovery="${label}"]`;
+    if(!await page.eval<boolean>(`document.querySelector(${JSON.stringify(field+" > details")}).open`))await activate(field+" > details > summary");
+    for(let i=0;i<30;i++){
+      const found=await page.eval<boolean>(`!!document.querySelector(${JSON.stringify(field+` [data-deck-choice="${key}"]`)})`);
+      if(found)break;
+      const more=await page.eval<boolean>(`!!document.querySelector(${JSON.stringify(field+" [data-more-decks]")})`);
+      if(!more)throw new Error(`Deck ${key} not offered by ${label}`);
+      await activate(field+" [data-more-decks]");
+    }
+    await activate(field+` [data-deck-choice="${key}"]`);
+  }
+  await choose("Your deck",mine);
+  if(mobile)await activate(scope+" [data-setup-next]");
+  await choose("Computer's deck",theirs);
+  await activate(scope+` [data-setup-seat="${seat}"]`);
+  const chosen=await page.eval<{a:string;b:string;seat:string}>(`(() => {
+    const root=document.querySelector(${JSON.stringify(scope)});
+    const [a,b]=root.querySelectorAll('[data-deck-discovery] > [data-deck-facts]');
+    return {a:a.dataset.deckFacts,b:b.dataset.deckFacts,seat:root.querySelector('[data-setup-seat][aria-pressed=true]')?.dataset.setupSeat};
+  })()`);
+  if(chosen.a!==mine || chosen.b!==theirs || chosen.seat!==seat)throw new Error(`Setup did not take choices: ${JSON.stringify(chosen)}`);
+  if(mobile)await activate(scope+" [data-setup-next]");
+  return chosen;
 }

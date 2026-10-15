@@ -18,7 +18,7 @@ export interface OwnedLeader {
   imageUrl: string | null;
   backImageUrl: string | null;
   owned: number;
-  decks: { id: number; name: string; isBuilt: boolean; game: Game; mainCount: number; status: DeckStatus }[];
+  decks: { id: number; name: string; description: string | null; isBuilt: boolean; game: Game; mainCount: number; status: DeckStatus }[];
 }
 
 /** Every LEADER card in the collection, with the decks it leads. `viewer` (an `OwnerScope`) narrows both to what the looker may see. */
@@ -54,7 +54,7 @@ export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game; 
   if (rows.length === 0) return [];
 
   const usage = await db
-    .select({ leaderId: deckCards.cardId, id: decks.id, name: decks.name, isBuilt: decks.isBuilt, game: decks.game })
+    .select({ leaderId: deckCards.cardId, id: decks.id, name: decks.name, description: decks.description, isBuilt: decks.isBuilt, game: decks.game })
     .from(deckCards)
     .innerJoin(decks, eq(decks.id, deckCards.deckId))
     .where(and(eq(deckCards.zone, "leader"), sql`${deckCards.cardId} in ${rows.map((r) => r.id)}`, visibleToViewer(opts.viewer)))
@@ -65,7 +65,7 @@ export async function ownedLeaders(db: Db, opts: { color?: string; game?: Game; 
   for (const u of usage) {
     const list = byLeader.get(u.leaderId) ?? [];
     const l = legalities.get(u.id);
-    list.push({ id: u.id, name: u.name, isBuilt: u.isBuilt, game: gameOr(u.game), mainCount: l?.mainCount ?? 0, status: l?.status ?? "incomplete" });
+    list.push({ id: u.id, name: u.name, description: u.description, isBuilt: u.isBuilt, game: gameOr(u.game), mainCount: l?.mainCount ?? 0, status: l?.status ?? "incomplete" });
     byLeader.set(u.leaderId, list);
   }
   return rows.map((r) => {

@@ -1,0 +1,105 @@
+
+> dbs-card-companion@0.1.0 build
+> next build
+
+▲ Next.js 16.3.0 (Turbopack)
+✓ Running next.config.ts took 40ms
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.5s
+  Running TypeScript ...
+  Finished TypeScript in 23.0s ...
+  Collecting page data using 4 workers ...
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+[AI Studio] DATABASE_URL is not set — database mock active. Set DATABASE_URL in environment to connect to a real Postgres database.
+  Generating static pages using 4 workers (0/13) ...
+  Generating static pages using 4 workers (3/13) 
+  Generating static pages using 4 workers (6/13) 
+  Generating static pages using 4 workers (9/13) 
+✓ Generating static pages using 4 workers (13/13) in 319ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /add
+├ ƒ /add/bulk
+├ ƒ /add/quick
+├ ƒ /add/scan
+├ ƒ /api/ai/agent-sdk
+├ ƒ /api/arena/offline/decks
+├ ƒ /api/arena/offline/pack
+├ ƒ /api/auth/callback/google
+├ ƒ /api/auth/login
+├ ƒ /api/join
+├ ƒ /api/scan
+├ ƒ /api/scan/photo/[id]
+├ ƒ /api/scan/quick
+├ ƒ /api/sync/meta
+├ ƒ /api/sync/prices
+├ ƒ /api/v1/decks
+├ ƒ /api/v1/decks/[id]
+├ ƒ /api/v1/games
+├ ƒ /api/v1/games/[id]
+├ ƒ /api/v1/games/[id]/abandon
+├ ƒ /api/v1/games/[id]/actions
+├ ƒ /api/v1/games/[id]/advance
+├ ƒ /api/v1/games/[id]/replay
+├ ƒ /api/v1/health
+├ ƒ /arena
+├ ƒ /arena/[id]
+├ ƒ /arena/[id]/debug
+├ ƒ /arena/feedback
+├ ƒ /arena/local
+├ ƒ /arena/match/[id]
+├ ○ /arena/offline
+├ ○ /arena/offline/pack.json
+├ ○ /arena/offline/shell.json
+├ ƒ /arena/preview
+├ ƒ /arena/review
+├ ƒ /arena/rules
+├ ƒ /arena/rules/all
+├ ƒ /arena/rules/build/[id]
+├ ƒ /arena/rules/build/preview
+├ ƒ /arena/rules/game
+├ ƒ /arena/rules/keywords
+├ ƒ /arena/rules/language
+├ ƒ /arena/rules/patterns
+├ ƒ /arena/rules/review
+├ ƒ /arena/setup-preview
+├ ƒ /cards
+├ ƒ /cards/[id]
+├ ƒ /cart
+├ ƒ /collection
+├ ƒ /collection/archived
+├ ƒ /decks
+├ ƒ /decks/[id]
+├ ○ /icon.svg
+├ ƒ /join
+├ ƒ /leaders
+├ ƒ /login
+├ ○ /manifest.webmanifest
+├ ƒ /me
+├ ƒ /meta
+├ ƒ /meta/news
+├ ƒ /password-login
+├ ƒ /sets/[code]/review
+├ ƒ /settings
+├ ƒ /settings/access
+├ ƒ /settings/locations
+└ ƒ /settings/users
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

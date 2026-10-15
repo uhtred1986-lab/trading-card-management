@@ -113,7 +113,20 @@ export function readPack(raw: unknown): PackFacts {
     const reasons = Array.isArray(q.reasons) ? q.reasons.filter((r): r is string => typeof r === "string") : [];
     throw new LocalBoardError("unplayable", `This deck pack is not playable yet${reasons.length ? ` (${reasons.length} open ${reasons.length === 1 ? "reason" : "reasons"})` : ""}. It stays closed until its open blockers are resolved.`, reasons);
   }
-  const decks = raw.decks.flatMap((d) => (record(d) && typeof d.key === "string" ? [{ key: d.key, name: typeof d.name === "string" ? d.name : d.key, leader: record(d.deck) && record(d.deck.leader) && typeof d.deck.leader.name === "string" ? d.deck.leader.name : null }] : []));
+  // The picker reads these fields before the worker performs full pack validation.
+  if (!record(raw.bundle) || !record(raw.bundle.payload) || !record(raw.bundle.payload.defs)
+    || raw.decks.some((d) => !record(d) || typeof d.key !== "string" || !record(d.deck) || typeof d.deck.leader !== "string"
+      || !Array.isArray(d.deck.main) || !d.deck.main.every((id) => typeof id === "string"))
+    || new Set(raw.decks.map((d) => d.key)).size !== raw.decks.length) {
+    throw new LocalBoardError("pack", "That deck pack has an invalid deck list or missing card definitions.");
+  }
+  const defs = raw.bundle.payload.defs;
+  const decks = raw.decks.flatMap((d) => {
+    if (!record(d) || typeof d.key !== "string") return [];
+    const leaderId = record(d.deck) && typeof d.deck.leader === "string" ? d.deck.leader : null;
+    const leader = leaderId ? defs[leaderId] : null;
+    return [{ key: d.key, name: typeof d.name === "string" ? d.name : d.key, leader: record(leader) && typeof leader.name === "string" ? leader.name : null }];
+  });
   if (decks.length < 1) throw new LocalBoardError("pack", "That deck pack has no decks.");
   return { pack: raw as unknown as OfflinePack, hash: raw.hash, id: raw.id, runtimeRevision: raw.compatibility.runtimeRevision, decks };
 }

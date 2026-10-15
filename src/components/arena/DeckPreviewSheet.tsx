@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { CardImage } from "@/components/CardImage";
 import { ColorPill } from "@/components/ColorPill";
@@ -31,6 +31,7 @@ const WORD: Record<CardRuleState, string> = { open: "open", incomplete: "incompl
  * Escape and top layer; the scrim click and the return of focus are added here.
  */
 export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId: number; deckName: string; className?: string }) {
+  const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const [loaded, setLoaded] = useState<{ deckId: number; cards: DeckPreviewCard[] } | null>(null);
@@ -68,7 +69,7 @@ export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId:
       </button>
       <dialog
         ref={dialog}
-        aria-labelledby={`deck-preview-${deckId}`}
+        aria-labelledby={titleId}
         onClose={() => {
           setOpen(false);
           opener.current?.focus();
@@ -81,7 +82,7 @@ export function DeckPreviewSheet({ deckId, deckName, className = "" }: { deckId:
           <div className="flex max-h-[85dvh] flex-col sm:max-h-none sm:h-full">
             <header className="flex items-start gap-2 border-b border-space-700 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <h2 id={`deck-preview-${deckId}`} className="truncate text-base font-semibold text-space-50">
+                <h2 id={titleId} className="break-words text-base font-semibold text-space-50">
                   {deckName}
                 </h2>
                 <p className="text-xs text-space-400" aria-live="polite">

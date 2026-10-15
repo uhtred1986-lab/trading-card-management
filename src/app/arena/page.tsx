@@ -109,7 +109,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
           </p>
         ) : (
           <PlayPicker
-            decks={playable.map((d) => ({ id: d.id, name: d.name, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
+            decks={playable.map((d) => ({ id: d.id, name: d.name, description: d.description, colors: d.leader?.colors ?? [], leaderId: d.leaderId, isBuilt: d.isBuilt, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
             initialDeck={initialDeck}
             initialClaudeDeck={initialClaudeDeck}
             costs={costs}
