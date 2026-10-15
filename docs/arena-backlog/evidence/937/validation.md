@@ -39,3 +39,13 @@ not resolve those independent clauses or justify a blind refresh. Runtime deploy
 rows; affected compiler-owned draft records require a separate guarded review.
 
 Validation receipt is recorded in the pull request after required checks finish.
+
+Final local checks on Node 24, with `DATABASE_URL` unset:
+
+- `npm run typecheck` and `npm run lint` passed (only existing prototype warnings).
+- `npx tsx scripts/verify/attack-target-937.ts` passed.
+- `npx tsx scripts/verify/language.ts --emit` regenerated the two language
+  fixtures; review confirmed only the new field/signature/documentation.
+- `npm test` passed in full, including all 92 arena suites and the policy,
+  worker, storage, database and other checks in the package test chain.
+- `npm run build` passed. No database/network-backed fuzz run was launched.
