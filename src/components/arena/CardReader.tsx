@@ -21,7 +21,7 @@ export function CardReader({ card, showAbilities, direction }: { card: CardView;
     <div className={styles.face} data-reader-direction={direction} data-reader-face>
       {hasArt ? <>
         {/* eslint-disable-next-line @next/next/no-img-element -- use the best available original, without inventing image detail. */}
-        <img src={cardImage(card.imageUrl, "full")} alt={card.name} draggable={false} className={styles.art} onError={() => setFailedImage(card.imageUrl)} />
+        <img src={cardImage(card.imageUrl!, "full")} alt={card.name} draggable={false} className={styles.art} onError={() => setFailedImage(card.imageUrl)} />
       </> : <div className={styles.placeholder}>{card.hidden ? "Face-down card" : card.name}</div>}
       {showAbilities && anchored && abilities.some(line => !line.copied) && <div className={styles.anchored} data-reader-boxes aria-label="Printed abilities over the card rules area">{boxes(false)}</div>}
     </div>
