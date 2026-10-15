@@ -30,3 +30,7 @@ Recruit 3–5 first-time players; use adult observation where appropriate. Do no
 6. Turn guidance off, complete one legal turn and explain the victory condition.
 
 For each task record: independent / needed help / not completed, observable confusion, device and approximate time. Proposed directional acceptance: no blocking controls; everyone reaches handoff; at least 80% explain four of five concepts and complete an unguided turn. Report actual sample size. Human results remain unverified until these sessions occur; agent behavior is not a substitute.
+
+## Local TinyFish connectivity check
+
+Run `86f03932-a6e1-4d31-8101-d8bc00e410c7` completed in 20 seconds / 8 steps with `ERR_CONNECTION_REFUSED` for the execution environment localhost URL. The route independently returned HTTP 200 from the execution environment. This is an access failure, not a tutorial usability result. The owner subsequently authorized testing on production after merging onto animation #862; a hosted live run remains pending.

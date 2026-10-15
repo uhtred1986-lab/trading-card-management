@@ -1,6 +1,6 @@
 # Tutorial implementation validation
 
-Integration PR: #861. Animation dependency: #862 (must land first).
+Integration PR: #861. Animation dependency: #862 landed at `d1544fbf`; its production deployment was verified READY before the tutorial merge.
 Implementation tested: `29312b61`, including animation head `c0effa15`.
 Fixture version: 1. Date: 15 October 2026.
 
@@ -23,3 +23,7 @@ The combined implementation passed TypeScript, ESLint (five existing prototype w
 Engine proofs are not a complete browser playthrough. The brief browser smoke does not establish exhaustive keyboard, 200% zoom, short-landscape or all-skins/all-viewports coverage. Human comprehension has not been tested. Agent evaluation results are recorded separately in `arena-tutorial-usability.md`; neither agent completion nor a prompt-only critique proves learning.
 
 The existing published Sites prototype is an earlier artifact. It is not the deployment of this implementation. Production deployment and TinyFish validation remain dependent on the animation-first merge order. Repository configuration disables hosted branch previews; this work does not change access or deployment settings.
+
+## Animation rebase and live validation authorization
+
+The owner authorized rebasing onto merged animation #862 and merging before the hosted usability test on 15 October 2026. Tutorial commits rebased cleanly onto `d1544fbf`; animation changes remain intact. The shared Stage diff remains an optional readiness callback only. The prior complete suite/build result is retained; affected tutorial session/lesson proofs, immersion assets validation and TypeScript all passed after this rebase. TinyFish will test the deployed tutorial.
