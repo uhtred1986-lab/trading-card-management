@@ -7,11 +7,9 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Dashboard", short: "Home" },
-  { href: "/collection", label: "Collection" },
-  { href: "/cards", label: "Cards" },
-  { href: "/decks", label: "Decks" },
-  { href: "/add", label: "Add cards", short: "Add" },
+  { href: "/", label: "Home" }, { href: "/collection", label: "Collection" },
+  { href: "/cards", label: "Cards" }, { href: "/decks", label: "Decks" },
+  { href: "/arena", label: "Arena" }, { href: "/meta", label: "Insights" },
 ];
 
 /**
@@ -19,22 +17,24 @@ export const NAV_ITEMS: NavItem[] = [
  * decision 6), so Arena is the first tab and replaces Home, which stays one tap away on the
  * header wordmark. A phone-only list; the desktop header keeps `NAV_ITEMS`.
  */
-export const PHONE_NAV_ITEMS: NavItem[] = [{ href: "/arena", label: "Arena" }, ...NAV_ITEMS.filter((i) => i.href !== "/")];
-
+export const PHONE_NAV_ITEMS: NavItem[] = [
+  { href: "/arena", label: "Arena" }, { href: "/collection", label: "Collection" },
+  { href: "/cards", label: "Cards" }, { href: "/decks", label: "Decks" }, { href: "/add", label: "Add cards", short: "Add" },
+];
 export const SECONDARY_ITEMS: NavItem[] = [
-  { href: "/leaders", label: "Leaders" },
-  { href: "/meta", label: "Meta & News" },
-  { href: "/arena", label: "Arena" },
-  { href: "/settings", label: "Settings & sync", short: "Settings" },
+  { href: "/leaders", label: "Leaders" }, { href: "/meta", label: "Insights" },
+  { href: "/add", label: "Add cards" }, { href: "/cart", label: "Want-list & cart" },
+  { href: "/collection/archived", label: "Archived copies" },
+  { href: "/me", label: "My account" }, { href: "/settings", label: "Settings" },
 ];
 
-/** A player has no Settings: their own page (`/me`, devices and sign-out) takes its place. */
 export function secondaryItems(isSl: boolean): NavItem[] {
-  return isSl ? SECONDARY_ITEMS : SECONDARY_ITEMS.map((i) => (i.href === "/settings" ? { href: "/me", label: "Me" } : i));
+  return isSl ? [...SECONDARY_ITEMS, { href: "/arena/rules", label: "Rules workbench" }, { href: "/arena/testing", label: "Testing" }, { href: "/arena/review", label: "Match review" }] : SECONDARY_ITEMS.filter(i => i.href !== "/settings");
 }
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
+  if (href === "/cards" && pathname === "/leaders") return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

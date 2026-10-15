@@ -6,6 +6,7 @@ import { ServiceWorker } from "@/components/ServiceWorker";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { getViewer } from "@/lib/auth";
 import "./globals.css";
+import "./design-system.css";
 
 /**
  * The arena's two faces (`docs/arena-redesign/prototype/arena.css`), both
@@ -43,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`h-full antialiased ${impact.variable} ${arenaText.variable}`} data-skin={skin}>
       <body className="flex min-h-full flex-col">
-        <AppShell isSl={viewer?.kind !== "player"}>{children}</AppShell>
+        <AppShell skin={skin} isSl={viewer?.kind !== "player"}>{children}</AppShell>
         <ServiceWorker />
       </body>
     </html>
