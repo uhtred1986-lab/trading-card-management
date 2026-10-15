@@ -740,6 +740,7 @@ export function CardSheet({
     for (const url of [previousImage, nextImage]) if (url) { const image = new Image(); image.src = cardImage(url, "full"); }
   }, [previousImage, nextImage]);
   const quickMoves = basicMoves.length ? basicMoves : moves.filter(move => move.legal.action.type === "play");
+  const needsPlayReview = (move: SheetMove) => move.legal.action.type === "play" && (!!move.legal.paymentPreview || (!!move.choicePreview && move.choicePreview.state !== "notEvaluated"));
   const position = pager ? `${sequence!.label} ${at + 1} / ${items.length}` : null;
 
   return (
@@ -806,12 +807,12 @@ export function CardSheet({
               <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="tap h-11 w-11 shrink-0 rounded-full border border-space-500 text-xl text-space-50 disabled:opacity-30">›</button>
             </div>}
             {quickMoves.length > 0 && <div className="flex max-h-24 shrink-0 flex-wrap gap-2 overflow-y-auto px-4 py-2" data-reader-actions>
-              {quickMoves.map(move => <button type="button" key={move.index} onClick={() => onPick(move)} className="tap min-h-11 flex-1 rounded-xl border border-ki-500 bg-space-800 px-3 py-2 text-sm font-semibold text-space-50">{move.targets ? "Attack · choose target" : move.legal.label}<span className="block text-xs font-normal text-space-200">{move.targets ? `${move.targets} ${move.targets === 1 ? "target" : "targets"}` : priceOf(move.legal.action, card, move.legal.label, move.legal.cost)}</span></button>)}
+              {quickMoves.map(move => <button type="button" key={move.index} onClick={() => needsPlayReview(move) ? setFullArt(false) : onPick(move)} className="tap min-h-11 flex-1 rounded-xl border border-ki-500 bg-space-800 px-3 py-2 text-sm font-semibold text-space-50">{move.targets ? "Attack · choose target" : needsPlayReview(move) ? "Review play" : move.legal.label}<span className="block text-xs font-normal text-space-200">{move.targets ? `${move.targets} ${move.targets === 1 ? "target" : "targets"}` : priceOf(move.legal.action, card, move.legal.label, move.legal.cost)}</span></button>)}
             </div>}
           </>
         ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
-          {basicMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
-            <ActionRows card={card} side={side} moves={basicMoves} rejected={[]} onPick={onPick} narrator={narrator} docked basicOnly />
+          {quickMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
+            <ActionRows card={card} side={side} moves={quickMoves} rejected={[]} onPick={onPick} narrator={narrator} docked basicOnly resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           </div>}
         {reviewMode === "own" && !fullArt && <div className="mx-4 mb-2 flex gap-1 rounded-full border border-space-600 p-1" role="group" aria-label="Card size">
           {(["full", "top"] as const).map((layout) => <button key={layout} type="button" aria-pressed={ownSize === layout} onClick={() => setOwnSize(layout)} className={`tap min-h-11 flex-1 rounded-full px-3 text-xs font-bold ${ownSize === layout ? "bg-space-50 text-space-900" : "text-space-100"}`}>{layout === "full" ? "Full card" : "Top half"}</button>)}
@@ -872,7 +873,7 @@ export function CardSheet({
               <StatTiles card={card} leader={leader} />
             </div>
           </div>
-          <ActionRows card={card} side={side} moves={moves.filter((move) => !basicMoves.includes(move))} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
+          <ActionRows card={card} side={side} moves={moves.filter((move) => !quickMoves.includes(move))} rejected={rejected} onPick={onPick} narrator={narrator} docked resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
           <CardDetail card={card} narrator={narrator} battle={battle} figures={false} printedOpen />
         </div>}
 
