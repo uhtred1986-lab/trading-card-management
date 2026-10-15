@@ -152,7 +152,11 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   const art = snap.beats?.art ?? {};
   const number = (list: Beat[]): NumberedBeat[] => list.map((b, i) => ({ ...b, n: i + 1 }) as NumberedBeat);
   let list: NumberedBeat[] = own;
-  if (fx === "reveal") list = own.filter((b) => b.t === "move");
+  if (fx.startsWith("immersion-")) {
+    const attacker = snap.view.you.battle[0]?.id ?? snap.view.you.leader?.id ?? "";
+    const guard = snap.view.them.battle[0]?.id ?? snap.view.them.leader?.id ?? "";
+    list = number(fx === "immersion-block" ? [{ t: "block", guard, by: guard }] : fx === "immersion-negated" ? [{ t: "negated" }] : fx === "immersion-hit" ? [{ t: "clash", attacker, guard, attackPower: 20000, guardPower: 10000, hit: true }] : [{ t: "attack", attacker, target: guard }]);
+  } else if (fx === "reveal") list = own.filter((b) => b.t === "move");
   else if (fx === "damage" || fx === "damage-you") list = number([{ t: "damage", player: fx === "damage" ? snap.view.them.player : snap.view.you.player, amount: 1, critical: false, cards: [] }]);
   else if (fx.startsWith("clash")) {
     const attacker = snap.view.battle?.attacker ?? "";

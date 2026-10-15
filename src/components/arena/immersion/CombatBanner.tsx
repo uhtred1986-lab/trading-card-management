@@ -1,0 +1,69 @@
+"use client";
+
+import { useEffect, useState, type CSSProperties } from "react";
+import type { CombatMoment } from "@/lib/arena/immersion/types";
+import styles from "./CombatBanner.module.css";
+
+export interface CombatBannerProps {
+  moment: CombatMoment | null;
+  reducedMotion?: boolean;
+  /** Presentation pace only; capped at 1100ms and never awaited by gameplay. */
+  durationMs?: number;
+  onSkip: () => void;
+}
+
+/** The same public presentation beat is used for Leader and Battle Card combat. */
+export function CombatBanner({ moment, reducedMotion = false, durationMs, onSkip }: CombatBannerProps) {
+  return moment ? <CombatBeat key={moment.key} moment={moment} reducedMotion={reducedMotion} durationMs={durationMs} onSkip={onSkip} /> : null;
+}
+
+function CombatBeat({ moment, reducedMotion, durationMs, onSkip }: CombatBannerProps & { moment: CombatMoment; reducedMotion: boolean }) {
+  const [finished, setFinished] = useState(false);
+  const [loadedSheet, setLoadedSheet] = useState<string | null>(null);
+  const defaultDuration = moment.outcome === "attack" ? 460 : 1100;
+  const duration = durationMs !== undefined && Number.isFinite(durationMs) ? Math.max(1, Math.min(1100, durationMs)) : defaultDuration;
+  const sheet = moment.character?.sheet;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setFinished(true), duration);
+    return () => window.clearTimeout(timer);
+  }, [duration]);
+
+  useEffect(() => {
+    if (!sheet) return;
+    let active = true;
+    const image = new Image();
+    image.onload = () => { if (active && image.naturalWidth === image.naturalHeight * 3) setLoadedSheet(sheet); };
+    image.src = sheet;
+    return () => { active = false; image.onload = null; };
+  }, [sheet]);
+
+  if (finished) return null;
+  // A repel/negate never borrows the damage pose, even if its caller supplies it.
+  const character = loadedSheet === sheet && moment.outcome !== "repelled" && moment.outcome !== "negated" ? moment.character : null;
+  const pose = moment.outcome === "attack" ? "attack" : moment.outcome === "hit" ? "hit" : "guard";
+  // These silhouettes cross nominal thirds; use the reviewed prototype crops.
+  const frame: CSSProperties = pose === "attack"
+    ? { backgroundSize: "238.095% 100%", backgroundPosition: "0% 0%", clipPath: "polygon(0 0,100% 0,100% 64%,81% 64%,81% 100%,0 100%)" }
+    : pose === "guard"
+      ? { backgroundSize: "294.118% 100%", backgroundPosition: "54.545% 0%", clipPath: "polygon(18% 0,100% 0,100% 100%,0 100%,0 60%,18% 60%)" }
+      : { backgroundSize: "322.581% 100%", backgroundPosition: "100% 0%", clipPath: "none" };
+  const style = { "--beat-duration": `${duration}ms` } as CSSProperties;
+
+  return (
+    <div className={`${styles.overlay} ${reducedMotion ? styles.reduced : ""}`} style={style} data-combat-banner={moment.outcome}>
+      <div className={`${styles.banner} ${styles[moment.outcome]} ${!character ? styles.neutral : ""}`}>
+        <div className={styles.speedfield} aria-hidden="true" />
+        <div className={styles.farfield} aria-hidden="true" />
+        <div className={styles.energy} aria-hidden="true" />
+        {character && <div className={`${styles.figure} ${styles[pose]}`} aria-hidden="true" style={{ backgroundImage: `url(${JSON.stringify(character.sheet)})`, ...frame }} />}
+        {character && <span className={styles.name}>{character.name}</span>}
+        <span className={styles.word} role="status">{moment.outcome.toUpperCase()}</span>
+        <div className={styles.track} aria-hidden="true"><div /></div>
+      </div>
+      <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip effect</button>
+    </div>
+  );
+}
+
+export default CombatBanner;

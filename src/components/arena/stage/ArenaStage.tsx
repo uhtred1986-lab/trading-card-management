@@ -1,5 +1,7 @@
 "use client";
 
+import { ArenaImmersion, ImmersionSettings } from "../immersion/ArenaImmersion";
+
 import { GamePlanPanel } from "./GamePlanPanel";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
@@ -1743,6 +1745,7 @@ export function ArenaStage({
                 <PaceToggle />
               </div>
             </MenuSection>
+            <MenuSection title="Combat effects"><ImmersionSettings /></MenuSection>
             <MenuSection title="Board">
               <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
@@ -1781,6 +1784,7 @@ export function ArenaStage({
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
+        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} suppressed={!!sheet || moreOpen || !!notice || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
         <ClashBeam beat={beat} hostRef={boardRef} />
         <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
 
