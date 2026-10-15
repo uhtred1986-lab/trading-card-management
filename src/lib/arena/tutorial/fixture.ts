@@ -25,7 +25,7 @@ export const PRACTICE_ART: Record<string, CardArt> = Object.fromEntries(Object.k
 /** Normal engine setup first; this fresh fixture alone then uses the disclosed three-Life shortcut. */
 export function createPracticeState(): VmState {
   const deck = { name: "Synthetic red training deck", leader: "TRAIN-LEADER", main: Array.from({ length: 50 }, (_, i) => i % 2 ? "TRAIN-SCOUT" : "TRAIN-PARTNER") };
-  let state = RULES.createGame(PRACTICE_CONTEXT, { seed: 841, p1: deck, p2: deck }).state;
+  let state = RULES.createGame(PRACTICE_CONTEXT, { seed: 841, p1: { ...deck, name: "You" }, p2: { ...deck, name: "Training opponent" } }).state;
   for (let n = 0; state.phase === "setup" && n < 12; n++) {
     const actions = RULES.legalActions(PRACTICE_CONTEXT, state);
     const action = actions.find(x => x.action.type === "chooseFirst" && x.action.first === "p1")?.action
