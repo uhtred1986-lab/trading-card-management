@@ -46,7 +46,7 @@
   height: max(420px, calc(100dvh - var(--tutorial-reserve, 140px) - 1rem));
   min-height: 420px;
 }
-.toolbar { padding-block: 0; margin-bottom: .25rem; background: transparent; }
+.toolbar { padding-block: 0; margin-bottom: .25rem; background: #141a2b; border-radius: .5rem; }
 .toolbar .controls { margin-top: 0; }
 .toolbar :is(button, summary) { padding: .45rem .7rem; }
 .coach { position: relative; gap: .65rem; padding: .5rem; line-height: 1.4; }
