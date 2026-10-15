@@ -59,3 +59,11 @@ Inspection now opens an enlarged card reader with a persistent card strip. Flick
 Readable boxes come from visible ability rows (or printed text when rows are absent), with the snapshot's availability. The reviewed bundled classic tutorial layouts anchor the boxes at the printed rules block. This is a block-level reading overlay, not detected per-line OCR coordinates. Unknown layouts use a tray below the image; copied abilities stay in their own tray instead of pretending to be printed. Artwork-only mode and the full details/actions panel remain available. Full-size original URLs are requested where the catalog offers them; adjacent visible cards are prefetched, never concealed faces. Dense boxes scroll and expand, and missing images retain the readable text tray.
 
 Video basis: the attack box over Charmander's printed attack at approximately 02:04 and the card inspection/browsing throughout the supplied TCG recording. No engine changes or full deck/engine test run.
+
+### Touch-held hand preview (#884)
+
+The 1:30–1:42 reference lifts a card above the board while the original hand remains reachable. On phones, touching a hand card now opens that floating preview immediately; sliding across exposed cards changes it during the same pointer gesture. Holding at the hand's edge scrolls overflow cards into reach. Releasing keeps the preview readable; cancellation dismisses it. The artwork can be gently dragged/tilted and settles on release. Details & actions opens the existing inspector and its payment evidence. Desktop, targeting and combo choices retain their existing controls.
+
+Ability boxes now use conservative reading shorthand over reviewed rules areas (including the Leader-only attack condition and once-per-turn qualifiers). Full printed text remains on expansion. Unknown layouts retain their below-card tray. Only the artwork owns free dragging; ability text retains native vertical touch scrolling. Browsing never submits a game action.
+
+Focused proof: `scripts/arena-hand-scrub.mts` exercises continuous real touch selection before release, no submitted actions, free movement, text expansion and pointer cancellation in both themes. Existing phone attack/response checks remain applicable; no full engine/deck suite is required for these presentation changes.

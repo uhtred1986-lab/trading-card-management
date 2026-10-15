@@ -1,8 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { ZoneAnchor } from "./anchors";
+import { HandPeek } from "./HandPeek";
 import { StageCard } from "./StageCard";
 import styles from "./phone-board.module.css";
 
@@ -21,6 +22,7 @@ export function Hand({
   handStatus,
   handAction,
   defending = false,
+  browseEnabled = true,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -36,6 +38,7 @@ export function Hand({
   handStatus?: (id: string) => "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge" | null;
   handAction?: (id: string) => string | null;
   defending?: boolean;
+  browseEnabled?: boolean;
 }) {
   // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
@@ -59,6 +62,44 @@ export function Hand({
     ro.observe(el);
     return () => ro.disconnect();
   }, [cardWidth]);
+
+  const [peek, setPeek] = useState<{ id: string; top: number; skin: string; offset: number } | null>(null);
+  const pointer = useRef<number | null>(null);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const suppressedClick = useRef(0);
+  const browsing = !wide && browseEnabled;
+  const visiblePeek = browsing ? cards.find(c => c.id === peek?.id) : null;
+  const showPeek = (id: string, x?: number) => {
+    const el = fan.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPeek({ id, top: rect.top, skin: el.closest("[data-skin]")?.getAttribute("data-skin") ?? "anime", offset: x == null ? 0 : Math.max(-12, Math.min(12, (x - rect.left - rect.width / 2) * .06)) });
+  };
+  const scrub = (x: number) => {
+    const el = fan.current;
+    if (!el) return;
+    const candidates = [...el.querySelectorAll<HTMLElement>("[data-hand-browse-card]")];
+    // Later cards overlap earlier ones, so the rightmost exposed face wins.
+    const hit = candidates.filter(node => { const r = node.getBoundingClientRect(); return x >= r.left && x <= r.right; }).at(-1);
+    if (hit) showPeek(hit.dataset.handBrowseCard!, x);
+  };
+  useEffect(() => {
+    if (!visiblePeek) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setPeek(null); };
+    window.addEventListener("keydown", key);
+    let frame = 0;
+    const tick = () => {
+      const el = fan.current, point = lastPoint.current;
+      if (pointer.current != null && el && point) {
+        const r = el.getBoundingClientRect();
+        const step = point.x < r.left + 28 ? -5 : point.x > r.right - 28 ? 5 : 0;
+        if (step) { el.scrollLeft += step; scrub(point.x); }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("keydown", key); };
+  });
 
   const first = cards[0];
   const firstProps = first ? cardProps(first) : null;
@@ -95,7 +136,31 @@ export function Hand({
       )}
       {fanMode && <p className={styles.handFanHeader}>Your hand · {n} · {cards.filter((c) => ["playable", "targets", "noTarget"].includes(handStatus?.(c.id) ?? "")).length} playable · tap a card to browse</p>}
       <div className={`${fanMode ? styles.handRow : ""}`} data-hand-fan={fanMode ? "" : undefined}>
-      <div ref={fan} className={`${styles.handViewport} ${fanMode ? styles.fanViewport : ""}`} tabIndex={0} aria-label="Scrollable hand cards">
+      <div ref={fan}
+        onPointerDownCapture={e => {
+          if (!browsing || !e.isPrimary || e.button !== 0) return;
+          const target = (e.target as HTMLElement).closest<HTMLElement>("[data-hand-browse-card]");
+          if (!target) return;
+          e.preventDefault(); e.stopPropagation();
+          pointer.current = e.pointerId; lastPoint.current = { x: e.clientX, y: e.clientY };
+          e.currentTarget.setPointerCapture(e.pointerId);
+          showPeek(target.dataset.handBrowseCard!, e.clientX);
+        }}
+        onPointerMove={e => {
+          if (pointer.current !== e.pointerId) return;
+          e.preventDefault(); e.stopPropagation();
+          lastPoint.current = { x: e.clientX, y: e.clientY }; scrub(e.clientX);
+        }}
+        onPointerUp={e => {
+          if (pointer.current !== e.pointerId) return;
+          e.preventDefault(); e.stopPropagation(); pointer.current = null; lastPoint.current = null;
+          suppressedClick.current = Date.now();
+          setPeek(value => value && { ...value, offset: 0 });
+        }}
+        onPointerCancel={() => { pointer.current = null; lastPoint.current = null; suppressedClick.current = Date.now(); setPeek(null); }}
+        onClickCapture={e => { if (browsing && Date.now() - suppressedClick.current < 400) { e.preventDefault(); e.stopPropagation(); } }}
+        style={browsing ? { touchAction: "none" } : undefined}
+        className={`${styles.handViewport} ${fanMode ? styles.fanViewport : ""}`} tabIndex={0} aria-label="Scrollable hand cards">
       <div
         className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
         // One card's height and its dip, so an empty hand keeps the board's shape.
@@ -112,17 +177,19 @@ export function Hand({
           return (
             <div
               key={c.id}
-              {...handlers}
+              {...(browsing ? {} : handlers)}
+              data-hand-browse-card={c.id}
               className={`${styles.handCard} relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{
                 marginLeft: i === 0 ? 0 : step - card,
-                zIndex: up ? 60 : i + 1,
+                zIndex: i + 1,
                 // Keep horizontal swipes for browsing while retaining vertical drags.
-                touchAction: handlers ? (wide ? "none" : "pan-x") : undefined,
+                touchAction: browsing ? "none" : handlers ? (wide ? "none" : "pan-x") : undefined,
+                transform: visiblePeek?.id === c.id ? "translateY(-12px)" : undefined,
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
               }}
             >
-              <StageCard {...props} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
+              <StageCard {...props} onTap={browsing ? () => showPeek(c.id) : props.onTap} onDoubleTap={browsing ? undefined : props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
               {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
@@ -143,6 +210,7 @@ export function Hand({
       </div>
       {fanMode && firstProps?.onInspect && <button type="button" onClick={firstProps.onInspect} className={`${styles.handOpen} tap rounded-xl border-2 border-space-950 bg-space-800 text-space-50`} aria-label={`Open the whole hand, ${n} cards`}><b>{n}</b><span>Open hand</span></button>}
       </div>
+      {visiblePeek && peek && <HandPeek card={visiblePeek} handTop={peek.top} skin={peek.skin} offset={peek.offset} onClose={() => setPeek(null)} onInspect={() => { setPeek(null); cardProps(visiblePeek).onInspect?.(); }} />}
     </section>
   );
 }
