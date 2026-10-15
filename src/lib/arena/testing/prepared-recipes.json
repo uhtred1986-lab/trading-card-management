@@ -1,0 +1,840 @@
+{
+  "version": 1,
+  "checkedAt": "2026-10-15T01:20:28.587Z",
+  "source": "Current app catalog restrictions; not independently verified against the current official ban list. These are draft quantities, not qualified decks.",
+  "sourceCommit": "3ee8f03e3f489b8880b8565cd93e3c7d761029f0",
+  "recipes": [
+    {
+      "id": "bt31-116-white-cell-reveal-evolve",
+      "name": "BT31 — White Cell / reveal-evolve",
+      "release": "BT31",
+      "leaderId": "BT31-116",
+      "leaderName": "Cell",
+      "mainCount": 50,
+      "zCount": 4,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "c1ca8cff8686154b5a4d96940c4ad3365b5038df60a1e5d805451c2167cc0f4a",
+      "qualification": "Not run",
+      "compilerGapCards": [
+        "BT31-133",
+        "BT31-140",
+        "BT31-141"
+      ],
+      "notes": [
+        "New public proposal, not the owner's saved White Cell list.",
+        "All Extras are white and cost2; Cell/Android bases support absorption and evolution.",
+        "Dende is a generic on-play draw body; its Hyperbolic Time Chamber under-card skill has no matching Leader here.",
+        "Four Creeping Terror Z-Battles have recorded Z-Energy cost1; quantity and remaining costs still need full qualification."
+      ],
+      "cards": [
+        {
+          "id": "BT31-128",
+          "name": "Cell, Ultimate Form",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-129",
+          "name": "Cell, Perfect Form",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-130",
+          "name": "Cell, Absorbed Form",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-131",
+          "name": "Cell, Ominous Android",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-132",
+          "name": "Cell, Ominous Larva",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-133",
+          "name": "Cell Jr., the Fiendish",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-126",
+          "name": "Android 18, Supporter",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-127",
+          "name": "Dende, Training Assistant",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-138",
+          "name": "Cell's Solar Flare",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-139",
+          "name": "Absorb and Power Up",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-140",
+          "name": "Regeneration Skill",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-141",
+          "name": "Cell Jr. Summon",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-142",
+          "name": "Cell's Kamehameha",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT31-119",
+          "name": "Cell, Creeping Terror",
+          "quantity": 4,
+          "zone": "z"
+        }
+      ]
+    },
+    {
+      "id": "bt3-082-bardock-great-ape-cleanup",
+      "name": "BT3 — Bardock / Great Ape cleanup",
+      "release": "BT3",
+      "leaderId": "BT3-082",
+      "leaderName": "Bardock",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "5ed67f5eb587ab770375d65b2664d7c3e2ca833ce2d22c4db36487065d460814",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "Fasha/Tora have actual matching bases; 5-cost Bardock supplies both EX-Evolve targets.",
+        "BT15-102 is mixed-release yellow Super Combo support; no banned/restricted status is inferred from this design.",
+        "Ingredient presence does not prove the combo-cleanup evolution trigger fired."
+      ],
+      "cards": [
+        {
+          "id": "BT3-097",
+          "name": "Unwavering Solidarity Tora",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-096",
+          "name": "Hidden Power Great Ape Tora",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-099",
+          "name": "Unwavering Solidarity Fasha",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-098",
+          "name": "Hidden Power Great Ape Fasha",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-095",
+          "name": "Youthful Bulma",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-086",
+          "name": "Striker Bardock",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-085",
+          "name": "Great Protector, Great Ape Bardock",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-084",
+          "name": "Desperate Warrior Super Saiyan Bardock",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-088",
+          "name": "Explosive Spirit Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-101",
+          "name": "Unwavering Solidarity Borgos",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-104",
+          "name": "Flying Nimbus",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT15-102",
+          "name": "Yamcha, Battle at the Tree",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-094",
+          "name": "Vegeta",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-093",
+          "name": "Lord of the Great Apes, King Vegeta",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt3-108-trunks-over-realm-return",
+      "name": "BT3 — Trunks / Over Realm return",
+      "release": "BT3",
+      "leaderId": "BT3-108",
+      "leaderName": "Trunks",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "illegal",
+      "legalityIssues": [
+        {
+          "severity": "illegal",
+          "message": "Unrelenting Assault Trunks (BT3-112): banned card.",
+          "cardId": "BT3-112"
+        },
+        {
+          "severity": "warning",
+          "message": "Mr. Buu (BT4-015): off-colour for a Black leader.",
+          "cardId": "BT4-015"
+        },
+        {
+          "severity": "warning",
+          "message": "Son Gohan (BT4-028): off-colour for a Black leader.",
+          "cardId": "BT4-028"
+        }
+      ],
+      "listSha256": "8d569b38e8200e74de0ffc69ef6f4feefa785db924cfe4eb0f540a63bbc101a2",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "BLOCKED historical recipe: app catalog captured2026-10-15 marks BT3-112 banned. Do not assemble this as a legal deck.",
+        "Red/blue skill-less support enables the front Leader's draw condition after milling or development.",
+        "Towa/Mira bases supply the included Xeno-Evolve targets; Over Realm shares its once-per-turn budget.",
+        "Battle/deck-to-Warp return belongs in a historical targeted rules scenario, not a current legal-deck qualification."
+      ],
+      "cards": [
+        {
+          "id": "BT3-112",
+          "name": "Unrelenting Assault Trunks",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-110",
+          "name": "Awakened Warrior Bardock",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-111",
+          "name": "Trunks, Power Overseeing Time",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-113",
+          "name": "Supreme Kai of Time, World's Protector",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-115",
+          "name": "Towa, Space Time Unleashed",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-117",
+          "name": "Relentless Destruction Mira",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-119",
+          "name": "Shun Shun, Protector Majin",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-120",
+          "name": "Haru Haru, Attacker Majin",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-122",
+          "name": "Time's Judgement",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-121",
+          "name": "Dark Plot",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-114",
+          "name": "Towa, Reprogrammed Menace",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-116",
+          "name": "Dimension Breaker Mira",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-015",
+          "name": "Mr. Buu",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-028",
+          "name": "Son Gohan",
+          "quantity": 4,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt29-029-cooler-squadron-return-loop",
+      "name": "BT29 — Cooler / Squadron return loop",
+      "release": "BT29",
+      "leaderId": "BT29-029",
+      "leaderName": "Cooler",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "85e8ed9b0d38c8bd8bb473cdd774f12c1c96a1e9c2663e7b2cae8e20386f324f",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "Blue 1-cost Swap sources, 5-cost Armored Squadron targets and blue Field Extras provide the named return-loop ingredients.",
+        "BT4-028 is mixed-release skill-less blue support; this deliberately omits optional BT29-030 while its missing Z-Energy input is unresolved.",
+        "The original-Battle-holder watcher and replacement destination need their own fired-event evidence."
+      ],
+      "cards": [
+        {
+          "id": "BT29-031",
+          "name": "Cooler, Incredible Ultimate Evolution",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-032",
+          "name": "Cooler, Incredible Ultimate Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-033",
+          "name": "Salza, Elite Squad Splendor",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-034",
+          "name": "Salza, Brains of the Armored Squadron",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-035",
+          "name": "Salza, Technique",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-036",
+          "name": "Dore, Elite Squad Splendor",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-037",
+          "name": "Dore, Power",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-038",
+          "name": "Neiz, Elite Squad Splendor",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-039",
+          "name": "Neiz, Speed",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-040",
+          "name": "Yes, Time to Die!",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-041",
+          "name": "Fearsome Conquest",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT29-042",
+          "name": "Loyalty to Cooler",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-028",
+          "name": "Son Gohan",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "sd15-01-pride-of-the-saiyans-starter-control",
+      "name": "SD15 — Pride of the Saiyans / starter control",
+      "release": "SD15",
+      "leaderId": "SD15-01",
+      "leaderName": "Vegeta",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [
+        {
+          "severity": "warning",
+          "message": "Android 18, Steadfast Technique (BT9-031): off-colour for a Red leader.",
+          "cardId": "BT9-031"
+        },
+        {
+          "severity": "warning",
+          "message": "Infinite Energy Android 18 (TB1-055): off-colour for a Red leader.",
+          "cardId": "TB1-055"
+        }
+      ],
+      "listSha256": "a187dd816147bad0355a2b7dd297eb863f2e0fb25afd986e4c6c3a2ee889f8fd",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "athenagames.com reproduction of Bandai's official SD15 Pieces table; main deck sums to 50.",
+        "Owner decision of 13 Oct 2026: BT10-008 x2 -> x1 (limit 1) and BT5-023 x2 -> x3.",
+        "Historical audited quantities, not current strategic qualification."
+      ],
+      "cards": [
+        {
+          "id": "SD15-02",
+          "name": "SS Cabba, Spirit Resonance",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "SD15-03",
+          "name": "Son Goku, Spirit Boost Warrior",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "SD15-04",
+          "name": "Surprise Attack Son Gohan",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "SD15-05",
+          "name": "Surprise Attack SSB Vegeta",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT1-014",
+          "name": "Saiyan Cabba",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT1-027",
+          "name": "Cabba's Awakening",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-027",
+          "name": "Unending Awakening",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-012",
+          "name": "Intensifying Power Trunks",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT5-023",
+          "name": "Afterimage Technique",
+          "quantity": 3,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-010",
+          "name": "Support Attack Trunks",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-011",
+          "name": "Bulma, from the Sidelines",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-025",
+          "name": "Transcendent Strike",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT6-026",
+          "name": "Is That All You've Got?",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT9-031",
+          "name": "Android 18, Steadfast Technique",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT10-008",
+          "name": "Yamcha, Merciless Barrage",
+          "quantity": 1,
+          "zone": "main"
+        },
+        {
+          "id": "BT11-008",
+          "name": "Son Goku, Saiyan Youth",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT11-011",
+          "name": "Vegeta, Saiyan Youth",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT14-006",
+          "name": "Super Saiyan Son Goku",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT14-010",
+          "name": "Tien Shinhan, Universe 7 Challenger",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "TB1-023",
+          "name": "Strategies of Universe 7",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "TB1-055",
+          "name": "Infinite Energy Android 18",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "DB1-019",
+          "name": "Niagara Drop",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "DB2-004",
+          "name": "Piccolo, Namekian Fortification",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "DB3-001",
+          "name": "Master Roshi, Potential Unleashed",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "sd5-01-crimson-saiyan-starter-control",
+      "name": "SD5 — Crimson Saiyan / starter control",
+      "release": "SD5",
+      "leaderId": "SD5-01",
+      "leaderName": "Golden Great Ape Son Goku",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [],
+      "listSha256": "52061b8d488fedaed9f6cea22bfaf40567c950ba1c7f64e88d77448d59c04399",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "poggers.com reproduction of SD05; main deck sums to 50.",
+        "Historical audited quantities, not current strategic qualification."
+      ],
+      "cards": [
+        {
+          "id": "SD5-03",
+          "name": "SSB Son Goku, at the Apex",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-077",
+          "name": "Indomitable Dynasty SS Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-078",
+          "name": "Dependable Dynasty Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-081",
+          "name": "Dynasty Deferred Son Goku",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-084",
+          "name": "Intrepid Dynasty Son Gohan",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-085",
+          "name": "Prodigal Dynasty Son Goten",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-086",
+          "name": "Plucky Dynasty Pan",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-089",
+          "name": "Dynasty's Solace Chi-Chi",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-091",
+          "name": "Adoptive Father Son Gohan",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-097",
+          "name": "Instant Transmission",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "SD5-02",
+          "name": "Power Charge Bardock",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "SD5-04",
+          "name": "Reborn Might SS4 Son Goku",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "SD5-05",
+          "name": "Ultimate Potential SS2 Son Gohan",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-079",
+          "name": "Unbroken Dynasty Son Goku",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-096",
+          "name": "10x Kamehameha",
+          "quantity": 2,
+          "zone": "main"
+        }
+      ]
+    },
+    {
+      "id": "bt3-108-trunks-over-realm-legal-control",
+      "name": "BT3 — Trunks / legal Over Realm control",
+      "release": "BT3",
+      "leaderId": "BT3-108",
+      "leaderName": "Trunks",
+      "mainCount": 50,
+      "zCount": 0,
+      "catalogLegality": "legal",
+      "legalityIssues": [
+        {
+          "severity": "warning",
+          "message": "Mr. Buu (BT4-015): off-colour for a Black leader.",
+          "cardId": "BT4-015"
+        },
+        {
+          "severity": "warning",
+          "message": "Son Gohan (BT4-028): off-colour for a Black leader.",
+          "cardId": "BT4-028"
+        }
+      ],
+      "listSha256": "52618bb011a1c5c841fc974aba64ef8a577f0900b27d80f7722b64298fd68076",
+      "qualification": "Not run",
+      "compilerGapCards": [],
+      "notes": [
+        "Separate legal-control proposal; deliberately omits banned BT3-112, retaining the blocked original recipe for evidence.",
+        "Adds two Towa and two Mira Xeno-Evolve finishers, preserving50cards and their matching bases.",
+        "Supports Over Realm but does not cover Unrelenting Assault Trunks' historical Warp-return mechanic."
+      ],
+      "cards": [
+        {
+          "id": "BT3-110",
+          "name": "Awakened Warrior Bardock",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-111",
+          "name": "Trunks, Power Overseeing Time",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-113",
+          "name": "Supreme Kai of Time, World's Protector",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-115",
+          "name": "Towa, Space Time Unleashed",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-117",
+          "name": "Relentless Destruction Mira",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-119",
+          "name": "Shun Shun, Protector Majin",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-120",
+          "name": "Haru Haru, Attacker Majin",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-122",
+          "name": "Time's Judgement",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-121",
+          "name": "Dark Plot",
+          "quantity": 2,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-114",
+          "name": "Towa, Reprogrammed Menace",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT3-116",
+          "name": "Dimension Breaker Mira",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-015",
+          "name": "Mr. Buu",
+          "quantity": 4,
+          "zone": "main"
+        },
+        {
+          "id": "BT4-028",
+          "name": "Son Gohan",
+          "quantity": 4,
+          "zone": "main"
+        }
+      ]
+    }
+  ]
+}

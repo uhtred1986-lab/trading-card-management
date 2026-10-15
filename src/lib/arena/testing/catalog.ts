@@ -120,7 +120,7 @@ export const TESTING_DECK_CATALOG: TestingDeckSeed[] = [
     ],
     "firstWave": true,
     "description": "Proposed recipe. Final quantities, legality, printed inputs and current stored-rule qualification are pending.",
-    "notes": "Open movement-trigger follow-up",
+    "notes": "Historical scenario only: app catalog checked 15 October 2026 marks BT3-112 banned. See the separate prepared legal Over Realm control; it does not cover this banned card’s return ability.",
     "source": "docs/arena-proposed-decks.md#release-inventory-and-full-main-booster-proposal"
   },
   {
