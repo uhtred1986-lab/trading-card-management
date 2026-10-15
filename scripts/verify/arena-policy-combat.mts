@@ -447,7 +447,8 @@ assert.equal(guardTrips, 0, "the local policy never needed the cycle guard in th
 const cost = { p50: quantile(choiceTimes, 0.5), p95: quantile(choiceTimes, 0.95), max: Math.max(...choiceTimes) };
 if (process.argv.includes("--record-performance")) {
   // Explicit observational run on a host whose timing is not an acceptance gate.
-  // The normal npm test command keeps both ceilings; no functional assertion is skipped.
+  // npm test records timing; test:policy-performance keeps both original ceilings.
+  // No functional assertion is skipped in either mode.
   console.log(`PERFORMANCE RECORDED ONLY: battle policy p95 ${cost.p95.toFixed(2)} ms (limit 5), max ${cost.max.toFixed(1)} ms (limit 100)`);
 } else {
   assert.ok(cost.p95 <= 5, `battle policy p95 ${cost.p95.toFixed(2)} ms is within 5 ms`);
