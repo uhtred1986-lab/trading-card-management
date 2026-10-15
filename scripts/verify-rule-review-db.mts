@@ -80,6 +80,13 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   assert.equal((await queue()).some((x) => x.id === draftA), false, "a flagged draft waits for the computer, not in the queue again");
   assert.deepEqual((await sameWordingIds(db, draftB))?.ids.sort(), [draftB, elsewhere].sort(), "nor is it confirmed in bulk behind the flag");
 
+
+  const reports = await reviewQueue(db, { cardIds: deckIds, ruleIds: [draftA, draftB], flaggedOnly: true, decksOf, recent: { gameId: null, fired: [] } });
+  assert.deepEqual(reports.map((r) => r.id), [draftA], "reported mismatches remain reachable in their scoped correction queue");
+  assert.deepEqual((await reviewQueue(db, { cardIds: deckIds, ruleIds: [draftB], decksOf, recent: { gameId: null, fired: [] } })).map((r) => r.id), [draftB], "guided review honors exact rule filters");
+  const protectedBatch = await confirmMatching(db, { cardIds: ["BT18-783", "BT18-784"] });
+  assert.deepEqual(protectedBatch.rules.map((r) => r.id), [draftB], "workbench bulk approval excludes reported mismatches on the server");
+  await undoConfirmed(db, protectedBatch);
   await unflagWrong(db, receipt);
   assert.equal((await statusOf(draftA)).e, null, "Undo puts the explanation back as it was");
   const [closed] = await db.select().from(schema.arenaFeedback).where(eq(schema.arenaFeedback.id, receipt.feedbackId));

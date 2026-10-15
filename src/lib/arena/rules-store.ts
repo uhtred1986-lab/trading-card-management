@@ -601,7 +601,7 @@ export async function confirmMatching(db: Db, f: RuleFilter): Promise<ConfirmBat
     .select({ id: cardRules.id })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(and(rulePredicate(f, true), eq(cardRules.status, "draft")));
+    .where(and(rulePredicate(f, true), eq(cardRules.status, "draft"), sql`jsonb_array_length(${cardRules.unread}) = 0`, sql`coalesce(${cardRules.explanation}, '') not like 'Wrong (phone review)%'`));
   const rules = await db
     .update(cardRules)
     .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })

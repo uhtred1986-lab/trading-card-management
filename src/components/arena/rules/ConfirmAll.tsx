@@ -10,13 +10,12 @@ import type { RuleFilter } from "@/lib/arena/rules-store";
  *
  * It confirms what the *filter* matches, not the page you can see — a page is
  * 200 rows and a wording can be 400 — so the count is said before and after,
- * and a press over `ASK_ABOVE` rows is confirmed once first. Undo is offered
+ * and every bulk operation requires a separate confirmation. Undo is offered
  * for as long as the batch is on the feedback row, so it survives a reload;
  * a row edited since is left alone and reported.
  */
-const ASK_ABOVE = 500;
 
-export function ConfirmAll({ filter, drafts, label = "Confirm all drafts in view", batches }: { filter: RuleFilter; drafts: number; label?: string; batches: { id: number; note: string; n: number }[] }) {
+export function ConfirmAll({ filter, drafts, label = "Review bulk approval", batches }: { filter: RuleFilter; drafts: number; label?: string; batches: { id: number; note: string; n: number }[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [said, setSaid] = useState<string | null>(null);
@@ -48,16 +47,16 @@ export function ConfirmAll({ filter, drafts, label = "Confirm all drafts in view
       {drafts > 0 &&
         (asked ? (
           <>
-            <span className="text-ki-300">Confirm {drafts} drafts at once?</span>
+            <span className="text-ki-300">Approve up to {drafts} matching drafts across all pages? Reported or unread drafts are excluded. This is not a test of behavior.</span>
             <button type="button" disabled={pending} className="tap rounded-lg bg-ki-500 px-2.5 py-1 font-semibold text-space-950 disabled:opacity-50" onClick={confirm}>
-              Yes, confirm {drafts}
+              Approve matching drafts
             </button>
             <button type="button" className="tap text-space-400" onClick={() => setAsked(false)}>
               cancel
             </button>
           </>
         ) : (
-          <button type="button" disabled={pending} className="tap rounded-lg border border-space-600 px-2.5 py-1 font-semibold text-space-100 hover:border-space-300 disabled:opacity-50" onClick={() => (drafts > ASK_ABOVE ? setAsked(true) : confirm())}>
+          <button type="button" disabled={pending} className="tap rounded-lg border border-space-600 px-2.5 py-1 font-semibold text-space-100 hover:border-space-300 disabled:opacity-50" onClick={() => (setAsked(true))}>
             {label} ({drafts})
           </button>
         ))}

@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { skillRecords } from "../../src/lib/arena/draft";
 import type { CardDef } from "../../src/lib/arena/types";
-import { FLAG_PREFIX, builderHref, findOnce, flagExplanation, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
+import { FLAG_PREFIX, approvalProblem, rulesReturnHref, builderHref, findOnce, flagExplanation, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
 import type { Cond, CostRecord, Op } from "../../src/lib/arena/vm/script";
 import { parsePath } from "../../src/lib/arena/lang/path";
 
@@ -154,5 +154,17 @@ assert.equal(findOnce("Draw 2 cards.", "draw 2"), null, "exact case unless asked
 }
 
 assert.equal(builderHref(42), "/arena/rules/build/42", "Teach it and Fix it open the block builder (#469)");
+
+// Correction links preserve a scoped queue but cannot become external or unrelated redirects.
+for (const href of ["/arena/rules?deck=6&state=draft&q=Buu&rule=42", "/arena/rules/review?deck=6&flagged=1&rule=42"]) {
+  assert.equal(rulesReturnHref(href, "/fallback"), href);
+  assert.equal(new URL(builderHref(42, href), "https://test.invalid").searchParams.get("returnTo"), href);
+}
+for (const href of ["https://evil.invalid/arena/rules", "//evil.invalid/arena/rules", "/arena/rules/../feedback", "/arena/rules/build/42", "javascript:alert(1)", null]) {
+  assert.equal(rulesReturnHref(href, "/fallback"), "/fallback");
+}
+assert.equal(approvalProblem({ status: "draft", unread: [] }), null);
+assert.ok(approvalProblem({ status: "draft", unread: ["unknown cost"] }));
+for (const status of ["open", "confirmed", "corrected"]) assert.ok(approvalProblem({ status, unread: [] }));
 
 console.log("rule review: span logic, queue order and the Wrong verdict hold");

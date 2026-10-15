@@ -289,6 +289,22 @@ export function isFlagged(explanation: string | null | undefined): boolean {
 }
 
 /** Where "Teach it" and "Fix it in the builder" go: the block builder (#469). */
-export function builderHref(ruleId: number): string {
-  return `/arena/rules/build/${ruleId}`;
+export function rulesReturnHref(raw: unknown, fallback: string): string {
+  if (typeof raw !== "string" || !raw.startsWith("/")) return fallback;
+  try {
+    const url = new URL(raw, "https://rules.invalid");
+    if (url.origin !== "https://rules.invalid" || !["/arena/rules", "/arena/rules/review"].includes(url.pathname)) return fallback;
+    return url.pathname + url.search;
+  } catch { return fallback; }
+}
+
+export function builderHref(ruleId: number, returnTo?: string): string {
+  const path = `/arena/rules/build/${ruleId}`;
+  return returnTo ? `${path}?returnTo=${encodeURIComponent(rulesReturnHref(returnTo, `/arena/rules?rule=${ruleId}`))}` : path;
+}
+
+/** A draft must be complete before a review approval, including direct action calls. */
+export function approvalProblem(row: { status: string; unread: string[] }): string | null {
+  return row.status !== "draft" ? "Only an unapproved draft can be approved. Reopen an approved interpretation first."
+    : row.unread.length ? "Complete the unread parts before approving this interpretation." : null;
 }

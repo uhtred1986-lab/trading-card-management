@@ -17,10 +17,10 @@ export function ReferenceDrawer({ fixingHref }: { fixingHref: string }) {
   const first = useRef<HTMLAnchorElement>(null);
 
   const entries: ReferenceEntry[] = [
-    { label: "Keywords", hint: "What the compiler understands, per keyword", href: "/arena/rules/keywords" },
-    { label: "The game as files", hint: "The rules declarations a game is loaded from", href: "/arena/rules/game" },
-    { label: "The rule language", hint: "The grammar a card's rule is written in", href: "/arena/rules/language" },
+    { label: "Keywords", hint: "Card meaning, engine support and known limitations", href: "/arena/rules/keywords" },
     { label: "How to fix a card", hint: "Correcting a rule record, step by step", href: fixingHref, external: true },
+    { label: "Advanced: engine declarations", hint: "The rules declarations a game is loaded from", href: "/arena/rules/game" },
+    { label: "Advanced: technical rule language", hint: "The grammar a card's rule is written in", href: "/arena/rules/language" },
   ];
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function ReferenceDrawer({ fixingHref }: { fixingHref: string }) {
         onClick={() => setOpen(true)}
         className="tap flex items-center rounded-md border border-space-700 px-3 text-sm text-space-200 hover:text-space-50"
       >
-        Reference
+        Help
       </button>
       {open ? (
         <div className="fixed inset-0 z-40">
@@ -76,7 +76,7 @@ export function ReferenceDrawer({ fixingHref }: { fixingHref: string }) {
                 const body = (
                   <>
                     <span className="block text-sm font-medium text-space-50">
-                      {e.label}
+                      {e.label} <small className="font-normal">↗</small>
                       {e.external ? <span className="ml-1 text-xs font-normal text-space-400">(opens GitHub ↗)</span> : null}
                     </span>
                     <span className="block text-xs text-space-400">{e.hint}</span>
@@ -90,7 +90,7 @@ export function ReferenceDrawer({ fixingHref }: { fixingHref: string }) {
                         {body}
                       </a>
                     ) : (
-                      <Link ref={i === 0 ? first : undefined} href={e.href} onClick={() => setOpen(false)} className={cls}>
+                      <Link ref={i === 0 ? first : undefined} href={e.href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className={cls}>
                         {body}
                       </Link>
                     )}
