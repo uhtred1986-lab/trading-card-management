@@ -257,8 +257,8 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
             </div>
 
             <nav aria-label="Compare this skill" className="grid grid-cols-2 gap-2">
-              <button type="button" aria-pressed={step === "printed"} onClick={() => setStep("printed")} className="tap rounded-xl border border-space-600 p-2 text-sm text-space-100">1. Printed on card</button>
-              <button type="button" aria-pressed={step === "interpretation"} onClick={() => setStep("interpretation")} className="tap rounded-xl border border-space-600 p-2 text-sm text-space-100">2. Interpretation</button>
+              <button type="button" aria-pressed={step === "printed"} onClick={() => setStep("printed")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "printed" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>1. Printed on card</button>
+              <button type="button" aria-pressed={step === "interpretation"} onClick={() => setStep("interpretation")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "interpretation" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>2. Interpretation</button>
             </nav>
             {step === "printed" && <p className="text-sm text-space-300">Read this skill, then compare it with the interpretation. Colored tags are review annotations, not printed card text.</p>}
             <p className={`${step === "printed" ? "" : "hidden"} rounded-2xl border border-space-700 bg-space-900/50 px-4 py-4 font-semibold text-space-50 ${mode === "text" ? "text-[22px] leading-[1.75]" : "text-lg leading-[1.7]"}`}>

@@ -12,7 +12,7 @@ import type { Trigger } from "@/lib/arena/types";
 import { probeScenarios } from "../../record";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Build a rule" };
+export const metadata = { title: "Edit interpretation" };
 
 /**
  * The block builder for one skill (#469), full screen: `/arena/rules/build/[id]`,

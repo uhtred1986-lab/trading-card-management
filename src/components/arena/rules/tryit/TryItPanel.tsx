@@ -263,6 +263,10 @@ function BoardRow({
         <span className={`max-w-full whitespace-normal break-words rounded-md px-2 py-1 text-[12px] font-bold ${pill}`}>Observed: {run.headline}</span>
       </div>
 
+      <div className="mt-2 break-words text-xs">
+        <Lines title="Observed changes" lines={run.result} tone="text-space-200" />
+        <p className="mt-1 text-space-400">Does this match what the printed skill should do in this scenario? Open scenario details to inspect the setup and applied rule.</p>
+      </div>
       {said && look && (
         <p className={`mt-1.5 text-[12px] ${look.tone}`}>
           {status === "match" ? "✓ " : status === "mismatch" ? "✗ " : ""}
@@ -314,7 +318,7 @@ function BoardRow({
           </button>
         )}
         <button type="button" className={link} onClick={onToggle} aria-expanded={expanded}>
-          {expanded ? "Less" : "What happened"}
+          {expanded ? "Hide scenario details" : "Show scenario details"}
         </button>
         {status !== null && (
           <button type="button" className={`${link} ml-auto`} onClick={onForget}>
