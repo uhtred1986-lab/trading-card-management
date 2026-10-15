@@ -17,6 +17,20 @@ for (const trigger of [null, "played", {}, ["invented-moment"], [7]]) {
   assert.ok("error" in readRule(bad, "keyword"), "the original validator remains strict");
   assert.equal(ExplanationSchema.safeParse({ ...answer, ruleJson: JSON.stringify(bad) }).success, false);
 }
+// A structurally executable fragment is still not a complete proposal. These
+// used to pass generation and fail review, bypassing the automatic repair.
+for (const key of ["kind", "trigger", "cost", "cond", "ops"] as const) {
+  const fragment: Record<string, unknown> = { ...rule };
+  delete fragment[key];
+  assert.equal(ExplanationSchema.safeParse({ ...answer, ruleJson: JSON.stringify(fragment) }).success, false, `missing ${key} must reach repair`);
+}
+for (const malformed of [
+  { ...rule, unexpected: true },
+  { ...rule, cost: { ...rule.cost, unexpected: true } },
+  { ...rule, cost: { ...rule.cost, orbs: { Purple: 2 } } },
+]) {
+  assert.equal(ExplanationSchema.safeParse({ ...answer, ruleJson: JSON.stringify(malformed) }).success, false, "closed proposal and price keys must reach repair");
+}
 assert.ok(ExplanationSchema.safeParse(answer).success);
 assert.doesNotThrow(() => z.toJSONSchema(ExplanationSchema), "all provider JSON-schema adapters can serialize the contract");
 assert.equal(explainDecision(answer, "keyword", printed).kind, "question", "native keyword lifecycle cannot be approved as an ordinary THEN program");
@@ -24,8 +38,9 @@ assert.equal(explainDecision({ ...answer, ruleJson: JSON.stringify({ ...rule, op
 assert.equal(explainDecision(answer, "auto", printed).kind, "invalid", "kind remains immutable");
 assert.ok(ExplanationSchema.safeParse({ ...answer, confident: false, question: "Which card?", ruleJson: "" }).success, "follow-up questions need no pretend executable rule");
 
+for (const malformed of [{ ...rule, trigger: null }, { kind: rule.kind, trigger: rule.trigger, ops: rule.ops }]) {
 const fake = createFakeProvider({ id: "explanation-contract", script: [
-  { json: { ...answer, ruleJson: JSON.stringify({ ...rule, trigger: null }) } },
+  { json: { ...answer, ruleJson: JSON.stringify(malformed) } },
   { json: answer },
 ] });
 registerProvider(fake);
@@ -34,10 +49,11 @@ try {
   const result = await generateJson({ provider: fake.id, task: "arena_clarify", tier: "best", maxTokens: 8000, schema: ExplanationSchema, system: [], messages: [] });
   assert.deepEqual(result.parsed, answer);
   assert.equal(fake.requests.length, 2, "malformed inner JSON gets the existing single repair call");
-  assert.match(JSON.stringify(fake.requests[1].messages), /WHEN is a list of moments/);
+  assert.match(JSON.stringify(fake.requests[1].messages), /WHEN is a list of moments|A complete rule must contain exactly/);
 } finally {
   setSettingsLoader(null);
   resetProviders();
+}
 }
 console.log("rule explanation: serialized WHEN contract repaired; native keywords and approval guards preserved");
 

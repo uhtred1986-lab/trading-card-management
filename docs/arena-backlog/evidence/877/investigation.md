@@ -139,3 +139,18 @@ Committed representative evidence beside this report:
 The first complete `npm test` run passed, and final exact-source validation is
 recorded in the PR. The read-only backlog-wide `--check` is blocked by a pre-existing
 `848.md: front matter lacks 'stage'`; #877's own metadata parses and its source paths exist.
+
+## PR review follow-up
+
+Review against current main (`e6349b77`) found one gap in the generation repair
+contract: a rule with `kind`, `trigger` and `ops`, but no `cost` or `cond`, passed
+`ExplanationSchema` and was rejected only by the later review decision. Unknown
+root/price keys and unknown price colours had the same gap. Generation and review
+now share the existing complete-proposal shape checks, so these malformed outputs
+enter the bounded repair retry too. Regression checks cover each missing field,
+unknown fields/colours, and a fake-provider missing-field → corrected-rule retry.
+The native keyword prompt also explicitly limits its nonempty-ops requirement to
+non-keyword rows, consistent with its keyword `ops:[]` instruction.
+
+The browser beam regression now waits for the beam SVG rather than any SVG path
+(an unrelated icon could satisfy the old wait before board hydration completed).
