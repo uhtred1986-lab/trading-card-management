@@ -5,6 +5,7 @@ import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { requireSlPage } from "@/lib/auth";
 import { getImportedEvaluationRunDetail } from "@/lib/arena/testing/store";
 import type { EvaluationManifestResult } from "@/lib/arena/testing/run-manifest";
+import type { RunScoreRow } from "@/lib/arena/testing/run-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,14 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
       <h1 className="mt-1 text-xl font-semibold text-space-50 sm:text-2xl">{source}</h1>
       <p className="mt-1 break-all font-mono text-xs text-space-400">Run {run.requestId} · {run.resultCount} result rows · {new Date(run.recordedAt).toLocaleString()}</p>
     </header>
+
+    {run.scores.games > 0 ? <section className={panel} aria-labelledby="run-scores-title">
+      <h2 id="run-scores-title" className="text-base font-semibold text-space-100">Policies and decks</h2>
+      <p className="mt-1 text-xs text-space-400">All {run.scores.games} games in this run, independent of the case filters below. These descriptive scores do not establish strategic strength or qualify a deck.</p>
+      <p className="mt-1 text-[11px] text-space-500">Games count distinct matches; appearances count seats, so a mirror has two appearances. Win rate is wins ÷ (wins + losses). Draws and unfinished games are excluded. Policy versions and deck compositions are kept separate.</p>
+      <RunScoreTable title="By policy version" rows={run.scores.policies} />
+      <RunScoreTable title="By deck composition" rows={run.scores.decks} />
+    </section> : null}
 
     <section className={panel} aria-labelledby="fixture-results-title">
       <h2 id="fixture-results-title" className="text-base font-semibold text-space-100">Outcome counts by fixture</h2>
@@ -124,6 +133,21 @@ function ResultRow({ result }: { result: EvaluationManifestResult }) {
     <td className="max-w-96 whitespace-normal px-2 py-2">{metrics}{rng ? <span className="mt-1 block text-space-500">{rng}</span> : null}</td>
     <td className="max-w-56 break-all px-2 py-2 font-mono text-[10px] text-space-400">{result.evidenceSha256}</td>
   </tr>;
+}
+
+function RunScoreTable({ title, rows }: { title: string; rows: RunScoreRow[] }) {
+  return <div className="mt-4 min-w-0"><h3 className="text-sm font-semibold text-space-200">{title}</h3>
+    <div className="mt-2 max-w-full overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[42rem] text-left text-xs">
+      <thead className="bg-space-950 text-space-400"><tr>{["Version / composition", "Games", "Appearances", "W / L / D", "Interrupted", "Limited", "Illegal", "Win rate"].map(label => <th key={label} className="px-2 py-2">{label}</th>)}</tr></thead>
+      <tbody>{rows.map(row => <tr key={row.key} className="border-t border-space-800 text-space-200">
+        <th scope="row" className="max-w-64 break-words px-2 py-2 font-medium">{row.label}</th>
+        <td className="px-2 py-2 tabular-nums">{row.games}</td><td className="px-2 py-2 tabular-nums">{row.appearances}</td>
+        <td className="whitespace-nowrap px-2 py-2 tabular-nums">{row.wins} / {row.losses} / {row.draws}</td>
+        <td className="px-2 py-2 tabular-nums">{row.interrupted}</td><td className="px-2 py-2 tabular-nums">{row.limited}</td><td className="px-2 py-2 tabular-nums">{row.illegal}</td>
+        <td className="px-2 py-2 tabular-nums">{row.winRate === null ? "—" : `${(row.winRate * 100).toFixed(1)}%`}</td>
+      </tr>)}</tbody>
+    </table></div>
+  </div>;
 }
 
 function rngLabel(rng: { mode: "seeded"; v: 1; seed: number; n: number } | { mode: "deterministic"; v: null; seed: null; n: null }) {

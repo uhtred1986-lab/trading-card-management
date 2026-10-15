@@ -175,6 +175,7 @@ export interface ImportedRunFixtureTotal {
 }
 
 export interface ImportedRunDetail {
+  scores: import("./run-stats").RunScores;
   id: number;
   requestId: string;
   source: RunSource;
