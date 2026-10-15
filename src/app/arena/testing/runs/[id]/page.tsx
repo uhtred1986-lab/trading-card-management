@@ -56,7 +56,7 @@ export default async function ImportedRunDetailPage({ params, searchParams }: {
 
     <section className={panel} aria-labelledby="fixture-results-title">
       <h2 id="fixture-results-title" className="text-base font-semibold text-space-100">Outcome counts by fixture</h2>
-      <p className="mt-1 text-[11px] text-space-500">Counts stay separated by fixture and result kind. Policy game outcomes are from the candidate’s perspective; no pooled win-rate claim is computed.</p>
+      <p className="mt-1 text-[11px] text-space-500">Counts stay separated by fixture and result kind. Policy game outcomes are from the candidate’s perspective.</p>
       {run.fixtureTotals.length ? <div className="mt-2 overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[34rem] text-left text-xs"><thead className="bg-space-950 text-space-400"><tr><th className="px-2 py-2">Fixture</th><th className="px-2 py-2">Result kind</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Count</th></tr></thead><tbody>{run.fixtureTotals.map((item) => <tr key={`${item.fixtureKey}:${item.kind}:${item.outcome}`} className="border-t border-space-800"><th scope="row" className="px-2 py-2 font-mono">{item.fixtureKey}</th><td className="px-2 py-2">{item.kind.replaceAll("_", " ")}</td><td className="px-2 py-2">{item.outcome}</td><td className="px-2 py-2 tabular-nums">{item.count}</td></tr>)}</tbody></table></div> : <p className="mt-2 text-xs text-space-500">No result counts available.</p>}
     </section>
 
@@ -137,7 +137,13 @@ function ResultRow({ result }: { result: EvaluationManifestResult }) {
 
 function RunScoreTable({ title, rows }: { title: string; rows: RunScoreRow[] }) {
   return <div className="mt-4 min-w-0"><h3 className="text-sm font-semibold text-space-200">{title}</h3>
-    <div className="mt-2 max-w-full overflow-x-auto rounded-lg border border-space-700"><table className="w-full min-w-[42rem] text-left text-xs">
+    <div className="mt-2 space-y-2 sm:hidden">{rows.map(row => <article key={row.key} className="rounded-lg border border-space-700 p-3 text-xs text-space-200">
+      <h4 className="break-words font-medium">{row.label}</h4>
+      <p className="mt-2 text-sm font-semibold tabular-nums">{row.wins} W · {row.losses} L · {row.draws} D <span className="font-normal text-space-400">· {row.winRate === null ? "No decided games" : `${(row.winRate * 100).toFixed(1)}% wins`}</span></p>
+      <p className="mt-1 text-space-400">{row.games} games · {row.appearances} seat appearances</p>
+      <p className="mt-1 text-space-400">Unfinished: {row.interrupted} interrupted · {row.limited} limited · {row.illegal} illegal</p>
+    </article>)}</div>
+    <div className="mt-2 hidden max-w-full overflow-x-auto rounded-lg border border-space-700 sm:block"><table className="w-full min-w-[42rem] text-left text-xs">
       <thead className="bg-space-950 text-space-400"><tr>{["Version / composition", "Games", "Appearances", "W / L / D", "Interrupted", "Limited", "Illegal", "Win rate"].map(label => <th key={label} className="px-2 py-2">{label}</th>)}</tr></thead>
       <tbody>{rows.map(row => <tr key={row.key} className="border-t border-space-800 text-space-200">
         <th scope="row" className="max-w-64 break-words px-2 py-2 font-medium">{row.label}</th>
