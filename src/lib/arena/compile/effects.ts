@@ -2653,7 +2653,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     }
     return null;
   }
-  if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+  if (/^attack\b/.test(rest)) {
+    // The object is the defender (BT1-057), not a blanket prohibition.
+    if (/^attack(?:$| (?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+    const object = /^attack (.+?)(?= (?:for|during|until)\b|$)/.exec(rest)?.[1];
+    if (!object || !/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) return null;
+    const attackTarget = filterFor(object, null);
+    if (!attackTarget) return null;
+    return [{ op: "forbid", what: "attack", until, target, attackTarget, ...withUnless }];
+  }
   // "It can't activate skills" (BT29-041): the card's own [Activate] and
   // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
   // cannot be activated is cancelled), so `activateSkill` stops both.

@@ -127,6 +127,10 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
       throw new IllegalAction("that attack is not offered");
     }
   }
+  // Revalidate board facts even for a previously offered action.
+  if (!inPlayCards(game, state, action.player).includes(action.attacker) ||
+      attackWhy(ctx, game, state, action.player, action.attacker).length ||
+      !targetsFor(ctx, game, state, action.player, action.attacker).includes(action.target)) throw new IllegalAction("that attack is not offered");
   const attacker = action.attacker;
   // 20-14-1: "can't attack unless … each time" — the price is paid first, by
   // the attacking player and in their own frame, and the attack is taken after
@@ -174,7 +178,8 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
       if (lifts.some((p) => permitted(ctx, game, state, p.filter, id))) out.push(id);
     }
   }
-  return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }));
+  return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }) &&
+    (!attacker || !forbids(ctx, game, state, "attack", { player, card: attacker, attackTarget: id })));
 }
 
 /** The `whyNotAttack` reading (8-1): timing first, then mode, then a prohibition, then whether anything at all may be hit — `whyNotCharge`'s own order, board-fact-before-card-fact where the two could otherwise disagree about which is first. */
@@ -188,13 +193,14 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   // card has no card type at all (23-5-2) — face down, it cannot attack.
   if (inst.hidden) why.push({ kind: "other", detail: "a Hidden Mode card has no card type, so it cannot attack (23-5-2)" });
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
-  const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
+  const targets = targetsFor(ctx, game, state, player, attacker);
+  const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker, attackTarget: targets[0] });
   if (banned) why.push({ kind: "forbidden", ...banned });
   // 20-14-1: a tax nobody can pay is a ban — "if action B is not taken … action A can't be declared".
   for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
     if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
   }
-  if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
+  if (!why.length && !targets.length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }
 

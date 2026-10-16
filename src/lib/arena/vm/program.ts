@@ -832,6 +832,7 @@ function readHookLeaf(ctx: EngineContext, game: GameDefinition, state: VmState, 
         op: "forbid",
         forbid: {
           what: op.what,
+          attackTarget: op.attackTarget,
           filter: op.filter,
           player,
           unless: op.unless,
@@ -959,10 +960,14 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; skillKind?: string; from?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; from?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
+  // A missing/stale defender cannot prove that a qualified declaration is legal.
+  // Only declaration callers supply this context; Blocker redirects do not.
+  if (f.attackTarget && opts.attackTarget && state.cards[opts.attackTarget] &&
+      !predicateOf(f.attackTarget, game)(attrsNow(ctx, game, state, opts.attackTarget))) return false;
   // #677, 12-1-3: "activating an Extra Card" is an [Activate] or [Counter]
   // skill of one used from the hand (BT10-097) — the area it was used from,
   // which the caller names once the card has gone on to the Drop (12-2-2-2).
@@ -1012,7 +1017,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; skillKind?: string } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1030,7 +1035,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; skillKind?: string } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1083,7 +1088,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; skillKind?: string; from?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; from?: string; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses

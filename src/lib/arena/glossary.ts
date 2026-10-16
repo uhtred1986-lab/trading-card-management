@@ -636,7 +636,7 @@ export const SKILL_TYPES: Record<Exclude<SkillKind, "keyword">, SkillTypeDoc> = 
     tag: "[Permanent]",
     section: "9-5-1",
     meaning: "In force for as long as the card is where the skill is valid. Nothing is declared and nothing is paid.",
-    engine: "Re-read from the board every time it matters rather than stored, and shown on the card as a rule in force with its source named.",
+    engine: "Re-read from the board every time it matters rather than stored, and shown on the card as a rule in force with its source named. Target-qualified attack restrictions (for example, Broly cannot attack Battle Cards) filter the prospective defender at declaration; they still allow attacks against other types and later Blocker redirection.",
   },
   "counter:play": {
     tag: "[Counter: Play]",
