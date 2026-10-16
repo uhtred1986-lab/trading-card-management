@@ -78,6 +78,7 @@ export function clauseShape(clause: string): string {
 const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   leaderPlaced: "when your Leader is placed",
   played: "when this card is played",
+  playedFromHand: "when this card is played from your hand",
   attacks: "when this card attacks",
   attacked: "when this card is attacked",
   koed: "when this card is KO'd",

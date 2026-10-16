@@ -135,6 +135,19 @@ const EVERY_MAIN_START =/^at the (?:beginning|start) of (?:(?:you|your) (?:and|o
  */
 const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played) using \[(?:dark )?over realm[^\]]*\]/g;
 
+/**
+ * "When you play this card **from your hand**", "when this card is played from
+ * your hand" (#936; BT8-122, BT10-020, EX03-14 …) — the card's own play, and
+ * only the one made from the hand. Read as `played`, which its opening words
+ * are, these fired on a play from the Drop or the Warp too, so the phrase is
+ * taken out before `played` is looked for and is `playedFromHand` alone. Only
+ * the bare qualifier is read (the head ends there): "from your hand or Warp",
+ * "from your deck or hand" and "…, during your opponent's turn" name more than
+ * the hand and stay a plain `played` as they were.
+ */
+const PLAYED_FROM_HAND = /when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$))/;
+const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
+
 /** "When this card [in a Battle Area] is [played or] switched to X Mode [or Y Mode]", with no cause after it: the modes named, or "" for none. */
 function switchedTo(t: string): string {
   const m = /when this card(?: in (?:a|your) battle area)? is (?:played or )?switched to ((?:revealed|hidden) mode(?: or (?:revealed|hidden) mode)?)(?! by)/.exec(t);
@@ -175,8 +188,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
       return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
-        t.replace(PLAYED_USING_OVER_REALM, ""),
+        t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, ""),
       );
+    case "playedFromHand":
+      return new RegExp(PLAYED_FROM_HAND.source).test(t);
     case "playedUsingOverRealm":
       return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
     case "attacks":

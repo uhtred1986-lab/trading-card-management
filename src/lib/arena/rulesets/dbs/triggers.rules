@@ -59,6 +59,15 @@ DEFINE TRIGGER played
   BIND "self"
   text: "when this card is played"
 
+-- §9-6-9-4 — when this card is played from your hand (#936): the same
+-- arrival, asking where the card was when it was played. `from` is the
+-- origin captured by the move itself (a normal play, or a skill's play from
+-- the hand), never the zone after entry or the source skill's text.
+DEFINE TRIGGER playedFromHand
+  ON moved(asPlay: true, from: hand, to: [battle, unison])
+  BIND "self"
+  text: "when this card is played from your hand"
+
 -- §22-15 — when this card is played using [Over Realm]: the same arrival,
 -- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
 -- keywords.rules). An ordinary play carries no `using`, so it never matches.

@@ -417,8 +417,13 @@ export interface Permission {
    * `aegisAltOpponentHand` (BT22-140): the target's own [Aegis] skill may be
    * paid by sending 1 card from the opponent's hand to the bottom of their deck
    * instead. Both stand beside the hand payment, which stays the player's choice.
+   * `attackUnnegatable` (EX03-14, #936): the target card's attacks can't be
+   * negated (8-6) — a `negateAttack` aimed at a battle whose attacker holds
+   * one fails, and "if you negated" reports that it did. Timed (a resolved
+   * skill's effect) or a [Permanent]'s standing one. It stops *negation* only:
+   * a prohibition on attacking, and removing the attacker, still work.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
@@ -607,6 +612,14 @@ export interface DelayedEffect {
 export type Trigger =
   | "leaderPlaced"
   | "played"
+  /**
+   * "When you play this card from your hand", "when this card is played from
+   * your hand" (#936, EX03-14 and some forty others): the card's own play, and
+   * only when the play's captured origin was the hand — a normal play or a skill
+   * that plays from the hand — never one from the Drop, Warp or deck. Plain
+   * `played` is any origin.
+   */
+  | "playedFromHand"
   | "attacks"
   | "attacked"
   | "koed"

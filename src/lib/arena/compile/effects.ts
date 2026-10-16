@@ -2628,6 +2628,24 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return null;
   }
 
+  // "Its attacks can't be negated", "this card's attack can't be negated for
+  // the turn", "that card's attack cannot be negated" (EX03-14, BT25-126,
+  // P-080, P-072; #936). The attack half of "this card's attack and skill
+  // cannot be negated" (BT1-043, TB1-097) is this too: `taxWordings` cuts that
+  // into its two rules before the sentence is split. A `permit
+  // attackUnnegatable` (8-6: a negation of this card's attack fails) — not an
+  // attack prohibition and not skill immunity. A [Permanent] says it for the
+  // game; "its" and a missing subject are the card the clause before named.
+  {
+    const attackSaid = /^(.*?)(?:'s)?\s+attacks?$/.exec(subject);
+    if (attackSaid && /^be negated\b/.test(rest)) {
+      const who = attackSaid[1].trim();
+      const owner: Ref | null = !who || who === "its" || who === "their" || who === "it" ? (c.lastTarget ?? refFor("this card", c)) : refFor(who, c);
+      if (!owner) return null;
+      return [{ op: "permit", what: "attackUnnegatable", target: owner, until: c.permanent ? "game" : until }];
+    }
+  }
+
   // A sentence about cards: "this card", "it", "your Battle Cards". With no
   // subject at all it continues the clause before it, and only falls back to
   // this card when nothing was named — which is what the sets mean when they
@@ -2728,6 +2746,13 @@ export function taxWordings(text: string): string {
     // #677, EX06-35: "your opponent can't activate skills unless they choose 1
     // card in their hand and send it to their Warp" — the choice is the
     // sending's own, said as one verb so the price is not cut at its "and".
+    // #936, BT1-043 / TB1-097: "this card's attack and skill cannot be negated"
+    // is two rules (the attack's and 9-1-5's), said as two so the sentence is
+    // not cut at its "and" into a subject-less half.
+    .replace(
+      /\b((?:this card|that card|it)'s|its) attacks? and skills? (can(?:'|no)t) be negated\b/gi,
+      (_m, who: string, can: string) => `${who} attack ${can} be negated, ${who} skills ${can} be negated`,
+    )
     .replace(
       /\b(can(?:'|no)t activate [^.]*?) unless they choose (\d+) (cards?) in their hand and send (?:it|them) to their warp\b/gi,
       (_m, head: string, n: string, cards: string) => `${head} unless they send ${n} ${cards} from their hand to their warp`,
