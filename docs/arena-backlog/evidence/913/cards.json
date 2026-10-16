@@ -1,0 +1,291 @@
+[
+  {
+    "id": "DB3-027",
+    "name": "Bardock, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 5,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[double strike][blocker]<br>[ex-evolve]{u}{u}: Blue <Bardock> with an energy cost of 2 or more.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto] If your Leader Card is a blue \u226aSaiyan\u226b card: When a card in your energy evolves into this card, draw 1 card, then at the end of the turn, switch this card to Active Mode and place the top card of your deck in your energy in Rest Mode.",
+    "characters": [
+      "Bardock"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-030",
+    "name": "King Vegeta, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 5,
+    "zEnergyCost": null,
+    "power": 25000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[triple strike]<br>[ex-evolve]{u}{u}{u}: Blue <King Vegeta>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and return it to its owner's hand.",
+    "characters": [
+      "King Vegeta"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-033",
+    "name": "Tora, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[blocker]<br>[ex-evolve]{u}{u}: Blue <Tora>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto] At the end of your turn, switch this card to Active Mode.<br>[auto] If your Leader Card is a blue \u226aSaiyan\u226b card: When this card is KO'd by an opponent's skill, place this card in your energy from your Drop Area.",
+    "characters": [
+      "Tora"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-035",
+    "name": "Fasha, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[unique][critical]<br>[ex-evolve]{u}: Blue <Fasha>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto] If your Leader Card is a blue \u226aSaiyan\u226b card: When a card in your energy evolves into this card, if you have less energy than your opponent, add the top card of your deck to your energy in Rest Mode.",
+    "characters": [
+      "Fasha"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-037",
+    "name": "Shugesh, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 19000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[blocker]<br>[ex-evolve]{u}: Blue <Shugesh>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto] When this card is KO'd, choose up to 1 blue \u226aBardock's Crew\u226b card with an energy cost of 5 or less in your hand, and play it with its skills negated for the turn.",
+    "characters": [
+      "Shugesh"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-039",
+    "name": "Borgos, Great Ape Assault",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 15000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[unique][barrier]<br>[ex-evolve]{u}: Blue <Borgos>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[activate: battle][once per turn] Choose 1 blue \u226aBardock's Crew\u226b card in your Battle Area other than copies of this card, switch it to Active Mode, then negate that card's skills for the turn.<br>",
+    "characters": [
+      "Borgos"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-042",
+    "name": "Nappa, Promising Youth",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[double strike]<br>[ex-evolve]{u}: Blue <Nappa: Adolescence>.<br>[permanent] When using this card's [evolve] skill from your hand, you can choose Battle Cards from your energy and play this card in Active Mode.<br>[auto][once per turn] When this card attacks, activate this skill. At the end of the turn, switch up to 1 of your blue energy to Active Mode.",
+    "characters": [
+      "Nappa: Adolescence"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": null
+  },
+  {
+    "id": "TB3-019",
+    "name": "Final Strike Bardock",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 5,
+    "zEnergyCost": null,
+    "power": 25000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Barrier]<br>[Permanent] There can only be up to 1 {Final Strike Bardock} in play in your Battle Area.<br>[Auto] When this card is switched from Rest Mode to Active Mode, if your Leader Card is a \u226aBardock's Crew\u226b card, your opponent chooses 1 card in their hand and places it at the bottom of their deck.",
+    "characters": [
+      "Bardock"
+    ],
+    "traits": [
+      "Saiyan",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "DB3-031",
+    "name": "King Vegeta, the Distrustful",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 19000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Deflect]<br>[Auto] When this card is played, choose up to 1 blue Unison Card in your Unison Area or Drop Area, return it to its owner's hand, then at the end of the turn, switch up to 1 of your mono-blue energy to Active Mode.<br>[Auto] Choose 1 mono-blue card in your hand and discard it: When your opponent attacks, negate the attack, then negate this skill for the game.",
+    "characters": [
+      "King Vegeta"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": null
+  },
+  {
+    "id": "TB3-025",
+    "name": "Planetary Invader Tora",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 5000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Auto] When you play this card, choose up to 1 \u226aBardock's Crew\u226b card in your Drop Area and add it to your hand.",
+    "characters": [
+      "Tora"
+    ],
+    "traits": [
+      "Saiyan",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "TB3-027",
+    "name": "Planetary Invader Fasha",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 5000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Auto] When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 \u226aBardock's Crew\u226b card from among them and add it to your hand, then shuffle your deck.",
+    "characters": [
+      "Fasha"
+    ],
+    "traits": [
+      "Saiyan",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "TB3-028",
+    "name": "Burnished Bonds Shugesh",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 15000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Auto] When this card attacks, you may draw 1 card. If you did not draw a card with this skill, this card gains [Double Strike] for the duration of the turn.",
+    "characters": [
+      "Shugesh"
+    ],
+    "traits": [
+      "Saiyan",
+      "Bardock's Crew"
+    ],
+    "back": null
+  },
+  {
+    "id": "TB3-029",
+    "name": "Burnished Bonds Borgos",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 4000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Auto] When you play this card, draw 1 card.<br>[Auto][Once per turn] During your opponent's turn, if your opponent switches their energy to Active Mode using a non-[Awaken] skill, choose up to 1 of your opponent's energy and place it in its owner's Drop Area.",
+    "characters": [
+      "Borgos"
+    ],
+    "traits": [
+      "Saiyan",
+      "Bardock's Crew"
+    ],
+    "back": null
+  }
+]

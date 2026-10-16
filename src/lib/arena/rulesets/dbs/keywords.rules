@@ -401,19 +401,23 @@ DEFINE KEYWORD Evolve
   -- the base to Warp immediately before landing, after the counter response.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
-  REFUSE target(reason: "no {line} in your Battle Area") UNLESS count(IN you.battle asPrinted) >= 1
+  REFUSE target(reason: "no specified evolution base in an allowed area") UNLESS any([count((type = BATTLE) IN you.battle asPrinted) >= 1, all([permits(what: evolveEnergyBases), count((type = BATTLE) IN you.energy asPrinted) >= 1])])
   label: "{variant} {card} onto a {line}"
   DO {
     if(cond: count(FROM $base) <= 0, then: {
-      choose(sel: 1 IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+      if(cond: permits(what: evolveEnergyBases), then: {
+        choose(sel: 1 (type = BATTLE) IN you.ANY(battle|energy) asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+      }, else: {
+        choose(sel: 1 (type = BATTLE) IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+      })
     })
     if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
-      play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "Xeno-Evolve", counterWindow: true)
+      play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "Xeno-Evolve", counterWindow: true)
     }, else: {
       if(cond: oneOf(value: $variant, of: ["EX-Evolve"]), then: {
-        play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "EX-Evolve", counterWindow: true)
+        play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "EX-Evolve", counterWindow: true)
       }, else: {
-        play(target: [self], onto: FROM $base IN you.battle asPrinted, using: "Evolve", counterWindow: true)
+        play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "Evolve", counterWindow: true)
       })
     })
   }

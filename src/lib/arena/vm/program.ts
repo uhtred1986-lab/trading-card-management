@@ -1496,6 +1496,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // card using this line answers, under the same master.
     case "permits": {
       const card = frame.card;
+      // This permission belongs to this hand copy, not every Evolve card its
+      // master holds. It grants no activation-source extension (22-5-4).
+      if (c.what === "evolveEnergyBases") return !!card && findCard(state, card)?.zone === "hand"
+        && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && p.target === card);
       // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
       if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
       return !!card && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && permitted(ctx, game, state, p.filter, card));

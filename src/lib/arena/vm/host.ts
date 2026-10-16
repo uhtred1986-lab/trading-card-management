@@ -70,7 +70,7 @@ import { savedXKey } from "./script";
 import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, hostOf, inPlayZones, moveCard, newCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
 import { activationMoment, activationTaxGate, canPayPriceProgram, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -490,6 +490,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // keyword's own play opens (#155) and [Empower]'s "how many markers to
     // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
+      const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
+      if (evolution && opts.onto) {
+        const base = state.cards[opts.onto];
+        const bound = frame.evolutionBase ??= { card: opts.onto, zoneEpoch: base?.zoneEpoch ?? 0 };
+        if (!base || bound.card !== opts.onto || bound.zoneEpoch !== (base.zoneEpoch ?? 0)) {
+          // A changed-area copy is not the chosen base, even if it returned
+          // to an otherwise permitted area during the counter response.
+          for (const id of cards) if (findCard(state, id)?.zone === "hand") moveTo(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
+          frame.evolutionBase = undefined;
+          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          state.programs.unshift(frame);
+          return;
+        }
+      }
       // #155, 9-6: a keyword's own play ([Arrival], [Revive], [Successor]) is
       // declared, and the opponent may answer it with a [Counter: Play] before
       // it lands — the window `vm/battle.ts` opens over a declared play. With
@@ -513,8 +527,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
         const r = state.resolving?.card === id && !state.resolving.replaced ? state.resolving : null;
+        const energyBase = evolution && opts.onto && findCard(state, opts.onto)?.zone === "energy"
+          && condHolds(ctx, game, state, frame, { kind: "permits", what: "evolveEnergyBases" });
+        // 22-5-3-1-1: only when the evolution is resolving to play the new
+        // card, first place its expanded-area base in Battle. This is not a
+        // play or a Rest-to-Active switch of the underlying card, and opens
+        // no second counter window. Normal stacking/play remains shared.
+        if (energyBase && opts.onto) moveTo(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
-          mode: r?.rest ? "rest" : opts.mode,
+          mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
           negated: opts.negated,
           ...(r?.negated ? { negatedForTurn: true } : {}),
@@ -523,6 +544,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(opts.using ? { using: opts.using } : {}),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) (frame.did ??= {}).play = true;
+        frame.evolutionBase = undefined;
         if (r) state.resolving = null;
       }
       state.programs.unshift(frame);
@@ -565,7 +587,9 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId },
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId;
+    /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
+    evolutionBase?: true },
 ): void {
   const from = zoneOf(state, id);
   const returnInfo = from === "battle" ? attrsNow(ctx, game, state, id) : undefined;
@@ -628,7 +652,7 @@ function moveTo(
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
-  emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
+  if (!opts.evolutionBase) emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && to === "hand" ? { subjectInfo: returnInfo } : {}), ...(sourceNegated && to === "warp" ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
