@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, keywordName, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
@@ -123,6 +123,17 @@ export interface CardFilter {
    * would need the parameters, which only two cards in the catalog print.
    */
   keywords: KeywordSkill["name"][];
+  /**
+   * "…a ≪Saiyan≫ Battle Card with **[Over Realm 2]**" (#941): the keywords the
+   * description prints *with their parameter*, by printed name (`keywordName`:
+   * "Over Realm 2", "Dark Over Realm 2", "Swap 1"). The card must carry a
+   * keyword of exactly that name, so Over Realm 4 and Dark Over Realm 2 are
+   * different cards. Written beside `keywords`, which keeps the family, and
+   * absent on every filter that names no number, so old rows read as before.
+   */
+  keywordsExact?: string[];
+  /** "non-[Over Realm 2]": the same exact names, as a keyword the card must not have. */
+  notKeywordsExact?: string[];
   /**
    * "Mono-blue cards **with [Counter] skills**", "an Extra Card with the
    * [Activate: Main] skill" — a kind of skill rather than a keyword, and the
@@ -303,6 +314,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   notNamesIncluding: "strings",
   keywords: "keywords",
   notKeywords: "keywords",
+  keywordsExact: "strings",
+  notKeywordsExact: "strings",
   type: "cardType",
   notType: "cardType",
   skillKind: "skillKind",
@@ -344,6 +357,29 @@ const COLOR_WORDS: Record<string, Color> = { red: "Red", blue: "Blue", green: "G
  * matching cards the text never mentioned.
  */
 const KEYWORD_FAMILIES = new Set(["union"]);
+
+/**
+ * Record one keyword a description names. A tag printed with a number —
+ * "[Over Realm 2]", "[Swap 1]", "[Spirit Boost 3]" — is an exact requirement
+ * (`keywordsExact`, by printed name) as well as the family, because "Over
+ * Realm 2" and "Over Realm 4" (or "Dark Over Realm 2") are different skills
+ * (22-15) and the family alone selects all of them (#941). A tag that prints
+ * no number keeps the family-only reading, so "[Over Realm]" and "[Double
+ * Strike]" read exactly as before. A negated exact tag is *only* exact: the
+ * family would also forbid the cards the description allows.
+ */
+function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name"] }, printed: string, negated = false): void {
+  const exact = /\d/.test(printed);
+  if (exact) {
+    const key = negated ? "notKeywordsExact" : "keywordsExact";
+    const name = keywordName(kw as KeywordSkill);
+    const list = (f[key] ??= []);
+    if (!list.includes(name)) list.push(name);
+    if (negated) return;
+  }
+  const family = negated ? f.notKeywords : f.keywords;
+  if (!family.includes(kw.name)) family.push(kw.name);
+}
 
 const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
 
@@ -656,7 +692,7 @@ function parseOneFilter(text: string): CardFilter {
     // name anyway, so the family name is enough.
     const kw = keywordOf(word) ?? (KEYWORD_FAMILIES.has(word) ? { name: titleCase(word) as KeywordSkill["name"] } : null);
     if (!kw) f.unreadable = true;
-    else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
+    else addKeyword(f, kw, word);
   }
   // "7 **[Dragon Ball]** cards in your Drop" (BT25-019): the tag written in
   // front of the noun, as a kind of card. Read nowhere, it was dropped in
@@ -669,7 +705,7 @@ function parseOneFilter(text: string): CardFilter {
     if (/(?:\bwith(?: an?| the)?|\bwithout|non-)\s*$/.test(before)) continue;
     const kw = keywordOf(m[1].trim());
     if (!kw) f.unreadable = true;
-    else if (!f.keywords.includes(kw.name)) f.keywords.push(kw.name);
+    else addKeyword(f, kw, m[1].trim());
   }
   // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
   // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
@@ -677,12 +713,12 @@ function parseOneFilter(text: string): CardFilter {
   // permission that misses the carve-out allows an attack the card forbids.
   for (const m of lower.matchAll(/\bwithout \[([a-z0-9:\- ]+)\]/g)) {
     const kw = keywordOf(m[1]);
-    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
+    if (kw) addKeyword(f, kw, m[1], true);
   }
   // "A blue non-[Super Combo] Battle Card" — a keyword the card must not have.
   for (const m of lower.matchAll(/\bnon-\[([a-z0-9:\- ]+)\]/g)) {
     const kw = keywordOf(m[1]);
-    if (kw && !f.notKeywords.includes(kw.name)) f.notKeywords.push(kw.name);
+    if (kw) addKeyword(f, kw, m[1], true);
   }
   // "One of your blue **Z-Extras**" (BT22-032b): the plural is the same kind —
   // but not as one half of "your Battle Cards **or Z-Unisons**" (BT24-112b),
@@ -892,6 +928,11 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.notColors.some((c) => d.colors.includes(c))) return false;
   if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
   if (f.keywords.some((k) => !hasKeyword(d, k))) return false;
+  if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
+    const have = new Set(keywordsOf(d).map((k) => keywordName(k).toLowerCase()));
+    if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
+    if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
+  }
   if (f.skillKind && !skillsOf(d).some((sk) => sk.kind.startsWith(f.skillKind!))) return false;
   if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;

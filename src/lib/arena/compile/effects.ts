@@ -3410,7 +3410,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       const read = seen ? filterFor(seen[2], null) : undefined;
       const negates = seen ? /\b(?:not|non|other than|except|besides)\b/i.test(seen[2]) : false;
       const carriesNegative = read
-        ? read.notColors.length > 0 || read.notCharacters.length > 0 || read.notTraits.length > 0 || read.notNames.length > 0 || read.notKeywords.length > 0 || read.notType != null || read.notToken
+        ? read.notColors.length > 0 || read.notCharacters.length > 0 || read.notTraits.length > 0 || read.notNames.length > 0 || read.notKeywords.length > 0 || (read.notKeywordsExact?.length ?? 0) > 0 || read.notType != null || read.notToken
         : false;
       const filter = negates && !carriesNegative ? undefined : read;
       if (seen && filter && v) {

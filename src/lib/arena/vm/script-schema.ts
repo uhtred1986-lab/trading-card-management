@@ -2257,8 +2257,12 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     // "…with [Blocker]", "…with an [Evolve] skill", "…with [Counter] skills".
     // One "with" apiece rather than a list, so the phrase reads back as the
     // same set of keywords it printed.
-    ...f.keywords.map((k) => `with [${k}]`),
+    // A family an exact name already covers ("Over Realm" under "Over Realm 2")
+    // is not printed twice: the number is the narrower claim (#941).
+    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`))).map((k) => `with [${k}]`),
+    ...(f.keywordsExact ?? []).map((k) => `with [${k}]`),
     ...f.notKeywords.map((k) => `non-[${k}]`),
+    ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
   ];
   if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
   if (noun) {
