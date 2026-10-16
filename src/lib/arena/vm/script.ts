@@ -2124,6 +2124,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
           // gone once it has moved.
           const fromDeck = h.areaOf(id) === "deck";
+          // 9-6-9-2: read before the move ends the effects on the card.
+          const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
           h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
@@ -2139,14 +2141,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.
           if (leftBattle && h.areaOf(id) !== "battle") {
-            h.pend("removedFromBattle", id);
-            if (h.masterOf(id) !== master) h.pend("removedByOpponent", id);
+            h.pend("removedFromBattle", id, undefined, negatedThere);
+            if (h.masterOf(id) !== master) h.pend("removedByOpponent", id, undefined, negatedThere);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
-              h.pend("droppedFromBattle", id);
+              h.pend("droppedFromBattle", id, undefined, negatedThere);
               // …and by an opponent's skill (SD15-03, #728).
-              if (h.masterOf(id) !== master) h.pend("droppedByOpponent", id);
+              if (h.masterOf(id) !== master) h.pend("droppedByOpponent", id, undefined, negatedThere);
               h.pend("leftBattleToDrop", id);
             }
           }
