@@ -180,6 +180,8 @@ export function ArenaStage({
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  /** The hand card whose browse preview is open on a phone; in the Charge phase the dock offers to charge it. */
+  const [peekedId, setPeekedId] = useState<string | null>(null);
   const [attackPick, setAttackPick] = useState<{ action: number; attacker: string; target: string } | null>(null);
   /** The card whose action sheet is open — from a tap, a long press or a right-click. */
   const [sheet, setSheet] = useState<CardView | null>(null);
@@ -776,8 +778,12 @@ export function ArenaStage({
   const primaryBare = inlineBare.findIndex(({ l }) => !isGhostAction(l.action));
   const yourTurn = view.prompt.player === view.you.player;
   const attacksRemaining = new Set(legal.flatMap((item) => item.action.type === "attack" ? [item.action.attacker] : [])).size;
-  const selectedChargeIndex = selected && view.prompt.kind === "charge" ? chargesOf(selected)[0] : undefined;
-  const selectedChargeCard = selectedChargeIndex == null ? null : cardOf(selected!);
+  // The card to offer a charge for: the selected one, else the one open in the hand preview.
+  const chargeCandidate = view.prompt.kind !== "charge" ? null
+    : selected && chargesOf(selected).length > 0 ? selected
+    : peekedId && chargeGesture(peekedId) ? peekedId : null;
+  const selectedChargeIndex = chargeCandidate ? chargesOf(chargeCandidate)[0] : undefined;
+  const selectedChargeCard = selectedChargeIndex == null ? null : cardOf(chargeCandidate!);
   const chargePassIndex = taps.bare.find((i) => legal[i].action.type === "charge" && legal[i].action.card == null);
   const chargeSelection = !wide && selectedChargeCard && selectedChargeIndex != null ? {
     card: selectedChargeCard,
@@ -1545,7 +1551,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* This single decision panel stays with the hand on phones and moves

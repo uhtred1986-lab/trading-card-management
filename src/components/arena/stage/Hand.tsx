@@ -23,6 +23,7 @@ export function Hand({
   handAction,
   defending = false,
   browseEnabled = true,
+  onPeek,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -39,6 +40,8 @@ export function Hand({
   handAction?: (id: string) => string | null;
   defending?: boolean;
   browseEnabled?: boolean;
+  /** The card whose preview is open (null when none), so the board can offer its action — a charge — for it. */
+  onPeek?: (id: string | null) => void;
 }) {
   // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
@@ -69,6 +72,11 @@ export function Hand({
   const suppressedClick = useRef(0);
   const browsing = browseEnabled;
   const visiblePeek = browsing ? cards.find(c => c.id === peek?.id) : null;
+  const peekedId = visiblePeek?.id ?? null;
+  useEffect(() => {
+    onPeek?.(peekedId);
+    return () => onPeek?.(null);
+  }, [peekedId, onPeek]);
   const showPeek = (id: string, x?: number) => {
     const el = fan.current;
     if (!el) return;
