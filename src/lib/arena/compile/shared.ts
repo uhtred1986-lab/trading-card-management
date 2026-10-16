@@ -36,6 +36,14 @@ export interface Ctx {
    * as taking one of them moves a card the text never offered.
    */
   lastNamed: string | null;
+  /**
+   * Choices that were placed *under* another choice by this skill, keyed by the
+   * placed card's variable, valued with its host's (BT31-139: the Android put
+   * under the chosen Cell). A card in a pile is the host's passenger, never a
+   * host: a later "on top of the (originally) chosen card" names the card the
+   * pile hangs from, whatever choice was made in between.
+   */
+  underHost?: Record<string, string>;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**

@@ -899,6 +899,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     // away — the same silent widening the measures exist to prevent. These
     // four were each added without being listed here.
     f.keywords.length > 0 ||
+    (f.keywordsExact?.length ?? 0) > 0 ||
+    (f.notKeywordsExact?.length ?? 0) > 0 ||
     f.skillKind != null ||
     f.noKeywords ||
     f.notNames.length > 0 ||

@@ -35,7 +35,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { identityKey, keywordsInSkills, parseSkills } from "../text/cards";
+import { identityKey, keywordName, keywordsInSkills, parseSkills } from "../text/cards";
 import { emptyFilter, type CardFilter } from "../text/filters";
 import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
@@ -103,6 +103,8 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   namesAll: { reads: ["name"], also: ["alsoNames"] },
   keywords: { reads: ["skill"] },
   notKeywords: { reads: ["skill"] },
+  keywordsExact: { reads: ["skill"] },
+  notKeywordsExact: { reads: ["skill"] },
   noKeywords: { reads: ["skill"] },
   skillKind: { reads: ["skill"] },
   type: { reads: ["type"] },
@@ -245,11 +247,17 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
 
   // The text box is read only when something asks about it, which is most
   // filters not at all.
-  if (f.notKeywords.length || f.keywords.length || f.noKeywords || f.skillKind) {
+  if (f.notKeywords.length || f.keywords.length || f.keywordsExact?.length || f.notKeywordsExact?.length || f.noKeywords || f.skillKind) {
     const skills = parseSkills(text(attrs.skill) ?? null);
     const keywords = keywordsInSkills(skills);
     if (f.notKeywords.some((k) => hasKeyword(keywords, k))) return false;
     if (f.keywords.some((k) => !hasKeyword(keywords, k))) return false;
+    // A parameter the description printed (#941): the keyword's printed name, number and Dark included.
+    if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
+      const have = new Set(keywords.map((k) => keywordName(k).toLowerCase()));
+      if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
+      if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
+    }
     if (f.noKeywords && keywords.length) return false;
     if (f.skillKind && !skills.some((sk) => sk.kind.startsWith(f.skillKind as SkillKindPrefix))) return false;
   }

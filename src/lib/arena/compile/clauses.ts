@@ -168,7 +168,7 @@ export function splitClauses(text: string): string[] {
         !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
       ) {
         push(i, 1);
-      } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3))))) {
+      } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
         // A full stop inside an abbreviation is not the end of a sentence:
         // "choose up to 2 Cell Jr. tokens and remove them from the game" is
         // one clause, and splitting it left the removal with nothing to remove.
