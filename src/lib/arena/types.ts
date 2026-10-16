@@ -326,6 +326,8 @@ export interface Prohibition {
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */
   filter?: CardFilter;
+  /** Attack declarations only: the prospective defender, not the attacker. */
+  attackTarget?: CardFilter;
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
   /**
@@ -394,6 +396,9 @@ export interface Permission {
    * [Field] skill on this card in your hand can also be activated at
    * [Activate: Battle] timings" (BT29-041, BT29-042). Read from the hand,
    * where the skill is used; `filter` is not read.
+   * `unionFusionWarp`: this target card may activate its own Fusion from hand,
+   * choosing its specified materials from hand or Warp and sending both to Drop.
+   * This is self-scoped and does not grant any other card an area permission.
    * `unionFusionAreas`: while the card granting it (the target) is in play, its
    * master's [Union-Fusion] may choose its specified Battle Cards from the
    * Battle Area and the Drop as well as the hand (22-13-4-2-1), those two
@@ -402,6 +407,9 @@ export interface Permission {
    * [Union] skill of a red <Veku> or <Gogeta> card from your hand. If you do,
    * send the chosen cards to their owner's Warp" (BT31-001, owner's ruling of
    * 13 Oct 2026). `filter` says which cards' [Union-Fusion] it widens.
+   * `evolveEnergyBases`: this hand copy's Evolve-family skill may choose a
+   * qualifying own Battle Card in energy and enter Active Mode on that path
+   * (22-5-3-1); it does not extend the skill's activation-source area.
    * `aegisAltDrop` (BT22-035): while the card granting it is in play, its
    * master may pay any of their [Aegis] skills by sending one card of each of
    * `filter.colors` from their Drop to their Warp instead of the hand cards of
@@ -410,7 +418,7 @@ export interface Permission {
    * paid by sending 1 card from the opponent's hand to the bottom of their deck
    * instead. Both stand beside the hand payment, which stays the player's choice.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "aegisAltDrop" | "aegisAltOpponentHand";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
 }
@@ -1060,6 +1068,8 @@ export interface Replacement {
   to?: Area;
   /** 9-10: the original requested destination this redirect answers to, when narrowed. */
   requestedTo?: Area;
+  /** Explicit valid departure areas; absent retains the ordinary in-play scope. */
+  from?: ("battle" | "combo")[];
   /** The position to use if the replacement redirects into a pile. */
   position?: "top" | "bottom";
   /** A timed skill replacement re-evaluates this selector at each departure. */

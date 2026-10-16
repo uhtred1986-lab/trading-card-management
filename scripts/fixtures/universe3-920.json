@@ -1,0 +1,90 @@
+[
+  {
+    "id": "DB2-153",
+    "name": "Viara, Everlasting Assault",
+    "card_type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "energy_cost": "4",
+    "power": 20000,
+    "combo_cost": 0,
+    "combo_power": 5000,
+    "skill": "[Critical]<br>[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.<br>[Activate: Main/Battle] Choose 1 of your black Battle Cards with an energy cost of 4 and send it to its owner's Warp: Play this card from your Drop Area.",
+    "characters": [
+      "Viara"
+    ],
+    "traits": [
+      "Alien",
+      "Universe 3"
+    ],
+    "is_banned": true,
+    "has_errata": true
+  },
+  {
+    "id": "DB2-151",
+    "name": "Nigrisshi, from the Shadows",
+    "card_type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "energy_cost": "3",
+    "power": 15000,
+    "combo_cost": 0,
+    "combo_power": 5000,
+    "skill": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.<br>[Activate: Main/Battle] Choose 1 of your black Battle Cards with an energy cost of 3 and send it to its owner's Warp: Play this card from your Drop Area.",
+    "characters": [
+      "Nigrisshi"
+    ],
+    "traits": [
+      "Alien",
+      "Universe 3"
+    ],
+    "is_banned": true,
+    "has_errata": true
+  },
+  {
+    "id": "DB2-140",
+    "name": "Secret Technique Paparoni",
+    "card_type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "energy_cost": "2",
+    "power": 15000,
+    "combo_cost": 0,
+    "combo_power": 5000,
+    "skill": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.<br>[Activate: Main/Battle] Choose 1 of your black Battle Cards with an energy cost of 2 and send it to its owner's Warp: Play this card from your Drop Area.",
+    "characters": [
+      "Paparoni"
+    ],
+    "traits": [
+      "Alien",
+      "Universe 3"
+    ],
+    "is_banned": true,
+    "has_errata": true
+  },
+  {
+    "id": "DB2-137",
+    "name": "Anilaza, the Towering Atrocity",
+    "card_type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "energy_cost": "5",
+    "power": 25000,
+    "combo_cost": 0,
+    "combo_power": 5000,
+    "skill": "[Double Strike]<br>[Barrier]<br>[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.<br>[Activate: Main/Battle] Choose 1 of your black Battle Cards with an energy cost of 5 and send it to its owner's Warp: Play this card from your Drop Area.",
+    "characters": [
+      "Anilaza"
+    ],
+    "traits": [
+      "Alien",
+      "Universe 3"
+    ],
+    "is_banned": true,
+    "has_errata": true
+  }
+]

@@ -1,0 +1,204 @@
+{
+  "cards": 6493,
+  "skills": 13556,
+  "oldUnread": 3177,
+  "newUnread": 3169,
+  "changed": [
+    {
+      "id": "DB2-153",
+      "before": {
+        "cardId": "DB2-153",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "When this card is placed in a Drop Area from a Battle Area or Combo Area",
+          "it is placed at the bottom of its owner's deck instead"
+        ],
+        "pattern": "when this card is placed in a drop area from a battle area or combo area",
+        "reads": ""
+      },
+      "after": {
+        "cardId": "DB2-153",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [
+          {
+            "op": "replaceLeave",
+            "to": "deck",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "from": [
+              "battle",
+              "combo"
+            ],
+            "position": "bottom"
+          }
+        ],
+        "unread": [],
+        "pattern": "replaceLeave",
+        "reads": "if this card would leave the battle or combo area, it goes to the bottom of deck instead"
+      }
+    },
+    {
+      "id": "DB2-151",
+      "before": {
+        "cardId": "DB2-151",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "When this card is placed in a Drop Area from a Battle Area or Combo Area",
+          "it is placed at the bottom of its owner's deck instead"
+        ],
+        "pattern": "when this card is placed in a drop area from a battle area or combo area",
+        "reads": ""
+      },
+      "after": {
+        "cardId": "DB2-151",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [
+          {
+            "op": "replaceLeave",
+            "to": "deck",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "from": [
+              "battle",
+              "combo"
+            ],
+            "position": "bottom"
+          }
+        ],
+        "unread": [],
+        "pattern": "replaceLeave",
+        "reads": "if this card would leave the battle or combo area, it goes to the bottom of deck instead"
+      }
+    },
+    {
+      "id": "DB2-140",
+      "before": {
+        "cardId": "DB2-140",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "When this card is placed in a Drop Area from a Battle Area or Combo Area",
+          "it is placed at the bottom of its owner's deck instead"
+        ],
+        "pattern": "when this card is placed in a drop area from a battle area or combo area",
+        "reads": ""
+      },
+      "after": {
+        "cardId": "DB2-140",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [
+          {
+            "op": "replaceLeave",
+            "to": "deck",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "from": [
+              "battle",
+              "combo"
+            ],
+            "position": "bottom"
+          }
+        ],
+        "unread": [],
+        "pattern": "replaceLeave",
+        "reads": "if this card would leave the battle or combo area, it goes to the bottom of deck instead"
+      }
+    },
+    {
+      "id": "DB2-137",
+      "before": {
+        "cardId": "DB2-137",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "When this card is placed in a Drop Area from a Battle Area or Combo Area",
+          "it is placed at the bottom of its owner's deck instead"
+        ],
+        "pattern": "when this card is placed in a drop area from a battle area or combo area",
+        "reads": ""
+      },
+      "after": {
+        "cardId": "DB2-137",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "cost": null,
+        "cond": null,
+        "ops": [
+          {
+            "op": "replaceLeave",
+            "to": "deck",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "from": [
+              "battle",
+              "combo"
+            ],
+            "position": "bottom"
+          }
+        ],
+        "unread": [],
+        "pattern": "replaceLeave",
+        "reads": "if this card would leave the battle or combo area, it goes to the bottom of deck instead"
+      }
+    }
+  ]
+}

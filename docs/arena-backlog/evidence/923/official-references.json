@@ -1,0 +1,410 @@
+{
+  "fetched": "2026-10-15",
+  "faqSource": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+  "errataSource": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+  "cardsWithCardSpecificFaq": 54,
+  "cardsWithoutCardSpecificFaqInFetchedPage": [
+    "BT10-110",
+    "BT10-111",
+    "BT10-112",
+    "BT11-001",
+    "BT11-003",
+    "BT11-013",
+    "BT11-063",
+    "BT11-079",
+    "BT11-080",
+    "BT11-081",
+    "BT11-138",
+    "BT12-122",
+    "BT12-124",
+    "BT14-079",
+    "BT14-080",
+    "BT14-081",
+    "BT14-082",
+    "BT14-107",
+    "BT14-110",
+    "BT14-114",
+    "BT15-047",
+    "BT17-002",
+    "BT17-019",
+    "BT17-020",
+    "BT17-023",
+    "BT17-052",
+    "BT17-067",
+    "BT17-077",
+    "BT17-082",
+    "BT17-089",
+    "BT17-091",
+    "BT17-099",
+    "BT17-102",
+    "BT17-104",
+    "BT17-114",
+    "BT18-086",
+    "BT19-021",
+    "BT19-052",
+    "BT19-060",
+    "BT19-067",
+    "BT19-069",
+    "BT2-012",
+    "BT2-027",
+    "BT20-015",
+    "BT20-125",
+    "BT21-053",
+    "BT21-054",
+    "BT22-033",
+    "BT22-121",
+    "BT22-122",
+    "BT23-084",
+    "BT23-085",
+    "BT24-112",
+    "BT24-113",
+    "BT24-122",
+    "BT24-124",
+    "BT25-058",
+    "BT25-059",
+    "BT25-060",
+    "BT25-094",
+    "BT26-005",
+    "BT26-031",
+    "BT26-044",
+    "BT26-045",
+    "BT26-046",
+    "BT26-047",
+    "BT26-048",
+    "BT26-061",
+    "BT26-075",
+    "BT26-076",
+    "BT26-080",
+    "BT26-083",
+    "BT26-084",
+    "BT26-085",
+    "BT26-086",
+    "BT26-138",
+    "BT28-012",
+    "BT28-079",
+    "BT28-097",
+    "BT28-098",
+    "BT28-099",
+    "BT28-100",
+    "BT29-104",
+    "BT29-140",
+    "BT29-141",
+    "BT29-142",
+    "BT30-061",
+    "BT30-062",
+    "BT30-064",
+    "BT31-001",
+    "BT31-013",
+    "BT31-014",
+    "BT31-015",
+    "BT31-041",
+    "BT31-042",
+    "BT31-043",
+    "BT31-091",
+    "BT31-094",
+    "BT31-110",
+    "BT31-149",
+    "BT4-108",
+    "BT5-037",
+    "BT5-039",
+    "BT5-120",
+    "BT6-012",
+    "BT6-036",
+    "BT7-121",
+    "BT7-123",
+    "BT8-083",
+    "BT8-116",
+    "BT9-044",
+    "BT9-092",
+    "DB3-063",
+    "EX01-04",
+    "EX06-33",
+    "EX13-05",
+    "EX13-14",
+    "EX13-16",
+    "EX15-01",
+    "EX19-03",
+    "EX19-09",
+    "EX20-06",
+    "EX20-07",
+    "EX20-10",
+    "EX21-12",
+    "EX22-06",
+    "EX23-11",
+    "EX23-15",
+    "EX23-29",
+    "EX23-36",
+    "EX24-41",
+    "EX25-11",
+    "EX25-16",
+    "EX25-32",
+    "EX25-40",
+    "P-011",
+    "P-065",
+    "P-069",
+    "P-095",
+    "P-109",
+    "P-178",
+    "P-180",
+    "P-226",
+    "P-227",
+    "P-240",
+    "P-246",
+    "P-247",
+    "P-254",
+    "P-308",
+    "P-327",
+    "P-351",
+    "P-360",
+    "P-382",
+    "P-388",
+    "P-519",
+    "P-534",
+    "P-538",
+    "P-605",
+    "P-607",
+    "P-632",
+    "P-682",
+    "P-683",
+    "P-687",
+    "P-728",
+    "SD19-01",
+    "SD19-02",
+    "SD19-03",
+    "SD19-04",
+    "SD19-05",
+    "SD23-01",
+    "SD23-07",
+    "SD6-02",
+    "SD6-03",
+    "XD3-02",
+    "XD3-10"
+  ],
+  "faq": {
+    "BT10-046": {
+      "title": "BT10-046 Vegito, Infinite Radiance",
+      "text": "Q1. If you use this card's [Permanent] skill to activate [Union-Potara] and play this card on top of {BT1-033 Kind Saiyan Son Goku} in your energy, does {BT1-033 Kind Saiyan Son Goku}'s [Auto] skill activate? A1. No, it doesn't."
+    },
+    "BT10-053": {
+      "title": "BT10-053 Fused Zamasu, Advocate for Evil",
+      "text": "Q1. If you use this card's [Permanent] skill to activate [Union-Potara] and play this card on top of {BT7-042 Goku Black, the Replicator} in your energy, does {BT7-042 Goku Black, the Replicator}'s [Auto] skill activate? A1. No, it doesn't."
+    },
+    "BT10-092": {
+      "title": "BT10-092 SS Gotenks, Display of Mastery",
+      "text": "Q1. When your opponent uses the [Activate : Main] skill of {BT9-109 Emperor's Death Beam} in their Drop Area, does this card's auto skill activate? A1. No, it doesn't. The [Activate : Main] skill of {BT9-109 Emperor's Death Beam} doesn't count as activating an Extra Card. Q2. When your opponent uses the [Counter : Attack] skill of {BT7-024 The Final Guardian} in their Drop Area, does this card's auto skill activate? A2. Yes, it does. Activating the [Counter : Attack] skill of {BT7-024 The Final Guardian} counts as activating an Extra Card. Q3. Your opponent uses｛SD7-01 Miraculous Arrival Shenron｝’s activate skill to activate an Extra Card in their hand. Does this card’s auto skill activate? A3. Yes, it does."
+    },
+    "BT10-132": {
+      "title": "BT10-132 Vegeks, Spacetime Synthesis",
+      "text": "Q1. Your opponent activates the [Counter : Play] skill on {BT10-044 SS Trunks, God-Sealing Technique} in response to this card’s [Union-Potara] skill, causing you to return this card to your hand instead of playing it. Can you play the ＜Trunks : Xeno＞ and ＜Vegeta : Xeno＞ cards you sent to your Warp with this card’s [Union-Potara] skill? A1. No, you can’t."
+    },
+    "BT12-136": {
+      "title": "BT12-136 SS3 Gogeta, Marvelous Might",
+      "text": "Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can."
+    },
+    "BT12-137": {
+      "title": "BT12-137 Gogeta, Fearless Fusion",
+      "text": "Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can."
+    },
+    "BT14-094": {
+      "title": "BT14-094 Android 20 & Dr. Myuu, Hellish Accomplices",
+      "text": "Q1. If you use [Spirit Boost] to remove all of this card’s markers and place it in its owner’s Drop Area, does this card’s auto skill activate? A1. Yes, it does."
+    },
+    "BT16-142": {
+      "title": "BT16-142 SS Gogeta, Holding Nothing Back",
+      "text": "Q1. This card is placed in your Drop Area the same turn you played it. At the end of the turn, can you use this card’s [Auto] skill to draw 1 card and add up to 1 Red/Blue multicolor card from your Drop Area to your energy? A1. No, you can’t."
+    },
+    "BT18-001": {
+      "title": "BT18-001 SS4 Son Goku & SS4 Vegeta, In It Together",
+      "text": "Q1. What actions can your opponent no longer perform with the \"your opponent skips their Defense Step\" part of this card's second [Permanent] skill? A1. Your opponent can no longer perform combos or activate skills such as [Activate : Battle] or [Activate : Main/Battle]."
+    },
+    "BT18-019": {
+      "title": "BT18-019 SS4 Gogeta, Triumphant Together",
+      "text": "Q1. Does the \"non-＜Gogeta : GT＞ skills\" part of this card's [Permanent] skill refer to card skills on cards in Leader Areas and Battle Areas with character names other than ＜Gogeta : GT＞? A1. No, it refers to all card skills that don't have ＜Gogeta : GT＞ in any area. Q2. What can you no longer perform with the \"you skip your Offense Step\" part of this card's [Permanent] skill? A2. You can't perform combos or activate skills such as [Activate : Battle] or [Activate : Main/Battle]."
+    },
+    "BT18-085": {
+      "title": "BT18-085 SS Son Goten & SS Trunks, Unfurled Potential",
+      "text": "Q1. If you use this card's [Activate : Battle] to combo with this card in your Drop, after the battle is over, can you choose to add this card to your Z-Energy before sending it to your Warp? A1. Yes, you can."
+    },
+    "BT19-085": {
+      "title": "BT19-085 SS Gogeta, Facing the Ultimate",
+      "text": "Q1. You activated this card's [Union-Fusion]. Can you use this card's [Permanent] skill to choose 1 of the specified cards from your Z-Energy and 1 from your hand? A1. Yes, you can."
+    },
+    "BT2-013": {
+      "title": "BT2-013 Lightning Speed Vegito",
+      "text": "Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. Can you attack your own Battle Cards in Active Mode? A2. No, you cannot. Q3. Can you evolve into {BT2-012 Repeated Force Vegito} with {BT2-013 Lightning Speed Vegito}’s skill? A3. Yes, you can. {BT2-012 Repeated Force Vegito} has 25000 power, and its character name is \"Vegito,\" so the specified conditions are fulfilled. Q4. Do you need to pay the energy cost or [Evolve] cost for cards evolved via card skills? A4. No, you do not need to pay the unless specified otherwise. Q5. If this card attacks a Battle Card with [Revenge], does its auto skill activate at the end of the battle? A5. Yes, it does."
+    },
+    "BT2-015": {
+      "title": "BT2-015 Prodigy Fusion Super Saiyan Gotenks",
+      "text": "Q1. Can you activate [Union-Fusion] with {BT2-008 Leap to The Future Son Goten} and {BT2-011 Leap to The Future Trunks}? A1. Yes, you can. The character name of {BT2-008 Leap to The Future Son Goten} and {BT2-011 Leap to The Future Trunks} is “Son Goten” and “Trunks: Youth,” and they both have the same power, so the condition specified on the card text is fulfilled. Please check the details on the ERRATA CARDS section of the RULE page of our official web site."
+    },
+    "BT2-058": {
+      "title": "BT2-058 Infinite Force Fused Zamasu",
+      "text": "Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. When placing your energy and life and hand at the bottom of your deck due to your opponent’s｛BT2-058 Infinite Force Fused Zamasu｝’s auto skill, which player chooses the cards? A2. The opponent does. Q3. When placing your energy and life and hand at the bottom of your deck due to your opponent’s｛BT2-058 Infinite Force Fused Zamasu｝’s auto skill, can the opponent place the card at the bottom of your deck in any order? A3. Yes, they can. Q4. When choosing cards from your opponent’s life and hand with｛BT2-058 Infinite Force Fused Zamasu｝’s auto skill, do you choose the cards without looking at their contents? A4. Yes, you do. Q5. Can you choose cards only from your opponent’s energy and hand with｛BT2-058 Infinite Force Fused Zamasu｝’s auto skill? A5. Yes, you can. Q6. Can you choose a Battle Card with [Indestructible] as the target of｛BT1-065 Furious Yell Vegeta｝’s activate skill? A6. Yes, you can. In this case, the Battle Card with [Indestructible] is not KO-ed. Q7. Can you combo with a Battle Card in the Battle Area which has [Indestructible]? A7. Yes, you can. Q8. If you choose a Battle Card which has [Indestructible] with the opponents {BT1-057 Broly, The Legendary Super Saiyan}’s auto skill, is it placed in the Drop Area? A8. No, it is not. Cards with [Indestructible do not leave the Battle Area due to your opponent’s skills. Q9. If you choose a Battle Card which has [Indestructible] with your {BT1-057 Broly, The Legendary Super Saiyan}’s auto skill, is it placed in the Drop Area? A9. Yes, it is. [Indestructible] is a skill which prevents a card from being KO-ed or removed from the Battle Area due to opponent Effects, but not your own. Q10. Can you use a skill that gains control of an opponent’s Battle Card to gain control of an opponent’s Battle Card with [Indestructible]? A10. No, you can’t. Q11. If your Battle Card with [Indestructible] has its power lowered to 0 or less by an opponent’s skill, is it placed in your Drop Area? A11. Yes, it is placed in your Drop Area. Skills like [Indestructible] prevent cards from being removed from your Battle Area, but they still get placed in your Drop Area when an opponent’s skill reduces their power to zero or less. After you check to see if a card would be placed in the Drop Area by a skill, you then check to see if the card would be placed there by rules processing. The reason this is possible is because, in this instance, rules processing is what places cards in the Drop Area, not the skill itself."
+    },
+    "BT2-085": {
+      "title": "BT2-085 Evolving Evil Lifeform Cell",
+      "text": "Q1. How are the cards under this card treated? A1. The cards are treated as the same card as the card on top of them, and the whole stack counts as 1 card. Q2. When the cards under this card are place in the Drop Area, from where did they supposedly move from? A2. From whatever area the card on top of them was in. Q3. Can you activate the skills of cards placed under this card? A3. No, you cannot. all information on the cards placed under this card is negated. Q4. Can you place {BT2-090 Exterminating Energy Android 18} under ｛BT2-085 Evolving Evil Lifeform Cell｝ as the cost of [Union-Absorb]? A4. Yes, you can. The character name of {BT2-090 Exterminating Energy Android 18} is “Android 18” so the condition specified on the card text is fulfilled. Q5. Can you play ｛BT2-085 Evolving Evil Lifeform Cell｝ on ｛BT2-085 Evolving Evil Lifeform Cell｝ from your deck with [Union-Absorb]? A5. Yes, you can. Q6. Can You choose not to draw a card with {BT2-085 Evolving Evil Lifeform Cell}’s auto skill? A6. No, you cannot. You must draw 1 card."
+    },
+    "BT2-086": {
+      "title": "BT2-086 Growing Evil Lifeform Cell",
+      "text": "Q1. How are the cards under this card treated? A1. The cards are treated as the same card as the card on top of them, and the whole stack counts as 1 card. Q2. When the cards under this card are place in the Drop Area, from where did they supposedly move from? A2. From whatever area the card on top of them was in. Q3. Can you activate the skills of cards placed under this card? A3. No, you cannot. all information on the cards placed under this card is negated. Q4. Can you place {BT2-088 Expanding Energy Android 17} under ｛BT2-086 Growing Evil Lifeform Cell｝ as the cost of [Union-Absorb]? A4. Yes, you can. The character name of {BT2-088 Expanding Energy Android 17} is “Android 18” so the condition specified on the card text is fulfilled. Q5. Can you play ｛BT2-086 Growing Evil Lifeform Cell｝ on ｛BT2-086 Growing Evil Lifeform Cell｝ from your deck with [Union-Absorb]? A5. Yes, you can."
+    },
+    "BT2-109": {
+      "title": "BT2-109 Meta-Cooler Core",
+      "text": "Q1. How are the cards under this card treated? A1. The cards are treated as the same card as the card on top of them, and the whole stack counts as 1 card. Q2. When the cards under this card are place in the Drop Area, from where did they supposedly move from? A2. From whatever area the card on top of them was in. Q3. Can you activate the skills of cards placed under this card? A3. No, you cannot. all information on the cards placed under this card is negated. Q4. You activated this card’s [Union-Absorb] and placed {Big Gete Star} under it as part of the cost. Does {Big Gete Star} remain in the same position it was in before you placed it under this card? A4. No, it doesn’t. Only the position of the card activating [Union-Fusion] and any power changes to that card are carried over. Q5. Do you need to pay the energy cost for cards played via card skills? A5. No, you do not need to pay the unless specified otherwise."
+    },
+    "BT2-123": {
+      "title": "BT2-123 Ultimate Force SSB Vegito",
+      "text": "Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. Can you include 4 copies of a single card with [Ultimate] in your deck? A2. No, you cannot. You cannot include more than 1 card with [Ultimate] in your deck, even if it has the same card No. Q3. The attack of a card with [Triple Attack] was negated. Can it be switched to Active Mode with [Triple Attack]? A3. Yes, it can. Even if the attack is negated, skills which are processed at the end of a battle are resolved, and thus you can switch the card to Active Mode. Q4. Can you include a total of 2 or more cards with [Ultimate] in your deck if they’re split between your deck and side deck? A4. No, you can’t. You can only include a total of 1 card with [Ultimate] combined between your deck and side deck."
+    },
+    "BT22-136": {
+      "title": "BT22-136 Veku, Comeback From Defeat",
+      "text": "Q1. If you only choose 1 card from your Warp for this card's [Auto] skill, can you choose to not add 1 card from your hand and use the effect to place that card at the bottom of your deck? A1. No, you can't."
+    },
+    "BT22-137": {
+      "title": "BT22-137 SS Gogeta, Light Shining Through Hell",
+      "text": "Q1. If this card's power is reduced to zero by an opponent's skill when it can't be removed from your Battle Area, is it placed in your Drop? A1. Yes, it is."
+    },
+    "BT22-140": {
+      "title": "BT22-140 SS Gogeta, Fusion Reborn",
+      "text": "Q1. If you activate this card's [Aegis] skill when the [Permanent] skill is active, which player chooses the card to send from your opponent’s hand to the bottom of their deck? A1. The master of this card places 1 card from the hand of their opponent at the bottom of their deck."
+    },
+    "BT25-036": {
+      "title": "BT25-036 SS3 Gotenks, Power of the Strongest Rookie",
+      "text": "Q1. What happens if a non-blue Z-Extra is placed into your Battle Area when there are already multiple blue Z-Extras in your Battle Area? A1. All of the existing blue Z-Extras are removed from the game, and the non-blue Z-Extra is placed into the Battle Area."
+    },
+    "BT3-020": {
+      "title": "BT3-020 Hidden Ability, General Rilldo",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+    },
+    "BT3-022": {
+      "title": "BT3-022 Commander Nezi",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary. Q2. When adding a card to your hand using this card’s auto skill, do you need to reveal it to your opponent? A2. Yes, you do."
+    },
+    "BT3-048": {
+      "title": "BT3-048 Out of Control Evil, Majin Buu",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+    },
+    "BT3-050": {
+      "title": "BT3-050 Majin Buu, Dawn of the Rampage",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+    },
+    "BT3-063": {
+      "title": "BT3-063 Hyper Rush SSB Vegito",
+      "text": "Q1. When choosing cards from your opponent’s hand using this card’s auto skill, can you look at the front sides of the cards before choosing them? A1. No, you can’t. The cards must remain face down while you choose them. Q2. Can you resolve the “Then, you may choose up to 2 cards in your life and add them to your hand” part of this card’s skill even if your Leader Card isn’t ＜Vegito＞? A2. Yes, you can."
+    },
+    "BT3-070": {
+      "title": "BT3-070 Dawn of Terror, Android 13",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+    },
+    "BT3-076": {
+      "title": "BT3-076 Twisted Justice, Fused Zamasu",
+      "text": "Q1. When choosing cards from your opponent’s hand using this card’s auto skill, can you look at the front sides of the cards before choosing them? A1. No, you can’t. The cards must remain face down while you choose them. Q2. Can you choose a Battle Card with [Indestructible] as the target of {BT1-065 Furious Yell Vegeta}’s activated skill? A2. Yes, you can. In this case, the Battle Card with [Indestructible] is not KO-ed. Q3. Can you use Battle Cards with [Indestructible] to combo from the Battle Area? A3. Yes, you can. Q4. If you choose a Battle Card which has [Indestructible] with the opponent’s {BT1-057 Broly, The Legendary Super Saiyan}’s auto skill, is it placed in the Drop Area? A4. No, it’s not. Cards with [Indestructible] don’t leave the Battle Area. Q5. Can you use a skill that gains control of an opponent’s Battle Card to gain control of an opponent’s Battle Card with [Indestructible]? A5. No, you can’t. Q6. If your Battle Card with [Indestructible] has its power lowered to 0 or less by an opponent’s skill, is it placed in your Drop Area? A6. Yes, it is placed in your Drop Area. Skills like [Indestructible] prevent cards from being removed from your Battle Area, but they still get placed in your Drop Area when an opponent’s skill reduces their power to zero or less. After you check to see if a card would be placed in the Drop Area by a skill, you then check to see if the card would be placed there by rules processing. The reason this is possible is because, in this instance, rules processing is what places cards in the Drop Area, not the skill itself."
+    },
+    "BT30-044": {
+      "title": "BT30-044 Majin Buu, Ultimate Majin",
+      "text": "Q1. If you have 2 green cards with cards under them in play, can you use this card's [Activate : Battle] skill to use 1 card from under both of them in a combo? A1. Yes, you can."
+    },
+    "BT31-052": {
+      "title": "BT31-052 SS4 Gogeta, Light That Protects the Universe",
+      "text": "Q1. NEW If this card's [Activate : Main] skill causes BT31-053 {Big Bang Kamehameha}'s [Activate : Main] skill to activate from your hand, where do you place BT31-053 {Big Bang Kamehameha}? A1. You place it into your Drop."
+    },
+    "BT4-018": {
+      "title": "BT4-018 Baby, Vengeance Unleashed",
+      "text": "Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary. Q2. When playing a card using card skills, do you need to pay the energy cost of that card? A2. No, you do not need to pay unless specified otherwise."
+    },
+    "BT4-019": {
+      "title": "BT4-019 Saiyan Onslaught Kefla",
+      "text": "Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not."
+    },
+    "BT4-110": {
+      "title": "BT4-110 Dark Absorption Mira",
+      "text": "Q1. When playing a card using card skills, do you need to pay the energy cost of that card? A1. No, you do not need to pay unless specified otherwise."
+    },
+    "BT5-038": {
+      "title": "BT5-038 Gogeta, Hero Revived",
+      "text": "Q1. Does this card’s auto skill activate when your opponent has no cards in hand? A1. Yes, it does. If your opponent has no cards in hand, they shuffle their deck and draw three cards."
+    },
+    "BT5-066": {
+      "title": "BT5-066 Hell Fighter 17, Evil Revived",
+      "text": "Q1. After you use this card’s activated skill to look through your deck, can you choose a 〈Super 17〉 with an energy cost of 4 from your Drop Area? A1. Yes, you can."
+    },
+    "BT5-068": {
+      "title": "BT5-068 Super 17, to Further Heights",
+      "text": "Q1. After you use this card’s activated skill to look through your deck, can you choose a 〈Super 17〉 with an energy cost of 6 from your Drop Area? A1. Yes, you can."
+    },
+    "BT6-013": {
+      "title": "BT6-013 Veku, the Fragile",
+      "text": "Q1. What happens to Battle Cards that reach zero power or below as a result of effects that reduce power? A1. Battle Cards that drop to zero power are placed in their owner's Drop Area."
+    },
+    "BT6-015": {
+      "title": "BT6-015 Gogeta, Unparalleled Fusion Warrior",
+      "text": "Q1. What does “this card can't be KO'd” mean? A1. It means the card can’t be KO’d by battle or by skills. Q2. If you don’t have 1 or more red ＜Son Goku: Br＞ and ＜Vegeta: Br＞ cards in your hand, can you activate this card’s [Union-Fusion]? A2. No, you can’t. [Union-Fusion]’s skill cost requires you to place 1 copy of each of the specified cards with the same power in their owner’s Drop Area. If you don’t pay this cost, you can’t activate the skill."
+    },
+    "BT7-118": {
+      "title": "BT7-118 Meteoric Energy SSB Vegito",
+      "text": "Q1. You used this card’s auto skill to choose your opponent’s cards in Rest Mode. During your opponent’s next Charge Phase, can they switch those cards to Active Mode? A1. No, they can’t. Q2. Can I combo with cards from my hand during my Offense Step in order to fulfill this card's second auto ability? A2. No, you may not. You must have a minimum of 3 battle cards in your combo area by the time the second auto ability resolves, which would be before the Offense Step."
+    },
+    "BT8-017": {
+      "title": "BT8-017 Baby, Vengeful Blow",
+      "text": "Q1. When {BT2-064 Mafuba} is on top of this card, you played a separate copy of {BT3-077 Evil Psyche Zamasu}. Afterwards, the {BT2-064 Mafuba} is placed in the Drop Area. You now have 2 copies of {BT3-077 Evil Psyche, Zamasu} in your Battle Area. What happens? A1. You choose 1 of the copies to leave in your Battle Area, then place the other copy in its owner’s Drop Area."
+    },
+    "EX01-07": {
+      "title": "EX01-07 Psyched Up Gotenks",
+      "text": "Q1. When activating {EX01-07 Psyched Up Gotenks}’s [Union-Fusion], can you play it by placing {BT2-008 Leap to the Future Son Goten} and {BT2-011 Leap to the Future Trunks} in the Drop Area from your hand? A1. Yes, you can. {BT2-008 Leap to the Future Son Goten} and {BT2-011 Leap to the Future Trunks} have the character names “Son Goten” and “Trunks: Youth” respectively, and both have the same power, so the conditions specified on the card text are fulfilled. Q2. You have both ＜Son Goten＞ and ＜Trunks: Youth＞ in your Drop Area when you play {EX01-07 Psyched Up Gotenks} using [Union-Fusion]. Can you use {EX01-07 Psyched Up Gotenks}’s auto skill to draw 2 cards and KO an opponent’s battle card? A2. Yes, you can. When {EX01-07 Psyched Up Gotenks}’s auto skill activates, both ＜Son Goten＞ and ＜Trunks: Youth＞ are in your Drop Area as a result of [Union-Fusion], so both conditions on the card text are fulfilled. Q3. You have ＜Trunks: Youth＞ in your Drop Area, but not ＜Son Goten＞. Can you KO an opponent’s Battle Card when {EX01-07 Psyched Up Gotenks} enters play? A3. Yes, you can. Resolve as many parts of the skill as you can."
+    },
+    "EX06-19": {
+      "title": "EX06-19 Android 13, the Brilliant",
+      "text": "Q1. Can you activate this card's [Union-Absorb] skill by placing {EX06-20 Android Troop - 14 & 15} under this card? A1. No, you can't. The card requires that you place two cards under it to activate [Union-Absorb]: one 〈Android 14〉 card and one 〈Android 15〉 card."
+    },
+    "EX14-04": {
+      "title": "EX14-04 SS Son Goten & Trunks, Super Saiyan Tag Team",
+      "text": "Q1. Can you discard 1 copy of this card to activate {BT10-110 Gotenks, Going All-Out}’s [Union-Fusion] skill? A1. No, you can’t. You must discard 1 ＜Son Goten : GT＞ card and 1 ＜Trunks : GT＞ card in order to activate that skill."
+    },
+    "P-014": {
+      "title": "P-014 Bursting Energy Super Saiyan Vegito",
+      "text": "Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. Can you choose which cards you place in the Drop Area from your life with ｛P-014 Bursting Energy Super Saiyan Vegito｝’s activate skill? A2. Yes, you can. Yes, you choose without looking at the contents of the cards."
+    },
+    "P-108": {
+      "title": "P-108 Veku, Defective Fighter",
+      "text": "Q1. When using this card’s skill, if you only add 1 card to your hand, does this card’s “if you added 2 cards to your hand, add 2 cards from the top of your deck to your energy” skill resolve? A1. No, it doesn’t. Q2. When you add 2 cards to your hand via a skill other than this card’s skill, does this card’s “if you added 2 cards to your hand, add 2 cards from the top of your deck to your energy” skill resolve? A2. No, it doesn’t."
+    },
+    "P-132": {
+      "title": "P-132 Brilliant Pairing Kefla",
+      "text": "Q1. When {BT2-064 Mafuba} is on top of this card, you played a separate copy of {BT3-077 Evil Psyche Zamasu}. Afterwards, the {BT2-064 Mafuba} is placed in the Drop Area. You now have 2 copies of {BT3-077 Evil Psyche, Zamasu} in your Battle Area. What happens? A1. You choose 1 of the copies to leave in your Battle Area, then place the other copy in its owner’s Drop Area."
+    },
+    "P-185": {
+      "title": "P-185 Kefla, Everlasting Light",
+      "text": "Q1. If this card has its power reduced to zero or below by a skill that says “gets -X power for the duration of the turn” how is this card’s permanent skill applied? A1. First, this card’s owner can choose to use “you may choose 1 multicolor card from your hand and place it in your Drop Area instead”. If they choose not to place a card in their Drop Area, this card is sent to the Drop Area. If they choose to place a card in their Drop Area, it prevents the card from being placed in the Drop Area once, but since effects that decrease power are continuous effects, the power reduction would remain and this card would be placed in the Drop Area due to the rules."
+    },
+    "P-220": {
+      "title": "P-220 SSB Vegito, Soaring Blow",
+      "text": "Q1. If you use this card's [Permanent] skill to activate [Union-Potara] and play this card on top of {BT1-033 Kind Saiyan Son Goku} in your energy, does {BT1-033 Kind Saiyan Son Goku}'s [Auto] skill activate? A1. No, it doesn't."
+    },
+    "P-230": {
+      "title": "P-230 SS Vegeks, Mastery Merged",
+      "text": "Q1. If you use this card's [Permanent] skill to activate [Union-Potara] and play this card on top of a {Vegeta, Returned from Darkness} in your energy, does {Vegeta, Returned from Darkness}'s [Auto] skill activate? A1. No, it doesn't. Q2. Your opponent activates the [Counter : Play] skill on {BT10-044 SS Trunks, God-Sealing Technique} in response to this card’s [Union-Potara] skill, causing you to return this card to your hand instead of playing it. Can you play the ＜Trunks : Xeno＞ and ＜Vegeta : Xeno＞ cards you sent to your Warp with this card’s [Union-Potara] skill? A2. No, you can’t."
+    },
+    "P-286": {
+      "title": "P-286 SS3 Gogeta, Martial Melee",
+      "text": "Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can."
+    },
+    "SD6-04": {
+      "title": "SD6-04 Ultimate Fusion Gogeta",
+      "text": "Q1. When using this card’s auto skill to place an opponent’s Battle Card on the bottom of its owner’s deck, who decides which order the Battle Cards get returned to the bottom of their owners’ decks in? A1. The player who activated this card’s auto skill chooses."
+    },
+    "TB3-054": {
+      "title": "TB3-054 Piccolo, Potential Unleashed",
+      "text": "Q1. Can you choose a yellow 《Namekian》 card with an energy cost of 4 from your Drop Area after looking at your deck with this card’s Activate : Main skill? A1. Yes, you can. However, make sure to resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+    }
+  },
+  "errata": {
+    "BT2-015": "BT2-015 Prodigy Fusion Super Saiyan Gotenks Card No:BT2-015 Card Name:Prodigy Fusion Super Saiyan Gotenks Card Errata Before (Place 1 each of the specified card with the same power into your Drop Area and play this card) After (Place 1 each of the specified card with the same power from your hand into your Drop Area and play this card) ",
+    "BT22-137": "BT22-137 SS Gogeta, Sparking to Utmost Limit Card No:BT22-137 Card Name:SS Gogeta, Sparking to Utmost Limit Card Errata Before (Front) [Union-Fusion] ● ● (2), if your opponent has 3 or more energy and draws 2 cards : Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power. After (Front) [Union-Fusion] ● ● (2), if your opponent has 3 or more energy and you draw 2 cards : Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power. ",
+    "BT3-070": "BT3-070 Dawn of Terror, Android 13 Card No:BT3-070 Card Name:Dawn of Terror, Android 13 Card Errata Before [Union-Absorb] ● , choose up to 1 each After [Union-Absorb] ● , choose 1 each ",
+    "BT4-108": "BT4-108 Mira, Creator Absorbed Card No:BT4-108 Card Name:Mira, Creator Absorbed Card Errata Before [Auto] When this card attacks, this card gains +5000 power for each card in your Warp. After [Auto] When this card attacks, this card gains +5000 power for each card in your Warp for the duration of the turn . ",
+    "BT5-120": "BT5-120 Miraculous Fighter SS3 Gogeta Card No:BT5-120 Card Name:Miraculous Fighter SS3 Gogeta Card Errata Before The combo cost wasn’t clearly visible. After The Combo Cost should be treated as ①. It should be ①Combo Cost with +10000 Combo Power. ",
+    "P-360": "P-360 Vegeta/SSG Vegeta, Crimson Warrior Card No:P-360 Card Name:Vegeta/SSG Vegeta, Crimson Warrior Card Errata Before [Activate Battle][Once per turn] Choose up to 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck, After [Activate Battle][Once per turn] Choose 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck, "
+  },
+  "warning": "Official text reference inventory; presence does not mean every ruling has a runtime regression test. No FAQ entry found is not a ruling."
+}

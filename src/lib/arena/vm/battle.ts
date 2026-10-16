@@ -127,6 +127,10 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
       throw new IllegalAction("that attack is not offered");
     }
   }
+  // Revalidate board facts even for a previously offered action.
+  if (!inPlayCards(game, state, action.player).includes(action.attacker) ||
+      attackWhy(ctx, game, state, action.player, action.attacker).length ||
+      !targetsFor(ctx, game, state, action.player, action.attacker).includes(action.target)) throw new IllegalAction("that attack is not offered");
   const attacker = action.attacker;
   // 20-14-1: "can't attack unless … each time" — the price is paid first, by
   // the attacking player and in their own frame, and the attack is taken after
@@ -174,7 +178,8 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
       if (lifts.some((p) => permitted(ctx, game, state, p.filter, id))) out.push(id);
     }
   }
-  return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }));
+  return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }) &&
+    (!attacker || !forbids(ctx, game, state, "attack", { player, card: attacker, attackTarget: id })));
 }
 
 /** The `whyNotAttack` reading (8-1): timing first, then mode, then a prohibition, then whether anything at all may be hit — `whyNotCharge`'s own order, board-fact-before-card-fact where the two could otherwise disagree about which is first. */
@@ -188,13 +193,14 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   // card has no card type at all (23-5-2) — face down, it cannot attack.
   if (inst.hidden) why.push({ kind: "other", detail: "a Hidden Mode card has no card type, so it cannot attack (23-5-2)" });
   if (inst.mode !== "active") why.push({ kind: "mode", card: attacker, mode: (inst.mode as "active" | "rest" | null) ?? "active" });
-  const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker });
+  const targets = targetsFor(ctx, game, state, player, attacker);
+  const banned = forbiddenBy(ctx, game, state, "attack", { player, card: attacker, attackTarget: targets[0] });
   if (banned) why.push({ kind: "forbidden", ...banned });
   // 20-14-1: a tax nobody can pay is a ban — "if action B is not taken … action A can't be declared".
   for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
     if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
   }
-  if (!why.length && !targetsFor(ctx, game, state, player, attacker).length) why.push({ kind: "target", reason: "nothing may be attacked" });
+  if (!why.length && !targets.length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
 }
 
@@ -339,6 +345,11 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           for (const id of end.preDropSubjects) {
             end.captureCursor++;
             const holder = state.cards[id].owner;
+            // #920: a mandatory redirect whose every possible route avoids
+            // Drop cannot announce a Combo-to-Drop occurrence at 8-5-6.
+            // Leave optional/substitute projection at the explicit #609 gap.
+            const routes = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true });
+            if (routes.some((route) => !route.optional) && routes.every((route) => route.to && route.to !== "drop" && !route.ops?.length)) continue;
             const occurrence = `combo-drop:${state.turn}:${id}:${state.cards[id].zoneEpoch ?? 0}`;
             const pended = pendAutos(ctx, game, state, { event: "moved", card: id, controller: holder,
               args: { from: "combo", to: "drop", asPlay: false, fromHolder: holder } },
@@ -348,7 +359,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
             // No subject-information rule picks one new area before an
             // optional/competing replacement has been answered. Keep this
             // boundary explicit instead of projecting an assumed Drop card.
-            if (replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" }).length)
+            if (replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true }).length)
               throw new NotYet("project a pre-announced Combo-to-Drop Auto through its replacement choices", "#609");
             // §9-6-9-1-3 asks for information in the new, open Drop Area.
             // Project only that information on a copy. Live area membership,
@@ -404,7 +415,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
                 replaced = choice ? routeOf(choice) : null;
                 substituteVars = (choice as typeof choice & { vars?: Record<string, string[]> } | undefined)?.vars ?? {};
               } else {
-                const choices = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" });
+                const choices = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true });
                 const allowNone = choices.length > 0 && choices.every((choice) => choice.optional);
                 if (choices.length > 1 || allowNone) {
                   end.awaitingDeparture = { card: id, choices, allowNone };

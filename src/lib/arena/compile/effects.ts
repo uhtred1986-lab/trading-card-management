@@ -339,7 +339,7 @@ function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
 
-function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
+function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
   const t = clean(clause);
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
   // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
@@ -379,17 +379,13 @@ function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; b
     if (/^(?:this card|it)$/.test(who)) return { by: "skill" };
     return who ? { by: "skill", subject: who } : { by: "skill" };
   }
-  // "When this card is placed in a Drop Area from a Combo Area" (P-182) / "…
-  // from a Battle Area or Combo Area" (DB2-137/140/151/153) is deliberately
-  // NOT read as the same replacement: `move()` (state.ts:857) only checks
-  // `replaceLeave` when the card was leaving `leader`/`battle`/`unison`
-  // (`wasInPlay`) — leaving the *Combo Area* (`wasCombo`) never reaches that
-  // check at all. Reading these as "removed from the Battle Area" would be
-  // wrong twice over: for P-182 the compiled rule would never fire (its only
-  // path out is the Combo Area), and for the DB2 cards it would fire too
-  // often — misapplying the redirect to a Battle-Area departure the printed
-  // text does gate on "or Combo Area" for, but that path itself still can't
-  // be read. Left unread rather than read wide (ground rule 5).
+  // #920: the official DB2 errata names both valid source areas and no
+  // cause/destination restriction. Keep these areas on the redirect rather
+  // than broadening every existing Battle-Area replacement to Combo.
+  if (/^when this card is removed from a battle area or combo area$/.test(t))
+    return { from: ["battle", "combo"] };
+  // The obsolete Drop-only wording deliberately remains unread. Catalog
+  // ingestion corrects the four errata cards before drafting new records.
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
   // owner returns to hand is still returned to hand. The narrower form names
   // whose skill did it, and a KO in battle is then not this moment at all.
@@ -577,17 +573,15 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // "For each marker on this card, this card gets +5000 power during your
   // turn" (BT27-003/004/005/006, EX19-21): the count leads the sentence,
   // comma-joined, instead of trailing it. `compileClauseList` deliberately
-  // keeps that comma from splitting the clause in two (see
-  // `PURE_FOREACH_MARKERS_ON_SELF`) only for "on this card", so this is
-  // reached with the count and the effect still both in hand; every other
-  // leading "for each" phrase in the catalog is still split apart on its own
-  // and stays unread, same as before.
+  // reattaches that comma for “on this card” and for leading own-token
+  // counts (BT23-078/080/082/096), so the multiplier and effect arrive together.
+  // Other leading count shapes remain unread.
   //
   // "For every 2 ≪Universe 2≫ cards in your Warp" (BT30-084) is the same count
   // in whole steps of 2, rounded down — `Amount`'s `per` (2 Oct 2026). The
   // step size is read off the front of the counted phrase in either form;
   // "for each 1 energy you have" is a step of 1, which is no step at all.
-  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?)\s*,\s*(.+)$/.exec(t);
+  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?)\s*,\s*(.+)$/.exec(t);
   const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
   const headSrc = lead ? lead[3] : m![1];
@@ -620,7 +614,7 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   const sel = /^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(what) ?? energyYouHave(what));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
-  const broad: Selector = { ...sel, count: 99, upTo: false };
+  const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
     markersOn ? { markers: broad, ...per, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...per, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
@@ -632,8 +626,16 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   const head = compileClause(`${headSrc}${tail}`, c);
   if (!head?.length) return null;
   const [op, ...rest] = head;
+  // Trailing cost counts already have their own reader (including orb colors).
+  if (op.op === "costReduction" && !lead) return null;
   const swapped = swapForEachAmount(op, amountFor);
-  return swapped && [swapped, ...rest];
+  if (!swapped) return null;
+  // The named area is the reducer's scope, not a creation/activation source.
+  // selfFrom reads “from”, so preserve “in your hand” explicitly here.
+  if (lead && swapped.op === "costReduction" && /\bthis card in your hand by\b/.test(headSrc)) {
+    swapped.target = { sel: { special: "self", area: "hand" } };
+  }
+  return [swapped, ...rest];
 }
 
 /**
@@ -670,7 +672,7 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
   if ((op.op === "draw" || op.op === "discard" || op.op === "damage" || op.op === "mill" || op.op === "addLife" || op.op === "energyMarker") && typeof op.n === "number") {
     return { ...op, n: amountFor(op.n) };
   }
-  if ((op.op === "power" || op.op === "comboPower") && typeof op.amount === "number") {
+  if ((op.op === "power" || op.op === "comboPower" || op.op === "costReduction") && typeof op.amount === "number") {
     return { ...op, amount: amountFor(op.amount) };
   }
   return null;
@@ -872,7 +874,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
     // reattached above), a failure to compile the effect refuses the whole
     // clause rather than exposing that leftover phrase to anything else.
-    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t)) return null;
+    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t) || /^for each of your\b[^,]*\btokens?\b[^,]*,/.test(t)) return null;
   }
 
   // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
@@ -2653,7 +2655,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     }
     return null;
   }
-  if (/^attack\b/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+  if (/^attack\b/.test(rest)) {
+    // The object is the defender (BT1-057), not a blanket prohibition.
+    if (/^attack(?:$| (?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
+    const object = /^attack (.+?)(?= (?:for|during|until)\b|$)/.exec(rest)?.[1];
+    if (!object || !/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) return null;
+    const attackTarget = filterFor(object, null);
+    if (!attackTarget) return null;
+    return [{ op: "forbid", what: "attack", until, target, attackTarget, ...withUnless }];
+  }
   // "It can't activate skills" (BT29-041): the card's own [Activate] and
   // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
   // cannot be activated is cancelled), so `activateSkill` stops both.
@@ -2927,6 +2937,8 @@ const PURE_DURATION =
  * shows up unread, not whether it reads — left split, as before.
  */
 const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) (?:\d+ )?markers? on this card[.,]?$/i;
+/** A token count leads the four BT23 hand reducers; never leave a flat discount behind. */
+const PURE_FOREACH_OWN_TOKENS = /^for each of your\b[^,]*\btokens?\b[^,]*[.,]?$/i;
 /**
  * "…the next time you activate an [Activate] skill of your Leader during this
  * turn, reduce its skill cost by {b}" (BT31-096, BT31-092), "…the next time
@@ -3176,7 +3188,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
     // turn" — the reverse of a duration: the count leads the effect it
     // multiplies rather than trailing it, so it is reattached in front, not
     // behind, and `compileForEach` reads it out of the merged clause.
-    if (PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) && i + 1 < clauses.length) {
+    if ((PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) || PURE_FOREACH_OWN_TOKENS.test(clause.trim())) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
@@ -3528,7 +3540,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.replacingOffered = false;
       if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
+      const { from, by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -3549,7 +3561,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         const target: Ref = subject ? { sel: { side: subjectSide ?? "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(from ? { from } : {}), ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
         continue;
       }
       // The departure is replaced by something other than a destination for

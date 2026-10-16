@@ -172,11 +172,22 @@ function scopedPayWith(text: string): Op | null {
  * other sentence, and for a description the filter grammar cannot read.
  */
 function unionFusionAreasPermit(text: string): Op | null {
+  // 22-13-4-2-1: this card's own Fusion may pay its named materials
+  // from Warp as well as hand. Both sentences are one standing permission.
+  if (/^you (?:can|may) choose battle cards in your warp when choosing cards to use with this card's \[union\] skill from your hand\.?\s*if you do,? place the chosen cards in your drop area from your warp\.?$/i.test(text.trim())) {
+    return { op: "permit", what: "unionFusionWarp", target: { sel: { special: "self" } }, until: "game" };
+  }
   const m = /^you (?:can|may) choose the specified battle cards in your battle area or your drop when choosing cards to use with the \[union\] skill of an? (.+?) cards? from your hand\.?\s*if you do,? send the chosen cards to their owner'?s warp\.?$/i.exec(text.trim());
   if (!m) return null;
   const filter = filterFor(m[1].replace(/\s+or\s+/gi, " "), null);
   if (!filter) return null;
   return { op: "permit", what: "unionFusionAreas", target: { sel: { special: "self" } }, until: "game", filter };
+}
+
+/** 22-5-3-1: one standing permission, not a choice followed by a free play. */
+function evolveEnergyBasesPermit(text: string): Op | null {
+  if (!/^when using this card['’]s \[evolve\] skill from your hand,? you can choose battle cards from your energy and play this card in active mode\.?$/i.test(text.trim())) return null;
+  return { op: "permit", what: "evolveEnergyBases", target: { sel: { special: "self" } }, until: "game" };
 }
 
 /**
@@ -273,6 +284,8 @@ function compileSkillText(skill: Skill): Script {
   if (scoped) return { ops: [scoped], unsupported: [] };
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
+  const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
+  if (evolveAreas) return { ops: [evolveAreas], unsupported: [] };
   const aegisAlt = c.permanent ? aegisAltPermit(text) : null;
   if (aegisAlt) {
     const rest = aegisAlt.head ? compileSkillText({ ...skill, effect: aegisAlt.head }) : { ops: [], unsupported: [] as string[] };

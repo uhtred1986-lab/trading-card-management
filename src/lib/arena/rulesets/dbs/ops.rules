@@ -481,9 +481,9 @@ DEFINE OP gains
 -- would be removed from the Battle Area by your opponent's skill, you may
 -- return it to your hand instead"
 DEFINE OP replaceLeave
-  TAKES (to: area, by: word, bySide: word, mode: word, optional: boolean, target: ref)
+  TAKES (to: area, from: strings, by: word, bySide: word, mode: word, position: word, optional: boolean, target: ref)
   DO {
-    replace(event: leave, by: $by, bySide: $bySide, optional: $optional, target: $target, with: { moveTo(target: [subject], to: $to, mode: $mode) })
+    replace(event: leave, from: $from, by: $by, bySide: $bySide, optional: $optional, target: $target, with: { moveTo(target: [subject], to: $to, mode: $mode, position: $position) })
   }
   text: "if the card would leave the Battle Area, it goes to the named area instead"
   doc: "what `replaceLeave` means: `replace`'s redirect form — the departure happens, to another area"

@@ -921,6 +921,9 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   // by a skill naming {Planet M-2}, and excluded by one naming it as the card
   // *not* to choose — both readings come from the same list.
   const names = namesOf(d);
+  // Match the token-kind names stored by parseFilter, preserving full names
+  // for ordinary card-name references and requiring type TOKEN above.
+  if (f.token) names.push(...names.map((n) => n.replace(/ token$/i, "")));
   if ((f.names.length || partNames.length) && !f.names.some((n) => names.some((own) => identityKey(own) === identityKey(n))) && !partNames.some((n) => nameIncludes(d, n))) return false;
   if (!(f.namesAll ?? []).every((n) => names.some((own) => identityKey(own) === identityKey(n)))) return false;
   if (f.notNames.some((n) => names.some((own) => identityKey(own) === identityKey(n)))) return false;

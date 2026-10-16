@@ -1,0 +1,91 @@
+[
+  {
+    "id": "DB3-085",
+    "name": "Krillin, Protector of the People",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 2,
+    "zEnergyCost": null,
+    "power": 19000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Blocker]<br>[Permanent] This card can't attack Leader Cards.",
+    "characters": [
+      "Krillin"
+    ],
+    "traits": [
+      "Earthling"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT1-023",
+    "name": "Kai Attendant of Universe 6",
+    "type": "BATTLE",
+    "colors": [
+      "Red"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Permanent] This card cannot attack Battle Card with 15000 or more power.",
+    "characters": [
+      "Supreme Kai's Attendant"
+    ],
+    "traits": [
+      "God"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT1-068",
+    "name": "Slasher Trunks",
+    "type": "BATTLE",
+    "colors": [
+      "Green"
+    ],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Permanent] This card cannot attack Battle Cards.",
+    "characters": [
+      "Trunks: Future"
+    ],
+    "traits": [
+      "Saiyan",
+      "Earthling"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT1-057",
+    "name": "Broly",
+    "type": "LEADER",
+    "colors": [
+      "Green"
+    ],
+    "energyCost": null,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Permanent] This card cannot attack Battle Cards.<br>[Auto] When this card attacks, both players choose 1 card from their hand and place it in the Drop Area.<br>[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+    "characters": [
+      "Broly"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": {
+      "name": "Broly, The Legendary Super Saiyan",
+      "power": 15000,
+      "skill": "[Permanent] This card cannot attack Battle Cards.<br>[Auto] When this card attacks, draw 1 card. Then, both players choose 1 card from their hand and 1 card from their Battle Area, and place those cards in their Drop Areas."
+    }
+  }
+]

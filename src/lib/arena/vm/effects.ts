@@ -505,7 +505,7 @@ export function permanents(
   // The Warp only for the one permission about the card's own line used from
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
   // holds from the Warp, the same as the legacy `staticEffects`.
-  const zones = [...inPlay, "hand", "zDeck", "warp"].filter((zone) => game.zones[zone]?.place !== false);
+  const zones = [...inPlay, "hand", "zDeck", "warp", "combo"].filter((zone) => game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
     for (const zone of zones) {
       for (const src of state.sides[p].zones[zone] ?? []) {
@@ -525,7 +525,8 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp") : program.ops;
+          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp")
+            : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
       }
@@ -595,7 +596,7 @@ function collect(
       // The escape clause is a sentence of *this* card, so it records whose
       // card it is: "you" and "your opponent" in it are read from that chair
       // and not from the chair of whoever is trying to act.
-      const forbid: Prohibition = { what: op.what, ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {
@@ -742,14 +743,16 @@ function collect(
     // of the play is not standing at all (it resolves). The legacy
     // `collectStatics`' reading, word for word, under its one kind.
     if (op.op === "replaceLeave") {
-      if (!inPlayNow) continue;
+      const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
+      if (op.from ? !explicitSource : !inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
-      const value: Replacement = { to, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
+      const value: Replacement = { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value }, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) });
       continue;
     }
     if (op.op === "replace") {
-      if (op.event === "play" || !inPlayNow) continue;
+      const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
+      if (op.event === "play" || (op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.
@@ -758,8 +761,8 @@ function collect(
       const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
-        ? { to: redirect.to, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
-        : { by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
+        ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
+        : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
@@ -770,8 +773,11 @@ function collect(
     // used from the hand (22-3) and so is read there, as `altCost` is, and
     // `overRealmFromWarp` (BT31-150), which is about the card's own
     // [Over Realm] line used from the Warp and so is read there.
+    // `evolveEnergyBases` is this hand copy's own Evolve permission; the
+    // `permits` condition additionally enforces that source and exact copy;
+    // unionFusionWarp is scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
-      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp") continue;
+      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "unionFusionWarp") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;

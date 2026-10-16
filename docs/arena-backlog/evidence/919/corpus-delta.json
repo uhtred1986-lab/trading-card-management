@@ -1,0 +1,526 @@
+{
+  "baselineRevision": "15487afdcb5ac25ac7bc46af47c6b565f98a60cc",
+  "catalogGame": "dbs",
+  "cards": 6552,
+  "skillEntries": 17327,
+  "unreadClausesBefore": 3354,
+  "unreadClausesAfter": 3350,
+  "changes": [
+    {
+      "id": "BT23-082",
+      "face": "front",
+      "skillIndex": 0,
+      "before": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "until": "game"
+          }
+        ],
+        "unsupported": [
+          "For each of your Earthling Tokens"
+        ],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": {
+              "count": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "earthling"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": true,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unsupported": [],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      }
+    },
+    {
+      "id": "BT23-078",
+      "face": "front",
+      "skillIndex": 0,
+      "before": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "until": "game"
+          }
+        ],
+        "unsupported": [
+          "For each of your Earthling Tokens"
+        ],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": {
+              "count": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "earthling"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": true,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unsupported": [],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      }
+    },
+    {
+      "id": "BT23-080",
+      "face": "front",
+      "skillIndex": 0,
+      "before": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "until": "game"
+          }
+        ],
+        "unsupported": [
+          "For each of your Earthling Tokens"
+        ],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": {
+              "count": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "earthling"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": true,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unsupported": [],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      }
+    },
+    {
+      "id": "BT23-096",
+      "face": "front",
+      "skillIndex": 10,
+      "before": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "until": "game"
+          }
+        ],
+        "unsupported": [
+          "For each of your Earthling Tokens"
+        ],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": {
+              "count": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "earthling"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": true,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unsupported": [],
+        "price": {
+          "condition": null,
+          "ops": null
+        }
+      }
+    }
+  ],
+  "otherLeaderAudit": [
+    {
+      "id": "BT13-062",
+      "name": "Chilled",
+      "face": "front",
+      "unread": [
+        "play a Chilled's Army Token with 10000 power"
+      ]
+    },
+    {
+      "id": "BT13-062",
+      "name": "Chilled, the Pillager",
+      "face": "back",
+      "unread": [
+        "play a Chilled's Army Token with 10000 power"
+      ]
+    },
+    {
+      "id": "BT23-071",
+      "name": "Trunks & Mai",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "BT23-071",
+      "name": "SS Trunks & Mai, Saviors of Hope",
+      "face": "back",
+      "unread": [
+        "if you",
+        "your opponent have a total of 10 or more Battle Cards",
+        "this card gets +10000 power for the turn"
+      ]
+    },
+    {
+      "id": "XD3-01",
+      "name": "Cell",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "XD3-01",
+      "name": "Cell & Cell Jr., Endless Supremity",
+      "face": "back",
+      "unread": []
+    },
+    {
+      "id": "EB1-24",
+      "name": "Tien Shinhan",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "EB1-24",
+      "name": "Tien Shinhan, Mysterious Technique",
+      "face": "back",
+      "unread": []
+    },
+    {
+      "id": "BT11-061",
+      "name": "Gotenks",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "BT11-061",
+      "name": "Gotenks, Extravagant Assault",
+      "face": "back",
+      "unread": [
+        "{g}"
+      ]
+    },
+    {
+      "id": "BT2-102",
+      "name": "Chilled",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "BT2-102",
+      "name": "Chilled, Harbinger of Destruction",
+      "face": "back",
+      "unread": []
+    },
+    {
+      "id": "BT8-024",
+      "name": "Android 21",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "BT8-024",
+      "name": "Android 21, Malevolence Unbound",
+      "face": "back",
+      "unread": []
+    },
+    {
+      "id": "SD19-01",
+      "name": "Gotenks",
+      "face": "front",
+      "unread": []
+    },
+    {
+      "id": "SD19-01",
+      "name": "SS3 Gotenks, Extravagant Assault Returns",
+      "face": "back",
+      "unread": []
+    }
+  ]
+}

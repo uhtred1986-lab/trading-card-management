@@ -1,0 +1,315 @@
+{
+  "baseline": "15487afd",
+  "cards": 6552,
+  "skills": 17327,
+  "unreadBefore": 3354,
+  "unreadAfter": 3351,
+  "changes": [
+    {
+      "before": {
+        "cardId": "BT12-136",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [
+          "place the chosen cards in your Drop Area from your Warp"
+        ],
+        "reads": "choose all Battle Cards in your hand"
+      },
+      "after": {
+        "cardId": "BT12-136",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "permit",
+            "what": "unionFusionWarp",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [],
+        "reads": "this card\u2019s [Union-Fusion] from hand may choose each named equal-power material from hand or Warp, sending them to Drop"
+      }
+    },
+    {
+      "before": {
+        "cardId": "BT12-137",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [
+          "place the chosen cards in your Drop Area from your Warp"
+        ],
+        "reads": "choose all Battle Cards in your hand"
+      },
+      "after": {
+        "cardId": "BT12-137",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "permit",
+            "what": "unionFusionWarp",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [],
+        "reads": "this card\u2019s [Union-Fusion] from hand may choose each named equal-power material from hand or Warp, sending them to Drop"
+      }
+    },
+    {
+      "before": {
+        "cardId": "P-286",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [
+          "place the chosen cards in your Drop Area from your Warp"
+        ],
+        "reads": "choose all Battle Cards in your hand"
+      },
+      "after": {
+        "cardId": "P-286",
+        "side": "front",
+        "index": 20,
+        "printed": "[permanent] You can choose Battle Cards in your Warp when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards in your Drop Area from your Warp.",
+        "kind": "permanent",
+        "ops": [
+          {
+            "op": "permit",
+            "what": "unionFusionWarp",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "tags": [
+          "permanent"
+        ],
+        "keyword": null,
+        "unread": [],
+        "reads": "this card\u2019s [Union-Fusion] from hand may choose each named equal-power material from hand or Warp, sending them to Drop"
+      }
+    }
+  ]
+}

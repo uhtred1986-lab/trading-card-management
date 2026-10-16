@@ -1696,8 +1696,19 @@
     {
       "name": "replaceLeave",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"replaceLeave\",\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replaceLeave\",\"from\"?:[\"battle\"|\"combo\"],\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
+        {
+          "name": "from",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "battle",
+            "combo"
+          ]
+        },
         {
           "name": "to",
           "required": true,
@@ -1774,13 +1785,24 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, it goes to the drop instead",
-      "doc": "9-10: \"to\" is the replacement destination; \"by\" narrows the cause, \"bySide\" narrows whose skill, and \"requestedTo\" narrows the original requested destination. \"position\" specifies top or bottom of a pile. Omit \"until\" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit \"target\" for this card"
+      "doc": "9-10: \"to\" is the replacement destination; \"from\" explicitly names valid departure areas (including Combo), otherwise ordinary in-play departure scope applies; \"by\" narrows the cause, \"bySide\" narrows whose skill, and \"requestedTo\" narrows the original requested destination. \"position\" specifies top or bottom of a pile. Omit \"until\" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit \"target\" for this card"
     },
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"attack\",\"bySide\"?:\"opponent\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"attack\",\"bySide\"?:\"opponent\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
+        {
+          "name": "from",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "battle",
+            "combo"
+          ]
+        },
         {
           "name": "event",
           "required": true,
@@ -1848,7 +1870,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, this happens instead: draw 1",
-      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to. \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is [Permanent] only — or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
+      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"from\" optionally names the Battle/Combo departure areas for a leave redirect; \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to. \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is [Permanent] only — or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
     },
     {
       "name": "altCost",
@@ -2066,7 +2088,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false}",
       "fields": [
         {
           "name": "what",
@@ -2112,6 +2134,12 @@
         },
         {
           "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "attackTarget",
           "required": false,
           "nullable": false,
           "type": "filter"
@@ -2191,7 +2219,7 @@
         }
       ],
       "sentence": "you can't attack for the turn",
-      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). With \"what\":\"activateCounter\", \"counterKind\" narrows it to one [Counter] kind (\"[Counter: Play] skills\") and \"otherCards\":true leaves the card that made the rule out of it (\"…of other cards\", BT10-008). \"what\":\"activateSkill\" and \"activateCounter\" take an \"unlessPay\" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; \"extraCardActivation\":true narrows an \"activateSkill\" rule to 12-1-3's \"activating an Extra Card\" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchToActiveInCharge\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
+      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"attackTarget\" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). With \"what\":\"activateCounter\", \"counterKind\" narrows it to one [Counter] kind (\"[Counter: Play] skills\") and \"otherCards\":true leaves the card that made the rule out of it (\"…of other cards\", BT10-008). \"what\":\"activateSkill\" and \"activateCounter\" take an \"unlessPay\" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; \"extraCardActivation\":true narrows an \"activateSkill\" rule to 12-1-3's \"activating an Extra Card\" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchToActiveInCharge\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"beMovedBySkill\" | \"beNegated\""
     },
     {
       "name": "immune",
@@ -2243,6 +2271,8 @@
             "fieldBattle",
             "overRealmFromWarp",
             "unionFusionAreas",
+            "unionFusionWarp",
+            "evolveEnergyBases",
             "aegisAltDrop",
             "aegisAltOpponentHand"
           ]
@@ -2267,7 +2297,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "\"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). The filter says *which* cards — leave it out only when the card does"
+      "doc": "\"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -3142,7 +3172,7 @@
     {
       "kind": "permits",
       "class": "primitive",
-      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"aegisAlt\"}",
+      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"evolveEnergyBases\"|\"aegisAlt\"}",
       "fields": [
         {
           "name": "what",
@@ -3151,12 +3181,14 @@
           "type": "enum",
           "enumValues": [
             "unionFusionAreas",
+            "unionFusionWarp",
+            "evolveEnergyBases",
             "aegisAlt"
           ]
         }
       ],
       "sentence": "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from",
-      "doc": "`aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. A `DEFINE KEYWORD` body's word; no card's record says this"
+      "doc": "`evolveEnergyBases`: does this exact hand copy have its own energy-base permission? Independent of source-area permissions. `aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. `unionFusionWarp`: the card granting the permission must itself be the card activating Fusion and must be in hand. A `DEFINE KEYWORD` body's word; no card's record says this"
     },
     {
       "kind": "covers",
