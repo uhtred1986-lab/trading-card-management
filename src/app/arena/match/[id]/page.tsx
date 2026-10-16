@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
-import { inviteView, matchById } from "@/lib/arena/matches";
+import { inviteView, matchById, sharedDecksOf } from "@/lib/arena/matches";
 import { isLocked, readiness } from "@/lib/arena/readiness";
 import { listDecks } from "@/lib/decks/queries";
-import { currentScope, currentUser, requireSignedInPage } from "@/lib/auth";
+import { currentScope, currentUser, getViewer, requireSignedInPage } from "@/lib/auth";
 import { CardImage } from "@/components/CardImage";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { InviteShare } from "@/components/arena/InviteShare";
 import { MatchWaiting } from "@/components/arena/MatchWaiting";
+import { WhatsAppInvite } from "@/components/arena/WhatsAppInvite";
 import { cancelMatchAction, joinMatchForm } from "../../actions";
 import { PageHeader, Panel, EmptyState } from "@/components/ui";
 
@@ -38,6 +39,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   const me = await currentUser();
   const mine = match.hostUser === me;
+  const isSl = (await getViewer())?.kind === "sl";
   const host = await inviteView(db, match.hostDeckId);
   const taken = match.status !== "open";
 
@@ -66,6 +68,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <MatchWaiting matchId={id} />
         <p className="text-sm text-space-300">Send them this link. They pick a deck on it and the game starts on both phones.</p>
         <InviteShare path={`/arena/match/${id}`} hostName={match.hostUser} />
+        {isSl ? <WhatsAppInvite matchId={id} /> : null}
         <div className="flex items-center justify-center gap-4 pt-2 text-sm">
           <Link href="/arena" className="tap inline-flex items-center text-space-300 hover:text-ki-300">
             ← Arena
@@ -83,7 +86,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   }
 
   // Guest: only the guest's own (visible) decks, the original game's only.
-  const decks = me ? (await listDecks(db, { game: "dbs", viewer: await currentScope() })).filter((d) => d.leader && d.mainCount >= 50) : [];
+  const own = me ? (await listDecks(db, { game: "dbs", viewer: await currentScope() })).filter((d) => d.leader && d.mainCount >= 50) : [];
+  // Plus the host's decks they marked shareable: the only foreign ones `joinMatch` accepts.
+  const sharedIds = me ? new Set(await sharedDecksOf(db, match.hostDeckId)) : new Set<number>();
+  const shared = sharedIds.size && me ? (await listDecks(db, { game: "dbs" })).filter((d) => sharedIds.has(d.id) && d.leader && d.mainCount >= 50 && !own.some((o) => o.id === d.id)) : [];
+  const decks = [...own, ...shared];
   const ready = await readiness(db, decks.map((d) => d.id));
   const firstReady = decks.find((d) => !isLocked(ready.get(d.id)))?.id;
 
@@ -122,6 +129,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-space-50">{d.name}</span>
                     <span className="block truncate text-xs text-space-400">
+                      {shared.some((s) => s.id === d.id) ? `${match.hostUser}'s deck to borrow · ` : ""}
                       {d.leader?.name}
                       {locked && ` · Locked, ${ready.get(d.id)!.open} card${ready.get(d.id)!.open === 1 ? "" : "s"} with no rule`}
                     </span>

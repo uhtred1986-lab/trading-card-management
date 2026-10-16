@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { JOIN_REDEEM_PATH } from "@/lib/auth/core";
 import { isWellFormedCode, normaliseCode } from "@/lib/auth/join-code";
 import { joinAttemptAllowed } from "@/lib/auth/join-flow";
+import { safeNext } from "@/lib/auth/join-url";
 import { StandaloneField } from "./StandaloneField";
 import { PageHeader } from "@/components/ui";
 
@@ -18,8 +19,9 @@ const ERRORS: Record<string, string> = {
  * the code would join as, and only after the rate limit. Nothing is created
  * until "Yes, that's me" posts to `/api/join`.
  */
-export default async function JoinPage({ searchParams }: { searchParams: Promise<{ c?: string; error?: string }> }) {
-  const { c, error } = await searchParams;
+export default async function JoinPage({ searchParams }: { searchParams: Promise<{ c?: string; error?: string; next?: string }> }) {
+  const { c, error, next } = await searchParams;
+  const nextPath = safeNext(next);
   const code = c ? normaliseCode(c) : "";
   let message = error ? (ERRORS[error] ?? ERRORS.bad) : null;
   let joiningAs: string | null = null;
@@ -50,6 +52,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
           <p className="text-sm text-space-300">You are joining as</p>
           <p className="text-xl font-semibold text-space-50">{joiningAs}</p>
           <input type="hidden" name="code" value={code} />
+          {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <StandaloneField />
           <button type="submit" className="tap rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950 hover:bg-ki-400">
             Yes, that&apos;s me

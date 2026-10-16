@@ -90,6 +90,34 @@ export async function createPlayer(db: Db, name: string, owner: string, createdB
   return row.id;
 }
 
+/**
+ * Is this owner name already in use, by a player, a deck, a lot of cards or an
+ * SL, compared without regard to case? A player's cards and decks are found
+ * by the owner string alone, so a second person under a taken name would be
+ * handed the first one's collection. The friend invite refuses it up front.
+ */
+export async function ownerNameTaken(db: Db, name: string): Promise<boolean> {
+  const lower = name.trim().toLowerCase();
+  const [player] = await db.select({ id: players.id }).from(players).where(sql`lower(${players.owner}) = ${lower} or lower(${players.name}) = ${lower}`).limit(1);
+  if (player) return true;
+  const [deck] = await db.select({ id: decks.id }).from(decks).where(sql`lower(${decks.owner}) = ${lower}`).limit(1);
+  if (deck) return true;
+  const [lot] = await db.select({ id: ownedCards.id }).from(ownedCards).where(sql`lower(${ownedCards.owner}) = ${lower}`).limit(1);
+  if (lot) return true;
+  const [sl] = await db.select({ email: slAccounts.email }).from(slAccounts).where(sql`lower(${slAccounts.email}) = ${lower} or lower(split_part(${slAccounts.email}, '@', 1)) = ${lower}`).limit(1);
+  return !!sl;
+}
+
+/**
+ * The invited friend: a normal player whose owner name is the name they were
+ * given, refused when that name is in use (`ownerNameTaken`). Returns the new
+ * player's id, or `null` for a taken name.
+ */
+export async function createInvitedPlayer(db: Db, name: string, createdBy: string | null): Promise<number | null> {
+  if (await ownerNameTaken(db, name)) return null;
+  return createPlayer(db, name, name, createdBy);
+}
+
 export async function updatePlayer(db: Db, id: number, patch: { name?: string; owner?: string }): Promise<void> {
   await db.update(players).set(patch).where(eq(players.id, id));
 }
