@@ -103,6 +103,7 @@ import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram 
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
 import { spendUse, usesLeft } from "./limits";
+import type { KeywordCost } from "./keyword-costs";
 
 /**
  * One candidate of an activation: the copy on the table, the printed line, and
@@ -440,7 +441,10 @@ function chargeablePrice(line: ActivationLine): boolean {
   // cards and native fee (22-30-3, `vm/aegis-costs.ts`). [Swap] is the other
   // (#729): its stored continuation pays the action after the energy and
   // before the swap (`vm/swap-costs.ts`), on the strict action-price host.
-  if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line);
+  // [Union-Fusion], [Union-Potara] and the [Evolve] family are the third
+  // (#926): their `DO` pays it where it says `payActionPrice`
+  // (`vm/keyword-costs.ts`), on the same strict host.
+  if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
   // 20-5: an X price is chargeable once X is named, which the menu does —
   // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
   if (price.x || price.payWith?.length) return true;
@@ -840,7 +844,13 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // the legacy `skill.resolve`, which runs after the price — so it is the
   // price's frame finishing that announces it (`vm/host.ts`'s `saveVars`).
   const priceOps = waived ? null : actionPriceOf(line);
-  if (!announcesBeforePrice(line) && !priceOps) announce(state, ev, player, line);
+  // #926: a [Union]/[Evolve] move with an action price is announced, and its
+  // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
+  // now, while "from: hand" is still true.
+  const keywordPrice: KeywordCost | null = !waived && keywordActionPrice(line)
+    ? { key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
+    : null;
+  if (!announcesBeforePrice(line) && !priceOps && !keywordPrice) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
   // effect (22-1), and the record of a line like "[Overlord]" says nothing —
   // and then whatever effect the line prints beyond the keyword, which is
@@ -852,7 +862,8 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 20-5: the X the price was paid at is what the effect reads as `X`.
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }) };
+  if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -894,6 +905,29 @@ export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">
   if (line.keyword?.name !== "Swap") return null;
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
+}
+
+/**
+ * #926 (22-13-4-4-1, 22-13-5-2, 22-5-3, 4-3-3): the action a [Union-Fusion],
+ * [Union-Potara] or [Evolve]-family move prints before its colon — BT11-013's
+ * "{r}{r}{r}, draw 2 cards", BT13-024's "{r}{r}{r}, draw 1 card" — read off
+ * the record, or null for a move whose price is orbs and conditions alone, and
+ * for every other line. Paid by the strict frame the keyword's `DO` puts in
+ * front of itself where it says `payActionPrice` (`vm/keyword-costs.ts`).
+ * [Union-Absorb] is not one: its line is "cost : effect" (22-13-6-1).
+ */
+export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "script" | "skill">): Op[] | null {
+  const name = line.keyword?.name;
+  const printed = line.skill.keyword;
+  const variant = printed && printed.name === name && "variant" in printed ? printed.variant : undefined;
+  if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara"))) return null;
+  const ops = line.script?.price?.ops;
+  return ops?.length ? ops : null;
+}
+
+/** Does this program say where an action price is paid? A keyword whose `DO` never says `payActionPrice` would play the line free. */
+function saysWhereItPays(ops: Op[]): boolean {
+  return ops.some((op) => op.op === "payActionPrice" || (op.op === "if" && (saysWhereItPays(op.then) || saysWhereItPays(op.else ?? []))));
 }
 
 /**
@@ -1001,7 +1035,7 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * fails (5-8-4) leaves no skill announced.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line);
+  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
 }
 
 /** The `skill` event for a line being used (9-6). */

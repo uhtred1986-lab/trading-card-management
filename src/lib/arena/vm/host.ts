@@ -73,6 +73,7 @@ import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
 import { activationMoment, activationTaxGate, canPayPriceProgram, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
@@ -126,6 +127,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         .flatMap(([, ids]) => ids),
     zone: zoneList,
     invokableSkills: (player, id, op) => invokedMainLines(ctx, game, state, player, id, op).map((line) => ({ index: line.skillIndex, label: line.skill.raw })),
+    // #926: `payActionPrice` — the strict frame that pays a keyword move's
+    // printed action price, in front of the `DO` frame (`vm/keyword-costs.ts`).
+    payKeywordPrice: (frame) => queueKeywordCost(state, frame),
     invokeSkill: (player, id, skillIndex, op) => {
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");
@@ -471,7 +475,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // paid as one unit, so it is not cut; the runner's own look takes the
     // violation the moment the price frame hands back control.
     ruleInterrupt: (frame) => {
-      if (frame.autoCost || frame.swapCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
+      if (frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
       // 21-9-2 (#759): a Unison the instruction just left without markers
       // goes to the Drop Area before the next instruction.
       for (const [id, owner] of emptyUnisons(state)) {

@@ -42,10 +42,11 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
+import { activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDropCost } from "./drop-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
+import { assertKeywordPricePayable, keywordPriceRefusals } from "./keyword-costs";
 import { readableAutomaticPrice } from "./auto-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
@@ -254,6 +255,10 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     // pays leaves the whole action payable on the strict host, and 22-22-3's
     // reveal still possible after it — proven on a copy of the board.
     else if (!gates.after.length) why.push(...swapPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
+    // #926: the same for a [Union-Fusion]/[Union-Potara]/[Evolve]-family
+    // action price ("draw 1 card"): offered only when it can be paid in full
+    // after this plan's energy (5-8-3) — a deck too thin to draw from cannot.
+    if (plan.ok && !gates.after.length && !why.length) why.push(...keywordPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
     if (plan.ok && !gates.after.length && !why.length) why.push(...dropPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
   }
   why.push(...gates.after);
@@ -276,7 +281,9 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   if (why.every((w) => w.kind === "energy" || w.kind === "energyColour") && def.cost?.length) {
     for (const base of evolveOntoBases(ctx, game, state, player, line)) {
       const ontoPrice = priceFor(ctx, game, state, def, line.card, boundFor(ctx, game, state, player, line, true, base));
-      if (planCost(ctx, game, state, player, ontoPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, onto: base, why: [], price: ontoPrice });
+      const ontoPlan = planCost(ctx, game, state, player, ontoPrice, line.card);
+      // #926: and only when its action price can still be paid after that energy.
+      if (ontoPlan.ok && !keywordPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, ontoPlan.payment, line.card, def.cost!)).length) out.push({ card: line.card, skill: line.skillIndex, onto: base, why: [], price: ontoPrice });
     }
   }
   return out;
@@ -941,6 +948,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
+    if (line) assertKeywordPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
@@ -973,7 +981,9 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
     if (gate) queueTaxGate(state, gate, state.programs.length - queued);
-    if (!strictDrop) {
+    // #926: a keyword move with an action price fires its moments once its
+    // `DO` has paid it (`vm/keyword-costs.ts`), not as it is declared.
+    if (!strictDrop && !keywordActionPrice(line)) {
       fire(ctx, game, state, moment);
       for (const m of keywordMoments) fire(ctx, game, state, m);
     }

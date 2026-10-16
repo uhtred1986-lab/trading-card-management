@@ -399,11 +399,16 @@ DEFINE KEYWORD Evolve
   -- #825: resolution revalidates that bound base through the counter window.
   -- The marked play announces `evolved` only on success; the Xeno play moves
   -- the base to Warp immediately before landing, after the counter response.
+  -- #926: an action printed with the orbs ("{r}{r}{r}, draw 1 card",
+  -- BT13-024) is the skill cost too (22-5-3), paid first on the strict
+  -- action-price host (`payActionPrice`, `vm/keyword-costs.ts`); the move is
+  -- offered only while it can be paid in full, and announced once it is.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   REFUSE target(reason: "no specified evolution base in an allowed area") UNLESS any([count((type = BATTLE) IN you.battle asPrinted) >= 1, all([permits(what: evolveEnergyBases), count((type = BATTLE) IN you.energy asPrinted) >= 1])])
   label: "{variant} {card} onto a {line}"
   DO {
+    payActionPrice()
     if(cond: count(FROM $base) <= 0, then: {
       if(cond: permits(what: evolveEnergyBases), then: {
         choose(sel: 1 (type = BATTLE) IN you.ANY(battle|energy) asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
@@ -435,7 +440,11 @@ DEFINE KEYWORD Union
   -- effect, which runs after the `DO` of every keyword move, is what says
   -- which card is played onto this one. "when you activate a [Union] skill"
   -- and "when this card's [Union-Absorb] is activated" are the move's
-  -- `keywordActivated` under both names.
+  -- `keywordActivated` under both names. An action Fusion or Potara prints
+  -- with its orbs ("draw 1 card", "place the top card of your opponent's
+  -- deck into its owner's Drop") is paid where `payActionPrice` says, on the
+  -- strict action-price host (#926); the move is offered only while it can
+  -- be paid in full, and announced, its moments fired, once it is.
   offer: "activate:main"
   REFUSE zone(area: battle) UNLESS any([NOT oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.battle) >= 1])
   REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
@@ -464,9 +473,14 @@ DEFINE KEYWORD Union
           moveTo(target: $pair, to: drop, cause: cost)
         })
       })
+      -- 22-13-4-4-1 (#926): with the materials in the Drop, the rest of the
+      -- skill cost — an action printed with the orbs, "draw 2 cards" — is paid.
+      payActionPrice()
       play(target: [self])
     })
     if(cond: oneOf(value: $variant, of: ["Potara"]), then: {
+      -- 22-13-5-2 (#926): the skill cost is paid as it is activated.
+      payActionPrice()
       choose(sel: 1 IN you.battle asPrinted, as: "first", reason: "[Union-Potara]: choose the card to play this one onto")
       play(target: [self], onto: $first)
       choose(sel: 1 IN you.battle otherThanSelf asPrinted, as: "second", reason: "[Union-Potara]: choose the card to put under it")
