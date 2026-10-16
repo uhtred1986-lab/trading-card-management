@@ -1027,7 +1027,7 @@ function runProgram(state: VmState, def: ActionDef, player: PlayerId, chosen: Ca
   // binds nothing, so a program of such a move that reads `X` says so rather
   // than reading zero (`amount` throws on an unbound X).
   const x = def.cost?.length ? chosen.price.energy : undefined;
-  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }), ...(PLAYS.has(def.name as Action["type"]) ? { declaredPlay: true as const } : {}) });
 }
 
 /**

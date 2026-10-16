@@ -48,6 +48,9 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   // BLOCKER is the sampled keyword; noKeywords excludes every printed tag.
   keywords: { only: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
   notKeywords: { except: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
+  // #941: the same sampled keyword by its exact printed name.
+  keywordsExact: { only: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
+  notKeywordsExact: { except: ["BLOCKER", "BERGAMO", "U1", "SELFMUTE"] },
   // BATTLE includes Z-BATTLE and TOKEN here; LEADER, EXTRA and UNISON are
   // excluded by the sampled type. The activate kind follows printed lines.
   type: { except: ["L-RED", "L-BLUE", "E-NEGATE", "E-DRAW", "U1", "UNI2", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY"] },

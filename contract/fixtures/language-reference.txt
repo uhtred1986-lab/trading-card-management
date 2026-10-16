@@ -1285,7 +1285,7 @@
     {
       "name": "token",
       "class": "primitive",
-      "signature": "{\"op\":\"token\",\"name\":\"…\",\"power\":N,\"comboCost\":N,\"comboPower\":N,\"colors\":[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\"}",
+      "signature": "{\"op\":\"token\",\"name\":\"…\",\"power\":N,\"comboCost\":N,\"comboPower\":N,\"colors\":[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"n\":AMOUNT,\"side\"?:\"you\"|\"opponent\",\"as\"?:\"…\"}",
       "fields": [
         {
           "name": "name",
@@ -1339,10 +1339,16 @@
           "nullable": false,
           "defaultText": "\"you\"",
           "type": "side"
+        },
+        {
+          "name": "as",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         }
       ],
       "sentence": "play 1 x (1 power)",
-      "doc": "a token (19): {\"op\":\"token\",\"name\":\"Saibaman Token\",\"power\":10000,\"comboCost\":0,\"comboPower\":5000,\"colors\":[],\"n\":2}"
+      "doc": "a token (19): {\"op\":\"token\",\"name\":\"Saibaman Token\",\"power\":10000,\"comboCost\":0,\"comboPower\":5000,\"colors\":[],\"n\":2}; \"as\" names the tokens this play made (exactly them, empty when none), for a later \"and they gain [Blocker]\""
     },
     {
       "name": "costModifier",
@@ -2088,7 +2094,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false}",
       "fields": [
         {
           "name": "what",
@@ -2152,6 +2158,12 @@
         },
         {
           "name": "bySkill",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "exceptEvolve",
           "required": false,
           "nullable": false,
           "type": "boolean"
@@ -3611,6 +3623,22 @@
       "field": "notKeywords",
       "type": "keywords",
       "printed": "card non-[Blocker]",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
+      "field": "keywordsExact",
+      "type": "strings",
+      "printed": "card with [Saiyan]",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
+      "field": "notKeywordsExact",
+      "type": "strings",
+      "printed": "card non-[Saiyan]",
       "openTo": [
         "strings"
       ]

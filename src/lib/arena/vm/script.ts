@@ -697,7 +697,7 @@ export type Op =
   | { op: "faceUp"; target: Ref; faceUp?: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
-  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
+  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side; as?: string }
   /**
    * A price is not a number (spec §2.5-4, #277): `costReduction` and `altCost`
    * are the two shapes a price changes, and this is the one primitive both
@@ -962,6 +962,7 @@ export type Op =
       attackTarget?: CardFilter;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
+      exceptEvolve?: boolean;
       uses?: Amount;
       unless?: Cond;
       unlessPay?: Op[];
@@ -1227,6 +1228,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** #933: this frame is a player's declared play (`DEFINE ACTION play`/`playUnison`/`playZ`, 5-5-2), not a skill's (5-5-3): its `play` op is asked of 20-14 as `bySkill: false`. Additive: an older suspended frame was a declared play only by its `ops`, and a skill play is the default. */
+  declaredPlay?: true;
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
    * through the Counter: Play window, including a leave-and-return. */
   evolutionBase?: { card: string; zoneEpoch: number };
@@ -2588,10 +2591,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "token": {
         const n = h.amount(frame, op.n);
         const p = sideOf(master, op.side)[0];
+        // The tokens this invocation made, and no others: "play 2 Cell Jr. Tokens
+        // **and they** gain [Blocker]" (BT31-141) is about these two, not about
+        // every Cell Jr. Token already in play. Bound even when none were made,
+        // so a clause after a zero-token play finds nothing rather than whatever
+        // an earlier use of the name still held.
+        const made: string[] = [];
         for (let i = 0; i < n; i++) {
           const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors);
+          made.push(id);
           h.pend("played", id);
         }
+        if (op.as) frame.vars[op.as] = made;
         break;
       }
 
@@ -2815,8 +2826,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
         const candidates = h.resolveRef(frame, op.target);
-        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: true }));
+        // #933: whether it is an evolution is the play's own `using`, never the
+        // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
+        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand is put in Drop. A printed Drop evolution already is there.
         const failedEvolution = () => {

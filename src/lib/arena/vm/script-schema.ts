@@ -589,9 +589,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "colors", type: { list: { enum: COLORS } }, required: true },
       n(),
       SIDE,
+      { name: "as", type: "string" },
     ],
     sentence: "play {n} {name} ({power} power)",
-    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
+    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"',
   },
   costModifier: {
     fields: COST_MODIFIER_FIELDS,
@@ -782,6 +783,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "attackTarget", type: "filter" },
       { name: "sameNameAsSelf", type: "boolean" },
       { name: "bySkill", type: "boolean" },
+      { name: "exceptEvolve", type: "boolean" },
       { name: "uses", type: "amount" },
       { name: "unless", type: "cond" },
       { name: "unlessPay", type: "ops" },
@@ -813,7 +815,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // played, not what plays. "You can't play …" is the player's version.
       const who = op.target ? describeRef(op.target) : op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
       if (op.what === "attack" && op.attackTarget) return `${who} can't attack ${describeFilter(op.attackTarget)}${escape}${forThe(op.until, r)}`;
-      const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
+      const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? (op.exceptEvolve ? " by a skill other than an [Evolve]" : " by a skill") : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
       // Which cards the ban is about, when it is about cards rather than the
       // player: "you can't play cards" said nothing about *which*.
       const which = op.sameNameAsSelf ? "another copy of this card" : op.filter ? describeFilter(op.filter) : "";
@@ -2257,8 +2259,12 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     // "…with [Blocker]", "…with an [Evolve] skill", "…with [Counter] skills".
     // One "with" apiece rather than a list, so the phrase reads back as the
     // same set of keywords it printed.
-    ...f.keywords.map((k) => `with [${k}]`),
+    // A family an exact name already covers ("Over Realm" under "Over Realm 2")
+    // is not printed twice: the number is the narrower claim (#941).
+    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`))).map((k) => `with [${k}]`),
+    ...(f.keywordsExact ?? []).map((k) => `with [${k}]`),
     ...f.notKeywords.map((k) => `non-[${k}]`),
+    ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
   ];
   if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
   if (noun) {
