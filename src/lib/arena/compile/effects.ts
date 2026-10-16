@@ -100,6 +100,26 @@ function chosenRef(desc: string, c: Ctx): Ref | null {
 /** BT30-084's filter phrase (2-3-2): a card whose name is written in {} in a skill of the chosen card. */
 const NAME_IN_SKILL_TEXT = /\s+whose card name is in the text of an? skill on the chosen card/i;
 
+/**
+ * The card a play lands "on top of" (23-2). A choice that an earlier clause put
+ * *under* another choice is a passenger in that pile, never a host: "put an
+ * Android under the chosen Cell ... play a Cell on top of the (originally)
+ * chosen card" (BT31-139) means the Cell, though the Android was chosen after
+ * it and is what "the chosen card" or "it" would otherwise find. Followed to
+ * the root of the pile. "Originally chosen" is the same card said explicitly:
+ * the earliest choice that is not itself a passenger.
+ */
+function hostOf(phrase: string, c: Ctx): Ref | null {
+  let ref: Ref | null;
+  if (/\boriginally\b/i.test(phrase)) {
+    const first = c.choices.find((ch) => !c.underHost?.[ch.var]);
+    ref = first ? { var: first.var } : null;
+  } else ref = refFor(phrase, c);
+  let guard = 0;
+  while (ref && "var" in ref && c.underHost?.[ref.var] && guard++ < 8) ref = { var: c.underHost[ref.var] };
+  return ref;
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
@@ -2006,7 +2026,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (/^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
-    return host && ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
+    if (!host || !ref) return null;
+    const ops = withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host }));
+    // Remember who the placed card went under (see `Ctx.underHost`).
+    for (const o of ops) if (o.op === "choose" && "var" in host) (c.underHost ??= {})[o.as] = host.var;
+    return ops;
   }
 
   // "Place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest
@@ -2144,11 +2168,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // thing for this card, and the skill played the card onto itself.
   if (
     (m =
-      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the chosen card)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(
+      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(
         t,
       ))
   ) {
-    const onto = refFor(m[3], c);
+    const onto = hostOf(m[3], c);
     // "…Battle Card **whose card name is in the text of a skill on the chosen
     // card** from your Warp" (BT30-084, #542): the phrase is the filter's
     // `nameInSkillTextOf`, bound to the choice it points at (`c.last`, which the
@@ -2837,9 +2861,15 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
   const power = said ? [said[0], said[1]] : null;
   const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
+  // "...and **they** gain [Blocker] for the turn" (BT31-141) is about the tokens
+  // this play made. Name them only when the sentence goes on to say so, so the
+  // token programs that never refer back stay exactly as they were.
+  const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:[,.]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|the tokens?)\b/i.test(after);
   return [
     {
       op: "token",
+      ...(bound ? { as: `t${c.n++}` } : {}),
       name: `${m[2].trim()} Token`,
       power: power ? num(power[1]) : 5000,
       comboCost: combo ? num(combo[1]) : 0,
@@ -2905,6 +2935,10 @@ function track(o: Op, c: Ctx): void {
     c.last = o.as;
     c.choices.push({ var: o.as, sel: o.sel, reason: o.reason });
     c.lastTarget = { var: o.as };
+  } else if (o.op === "token") {
+    // The tokens just made are what "they"/"it" mean next (and not "the chosen
+    // card": a token play chooses nothing, so `c.last` stays as it was).
+    if (o.as) c.lastTarget = { var: o.as };
   } else if (o.op === "reveal") {
     c.lastSeen = o.as;
     c.lastNamed = o.as;

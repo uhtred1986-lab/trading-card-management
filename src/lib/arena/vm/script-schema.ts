@@ -589,9 +589,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "colors", type: { list: { enum: COLORS } }, required: true },
       n(),
       SIDE,
+      { name: "as", type: "string" },
     ],
     sentence: "play {n} {name} ({power} power)",
-    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}',
+    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"',
   },
   costModifier: {
     fields: COST_MODIFIER_FIELDS,
