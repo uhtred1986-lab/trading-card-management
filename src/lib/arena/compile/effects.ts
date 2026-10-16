@@ -1389,6 +1389,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ("sel" in ref && ref.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area)\b/i.test(targetText)) {
       ref = { sel: { ...ref.sel, area: "hand", count: 99 } };
     }
+    // "…the energy cost of **this card in your hand**" (BT7-005, #921): the
+    // possessive normalisation above keeps the area only for the "for each"
+    // reducer, so the plain one found the card wherever it was. The printed
+    // scope is the hand, which is where a card is bought at (20-21).
+    if (!skillKind && "sel" in ref && ref.sel.special === "self" && !ref.sel.area && /\bthis card\b[^,]*\bin your hand\b/i.test(clause)) {
+      ref = { sel: { ...ref.sel, area: "hand" } };
+    }
     const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
     const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText));
     let by: Amount = flat;
