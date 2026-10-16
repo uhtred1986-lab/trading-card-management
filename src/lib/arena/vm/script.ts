@@ -697,7 +697,7 @@ export type Op =
   | { op: "faceUp"; target: Ref; faceUp?: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
-  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side }
+  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side; as?: string }
   /**
    * A price is not a number (spec §2.5-4, #277): `costReduction` and `altCost`
    * are the two shapes a price changes, and this is the one primitive both
@@ -2584,10 +2584,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "token": {
         const n = h.amount(frame, op.n);
         const p = sideOf(master, op.side)[0];
+        // The tokens this invocation made, and no others: "play 2 Cell Jr. Tokens
+        // **and they** gain [Blocker]" (BT31-141) is about these two, not about
+        // every Cell Jr. Token already in play. Bound even when none were made,
+        // so a clause after a zero-token play finds nothing rather than whatever
+        // an earlier use of the name still held.
+        const made: string[] = [];
         for (let i = 0; i < n; i++) {
           const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors);
+          made.push(id);
           h.pend("played", id);
         }
+        if (op.as) frame.vars[op.as] = made;
         break;
       }
 
