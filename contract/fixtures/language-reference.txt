@@ -3615,6 +3615,22 @@
       ]
     },
     {
+      "field": "keywordsExact",
+      "type": "strings",
+      "printed": "card with [Saiyan]",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
+      "field": "notKeywordsExact",
+      "type": "strings",
+      "printed": "card non-[Saiyan]",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
       "field": "type",
       "type": "cardType",
       "printed": "battle card",
