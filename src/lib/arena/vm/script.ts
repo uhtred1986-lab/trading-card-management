@@ -406,7 +406,7 @@ export type Cond =
    * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
    * the card using the line, not of the card granting it.
    */
-  | { kind: "permits"; what: "unionFusionAreas" | "evolveEnergyBases" | "aegisAlt" }
+  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAlt" }
   /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
@@ -987,6 +987,8 @@ export type Op =
    * `overRealmFromWarp` (BT31-150): the target's [Over Realm] skill may be
    * activated from its owner's Warp as from the hand (22-15); read while the
    * card is in the Warp.
+   * `unionFusionWarp`: this target card’s own Fusion from hand may choose
+   * its equal-power named materials from hand or Warp, all going to Drop.
    * `unionFusionAreas` (BT31-001): the master's [Union-Fusion] on a card the
    * `filter` describes may choose its specified cards from the Battle Area and
    * the Drop too (22-13-4-2-1); read in play, as most permits are.
@@ -996,7 +998,7 @@ export type Op =
    * opponent's hand to the bottom of their deck; the second is the target
    * card's own [Aegis] only.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
