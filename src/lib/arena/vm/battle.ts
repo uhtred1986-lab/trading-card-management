@@ -345,6 +345,11 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           for (const id of end.preDropSubjects) {
             end.captureCursor++;
             const holder = state.cards[id].owner;
+            // #920: a mandatory redirect whose every possible route avoids
+            // Drop cannot announce a Combo-to-Drop occurrence at 8-5-6.
+            // Leave optional/substitute projection at the explicit #609 gap.
+            const routes = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true });
+            if (routes.some((route) => !route.optional) && routes.every((route) => route.to && route.to !== "drop" && !route.ops?.length)) continue;
             const occurrence = `combo-drop:${state.turn}:${id}:${state.cards[id].zoneEpoch ?? 0}`;
             const pended = pendAutos(ctx, game, state, { event: "moved", card: id, controller: holder,
               args: { from: "combo", to: "drop", asPlay: false, fromHolder: holder } },
@@ -354,7 +359,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
             // No subject-information rule picks one new area before an
             // optional/competing replacement has been answered. Keep this
             // boundary explicit instead of projecting an assumed Drop card.
-            if (replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" }).length)
+            if (replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true }).length)
               throw new NotYet("project a pre-announced Combo-to-Drop Auto through its replacement choices", "#609");
             // §9-6-9-1-3 asks for information in the new, open Drop Area.
             // Project only that information on a copy. Live area membership,
@@ -410,7 +415,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
                 replaced = choice ? routeOf(choice) : null;
                 substituteVars = (choice as typeof choice & { vars?: Record<string, string[]> } | undefined)?.vars ?? {};
               } else {
-                const choices = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop" });
+                const choices = replacementChoices(ctx, game, state, id, undefined, { requestedTo: "drop", comboCleanup: true });
                 const allowNone = choices.length > 0 && choices.every((choice) => choice.optional);
                 if (choices.length > 1 || allowNone) {
                   end.awaitingDeparture = { card: id, choices, allowNone };

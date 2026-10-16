@@ -516,7 +516,7 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
   "arena-vm-notyet-hand-return-subject-info": 'pendAutos|-|match.trigger === "yourCardReturnedToHand" > first?.op === "if" && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter > !subjectInfo',
   "arena-vm-notyet-combo-entry-origin": 'pendAutos|-|match.trigger === "comboUsed" && comboEntryFromHand(sk) > origin === undefined',
   "arena-vm-notyet-combo-origin-save": "pendAutos|-|comboBattleEndFromHand(sk) > origin === undefined",
-  "arena-vm-notyet-cleanup-projected-choice": "<top-level>|-|game.id === \"dbs\" && end > end.stage === \"checkpoint\" > replacementChoices(ctx, game, state, id, undefined, { requestedTo: \"drop\" }).length",
+  "arena-vm-notyet-cleanup-projected-choice": "<top-level>|-|game.id === \"dbs\" && end > end.stage === \"checkpoint\" > replacementChoices(ctx, game, state, id, undefined, { requestedTo: \"drop\", comboCleanup: true }).length",
   "arena-vm-notyet-cleanup-old-reentry": '<top-level>|-|game.id === "dbs" && end > end.stage === "cleanup"',
   "arena-vm-notyet-cleanup-final-reentry": '<top-level>|-|game.id === "dbs" && end > end.stage === "battleEndCheckpoint"',
   "arena-vm-notyet-cleanup-projected-replacement": '<top-level>|-|game.id === "dbs" && end > end.stage === "checkpoint" > route.stays || route.to !== "drop"',

@@ -1065,6 +1065,8 @@ export interface Replacement {
   to?: Area;
   /** 9-10: the original requested destination this redirect answers to, when narrowed. */
   requestedTo?: Area;
+  /** Explicit valid departure areas; absent retains the ordinary in-play scope. */
+  from?: ("battle" | "combo")[];
   /** The position to use if the replacement redirects into a pile. */
   position?: "top" | "bottom";
   /** A timed skill replacement re-evaluates this selector at each departure. */

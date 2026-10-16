@@ -339,7 +339,7 @@ function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
 
-function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
+function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
   const t = clean(clause);
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
   // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
@@ -379,17 +379,13 @@ function parseWouldLeave(clause: string): { by?: "skill" | "ko" | "skillOrKo"; b
     if (/^(?:this card|it)$/.test(who)) return { by: "skill" };
     return who ? { by: "skill", subject: who } : { by: "skill" };
   }
-  // "When this card is placed in a Drop Area from a Combo Area" (P-182) / "…
-  // from a Battle Area or Combo Area" (DB2-137/140/151/153) is deliberately
-  // NOT read as the same replacement: `move()` (state.ts:857) only checks
-  // `replaceLeave` when the card was leaving `leader`/`battle`/`unison`
-  // (`wasInPlay`) — leaving the *Combo Area* (`wasCombo`) never reaches that
-  // check at all. Reading these as "removed from the Battle Area" would be
-  // wrong twice over: for P-182 the compiled rule would never fire (its only
-  // path out is the Combo Area), and for the DB2 cards it would fire too
-  // often — misapplying the redirect to a Battle-Area departure the printed
-  // text does gate on "or Combo Area" for, but that path itself still can't
-  // be read. Left unread rather than read wide (ground rule 5).
+  // #920: the official DB2 errata names both valid source areas and no
+  // cause/destination restriction. Keep these areas on the redirect rather
+  // than broadening every existing Battle-Area replacement to Combo.
+  if (/^when this card is removed from a battle area or combo area$/.test(t))
+    return { from: ["battle", "combo"] };
+  // The obsolete Drop-only wording deliberately remains unread. Catalog
+  // ingestion corrects the four errata cards before drafting new records.
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
   // owner returns to hand is still returned to hand. The narrower form names
   // whose skill did it, and a KO in battle is then not this moment at all.
@@ -3544,7 +3540,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
       c.replacingOffered = false;
       if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
+      const { from, by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -3565,7 +3561,7 @@ export function compileClauseList(clauses: string[], c: Ctx, unsupported: string
         const target: Ref = subject ? { sel: { side: subjectSide ?? "you", area: "battle", filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
-        push([{ op: "replaceLeave", to: only.to, target, ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
+        push([{ op: "replaceLeave", to: only.to, target, ...(from ? { from } : {}), ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
         continue;
       }
       // The departure is replaced by something other than a destination for

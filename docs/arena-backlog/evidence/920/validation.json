@@ -1,0 +1,144 @@
+{
+  "productionCodeCommit": "5aaf0289",
+  "validatedHeadBeforeEvidenceCommit": "ab146934c94040799c4a16f2f9fab90858adfe2c",
+  "typecheck": "passed",
+  "lint": {
+    "status": "passed",
+    "preExistingWarnings": 5
+  },
+  "testChain": {
+    "mode": "cumulative",
+    "initialFailure": "capabilities semantic guard signature needed the explicit comboCleanup:true context; one inventory string corrected, no production behavior changed",
+    "passedBeforeFailure": [
+      "tsx scripts/verify-rules.ts",
+      "tsx scripts/verify-arena.ts",
+      "tsx scripts/verify/revision-polling-568.mts",
+      "tsx scripts/verify/arena-live-polling.mts",
+      "tsx scripts/verify/tryit.ts",
+      "tsx scripts/verify/arena-replay-core.ts",
+      "tsx scripts/verify/arena-replay-cli.mts",
+      "tsx scripts/verify/arena-browser-boundary.mts",
+      "tsx scripts/verify-cache.mts",
+      "tsx scripts/verify-db.mts",
+      "tsx scripts/verify/arena-admin.ts",
+      "tsx scripts/verify/auth.ts",
+      "tsx scripts/verify/guards.ts",
+      "tsx scripts/verify-access-db.mts",
+      "tsx scripts/verify/blocks.ts",
+      "tsx scripts/verify/rule-review.ts",
+      "tsx scripts/verify/rule-explanation-contract.ts",
+      "tsx scripts/verify/backlog.ts",
+      "tsx scripts/verify/diff-report.ts",
+      "tsx scripts/verify/teach.ts",
+      "tsx scripts/verify/ai-contract.ts",
+      "tsx scripts/verify/ai-features.ts",
+      "tsx scripts/verify/ai-router.ts",
+      "tsx scripts/verify/arena-scenario-runner.mts",
+      "tsx scripts/verify/arena-worker-budgets.ts",
+      "tsx scripts/verify/arena-policy-contract.mts",
+      "tsx scripts/verify/arena-snapshot-conceal.mts",
+      "tsx scripts/verify/arena-policy-shortcuts.mts",
+      "tsx scripts/verify/arena-policy-main.mts --record-performance",
+      "tsx scripts/verify/arena-policy-combat.mts --record-performance",
+      "tsx scripts/verify/arena-policy-choices.mts --record-performance",
+      "tsx scripts/verify/deckplanet-paging.mts",
+      "tsx scripts/verify/arena-offline-pack.mts",
+      "tsx scripts/verify/arena-session-648.mts",
+      "tsx scripts/verify/arena-tutorial-session.mts",
+      "tsx scripts/verify/arena-tutorial-lessons.mts",
+      "tsx scripts/arena-policy-eval.mts --check",
+      "tsx scripts/verify/arena-local-worker.mts",
+      "tsx scripts/verify/last-prints-price-549.ts",
+      "tsx scripts/verify/arena-local-storage.mts",
+      "tsx scripts/verify/arena-local-ownership.mts",
+      "tsx scripts/verify/swap-729-731.ts",
+      "tsx scripts/verify/arena-local-board-656.mts",
+      "tsx scripts/verify/native-battle-keywords.mts",
+      "tsx scripts/verify/reviewed-rule-refresh.mts",
+      "tsx scripts/verify/arena-policy-search.mts",
+      "tsx scripts/verify/arena-policy-frontier-cache.mts",
+      "tsx scripts/verify/arena-policy-strategy.mts",
+      "tsx scripts/verify/arena-real-card-tactics.mts",
+      "tsx scripts/verify/testing-deck-selection.mts",
+      "tsx scripts/verify/arena-testing-data.mts",
+      "tsx scripts/verify/arena-testing-manifest.mts",
+      "tsx scripts/verify/arena-testing-run-stats.mts",
+      "tsx scripts/verify/arena-scenario-manifest.mts",
+      "tsx scripts/verify/deck-discovery-828.mts",
+      "tsx scripts/verify/arena-search-checkpoint.mts",
+      "tsx scripts/verify/ai-agent-sdk.ts",
+      "tsx scripts/verify/ai-agent-sdk-route.ts",
+      "tsx scripts/verify/ai-openrouter.ts"
+    ],
+    "resumedFromFailureAndBuild": [
+      {
+        "command": "tsx scripts/verify/capabilities.mts --check",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/derived-read-569.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/damage-statistics-557.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/arena-pack-store.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/arena-offline-shell.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/arena-offline-prep.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/quiet-skills-783.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/arena-offline-decks-793.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/play-choice-preview-798.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/attack-preview-801.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/block-preview-801.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/arena-feedback-cues.mts",
+        "exitCode": 0
+      },
+      {
+        "command": "tsx scripts/verify/response-empty-windows-801.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "npm run build",
+        "exitCode": 0
+      }
+    ]
+  },
+  "focused": "Universe3 and existing609 cleanup proofs passed",
+  "fuzz": {
+    "games": 40,
+    "completed": 40,
+    "interrupted": 0,
+    "actionLimits": 0,
+    "crashes": 0
+  },
+  "contractEmission": "reviewed effect-language and language-reference fixtures only",
+  "liveWrites": false,
+  "paidCalls": false,
+  "rootIntegrationGate": "An uninterrupted full gate on combined current main remains the coordinator step."
+}

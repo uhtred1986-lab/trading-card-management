@@ -48,6 +48,14 @@ function spaceBeforeKeyword(text: string): string {
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // ── Dragon Ball Super (the game the arena plays) ──────────────────────────
+  // Official 2020-03-06 errata (#920), verified 2026-10-15:
+  // https://www.dbs-cardgame.com/us-en/rule/errata-cards.php
+  // Every removal from Battle/Combo is redirected, not only a move to Drop.
+  "DB2-137": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
+  "DB2-140": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
+  "DB2-151": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
+  "DB2-153": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
+
   "BT3-104": [[/your\s+opponent's\s+can\s+only\s+attack/g, "your opponent can only attack"]],
   "BT4-059": [[/<Lord\s+Slug>with/g, "<Lord Slug> with"]],
   // Official 2019-11-01 errata, reconfirmed 2026-10-14 (#819): World Peace

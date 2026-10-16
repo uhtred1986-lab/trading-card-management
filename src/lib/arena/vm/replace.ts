@@ -42,7 +42,7 @@ import { log } from "./events";
 import { vmHost } from "./host";
 import { queryHookStatics, resolveSelector, staticsNow } from "./program";
 import { masterOf } from "./triggers";
-import { inPlayZones } from "./zones";
+import { findCard, inPlayZones } from "./zones";
 import type { VmState } from "./state";
 import type { ScriptFrame } from "./script";
 
@@ -88,6 +88,10 @@ export function replacementIdentity(source: string, skillIndex: number | undefin
  */
 function causeMatches(game: GameDefinition, state: VmState, id: string, r: Replacement, reason: MoveReason | undefined, actor: MoveActor, requestedTo?: string): boolean {
   if (r.kind === "life" || r.kind === "marker") return false;
+  if (r.from) {
+    const from = findCard(state, id)?.zone;
+    if (!from || !r.from.some((zone) => zone === from) || from === requestedTo) return false;
+  }
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
@@ -109,10 +113,15 @@ export function replacementChoices(
   state: VmState,
   id: string,
   reason: MoveReason | undefined,
-  opts: { actor?: MoveActor; inSubstitute?: boolean; requestedTo?: string } = {},
+  opts: { actor?: MoveActor; inSubstitute?: boolean; requestedTo?: string; comboCleanup?: true } = {},
 ): ReplacementChoice[] {
   const out: ReplacementChoice[] = [];
+  const from = findCard(state, id)?.zone;
+  const heldDestination = !!opts.requestedTo && (inPlayZones(game).includes(opts.requestedTo) || game.zones[opts.requestedTo]?.host === true);
   for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
+    // Existing unscoped replacements still answer only departures out of
+    // play. The native cleanup explicitly owns its older Combo exception.
+    if (!r.from && !opts.comboCleanup && (from === "combo" || heldDestination)) continue;
     if (r.ops && (applyingReplacement || opts.inSubstitute)) continue;
     if (!causeMatches(game, state, id, r, reason, opts.actor, opts.requestedTo)) continue;
     // A timed substitute may refer to variables captured when installed.
@@ -188,8 +197,10 @@ function replacementFor(
   used: ReadonlySet<string> = new Set<string>(),
   event?: string,
   requestedTo?: string,
+  explicitFromOnly = false,
 ): { source: string; route: Replacement; identity: string } | null {
   for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
+    if (explicitFromOnly && !r.from) continue;
     const identity = replacementIdentity(source, skillIndex ?? r.skillIndex, event, id);
     if (used.has(identity)) continue;
     if (r.optional) continue;
@@ -241,22 +252,27 @@ export function leaveRoute(
   // Combo departure to this mover. General automatic discovery stays scoped
   // to in-play departures; the battle step owns this one prompt and cursor.
   const answeredComboCleanup = from === "combo" && opts.event?.startsWith("8-5-8:") && opts.replaced !== undefined;
-  const selected = ((from && inPlay.includes(from)) || fromLife) && !held(to) && opts.replaced === undefined && !fromLife
-    ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event, to)
+  const ordinaryDeparture = !!from && inPlay.includes(from) && !held(to);
+  // An explicit source-area rule also applies from Combo, and when a card
+  // leaves Battle for another held area. Ordinary replacements retain their
+  // existing in-play-to-outside scope.
+  const scopedDeparture = (from === "battle" || from === "combo") && from !== to;
+  const selected = (ordinaryDeparture || scopedDeparture) && opts.replaced === undefined
+    ? replacementFor(ctx, game, state, id, opts.reason, opts.actor, opts.usedReplacements, opts.event, to, !ordinaryDeparture)
     : null;
   const selectedIdentity = selected?.identity ?? (opts.replaced?.source ? replacementIdentity(opts.replaced.source, opts.replaced.skillIndex, opts.event, id) : undefined);
   // A suspendable price can already have asked the affected player about a
   // hand card. The answer must reach the move, even though automatic
   // replacement discovery remains scoped to in-play departures and life.
   const answeredHandDeparture = from === "hand" && opts.replaced != null;
-  if ((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredComboCleanup) && !held(to)) {
+  if (((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredComboCleanup) && !held(to)) || (scopedDeparture && (selected || opts.replaced != null))) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
       return { stays: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
     }
-    if (instead?.to && instead.to !== to) {
+    if (instead?.to) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
       to = instead.to;
       mode = instead.mode;
