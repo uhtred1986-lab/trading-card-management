@@ -131,3 +131,7 @@ a code; an SL with no `sl_accounts` row acts under `BASIC_AUTH_USER`.
 1. **Passkeys** for SLs (`sl_passkeys`, `@simplewebauthn`), as in gullet-cove-dm.
 2. **Basic Auth removed**, with `app_users`, `/password-login`, `/settings/users` and `ARENA_ADMINS`,
    once every player has a device.
+
+## Inviting a friend to a 1 v 1
+
+From a match's waiting screen an SL can invite a friend by name (src/app/arena/invite-actions.ts, src/lib/arena/friend-invite.ts). It creates an ordinary player whose owner is the typed name (refused when ownerNameTaken finds it used by a player, deck, lot or SL, because a player's data is found by the owner string alone), issues the usual one-time join code and returns /join?c=CODE&next=/arena/match/ID. safeNext (src/lib/auth/join-url.ts) lets /join and /api/join redirect only to a /arena/match/<digits> page. A friend who already has a signed-in phone is sent the match link instead of a new code. Players cannot invite: the action opens with equireSl() and checks the caller hosts the match.

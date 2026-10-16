@@ -1,0 +1,1 @@
+ALTER TABLE "decks" ADD COLUMN "shareable" boolean DEFAULT false NOT NULL;

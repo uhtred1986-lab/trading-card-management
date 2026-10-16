@@ -335,6 +335,12 @@ export const decks = pgTable(
      * are left null on migration rather than backfilled to anyone.
      */
     owner: text("owner"),
+    /**
+     * The owner offers this deck to a friend invited to a 1 v 1 (arena friend
+     * invite): `joinMatch` lets the guest pick it, and only it, from a match
+     * its owner hosts. It changes nothing else about who can see the deck.
+     */
+    shareable: boolean("shareable").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

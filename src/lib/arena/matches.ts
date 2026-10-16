@@ -115,8 +115,15 @@ export async function joinMatch(db: Db, id: number, guestUser: string | null, gu
   // (or an unowned one), never a deck another login keeps private. Skipped
   // only when the caller names no owner, as with the app running open.
   if (guestOwner) {
-    const deck = await db.query.decks.findFirst({ where: eq(decksTable.id, guestDeckId), columns: { owner: true } });
-    if (!deck || (deck.owner && deck.owner !== guestOwner)) throw new Error("that deck is not yours");
+    const deck = await db.query.decks.findFirst({ where: eq(decksTable.id, guestDeckId), columns: { owner: true, shareable: true } });
+    if (!deck) throw new Error("that deck is not yours");
+    if (deck.owner && deck.owner !== guestOwner) {
+      // The one exception: a deck its owner marked shareable, in a match that
+      // same owner hosts. Nothing else about the deck becomes visible or editable.
+      const hostDeck = await db.query.decks.findFirst({ where: eq(decksTable.id, match.hostDeckId), columns: { owner: true } });
+      const offered = deck.shareable && !!hostDeck?.owner && hostDeck.owner === deck.owner;
+      if (!offered) throw new Error("that deck is not yours");
+    }
   }
 
   // Claim it first. Whoever loses this race never calls `startGame`, so a
@@ -138,6 +145,22 @@ export async function joinMatch(db: Db, id: number, guestUser: string | null, gu
     await db.update(arenaMatches).set({ guestUser: null, guestDeckId: null, status: "open", updatedAt: new Date() }).where(eq(arenaMatches.id, id));
     throw err;
   }
+}
+
+/**
+ * The decks a guest may pick from in this match besides their own: the host's
+ * decks marked shareable (`decks.shareable`), original game only. Their ids are
+ * the only foreign ones `joinMatch` accepts.
+ */
+export async function sharedDecksOf(db: Db, hostDeckId: number | null): Promise<number[]> {
+  if (!hostDeckId) return [];
+  const host = await db.query.decks.findFirst({ where: eq(decksTable.id, hostDeckId), columns: { owner: true } });
+  if (!host?.owner) return [];
+  const rows = await db
+    .select({ id: decksTable.id })
+    .from(decksTable)
+    .where(and(eq(decksTable.owner, host.owner), eq(decksTable.shareable, true), eq(decksTable.game, "dbs")));
+  return rows.map((r) => r.id);
 }
 
 /** Called off. Only the host may, and only while nobody has joined. */

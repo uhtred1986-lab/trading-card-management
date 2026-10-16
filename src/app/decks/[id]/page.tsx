@@ -18,6 +18,7 @@ import { SwapSuggestions } from "@/components/SwapSuggestions";
 import { suggestionsForDeck } from "@/lib/decks/swaps";
 import { listLocations } from "@/lib/collection/locations";
 import { DeckLocationPicker } from "@/components/DeckLocationPicker";
+import { DeckShareToggle } from "@/components/decks/DeckShareToggle";
 import { hasAnthropic } from "@/lib/ai/client";
 import { BuiltToggle } from "@/components/BuiltToggle";
 import { DeckCardControls } from "@/components/DeckCardControls";
@@ -226,6 +227,11 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </SubmitButton>
             </form>
             {/* Outside the form: it saves on its own, so Save can't clobber it. */}
+            {deck.game === "dbs" ? (
+              <div className="mt-2 border-t border-space-700/70 pt-2">
+                <DeckShareToggle deckId={deck.id} shareable={deck.shareable} />
+              </div>
+            ) : null}
             <div className="mt-2 border-t border-space-700/70 pt-2">
               <DeckLocationPicker deckId={deck.id} locationId={deck.locationId} locations={locations} isBuilt={deck.isBuilt} />
             </div>

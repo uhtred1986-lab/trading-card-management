@@ -70,6 +70,19 @@ export async function updateDeck(id: number, patch: { name?: string; game?: Game
   if (patch.isTesting !== undefined) revalidateTestingPickers();
 }
 
+/**
+ * Offer (or stop offering) this deck to a friend invited to one of the owner's
+ * 1 v 1s. Its owner or an SL may; it is saved on the spot like the filing
+ * location, so Save below cannot clobber it.
+ */
+export async function setDeckShareableAction(deckId: number, shareable: boolean): Promise<{ ok: boolean }> {
+  const viewer = await requireSignedIn();
+  await assertOwnDeck(viewer, deckId);
+  await db.update(decks).set({ shareable, updatedAt: new Date() }).where(eq(decks.id, deckId));
+  revalidate(deckId);
+  return { ok: true };
+}
+
 export async function updateDeckForm(formData: FormData) {
   await requireSignedIn();
   const id = Number(formData.get("id"));

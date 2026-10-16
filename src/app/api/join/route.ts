@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { JOIN_PAGE, PLAYER_COOKIE, playerCookieOptions, publicOrigin, signPlayer } from "@/lib/auth/core";
 import { deviceLabel } from "@/lib/auth/join-code";
 import { joinAttemptAllowed } from "@/lib/auth/join-flow";
+import { safeNext } from "@/lib/auth/join-url";
 
 /**
  * The join's confirm step: "Yes, that's me" on `/join` posts the code here.
@@ -29,7 +30,9 @@ export async function POST(request: NextRequest) {
   const joined = await redeemJoinCode(db, code, deviceLabel(request.headers.get("user-agent"), standalone), now);
   if (!joined) return back("bad");
 
-  const response = NextResponse.redirect(new URL("/", origin), 303);
+  // An invitation link carries `next`; only a 1 v 1 invite page is honoured (`safeNext`).
+  const next = form?.get("next");
+  const response = NextResponse.redirect(new URL(safeNext(typeof next === "string" ? next : null) ?? "/", origin), 303);
   response.cookies.set(PLAYER_COOKIE, await signPlayer({ playerId: joined.playerId, deviceId: joined.deviceId, tok: joined.tok }, process.env.AUTH_SECRET, now), playerCookieOptions(process.env));
   return response;
 }

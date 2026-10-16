@@ -401,3 +401,4 @@ and `arena:tally` prove and how to diff them, which of `verify-arena`'s twelve s
 when it fails, when `contract:emit` and the oracle `arena:diff` are required, and the practices
 learned the expensive way. Read it before changing the compiler or the engine.
 
+**Borrowing a host's deck (friend invite).** decks.shareable (migration 0054, default false) marks a deck its owner offers to invited friends. joinMatch accepts a deck the guest does not own only when it is shareable and owned by the same person who owns the match's host deck; sharedDecksOf lists exactly those for the match page. Nothing else about the deck becomes visible or editable. See docs/arena-friend-invite-plan.md.

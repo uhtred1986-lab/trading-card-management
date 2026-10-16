@@ -1,6 +1,6 @@
 # Plan: invite a friend to a 1 v 1 from the Arena, with a token-only login
 
-Status: **plan only, nothing built** (16 Oct 2026). Not yet a GitHub issue or an
+Status: **built on branch `arena-friend-invite`** (16 Oct 2026; PR open, see the PR for what was and was not tested). Not yet a GitHub issue or an
 `docs/arena-backlog/<id>.md` entry: file it per `docs/arena-backlog.md` §5 before building.
 Owner's wording: from the Arena launch screen, invite a friend to a match; the friend needs a
 login, so send a token-only login that is super easy; from the phone, send it over WhatsApp.
