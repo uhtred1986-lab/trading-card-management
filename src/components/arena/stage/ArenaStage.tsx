@@ -798,6 +798,12 @@ export function ArenaStage({
   const playCard = playCandidate ? cardOf(playCandidate) : null;
   const playOptions = playCard ? (taps.byCard[playCandidate!] ?? []).filter((i) => legal[i].action.type === "play").map((i) => ({ action: legal[i].action, label: legal[i].label, cost: legal[i].cost?.energy ?? (Number.isFinite(Number(playCard.cost)) ? Number(playCard.cost) : null) })) : [];
   const playSelection = playCard && playOptions.length > 0 ? { card: playCard, options: playOptions, ready: view.you.activeEnergy } : null;
+  // A "choose a card" question (discard to the Drop, add to hand, …) answered from the hand: the card open in
+  // the browse preview is offered with the engine's own `choose` action for it.
+  const pickCandidate = !wide && view.prompt.kind === "chooseCards" && yourTurn && playable && !busy && !sheet && peekedId && inHand(peekedId) ? peekedId : null;
+  const pickIndex = pickCandidate ? (taps.byCard[pickCandidate] ?? []).find((i) => legal[i].action.type === "choose") : undefined;
+  const pickCard = pickCandidate && pickIndex != null ? cardOf(pickCandidate) : null;
+  const pickSelection = pickCard && pickIndex != null ? { card: pickCard, action: legal[pickIndex].action, question: view.prompt.question } : null;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   // Whose move the board states is the turn pill's and the prompt's business,
@@ -1601,6 +1607,7 @@ export function ArenaStage({
               onSend={send}
               chargeSelection={chargeSelection}
               playSelection={playSelection}
+              pickSelection={pickSelection}
               onNext={playback.next}
             />
           </div>

@@ -43,6 +43,7 @@ export function PromptPanel({
   onSend,
   chargeSelection = null,
   playSelection = null,
+  pickSelection = null,
   onNext,
   attacksRemaining = 0,
   defendOptions = [],
@@ -80,6 +81,8 @@ export function PromptPanel({
   chargeSelection?: { card: import("@/lib/arena/view").CardView; action: Action; passAction: Action | null; ready: number; total: number } | null;
   /** Main Phase: the hand card open in the browse preview and each legal way to play it. */
   playSelection?: { card: import("@/lib/arena/view").CardView; options: { action: Action; label: string; cost: number | null }[]; ready: number } | null;
+  /** A card-choice question answered from the hand: the card open in the browse preview and the engine's `choose` for it. */
+  pickSelection?: { card: import("@/lib/arena/view").CardView; action: Action; question: string } | null;
   onNext: () => void;
   attacksRemaining?: number;
   defendOptions?: { card: CardView; action: Action | null; label: string; detail: string | null; cost: string | null; reason: string | null; impact: string | null }[];
@@ -296,6 +299,12 @@ export function PromptPanel({
           </button>
         );
       })}
+      {pickSelection && view.prompt.kind === "chooseCards" && (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-pick-confirm>
+          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">{pickSelection.card.name}<span className="block text-xs font-normal text-space-200">{pickSelection.question}</span></p>
+          <button type="button" disabled={busy} onClick={() => onSend(pickSelection.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-pick-action>Choose it</button>
+        </div>
+      )}
       {chargeSelection && view.prompt.kind === "charge" && (
         <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-charge-confirm>
           <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Charge {chargeSelection.card.name}?<span className="block text-xs font-normal text-space-200">{chargeSelection.ready} → {chargeSelection.ready + 1} ready energy · {chargeSelection.total + 1} total</span></p>
