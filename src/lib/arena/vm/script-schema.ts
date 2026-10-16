@@ -782,6 +782,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "attackTarget", type: "filter" },
       { name: "sameNameAsSelf", type: "boolean" },
       { name: "bySkill", type: "boolean" },
+      { name: "exceptEvolve", type: "boolean" },
       { name: "uses", type: "amount" },
       { name: "unless", type: "cond" },
       { name: "unlessPay", type: "ops" },
@@ -813,7 +814,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // played, not what plays. "You can't play …" is the player's version.
       const who = op.target ? describeRef(op.target) : op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
       if (op.what === "attack" && op.attackTarget) return `${who} can't attack ${describeFilter(op.attackTarget)}${escape}${forThe(op.until, r)}`;
-      const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? " by a skill" : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
+      const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? (op.exceptEvolve ? " by a skill other than an [Evolve]" : " by a skill") : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
       // Which cards the ban is about, when it is about cards rather than the
       // player: "you can't play cards" said nothing about *which*.
       const which = op.sameNameAsSelf ? "another copy of this card" : op.filter ? describeFilter(op.filter) : "";

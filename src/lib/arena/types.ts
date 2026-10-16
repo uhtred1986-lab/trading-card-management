@@ -338,6 +338,16 @@ export interface Prohibition {
    */
   bySkill?: boolean;
   /**
+   * #933: with `bySkill: true`, the skill play it stops is any one that is not
+   * an evolution — "can't be played from any area with non-[Evolve] skills"
+   * (BT13-017/021/024). An [Evolve], [EX-Evolve] or [Xeno-Evolve] play, and a
+   * skill whose `play` op names `using` one of them ("evolve it on top of this
+   * card", P-336), is let through; a declared play is `bySkill: false` and
+   * never met by this rule. Classified by what the play *is*, not by the
+   * keyword tag on the skill that makes it.
+   */
+  exceptEvolve?: boolean;
+  /**
    * `activateCounter` only: the one [Counter] kind it names — "[Counter: Play]
    * skills" is not every [Counter] (22-10-2-1). Matched against the line being
    * activated (`skillKind` in the matchers' options); absent means any kind.
