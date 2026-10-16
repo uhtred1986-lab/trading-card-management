@@ -1479,7 +1479,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       : null;
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
   if (returnInfo && to === "hand") moment.subjectInfo = returnInfo;
-  if (sourceNegated && to === "warp") moment.sourceNegated = sourceNegated;
+  if (sourceNegated) moment.sourceNegated = sourceNegated;
   emit(ctx, game, state, ev, moment, shown);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or

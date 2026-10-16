@@ -118,6 +118,9 @@ export interface VmPendingHook {
 
 export type VmPendingRecord = VmPending | VmPendingHook;
 
+/** The self-moments of a card leaving a Battle Area by a skill (3-1-5), which 9-6-9-2 holds to the negation it had there. */
+const LEFT_BATTLE_BY_SKILL = new Set(["removedFromBattle", "removedByOpponent", "droppedFromBattle", "droppedByOpponent", "leftBattleToDrop"]);
+
 /** A card asked whether it answers to a moment, and the name it would answer to. */
 export interface TriggerMatch {
   trigger: string;
@@ -325,6 +328,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (match.trigger === "battleOrDeckToWarp" && moment.sourceNegated?.includes(sk.index)) continue;
+      // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
+      // does not trigger although the card has moved on (and the move ended
+      // the negation).
+      if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
       // A qualified hand-return must become pending at the movement, not
       // first discover whether it qualified when another Auto has resolved.
