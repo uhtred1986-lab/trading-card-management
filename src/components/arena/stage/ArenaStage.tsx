@@ -792,6 +792,12 @@ export function ArenaStage({
     ready: view.you.activeEnergy,
     total: view.you.energy.length,
   } : null;
+  // The Main Phase twin of the charge dock: the hand card open in the browse preview, offered with each
+  // legal way to play it. The engine still asks for any payment choice after the tap.
+  const playCandidate = !wide && view.prompt.kind === "main" && yourTurn && playable && !busy && !isTargeting && !sheet && peekedId && inHand(peekedId) ? peekedId : null;
+  const playCard = playCandidate ? cardOf(playCandidate) : null;
+  const playOptions = playCard ? (taps.byCard[playCandidate!] ?? []).filter((i) => legal[i].action.type === "play").map((i) => ({ action: legal[i].action, label: legal[i].label, cost: legal[i].cost?.energy ?? (Number.isFinite(Number(playCard.cost)) ? Number(playCard.cost) : null) })) : [];
+  const playSelection = playCard && playOptions.length > 0 ? { card: playCard, options: playOptions, ready: view.you.activeEnergy } : null;
   const step = view.battle ? `battle:${view.battle.step}` : `phase:${view.phase}`;
 
   // Whose move the board states is the turn pill's and the prompt's business,
@@ -1594,6 +1600,7 @@ export function ArenaStage({
               primaryBare={primaryBare}
               onSend={send}
               chargeSelection={chargeSelection}
+              playSelection={playSelection}
               onNext={playback.next}
             />
           </div>
