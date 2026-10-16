@@ -327,7 +327,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The moment, in the words `triggers.rules` is written in. A program that
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
-    pend: (trigger, cardId, subject) => pendByName(ctx, game, state, ev, trigger, cardId, subject),
+    pend: (trigger, cardId, subject, sourceNegated) => pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated),
+    autosNegatedNow: (cardId) => skillsShowing(ctx, state, cardId).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, cardId, sk.index, sk.kind)).map((sk) => sk.index),
     dropPendsOfOtherColours: (before, source) => {
       const colors = source && state.cards[source] ? (attrsNow(ctx, game, state, source).colors ?? []) : [];
       state.pending = state.pending.filter((e, i) => {
@@ -653,7 +654,7 @@ function moveTo(
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
   if (!opts.evolutionBase) emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
-    ...(returnInfo && to === "hand" ? { subjectInfo: returnInfo } : {}), ...(sourceNegated && to === "warp" ? { sourceNegated } : {}),
+    ...(returnInfo && to === "hand" ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
@@ -729,7 +730,7 @@ function clearAutoReveal(state: VmState, card: string): void {
  * covers only the names a program says outright, and a name with no moment of
  * its own is a note rather than a silent miss.
  */
-function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string): void {
+function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[]): void {
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
@@ -759,7 +760,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // the legacy `pend(trigger, card, subject)` puts it, so "your <Heles>
   // card's skill" can be asked of it. It is not a pattern argument: written
   // over `by` it turned `by: skill` into a card id, which no declaration asks.
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args }, (m) => m.card === id && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}) }, (m) => m.card === id && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 

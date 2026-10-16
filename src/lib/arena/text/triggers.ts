@@ -208,11 +208,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // SD15-03 (#728) writes the same pair with "placed in your Drop Area from
       // your Battle Area by an opponent's skill or KO'd"; the first half is
       // `droppedByOpponent`.
-      return /when this card is ko'?d|when this card is removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d|when this card is placed in [a-z' ]*drop area from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
+      return /when this card is (?:played or )?ko'?d|when this card is (?:played or )?removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d|when this card is (?:played or )?placed in [a-z' ]*drop area from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
     // 3-1: a move an effect caused, which is not a KO — the cards write "or
     // KO'd" when they mean both.
     case "removedFromBattle":
-      return /when this card is removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
+      return /when this card is (?:played or )?removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
     // 3-1: the narrower wording — a skill put it out of the Battle Area *and*
     // it ended in the Drop. `removedFromBattle` covers a skill that sends it
     // anywhere, so this cannot simply widen that one: a card bounced to the
@@ -251,7 +251,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentCardKoed":
       return /^when (?:your opponent's|an opponent's|one of your opponent's) [^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
     case "removedByOpponent":
-      return /when this card is removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
+      return /when this card is (?:played or )?removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
     case "evolvedInto":
       return /when a card evolves into this card|when this card evolves\b/.test(t);
     case "evolveFromHandActivated":
@@ -465,4 +465,22 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     default:
       return false;
   }
+}
+
+/**
+ * "When this card is played **or** removed from a Battle Area by a skill"
+ * (BT31-015, #940) names two moments, and the `played` half is all a reader
+ * that stops at "when this card is played" sees: the other half was dropped
+ * with the rest of the trigger clause and the program read clean. The
+ * alternatives the engine can place are each trigger's own wording above
+ * (`removedFromBattle`, `removedByOpponent`, `koed`); this is true when the
+ * head coordinates "played or" with a way of leaving play that none of them
+ * recognised, so the compiler refuses the clause (an unread gap) instead of
+ * keeping half of it.
+ */
+export function playedOrUnplacedLeave(sk: Skill): boolean {
+  if (sk.kind !== "auto") return false;
+  const head = effectHead(maskNames(sk.effect).text);
+  if (!/^when this card is played or (?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(head)) return false;
+  return !(["removedFromBattle", "removedByOpponent", "koed"] as const).some((t) => autoTriggerMatches(sk, t));
 }

@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, playedOrUnplacedLeave, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -393,6 +393,10 @@ function compileSkillText(skill: Skill): Script {
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
   if (skill.kind === "auto" && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
+    // "When this card is played or removed from a Battle Area by a skill"
+    // (BT31-015, #940): a coordinated alternative the trigger readers could
+    // not place is left unread, not dropped silently with the clause.
+    if (playedOrUnplacedLeave(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
     const returned = RETURNED_FROM_YOUR_BATTLE.exec(trigger.trim());
     if (returned) {
       returnedFromBattle = true;
