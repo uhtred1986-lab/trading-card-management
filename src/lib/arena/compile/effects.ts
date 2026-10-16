@@ -2162,6 +2162,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       onto: { sel: { fromVar: c.last, filter: choice.sel.filter } }, using: "Evolve", counterWindow: true }];
   }
 
+  // #933, P-336: "…and evolve it on top of this card in Active Mode" — an
+  // *explicit* evolution a skill instructs (22-5-5-1), whatever the tag on the
+  // skill is: the chosen card is played onto the host as an [Evolve] play, which
+  // is what lets it past "can't be played … with non-[Evolve] skills" (BT13-024).
+  // Only the form that names what is evolved and what it goes on top of is read.
+  if ((m = /^evolve (it|that card|the chosen card) on top of (this card|it|the played card|the chosen card)(?: in (rest|active) mode)?$/.exec(t))) {
+    const what = refFor(m[1], c);
+    const onto = refFor(m[2], c);
+    if (!what || !onto || !("var" in what)) return null;
+    return [{ op: "play", target: what, onto, ...(m[3] ? { mode: m[3] as "rest" | "active" } : {}), using: "Evolve" }];
+  }
+
   // "Play up to 1 <Majin Buu> card from your deck on top of this card"
   // (22-13-6-3). The host has to come off the phrase before the target is
   // read: "this card" at the end of it made `parseTarget` take the whole
@@ -2664,9 +2676,18 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // except by skills" (20-14). Fifteen cards print one of these, and the moment
   // that matters is always a *skill* reaching into the Drop or the deck for
   // them, so which of the two it is decides everything. The forms that carve
-  // out an exception — "by skills other than its own", "with non-[Evolve]
-  // skills" — are left unread: an exception the engine gets wrong bans a play
-  // the card allows, and a gap here only means the card is playable as normal.
+  // out an exception — "by skills other than its own" — are left unread: an
+  // exception the engine gets wrong bans a play the card allows, and a gap here
+  // only means the card is playable as normal. ("with non-[Evolve] skills" is
+  // read above, #933, because its one exception is a kind of play the VM can
+  // tell.)
+  // #933: "This card can't be played from any area with non-[Evolve] skills"
+  // (BT13-017, BT13-021, BT13-024). The carve-out is exactly the Evolve family
+  // — a skill play that is an evolution still happens — and nothing else about
+  // the card changes: it is still played from hand for its printed cost.
+  if (/^be played from any area with non-\[evolve\] skills?$/.test(rest)) {
+    return [{ op: "forbid", what: "play", until: "game", target, bySkill: true, exceptEvolve: true, ...withUnless }];
+  }
   if (/^be played\b/.test(rest) && !/\bother than\b|\bnon-\[|\bexcept its own\b/.test(rest)) {
     // "From any area" is not a duration and `durationOf` does not read it as
     // one: the rule holds for the whole game, which is what makes it a
