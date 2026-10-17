@@ -117,6 +117,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT31-053": [[/from\s+their\s+hnd/g, "from their hand"]],
   "BT31-080": [[/and\s+paly\s+a\s+\{/g, "and play a {"]],
   "BT31-094": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
+  // #926: the official card list prints "and you draw 3 cards" (verified 2026-10-16,
+  // https://www.dbs-cardgame.com/us-en/cardlist/index.php?free=BT31-149&search=true);
+  // as "your draw" the [Union-Fusion] price is unreadable.
+  "BT31-149": [[/and\s+your\s+draw\s+3\s+cards/g, "and you draw 3 cards"]],
   "BT31-150": [[/card\s+is\s+plyed/g, "card is played"]],
   "P-156": [[/2\s+or\s+more≪World\s+Tournament≫/g, "2 or more ≪World Tournament≫"]],
   "P-431": [[/\{y\}\{y\}\{3\}Yellow/g, "{y}{y}{3} Yellow"]],
