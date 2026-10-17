@@ -3555,7 +3555,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // bare instruction; this strips the other subject and remembers whose
     // decision it was, which is the whole difference between the two.
     const theirOffer = /^(?:your opponent|they) may\s+\S/i.test(said.trim());
-    let got = compileClause(theirOffer ? said.trim().replace(/^(?:your opponent|they) may\s+/i, "") : said, c);
+    // #922: "Your opponent chooses 1 card in their hand and places it at the
+    // bottom of their deck" (TB3-019). The plain hand clause below reads as a
+    // discard to the Drop, which is a different destination; when the clause
+    // after it moves "it" to a deck, the choosing is its own `choose` (the
+    // opponent picks from their own hand) and the next clause moves that card.
+    const handThenDeck = /^your opponent chooses? (\d+) cards? (?:in|from) their hand$/i.exec(said.trim());
+    const handChosen = handThenDeck && i + 1 < clauses.length && /^places? it (?:at|on) the bottom of (?:their) deck$/i.test(clauses[i + 1].trim());
+    let got = handChosen
+      ? [{ op: "choose", sel: { side: "opponent", area: "hand", count: Number(handThenDeck[1]) }, as: `c${c.n++}`, chooser: "opponent", reason: clause } as Op]
+      : compileClause(theirOffer ? said.trim().replace(/^(?:your opponent|they) may\s+/i, "") : said, c);
     // 20-16: "you may …" is the player's decision. `compileClause` strips the
     // words so that every pattern below sees a bare instruction, which meant
     // 787 compiled skills carried out an optional effect without asking. The

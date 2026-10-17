@@ -673,6 +673,8 @@ export type Trigger =
   | "opponentEnergyActiveBySkill"
   /** SD8-09: the opponent's skill made their own energy Active on their turn. */
   | "opponentOwnEnergyActiveBySkill"
+  /** #922: this card itself is switched from Rest Mode to Active Mode (TB3-019), whoever or whatever switched it. */
+  | "selfRestToActive"
   /** #916: the opponent's own [Counter] skill made their own rested energy Active (DB3-013 and four more). Any turn. */
   | "opponentOwnEnergyActiveByCounter"
   /** SD15-01: the opponent declared an attack at your red Unison with specified cost 2. */
