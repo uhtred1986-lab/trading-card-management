@@ -1,7 +1,17 @@
 "use client";
 
 import { ClashBackdrop, Count, TriggerLine, type BattleSide, type StagingProps } from "./BattleParts";
+import { useSyncExternalStore } from "react";
 import { StageCard } from "./StageCard";
+
+/** A phone no taller than a small iPhone: the fight, hand and prompt must still share one screen. */
+function useShortScreen(): boolean {
+  return useSyncExternalStore(
+    (notify) => { const mq = window.matchMedia("(max-height: 720px)"); mq.addEventListener("change", notify); return () => mq.removeEventListener("change", notify); },
+    () => window.matchMedia("(max-height: 720px)").matches,
+    () => false,
+  );
+}
 
 /** The explosion's twelve shards, the same fan the leader's damage burst uses. */
 const SHARDS: [number, number][] = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((a, i) => [a, [74, 58, 80, 62, 78, 56, 72, 60, 82, 58, 76, 64][i]]);
@@ -29,8 +39,9 @@ export function Takeover({ shape, cardProps, beat, note, yourPick, desk, incomin
   const clash = beat?.t === "clash" ? beat : null;
   const name = beat?.t === "skill" ? (shape.cards.find((c) => c.id === beat.card)?.name ?? null) : null;
   // A phone size, scaled by the board's `--arena` like every card: 150 px at desk scale.
-  // Large on purpose: the two fighting cards are the whole point of the screen.
-  const width = desk ? 77 : 112;
+  // Sized so both cards, the hand and the defence prompt fit one phone screen (375x667 and up) without page scroll.
+  const short = useShortScreen();
+  const width = desk ? 77 : short ? 58 : 72;
   // The side that came out ahead, once the clash has landed: lit, while the other dims.
   const winner = clash ? (clash.hit ? attack : defence) : null;
 

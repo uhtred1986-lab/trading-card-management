@@ -81,6 +81,7 @@ import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } 
 import { SkipChip, SpeedButton } from "./SpeedButton";
 import { QuietNotice } from "./QuietNotice";
 import { FightSpotlight, PlaySpotlight } from "./FocusMoments";
+import { skillCardYields } from "@/lib/arena/immersion/skills";
 import { quietSkills } from "./quiet-skills";
 
 /**
@@ -1387,7 +1388,7 @@ export function ArenaStage({
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         {/* A card revealed from the hand: a brief flash over the whole board (rd-07).
             */}
-        {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && (
+        {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && beat.owner === view.you.player && (
           <div key={beat.n} className="arena-fx-flash absolute inset-0 z-[35]" aria-hidden />
         )}
         {/* The edge: a thin line in the acting side's colour, switching with the banner. */}
@@ -1402,7 +1403,7 @@ export function ArenaStage({
             animation cannot retain the card after concealment. */}
         {beat && (beat.t === "autoDeclared" || (beat.t === "skill" && beat.reveal))
           ? beats?.art[beat.card] && <SkillSpotlight key={`secret-${beat.n}`} spotlight={beatSpotlight} />
-          : <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />}
+          : <SkillSpotlight spotlight={(shape && beat?.t === "skill" && beat.inBattle) || skillCardYields(beat) ? null : beatSpotlight} />}
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
@@ -1476,7 +1477,7 @@ export function ArenaStage({
                 lane, your row, your strip. Open sky — no panel round it. */}
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
-            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[440px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
+            <section data-takeover={takeoverOn ? "" : undefined} className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[250px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
               <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
@@ -1848,6 +1849,15 @@ export function ArenaStage({
           />
         )}
 
+        {/* The opponent's own think time, before its beats arrive: said at the top, not only in the prompt bar below the fold. */}
+        {waitingOnServer && !playback.playing && !live.over && !turnCall && !notice && (
+          <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-30 flex justify-center px-2" data-opponent-thinking>
+            <span role="status" className="arena-notice inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold text-space-50">
+              <span className="arena-pulse h-2 w-2 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />
+              {view.them.name} is thinking…
+            </span>
+          </div>
+        )}
         {notice && <QuietNotice key={notice.n} quiet={notice} viewer={view.you.player} them={view.them.name} onOk={() => acknowledge(notice.n)} />}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />

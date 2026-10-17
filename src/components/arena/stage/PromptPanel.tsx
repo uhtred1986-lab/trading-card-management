@@ -326,7 +326,7 @@ function DefenceBrief({ view, kind }: { view: BoardView; kind: (typeof DEFENCE_S
   const holding = b.guardPower > b.attackPower;
   const s = b.stakes;
   const stakes = !s ? null : !s.hit ? "You hold" : s.target === "leader" ? `−${s.lifeDamage} life` : s.target === "unison" ? "Unison loses markers" : s.koPrevented ? "No KO" : "KO";
-  const ask = kind === "counter" ? "play a Counter or let it through" : kind === "blocker" ? "block with a Blocker or let it through" : holding ? "you are holding" : "add combo power or take the hit";
+  const ask = kind === "counter" ? "play a Counter or let it through" : kind === "blocker" ? "block with a Blocker or let it through" : holding ? "you are ahead" : "add combo power or take the hit";
   const cell = (label: string, power: number, ahead: boolean) => (
     <div className={`min-w-0 flex-1 rounded-xl border px-2 py-1 text-center ${ahead ? "border-ki-400 bg-ki-500/15" : "border-loss/60 bg-loss/10"}`}>
       <span className="block truncate text-[10px] font-bold uppercase tracking-wide text-space-200">{label}</span>
@@ -335,7 +335,7 @@ function DefenceBrief({ view, kind }: { view: BoardView; kind: (typeof DEFENCE_S
   );
   return (
     <div className="mb-1.5 space-y-1.5">
-      <p className="text-sm font-semibold leading-snug text-space-50" data-defence-line>
+      <p className="min-w-0 break-words text-sm font-semibold leading-snug text-space-50" data-defence-line>
         {attacker} attacks {mine} — {ask}.
       </p>
       <div className="flex items-center gap-2" data-combo-meter aria-label={`Your ${b.guardPower.toLocaleString("en")} against ${b.attackPower.toLocaleString("en")}`}>
