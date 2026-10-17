@@ -500,7 +500,7 @@ export type Op =
   | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:main/battle"; from: "hand" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:

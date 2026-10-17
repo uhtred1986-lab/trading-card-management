@@ -1306,7 +1306,10 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
 {
   const desire: Op = { op: "invokeSkill", trait: "Desire", skillKind: "activate:main", from: "hand", maxCost: "currentEnergy" };
   const selected: Op = { op: "invokeSkill", sel: { side: "you", area: "hand", count: 1, upTo: true }, skillKind: "activate:main/battle", from: "hand" };
-  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected]] as const) {
+  // #979: the coloured Desire cards — a one-card hand selector bounded by the
+  // master's current energy, for the Main line alone.
+  const bounded: Op = { op: "invokeSkill", sel: { side: "you", area: "hand", count: 1, filter: { ...emptyFilter(), colors: ["Red", "Black"], traits: ["Desire"], costAtMostEnergy: true } }, skillKind: "activate:main", from: "hand" };
+  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected], ["coloured Desire", bounded]] as const) {
     assert.equal(validateProgram([op]), true, `${name} is a complete invokeSkill form`);
     tripOps([op], `${name} invokeSkill language round trip`);
   }
@@ -1316,9 +1319,12 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { ...selected, skillKind: "activate:main" },
     { ...selected, sel: { side: "you", area: "hand", count: 2, upTo: true } },
     { ...desire, sel: { side: "you", area: "hand", count: 1, upTo: true } },
+    // A Main-line selector with no energy bound is the Main/Battle form's business only.
+    { ...bounded, sel: { ...(bounded as { sel: object }).sel, filter: { ...emptyFilter(), traits: ["Desire"] } } },
+    { ...bounded, maxCost: "currentEnergy" },
   ]) {
     assert.equal(validateProgram([wrong]), false, "mixed or widened invocation forms are refused");
-    assert.match(programProblem([wrong]) ?? "", /use either Desire's trait\/current-energy Main line or an optional one-card hand selector/);
+    assert.match(programProblem([wrong]) ?? "", /use either Desire's trait\/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector/);
   }
 }
 

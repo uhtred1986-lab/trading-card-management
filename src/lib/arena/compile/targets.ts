@@ -1,4 +1,4 @@
-import { expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
+import { ENERGY_BOUND, emptyFilter, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -261,6 +261,16 @@ function sumBoundOf(said: string): NonNullable<Selector["sumAtMost"]> | null {
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // "…with an energy cost less than or equal to your current energy" (#979): a
+  // measure of the card against the master's energy count, not an area. Read
+  // off the rest of the phrase, which would take "your energy" for the Energy Area.
+  const energyBound = ENERGY_BOUND.exec(phrase);
+  if (energyBound) {
+    const sel = parseTarget(phrase.replace(energyBound[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    // An "or" between two descriptions would put the bound on both; one card is the only reading kept.
+    if (!sel || sel.special || sel.filter?.anyOf?.length) return null;
+    return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), costAtMostEnergy: true } };
+  }
   const summed = SUM_BOUND.exec(phrase);
   if (summed) {
     const bound = sumBoundOf(summed[0]);
@@ -671,7 +681,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // "Choose 1 or 2 cards from your life" (BT6-063, #538): a count with a
   // floor and a ceiling. `count` is the ceiling; `minCount` retains the floor,
   // so the first number cannot silently become the whole choice.
-  const range = /(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.exec(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/energy cost (?:of )?\d+(?: or \d+)?/g, ""));
+  const range = /(?:^|\s)(\d+) or (\d+) (?:[a-z-]+ )*cards?\b/.exec(t.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ").replace(/\d+000\b/g, "").replace(/(?:energy|specified) costs? (?:of )?\d+(?: or \d+)?/g, ""));
   // Two consecutive counts specify a range. Wider disjunctions (1 or 3)
   // cannot be widened to include the number between them.
   if (range && Number(range[2]) !== Number(range[1]) + 1) return null;
@@ -908,6 +918,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     // "A Unison with a specified cost of 2" (EX21-11, #728): the same lesson.
     f.specifiedCostMin != null ||
     f.specifiedCostMax != null ||
+    f.specifiedCostNone ||
+    f.costAtMostEnergy ||
     f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"

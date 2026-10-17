@@ -40,6 +40,7 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 // "…with 5000 combo power **and different card names**" (BT29-030) is the same
 // shape: a second measure of the set being chosen, not a second clause. So is
 // "…with 1000 power **and 2 markers or less**" (EX19-01, #721).
+const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
@@ -191,6 +192,10 @@ export function splitClauses(text: string): string[] {
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
+        // "Play up to 1 mono-blue Unison with a specified cost of 2 **and 1
+        // marker on it** from your deck or hand" (BT28-039, #980): what the card
+        // arrives with, said as a second measure of the card played.
+        !(MARKERS_ON_IT_AFTER_AND.test(text.slice(i + 5)) && /^play\b/i.test(text.slice(start, i).trim())) &&
         !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i))) &&
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&

@@ -84,6 +84,10 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   // match no bound, not even "1 or less".
   specifiedCostMin: { only: ["RAINBOW"] },
   specifiedCostMax: { except: ["L-RED", "L-BLUE", "U1", "UNI2", "XBAT", "RAINBOW"] },
+  // #980: "none" is the known empty list — the Leaders print no cost; the Unisons here carry one.
+  specifiedCostNone: { only: ["L-RED", "L-BLUE"] },
+  // #979: applied where the skill runs (`resolveSelector`), so the card-level predicate ignores it.
+  costAtMostEnergy: { except: [] },
   originallySkillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   skillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   powerRel: { except: [] },
