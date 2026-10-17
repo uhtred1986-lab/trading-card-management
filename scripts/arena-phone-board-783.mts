@@ -14,8 +14,7 @@
  *   - `chrome`: whether the app's header or tab bar is on the page;
  *   - `leaders`: the "Leader" labels the board draws (both sides).
  *
- * A notice the board raises (`[data-arena-notice]`, the no-target acknowledgement) is answered with its OK
- * button, and counted. Writes `<out>/783-<tag>.json` beside the screenshots. Exit 1 when a phone viewport
+ * A notice the board raises (`[data-arena-notice]`, the no-target chip) fades by itself and is counted once. Writes `<out>/783-<tag>.json` beside the screenshots. Exit 1 when a phone viewport
  * (`s21`, `s21plus`) scrolls during a turn, shows app chrome, or misses a Leader label; `--tag before`
  * only records.
  */
@@ -111,13 +110,16 @@ try {
       await page.waitFor(".arena", 60000);
       const seen = new Set<Step>();
       const notices: string[] = [];
+      let noticeUp = false;
       const t0 = Date.now();
       let moves = 0;
       let waitingSince = null as { key: string; at: number } | null;
       while (Date.now() - t0 < 240000 && moves < 400) {
-        // A notice waits for its OK before anything else moves.
+        // A notice is a chip that fades by itself; it is counted once, however many polls see it.
         const notice = await page.eval<string | null>(`document.querySelector("[data-arena-notice]")?.textContent ?? null`);
-        if (notice) {
+        if (!notice) noticeUp = false;
+        if (notice && !noticeUp) {
+          noticeUp = true;
           if (!notices.length) {
             // The first one is shot, as the player meets it.
             await page.settle(500);
@@ -126,9 +128,6 @@ try {
             console.log(`${vp.name} ${skin} notice: ${notice}`);
           }
           notices.push(notice);
-          await page.eval(`document.querySelector("[data-arena-notice] button").click()`);
-          await sleep(200);
-          continue;
         }
         const raw = await page.eval<string | null>(`(() => { const b = ${BOARD_NOW}; return b && b.snapshot && b.state.kind === "owner" ? JSON.stringify(b.snapshot) : null; })()`);
         if (!raw) { await sleep(150); continue; }
@@ -138,12 +137,12 @@ try {
         if (step && !seen.has(step)) {
           // The story first: skip what is still playing, then let the board settle.
           for (let i = 0; i < 40; i++) {
-            const playing = await page.eval<boolean>(`[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Skip")`);
+            const playing = await page.eval<boolean>(`!!document.querySelector("[data-skip-chip]")`);
             if (!playing) break;
-            await page.eval(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Skip")?.click()`);
+            await page.eval(`document.querySelector("[data-skip-chip]")?.click()`);
             await sleep(250);
           }
-          if (await page.eval<boolean>(`!!document.querySelector("[data-arena-notice]")`)) continue;
+          if (await page.eval<boolean>(`!!document.querySelector("[data-arena-notice]")`)) { await sleep(150); continue; }
           await page.settle(900);
           const file = join(out, `${vp.name}-${skin}-${step}-${tag}.jpg`);
           const shot = await page.cdp<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 });
@@ -179,7 +178,7 @@ try {
       }
       const missing = STEPS.filter((st) => !seen.has(st));
       report.push({ viewport: vp.name, skin, moves, missing, notices });
-      console.log(`${vp.name} ${skin}: ${moves} human moves; notices acknowledged ${notices.length}; not reached: ${missing.join(", ") || "none"}`);
+      console.log(`${vp.name} ${skin}: ${moves} human moves; notices seen ${notices.length}; not reached: ${missing.join(", ") || "none"}`);
       await page.close();
       // Written as it goes, so a long run that is stopped keeps what it measured.
       writeFileSync(join(out, `783-${tag}${TEXT ? `-text${TEXT}` : ""}.json`), JSON.stringify(report, null, 2));
