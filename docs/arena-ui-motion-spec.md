@@ -157,8 +157,13 @@ to zero rather than being a second branch in every component.
 
 **Pace (6 Sep 2026).** Watched on a phone, a turn at the table's durations went past faster than it
 could be read, so the pace is now a remembered preference (`src/lib/arena/pace.ts`, beside buzz and
-sound): **slow**, the default, stretches every beat 2.4× with an 800 ms floor; **normal** is the
-table as written; **step** waits for a tap on *Next ▸* between beats. While the story plays the
+sound): **slow**, the default, stretches every beat by 1.3× (17 Oct 2026; it was 2.4× with an
+800 ms floor, which made bookkeeping crawl); **normal** is the base table. Beat dwells are three
+tiers in `motion.ts` (`TIER`): bookkeeping 420 ms (draw, charge, rest, markers; a run of the same
+kind plays at 60 %), key moments 1200 ms (a card played from hand, attack, block, skill, say,
+effect, combo/counter cards) and decisive 1700 ms (clash, damage, KO, negated, over). A phase
+beat with a banner is held as long as the banner (1000 ms), and a story still being told when
+more beats arrive is extended, never replaced (`useBeatPlayer`); **step** waits for a tap on *Next ▸* between beats. While the story plays the
 prompt bar's headline is the narration sentence for the beat on screen and its hint says whose move
 it is and "n of N". Two more things the follow-along needed: a card arriving from a pile with no
 card of its own — the deck, or the opponent's hand — now flies in as a ghost from that pile

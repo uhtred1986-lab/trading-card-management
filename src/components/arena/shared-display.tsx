@@ -47,29 +47,52 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 /**
- * The phase and battle-step banner. `hold` is a turn banner being on screen or
- * still due: the phase waits for it and plays straight after, so the two never
- * stack (issue #344).
+ * The phase and battle-step banner. It appears at once, stays for `ms` (the
+ * same number its phase beat is given, so the banner and the story agree) and
+ * is gone, whatever the game is waiting for afterwards.
+ *
+ * While a story is playing, the banner follows the story rather than the live
+ * board: the board already shows where the turn ended up, so a step change read
+ * off it announced the wrong phase, late. `cue` is the phase the beat on screen
+ * names (`phase:main`); `playing` silences the board-driven path, which takes
+ * over again when the story ends (a battle step the story stopped on is
+ * announced then, for the decision it leaves).
+ *
+ * `hold` is a turn banner being on screen or still due: the phase waits for it
+ * and plays straight after, so the two never stack (issue #344).
  */
-export function StepBanner({ step, hold = false }: { step: string; hold?: boolean }) {
+export function StepBanner({ step, hold = false, ms = 1000, playing = false, cue = null }: { step: string; hold?: boolean; ms?: number; playing?: boolean; cue?: { n: number; key: string } | null }) {
   const [shown, setShown] = useState<{ key: number; text: string } | null>(null);
   const prev = useRef<string | null>(null);
   const due = useRef<string | null>(null);
+  const wasPlaying = useRef(false);
+  const cueSeen = useRef<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (prev.current !== step) {
       const first = prev.current === null;
       prev.current = step;
-      due.current = first ? null : (STEP_LABELS[step] ?? null);
+      due.current = first || playing ? null : (STEP_LABELS[step] ?? null);
     }
-    if (hold || !due.current) return;
-    const text = due.current;
-    due.current = null;
+    if (wasPlaying.current && !playing && step.startsWith("battle:")) due.current = STEP_LABELS[step] ?? null;
+    wasPlaying.current = playing;
+    // The phase the story is on right now plays at once, even while a later turn
+    // banner is still due: that one is for a beat further on.
+    let text: string | null = null;
+    if (cue && cueSeen.current !== cue.n) {
+      cueSeen.current = cue.n;
+      text = STEP_LABELS[cue.key] ?? null;
+    }
+    if (!text && !hold && due.current) {
+      text = due.current;
+      due.current = null;
+    }
+    if (!text) return;
     setShown({ key: Date.now(), text });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setShown(null), 1500);
-  }, [step, hold]);
+    timer.current = setTimeout(() => setShown(null), ms);
+  }, [step, hold, playing, cue, ms]);
 
   useEffect(
     () => () => {
@@ -81,7 +104,7 @@ export function StepBanner({ step, hold = false }: { step: string; hold?: boolea
   if (!shown) return null;
   return (
     <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" aria-hidden>
-      <p key={shown.key} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
+      <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
         {shown.text}
       </p>
     </div>

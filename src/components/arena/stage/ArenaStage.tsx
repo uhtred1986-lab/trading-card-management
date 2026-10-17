@@ -63,7 +63,7 @@ import { Hand } from "./Hand";
 import phoneStyles from "./phone-board.module.css";
 import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
-import { fxVars, msFor, turnBannerMs } from "./motion";
+import { fxVars, msFor, phaseBanner, stepBannerMs, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
 import { DEFAULT_STAGING, type ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -78,7 +78,7 @@ import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
 import { FeedbackOverlay } from "./FeedbackOverlay";
 import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
-import { SpeedButton } from "./SpeedButton";
+import { SkipChip, SpeedButton } from "./SpeedButton";
 import { QuietNotice } from "./QuietNotice";
 import { quietSkills } from "./quiet-skills";
 
@@ -1377,7 +1377,7 @@ export function ArenaStage({
         <div className="arena-edge" aria-hidden />
         <div className={phoneStyles.scrollRail} aria-hidden />
         <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
-        <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
+        <StepBanner step={step} hold={!!turnCall || playback.turnAhead} ms={stepBannerMs(pace)} playing={playback.playing} cue={beatNow?.t === "phase" && phaseBanner(beatNow) ? { n: beatNow.n, key: phaseBanner(beatNow)! } : null} />
         {/* A skill fired inside a staged battle is said on the card that fired
             it, so the banner would be the same sentence twice over the fight. */}
         {/* A secret declaration is scoped to the current masked beat. Unmount
@@ -1397,6 +1397,7 @@ export function ArenaStage({
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center xl:h-auto" : "h-[52px] sm:h-[52px] xl:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] xl:min-h-[60px] xl:flex-wrap xl:gap-x-4 xl:gap-y-1 xl:px-3 xl:py-1 xl:[grid-area:top]`}>
             {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
+            {playback.playing && <SkipChip onSkip={playback.skip} />}
             <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 xl:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
@@ -1478,7 +1479,7 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 xl:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
