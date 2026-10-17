@@ -11,9 +11,10 @@
  *    `noEffect`), delivered on a snapshot that waits on the computer.
  *  - `?fixture=attack&fx=no-target-battle`: the same skill inside a battle, followed by the clash.
  *
- * For each: names the resolved effect without stealing focus or a modal scrim;
- * automatically dismisses after four seconds and releases the computer's held
- * advance once, without sending a game action. Screenshots before and after timeout.
+ * For each: a player (`admin=0`) sees a chip, "<card> · No effect" (#982), with no button, no
+ * focus steal and no modal scrim; it fades by itself after 1.5 s and releases the computer's held
+ * advance once, without sending a game action. An SL (`admin=1`) sees the full sentence and the
+ * printed effect as well, and the chip stays 4 s. Screenshots before and after timeout.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -45,11 +46,11 @@ try {
       await page.waitFor("[data-arena-notice]", 20000);
       await page.settle(600);
       const text = await page.eval<string>(`document.querySelector("[data-arena-notice]").textContent`);
-      check(/no valid target/i.test(text) && text.includes("Auto") && /KO it/.test(text), `${tag}: the notice names the card's skill and its effect — "${text.slice(0, 120)}…"`);
-      check(await page.eval<boolean>(`document.activeElement !== document.querySelector("[data-arena-notice] button")`), `${tag}: a passive notice does not steal keyboard focus`);
+      check(/ · No effect$/.test(text.trim()) && !/no valid target/i.test(text), `${tag}: a player sees the short chip — "${text.slice(0, 120)}"`);
+      check(await page.eval<boolean>(`!document.querySelector("[data-arena-notice] button") && !document.querySelector("[data-arena-notice]").contains(document.activeElement)`), `${tag}: the chip has no button and does not steal keyboard focus`);
       check(!(await page.eval<boolean>(`!!document.querySelector("[data-arena-notice-scrim]")`)), `${tag}: no modal scrim obscures the board`);
       writeFileSync(join(out, `s21-${skin}-${fx}-notice.jpg`), Buffer.from((await page.cdp<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 })).data, "base64"));
-      await sleep(4500);
+      await sleep(2500);
       const after = await page.eval<{ notice: boolean; advances: number; actions: number }>(`({ notice: !!document.querySelector("[data-arena-notice]"), advances: window.__arenaPreviewDriver.advances, actions: window.__arenaPreviewDriver.actions.length })`);
       check(!after.notice, `${tag}: passive notice dismisses automatically`);
       check(after.advances === 1 && after.actions === 0, `${tag}: timeout releases the held advance exactly once (${after.advances}), without a game action (${after.actions})`);

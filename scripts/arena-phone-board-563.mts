@@ -24,6 +24,14 @@ async function hitArea(page:Page,selector:string) {
  const sample=selector.includes('[data-arena-card')?21:14;
  return page.eval<{x:number;y:number}|null>(`(() => {const el=document.querySelector(${JSON.stringify(selector)});if(!el)return null;const r=el.getBoundingClientRect();if(r.width<43.5||r.height<43.5)return null;for(let y=Math.max(22,r.top+22);y<=Math.min(innerHeight-22,r.bottom-22);y+=8)for(let x=Math.max(22,r.left+22);x<=Math.min(innerWidth-22,r.right-22);x+=8)if([-${sample},0,${sample}].every(dx=>[-${sample},0,${sample}].every(dy=>{const hit=document.elementFromPoint(x+dx,y+dy);return el===hit||el.contains(hit);})))return{x,y};return null;})()`);
 }
+/** Phones open on the takeover staging since #982 (`phoneCinema` starts true); this script's phone layout checks are of the compact board, so switch to it from the settings sheet, as a player would. */
+async function compactPhoneBoard(page:Page) {
+ await page.eval("document.querySelector('[aria-label=\"Open arena settings and counts\"]').click()");await sleep(400);
+ const switched=await page.eval<boolean>("(()=>{const el=[...document.querySelectorAll('dialog button')].find(b=>b.textContent.includes('Use compact phone board'));if(!el)return false;el.click();return true;})()");
+ assert(switched,'the settings sheet offers the compact phone board');
+ await page.eval("document.querySelector('dialog[open] [data-sheet-initial-focus]').click()");await sleep(400);
+ assert(!(await page.eval<boolean>("!!document.querySelector('.arena-band')")),'the compact phone board has no cinematic band');
+}
 async function reach(page:Page,selector:string,dock=false) {
  for(let n=0;n<18;n++) {
   const area=await hitArea(page,selector);if(area)return area;
@@ -93,6 +101,7 @@ try {
   });
   await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);
   await page.waitFor('[data-battle-stakes]');await sleep(850);
+  if(viewport.mobile)await compactPhoneBoard(page);
   await page.eval("document.querySelector('nextjs-portal')?.remove()");
   await page.eval('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   writeFileSync(join(evidence,`${before?'before':'after'}-${viewport.name}-${skin}.jpg`),await page.screenshot(false));
@@ -100,7 +109,7 @@ try {
    assert(await page.eval<boolean>('document.documentElement.scrollWidth<=innerWidth+1'),'no horizontal page overflow');
    if(viewport.mobile) {
     const first=made.snapshot.view.you.hand![0]!.id;
-    await fingerTap(page,'.arena-hand button[aria-label^="Inspect your hand"]');
+    await fingerTap(page,'.arena-hand button[aria-label^="Open the whole hand"]');
     if(!(await page.eval<boolean>("!!document.querySelector('[data-arena-review]')"))) {writeFileSync(join(evidence,'failure.jpg'),await page.screenshot(false));throw Error(`${viewport.name}: real inspect touch did not open`);}
     await fingerTap(page,'[aria-label="Expand card to full screen"]');await page.waitFor('[aria-label="Full card artwork"]');
     await page.swipe('[aria-label="Full card artwork"]',-130,0);await sleep(250);
@@ -154,7 +163,7 @@ try {
     const bridge=page as unknown as {call(method:string,params?:object):Promise<unknown>};
     await bridge.call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
     await page.eval("document.documentElement.style.fontSize='200%'");
-    await reach(page,'.arena-hand button[aria-label^="Inspect your hand"]');
+    await reach(page,'.arena-hand button[aria-label^="Open the whole hand"]');
     writeFileSync(join(evidence,`after-${viewport.name}-${skin}-200text-reduced-hand.jpg`),await page.screenshot(false));
     if(viewport.name==='landscape') {
      const details='[data-decision-summary] > div';
@@ -181,20 +190,20 @@ try {
      // Same-view stale transport cannot roll back the real combo revision.
      const fresh=snapshot;snapshot=old;await sleep(1800);
      assert.equal(await page.eval<number>("document.querySelectorAll('.arena-hand [data-arena-card]').length"),fresh.view.you.handCount,'stale poll retains fresh hand');snapshot=fresh;
-     writeFileSync(fixture,JSON.stringify(snapshot));await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);await page.waitFor('[data-pass-action]');await sleep(700);
+     writeFileSync(fixture,JSON.stringify(snapshot));await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);await page.waitFor('[data-pass-action]');await sleep(700);await compactPhoneBoard(page);
      assert.equal(await page.eval<number>("document.querySelectorAll('.arena-hand [data-arena-card]').length"),snapshot.view.you.handCount,'reload reconstructs real current hand');
      // This installed Chromium predates setSafeAreaInsets. Substitute only
      // existing env() declarations in CSSOM; no layout or test-only app rules.
      await page.eval(`(()=>{const saved=[];const visit=rules=>{for(const rule of rules){if(rule.cssRules)visit(rule.cssRules);if(rule.style?.cssText.includes('env(safe-area-inset-')){saved.push([rule,rule.style.cssText]);rule.style.cssText=rule.style.cssText.replace(/env\\(safe-area-inset-(top|left|right|bottom)\\)/g,(_,edge)=>({top:'24px',left:'12px',right:'12px',bottom:'34px'})[edge]);}}};for(const sheet of document.styleSheets)visit(sheet.cssRules);window.__safeRules=saved;return saved.length;})()`);
      await sleep(200);
-     await reach(page,'[data-pass-action]',true);await fingerTap(page,'.arena-hand button[aria-label^="Inspect your hand"]');await fingerTap(page,'[aria-label="Expand card to full screen"]');
+     await reach(page,'[data-pass-action]',true);await fingerTap(page,'.arena-hand button[aria-label^="Open the whole hand"]');await fingerTap(page,'[aria-label="Expand card to full screen"]');
      assert(await page.eval<boolean>("(()=>{const r=document.querySelector('[aria-label=\"Close card review\"]').getBoundingClientRect();return r.top>=24&&r.right<=innerWidth-12;})()"),'fullscreen controls respect emulated safe insets');
      writeFileSync(join(evidence,`after-phone-${skin}-safearea-fullscreen.jpg`),await page.screenshot(false));
      await fingerTap(page,'[aria-label="Close card review"]');
      writeFileSync(join(evidence,`after-phone-${skin}-safearea-board.jpg`),await page.screenshot(false));
      await page.eval("window.__safeRules.forEach(([rule,text])=>rule.style.cssText=text)");
      await bridge.call('Emulation.setDeviceMetricsOverride',{width:390,height:430,deviceScaleFactor:2,mobile:true});
-     await reach(page,'.arena-hand button[aria-label^="Inspect your hand"]');await reach(page,'[data-pass-action]',true);
+     await reach(page,'.arena-hand button[aria-label^="Open the whole hand"]');await reach(page,'[data-pass-action]',true);
      writeFileSync(join(evidence,`after-phone-${skin}-keyboard-viewport.jpg`),await page.screenshot(false));
      await bridge.call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});
      await page.eval('window.__arenaSent=[];document.activeElement?.blur()');
@@ -212,7 +221,7 @@ try {
      await fingerTap(page,'[data-cinema-control]');await page.tap('dialog[open] [data-sheet-initial-focus]');await sleep(400);
      assert(await page.eval<boolean>("!!document.querySelector('.arena-band')"),'cinematic staging remains explicitly available');
      assert(await page.eval<boolean>("(()=>{const b=document.querySelector('.arena-band').getBoundingClientRect();const r=[...document.querySelectorAll('[data-player-resources]')].map(x=>x.getBoundingClientRect());return b.top>=r[0].bottom-1&&b.bottom<=r[1].top+1;})()"),'cinematic band does not cover resource rows');
-     await reach(page,'[data-pass-action]',true);await reach(page,'.arena-hand button[aria-label^="Inspect your hand"]');
+     await reach(page,'[data-pass-action]',true);await reach(page,'.arena-hand button[aria-label^="Open the whole hand"]');
      writeFileSync(join(evidence,`after-phone-${skin}-cinematic.jpg`),await page.screenshot(false));
     }
    }
@@ -227,7 +236,7 @@ try {
   const page=await browser.page(views[1]!);await page.setCookie('arenaSkin',skin,base);
   await page.interceptFetch(['http://arena-561-art.local/*','*api/v1/games/563*']);
   page.onFetchPaused(request=>{if(request.request.url.startsWith('http://arena-561-art.local/')){const whis=request.request.url.includes('BT1-055');void page.fulfillFetchBytes(request.requestId,readFileSync(join(assets,whis?'whis-coercion-bt1-055.webp':'senzu-bean-bt11-053.jpg')),whis?'image/webp':'image/jpeg').catch(()=>undefined);}else void page.fulfillFetch(request.requestId,JSON.stringify(snapshot)).catch(()=>undefined);});
-  await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);await page.waitFor(kind==='charge'?'.arena-hand [data-arena-card]':'[data-decision-summary]');await sleep(700);
+  await page.goto(`${base}/arena/preview?fixture=u06-engine-proof&skin=${skin}&admin=0&staging=band`);await page.waitFor(kind==='charge'?'.arena-hand [data-arena-card]':'[data-decision-summary]');await sleep(700);await compactPhoneBoard(page);
   const perform=async (selector:string,expected:Action,dock=false) => {
    await page.eval('window.__arenaSent=[]');await fingerTap(page,selector,dock);
    const sent=await page.eval<Action[]>('window.__arenaSent??[]');assert.deepEqual(sent,[expected]);
@@ -235,7 +244,7 @@ try {
    return {previous,events:applied.events};
   };
   if(kind==='target') {
-   await fingerTap(page,'.arena-hand button[aria-label^="Inspect your hand"]');await page.waitFor('[data-arena-review]');
+   await fingerTap(page,'.arena-hand button[aria-label^="Open the whole hand"]');await page.waitFor('[data-arena-review]');
    const activate=snapshot.legal.find(row=>row.action.type==='activate')!.action;
    const paid=await perform('[data-arena-review] [data-ability-index="0"] button',activate);
    assert(paid.events.some(e=>e.type==='mode'&&e.mode==='rest'),'actual ability pays its offered energy');assert.equal(snapshot.view.you.activeEnergy,0);
@@ -257,7 +266,7 @@ try {
    assert(result.events.some(e=>e.type==='move'&&e.to==='combo'));assert.equal(snapshot.view.you.activeEnergy,1,'selected payment rests one of two ready energy');
   } else if(kind==='counter') {
    const counter=snapshot.legal.find(row=>row.action.type==='counter'&&row.action.card!==null)!.action;if(counter.type!=='counter'||!counter.card)throw Error('counter expected');
-   await fingerTap(page,'.arena-hand button[aria-label^="Inspect your hand"]');await page.waitFor('[data-arena-review]');
+   await fingerTap(page,'.arena-hand button[aria-label^="Open the whole hand"]');await page.waitFor('[data-arena-review]');
    assert(await page.eval<boolean>("document.querySelector('[data-arena-review] [data-abilities-now]').textContent.includes('Counter: Attack')"),'timely counter remains visible');
    const result=await perform('[data-arena-review] [data-ability-index="0"] button',counter);assert(result.events.some(e=>e.type==='attackNegated'),'actual captured counter negates actual attack');
    assert(state.battle?.negated,'actual attack is negated while the printed energy choice resolves');
@@ -296,7 +305,7 @@ try {
    assert(played.events.some(e=>e.type==='move'&&e.card===play.card&&e.to==='battle'),'actual play moves the chosen card into battle');
   } else {
    assert(!snapshot.legal.some(row=>row.action.type==='activate'),'rested energy removes the unaffordable activation from actual offers');
-   await fingerTap(page,'.arena-hand button[aria-label^="Inspect your hand"]');await page.waitFor('[data-arena-review]');
+   await fingerTap(page,'.arena-hand button[aria-label^="Open the whole hand"]');await page.waitFor('[data-arena-review]');
    assert(await page.eval<boolean>("(()=>{const row=document.querySelector('[data-arena-review] [data-ability-index=\"0\"]');return !!row&&row.textContent.toLowerCase().includes('energy')&&!row.querySelector('button');})()"),'timely resource-blocked remedy stays visible without a fake offer');
   }
   writeFileSync(join(evidence,`after-phone-${skin}-${kind}-resolved.jpg`),await page.screenshot(false));await page.close();
