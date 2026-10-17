@@ -972,7 +972,7 @@ function activateCounterSkill(
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
   // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
-  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, counterMotion: { by: player }, ...afterSkill, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, skillKind: "counter", counterMotion: { by: player }, ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**
@@ -1282,7 +1282,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // activate, with what the price chose handed to the effect ("the card that
   // was switched to Hidden Mode by this skill", BT28-121).
   if (actionPrice || taxGate) {
-    state.programs.unshift({ ops: actionPrice ?? [], ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, counterCost: { skill: sk, effect: program, free: alt?.pay === "none", afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
+    state.programs.unshift({ ops: actionPrice ?? [], ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, skillKind: "counter", counterCost: { skill: sk, effect: program, free: alt?.pay === "none", afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
   // 4-3-3: an action alternative runs as its own program in front of the
@@ -1296,7 +1296,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
     fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, ...afterSkill });
+    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, ...afterSkill });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords);

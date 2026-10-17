@@ -4229,6 +4229,10 @@
       "words": "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
     },
     {
+      "name": "opponentOwnEnergyActiveByCounter",
+      "words": "when your opponent switches their energy to Active Mode using a [Counter] skill"
+    },
+    {
       "name": "hiddenBySkill",
       "words": "when this card is switched to Hidden Mode by one of your skills"
     },

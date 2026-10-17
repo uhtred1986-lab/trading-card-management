@@ -501,6 +501,16 @@ DEFINE TRIGGER opponentOwnEnergyActiveBySkill
   BIND "subject"
   text: "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
 
+-- #916 — "their energy" switched to Active by the opponent's own [Counter]
+-- skill (DB3-013, -040, -059, -089, -105). The cause is the typed skill kind
+-- the switching frame carries (`kind: counter`), not the source card's other
+-- lines, and there is no turn restriction: a Counter is used on either turn.
+-- The Charge Phase's rule-made switch carries no cause and never matches.
+DEFINE TRIGGER opponentOwnEnergyActiveByCounter
+  ON modeSwitched(byOpponent: false, kind: counter, in: energy, mode: active, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent switches their energy to Active Mode using a [Counter] skill"
+
 -- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode by one of
 -- your skills. The card is face down by the time it answers, and the pattern
 -- naming `hidden: true` is what lets its front side do so (`matchTriggers`).

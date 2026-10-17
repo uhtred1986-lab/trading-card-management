@@ -399,6 +399,12 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
       // skill whose record says both answers that arrival once, as `played`.
       if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && (p.trigger === "played" || p.trigger === "playedFromHand"))) continue;
+      // 22-11: a free [Once per turn] [Auto] that is already waiting for this
+      // very moment cannot be activated a second time (#916: several energy
+      // readied at once). The copy is not asked to order itself against its
+      // own duplicate, and no note reports a use it never had.
+      if (sk.kind === "auto" && sk.oncePerTurn && !sk.cost.trim()
+        && state.pending.some((p) => p.card === match.card && p.skillIndex === sk.index && p.trigger === match.trigger && p.master === master)) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
       // Ordinary movement emits after the real move; the cleanup's 8-5-6
       // notice passes its projected new-area information explicitly. Either

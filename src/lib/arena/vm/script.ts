@@ -1253,6 +1253,13 @@ export interface ScriptFrame {
   swapCost?: import("./swap-costs").SwapCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */
   uniqueKeep?: import("./unique").UniqueKeep;
+  /**
+   * #916: the kind of skill this frame resolves, when a rule asks ("using a
+   * [Counter] skill", 1-10). Typed at the frame that runs an activated
+   * [Counter] and carried to the frames it spawns (a tax's price), never read
+   * from the source card's other lines. Additive: older frames carry none.
+   */
+  skillKind?: "counter";
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;
@@ -1503,7 +1510,7 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
     // skill it is when a keyword body names one (#157) — so a host that
     // fires the moment itself can tell "by one of your skills" from "by
     // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
-    h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}) });
+    h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}), ...(frame.skillKind ? { kind: frame.skillKind } : {}) });
     // "When this card is switched to Rest Mode by one of your skills"
     // (1-10): the card and the skill both have to be yours, which is what
     // "your" says — an opponent resting it is not this moment.
@@ -2218,6 +2225,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 vars: { [TAX_PAID_VAR]: energy },
                 card: frame.card,
                 master,
+                ...(frame.skillKind ? { skillKind: frame.skillKind } : {}),
               };
               switchAll(h, frame, op, switching, master);
               frame.ip++;

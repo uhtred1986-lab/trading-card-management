@@ -770,14 +770,18 @@ function promptAnswers(ctx: EngineContext, state: VmState): LegalAction[] {
     // legacy engine's labels word for word, because a client that read
     // "Choose X" on one board and something else on the other would be reading
     // the engine rather than the contract.
-    case "chooseCards":
+    case "chooseCards": {
+      // A blind choice (#916, BT22-140) is offered by position: the face of a
+      // card the chooser may not read is not in the words of its button.
+      const readable = pr.choice.blind ? vmRevealedTo(game, state, pr.player) : null;
       return [
         // The name on the face showing — the legacy `face(…).name` — where
         // this said the instance id ("Choose p2#10") until #459 compared the
         // two menus in `verify/probe.ts`.
-        ...pr.choice.candidates.map((card) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: `Choose ${shownName(ctx, state, card)}` })),
+        ...pr.choice.candidates.map((card, i) => ({ action: { type: "choose" as const, player: pr.player, cards: [card] }, label: readable && !readable.has(card) ? `Choose face-down card ${i + 1}` : `Choose ${shownName(ctx, state, card)}` })),
         ...(pr.choice.min === 0 ? [{ action: { type: "choose" as const, player: pr.player, cards: [] }, label: "Choose none" }] : []),
       ];
+    }
     // 22-45-3: every amount from none to the cap, in the words the deleted legacy engine used.
     case "empowerCarry":
       return Array.from({ length: pr.max + 1 }, (_, n) => ({ action: { type: "empowerCarry" as const, player: pr.player, amount: n }, label: n === 0 ? "Carry no markers" : `Carry ${n} marker${n === 1 ? "" : "s"}` }));
