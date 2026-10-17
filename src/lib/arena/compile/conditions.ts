@@ -12,7 +12,13 @@ import { filterFor, parseTarget } from "./targets";
  * energy" — and the second requirement is gone. The whole is only read when
  * the pieces do not, which is what keeps "a red and blue card" together.
  */
-export function allConditions(head: string): { cond: Cond; subject?: Ref }[] | null {
+export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] | null {
+  const head = foldBothQualifier(printed);
+  // #966: "… and―A, or B, or C" is the first half AND one of A, B or C.
+  if (hasDashConjunction(head)) {
+    const dashed = dashConjunction(head);
+    return dashed ? dashed.map((cond) => ({ cond })) : null;
+  }
   const parts = joints(head);
   if (parts.length) {
     const conds: { cond: Cond; subject?: Ref }[] = [];
@@ -164,7 +170,100 @@ const refuseCount = (): null => {
   return null;
 };
 
+/**
+ * #966: the dash Bandai prints inside a sentence, however the feed spelled it:
+ * an em dash, a horizontal bar, an en dash, a doubled hyphen, or the "?" a
+ * mis-decoded dash left behind.
+ */
+const DASH = "(?:[—―–]|--|\\?)";
+
+const COLOUR_QUALIFIER = "(?:mono-)?(?:red|blue|green|yellow|black|white)";
+const CARD_NAME = "(?:<[^>]+>|≪[^≫]+≫|\\{[^}]+\\})";
+const BOTH_QUALIFIER = new RegExp(
+  `\\b(is|are)\\s+(an?\\s+)?(${CARD_NAME}(?:(?:\\s*,\\s*(?:or\\s+)?|\\s+or\\s+)${CARD_NAME})*)\\s+(cards?)\\s*${DASH}\\s*(?:both|all)\\s+(${COLOUR_QUALIFIER})\\s*${DASH}\\s*(?:((?:and|or)\\b|[,:.])|($)|(?=\\S))`,
+  "gi",
+);
+
+/**
+ * #966: "if your Leader is a <Majin Buu> or <Evil Wizard Babidi> card**—both
+ * yellow—**and you have 4 or more energy" (BT20-091, -096, -097, -106 to -109,
+ * SD22-05, SD22-06, P-492 …). The dashes carry one colour that holds for
+ * *every* name in the list, so the colour moves in front of the list and the
+ * sentence reads as the ordinary Leader description it is: "is a yellow
+ * <Majin Buu> or <Evil Wizard Babidi> card and …". Only a bare colour (or
+ * mono-colour) qualifies; a qualifier that says more ("both red and with
+ * [EX-Evolve]") is not touched, so its line stays unread rather than losing the
+ * extra requirement.
+ */
+export function foldBothQualifier(text: string): string {
+  return text
+    .replace(BOTH_QUALIFIER, (_whole, verb: string, article: string | undefined, names: string, noun: string, colour: string, token: string | undefined, end: string | undefined) => {
+      // The colour goes in front of *each* name: the alternatives are cut apart
+      // at their "or" later, and a colour written once would qualify only the
+      // first of them — a Leader of any colour named <Vegeta> would qualify.
+      const each = names.replace(new RegExp(CARD_NAME, "g"), (name) => `${colour.toLowerCase()} ${name}`);
+      // What follows the closing dash: "and", "or" or punctuation is kept; the
+      // end of the text needs nothing; anything else ("—both yellow—you have 2
+      // or more energy", BT20-103) was a list item and gets its comma back.
+      const after = token !== undefined ? (/^[,:.]/.test(token) ? token : ` ${token}`) : end !== undefined ? "" : ", ";
+      return `${verb} ${article ?? "a "}${each} ${noun}${after}`;
+    })
+    .replace(/,?\s+and if\s+/gi, " and ")
+    .replace(/\s+or if\s+/gi, " or ");
+}
+
+/**
+ * #966: "if your Leader is red **and―**your Leader is a Z-Leader, or you have 2
+ * or more Z-Energy, or you have a Z-Battle Card in play" (BT19-028 and the other
+ * combo-draw cards of BT19, BT20 and BT27, P-482). The dash after "and" opens a
+ * list of alternatives that, as a whole, is the second requirement: the Leader
+ * colour *and* (a Z-Leader, *or* 2 Z-Energy, *or* a Z-Battle Card). Read without
+ * the dash, the "or"s bind to the whole sentence and the colour becomes one more
+ * alternative — a card that draws for any Z-Energy owner whatever their Leader.
+ */
+function splitDashConjunction(text: string): { left: string; right: string } | null {
+  const m = new RegExp(`^(.+?)[\\s,]+and\\s*${DASH}\\s*(.*)$`, "i").exec(text.trim());
+  return m ? { left: m[1].trim(), right: m[2].trim() } : null;
+}
+
+const hasDashConjunction = (text: string): boolean => splitDashConjunction(text) !== null;
+
+/** The right-hand side of a dash conjunction: alternatives, the subject of one carried to a bare next. */
+function dashAlternatives(right: string): Cond | null {
+  const parts = splitDisjunction(right.toLowerCase());
+  const conds: Cond[] = [];
+  let subject = "";
+  for (const raw of parts) {
+    let part = raw.trim();
+    // "you have 2 or more Z-Energy **or a Z-Battle Card in play**" (BT20-129).
+    if (subject && !/^(?:you|your|there|it'?s|it is|this|all|a player|neither)\b/.test(part)) part = `${subject} ${part}`;
+    const got = parseConditionClause(part, true);
+    if (!got) return null;
+    conds.push(got.cond);
+    subject = /^(you have|your opponent has)\b/.exec(part)?.[1] ?? "";
+  }
+  if (!conds.length) return null;
+  return conds.length === 1 ? conds[0] : { kind: "any", conds };
+}
+
+/** A dash conjunction read whole: the conditions before the dash, then the alternatives after it as one more. Null when any side does not read. */
+function dashConjunction(text: string): Cond[] | null {
+  const split = splitDashConjunction(text);
+  if (!split) return null;
+  const left = allConditions(split.left);
+  const right = dashAlternatives(split.right);
+  return left && right ? [...left.map((x) => x.cond), right] : null;
+}
+
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
+  // #966: a dash after "and" or a "both <colour>" qualifier (see above), read
+  // before anything below cuts the sentence at its "and"s and "or"s.
+  const folded = foldBothQualifier(clause);
+  if (hasDashConjunction(folded) && (allowBare || /^\s*(?:if|when|while|during)\s/i.test(folded))) {
+    const dashed = dashConjunction(folded.replace(/^\s*(?:if|when|while|during)\s+/i, ""));
+    return dashed ? { cond: dashed.length === 1 ? dashed[0] : { kind: "all", conds: dashed } } : null;
+  }
+  clause = folded;
   // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
   // counted together, which "blue or yellow cards" already says. Only between
   // two colours: the slash splits any other pair into garbage (#961).

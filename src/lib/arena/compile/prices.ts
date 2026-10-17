@@ -2,7 +2,7 @@ import { keywordOf, orbsIn } from "../text/cards";
 import type { Color, Skill } from "../types";
 import type { Cond, Op, Ref, Script, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
-import { allConditions } from "./conditions";
+import { allConditions, foldBothQualifier } from "./conditions";
 import { compileClauseList } from "./effects";
 import type { Ctx } from "./shared";
 import { countWord } from "./shared";
@@ -344,7 +344,11 @@ function splitPrice(skill: Skill): PriceSplit {
   return out;
 }
 
-function readPrice(said: string, skill: Skill): PriceSplit {
+function readPrice(printed: string, skill: Skill): PriceSplit {
+  // #966: "…card—both yellow—and you send …" has no space before its "and", so
+  // the colour is folded into the Leader's description before the price is cut
+  // at its joints.
+  const said = foldBothQualifier(printed);
   // BT15-022's "{r}{1}, if your opponent has 3 or more energy, there's a red
   // [Field] Extra Card with an energy cost of 2 in your Drop Area, and you
   // place this card in its owner's Drop Area" — two conditions and an action

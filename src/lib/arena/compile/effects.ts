@@ -794,7 +794,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "…and **KOs** it", "…and **plays** it": the verb is left in the third
     // person by the split before it, because the sentence's subject was the
     // opponent. Only the leading word, so "your opponent draws" is untouched.
-    .replace(/^(places|puts|sends|returns|adds|switches|removes|discards|kos|plays|draws|reveals)\b/, (v) => THIRD_PERSON[v]);
+    .replace(/^(places|puts|sends|returns|adds|switches|removes|discards|kos|plays|draws|reveals)\b/, (v) => THIRD_PERSON[v])
+    // #966: "place 1 card in your Drop Area from your life" (BT13-099) → "place
+    // 1 card from your life in your Drop Area", the order the move patterns read.
+    .replace(/^place (.+?) in ((?:your|their) drop(?: area)?) (from (?:your|their) (?:life|hand|energy(?: area)?|battle area|combo area))$/, "place $1 $3 in $2");
   let m: RegExpExecArray | null;
 
   // An omitted subject at this particular conjunction is unambiguously self
@@ -2143,7 +2146,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; owner?: Side; faceUp?: boolean }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several
     // owners' areas, which `moveTo` does one card at a time anyway.
-    [/^place (.+?) (?:in|into) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
+    // #966: "Place 1 card from your life **to** the Drop Area" (BT1-065) is the
+    // same move as "in", and "place 1 card **in your Drop Area from your life**"
+    // (BT13-099) the same one with its source after the destination.
+    [/^place (.+?) (?:in|into|to) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
     [/^place (.+?) (?:at|on) the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
     [/^place (.+?) on top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
@@ -2176,6 +2182,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       // The "of" in "with a specified cost **of** 2" (BT28-096, #728) is the
       // measure's, not a place, and does not let the clause through.
       if (to === "hand" && /^add /.test(t) && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among|of)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, "").replace(/\bspecified costs? of\b/g, ""))) return null;
+      // #966: "place 1 card from your life **and 1 card from your hand** in your
+      // Drop Area" names two sources, and one selector reads only the last:
+      // the life half of the price vanished. Two counted pieces are refused.
+      if (/\b(?:from|in) (?:your|their|its owner'?s?) [a-z ]+? and (?:up to )?(?:\d+|an?) [^,]*\b(?:from|in) /.test(m[1])) return null;
       const ref = refFor(m[1], c);
       const moved = ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
       // #916: the opponent's Life lies face down (3-9-2), and placing a card of
