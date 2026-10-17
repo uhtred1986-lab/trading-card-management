@@ -1490,6 +1490,13 @@ export function canMakeOffer(c: ReplacementChoice, id: string, master: PlayerId,
   if (!c.optional || !c.ops?.length) return true;
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: c.source, master: c.master ?? master, subject: id, replacing: id, offered: true };
   for (const op of c.ops) {
+    // "…you may discard 1 card from your hand instead. If you do, …": the
+    // discard is a choice of its own at run time, and a short hand cannot make
+    // it — so the offer is not made, and what hangs on it cannot happen.
+    if (op.op === "discard" && typeof op.n === "number" && op.n > 0) {
+      if (resolve(frame, { side: op.side ?? "you", area: "hand", count: op.n }).length < op.n) return false;
+      continue;
+    }
     if (op.op !== "choose" || op.sel.fromVar || op.atMost !== undefined || op.sumTo !== undefined) continue;
     const want = op.sel.minCount ?? op.sel.count ?? 1;
     if (op.sel.upTo && !owedInFull(frame, op)) continue;
@@ -1521,6 +1528,30 @@ export function routeOf(c: ReplacementChoice): ReplacementResult {
  */
 function defers(r: ReplacementResult | null | undefined): boolean {
   return !!r?.ops?.length && asksAQuestion(r.ops);
+}
+
+/**
+ * Can the first step of an offer not be carried out at all, right now (20-16-1)?
+ * Only the steps whose possibility is known before anything is asked: a counted
+ * reveal with too few matches, a discard from a short hand, damage with no life
+ * to take it from, a move or KO of cards that are not there.
+ */
+function firstStepImpossible(h: ScriptHost, frame: ScriptFrame, master: PlayerId, op: Op): boolean {
+  switch (op.op) {
+    case "reveal":
+      return op.audience !== "you" && !!op.sel.count && !op.sel.upTo && op.sel.count < 99 && h.resolveSelector(frame, op.sel).length < op.sel.count;
+    case "discard": {
+      const n = h.amount(frame, op.n);
+      return n > 0 && sideOf(master, op.side).every((p) => h.zone(p, "hand").length < n);
+    }
+    case "damage":
+      return sideOf(master, op.side ?? "opponent").every((p) => h.zone(p, "life").length < 1);
+    case "moveTo":
+    case "ko":
+      return h.resolveRef(frame, op.target).length === 0;
+    default:
+      return false;
+  }
 }
 
 /** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
@@ -2971,6 +3002,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             frame.ip++;
             continue;
           }
+        }
+        // 20-16-1: "if you do" needs the action itself to have been taken, so an
+        // offer whose first step cannot be carried out at all is not one that
+        // can be accepted — "you may place this card in your Drop Area from your
+        // energy" with the card elsewhere, "you may reveal 1 card" from an empty
+        // hand. Declined for you, the same way the exact choice above is.
+        if (firstStepImpossible(h, frame, master, first)) {
+          (frame.did ??= {}).may = false;
+          frame.ip++;
+          continue;
         }
         frame.awaiting = "may";
         h.resume(frame);

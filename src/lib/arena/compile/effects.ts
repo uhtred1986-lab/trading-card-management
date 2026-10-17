@@ -384,6 +384,12 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
     // it is the opponent's — the one distinction `by` alone cannot draw.
     const bySide = opener[4] && !opener[5] ? ({ bySide: "opponent" } as const) : null;
     const who = opener[1].trim();
+    // "…with a combo cost of 1" (BT19-100): a card filter has no combo-cost
+    // measure, so the qualifier was dropped without a word and the rule read as
+    // being about *every* card of that name. A replacement that applies to more
+    // cards than the text names is worse than none; refused until a filter can
+    // say it.
+    if (/\bcombo cost\b/i.test(who)) return null;
     // "A ≪Slug's Army≫ card with a combo cost of 1 would leave your Battle
     // Area" — the rule is about other cards, so the subject is kept.
     if (/^(?:this card|it)$/.test(who)) return { by, ...bySide };
@@ -1050,6 +1056,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Damage (5-10).
   if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
+  // "you may inflict 2 damage to your life" (EX03-11, P-015): damage to yourself is
+  // the same 5-10 damage, taken from your own Life Area into your own hand.
+  if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
 
   // Deck manipulation.
   if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t)))
@@ -2158,7 +2167,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // (BT13-099) the same one with its source after the destination.
     [/^place (.+?) (?:in|into|to) (?:its owner'?s?|their owners?'?s?|their|your|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
     [/^place (.+?) (?:at|on) the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
-    [/^place (.+?) on top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
+    [/^place (.+?) on (?:the )?top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
     [/^add (.+?) to your hand$/, "hand", {}],
@@ -3180,8 +3189,23 @@ function joinSplitPlacements(clauses: string[]): string[] {
   return out;
 }
 
-export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[]): Op[] {
+/**
+ * `rawJoined[k]` says clause k was cut from the one before it at an "and" of
+ * the same sentence (`splitClausesJoined`). Omitted, every clause
+ * starts a sentence of its own, which is what a caller that never asked meant.
+ */
+export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
   const clauses = joinSplitPlacements(rawClauses);
+  // Kept the same length as `clauses` at every splice below.
+  const joined = clauses.map((_, k) => !!rawJoined[k]);
+  /**
+   * 20-16: the offer pushed by the clause just before this one. "You may reveal
+   * 1 card from your hand **and** place it at the bottom of your deck" is one
+   * offer over both halves; read a clause at a time the second half was
+   * outside it and happened whether or not the offer was taken, and "if you
+   * do" had nothing to ask about.
+   */
+  let pendingMay: Extract<Op, { op: "may" }> | null = null;
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
   type Group = {
@@ -3231,6 +3255,8 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   let afterThen = false;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
+    const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
+    pendingMay = null;
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
     // "…from your deck or life and add them to your hand. Then shuffle any
@@ -3386,6 +3412,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     const inlineOtherwise = /^otherwise[\s,]+(.+)$/i.exec(clause.trim());
     if (inlineOtherwise) {
       clauses.splice(i, 1, "otherwise", inlineOtherwise[1]);
+      joined.splice(i, 1, false, false);
       i--;
       continue;
     }
@@ -3409,7 +3436,40 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // them — an offer the player accepted ("you may draw 1 card") or a choice
     // they made. The offer is the commoner of the two and had nothing to read
     // until `may` existed, so "if you don't" was simply a gap.
-    const decided: Cond | null = c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last, ...exactCount(c, c.last) } : null;
+    // A choice the offer's own sentence made is what "if you do" reads when
+    // there is one; otherwise the offer itself is the decision — "you may
+    // reveal 1 card **and** place it at the bottom of your deck. If you do
+    // so, draw 2 cards" (TB1-042) — however many clauses it took to say.
+    //
+    // A compulsory move of this very card ("At the end of your turn, send
+    // this card to its owner's Warp. **If you do**, play up to 1 … from your
+    // Warp", BT15-066) has no choice and no offer to read, so it is read off
+    // the board: the card is now where the move was to put it. A card that
+    // could not go — already gone, or kept where it was by a replacement —
+    // is not there, and what hangs on the move does not happen (20-16-1).
+    // Last of the three, so that a choice or an offer in the same skill keeps
+    // being the thing it is read from, as it always was.
+    const sentSelf = (() => {
+      const open = groups[groups.length - 1];
+      let host = open.sink ?? open.ops;
+      let last = host[host.length - 1];
+      if (last?.op === "delay") {
+        host = last.ops;
+        last = host[host.length - 1];
+      }
+      if (last?.op !== "moveTo" || !("sel" in last.target) || last.target.sel.special !== "self") return null;
+      return last.to === "warp" || last.to === "drop" || last.to === "hand" || last.to === "deck" || last.to === "energy" ? last.to : null;
+    })();
+    const decided: Cond | null =
+      c.lastOp === "may"
+        ? { kind: "did", what: "may" }
+        : c.last
+          ? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
+          : mayBefore
+            ? { kind: "did", what: "may" }
+            : sentSelf
+              ? { kind: "count", sel: { special: "self", area: sentSelf }, atLeast: 1 }
+              : null;
     if (conn === "ifDone") {
       // "You may place 1 card from your hand in the Drop Area. **If you do so,**
       // draw 1 card": the clause before it already hung its own half of the
@@ -3420,6 +3480,27 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const open = groups[groups.length - 1];
       let host = open.sink ?? open.ops;
       let last = host[host.length - 1];
+      // 9-10-3 / 20-1-11: "…you may place it in your Z-Energy **instead**.
+      // If you do, place 1 of your Z-Energy in its owner's Drop" (BT19-100,
+      // BT26-006). A voluntary replacement happens only if its substitute is
+      // carried out (9-10-3-1), so what "if you do" hangs on is the substitute
+      // itself: the rest of the sentence runs as part of it, after it, and
+      // never when the offer is declined or cannot be met and the departure
+      // goes ahead. A bare redirect (\`replaceLeave\`) is the one-move form of
+      // the same substitute, so it is said that way to take a second step.
+      if (!decided && last && (last.op === "replace" || last.op === "replaceLeave") && last.optional && !(last.op === "replaceLeave" && (last.until || last.requestedTo))) {
+        if (last.op === "replaceLeave") {
+          const { to, from, by, bySide, mode, position, optional, target } = last;
+          const redirected: Op = { op: "moveTo", target: { sel: { special: "subject" } }, to, ...(mode ? { mode } : {}), ...(position ? { position } : {}) };
+          const swapped: Op = { op: "replace", event: "leave", ...(from ? { from } : {}), ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(optional ? { optional } : {}), ...(target ? { target } : {}), with: [redirected] };
+          host[host.length - 1] = swapped;
+          last = swapped;
+        }
+        if (last.op === "replace") {
+          open.sink = last.with;
+          continue;
+        }
+      }
       // "…place 1 card from your hand in the Drop Area **at the end of the
       // battle**. If you do so, switch this card to Active Mode" (BT3-103): a
       // trailing timing phrase put the price inside a delay, and what hangs on
@@ -3499,6 +3580,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       if (/^once per turn[.,]?$/i.test(clauses[i + 1]?.trim() ?? "") && i + 2 < clauses.length) {
         clauses[i + 2] = `once per turn, ${clauses[i + 2].trim()}`;
         clauses.splice(i + 1, 1);
+        joined.splice(i + 1, 1);
       }
       continue;
     }
@@ -3534,6 +3616,24 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       }
       refuse(clause);
       continue;
+    }
+
+    // "Additionally, if **the attacking card is a ≪Frieza Clan≫ card**, place
+    // 1 of your Battle Cards in its owner's Drop. If you do, draw 1 card"
+    // (BT18-120): the card attacking in the battle in progress (8-1), asked of
+    // the battle itself rather than of anything the skill chose. Only the plain
+    // description; a negated one would need its negation checked (see below).
+    const attackingIs = /^(?:if|when) the attacking card is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    // A later "choose **it**, KO **it**" (BT15-080) means this card, which no
+    // pronoun here is bound to — read, it landed on whatever was seen last — so
+    // a sentence that goes on to say "it" stays unread.
+    const pronounAfter = clauses.slice(i + 1).some((x) => /\b(?:it|them|that card)\b/i.test(x));
+    if (attackingIs && !pronounAfter && !/\b(?:not|non|other than|except|besides)\b/i.test(attackingIs[1])) {
+      const filter = filterFor(attackingIs[1], null);
+      if (filter) {
+        groups.push({ conds: [{ kind: "count", sel: { special: "attacker", filter }, atLeast: 1 }], ops: [] });
+        continue;
+      }
     }
 
     // "If that card is a Battle Card" — what the reveal or the look just
@@ -3577,7 +3677,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       if (seen && filter && v) {
         groups.push({ conds: [{ kind: "varMatches", var: v, filter }], ops: [] });
         c.lastTarget = { var: v };
-        if (tail) clauses.splice(i + 1, 0, tail[2]);
+        if (tail) {
+          clauses.splice(i + 1, 0, tail[2]);
+          joined.splice(i + 1, 0, false);
+        }
         continue;
       }
     }
@@ -3837,8 +3940,50 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
             } as Op,
           ]
         : got;
+    // "You may discard 1 card from your hand **and draw 1 card**": the rest of
+    // the sentence the offer was printed in is the offer's too (20-16), so a
+    // plain instruction by the same player joined to it goes inside. Read
+    // outside, the draw happened whether or not the offer was taken. An
+    // opponent's own clause or a second offer is a decision of its own, and
+    // only the offer still last in its branch can be added to.
+    //
+    // A clause that only *uses what the offer chose* ("choose 2 cards … and
+    // place **them** in the Drop Area") stays where it was: it already does
+    // nothing when nothing was chosen, and "if you do" reads the choice itself
+    // (all N taken) — the finer answer, which this must not replace.
+    let chain: Extract<Op, { op: "may" }> | null = null;
+    if (mayBefore && joined[i] && !offeredClause && !opponentDoes && got.length) {
+      const open = groups[groups.length - 1];
+      const host = open.sink ?? open.ops;
+      if (host[host.length - 1] === mayBefore) {
+        const text = JSON.stringify(got);
+        const boundInside = JSON.stringify(mayBefore.ops).match(/"as":"([^"]+)"/g)?.map((x) => x.slice(6, -1)) ?? [];
+        if (!boundInside.some((v) => text.includes(`"${v}"`))) {
+          mayBefore.ops.push(...got);
+          if (mayBefore.reason) mayBefore.reason = `${mayBefore.reason} and ${clause.trim().replace(/[.]$/, "")}`;
+          c.lastOp = "may";
+          pendingMay = mayBefore;
+          continue;
+        }
+        chain = mayBefore;
+        // "…reveal 1 ≪Universe 9≫ card from your hand and place **it** at the
+        // bottom of your deck" (TB1-042): a counted reveal shows every match
+        // (\`reveal\` takes no count), so "it" would be all of them. Said as
+        // what it is — you pick the one card, and it is shown as it moves —
+        // "it" is that card, and "if you do" has a choice to read.
+        const shown = mayBefore.ops[0];
+        if (shown?.op === "reveal" && shown.audience !== "you" && shown.sel.area === "hand" && shown.sel.count && !shown.sel.upTo && got.every((o) => o.op === "moveTo" && "var" in o.target && o.target.var === shown.as)) {
+          const pick: Op = { op: "choose", sel: shown.sel, as: shown.as, reason: mayBefore.reason ?? "reveal" };
+          mayBefore.ops[0] = pick;
+          for (const o of got) if (o.op === "moveTo") o.reveal = true;
+          track(pick, c);
+        }
+      }
+    }
     // What "if you do" points at is the *offer*, not the last thing inside it.
     if (said2.length) c.lastOp = said2[said2.length - 1].op;
+    if (said2.length === 1 && said2[0].op === "may" && said2[0] !== (got[0] as Op)) pendingMay = said2[0] as Extract<Op, { op: "may" }>;
+    else if (chain) pendingMay = chain;
     push(said2);
   }
 

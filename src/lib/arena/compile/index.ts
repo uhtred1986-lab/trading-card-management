@@ -3,7 +3,7 @@ import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, playedOrUnplacedAlter
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
-import { splitClauses, stripNotes } from "./clauses";
+import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
 import { aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -370,7 +370,8 @@ function compileSkillText(skill: Skill): Script {
   // is cut — cut first, the trigger-like half and the ban land in two clauses.
   const spoken = taxWordings(text);
   const modal = splitModal(spoken);
-  const clauses = splitClauses(modal ? modal.head : spoken);
+  const split = splitClausesJoined(modal ? modal.head : spoken);
+  const clauses = [...split.clauses];
   // BT3-096/098: keep the own-turn condition, but consume this battle's
   // cleanup timing as the Auto trigger rather than schedule another delay.
   const ownComboEnd = skill.kind === "auto" && comboBattleEndYourTurn(skill);
@@ -527,7 +528,15 @@ function compileSkillText(skill: Skill): Script {
   }
 
   const unsupportedBeforeHead = unsupported.length;
-  let ops = compileClauseList(clauses, c, unsupported);
+  // The head's surgery above only ever removes clauses, so what is left is a
+  // subsequence of what was cut; carry each survivor's "joined to the one
+  // before it" along by walking the two in step.
+  const joins: boolean[] = [];
+  for (let k = 0, at = 0; k < clauses.length; k++) {
+    while (at < split.clauses.length && split.clauses[at] !== clauses[k]) at++;
+    joins.push(at < split.clauses.length ? split.joined[at++] : false);
+  }
+  let ops = compileClauseList(clauses, c, unsupported, joins);
   // BT29-029 / 20-16: "If you do" requires the optional play itself,
   // not merely accepting its offer when a prohibition/replacement stops it.
   if (returnedFromBattle && ops[0]?.op === "may" && ops[0].ops.some((op) => op.op === "play")) {
@@ -544,7 +553,10 @@ function compileSkillText(skill: Skill): Script {
     // Each option is compiled on its own, carrying what the head established
     // ("If your Leader is a <Baby> card, it gets +10000 power, then choose
     // one— ・…" — "it" still means the leader inside the options).
-    const modes = modal.options.map((option) => ({ label: option, ops: compileClauseList(splitClauses(option), { ...c }, unsupported) }));
+    const modes = modal.options.map((option) => {
+      const cut = splitClausesJoined(option);
+      return { label: option, ops: compileClauseList(cut.clauses, { ...c }, unsupported, cut.joined) };
+    });
     // An option the compiler could not read is an empty branch, and the menu
     // then offers a mode that silently does nothing — the player picks it and
     // the game moves on (P-396). A mode is only a choice if every option on
