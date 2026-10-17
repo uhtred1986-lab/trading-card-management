@@ -335,10 +335,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
       // A qualified hand-return must become pending at the movement, not
       // first discover whether it qualified when another Auto has resolved.
-      if (match.trigger === "yourCardReturnedToHand") {
+      if (match.trigger === "yourCardReturnedToHand" || match.trigger === "yourUnisonLeft") {
         const first = showing.scripts.bySkill[sk.index]?.ops[0];
         if (first?.op === "if" && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter) {
-          if (!subjectInfo) throw new NotYet("recover original Battle Area information for a hand-return Auto", "#825");
+          if (!subjectInfo) throw new NotYet(match.trigger === "yourUnisonLeft" ? "recover original Unison Area information for a leave-Unison Auto" : "recover original Battle Area information for a hand-return Auto", "#825");
           if (!predicateOf(first.cond.sel.filter, game)(subjectInfo)) continue;
         }
       }

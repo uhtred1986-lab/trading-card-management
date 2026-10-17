@@ -50,7 +50,7 @@ export interface StaticEffect {
     | AltCost
     | Gains
     | Replacement
-    | { colors: (Color | "any")[]; sign: 1 | -1 }
+    | { colors: (Color | "any")[]; sign: 1 | -1; all?: true }
     | { payAs: "energy" | Color }
     | { what: SkipWhat; player: PlayerId };
   /** Set when `kind` is "skillCost" or "evolveCost". */
@@ -92,7 +92,8 @@ const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toLocaleString("en")}`;
  * 2026): unlike a flat cost reducer this names colours, not a total, so the
  * label does too — "specified cost 1 blue less" rather than "costs 1 less".
  */
-function specifiedCostLabel(v: { colors: (Color | "any")[]; sign: 1 | -1 }): string {
+function specifiedCostLabel(v: { colors: (Color | "any")[]; sign: 1 | -1; all?: true }): string {
+  if (v.all) return "no specified cost";
   const counts = new Map<string, number>();
   for (const c of v.colors) counts.set(c, (counts.get(c) ?? 0) + 1);
   const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
@@ -206,7 +207,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
       return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
     }
     case "specifiedCost":
-      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1 }) };
+      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1; all?: true }) };
     // 20-9, said from the card's own chair rather than the viewer's: with two
     // players, a card whose master is not its owner is always being used by
     // the owner's opponent, so this label is true whichever side is reading
@@ -250,7 +251,7 @@ export function describeStatic(e: StaticEffect, master?: PlayerId | null, words:
       return { kind: "cost", label: n < 0 ? `Z-Energy cost ${-n} more` : `Z-Energy cost ${n} less` };
     }
     case "specifiedCost":
-      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1 }) };
+      return { kind: "cost", label: specifiedCostLabel(e.value as { colors: (Color | "any")[]; sign: 1 | -1; all?: true }) };
     case "negateKeyword":
       return { kind: "negate", label: `[${e.value as string}] negated` };
     case "forbid":

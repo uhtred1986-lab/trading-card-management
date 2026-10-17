@@ -40,6 +40,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   fromEnd: (s) => (s.fromEnd = true),
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
   notInBattle: (s) => (s.notInBattle = true),
+  ownedByOpponent: (s) => (s.ownedByOpponent = true),
   otherThanSelf: (s) => (s.notSelf = "card"),
   otherThanCopies: (s) => (s.notSelf = "copies"),
   otherThanSameName: (s) => (s.notSelf = "name"),

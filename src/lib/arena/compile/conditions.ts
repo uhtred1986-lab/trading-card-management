@@ -520,6 +520,21 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "count", sel, atMost: 0 } };
     }
   }
+  // "…, and **neither you nor your opponent** have a Battle Card in play"
+  // (EX24-04): the "don't have" sentence about both players at once — each
+  // one's own count of that description is none, and both have to hold
+  // (9-1-3), so it is two counts joined, never one count of "both sides".
+  if ((m = /^neither you nor your opponent (?:has|have) (?:an?|any) (.+?)(?: in play)?$/.exec(t))) {
+    const mine = parseTarget(`your ${m[1]}`) ?? parseTarget(`your ${m[1]} card`);
+    const theirs = parseTarget(`your opponent's ${m[1]}`) ?? parseTarget(`your opponent's ${m[1]} card`);
+    if (mine && theirs) {
+      for (const sel of [mine, theirs]) {
+        delete sel.count;
+        delete sel.upTo;
+      }
+      return { cond: { kind: "all", conds: [{ kind: "count", sel: mine, atMost: 0 }, { kind: "count", sel: theirs, atMost: 0 }] } };
+    }
+  }
   // "If **3 or more blue cards are in your Combo Area**" (BT19-145): the count
   // first and the place last — "there are 3 or more blue cards in your Combo
   // Area" with the verb moved, read by the same code (#961).

@@ -607,7 +607,7 @@ function moveTo(
     evolutionBase?: true },
 ): void {
   const from = zoneOf(state, id);
-  const returnInfo = from === "battle" ? attrsNow(ctx, game, state, id) : undefined;
+  const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
   const sourceNegated = from === "battle"
     ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
@@ -668,7 +668,7 @@ function moveTo(
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
   if (!opts.evolutionBase) emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
-    ...(returnInfo && to === "hand" ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
+    ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
