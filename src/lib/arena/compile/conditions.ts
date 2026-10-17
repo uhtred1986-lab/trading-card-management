@@ -96,6 +96,12 @@ export function splitDisjunction(text: string): string[] {
     if (/\d+\s*$/i.test(before) && /^(?:more|less|fewer)\b/i.test(after)) {
       continue;
     }
+    // "and/or" is one word: it joins the areas of a single description ("in
+    // your energy, Z-Energy, Battle Area, and/or Drop", #915), not two
+    // conditions. Cut at its "or" the description lost its last area.
+    if (/and\/$/i.test(before)) {
+      continue;
+    }
     if (new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
       continue;
     }
@@ -116,6 +122,18 @@ export function splitDisjunction(text: string): string[] {
   parts.push(text.slice(lastIndex).trim());
   return parts.filter((p) => p.length > 0);
 }
+
+/**
+ * Set when `parseCountCondition` refused a count on purpose (#915). A compound
+ * ("if your Leader is green or yellow **and you have a total of 2 or more
+ * green and/or yellow cards in your Combo Area**") must then be refused whole:
+ * cut at its "and", the Leader half read on alone and the count vanished.
+ */
+let countRefused = false;
+const refuseCount = (): null => {
+  countRefused = true;
+  return null;
+};
 
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   const trimmed = clause.toLowerCase().trim();
@@ -170,7 +188,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
         /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
       const carried = subject && namesACard ? parseConditionClause(`${subject[1]} ${half}`, true) : null;
+      countRefused = false;
       const got = carried ?? parseConditionClause(part.trim(), true);
+      if (!got && countRefused) return null;
       if (!got) {
         conds.length = 0;
         // A part the compiler reads as something the player *does* is a price
@@ -500,6 +520,16 @@ function parseCountCondition(t: string): Cond | null {
   // never has a second subject in it. Read as one, the action became a colour
   // filter on the Drop and the price was neither checked nor charged.
   if (/\band you\b/.test(said)) return null;
+  // Three wordings a count cannot state yet are refused rather than read as a
+  // plainer count (#915). "Cards with different **character** names" asks for
+  // another measure than "different card names" (`differentNames`), and read
+  // without it the clause became a bare count (BT18-107). (A total of 7 or
+  // more across a list of areas, P-616, is refused below.) And "blue **and/or**
+  // yellow cards", "<Pan> cards **and/or** cards with <GT>" in the description
+  // (not in the place list after it) is a union of two descriptions: split at the
+  // "or" it was either part alone, joined whole its colours were intersected.
+  if (/\bdifferent (?!card names\b)/.test(said)) return refuseCount();
+  if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
   // more white cards in your Drop" (BT29-085) are two counts, and read as one
@@ -557,6 +587,11 @@ function parseCountCondition(t: string): Cond | null {
   const phrase = mine ? `your ${rest}` : theirs ? `your opponent's ${rest}` : rest;
   const sel = parseTarget(phrase);
   if (!sel) return null;
+  // "A total of 7 or more cards … in your energy, Z-Energy, Battle Area, and/or
+  // Drop" (P-616, #915): the article took the number, which would be read as
+  // "at least 1" across four areas. Refused, as the issue asks, until a total
+  // across kinds has a word of its own.
+  if (/^total of \d/.test(said) && (sel.areas?.length ?? 0) >= 3) return refuseCount();
   // A count reads the whole area, not one card out of it.
   delete sel.count;
   delete sel.upTo;
