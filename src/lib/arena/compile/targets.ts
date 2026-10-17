@@ -98,6 +98,11 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 // BT25-028) is the same pair: one choice made across both areas, in any mix.
 // Read as "or" alone, the second area was dropped and the search looked only
 // in the deck.
+// Three or more areas, said as a list: "in your energy, Z-Energy, Battle Area,
+// and/or Drop" (BT18-099 and four more, #915). The pair reading above stopped
+// at the first comma and kept only "energy", so the other three areas were
+// dropped without a word and the count asked about a fraction of the board.
+const AREA_LIST_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)+,? (?:and\/or|or) (?:z-)?[a-z]+(?: area)?)\b/;
 const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) (?:and\/or|or) (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
 
 /**
@@ -555,7 +560,14 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // table of the area words rather than listed one by one.
   const tTarget = t.replace(/\b(?:for each|for every)\b.*$/, "");
   const both = AREA_PAIR_RE.exec(tTarget) ?? AREA_PAIR_RE.exec(t);
-  const pair: [ScriptArea, ScriptArea] | null = both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null;
+  // The list is tried first: it contains a pair, and read as one the pair
+  // would keep two areas of the three or more printed. A list that names an
+  // area word the table lacks, or the same area twice, is not read at all
+  // here, and falls back to what it always did.
+  const listed = AREA_LIST_RE.exec(tTarget) ?? AREA_LIST_RE.exec(t);
+  const listAreas = listed ? listed[1].split(/,\s*(?:(?:and\/or|or)\s+)?|\s+(?:and\/or|or)\s+/).map((w) => AREA_NAMED[w.trim()]) : [];
+  const list: ScriptArea[] | null = listed && listAreas.length >= 3 && listAreas.every((a) => a) && new Set(listAreas).size === listAreas.length ? listAreas : null;
+  const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null);
 
   let area: ScriptArea | null = null;
   let areaMatch: RegExpExecArray | null = null;
@@ -584,7 +596,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // player's possessive. When an area (or area pair) is matched, the side comes
   // from the phrase up to and including that area. The whole-clause scan is kept
   // ONLY as a fallback when no area was named ("your opponent's cards", 20-1-6).
-  const targetMatch = pair ? both : areaMatch;
+  const targetMatch = list ? listed : pair ? both : areaMatch;
   const areaPhrase = targetMatch && t.slice(0, targetMatch.index + targetMatch[0].length);
   const areaOwners = areaPhrase?.match(/\b(?:your opponent'?s|an opponent'?s|the opponent'?s|opponent'?s|opponent|your|their)\b/g);
   const areaOwner = areaOwners?.[areaOwners.length - 1];
