@@ -4,8 +4,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import type { Db } from "../../src/db/index.ts";
+import type { SkillRecord } from "../../src/lib/arena/draft.ts";
 import { rows } from "../../src/db/rows.ts";
-import { applyReviewedRefresh, repairReviewedCondition, type ReviewedRefresh } from "../lib/reviewed-rule-refresh.ts";
+import { applyReviewedRefresh, applyReviewedUnreadRefresh, repairReviewedCondition, type ReviewedRefresh } from "../lib/reviewed-rule-refresh.ts";
 
 const client=new PGlite();
 const db=drizzle(client) as unknown as Db;
@@ -59,6 +60,37 @@ await db.execute(sql`update card_rules set status='open' where id=1`);
 const open=(await snapshot())[0];
 assert.deepEqual(await applyReviewedRefresh(db,{rules:[{before:open,fresh:plan.rules[0].fresh}]}),[1]);
 assert.equal((await snapshot())[0].status,"draft");
+// Unread refresh: compiler-owned open/draft rows whose fresh compile still leaves text unread.
+await client.exec(`insert into card_rules values
+ (3,'test','front',1,'p3','auto','[]',null,null,'[]','open','compiler','[]',null,'old3',1,now(),'keep3'),
+ (4,'test','front',2,'p4','auto','[]',null,null,'[]','draft','compiler','["x"]',null,'old4',1,now(),'keep4')`);
+const unreadFresh=(skillIndex:number,unread:string[]):SkillRecord=>({cardId:"test",side:"front",skillIndex,printed:`p${skillIndex+2}`,kind:"auto",
+ trigger:["onPlay"],cost:null,cond:null,ops:[{op:"draw",n:2}],unread,pattern:"pat",reads:"draw 2"});
+const snap2=await snapshot();
+const row=(id:number)=>snap2.find(r=>r.id===id)!;
+const good=[{before:row(3),fresh:unreadFresh(1,["gain 3 energy"])},{before:row(4),fresh:unreadFresh(2,["y"])}];
+// Stale row aborts the whole batch.
+await db.execute(sql`update card_rules set explanation='edited' where id=4`);
+await assert.rejects(applyReviewedUnreadRefresh(db,{rules:good}),/stale/);
+assert.equal((await snapshot()).find(r=>r.id===3)!.reads,"old3","nothing written when one target is stale");
+await db.execute(sql`update card_rules set explanation='keep4' where id=4`);
+// An owned row is refused.
+const ownedRow=(await snapshot()).find(r=>r.id===2)!;
+await assert.rejects(applyReviewedUnreadRefresh(db,{rules:[{before:ownedRow,fresh:{...unreadFresh(0,["z"]),side:"back" as const}}]}),/not an open\/draft compiler row/);
+assert.deepEqual((await snapshot()).find(r=>r.id===2),ownedRow);
+// A clean record (unread=[]) is refused before any SQL, even with an eligible target.
+await assert.rejects(applyReviewedUnreadRefresh(db,{rules:[{before:row(3),fresh:unreadFresh(1,[])}]}),/still leave text unread/);
+assert.equal((await snapshot()).find(r=>r.id===3)!.reads,"old3");
+// Happy path: both rows swapped, status open, version bumped, explanation kept.
+assert.deepEqual(await applyReviewedUnreadRefresh(db,{rules:good}),[3,4]);
+const done=await snapshot();
+for(const id of [3,4]){const r=done.find(x=>x.id===id)!;
+  assert.equal(r.status,"open"); assert.equal(r.version,2); assert.equal(r.reads,"draw 2");
+  assert.deepEqual(r.trigger,["onPlay"]); assert.deepEqual(r.ops,[{op:"draw",n:2}]);}
+assert.deepEqual(done.find(r=>r.id===3)!.unread,["gain 3 energy"]);
+assert.equal(done.find(r=>r.id===3)!.explanation,"keep3");
+assert.deepEqual(done.find(r=>r.id===2),ownedRow,"owned row untouched");
+await assert.rejects(applyReviewedUnreadRefresh(db,{rules:good}),/stale/,"repeat apply refused");
 // Printed-cost migration fills only the missing named card and is repeatable.
 await client.exec("alter table cards add specified_cost text; insert into cards values ('SD13-02',null,null),('BT31-087',null,null)");
 const migration=fs.readFileSync("drizzle/0051_verified_unison_specified_costs.sql","utf8");
