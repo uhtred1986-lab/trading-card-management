@@ -31,7 +31,7 @@ import type { PlayerId } from "@/lib/arena/types";
  *  - `decisive`: how something turned out — the clash verdict, damage, a KO, a
  *    negated attack, the end. Never rushed, never accelerated.
  */
-export const TIER = { bookkeeping: 420, key: 1200, decisive: 1700 } as const;
+export const TIER = { bookkeeping: 400, key: 1200, decisive: 1700 } as const;
 
 /** Slow pace is a gentle stretch of the same rhythm, not a second one. */
 export const SLOW_FACTOR = 1.3;
@@ -39,10 +39,14 @@ export const SLOW_FACTOR = 1.3;
 /** Repeated bookkeeping of one kind (five energy charges) runs at this share of its dwell. */
 const GROUPED = 0.6;
 
-/** The phase banner ("MAIN PHASE"): how long it is up, and how long its phase beat is given. */
+/** The compact phase chip ("MAIN PHASE"): how long it stays up. It overlaps the beats after it. */
 export const STEP_BANNER_MS = 1000;
+/** A phase change is a marker, not a scene: its beat is short while the chip lingers a little longer. */
+export const PHASE_BEAT_MS = 350;
+/** A beat that has nothing of its own to show (a draw marker after the card flew, a battle step). */
+export const NOTHING_TO_SHOW = 150;
 /** The "YOUR TURN" banner. In step pace the walk waits for a tap instead. */
-export const TURN_BANNER_MS = 1200;
+export const TURN_BANNER_MS = 1000;
 
 const stretch = (ms: number, pace: Pace): number => (pace === "slow" ? Math.round(ms * SLOW_FACTOR) : ms);
 
@@ -79,7 +83,7 @@ export function bookkeepingKind(beat: Beat): string | null {
     case "draw":
       return `draw:${beat.player}`;
     case "move":
-      return beat.to === "energy" ? `energy:${beat.owner}` : null;
+      return beat.to === "energy" ? `energy:${beat.owner}` : beat.from === "deck" && beat.to === "hand" ? `draw:${beat.owner}` : null;
     case "mode":
       return `mode:${beat.mode}`;
     case "markers":
@@ -175,7 +179,12 @@ const DECISIVE: ReadonlySet<Beat["t"]> = new Set<Beat["t"]>(["clash", "damage", 
 function baseMs(beat: Beat): number {
   switch (beat.t) {
     case "draw":
+      // The card back already flew in on the deck-to-hand move before it:
+      // this marker has nothing of its own to show.
+      return NOTHING_TO_SHOW;
     case "mode":
+      // A card turns sideways: seen at a glance.
+      return 250;
     case "effectEnded":
       return TIER.bookkeeping;
     case "move":
@@ -214,7 +223,7 @@ function baseMs(beat: Beat): number {
     case "phase":
       // A phase worth a banner is held as long as the banner is up; a battle
       // step or a skipped phase is only a marker the fight passes through.
-      return phaseBanner(beat) ? STEP_BANNER_MS : 300;
+      return phaseBanner(beat) ? PHASE_BEAT_MS : NOTHING_TO_SHOW;
   }
 }
 

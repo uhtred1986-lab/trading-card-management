@@ -104,8 +104,10 @@ export function StepBanner({ step, hold = false, ms = 1000, playing = false, cue
 
   if (!shown) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" aria-hidden>
-      <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
+    // A compact chip under the top bar, not a scene in the middle of the board:
+    // phases come often, and the cards stay visible while it names the phase.
+    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-30 flex justify-center px-2" aria-hidden data-step-banner={shown.text}>
+      <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-notice arena-impact select-none rounded-full px-4 py-1.5 text-base font-black uppercase italic tracking-wide text-space-50 sm:text-xl">
         {shown.text}
       </p>
     </div>
