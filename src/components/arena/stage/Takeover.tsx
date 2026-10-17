@@ -1,7 +1,17 @@
 "use client";
 
 import { ClashBackdrop, Count, TriggerLine, type BattleSide, type StagingProps } from "./BattleParts";
+import { useSyncExternalStore } from "react";
 import { StageCard } from "./StageCard";
+
+/** A phone no taller than a small iPhone: the fight, hand and prompt must still share one screen. */
+function useShortScreen(): boolean {
+  return useSyncExternalStore(
+    (notify) => { const mq = window.matchMedia("(max-height: 720px)"); mq.addEventListener("change", notify); return () => mq.removeEventListener("change", notify); },
+    () => window.matchMedia("(max-height: 720px)").matches,
+    () => false,
+  );
+}
 
 /** The explosion's twelve shards, the same fan the leader's damage burst uses. */
 const SHARDS: [number, number][] = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((a, i) => [a, [74, 58, 80, 62, 78, 56, 72, 60, 82, 58, 76, 64][i]]);
@@ -22,22 +32,28 @@ const SHARDS: [number, number][] = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270,
  * in `BattleParts`. `ArenaStage` places it over the field and stands it down
  * whenever the prompt is asking for a card it would be covering.
  */
-export function Takeover({ shape, cardProps, beat, note, yourPick, desk }: StagingProps & { note?: string | null; yourPick?: boolean; desk?: boolean }) {
+export function Takeover({ shape, cardProps, beat, note, yourPick, desk, incoming = null }: StagingProps & { note?: string | null; yourPick?: boolean; desk?: boolean; incoming?: { name: string; plus: number } | null }) {
   const { attack, defence } = shape;
   const theirs = attack.mine ? defence : attack;
   const yours = attack.mine ? attack : defence;
   const clash = beat?.t === "clash" ? beat : null;
   const name = beat?.t === "skill" ? (shape.cards.find((c) => c.id === beat.card)?.name ?? null) : null;
   // A phone size, scaled by the board's `--arena` like every card: 150 px at desk scale.
-  const width = desk ? 77 : 96;
+  // Sized so both cards, the hand and the defence prompt fit one phone screen (375x667 and up) without page scroll.
+  const short = useShortScreen();
+  const width = desk ? 77 : short ? 58 : 72;
+  // The side that came out ahead, once the clash has landed: lit, while the other dims.
+  const winner = clash ? (clash.hit ? attack : defence) : null;
 
   const side = (s: BattleSide, at: "top" | "bot") => {
     const attacking = s === attack;
     const role = s.mine ? (attacking ? "You attack" : "You defend") : `${s.name} ${attacking ? "attacks" : "defends"}`;
     // The guard takes the hit; the attacker is never the one that explodes.
     const struck = !!clash && clash.hit && !attacking;
+    // A combo tapped and sent but not yet drawn by the engine: the figure already counts it.
+    const waiting = s.mine && incoming && !clash ? incoming : null;
     return (
-      <div className={`arena-clash-side ${at === "top" ? "arena-clash-top" : "arena-clash-bot"}`}>
+      <div className={`arena-clash-side ${at === "top" ? "arena-clash-top" : "arena-clash-bot"} ${winner ? (winner === s ? "arena-clash-won" : "arena-clash-lost") : ""}`}>
         <div className="relative shrink-0">
           {/* Drawn standing: the attacker is rested on the board by attacking, but
               in the fight it is the card throwing the punch. */}
@@ -54,8 +70,8 @@ export function Takeover({ shape, cardProps, beat, note, yourPick, desk }: Stagi
         </div>
         <div className="arena-clash-meta">
           <span className="arena-clash-role">{role}</span>
-          <Count value={s.power} className="arena-clash-pow arena-impact" />
-          {s.chain.length > 0 && (
+          <Count value={s.power + (waiting?.plus ?? 0)} className="arena-clash-pow arena-impact" />
+          {(s.chain.length > 0 || waiting) && (
             <div className="arena-clash-combos">
               {s.chain.map((l) => (
                 <button
@@ -75,6 +91,11 @@ export function Takeover({ shape, cardProps, beat, note, yourPick, desk }: Stagi
                   )}
                 </button>
               ))}
+              {waiting && (
+                <span className="arena-clash-combo arena-clash-combo-pending" data-combo-sending>
+                  +{waiting.plus.toLocaleString("en")} {waiting.name}
+                </span>
+              )}
             </div>
           )}
         </div>

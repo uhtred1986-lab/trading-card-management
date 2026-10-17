@@ -98,3 +98,6 @@ export function quietSentence(q: QuietSkill, viewer: PlayerId, them: string): st
   const why = uncertain(q) ? `it had no valid target, or its ${conditional(q) && costed(q) ? "condition or cost" : conditional(q) ? "condition" : "cost"} was not met` : "no valid target";
   return `${whose} ${q.name} — ${q.label}: ${why}, so nothing happened.`;
 }
+
+/** The chip a player sees: the card and two words ("Guldo · No effect"), nothing of the engine's reasoning. */
+export const quietShort = (q: QuietSkill) => `${q.name} · No effect`;

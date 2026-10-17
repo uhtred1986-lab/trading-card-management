@@ -63,7 +63,7 @@ import { Hand } from "./Hand";
 import phoneStyles from "./phone-board.module.css";
 import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
-import { fxVars, msFor, turnBannerMs } from "./motion";
+import { fxVars, msFor, phaseBanner, stepBannerMs, turnBannerMs } from "./motion";
 import { StagingToggle } from "../StagingToggle";
 import { DEFAULT_STAGING, type ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -78,8 +78,10 @@ import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
 import { FeedbackOverlay } from "./FeedbackOverlay";
 import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
-import { SpeedButton } from "./SpeedButton";
+import { SkipChip, SpeedButton } from "./SpeedButton";
 import { QuietNotice } from "./QuietNotice";
+import { FightSpotlight, PlaySpotlight } from "./FocusMoments";
+import { skillCardYields } from "@/lib/arena/immersion/skills";
 import { quietSkills } from "./quiet-skills";
 
 /**
@@ -225,6 +227,8 @@ export function ArenaStage({
   const [rowHover, setRowHover] = useState<string | null>(null);
   const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
+  /** A combo tapped and sent but not yet drawn by the engine: the fight and the hand show it at once. */
+  const [pendingCombo, setPendingCombo] = useState<{ id: string; name: string; plus: number; rev: number } | null>(null);
   /** The desktop inspector's lower tab: In play, or the battle log (the bar's log button opens it). */
   const [deskTab, setDeskTab] = useState<"play" | "log">("play");
   const [adminOpen, setAdminOpen] = useState(false);
@@ -372,7 +376,8 @@ export function ArenaStage({
 
   // The fight, worked out once (`BattleParts`) and drawn by whichever staging
   // is chosen. `inplace` is the original board and lifts nothing.
-  const [phoneCinema, setPhoneCinema] = useState(false);
+  // On by default: the fight is staged on a phone too (owner, 17 Oct 2026). The settings sheet still offers the compact board.
+  const [phoneCinema, setPhoneCinema] = useState(true);
   const effectiveStaging = !wide && !phoneCinema ? "inplace" : staging;
   const staged = effectiveStaging !== "inplace" && !!view.battle;
   const shape = staged ? battleShape(view, firedInBattle(beats?.list)) : null;
@@ -416,6 +421,8 @@ export function ArenaStage({
   const asksForBoard = yourAsk && Object.keys(taps.byCard).some((id) => !lifted.has(id) && !handIds.has(id));
   const asksForHand = yourAsk && Object.keys(taps.byCard).some((id) => handIds.has(id));
   const takeoverOn = !!shape && effectiveStaging === "takeover" && !asksForBoard;
+  // Only until the engine answers: a new revision, or a refusal, and the real chain takes over.
+  const incoming = pendingCombo && pendingCombo.rev === live.game.revision && !error && pendingCombo.plus > 0 ? pendingCombo : null;
   const bandOn = !!shape && !takeoverOn;
 
   useWakeLock(playable && !live.over);
@@ -456,11 +463,11 @@ export function ArenaStage({
   const pendingQuiet = quiet.find((q) => q.n > noticeMark && !acknowledged.has(q.n)) ?? null;
   const notice = pendingQuiet && (!playback.playing || (beatNow != null && beatNow.n >= pendingQuiet.n)) ? pendingQuiet : null;
   useLayoutEffect(() => {
-    noticeUp.current = !!pendingQuiet;
-  }, [pendingQuiet]);
+    noticeUp.current = admin && !!pendingQuiet;
+  }, [pendingQuiet, admin]);
   const acknowledge = (n: number) => {
     setAcknowledged((prev) => new Set(prev).add(n));
-    noticeUp.current = quiet.some((q) => q.n > noticeMark && q.n !== n && !acknowledged.has(q.n));
+    noticeUp.current = admin && quiet.some((q) => q.n > noticeMark && q.n !== n && !acknowledged.has(q.n));
     if (advanceHeld.current && !noticeUp.current) {
       advanceHeld.current = false;
       asked.current = false;
@@ -529,7 +536,7 @@ export function ArenaStage({
   };
 
   const send = (action: Action) => {
-    if (notice) return;
+    if (notice && admin) return;
     setSheet(null);
     setPinned(null);
     setSelected(null);
@@ -666,6 +673,17 @@ export function ArenaStage({
     }
     const options = taps.byCard[id];
     const why = whyOf(id);
+    // A combo window asks for exactly one thing from the hand, and the hint says "tap a glowing card":
+    // one tap adds it. The card lifts and the fight's total counts it at once (`pendingCombo`) rather
+    // than opening a review and waiting for a second confirm.
+    if (view.prompt.kind === "combo" && inHand(id)) {
+      const combos = (options ?? []).filter((i) => legal[i].action.type === "combo");
+      if (combos.length === 1) {
+        const card = cardOf(id);
+        setPendingCombo({ id, name: card?.name ?? "", plus: card?.comboPower ?? 0, rev: live.game.revision });
+        return send(legal[combos[0]].action);
+      }
+    }
     // On a phone, touching a hand card always opens its review. The action
     // button inside that review is the deliberate commit; drags still work.
     if (!wide && inHand(id)) {
@@ -1370,14 +1388,14 @@ export function ArenaStage({
         {beat && (beat.t === "attack" || beat.t === "clash") && <div key={beat.n} className="arena-speedlines pointer-events-none absolute inset-0 z-20" aria-hidden />}
         {/* A card revealed from the hand: a brief flash over the whole board (rd-07).
             */}
-        {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && (
+        {beat?.t === "move" && beat.from === "hand" && beat.to === "battle" && beat.owner === view.you.player && (
           <div key={beat.n} className="arena-fx-flash absolute inset-0 z-[35]" aria-hidden />
         )}
         {/* The edge: a thin line in the acting side's colour, switching with the banner. */}
         <div className="arena-edge" aria-hidden />
         <div className={phoneStyles.scrollRail} aria-hidden />
         <TurnBanner call={turnCall} view={view} lighting={lighting} ms={turnBannerMs(pace)} holdUntilTap={pace === "step"} />
-        <StepBanner step={step} hold={!!turnCall || playback.turnAhead} />
+        <StepBanner step={step} hold={!!turnCall || playback.turnAhead} ms={stepBannerMs(pace)} playing={playback.playing} cue={beatNow?.t === "phase" && phaseBanner(beatNow) ? { n: beatNow.n, key: phaseBanner(beatNow)! } : null} />
         {/* A skill fired inside a staged battle is said on the card that fired
             it, so the banner would be the same sentence twice over the fight. */}
         {/* A secret declaration is scoped to the current masked beat. Unmount
@@ -1385,7 +1403,7 @@ export function ArenaStage({
             animation cannot retain the card after concealment. */}
         {beat && (beat.t === "autoDeclared" || (beat.t === "skill" && beat.reveal))
           ? beats?.art[beat.card] && <SkillSpotlight key={`secret-${beat.n}`} spotlight={beatSpotlight} />
-          : <SkillSpotlight spotlight={shape && beat?.t === "skill" && beat.inBattle ? null : beatSpotlight} />}
+          : <SkillSpotlight spotlight={(shape && beat?.t === "skill" && beat.inBattle) || skillCardYields(beat) ? null : beatSpotlight} />}
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
@@ -1397,6 +1415,7 @@ export function ArenaStage({
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center xl:h-auto" : "h-[52px] sm:h-[52px] xl:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] xl:min-h-[60px] xl:flex-wrap xl:gap-x-4 xl:gap-y-1 xl:px-3 xl:py-1 xl:[grid-area:top]`}>
             {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
+            {playback.playing && <SkipChip onSkip={playback.skip} />}
             <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 xl:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
@@ -1458,7 +1477,7 @@ export function ArenaStage({
                 lane, your row, your strip. Open sky — no panel round it. */}
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
-            <section className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[440px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
+            <section data-takeover={takeoverOn ? "" : undefined} className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[250px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
               <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
@@ -1478,7 +1497,7 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary} canFastForward={playback.playing} fastForward={playback.skip}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 xl:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
@@ -1534,13 +1553,14 @@ export function ArenaStage({
                   progress={playback.playing ? { index: playback.index, total: playback.total } : null}
                   note={asksForHand ? "Tap hand cards to combo" : null}
                   yourPick={asksForHand}
+                  incoming={incoming}
                   desk={wide}
                 />
               )}
               {/* Who won the fight, named. Outside the stagings on purpose: it must
                   appear on all three, and a battle that has already closed by the
                   time the beats arrive has no staging left to carry it. */}
-              <BattleVerdict beat={immersionPrefs.banners ? null : beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
+              <BattleVerdict beat={immersionPrefs.banners ? null : beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} unisons={[view.you.unison?.id, view.them.unison?.id]} viewer={view.you.player} />
             </section>
           </div>
 
@@ -1563,7 +1583,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand sendingId={incoming?.id ?? null} onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* This single decision panel stays with the hand on phones and moves
@@ -1807,9 +1827,12 @@ export function ArenaStage({
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
-        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} suppressed={!!sheet || moreOpen || !!notice || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
+        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} board={[view.you.leader, view.them.leader, view.you.unison, view.them.unison, ...view.you.battle, ...view.them.battle]} suppressed={!!sheet || moreOpen || (!!notice && admin) || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
         <ClashBeam beat={beat} hostRef={boardRef} />
         <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
+        {/* The opponent playing a card, and a fight no staging is drawing: a dimmed board, the cards large. */}
+        <PlaySpotlight beat={playback.playing ? beat : null} art={beats?.art ?? {}} viewer={view.you.player} ms={beat ? msFor(beat, pace) : 900} />
+        {!shape && <FightSpotlight beat={playback.playing ? beat : null} art={beats?.art ?? {}} sideOf={sideOf} ms={beat ? msFor(beat, pace) : 900} />}
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}
@@ -1826,6 +1849,15 @@ export function ArenaStage({
           />
         )}
 
+        {/* The opponent's own think time, before its beats arrive: said at the top, not only in the prompt bar below the fold. */}
+        {waitingOnServer && !playback.playing && !live.over && !turnCall && !notice && (
+          <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-30 flex justify-center px-2" data-opponent-thinking>
+            <span role="status" className="arena-notice inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold text-space-50">
+              <span className="arena-pulse h-2 w-2 shrink-0 animate-pulse rounded-full bg-ki-400" aria-hidden />
+              {view.them.name} is thinking…
+            </span>
+          </div>
+        )}
         {notice && <QuietNotice key={notice.n} quiet={notice} viewer={view.you.player} them={view.them.name} onOk={() => acknowledge(notice.n)} />}
 
         <Ghosts ghosts={playback.ghosts} art={beats?.art ?? {}} />

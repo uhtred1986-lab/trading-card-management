@@ -13,7 +13,7 @@ export function combatMoment(gameId: number, beat: NumberedBeat | null, cardOf: 
   const card = id ? cardOf(id) : null;
   const captured = id ? art[id] : null;
   const safe = card && !card.hidden && (!captured || (captured.cardId === card.cardId && captured.name === card.name));
-  return { key: `${gameId}:${beat.n}`, outcome, caption: beat.t === "damage" ? `${beat.amount} DAMAGE${beat.critical ? " · CRITICAL" : ""}` : beat.t === "ko" ? "KO" : undefined, pose: outcome === "attack" ? "attack" : outcome === "hit" ? "hit" : "guard", character: safe ? resolveCharacter(card.cardId, card.name, card.flipped) : null };
+  return { key: `${gameId}:${beat.n}`, outcome, caption: beat.t === "damage" ? `−${beat.amount} LIFE${beat.critical ? " · CRITICAL" : ""}` : beat.t === "ko" ? "KO" : undefined, pose: outcome === "attack" ? "attack" : outcome === "hit" ? "hit" : "guard", character: safe ? resolveCharacter(card.cardId, card.name, card.flipped) : null };
 }
 export function soundCue(beat: NumberedBeat | null, viewer: PlayerId): ArenaSoundCue | null {
   if (!beat) return null;

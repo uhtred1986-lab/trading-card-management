@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { Chain, ChainCard, ClashBackdrop, STEP_WORD, TriggerLine, Totals, type StagingProps } from "./BattleParts";
 import { StageCard } from "./StageCard";
+import { useArenaAdmin } from "../admin-context";
 
 /**
  * The duel band: the fight lifted off the board into one lane across it.
@@ -22,6 +23,7 @@ import { StageCard } from "./StageCard";
  * `skill` beat the engine marked `inBattle`.
  */
 export function DuelBand({ shape, cardProps, beat, progress }: StagingProps) {
+  const admin = useArenaAdmin();
   const { attack, defence } = shape;
   // Your side is the left of the lane whichever way the attack runs, so the
   // lane does not swap sides between your turn and Claude's.
@@ -44,7 +46,7 @@ export function DuelBand({ shape, cardProps, beat, progress }: StagingProps) {
       <div className="pointer-events-auto">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-[9px] uppercase tracking-[0.2em] text-space-400 sm:text-[10px]">{STEP_WORD[shape.step] ?? shape.step}</span>
-          {progress && (
+          {admin && progress && (
             <span className="shrink-0 rounded-full border border-space-600 px-1.5 py-px font-mono text-[9px] tabular-nums text-space-400 sm:text-[10px]">
               beat {progress.index + 1} of {progress.total}
             </span>

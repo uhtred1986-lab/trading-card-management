@@ -8,6 +8,7 @@ import type { BoardView, CardView } from "@/lib/arena/view";
 import { StageCard } from "./StageCard";
 import type { CardState } from "../ArenaCard";
 import { useCardEndpoints } from "./use-card-endpoints";
+import { useArenaAdmin } from "../admin-context";
 
 /**
  * The pieces a battle staging is made of, and the one place the fight is
@@ -338,11 +339,13 @@ export function Totals({ left, right, big = false }: { left: BattleSide; right: 
  * under a banner sliding over the top of it (§3.2).
  */
 export function TriggerLine({ beat, name }: { beat: NumberedBeat | null; name: string | null }) {
+  const admin = useArenaAdmin();
   if (!beat || beat.t !== "skill" || !beat.inBattle) return null;
+  // A player gets the card and the kind of skill; the printed text is the card review's job (SLs keep it here).
   return (
-    <motion.p key={beat.n} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1 truncate text-center text-[10px] leading-snug text-ki-300 sm:text-xs">
-      <span className="font-semibold">⚡ {name ?? beat.label}</span>
-      <span className="text-space-300"> · {beat.text}</span>
+    <motion.p key={beat.n} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1 truncate text-center text-xs font-bold leading-snug text-ki-300 sm:text-sm">
+      <span>⚡ {name ?? beat.label}</span>
+      <span className="font-normal text-space-300"> · {admin ? beat.text : beat.label}</span>
     </motion.p>
   );
 }
@@ -371,18 +374,26 @@ export function BattleVerdict({
   beat,
   sideOf,
   leaders = [],
+  unisons = [],
+  viewer,
 }: {
   beat: NumberedBeat | null;
   sideOf: (card: string) => "yours" | "theirs" | null;
   /** Both leaders' instance ids: a hit on one of them is a BREAK THROUGH. */
   leaders?: readonly (string | undefined)[];
+  /** Both Unison Cards: a hit on one is a plain HIT, not a K.O. */
+  unisons?: readonly (string | undefined)[];
+  /** Whose life is whose: the damage word is red when it is yours that broke. */
+  viewer?: string;
 }) {
-  if (!beat || (beat.t !== "clash" && beat.t !== "negated")) return null;
+  if (!beat || (beat.t !== "clash" && beat.t !== "negated" && beat.t !== "damage")) return null;
+  // The life that broke, big and brief: "−1 LIFE" (the engine's amount, never a guess).
+  if (beat.t === "damage") return <VerdictWord key={beat.n} word={`−${beat.amount} LIFE${beat.critical ? " · CRITICAL" : ""}`} tone={viewer && beat.player === viewer ? "bad" : "good"} />;
   if (beat.t === "negated") return <VerdictWord key={beat.n} word="NO BATTLE" tone="calm" line="The attack is negated — it ends here." />;
   const winner = beat.hit ? beat.attacker : beat.guard;
   // The word is only a name for the engine's verdict (`hit`) and for who the
   // guard was; it decides nothing.
-  const word = !beat.hit ? "HELD!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : "HIT!";
+  const word = !beat.hit ? "BLOCKED!" : leaders.includes(beat.guard) ? "BREAK THROUGH" : unisons.includes(beat.guard) ? "HIT!" : "K.O.!";
   const side = sideOf(winner);
   return <VerdictWord key={beat.n} word={word} tone={side === "yours" ? "good" : !beat.hit || side !== "theirs" ? "calm" : "bad"} />;
 }

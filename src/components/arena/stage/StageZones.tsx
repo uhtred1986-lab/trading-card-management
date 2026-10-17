@@ -266,8 +266,6 @@ export function Lane({
   narration,
   onLog,
   logOpen = false,
-  fastForward,
-  canFastForward = false,
   summary,
   children,
 }: {
@@ -278,8 +276,6 @@ export function Lane({
   narration: { text: string; n: number; mine: boolean } | null;
   onLog: () => void;
   logOpen?: boolean;
-  fastForward?: () => void;
-  canFastForward?: boolean;
   /** Engine outcome, displayed in the lane in place of the narration pill. */
   summary?: ReactNode;
   /** The log, when it is open: drawn over the lane. */
@@ -290,7 +286,6 @@ export function Lane({
     const winning = b.attackPower >= b.guardPower;
     return (
       <div className="arena-field arena-lane-battle relative my-1 px-2 py-2 sm:my-2">
-        {canFastForward && <button type="button" onClick={fastForward} className="arena-btn tap absolute right-2 top-1 z-10 min-h-11 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-50">⏩ Fast-forward</button>}
         <div className="arena-clash relative flex items-center justify-center gap-3 sm:gap-6">
           <Count value={b.attackPower} className={`arena-impact relative text-2xl tabular-nums sm:text-4xl lg:text-5xl ${winning ? "arena-power-win text-ki-300" : "text-space-400"}`} />
           <span className="arena-impact relative text-[10px] tracking-[0.3em] text-space-500 sm:text-xs">VS</span>
@@ -338,7 +333,6 @@ export function Lane({
               {narration.text}
             </span>
           </button>
-          {canFastForward && <button type="button" onClick={fastForward} className="arena-btn tap min-h-11 shrink-0 rounded-lg border border-space-600 bg-space-900 px-2 text-[10px] font-semibold text-space-50 sm:px-3 sm:text-xs">⏩ Fast-forward</button>}
         </div>
       )}
       {children}

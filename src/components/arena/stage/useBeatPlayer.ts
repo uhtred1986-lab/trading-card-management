@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Beats, NumberedBeat } from "@/lib/arena/beats";
 import type { PlayerId } from "@/lib/arena/types";
 import { feel } from "@/lib/arena/feel";
@@ -121,6 +121,19 @@ export function useBeatPlayer(
   const [starts, setStarts] = useState<ReadonlySet<number>>(NOTHING_N);
   const [ahead, setAhead] = useState(0);
   const [lastTurn, setLastTurn] = useState(turnNow);
+  // One walk per story. A story that is still being told when more beats arrive
+  // (the local worker commits the opponent's turn in batches, a polled game
+  // lands Claude's moves one by one) is *extended*, never replaced: replacing
+  // it dropped every beat not yet played, which is how a whole opponent turn
+  // went past unseen and one attack's verdict went missing before the next.
+  // `run` starts a new walk; the walk reads the live queue through these refs.
+  const [run, setRun] = useState(0);
+  const queueRef = useRef<NumberedBeat[]>([]);
+  const startsRef = useRef<ReadonlySet<number>>(NOTHING_N);
+  useLayoutEffect(() => {
+    queueRef.current = queue;
+    startsRef.current = starts;
+  }, [queue, starts]);
   // Read by the walk rather than closed over, so a pause takes effect on the
   // next beat instead of restarting the story.
   const held = useRef(false);
@@ -150,9 +163,6 @@ export function useBeatPlayer(
   } else if (seq > seen) {
     setSeen(seq);
     const fresh = enabled ? (beats?.list ?? []).filter((b) => b.n > seen) : [];
-    setQueue(fresh);
-    setAt(0);
-    setGhosts([]);
     // A turn starts with its Charge Phase beat. Any phase beat that names a
     // turn the story has not been on yet is the boundary, so a skipped turn
     // (20-13) is announced too.
@@ -164,8 +174,21 @@ export function useBeatPlayer(
         turn = b.turn;
       }
     }
-    setStarts(opens);
-    setAhead(opens.size);
+    if (queue.length && fresh.length) {
+      // Still telling the last story: carry on with it and add the new beats.
+      setQueue([...queue, ...fresh]);
+      setStarts(new Set([...starts, ...opens]));
+      setAhead((n) => n + opens.size);
+    } else if (queue.length && enabled) {
+      // Nothing new to tell; the story in progress goes on untouched.
+    } else {
+      setQueue(fresh);
+      setAt(0);
+      setGhosts([]);
+      setStarts(opens);
+      setAhead(opens.size);
+      if (fresh.length || queue.length) setRun((r) => r + 1);
+    }
     setLastTurn(turn);
   }
 
@@ -184,6 +207,8 @@ export function useBeatPlayer(
     setPaused(false);
     setTurnCall(null);
     setAhead(0);
+    // Ends the walk in progress (its effect is keyed on `run`).
+    setRun((r) => r + 1);
     release();
     waiting.current?.();
     waiting.current = null;
@@ -208,17 +233,37 @@ export function useBeatPlayer(
   // included — so the board paints the end state once before the story of how
   // it got there starts being told over the top of it.
   useEffect(() => {
-    if (!queue.length) return;
+    if (!queueRef.current.length) return;
     let cancelled = false;
 
     // How many cards each beat has watched added to the open battle, so a long
-    // chain accelerates itself. Walked once, up front: the flag and the count
+    // chain accelerates itself. Kept as the walk goes: the flag and the count
     // are about the beats before this one, not about the board now.
+    let open = false;
+    let chain = 0;
     const chainAt: number[] = [];
-    {
-      let open = false;
-      let chain = 0;
-      for (const beat of queue) {
+
+    // The dwell after a beat: a timer at the chosen pace, or in step mode a
+    // tap on Next. Skip resolves the wait too, so it never strands the walk.
+    // The beat after it is passed along, so a run of the same bookkeeping is grouped.
+    const dwell = (i: number) => {
+      const q = queueRef.current;
+      return paceRef.current === "step" ? new Promise<void>((r) => (waiting.current = r)) : sleep(msFor(q[i], paceRef.current, chainAt[i], q[i + 1] ?? null));
+    };
+    /** Held open while a card is being read; resolved by `resume` or `skip`. */
+    const gate = () => (held.current ? new Promise<void>((r) => waiters.current.push(r)) : Promise.resolve());
+
+    const walk = async () => {
+      let i = 0;
+      for (;;) {
+        // The dwell after the last beat comes first, so beats that arrive
+        // during it are still told rather than skipped past.
+        if (i > 0) await dwell(i - 1);
+        await gate();
+        if (cancelled) return;
+        if (i >= queueRef.current.length) break;
+
+        const beat = queueRef.current[i];
         const link = battleLink(beat, open);
         if (link === "declare") {
           open = true;
@@ -227,24 +272,9 @@ export function useBeatPlayer(
           open = false;
         }
         if (addsToChain(link)) chain++;
-        chainAt.push(chain);
-      }
-    }
+        chainAt[i] = chain;
 
-    // The dwell after a beat: a timer at the chosen pace, or in step mode a
-    // tap on Next. Skip resolves the wait too, so it never strands the walk.
-    const dwell = (beat: NumberedBeat, chain: number) => (paceRef.current === "step" ? new Promise<void>((r) => (waiting.current = r)) : sleep(msFor(beat, paceRef.current, chain)));
-    /** Held open while a card is being read; resolved by `resume` or `skip`. */
-    const gate = () => (held.current ? new Promise<void>((r) => waiters.current.push(r)) : Promise.resolve());
-
-    const run = async () => {
-      for (let i = 0; i < queue.length; i++) {
-        if (i > 0) await dwell(queue[i - 1], chainAt[i - 1]);
-        await gate();
-        if (cancelled) return;
-
-        const beat = queue[i];
-        if (beat.t === "phase" && starts.has(beat.n)) {
+        if (beat.t === "phase" && startsRef.current.has(beat.n)) {
           // Its own step: announced, held, then gone before the phase is.
           setTurnCall({ key: beat.n, player: beat.player, turn: beat.turn });
           setAhead((n) => Math.max(0, n - 1));
@@ -254,7 +284,7 @@ export function useBeatPlayer(
           await gate();
           if (cancelled) return;
         }
-        const ms = msFor(beat, paceRef.current === "step" ? "normal" : paceRef.current, chainAt[i]);
+        const ms = msFor(beat, paceRef.current === "step" ? "normal" : paceRef.current, chain);
         // An arriving ghost lives exactly one beat: the real card takes over
         // as this one starts, so the flight hands over rather than lingering.
         setGhosts((g) => g.filter((x) => x.kind !== "arrive"));
@@ -284,18 +314,17 @@ export function useBeatPlayer(
         const f = feelFor(beat);
         if (f) feel(f);
         setAt(i);
+        i++;
       }
-      await dwell(queue[queue.length - 1], chainAt[queue.length - 1]);
-      await gate();
-      if (!cancelled) skip();
+      skip();
     };
 
-    void run();
+    void walk();
     return () => {
       cancelled = true;
       waiting.current = null;
     };
-  }, [queue, starts, skip, hostRef, viewer]);
+  }, [run, skip, hostRef, viewer]);
 
   const playing = queue.length > 0;
 

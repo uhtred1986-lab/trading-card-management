@@ -5,11 +5,11 @@ import { useSyncExternalStore } from "react";
 /**
  * How fast the story of a turn is told.
  *
- * The durations in `stage/motion.ts` were tuned so that nothing blocks the
- * next tap; watched on a phone, a whole opponent turn at that pace goes past
- * faster than it can be read. So the pace is a preference, remembered like
- * buzz and sound: `slow` (the default) gives every beat time to be read, and
- * `step` waits for a tap between beats, so a turn can be followed move by move.
+ * The durations in `stage/motion.ts` are three tiers (bookkeeping, key
+ * moments, decisive) so a turn keeps one rhythm. The pace is a preference,
+ * remembered like buzz and sound: `normal` is the base tiers, `slow` (the
+ * default) stretches all of them by the same gentle 1.3x, and `step` waits for
+ * a tap between beats, so a turn can be followed move by move.
  */
 export type Pace = "slow" | "normal" | "step";
 

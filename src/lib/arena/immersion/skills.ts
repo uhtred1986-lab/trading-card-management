@@ -18,6 +18,24 @@ export interface SkillMoment {
 }
 const areas: Record<Area, string> = { deck: "Deck", hand: "Hand", drop: "Drop", leader: "Leader", battle: "Battle Area", combo: "Combo", energy: "Energy", life: "Life", warp: "Warp", unison: "Unison", zDeck: "Z-Deck", zEnergy: "Z-Energy", removed: "Removed" };
 
+/**
+ * One overlay per moment. The cinematic banner is kept for the skills with a motif of their own (swap, union,
+ * evolve, awaken, a flip, a warp or drop). A card played from the hand is the play spotlight's, a plain skill is
+ * the skill card's, and a skill that did nothing is only the small "No effect" chip: none of those also gets a banner.
+ */
+export function bannerOwnsMoment(moment: SkillMoment | null, beat: NumberedBeat | null): moment is SkillMoment {
+  if (!moment || !beat) return false;
+  if (beat.t === "move") return beat.from !== "hand" || beat.to !== "battle";
+  if (beat.t === "skill") return !beat.noEffect && moment.style !== "skill";
+  return true;
+}
+
+/** Whether the skill card (the spotlight) stands down because the banner or the chip tells this beat. */
+export function skillCardYields(beat: NumberedBeat | null): boolean {
+  if (!beat || beat.t !== "skill") return false;
+  return !!beat.noEffect || bannerOwnsMoment(skillMoment(0, beat), beat);
+}
+
 /** Each picture describes exactly one masked engine beat. A skill name never invents its result. */
 export function skillMoment(gameId: number, beat: NumberedBeat | null, context?: { cardOf: (id: string) => CardView | null; art: Record<string, BeatArt>; viewer: PlayerId }): SkillMoment | null {
   if (!beat) return null;

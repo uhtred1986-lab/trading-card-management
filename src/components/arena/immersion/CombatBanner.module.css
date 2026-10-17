@@ -1,5 +1,5 @@
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 42;
   overflow: hidden;
@@ -9,15 +9,15 @@
 }
 .banner {
   position: absolute;
-  top: 28%;
+  top: 34%;
   left: 0;
   right: 0;
-  height: clamp(210px, 40vw, 280px);
+  height: clamp(120px, 30vw, 160px);
   isolation: isolate;
   overflow: hidden;
   transform: skewY(-3deg);
   border-block: 3px solid #e9fbff;
-  background: #061d43;
+  background: #061d43d6;
   box-shadow: 0 5px 0 #081c36, 0 -5px 0 #081c36, 0 0 45px #1baaff66;
   animation: reveal var(--beat-duration) ease-out both;
 }
@@ -88,7 +88,7 @@
 .track > div { height: 100%; background: #c9ffff; box-shadow: 0 0 12px #88faff; transform-origin: left; animation: power var(--beat-duration) ease-out both; }
 .skip {
   position: absolute;
-  top: calc(28% + clamp(210px, 40vw, 280px) + 20px);
+  top: calc(34% + clamp(120px, 30vw, 160px) + 12px);
   right: 10px;
   min-height: 44px;
   padding: 7px 12px;
@@ -124,10 +124,10 @@
 @media (prefers-reduced-motion: reduce) { .neutral .word { font-size: 20px; } }
 
 /* Resolved impacts own the center; attack buildup keeps its narrower cut-in. */
-.impact { background: radial-gradient(ellipse at center, #071326bb, #07132655 70%, transparent); }
-.impact .banner { top: 22%; height: clamp(250px, 48vw, 350px); border-block-width: 4px; }
+.impact { background: radial-gradient(ellipse at center, #07132680, #07132633 70%, transparent); }
+.impact .banner { top: 32%; height: clamp(150px, 36vw, 200px); border-block-width: 4px; }
 .impact .word { font-size: clamp(40px, 9vw, 82px); text-shadow: 4px 4px #042849, -1px -1px #042849; }
-.impact .skip { top: calc(22% + clamp(250px, 48vw, 350px) + 20px); }
+.impact .skip { top: calc(32% + clamp(150px, 36vw, 200px) + 12px); }
 .impact.reduced { background: none; }
 .impact.reduced .banner { top: 42%; height: 54px; }
 .impact.reduced .word { font-size: 20px; }

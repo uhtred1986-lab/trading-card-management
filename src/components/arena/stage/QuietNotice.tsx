@@ -2,43 +2,47 @@
 
 import { useEffect, useEffectEvent } from "react";
 import type { PlayerId } from "@/lib/arena/types";
-import { quietSentence, quietTitle, type QuietSkill } from "./quiet-skills";
+import { useArenaAdmin } from "../admin-context";
+import { quietSentence, quietShort, type QuietSkill } from "./quiet-skills";
+
+/** How long the chip stays: a glance for a player, long enough to read the sentence for an SL. */
+const PLAYER_MS = 1500;
+const ADMIN_MS = 4000;
 
 /**
- * A resolved skill with no effect is information, not a required game choice.
- * Keep it briefly readable without a modal scrim or stolen keyboard focus.
- * Acknowledging (manually or on timeout) submits no game action.
+ * A resolved skill with no effect is information, not a game choice, so it is a
+ * chip and nothing more: small, fading, never a button, never a modal scrim or
+ * stolen focus. A player sees "Guldo · No effect" for a moment; the engine's
+ * full explanation (the sentence and the printed effect) is for SLs only.
+ * Acknowledging (on timeout, or by tapping the SL's sentence) submits no game
+ * action and holds nothing for a player.
  */
 export function QuietNotice({ quiet, viewer, them, onOk }: { quiet: QuietSkill; viewer: PlayerId; them: string; onOk: () => void }) {
+  const admin = useArenaAdmin();
+  const ms = admin ? ADMIN_MS : PLAYER_MS;
   const dismiss = useEffectEvent(onOk);
   useEffect(() => {
-    const timer = setTimeout(() => dismiss(), 4000);
+    const timer = setTimeout(() => dismiss(), ms);
     return () => clearTimeout(timer);
-  }, [quiet.n]);
+  }, [quiet.n, ms]);
   const yours = quiet.owner === viewer;
   return (
-    <div className="pointer-events-none fixed left-2 top-24 z-40 max-w-[calc(100vw-1rem)] sm:left-4 sm:top-28">
+    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-40 flex justify-center px-2 sm:top-16">
       <div
         role="status"
-        aria-labelledby="arena-notice-title"
-        aria-describedby="arena-notice-text"
         data-arena-notice={yours ? "yours" : "theirs"}
-        className="arena-notice pointer-events-auto max-h-[50dvh] w-full max-w-sm overflow-y-auto rounded-2xl p-3"
+        style={{ "--chip-ms": `${ms}ms` } as React.CSSProperties}
+        className={`arena-notice arena-chip max-w-full rounded-2xl px-3 py-1.5 ${admin ? "pointer-events-auto" : ""}`}
+        onClick={admin ? onOk : undefined}
       >
-        <p id="arena-notice-title" className="text-[11px] font-bold uppercase tracking-[0.16em] text-space-300">
-          {quietTitle(quiet)}
+        <p id="arena-notice-title" className="truncate text-xs font-bold text-space-50">
+          {quietShort(quiet)}
         </p>
-        <p id="arena-notice-text" className="mt-1 text-base font-semibold leading-snug text-space-50">
-          {quietSentence(quiet, viewer, them)}
-        </p>
-        <p className="mt-1 text-xs leading-snug text-space-300">{quiet.effect}</p>
-        <button
-          type="button"
-          onClick={onOk}
-          className="arena-btn tap mt-3 h-12 w-full rounded-xl bg-ki-500 px-4 text-base text-space-950 hover:bg-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-300"
-        >
-          OK
-        </button>
+        {admin && (
+          <p id="arena-notice-text" className="mt-0.5 text-[11px] leading-snug text-space-300">
+            {quietSentence(quiet, viewer, them)} {quiet.effect}
+          </p>
+        )}
       </div>
     </div>
   );

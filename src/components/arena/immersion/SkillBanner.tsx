@@ -23,6 +23,6 @@ function SkillBeat({ moment, durationMs, reducedMotion, onSkip }: { moment: Skil
       </div>
       <span className={styles.receipt} role="status">{moment.side && `${moment.side} · `}{moment.face && `${moment.face.name} · `}{moment.detail}</span>
     </div>
-    <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip effect</button>
+    <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip</button>
   </div>;
 }

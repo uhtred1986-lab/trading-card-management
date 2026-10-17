@@ -49,6 +49,12 @@
  .board :global(.arena-row) { --arena: .85; min-height: 0 !important; padding: 4px 14px 4px 26px; }
  .board :global(.arena-battle-cards) { border-left-style: dotted; border-left-color: color-mix(in srgb, var(--color-space-300) 35%, transparent); }
  .board[data-phone-cinema="true"] :global(.arena-row) { min-height: 84px !important; }
+ /* The takeover covers the whole field, so the rows under it need no height of their own: fight, hand and the
+    defence prompt then share one phone screen instead of pushing the prompt below the fold. */
+ .board :global(.arena-stage[data-takeover] .arena-row), .board[data-phone-cinema="true"] :global(.arena-stage[data-takeover] .arena-row) { min-height: 0 !important; height: 0; padding-block: 0; overflow: hidden; }
+ .board :global(.arena-stage[data-takeover] .arena-lane) { min-height: 0 !important; height: 0; overflow: hidden; }
+ /* The hand's cost pips and status dots stack above the prompt bar, never over it. */
+ .board :global(.arena-field.arena-hand) { isolation: isolate; }
  .board[data-phone-cinema="true"] :global(.arena-lane) { min-height: 56px; }
  /* The lane takes the field's spare height (#783), so each row sits by its own strip. */
  .board :global(.arena-lane) { min-height: 0; flex: 1 1 auto; }

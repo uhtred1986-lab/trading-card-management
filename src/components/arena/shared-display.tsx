@@ -1,7 +1,8 @@
 "use client";
 import { CardReader } from "./CardReader";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useArenaAdmin } from "./admin-context";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView } from "@/lib/arena/view";
 import { CardDetail, ChipRow, type InspectorChip } from "./shared-sheets";
@@ -47,29 +48,52 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 /**
- * The phase and battle-step banner. `hold` is a turn banner being on screen or
- * still due: the phase waits for it and plays straight after, so the two never
- * stack (issue #344).
+ * The phase and battle-step banner. It appears at once, stays for `ms` (the
+ * same number its phase beat is given, so the banner and the story agree) and
+ * is gone, whatever the game is waiting for afterwards.
+ *
+ * While a story is playing, the banner follows the story rather than the live
+ * board: the board already shows where the turn ended up, so a step change read
+ * off it announced the wrong phase, late. `cue` is the phase the beat on screen
+ * names (`phase:main`); `playing` silences the board-driven path, which takes
+ * over again when the story ends (a battle step the story stopped on is
+ * announced then, for the decision it leaves).
+ *
+ * `hold` is a turn banner being on screen or still due: the phase waits for it
+ * and plays straight after, so the two never stack (issue #344).
  */
-export function StepBanner({ step, hold = false }: { step: string; hold?: boolean }) {
+export function StepBanner({ step, hold = false, ms = 1000, playing = false, cue = null }: { step: string; hold?: boolean; ms?: number; playing?: boolean; cue?: { n: number; key: string } | null }) {
   const [shown, setShown] = useState<{ key: number; text: string } | null>(null);
   const prev = useRef<string | null>(null);
   const due = useRef<string | null>(null);
+  const wasPlaying = useRef(false);
+  const cueSeen = useRef<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (prev.current !== step) {
       const first = prev.current === null;
       prev.current = step;
-      due.current = first ? null : (STEP_LABELS[step] ?? null);
+      due.current = first || playing ? null : (STEP_LABELS[step] ?? null);
     }
-    if (hold || !due.current) return;
-    const text = due.current;
-    due.current = null;
+    if (wasPlaying.current && !playing && step.startsWith("battle:")) due.current = STEP_LABELS[step] ?? null;
+    wasPlaying.current = playing;
+    // The phase the story is on right now plays at once, even while a later turn
+    // banner is still due: that one is for a beat further on.
+    let text: string | null = null;
+    if (cue && cueSeen.current !== cue.n) {
+      cueSeen.current = cue.n;
+      text = STEP_LABELS[cue.key] ?? null;
+    }
+    if (!text && !hold && due.current) {
+      text = due.current;
+      due.current = null;
+    }
+    if (!text) return;
     setShown({ key: Date.now(), text });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setShown(null), 1500);
-  }, [step, hold]);
+    timer.current = setTimeout(() => setShown(null), ms);
+  }, [step, hold, playing, cue, ms]);
 
   useEffect(
     () => () => {
@@ -80,95 +104,73 @@ export function StepBanner({ step, hold = false }: { step: string; hold?: boolea
 
   if (!shown) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center" aria-hidden>
-      <p key={shown.key} className="arena-banner arena-impact select-none text-4xl font-black uppercase italic tracking-tight text-space-50 sm:text-6xl lg:text-7xl">
+    // A compact chip under the top bar, not a scene in the middle of the board:
+    // phases come often, and the cards stay visible while it names the phase.
+    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-30 flex justify-center px-2" aria-hidden data-step-banner={shown.text}>
+      <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-notice arena-impact select-none rounded-full px-4 py-1.5 text-base font-black uppercase italic tracking-wide text-space-50 sm:text-xl">
         {shown.text}
       </p>
     </div>
   );
 }
 
+/**
+ * A skill firing, shown as a card: its art, its name and a short tag, centred under the top bar for
+ * about two seconds. The rules text is one tap away ("read") and shown from the start only to an SL;
+ * a player does not need a paragraph to know which card just did something. Never draggable, never
+ * blocks the board: only the small controls take taps.
+ */
 export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageUrl: string | null }) | null }) {
+  const admin = useArenaAdmin();
   const [shown, setShown] = useState<(Spotlight & { imageUrl: string | null }) | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const seen = useRef<number | null>(null);
-  const drag = useRef<{ startX: number; startY: number; from: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
     if (!spotlight || seen.current === spotlight.seq) return;
     seen.current = spotlight.seq;
     setShown(spotlight);
     setExpanded(false);
-    setOffset({ x: 0, y: 0 });
   }, [spotlight]);
 
   const shownSeq = shown?.seq;
   useEffect(() => {
-    if (shownSeq == null) return;
-    const timer = setTimeout(() => setShown(null), 4000);
+    if (shownSeq == null || expanded) return;
+    const timer = setTimeout(() => setShown(null), admin ? 4000 : 2200);
     return () => clearTimeout(timer);
-  }, [shownSeq]);
-
-  const startDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    drag.current = { startX: e.clientX, startY: e.clientY, from: offset };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const { startX, startY, from } = drag.current;
-    setOffset({ x: from.x + (e.clientX - startX), y: from.y + (e.clientY - startY) });
-  };
-  const endDrag = () => {
-    drag.current = null;
-  };
+  }, [shownSeq, expanded, admin]);
 
   if (!shown) return null;
+  const showText = expanded || admin;
   return (
-    <div
-      className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]"
-      style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
-      aria-live="polite"
-      data-skill-spotlight={shown.seq}
-    >
-      <div className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${shown.unread ? "border-dbs-yellow" : "border-ki-500"}`}>
+    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-40 flex justify-center px-2 sm:top-16" aria-live="polite" data-skill-spotlight={shown.seq}>
+      <div className={`arena-drop arena-float pointer-events-auto relative flex w-[min(19rem,100%)] gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-8 backdrop-blur ${shown.unread && admin ? "border-dbs-yellow" : "border-ki-500"}`}>
         <button
           type="button"
           onClick={() => {
             setShown(null);
           }}
-          className="tap absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-space-400 hover:bg-space-800 hover:text-space-50"
+          className="tap absolute right-0 top-0 flex h-11 w-9 items-center justify-center text-space-400 hover:text-space-50"
           aria-label="Dismiss"
         >
           ×
         </button>
-        <div
-          className="flex min-w-0 flex-1 cursor-grab touch-none select-none gap-2 active:cursor-grabbing"
-          onPointerDown={startDrag}
-          onPointerMove={onDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          {shown.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
-            <img src={cardImage(shown.imageUrl, "thumb")} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
-            <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+        {shown.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
+          <img src={cardImage(shown.imageUrl, "thumb")} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-space-50">{shown.name}</p>
+          <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+          {showText ? (
             <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>{plainText(shown.text)}</p>
-            {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">The referee ruled on this card&apos;s text.</p>}
-          </div>
+          ) : (
+            <button type="button" onClick={() => setExpanded(true)} className="tap mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400">
+              read
+            </button>
+          )}
+          {shown.unread && admin && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">The referee ruled on this card&apos;s text.</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setExpanded((v) => !v);
-          }}
-          className="tap absolute bottom-1 right-1 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400"
-        >
-          {expanded ? "less" : "more"}
-        </button>
       </div>
     </div>
   );
