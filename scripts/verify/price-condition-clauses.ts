@@ -77,6 +77,11 @@ const one = (text: string) => parseSkills(text)[0]!;
   assert.ok(unread("[Activate: Main]{r}, if your Leader Card is a black ≪Saiyan≫ card and you send 1 <Son Gohan: Xeno> card and 1 <Trunks: Xeno> card from your Drop Area to your Warp: Play this card from your hand."), "a Leader condition does not hide an unread send price");
   // "and/or" across places counts the places together, which one count cannot say.
   assert.ok(unread("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."), "BT16-087's two places are unread");
+  // "A total of N" is N, not the article's one; across a list of places it is unread, never one place's count.
+  const total = compileSkill(one("[Activate: Main]{1}, if you have a total of 2 or more green cards in your Combo Area: Play this card from your hand."));
+  assert.deepEqual(total.unsupported, []);
+  assert.equal((total.ops[0] as { cond: { atLeast: number } }).cond.atLeast, 2, "'a total of 2 or more' asks for 2");
+  assert.ok(unread("[Permanent] If you have a total of 7 or more cards in your energy, Z-Energy, Battle Area, and Drop, reduce this card's energy cost in your hand by 2."), "a total across a list of places is unread");
   // A price that is neither a condition nor an action the compiler can charge is no free price.
   assert.ok(unread("[Activate: Main]{u}, send 1 blue card with <Son Goten> in its character name and 1 blue card with <Trunks> in its character name from your hand and/or Drop to your Warp: Play this card from your hand."), "a bare unreadable action price leaves the line unread");
   // Readable prices are untouched.

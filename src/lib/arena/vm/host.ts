@@ -228,7 +228,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // "when your skill rests an opponent's Battle Card or energy" (#157).
       const controller = masterOf(game, state, id);
       const cause: Record<string, string | boolean> = by
-        ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller, notAwaken: by.keyword?.toLowerCase() !== "awaken" }
+        ? { by: by.keyword ?? "skill", byOpponent: by.master !== controller, notAwaken: by.keyword?.toLowerCase() !== "awaken", ...(by.kind ? { kind: by.kind } : {}) }
         : {};
       emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller, args: { mode, in: at ?? "", ...cause } }, { type: "mode", card: id, mode });
       return true;

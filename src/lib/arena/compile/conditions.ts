@@ -109,6 +109,12 @@ export function splitDisjunction(text: string): string[] {
     if (/\d+\s*$/i.test(before) && /^(?:more|less|fewer)\b/i.test(after)) {
       continue;
     }
+    // "and/or" is one word: it joins the areas of a single description ("in
+    // your energy, Z-Energy, Battle Area, and/or Drop", #915), not two
+    // conditions. Cut at its "or" the description lost its last area.
+    if (/and\/$/i.test(before)) {
+      continue;
+    }
     if (new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
       continue;
     }
@@ -146,6 +152,18 @@ function leaderTailHoldsAClause(tail: string): boolean {
   return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
 }
 
+/**
+ * Set when `parseCountCondition` refused a count on purpose (#915). A compound
+ * ("if your Leader is green or yellow **and you have a total of 2 or more
+ * green and/or yellow cards in your Combo Area**") must then be refused whole:
+ * cut at its "and", the Leader half read on alone and the count vanished.
+ */
+let countRefused = false;
+const refuseCount = (): null => {
+  countRefused = true;
+  return null;
+};
+
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
   // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
   // counted together, which "blue or yellow cards" already says. Only between
@@ -158,10 +176,6 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // the text. The delay phrases ("during your opponent's *next* turn") are
   // matched before this is reached, so they are not caught here.
   const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "");
-  // Any other "and/or" ("… cards in your Battle Area and/or Combo Area",
-  // BT16-087) counts across the places together; the cuts below at "or" would
-  // read it as one count per place, so it is no condition at all (#961).
-  if (t.includes("and/or")) return null;
   // "if your Leader Card is yellow and your life is at 4 or less" splits on the
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
@@ -209,7 +223,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
         /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
       const carried = subject && namesACard ? parseConditionClause(`${subject[1]} ${half}`, true) : null;
+      countRefused = false;
       const got = carried ?? parseConditionClause(part.trim(), true);
+      if (!got && countRefused) return null;
       if (!got) {
         conds.length = 0;
         // A part the compiler reads as something the player *does* is a price
@@ -547,11 +563,33 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // "You have **a total of 2 or more** green cards in your Combo Area" (#961):
+  // the article took the number and the clause below read "at least 1". With
+  // one description the total is the plain count; across three or more places
+  // it is still the cross-kind total #915 refuses.
+  const totalOf = !none && !num ? /^total of (\d+ or (?:more|less|fewer) .+)$/.exec(said) : null;
+  if (totalOf) {
+    // A list of places ("in your energy, Z-Energy, Battle Area, and Drop", P-456)
+    // is not one count of one area either way.
+    if (/(?:,|\band\b)\s*(?:the\s+)?(?:your\s+|their\s+)?(?:energy|z-energy|battle|drop|warp|hand|life|combo|unison|deck)\b/i.test(totalOf[1])) return refuseCount();
+    const plain = parseCountCondition(t.replace(/\b(?:an?|any) total of /, ""));
+    return plain && plain.kind === "count" && (plain.sel.areas?.length ?? 0) >= 3 ? refuseCount() : plain;
+  }
   // "You have 3 or more energy **and you send** 1 red card, 1 blue card, …
   // from your Drop Area to your Warp" (SD16-03, #728): a count's description
   // never has a second subject in it. Read as one, the action became a colour
   // filter on the Drop and the price was neither checked nor charged.
   if (/\band you\b/.test(said)) return null;
+  // Three wordings a count cannot state yet are refused rather than read as a
+  // plainer count (#915). "Cards with different **character** names" asks for
+  // another measure than "different card names" (`differentNames`), and read
+  // without it the clause became a bare count (BT18-107). (A total of 7 or
+  // more across a list of areas, P-616, is refused below.) And "blue **and/or**
+  // yellow cards", "<Pan> cards **and/or** cards with <GT>" in the description
+  // (not in the place list after it) is a union of two descriptions: split at the
+  // "or" it was either part alone, joined whole its colours were intersected.
+  if (/\bdifferent (?!card names\b)/.test(said)) return refuseCount();
+  if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
   // more white cards in your Drop" (BT29-085) are two counts, and read as one
@@ -609,6 +647,15 @@ function parseCountCondition(t: string): Cond | null {
   const phrase = mine ? `your ${rest}` : theirs ? `your opponent's ${rest}` : rest;
   const sel = parseTarget(phrase);
   if (!sel) return null;
+  // "A total of 7 or more cards … in your energy, Z-Energy, Battle Area, and/or
+  // Drop" (P-616, #915): the article took the number, which would be read as
+  // "at least 1" across four areas. Refused, as the issue asks, until a total
+  // across kinds has a word of its own.
+  if (/^total of \d/.test(said) && (sel.areas?.length ?? 0) >= 3) return refuseCount();
+  // "… in your Battle Area **and/or** Combo Area" (BT16-087): the pair of places
+  // counted together. A target reads the last place of a pair and drops the
+  // first, so the clause is refused unless the places came back as a list (#961).
+  if (/\band\/or\b/.test(rest) && (sel.areas?.length ?? 0) < 2) return refuseCount();
   // A count reads the whole area, not one card out of it.
   delete sel.count;
   delete sel.upTo;
