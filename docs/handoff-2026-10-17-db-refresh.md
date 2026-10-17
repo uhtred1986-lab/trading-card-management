@@ -7,10 +7,9 @@ authorised this run (17 Oct 2026); still show the plan and stop before each `--a
 
 ## 0. Setup and safety
 - `git pull` on `main` (at or after `de0ac3a`); `npm ci`; Node 24.
-- Make sure the production deploy of `main` that contains `de0ac3a` is live before applying anything. The stored rows
+- Make sure the production deploy of `main` that contains `57a4acb` (PR #974) is live before applying anything. The stored rows
   must not run ahead of the deployed interpreter (new ops: `notIn`/`EXCEPT`, `yourUnisonLeft`,
-  `ownedByOpponent`, `specifiedCost`, `selfRestToActive`, …). If PR "EX24-05 only" (feat/ex24-05-only) has merged by then,
-  wait for that deploy too.
+  `ownedByOpponent`, `specifiedCost`, `selfRestToActive`, …).
 - `npm run db:check`: it must list `card_rules`. If it does not, stop: that is the wrong database.
 - Read `docs/agent-brief.md` (Data section) and `scripts/lib/reviewed-rule-refresh.ts`. Writes go only
   through repo scripts that lock, compare and swap, never through ad hoc `UPDATE`s.
@@ -20,8 +19,8 @@ authorised this run (17 Oct 2026); still show the plan and stop before each `--a
 ```
 npm run arena:rule -- EX24-05 --skill 10 "“If you only have blue ≪Power Wish≫ <Son Goku> cards in play in your Battle Area” needs at least one Battle Card there, and all of them must be blue Power Wish Son Goku cards; an empty Battle Area does not satisfy it."
 ```
-Check the skill index with `npm run arena:rule -- --list` or the workbench first. The code for this is
-being made in a separate PR (branch `feat/ex24-05-only`).
+Check the skill index with `npm run arena:rule -- --list` or the workbench first. The code is merged
+(PR #974). It applies the same reading to BT7-004 (Alliance Auto) and P-210 (Drop play), which share the wording.
 
 ## 2. Plan (read only)
 Write a bounded plan script, `scripts/arena-refresh-2026-10-17.mts`, modelled on
@@ -46,6 +45,7 @@ Expected families (the plan should contain these and little else; anything else 
 - #967 EX24-01 back, -03, -04, -08, -10, -13
 - #968: BT19-028/045/086/120, BT20-129, BT25-066, BT27-023/042/055/072/107, P-482; BT20-091/096/097/100/103/106–109/112/118/147, SD22-05/06, P-492; BT1-065, BT13-099
 - #971: BT14-131–135/137/138, BT15-130–137, P-313; BT9-046/059/061/120/121/122
+- #974: EX24-05, BT7-004, P-210 ("only have … in your Battle Area", needs at least one)
 - #972: BT10-025/026, BT12-138/139, BT18-041, BT19-004, EB1-38 back, P-286, P-287, P-441, SD16-03
 
 ## 3. Apply
