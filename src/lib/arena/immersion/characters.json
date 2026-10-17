@@ -1,11 +1,25 @@
 {
   "version": 1,
+  "sources": [
+    {
+      "kind": "generated-character-sprite-sheets",
+      "repositoryPath": "/workspace/sites/arena-kamehameha/dist/characters",
+      "provenance": "Generated with OpenAI image generation for this project in the user-requested session; the prototype sheets were copied unchanged.",
+      "license": "Generated for this project; no third-party source artwork was used."
+    },
+    {
+      "kind": "generated-character-sprite-sheets",
+      "repositoryPath": "public/arena/characters (android17, android18, ba, bardock, bardock-ss, bardock-xeno, bardock-xeno-ss3, beerus, belmod, borgos)",
+      "provenance": "Generated for this project (issue #863) with Google Gemini gemini-3-pro-image on a flat key-colour background, from a written character description plus two references: the project's own goku.png sheet for style and layout, and one Dragon Ball wiki picture for the character's likeness. No card art was uploaded. Background keyed out locally and the three poses laid out in equal 724 px thirds; the raw outputs are kept outside the repo.",
+      "license": "Original artwork generated for this project; no third-party image is included in the sheets."
+    }
+  ],
   "characters": [
     {
-      "id": "goku",
-      "name": "Goku",
-      "sheet": "/arena/characters/goku.png",
-      "sha256": "6cb7e3bb895ec34f3d9caff3dcedbe7937c9bfbb7a1c6af930d14b72466a6893",
+      "id": "android17",
+      "name": "Android 17",
+      "sheet": "/arena/characters/android17.png",
+      "sha256": "2f97974ae5e2569f57ecf7d3ad0ba54ed78204c467f78b66f3e6bba5c23560bf",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -15,10 +29,10 @@
       ]
     },
     {
-      "id": "vegeta",
-      "name": "Vegeta",
-      "sheet": "/arena/characters/vegeta.png",
-      "sha256": "45e3f5a7ec2838912140a97fb4ef4ac1a5c9f2a3a414f8738ebbbad5f0b13c65",
+      "id": "android18",
+      "name": "Android 18",
+      "sheet": "/arena/characters/android18.png",
+      "sha256": "4cc3954ee0253f62d0ae1280e25cad6f7c8089d95eb90192b4fa37cc77f5a1f3",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -28,10 +42,10 @@
       ]
     },
     {
-      "id": "gohan",
-      "name": "Gohan",
-      "sheet": "/arena/characters/gohan.png",
-      "sha256": "e6e7e02f5b4c1f5935135573798f74aa3e6e1993506610d975e7889af0c83ce5",
+      "id": "ba",
+      "name": "Ba",
+      "sheet": "/arena/characters/ba.png",
+      "sha256": "c8bed200e7c67b3ec1d4a7ac9e49e2ca56b0c0d3a5425044eca3c69b8110a339",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -41,10 +55,10 @@
       ]
     },
     {
-      "id": "piccolo",
-      "name": "Piccolo",
-      "sheet": "/arena/characters/piccolo.png",
-      "sha256": "a1d88d98ada5612e05d7c07bb3acaabe8c3c3a73ff8fa200984840ef8e56d6b7",
+      "id": "bardock",
+      "name": "Bardock",
+      "sheet": "/arena/characters/bardock.png",
+      "sha256": "1de71498dee77a2cb1630404f4cc7c024623dc30fd3fd746bb0abfcb20376c09",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -54,10 +68,10 @@
       ]
     },
     {
-      "id": "krillin",
-      "name": "Krillin",
-      "sheet": "/arena/characters/krillin.png",
-      "sha256": "72afb1053ff3e3dab9b726a2579f0f136109d2708737107aed6b1fb8679fdafe",
+      "id": "bardock-ss",
+      "name": "Super Saiyan Bardock",
+      "sheet": "/arena/characters/bardock-ss.png",
+      "sha256": "fc73c3613822806e0c9f8fc4e7a545306ca063f7521f02a9bf820e8ad50fee39",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -67,10 +81,75 @@
       ]
     },
     {
-      "id": "frieza",
-      "name": "Frieza",
-      "sheet": "/arena/characters/frieza.png",
-      "sha256": "933a8d3e2352d58c48e78ee44e9f34172e1cfc1528e2b40ff04aa18e9be663d6",
+      "id": "bardock-xeno",
+      "name": "Bardock: Xeno",
+      "sheet": "/arena/characters/bardock-xeno.png",
+      "sha256": "44ff8754d1b0f89b59e42145b8484e326451c4a1c5f4e0c9161e949c766f0d44",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bardock-xeno-ss3",
+      "name": "SS3 Bardock: Xeno",
+      "sheet": "/arena/characters/bardock-xeno-ss3.png",
+      "sha256": "1fb5aee5dc127e1b3c0676fdd05db1d57b29de0b190d6beadfb0cfc005e16db0",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "beerus",
+      "name": "Beerus",
+      "sheet": "/arena/characters/beerus.png",
+      "sha256": "6cb21140435bda73b2abe87751f1a6eb48400fbd181b164d4f479741abe4fe52",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "belmod",
+      "name": "Belmod",
+      "sheet": "/arena/characters/belmod.png",
+      "sha256": "d407f6b7c9154589c0e0b793012ad8f7f9265d6d60e4a299210e9b70c7d07c87",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "borgos",
+      "name": "Borgos",
+      "sheet": "/arena/characters/borgos.png",
+      "sha256": "eb9558967238a51afe70a36c684c59c0eb4e87998bf6488693d1ae698802f3c4",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "buu",
+      "name": "Majin Buu",
+      "sheet": "/arena/characters/buu.png",
+      "sha256": "6212f219c428b7841657c936c24b58d221e58cbca37a5a2c05a0df5b974e7e9a",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -93,10 +172,75 @@
       ]
     },
     {
-      "id": "buu",
-      "name": "Majin Buu",
-      "sheet": "/arena/characters/buu.png",
-      "sha256": "6212f219c428b7841657c936c24b58d221e58cbca37a5a2c05a0df5b974e7e9a",
+      "id": "frieza",
+      "name": "Frieza",
+      "sheet": "/arena/characters/frieza.png",
+      "sha256": "933a8d3e2352d58c48e78ee44e9f34172e1cfc1528e2b40ff04aa18e9be663d6",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "gohan",
+      "name": "Gohan",
+      "sheet": "/arena/characters/gohan.png",
+      "sha256": "e6e7e02f5b4c1f5935135573798f74aa3e6e1993506610d975e7889af0c83ce5",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "goku",
+      "name": "Goku",
+      "sheet": "/arena/characters/goku.png",
+      "sha256": "6cb7e3bb895ec34f3d9caff3dcedbe7937c9bfbb7a1c6af930d14b72466a6893",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "krillin",
+      "name": "Krillin",
+      "sheet": "/arena/characters/krillin.png",
+      "sha256": "72afb1053ff3e3dab9b726a2579f0f136109d2708737107aed6b1fb8679fdafe",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "piccolo",
+      "name": "Piccolo",
+      "sheet": "/arena/characters/piccolo.png",
+      "sha256": "a1d88d98ada5612e05d7c07bb3acaabe8c3c3a73ff8fa200984840ef8e56d6b7",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "vegeta",
+      "name": "Vegeta",
+      "sheet": "/arena/characters/vegeta.png",
+      "sha256": "45e3f5a7ec2838912140a97fb4ef4ac1a5c9f2a3a414f8738ebbbad5f0b13c65",
       "width": 2172,
       "height": 724,
       "frames": [
@@ -107,22 +251,6 @@
     }
   ],
   "mappings": [
-    {
-      "cardId": "BT10-037",
-      "face": "front",
-      "name": "Son Goku",
-      "characterId": "goku",
-      "evidence": {
-        "catalogCardName": "Son Goku",
-        "catalogCharacter": [
-          "Son Goku"
-        ],
-        "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-037.png",
-        "reviewedCardArtSha256": "ad6b2cf58b3340fd391bc2a1af9cd2716465c8e6cfc35f8547331a2d9d05b821",
-        "visualReview": "Black-haired Goku in the orange gi, matching the sheet; no Super Saiyan or other transformation is depicted."
-      }
-    },
     {
       "cardId": "BT1-038",
       "face": "front",
@@ -140,51 +268,51 @@
       }
     },
     {
-      "cardId": "BT4-028",
+      "cardId": "BT1-056",
       "face": "front",
-      "name": "Son Gohan",
-      "characterId": "gohan",
+      "name": "Son Goku",
+      "characterId": "goku",
       "evidence": {
-        "catalogCardName": "Son Gohan",
+        "catalogCardName": "Son Goku",
         "catalogCharacter": [
-          "Son Gohan: Adolescence"
+          "Son Goku"
         ],
-        "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT4-028.png",
-        "reviewedCardArtSha256": "6a99599f49b7865d7a516989c9efd17351e086770ebe7ed635bcf200d9445c27",
-        "visualReview": "Adolescent Son Gohan with black hair and a purple gi, matching the sheet; no Super Saiyan form is depicted."
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-056-front.png",
+        "reviewedCardArtSha256": "1c84dc6a31ab8d76a27685a6d6311c46b644b4e04408fcac84c8bcd37d4eae6b",
+        "visualReview": "Inspected the bundled classic tutorial front: black-haired Son Goku in orange gi with blue undershirt and wristbands, matching the Goku sheet. Awakened face intentionally unmapped."
       }
     },
     {
-      "cardId": "BT14-008",
+      "cardId": "BT1-084",
       "face": "front",
-      "name": "Piccolo",
-      "characterId": "piccolo",
+      "name": "Frieza",
+      "characterId": "frieza",
       "evidence": {
-        "catalogCardName": "Piccolo",
+        "catalogCardName": "Frieza",
         "catalogCharacter": [
-          "Piccolo"
+          "Frieza"
         ],
-        "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT14-008.png",
-        "reviewedCardArtSha256": "98de85a60a74816d297bcdf1dcffa0b7b14946bd0b4175dba3dab91fe8751142",
-        "visualReview": "Piccolo in his standard green Namekian appearance; no fusion or altered form is depicted."
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-084-front.png",
+        "reviewedCardArtSha256": "dc4cc8a28993efcdf50bc913d33b30ab071a1ed53eb618b86242b142c66b1e15",
+        "visualReview": "Inspected the bundled classic tutorial front: Frieza in the white-bodied, purple-accented final form shown by the sheet. Awakened face intentionally unmapped."
       }
     },
     {
-      "cardId": "BT7-061",
+      "cardId": "BT10-037",
       "face": "front",
-      "name": "Krillin",
-      "characterId": "krillin",
+      "name": "Son Goku",
+      "characterId": "goku",
       "evidence": {
-        "catalogCardName": "Krillin",
+        "catalogCardName": "Son Goku",
         "catalogCharacter": [
-          "Krillin"
+          "Son Goku"
         ],
         "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-061.png",
-        "reviewedCardArtSha256": "c140e76c07a68868fa41983c7ad646e51e3b46e541f0af4a0a6bcb4276d8192e",
-        "visualReview": "Adult bald Krillin in an orange gi, matching the sheet."
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-037.png",
+        "reviewedCardArtSha256": "ad6b2cf58b3340fd391bc2a1af9cd2716465c8e6cfc35f8547331a2d9d05b821",
+        "visualReview": "Black-haired Goku in the orange gi, matching the sheet; no Super Saiyan or other transformation is depicted."
       }
     },
     {
@@ -204,35 +332,19 @@
       }
     },
     {
-      "cardId": "XD3-10",
+      "cardId": "BT14-008",
       "face": "front",
-      "name": "Cell, Perfection Reclaimed",
-      "characterId": "cell",
+      "name": "Piccolo",
+      "characterId": "piccolo",
       "evidence": {
-        "catalogCardName": "Cell, Perfection Reclaimed",
+        "catalogCardName": "Piccolo",
         "catalogCharacter": [
-          "Cell"
+          "Piccolo"
         ],
         "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD3-10.png",
-        "reviewedCardArtSha256": "fa9ec17c93e0ee1dc1e409cbd2aaefa0639851b40da4055e6c4a89d034abde69",
-        "visualReview": "Cell in the green, black-plated perfect form with wing shells shown by the sheet."
-      }
-    },
-    {
-      "cardId": "DB1-030",
-      "face": "front",
-      "name": "Majin Buu",
-      "characterId": "buu",
-      "evidence": {
-        "catalogCardName": "Majin Buu",
-        "catalogCharacter": [
-          "Majin Buu"
-        ],
-        "cardType": "BATTLE",
-        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/DB1-030.png",
-        "reviewedCardArtSha256": "906889998c30e58eec63bd36665601dce7c79a8884d95eb8c823c2c70daa0f98",
-        "visualReview": "Round, pink Majin Buu with the black tunic, white pants, and cape shown by the sheet."
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT14-008.png",
+        "reviewedCardArtSha256": "98de85a60a74816d297bcdf1dcffa0b7b14946bd0b4175dba3dab91fe8751142",
+        "visualReview": "Piccolo in his standard green Namekian appearance; no fusion or altered form is depicted."
       }
     },
     {
@@ -284,44 +396,316 @@
       }
     },
     {
-      "cardId": "BT1-056",
-      "face": "front",
-      "name": "Son Goku",
-      "characterId": "goku",
+      "cardId": "BT3-082",
+      "face": "back",
+      "name": "Unwavering Justice Bardock",
+      "characterId": "bardock-ss",
       "evidence": {
-        "catalogCardName": "Son Goku",
+        "catalogCardName": "Bardock",
         "catalogCharacter": [
-          "Son Goku"
+          "Bardock"
         ],
         "cardType": "LEADER",
-        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-056-front.png",
-        "reviewedCardArtSha256": "1c84dc6a31ab8d76a27685a6d6311c46b644b4e04408fcac84c8bcd37d4eae6b",
-        "visualReview": "Inspected the bundled classic tutorial front: black-haired Son Goku in orange gi with blue undershirt and wristbands, matching the Goku sheet. Awakened face intentionally unmapped."
+        "catalogBackName": "Unwavering Justice Bardock",
+        "catalogBackCharacter": [
+          "Bardock"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-082_b.png",
+        "reviewedCardArtSha256": "beb7df22f458b1f020e08ff61173dd441beba278d206a9eec8282ef17d6eb224",
+        "visualReview": "Awakened back face shows Bardock as a Super Saiyan with golden hair, red headband and green Saiyan armour; matches the SS sheet."
       }
     },
     {
-      "cardId": "BT1-084",
+      "cardId": "BT3-082",
       "face": "front",
-      "name": "Frieza",
-      "characterId": "frieza",
+      "name": "Bardock",
+      "characterId": "bardock",
       "evidence": {
-        "catalogCardName": "Frieza",
+        "catalogCardName": "Bardock",
         "catalogCharacter": [
-          "Frieza"
+          "Bardock"
         ],
         "cardType": "LEADER",
-        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-084-front.png",
-        "reviewedCardArtSha256": "dc4cc8a28993efcdf50bc913d33b30ab071a1ed53eb618b86242b142c66b1e15",
-        "visualReview": "Inspected the bundled classic tutorial front: Frieza in the white-bodied, purple-accented final form shown by the sheet. Awakened face intentionally unmapped."
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-082.png",
+        "reviewedCardArtSha256": "0b6e647cf6cfa574d5529406d54d7743a11f6a4ea5e685e52bd8301eb84922a1",
+        "visualReview": "Base Bardock: black spiky hair, red headband, green and yellow Saiyan armour; no transformation shown."
       }
-    }
-  ],
-  "sources": [
+    },
     {
-      "kind": "generated-character-sprite-sheets",
-      "repositoryPath": "/workspace/sites/arena-kamehameha/dist/characters",
-      "provenance": "Generated with OpenAI image generation for this project in the user-requested session; the prototype sheets were copied unchanged.",
-      "license": "Generated for this project; no third-party source artwork was used."
+      "cardId": "BT3-084",
+      "face": "front",
+      "name": "Desperate Warrior Super Saiyan Bardock",
+      "characterId": "bardock-ss",
+      "evidence": {
+        "catalogCardName": "Desperate Warrior Super Saiyan Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-084.png",
+        "reviewedCardArtSha256": "33e28df6b86952f0c3678defbfbd917b8e69bc4ba155e972312a33e676628778",
+        "visualReview": "Super Saiyan Bardock: golden spiky hair, red headband, green/yellow Saiyan armour; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT3-086",
+      "face": "front",
+      "name": "Striker Bardock",
+      "characterId": "bardock",
+      "evidence": {
+        "catalogCardName": "Striker Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-086.png",
+        "reviewedCardArtSha256": "1acc0b7804daaf8bcfa4f8b30568b1e5fc291d0a935a48b10be2eb92cd8509b5",
+        "visualReview": "Base Bardock striking: black spiky hair, red headband, green/yellow Saiyan armour; matches the base sheet."
+      }
+    },
+    {
+      "cardId": "BT3-101",
+      "face": "front",
+      "name": "Unwavering Solidarity Borgos",
+      "characterId": "borgos",
+      "evidence": {
+        "catalogCardName": "Unwavering Solidarity Borgos",
+        "catalogCharacter": [
+          "Borgos"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-101.png",
+        "reviewedCardArtSha256": "44d80c0658dbcfde0379cbddc5b0a0d1c18c93f3517d6dd24f54569e195623f6",
+        "visualReview": "Borgos: bald, heavily muscled Saiyan in Saiyan battle armour; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT3-109",
+      "face": "front",
+      "name": "SS3 Bardock, Power Unleashed",
+      "characterId": "bardock-xeno-ss3",
+      "evidence": {
+        "catalogCardName": "SS3 Bardock, Power Unleashed",
+        "catalogCharacter": [
+          "Bardock: Xeno"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-109.png",
+        "reviewedCardArtSha256": "c35fbad755669d395d637563097b10601ef3c85c2bea1e1622b08eb42aeff2eb",
+        "visualReview": "Xeno Bardock as Super Saiyan 3: long golden hair, red headband, black armour; matches the Xeno SS3 sheet."
+      }
+    },
+    {
+      "cardId": "BT3-110",
+      "face": "front",
+      "name": "Awakened Warrior Bardock",
+      "characterId": "bardock-xeno",
+      "evidence": {
+        "catalogCardName": "Awakened Warrior Bardock",
+        "catalogCharacter": [
+          "Bardock: Xeno"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-110.png",
+        "reviewedCardArtSha256": "a48e13603e1b3dfee80d42eafa750dca38a6dda02d408aadfe72caf18bc426df",
+        "visualReview": "Xeno Bardock in base form: black spiky hair, red headband, black armour with red trim; matches the Xeno sheet."
+      }
+    },
+    {
+      "cardId": "BT4-028",
+      "face": "front",
+      "name": "Son Gohan",
+      "characterId": "gohan",
+      "evidence": {
+        "catalogCardName": "Son Gohan",
+        "catalogCharacter": [
+          "Son Gohan: Adolescence"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT4-028.png",
+        "reviewedCardArtSha256": "6a99599f49b7865d7a516989c9efd17351e086770ebe7ed635bcf200d9445c27",
+        "visualReview": "Adolescent Son Gohan with black hair and a purple gi, matching the sheet; no Super Saiyan form is depicted."
+      }
+    },
+    {
+      "cardId": "BT6-069",
+      "face": "front",
+      "name": "Ties that Bind Ba",
+      "characterId": "ba",
+      "evidence": {
+        "catalogCardName": "Ties that Bind Ba",
+        "catalogCharacter": [
+          "Ba: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-069.png",
+        "reviewedCardArtSha256": "f1c4e434646b4ba5a77e283467b547f44a8a5af99b27a253f1e5f2eea9e469d5",
+        "visualReview": "Ba, the pale-green round furry creature with red eyes and a wide toothy grin; drawn as a creature sheet (owner's judgement call)."
+      }
+    },
+    {
+      "cardId": "BT7-061",
+      "face": "front",
+      "name": "Krillin",
+      "characterId": "krillin",
+      "evidence": {
+        "catalogCardName": "Krillin",
+        "catalogCharacter": [
+          "Krillin"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-061.png",
+        "reviewedCardArtSha256": "c140e76c07a68868fa41983c7ad646e51e3b46e541f0af4a0a6bcb4276d8192e",
+        "visualReview": "Adult bald Krillin in an orange gi, matching the sheet."
+      }
+    },
+    {
+      "cardId": "BT9-031",
+      "face": "front",
+      "name": "Android 18, Steadfast Technique",
+      "characterId": "android18",
+      "evidence": {
+        "catalogCardName": "Android 18, Steadfast Technique",
+        "catalogCharacter": [
+          "Android 18"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT9-031.png",
+        "reviewedCardArtSha256": "a73d1a474be7f52498f0a19fda67e30c55114a68bf416f83268673562746ec39",
+        "visualReview": "Android 18 with a short blonde bob and her pink-red zip jacket; matches the sheet."
+      }
+    },
+    {
+      "cardId": "DB1-030",
+      "face": "front",
+      "name": "Majin Buu",
+      "characterId": "buu",
+      "evidence": {
+        "catalogCardName": "Majin Buu",
+        "catalogCharacter": [
+          "Majin Buu"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/DB1-030.png",
+        "reviewedCardArtSha256": "906889998c30e58eec63bd36665601dce7c79a8884d95eb8c823c2c70daa0f98",
+        "visualReview": "Round, pink Majin Buu with the black tunic, white pants, and cape shown by the sheet."
+      }
+    },
+    {
+      "cardId": "EX03-17",
+      "face": "front",
+      "name": "Limitless Energy Android 17",
+      "characterId": "android17",
+      "evidence": {
+        "catalogCardName": "Limitless Energy Android 17",
+        "catalogCharacter": [
+          "Android 17"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/EX03-17.png",
+        "reviewedCardArtSha256": "7302158e40e1e94a64740934333d34a3a2c9b76982e2e6e159a5fd0a0432c688",
+        "visualReview": "Android 17 in his Super-era ranger look: long straight black hair, grey shirt, dark green vest, blue jeans; matches the sheet."
+      }
+    },
+    {
+      "cardId": "EX03-24",
+      "face": "front",
+      "name": "Clownish Destruction Belmod",
+      "characterId": "belmod",
+      "evidence": {
+        "catalogCardName": "Clownish Destruction Belmod",
+        "catalogCharacter": [
+          "Belmod"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/EX03-24.png",
+        "reviewedCardArtSha256": "6059732887246a79f55d5b3b2168466154ee57405862ae727998923060bf2a53",
+        "visualReview": "Belmod: white clown face, red nose, orange-red hair tufts, pale green-white skin, gold god collar and pink trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "SD3-01",
+      "face": "back",
+      "name": "Bardock, Unbound by Darkness",
+      "characterId": "bardock-xeno-ss3",
+      "evidence": {
+        "catalogCardName": "The Masked Saiyan",
+        "catalogCharacter": [
+          "Masked Saiyan"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Bardock, Unbound by Darkness",
+        "catalogBackCharacter": [
+          "Bardock: Xeno"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD3-01_b.png",
+        "reviewedCardArtSha256": "b5aee9bf412f86cf6de534ecf35945553f381cdaea0b1820b59744462ddf076f",
+        "visualReview": "Back face shows Bardock freed from the mask as a Super Saiyan 3 with long golden hair and black Xeno armour; matches the Xeno SS3 sheet."
+      }
+    },
+    {
+      "cardId": "SD5-02",
+      "face": "front",
+      "name": "Power Charge Bardock",
+      "characterId": "bardock-ss",
+      "evidence": {
+        "catalogCardName": "Power Charge Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD5-02.png",
+        "reviewedCardArtSha256": "f95623cc72c2c8e7e0bcfcf4aac440609d6a1dba435dd9a8015b76221af0b772",
+        "visualReview": "Bardock powering up as a Super Saiyan with golden hair and green Saiyan armour; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "SD8-10",
+      "face": "front",
+      "name": "Godly Destruction Beerus",
+      "characterId": "beerus",
+      "evidence": {
+        "catalogCardName": "Godly Destruction Beerus",
+        "catalogCharacter": [
+          "Beerus: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-10.png",
+        "reviewedCardArtSha256": "011a15173332e41bd40ec92b4c5dab48f30dd0ad2c52947ee920aad5a7d8b9c0",
+        "visualReview": "Beerus, purple cat-like God of Destruction in his black top and blue trousers with gold ornaments; matches the sheet."
+      }
+    },
+    {
+      "cardId": "TB1-055",
+      "face": "front",
+      "name": "Infinite Energy Android 18",
+      "characterId": "android18",
+      "evidence": {
+        "catalogCardName": "Infinite Energy Android 18",
+        "catalogCharacter": [
+          "Android 18"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/TB1-055.png",
+        "reviewedCardArtSha256": "aadb357ed1426f1bb947c7e17ae297f5ee17d8dc8b6bd58f00ef3cffef11e322",
+        "visualReview": "Android 18, short blonde bob, pink-red jacket outfit; same costume as the sheet."
+      }
+    },
+    {
+      "cardId": "XD3-10",
+      "face": "front",
+      "name": "Cell, Perfection Reclaimed",
+      "characterId": "cell",
+      "evidence": {
+        "catalogCardName": "Cell, Perfection Reclaimed",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD3-10.png",
+        "reviewedCardArtSha256": "fa9ec17c93e0ee1dc1e409cbd2aaefa0639851b40da4055e6c4a89d034abde69",
+        "visualReview": "Cell in the green, black-plated perfect form with wing shells shown by the sheet."
+      }
     }
   ]
 }

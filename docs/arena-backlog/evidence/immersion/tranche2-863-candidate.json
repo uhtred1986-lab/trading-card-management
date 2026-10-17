@@ -1,0 +1,393 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "kind": "generated-character-sprite-sheets",
+      "repositoryPath": "public/arena/characters (android17, android18, ba, bardock, bardock-ss, bardock-xeno, bardock-xeno-ss3, beerus, belmod, borgos)",
+      "provenance": "Generated for this project (issue #863) with Google Gemini gemini-3-pro-image on a flat key-colour background, from a written character description plus two references: the project's own goku.png sheet for style and layout, and one Dragon Ball wiki picture for the character's likeness. No card art was uploaded. Background keyed out locally and the three poses laid out in equal 724 px thirds; the raw outputs are kept outside the repo.",
+      "license": "Original artwork generated for this project; no third-party image is included in the sheets."
+    }
+  ],
+  "characters": [
+    {
+      "id": "android17",
+      "name": "Android 17",
+      "sheet": "/arena/characters/android17.png",
+      "sha256": "2f97974ae5e2569f57ecf7d3ad0ba54ed78204c467f78b66f3e6bba5c23560bf",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "android18",
+      "name": "Android 18",
+      "sheet": "/arena/characters/android18.png",
+      "sha256": "4cc3954ee0253f62d0ae1280e25cad6f7c8089d95eb90192b4fa37cc77f5a1f3",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "ba",
+      "name": "Ba",
+      "sheet": "/arena/characters/ba.png",
+      "sha256": "c8bed200e7c67b3ec1d4a7ac9e49e2ca56b0c0d3a5425044eca3c69b8110a339",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bardock",
+      "name": "Bardock",
+      "sheet": "/arena/characters/bardock.png",
+      "sha256": "1de71498dee77a2cb1630404f4cc7c024623dc30fd3fd746bb0abfcb20376c09",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bardock-ss",
+      "name": "Super Saiyan Bardock",
+      "sheet": "/arena/characters/bardock-ss.png",
+      "sha256": "fc73c3613822806e0c9f8fc4e7a545306ca063f7521f02a9bf820e8ad50fee39",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bardock-xeno",
+      "name": "Bardock: Xeno",
+      "sheet": "/arena/characters/bardock-xeno.png",
+      "sha256": "44ff8754d1b0f89b59e42145b8484e326451c4a1c5f4e0c9161e949c766f0d44",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bardock-xeno-ss3",
+      "name": "SS3 Bardock: Xeno",
+      "sheet": "/arena/characters/bardock-xeno-ss3.png",
+      "sha256": "1fb5aee5dc127e1b3c0676fdd05db1d57b29de0b190d6beadfb0cfc005e16db0",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "beerus",
+      "name": "Beerus",
+      "sheet": "/arena/characters/beerus.png",
+      "sha256": "6cb21140435bda73b2abe87751f1a6eb48400fbd181b164d4f479741abe4fe52",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "belmod",
+      "name": "Belmod",
+      "sheet": "/arena/characters/belmod.png",
+      "sha256": "d407f6b7c9154589c0e0b793012ad8f7f9265d6d60e4a299210e9b70c7d07c87",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "borgos",
+      "name": "Borgos",
+      "sheet": "/arena/characters/borgos.png",
+      "sha256": "eb9558967238a51afe70a36c684c59c0eb4e87998bf6488693d1ae698802f3c4",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "cardId": "EX03-17",
+      "face": "front",
+      "name": "Limitless Energy Android 17",
+      "characterId": "android17",
+      "evidence": {
+        "catalogCardName": "Limitless Energy Android 17",
+        "catalogCharacter": [
+          "Android 17"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/EX03-17.png",
+        "reviewedCardArtSha256": "7302158e40e1e94a64740934333d34a3a2c9b76982e2e6e159a5fd0a0432c688",
+        "visualReview": "Android 17 in his Super-era ranger look: long straight black hair, grey shirt, dark green vest, blue jeans; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT9-031",
+      "face": "front",
+      "name": "Android 18, Steadfast Technique",
+      "characterId": "android18",
+      "evidence": {
+        "catalogCardName": "Android 18, Steadfast Technique",
+        "catalogCharacter": [
+          "Android 18"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT9-031.png",
+        "reviewedCardArtSha256": "a73d1a474be7f52498f0a19fda67e30c55114a68bf416f83268673562746ec39",
+        "visualReview": "Android 18 with a short blonde bob and her pink-red zip jacket; matches the sheet."
+      }
+    },
+    {
+      "cardId": "TB1-055",
+      "face": "front",
+      "name": "Infinite Energy Android 18",
+      "characterId": "android18",
+      "evidence": {
+        "catalogCardName": "Infinite Energy Android 18",
+        "catalogCharacter": [
+          "Android 18"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/TB1-055.png",
+        "reviewedCardArtSha256": "aadb357ed1426f1bb947c7e17ae297f5ee17d8dc8b6bd58f00ef3cffef11e322",
+        "visualReview": "Android 18, short blonde bob, pink-red jacket outfit; same costume as the sheet."
+      }
+    },
+    {
+      "cardId": "BT6-069",
+      "face": "front",
+      "name": "Ties that Bind Ba",
+      "characterId": "ba",
+      "evidence": {
+        "catalogCardName": "Ties that Bind Ba",
+        "catalogCharacter": [
+          "Ba: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-069.png",
+        "reviewedCardArtSha256": "f1c4e434646b4ba5a77e283467b547f44a8a5af99b27a253f1e5f2eea9e469d5",
+        "visualReview": "Ba, the pale-green round furry creature with red eyes and a wide toothy grin; drawn as a creature sheet (owner's judgement call)."
+      }
+    },
+    {
+      "cardId": "BT3-082",
+      "face": "front",
+      "name": "Bardock",
+      "characterId": "bardock",
+      "evidence": {
+        "catalogCardName": "Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-082.png",
+        "reviewedCardArtSha256": "0b6e647cf6cfa574d5529406d54d7743a11f6a4ea5e685e52bd8301eb84922a1",
+        "visualReview": "Base Bardock: black spiky hair, red headband, green and yellow Saiyan armour; no transformation shown."
+      }
+    },
+    {
+      "cardId": "BT3-086",
+      "face": "front",
+      "name": "Striker Bardock",
+      "characterId": "bardock",
+      "evidence": {
+        "catalogCardName": "Striker Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-086.png",
+        "reviewedCardArtSha256": "1acc0b7804daaf8bcfa4f8b30568b1e5fc291d0a935a48b10be2eb92cd8509b5",
+        "visualReview": "Base Bardock striking: black spiky hair, red headband, green/yellow Saiyan armour; matches the base sheet."
+      }
+    },
+    {
+      "cardId": "BT3-084",
+      "face": "front",
+      "name": "Desperate Warrior Super Saiyan Bardock",
+      "characterId": "bardock-ss",
+      "evidence": {
+        "catalogCardName": "Desperate Warrior Super Saiyan Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-084.png",
+        "reviewedCardArtSha256": "33e28df6b86952f0c3678defbfbd917b8e69bc4ba155e972312a33e676628778",
+        "visualReview": "Super Saiyan Bardock: golden spiky hair, red headband, green/yellow Saiyan armour; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT3-082",
+      "face": "back",
+      "name": "Unwavering Justice Bardock",
+      "characterId": "bardock-ss",
+      "evidence": {
+        "catalogCardName": "Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Unwavering Justice Bardock",
+        "catalogBackCharacter": [
+          "Bardock"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-082_b.png",
+        "reviewedCardArtSha256": "beb7df22f458b1f020e08ff61173dd441beba278d206a9eec8282ef17d6eb224",
+        "visualReview": "Awakened back face shows Bardock as a Super Saiyan with golden hair, red headband and green Saiyan armour; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "SD5-02",
+      "face": "front",
+      "name": "Power Charge Bardock",
+      "characterId": "bardock-ss",
+      "evidence": {
+        "catalogCardName": "Power Charge Bardock",
+        "catalogCharacter": [
+          "Bardock"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD5-02.png",
+        "reviewedCardArtSha256": "f95623cc72c2c8e7e0bcfcf4aac440609d6a1dba435dd9a8015b76221af0b772",
+        "visualReview": "Bardock powering up as a Super Saiyan with golden hair and green Saiyan armour; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT3-110",
+      "face": "front",
+      "name": "Awakened Warrior Bardock",
+      "characterId": "bardock-xeno",
+      "evidence": {
+        "catalogCardName": "Awakened Warrior Bardock",
+        "catalogCharacter": [
+          "Bardock: Xeno"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-110.png",
+        "reviewedCardArtSha256": "a48e13603e1b3dfee80d42eafa750dca38a6dda02d408aadfe72caf18bc426df",
+        "visualReview": "Xeno Bardock in base form: black spiky hair, red headband, black armour with red trim; matches the Xeno sheet."
+      }
+    },
+    {
+      "cardId": "BT3-109",
+      "face": "front",
+      "name": "SS3 Bardock, Power Unleashed",
+      "characterId": "bardock-xeno-ss3",
+      "evidence": {
+        "catalogCardName": "SS3 Bardock, Power Unleashed",
+        "catalogCharacter": [
+          "Bardock: Xeno"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-109.png",
+        "reviewedCardArtSha256": "c35fbad755669d395d637563097b10601ef3c85c2bea1e1622b08eb42aeff2eb",
+        "visualReview": "Xeno Bardock as Super Saiyan 3: long golden hair, red headband, black armour; matches the Xeno SS3 sheet."
+      }
+    },
+    {
+      "cardId": "SD3-01",
+      "face": "back",
+      "name": "Bardock, Unbound by Darkness",
+      "characterId": "bardock-xeno-ss3",
+      "evidence": {
+        "catalogCardName": "The Masked Saiyan",
+        "catalogCharacter": [
+          "Masked Saiyan"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Bardock, Unbound by Darkness",
+        "catalogBackCharacter": [
+          "Bardock: Xeno"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD3-01_b.png",
+        "reviewedCardArtSha256": "b5aee9bf412f86cf6de534ecf35945553f381cdaea0b1820b59744462ddf076f",
+        "visualReview": "Back face shows Bardock freed from the mask as a Super Saiyan 3 with long golden hair and black Xeno armour; matches the Xeno SS3 sheet."
+      }
+    },
+    {
+      "cardId": "SD8-10",
+      "face": "front",
+      "name": "Godly Destruction Beerus",
+      "characterId": "beerus",
+      "evidence": {
+        "catalogCardName": "Godly Destruction Beerus",
+        "catalogCharacter": [
+          "Beerus: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-10.png",
+        "reviewedCardArtSha256": "011a15173332e41bd40ec92b4c5dab48f30dd0ad2c52947ee920aad5a7d8b9c0",
+        "visualReview": "Beerus, purple cat-like God of Destruction in his black top and blue trousers with gold ornaments; matches the sheet."
+      }
+    },
+    {
+      "cardId": "EX03-24",
+      "face": "front",
+      "name": "Clownish Destruction Belmod",
+      "characterId": "belmod",
+      "evidence": {
+        "catalogCardName": "Clownish Destruction Belmod",
+        "catalogCharacter": [
+          "Belmod"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/EX03-24.png",
+        "reviewedCardArtSha256": "6059732887246a79f55d5b3b2168466154ee57405862ae727998923060bf2a53",
+        "visualReview": "Belmod: white clown face, red nose, orange-red hair tufts, pale green-white skin, gold god collar and pink trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT3-101",
+      "face": "front",
+      "name": "Unwavering Solidarity Borgos",
+      "characterId": "borgos",
+      "evidence": {
+        "catalogCardName": "Unwavering Solidarity Borgos",
+        "catalogCharacter": [
+          "Borgos"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-101.png",
+        "reviewedCardArtSha256": "44d80c0658dbcfde0379cbddc5b0a0d1c18c93f3517d6dd24f54569e195623f6",
+        "visualReview": "Borgos: bald, heavily muscled Saiyan in Saiyan battle armour; matches the sheet."
+      }
+    }
+  ]
+}
