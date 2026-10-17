@@ -6,7 +6,7 @@ import { emptyFilter } from "../text/filters";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
-import { aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceX } from "./prices";
+import { aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -579,6 +579,9 @@ function compileSkillText(skill: Skill): Script {
   // so the skill fired for any card that was played, KO'd or activated
   // (BT29-029's blue Extra, and some forty skills before it). The same holds
   // for a condition riding on the trigger and for the host of "placed under".
+  // #961: a printed price that read as neither a condition nor an action is
+  // not free — the skill is unread, not offered for its orbs alone.
+  if (ops.length && !engineChecks && priceIsUnread(skill)) return { ops: [], unsupported: [skill.cost, ...unsupported] };
   if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: effectTriggerCond ? [{ op: "if", cond: effectTriggerCond, then: ops }] : ops }], unsupported };
   // A condition the compiler cannot read fails the skill. An *action* price is
   // not this: the engine charges that separately, so it leaves the program be.

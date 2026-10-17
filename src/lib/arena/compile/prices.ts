@@ -280,6 +280,38 @@ export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | nu
 }
 
 /**
+ * The price a skill prints, with the descriptor of its [Bond] or [Spirit Boost]
+ * marker taken off: "[Bond 2] ≪Alien≫ (This skill takes effect when you have 2
+ * or more …):" and "[Spirit Boost 1] Blue Unison Card with a specified cost of
+ * 2 or more, you have 3 or more energy:" name the Unison the markers come from
+ * or the Battle Cards the Bond counts, which the keyword's own move reads. What
+ * follows the descriptor's comma is the price proper (#961).
+ */
+function priceText(skill: Skill): string {
+  const said = costText(skill.cost);
+  if (skill.bond != null) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
+  if (skill.spiritBoost != null) return said.replace(/^(?:[a-z-]+ )?(?:z-)?unison cards?\b[^,]*(?:,\s*|$)/i, "");
+  return said;
+}
+
+/**
+ * #961: a price the compiler read none of. An [Activate], [Auto] or [Counter]
+ * line prints what it costs before the colon; text there that is neither orbs,
+ * nor a condition, nor an action the compiler can charge was dropped without a
+ * word, and the skill was offered for the orbs alone ("send 1 blue card with
+ * <Son Goten> … and 1 blue card with <Trunks> … to your Warp", P-441). Such a
+ * line is unread, whole. Lines a keyword owns (their price is read by the
+ * keyword's own move) and [Permanent]s (no price) are not asked.
+ */
+export function priceIsUnread(skill: Skill): boolean {
+  if (skill.keyword || !/^(?:activate|auto|counter)/.test(skill.kind)) return false;
+  const said = priceText(skill);
+  if (!said || costIsOnlyOrbs(skill.cost) || priceX(skill)) return false;
+  const split = splitPrice(skill);
+  return !split.conds.length && !split.program;
+}
+
+/**
  * A price says one of three things, and a few hundred cards say two of them at
  * once: "[Activate: Main] If your Leader is a white <Cell> card, and you
  * remove this card in your Drop from the game and discard 1 card from your
@@ -302,7 +334,7 @@ const priceSplits = new Map<string, PriceSplit>();
 const NO_PRICE: PriceSplit = { conds: [], program: null };
 
 function splitPrice(skill: Skill): PriceSplit {
-  const said = costText(skill.cost);
+  const said = priceText(skill);
   if (!said || costIsOnlyOrbs(skill.cost)) return NO_PRICE;
   const key = `${skill.tags.join("|")} ${said}`;
   const hit = priceSplits.get(key);
