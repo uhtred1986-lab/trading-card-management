@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { priceIsUnread } from "../../src/lib/arena/compile/prices";
+import { describeScript } from "../../src/lib/arena/vm/script-schema";
 
 const BT31_049 = "[activate: main/battle] [limit 1] {1}, if your Leader is green or has <GT> in its character name, and you have 3 or more energy: Play this card from your hand.";
 const P_525 = "[activate: main][limit 1]{g}{g}, if your Leader is green or is a black <Announcer> card and you have 3 or more energy: Play this card from your hand.";
@@ -39,6 +40,12 @@ for (const [id, text] of [["BT31-049", BT31_049], ["P-525", P_525], ["P-526", P_
 assert.deepEqual(condOf(P_525).conds![0].conds![1].filter!.characters, ["announcer"]);
 assert.deepEqual(condOf(P_525).conds![0].conds![1].filter!.colors, ["Black"]);
 assert.deepEqual(condOf(BT31_049).conds![0].conds![1].filter!.charactersIncluding, ["gt"]);
+// The reading names the second Leader rather than "a match".
+{
+  const reads = describeScript(compileSkill(one(BT31_049)).ops);
+  assert.match(reads, /your leader is a card with <gt> in its character name/i, `BT31-049 reads: ${reads}`);
+  assert.doesNotMatch(reads, /a match/);
+}
 
 // ── #961's refusals stay refused ─────────────────────────────────────────────
 {

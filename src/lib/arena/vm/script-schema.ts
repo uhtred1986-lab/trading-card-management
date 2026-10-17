@@ -1171,7 +1171,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // name of an all-of list is required, so each is said, characters as `<…>`
       // and card names as `{…}`, the way the other name lists are.
       const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
-      const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf];
+      // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
+      const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
+      const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
       return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
