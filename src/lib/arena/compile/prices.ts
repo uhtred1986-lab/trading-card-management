@@ -136,8 +136,11 @@ function battleAltCost(sentence: string, c: Ctx): Op[] | null {
  * before offering the skill nor applied to the program.
  */
 export function costText(cost: string): string {
+  // #926: the slash of "{b}/{w}, if you have 3 or more energy …" (BT29-141)
+  // is orb notation too (5-8-2-1), as `costIsOnlyOrbs` reads it — left on,
+  // "/{w}, if …" was no price at all and the line was refused as unread.
   return stripNotes(cost)
-    .replace(/^(?:\{[^}]*\}|\s|,)+/, "")
+    .replace(/^(?:\{[^}]*\}|\s|,|\/)+/, "")
     .trim();
 }
 
@@ -159,6 +162,9 @@ export function compileCostProgram(skill: Skill): Script | null {
 
 const costPrograms = new Map<string, Script | null>();
 
+/** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926). */
+const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve"]);
+
 /**
  * Compile one piece of price text as a program. Memoised on the text and the
  * line's tags, which decide whether a keyword owns the line rather than the
@@ -174,10 +180,15 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // never the price printed before the colon — "[Swap 2] {y}, choose 1 card
   // from your hand and place it in your Drop Area: ≪Goku's Lineage≫ …"
   // (BT4-079). Left on the line, the tag made every [Swap] action price read
-  // as nothing, and the line was refused as unread. Only [Swap]'s tag comes off:
-  // the other keywords that own their line keep their prices unread until
-  // their own moves can charge one.
-  const tags = skill.keyword?.name === "Swap" ? skill.tags.filter((t) => keywordOf(t)?.name !== "Swap") : skill.tags;
+  // as nothing, and the line was refused as unread. #926: the same holds for
+  // [Union-Fusion], [Union-Potara] and the [Evolve] family, whose moves pay
+  // their printed action price on the strict host (`vm/keyword-costs.ts`) —
+  // "[Union-Fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and …"
+  // (BT11-013), "[EX-Evolve]{r}{r}{r}, draw 1 card: Red <Broly: Br> …"
+  // (BT13-024). Only those tags come off: the other keywords that own their
+  // line keep their prices unread until their own moves can charge one.
+  const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
+  const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
   let sc = read(said);
   // A printed price is written in the second person and every action pattern

@@ -39,6 +39,12 @@ export function allConditions(head: string): { cond: Cond; subject?: Ref }[] | n
   // have a total of 8 or less life", "at least 1 <Recoome>, <Jeice>, <Burter>,
   // and <Guldo> card in play" — and cutting those up loses 291 skills to save
   // the few the `charged` guard already refuses.
+  // #926: the same guard at the comma. "Your Leader is a green <Zamasu> card,
+  // you draw 1 card" (BT26-084) read whole is one Leader description with the
+  // draw swallowed by its greedy tail — a price charged in part, which is a
+  // free draw. A piece after the first that reads as an action is the price's
+  // action half, so the whole is no condition at all.
+  if (parts.some((j, i) => readsAsAction(head.slice(j.at + j.len, parts[i + 1]?.at ?? head.length).replace(/[\s,]+$/, "").trim()))) return null;
   const whole = parseConditionClause(head, true);
   return whole ? [whole] : null;
 }
@@ -180,7 +186,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
         // 914 skills read that way, including BT31-132's "and you remove this
         // card in your Drop from the game". `splitPrice` reads such a price in
         // two; here the clause is simply not a condition.
-        charged = readsAsAction((raw[i] ?? part).replace(/[\s,]+$/, "").trim());
+        // #926: "and **your** draw 3 cards" (BT31-149, a misprinted "you") is
+        // that action too — probed without the stray "your", so the price is
+        // refused as unread rather than read as its condition alone.
+        const piece = (raw[i] ?? part).replace(/[\s,]+$/, "").trim();
+        charged = readsAsAction(piece) || readsAsAction(piece.replace(/^your\s+/i, ""));
         break;
       }
       conds.push(got.cond);

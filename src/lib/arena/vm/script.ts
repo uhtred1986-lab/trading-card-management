@@ -1062,6 +1062,16 @@ export type Op =
    */
   | { op: "printedEffect" }
   /**
+   * #926: where a keyword move's printed action price — the action before the
+   * colon, "[Union-Fusion]{r}{r}{r}, draw 2 cards: …" (BT11-013) — is paid: on
+   * the strict action-price host, in front of the rest of the `DO`
+   * (`vm/keyword-costs.ts`). [Union-Fusion] says it after its materials are
+   * in the Drop (22-13-4-4-1), [Union-Potara] and the [Evolve] family first
+   * (22-13-5-2, 22-5-3). A `DEFINE KEYWORD` body's word, on no card: it pays
+   * what `ScriptFrame.keywordPrice` carries and does nothing anywhere else.
+   */
+  | { op: "payActionPrice" }
+  /**
    * [Empower]'s leaf (22-45-3, #157): the `markerCarry` query hook's answer —
    * the master may carry up to `upTo` of the replaced Unison's markers onto
    * this one, when the replaced card is `color` (any colour without one). Read
@@ -1251,6 +1261,9 @@ export interface ScriptFrame {
   counterMotion?: import("./battle").CounterMotion;
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
+  /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Additive: older states never carry one. */
+  keywordPrice?: import("./keyword-costs").KeywordCost;
+  keywordCost?: import("./keyword-costs").KeywordCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */
   uniqueKeep?: import("./unique").UniqueKeep;
   /**
@@ -1783,6 +1796,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // #154: a keyword body's word — the line's printed effect, announced
       // as printed and spliced in where the body says, so it reads what the
       // body bound. Taken off the frame as it runs: it happens once.
+      // #926: the keyword move's action price is paid here, by a strict frame
+      // put in front of the rest of this one (`vm/keyword-costs.ts`).
+      case "payActionPrice": {
+        if (!frame.keywordPrice) break;
+        frame.ip++;
+        h.resume(frame);
+        h.payKeywordPrice(frame);
+        return "done";
+      }
+
       case "printedEffect": {
         const printed = frame.printed;
         frame.printed = undefined;

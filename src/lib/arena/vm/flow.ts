@@ -66,6 +66,7 @@ import type { VmFrame, VmState } from "./state";
 import { interruptedOutcome, type StoredOutcome } from "../outcome";
 import { stepAegisCost } from "./aegis-costs";
 import { stepSwapCost } from "./swap-costs";
+import { stepKeywordCost } from "./keyword-costs";
 import { stepDropCost } from "./drop-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
@@ -1186,6 +1187,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
+    if (frame.keywordCost) return stepKeywordCost(ctx, game, state, ev, frame);
     if (frame.dropCost) return stepDropCost(ctx, game, state, ev, frame);
     if (frame.uniqueKeep) return stepUniqueKeep(ctx, game, state, ev, frame, (id, opts) => moved(ctx, game, state, ev, id, "drop", opts));
     if (frame.autoCost) {

@@ -915,6 +915,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     offCard:
       "the line's own printed effect, announced as printed and run at this point of a keyword's DO with everything the DO bound — [Alliance] rests its cost and only then runs the effect that reads the cards it rested (22-32-3); nothing on a program that is not a keyword moment's",
   },
+  payActionPrice: {
+    fields: [],
+    sentence: "the line's printed action price is paid",
+    offCard:
+      "where a keyword move's printed action price (the action before its colon, \"draw 1 card\") is paid on the strict action-price host, in front of the rest of the DO — [Union-Fusion] after its materials are in the Drop (22-13-4-4-1), [Union-Potara] and the [Evolve] family first (#926); a price that cannot be paid in full fails the activation (5-8-4); nothing on a line with no action price",
+  },
   carryMarkers: {
     fields: [
       { name: "upTo", type: "amount", required: true },
@@ -1006,6 +1012,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   setPlayerAttr:      "primitive",
   battleDamage:       "primitive",
   printedEffect:      "primitive",
+  payActionPrice:     "primitive",
   carryMarkers:       "primitive",
 };
 

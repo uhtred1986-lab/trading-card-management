@@ -136,8 +136,18 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     amount: (f, amount) => {
       const n = host.amount(f, amount);
       const op = f.ops[f.ip];
-      if (op?.op === "mill" && sideOf(f.master, op.side).some((p) => host.zone(p, "deck").length < n)) unpaid();
+      if ((op?.op === "mill" || op?.op === "draw") && sideOf(f.master, op.side).some((p) => host.zone(p, "deck").length < n)) unpaid();
       return n;
+    },
+    // #926 (5-1-1, 5-8-2-2): "draw N cards" as a price is paid only when N
+    // cards actually go from the top of the deck to the hand. Only a family
+    // that opts in reads a draw price at all (`readableAutomaticPrice`).
+    draw: (p, n) => {
+      if (host.zone(p, "deck").length < n) unpaid();
+      const before = host.zone(p, "hand").length;
+      const drawn = host.draw(p, n);
+      if (drawn !== n || host.zone(p, "hand").length !== before + n) throw new AutoPaymentFailed("a draw paid as a cost did not complete");
+      return drawn;
     },
     move: (id, to, owner, opts) => {
       if (host.areaOf(id) === to) unpaid();
@@ -525,7 +535,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 
 /** Refuse unimplemented instructions explicitly, rather than calling an
  * unsupported price unaffordable or letting its effect run for free. */
-export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"): void {
+export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549", { draw = false }: { draw?: boolean } = {}): void {
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
     || op.op === "ko" || op.op === "addMarker" || op.op === "forbid" || op.op === "comboFrom" || op.op === "power"
@@ -626,6 +636,12 @@ export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549"
       // face has a complete payment proof. Other shapes stay typed unknown.
       if (op.op === "faceUp") {
         if (!verifiedFaceTurn(op, steps[index - 1])) throw new NotYet(`pay ${label} face-up action price outside the verified Life choice`, owner);
+        paid = true;
+        continue;
+      }
+      // #926: "draw N cards" printed as the price of a keyword move — your own
+      // deck, a printed positive N. Opt-in: the other families keep it typed.
+      if (draw && op.op === "draw" && typeof op.n === "number" && Number.isInteger(op.n) && op.n > 0 && (op.side ?? "you") === "you") {
         paid = true;
         continue;
       }

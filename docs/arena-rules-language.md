@@ -571,6 +571,11 @@ move is about **one printed line** rather than about a card a `FOR` found:
     skill" reads `rested`. A moment's line otherwise runs its `DO` and nothing printed; `AFTER`
     stays a move's. The rules engine puts the effect on the frame; elsewhere the step does nothing.
   - Marked `offCard` on its `OP_SCHEMA` row, like `battleDamage`.
+  - #926 added `payActionPrice()`, on no card either: where a keyword move's printed action
+    price ("[Union-Fusion]{r}{r}{r}, draw 2 cards: …") is paid on the strict action-price host,
+    in front of the rest of the `DO`. [Union-Fusion] says it after its materials are in the Drop
+    (22-13-4-4-1), [Union-Potara] and the [Evolve] family first. The rules engine carries the
+    price on the `DO` frame; elsewhere, and on a line with no action price, the step does nothing.
   - A moment's line with a condition printed before its colon ("[Alliance Red/Green] If your Leader
     Card is blue: …") has it asked before its `DO` runs, after the announcement, as the legacy
     keyword case asks it.
