@@ -23,7 +23,7 @@ import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
-import { priceCondition, priceIsUnread } from "../../src/lib/arena/compile/prices";
+import { priceIsUnread } from "../../src/lib/arena/compile/prices";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
