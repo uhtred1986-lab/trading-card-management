@@ -255,8 +255,8 @@ export interface ScriptHost {
    * attacks / is attacked" is made pending.
    */
   swapBattleCard(out: string, into: string): void;
-  /** 8-6: the attack does not happen. */
-  negateAttack(): void;
+  /** 8-6: the attack does not happen. `false` when it was not negated: no battle, or the attacker's attacks can't be negated (#936). */
+  negateAttack(): boolean;
   /**
    * The [Counter] this window was opened over is negated (9-8). Returns the
    * card that was countered, or null when there is none — the one flow shape

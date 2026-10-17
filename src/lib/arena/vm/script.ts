@@ -998,8 +998,12 @@ export type Op =
    * each `filter.colors` from the Drop to the Warp, or one card of the
    * opponent's hand to the bottom of their deck; the second is the target
    * card's own [Aegis] only.
+   * `attackUnnegatable` (EX03-14, #936): the target's attacks can't be
+   * negated — `negateAttack` against a battle it attacks in does nothing and
+   * does not set the "you negated" flag; `until` is its span (a [Permanent]
+   * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand"; until: Duration; target: Ref; filter?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable"; until: Duration; target: Ref; filter?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -2790,8 +2794,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "negateAttack":
         {
           const b = h.battle();
-          if (b) {
-            h.negateAttack();
+          // #936: a protected attacker's attack stays; nothing is recorded as
+          // negated, and the rest of the skill goes on resolving.
+          if (b && h.negateAttack()) {
             // "If you negated a Leader Card's attack with this skill" (20-16).
             const did = (frame.did ??= {});
             did.negateAttack = true;

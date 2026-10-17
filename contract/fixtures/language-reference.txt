@@ -2286,7 +2286,8 @@
             "unionFusionWarp",
             "evolveEnergyBases",
             "aegisAltDrop",
-            "aegisAltOpponentHand"
+            "aegisAltOpponentHand",
+            "attackUnnegatable"
           ]
         },
         {
@@ -2309,7 +2310,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "\"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
+      "doc": "\"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is \"its attacks can't be negated\": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -3999,6 +4000,10 @@
     {
       "name": "played",
       "words": "when this card is played"
+    },
+    {
+      "name": "playedFromHand",
+      "words": "when this card is played from your hand"
     },
     {
       "name": "playedUsingOverRealm",
