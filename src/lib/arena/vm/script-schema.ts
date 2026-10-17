@@ -1166,7 +1166,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "-only" (BT29-108) and "<Baby> or ≪Brainwashed≫" are said as printed:
       // without them the reading claims a wider Leader than the card does.
       const chars = f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`);
-      const traits = f.traits.map((x) => `\u226a${x}\u226b`);
+      // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
+      const traits = f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`);
       // "a Green <Trunks: Future> <Mai: Future> card" (BT23-073, #768): every
       // name of an all-of list is required, so each is said, characters as `<…>`
       // and card names as `{…}`, the way the other name lists are.
@@ -2245,7 +2246,8 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // one direction ground rule 5 forbids. "Non-black Battle Cards" printed as
   // "battle card" is the same sentence as no filter at all.
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
-  bits.push(...f.traits.map((x) => `≪${x}≫`));
+  // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
+  bits.push(...f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
   // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
   // and the word `parseFilter` reads the flag back from.
