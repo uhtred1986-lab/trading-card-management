@@ -30,6 +30,10 @@ const SELF_FROM_RE = new RegExp(
  */
 export function selfFrom(phrase: string): Selector {
   const m = SELF_FROM_RE.exec(phrase);
+  // "…you add **this card in your hand** to your Z-Energy" (EX24-03): the same
+  // area said with "in". Only the hand: it is where a card is used from, and
+  // every other area word here keeps its "from".
+  if (!m && /\bthis card in your hand\b/i.test(phrase)) return { special: "self", area: "hand" };
   if (!m) return { special: "self" };
   const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);
   return areas.length === 1 ? { special: "self", area: areas[0] } : { special: "self", areas };
@@ -285,6 +289,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(notFighting[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     if (!sel || sel.special) return null;
     return { ...sel, notInBattle: true };
+  }
+  // "…Battle Cards **whose owner is your opponent**" (EX24-10): the cards you
+  // control but do not own (20-9, a control exchange). Dropped, the choice
+  // offered every Battle Card of yours, the ones you own included.
+  const borrowed = /\s*,?\s*(?:that are|that is|which are|which is)?\s*whose owners? (?:is|are) your opponent\b/i.exec(phrase);
+  if (borrowed) {
+    const sel = parseTarget(phrase.replace(borrowed[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special || sel.side === "opponent") return null;
+    return { ...sel, ownedByOpponent: true };
   }
   const different = DIFFERENT_NAMES.exec(phrase);
   if (!different) return parseTargetPhrase(phrase, looked, pool);
@@ -808,6 +821,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // `yourCardPlaced`). The trigger refuses a description with a place or a
     // means in it (`text/triggers.ts`), so none is cut off here.
     /^(?:an?|1|one of your|your) ((?!opponent|this card\b).+?) (?:is|are) placed in (?:your|a) battle area$/.exec(t)?.[1] ??
+    // "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b,
+    // `yourUnisonLeft`): the Unison that left, as it was when it did.
+    /^(?:an?|1|one of your|your) ((?!opponent|this card\b).+?) leaves? (?:your|the) unison area$/.exec(t)?.[1] ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that

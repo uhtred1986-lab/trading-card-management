@@ -103,7 +103,7 @@ export interface RenderOptions {
 export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 
 /** The card measures an `Amount` may read off one card (`AmountAttr`) — `lang/ast.ts`'s `EXPR_ATTRS`, written out here because the schema cannot import the language. */
-const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost"] as const satisfies readonly AmountAttr[];
+const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost", "specifiedCost"] as const satisfies readonly AmountAttr[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const REPLACE_EVENTS = ["leave", "ko", "play", "life", "marker", "attack", "counter"] as const satisfies readonly ReplaceEvent[];
@@ -1854,6 +1854,7 @@ const SELECTOR_KEYS = {
   fromEnd: 1,
   ignoreBarrier: 1,
   notInBattle: 1,
+  ownedByOpponent: 1,
   notSelf: 1,
   differentNames: 1,
   sumAtMost: 1,
@@ -1887,6 +1888,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
+  if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
@@ -2505,6 +2507,7 @@ const describeNotSelf = (sel: Selector): string =>
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
+  (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
   (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");
@@ -2519,7 +2522,7 @@ function describeRef(ref: Ref): string {
  * noun sits next to the number rather than at the end of the sentence.
  */
 /** The measures `attr` and `sumOf` read, as a person names them. */
-const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost" };
+const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost", specifiedCost: "specified cost" };
 
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {

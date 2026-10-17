@@ -478,6 +478,16 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       if (/ or |\bfrom\b|\bby\b|\busing\b|\bunder\b|\bwithout\b|\bin your\b/.test(kinds)) return false;
       return !parseFilter(effect.unmask(m[1])).unreadable;
     }
+    // EX24-01b: another Unison of yours leaving your Unison Area, to anywhere.
+    // The description becomes a condition on the subject as it left, so one
+    // the compiler cannot read whole, or a place/means the moment does not
+    // tell apart, does not fire at all.
+    case "yourUnisonLeft": {
+      const m = /^when (?:an?|1|one of your|your) (?!opponent)([^,:]{1,90}?) leaves? (?:your|the) unison area(?:,|$)/.exec(head);
+      if (!m || /^this card\b/.test(m[1])) return false;
+      if (/ or |\bfrom\b|\bby\b|\busing\b|\bunder\b|\bwithout\b/.test(m[1])) return false;
+      return !parseFilter(effect.unmask(m[1])).unreadable;
+    }
     case "energyToDrop":
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":

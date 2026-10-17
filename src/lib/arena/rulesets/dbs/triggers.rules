@@ -267,6 +267,14 @@ DEFINE TRIGGER yourCardReturnedToHand
   BIND "subject"
   text: "when a card is returned from your Battle Area to its owner's hand"
 
+-- EX24-01b: "your Unison Area" is the original holder's, and the Unison is read
+-- as it was when it left (the movement carries its information), whichever
+-- area it went to.
+DEFINE TRIGGER yourUnisonLeft
+  ON moved(from: unison, watcher: fromHolder)
+  BIND "subject"
+  text: "when a Unison leaves your Unison Area"
+
 -- BT3-112: Battle Area OR deck, and no restriction on the movement's cause.
 DEFINE TRIGGER battleOrDeckToWarp
   ON moved(from: [battle, deck], to: warp)

@@ -520,7 +520,7 @@ export interface ContinuousEffect {
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1 } | { standingGrantId: string };
+  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -710,6 +710,13 @@ export type Trigger =
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
   | "yourCardReturnedToHand"
+  /**
+   * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another
+   * Unison of yours leaving your Unison Area for any area, watched by your cards
+   * in play. The Unison is the `subject`; what the clause says about it is a
+   * condition read from its information at the moment it left (`subjectInfo`).
+   */
+  | "yourUnisonLeft"
   | "battleOrDeckToWarp"
   /**
    * "When [or "If"] this card is placed in your Drop Area from your hand by a
