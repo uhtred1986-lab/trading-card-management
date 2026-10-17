@@ -154,7 +154,12 @@ export function splitDisjunction(text: string): string[] {
  * another clause, and the whole is then no Leader condition at all.
  */
 function leaderTailHoldsAClause(tail: string): boolean {
-  const bare = tail.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "x");
+  // "…is green **or is** a black <Announcer> card" (P-525, P-526) and "…is green
+  // **or has** <GT> in its character name" (BT31-049) restate the Leader
+  // description for the next alternative: the verb belongs to the disjunction
+  // (`splitDisjunction` cuts at the "or"), it is not a clause of its own. A verb
+  // that follows a comma or "and" still is one, so those stay refused.
+  const bare = tail.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "x").replace(/\bor\s+(?:is|has)\b/g, "or");
   return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
 }
 
