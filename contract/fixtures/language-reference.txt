@@ -4242,6 +4242,10 @@
       "words": "when your opponent switches their energy to Active Mode using a [Counter] skill"
     },
     {
+      "name": "selfRestToActive",
+      "words": "when this card is switched from Rest Mode to Active Mode"
+    },
+    {
       "name": "hiddenBySkill",
       "words": "when this card is switched to Hidden Mode by one of your skills"
     },

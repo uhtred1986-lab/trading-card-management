@@ -76,7 +76,7 @@ for (const [id] of PRINTED) {
   assert.ok(refused("[Permanent] If your Leader is a ≪Bardock's Crew≫ card and there are 4 or more ≪Bardock's Crew≫ cards with different character names in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power."), "'different character names' is not 'different card names'");
   assert.ok(refused("[Permanent] If there are 3 or more blue and/or yellow cards in your Battle Area and/or Combo Area, this card gets +6000 power."), "a union of descriptions stays unread");
   assert.ok(refused("[Permanent] If you have a total of 7 or more cards with <GT> in their character names among all cards in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power."), "P-616's total across kinds stays unread");
-  assert.ok(refused("[Permanent] If your Leader is green or yellow and you have a total of 2 or more green and/or yellow cards in your Combo Area, this card gets +6000 power."), "and a compound that carries one stays unread whole");
+  assert.ok(refused("[Permanent] If your Leader is green or yellow and you have a total of 2 or more <Pan> cards and/or cards with <GT> in their character names in your Combo Area, this card gets +6000 power."), "and a compound that carries one stays unread whole");
   assert.deepEqual(skillRecords(card("R916", { skill: "[Permanent] If there are 5 or more {Infinite Multiplication Meta-Cooler} in your energy, Battle Area, and/or Drop, this card gets +6000 power." }))[0].unread, [], "a plain three-area list with and/or reads");
 }
 

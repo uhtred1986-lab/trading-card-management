@@ -17,14 +17,20 @@ export function allConditions(head: string): { cond: Cond; subject?: Ref }[] | n
   if (parts.length) {
     const conds: { cond: Cond; subject?: Ref }[] = [];
     let from = 0;
+    let leader = "";
     for (const j of [...parts, { at: head.length, len: 0 }]) {
-      const got = parseConditionClause(
-        head
-          .slice(from, j.at)
-          .replace(/[\s,]+$/, "")
-          .trim(),
-        true,
-      );
+      const piece = head
+        .slice(from, j.at)
+        .replace(/[\s,]+$/, "")
+        .trim();
+      // #961: "if your Leader is blue, **has <Gotenks> in its character name**,
+      // and …" lists several properties of the same Leader; the later pieces
+      // arrive without a subject. Carry the Leader of the piece before.
+      const own = /^(?:(?:if|when|while)\s+)?(your|your opponent's) leader\b/i.exec(piece);
+      const continued = leader && /^has .+ in its (?:special traits?|card name|character names?)$/i.test(piece);
+      const got = (continued ? parseConditionClause(`${leader} leader ${piece}`, true) : null) ?? parseConditionClause(piece, true);
+      if (own) leader = own[1].toLowerCase();
+      else if (!continued) leader = "";
       if (!got) {
         conds.length = 0;
         break;
@@ -87,6 +93,7 @@ function readsAsAction(said: string): boolean {
   }
 }
 
+const COLOR_WORD = "(?:red|blue|green|yellow|black|colorless)";
 const COLOR_NAMES_PATTERN = "(?:an?\\s+)?(?:red|blue|green|yellow|black|colorless)";
 const AREA_NAMES_PATTERN = "(?:(?:your|your opponent's|the|an?)\\s+)?(?:hand|deck|drop|warp|life|battle|unison|energy|leader|combo|play|z-deck|z-energy|zdeck|zenergy)(?: area)?";
 
@@ -130,6 +137,22 @@ export function splitDisjunction(text: string): string[] {
 }
 
 /**
+ * #961: the description after "your Leader is" runs to the end of the text, and
+ * `parseFilter` takes what it knows from it and ignores the rest. "…is blue or
+ * yellow **and 3 or more blue and/or yellow cards are in your Combo Area**"
+ * (BT19-145) and "…is blue, has <Gotenks> in its character name, **and you
+ * send 1 blue card … to your Warp**" (P-441) both came back as a Leader
+ * colour, the second requirement or the whole price quietly gone — a card
+ * offered more cheaply than printed. A Leader description names colours,
+ * traits and names; a verb, a second subject or a count after a joint is
+ * another clause, and the whole is then no Leader condition at all.
+ */
+function leaderTailHoldsAClause(tail: string): boolean {
+  const bare = tail.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "x");
+  return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
+}
+
+/**
  * Set when `parseCountCondition` refused a count on purpose (#915). A compound
  * ("if your Leader is green or yellow **and you have a total of 2 or more
  * green and/or yellow cards in your Combo Area**") must then be refused whole:
@@ -142,7 +165,13 @@ const refuseCount = (): null => {
 };
 
 export function parseConditionClause(clause: string, allowBare = false): { cond: Cond; subject?: Ref } | null {
-  const trimmed = clause.toLowerCase().trim();
+  // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
+  // counted together, which "blue or yellow cards" already says. Only between
+  // two colours: the slash splits any other pair into garbage (#961).
+  const trimmed = clause
+    .toLowerCase()
+    .trim()
+    .replace(new RegExp(`\\b(${COLOR_WORD})\\s+and/or\\s+(?=${COLOR_WORD}\\b)`, "g"), "$1 or ");
   // "During your turn" is a condition too, and reads as one everywhere else in
   // the text. The delay phrases ("during your opponent's *next* turn") are
   // matched before this is reached, so they are not caught here.
@@ -230,6 +259,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
+    if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1]);
     if (parts.length > 1) {
       const conds = parts.map((part) => ({
@@ -243,6 +273,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If your opponent's Leader Card is red or blue" — the same test, other side.
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
+    if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1]);
     if (parts.length > 1) {
       const conds = parts.map((part) => ({
@@ -489,6 +520,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "count", sel, atMost: 0 } };
     }
   }
+  // "If **3 or more blue cards are in your Combo Area**" (BT19-145): the count
+  // first and the place last — "there are 3 or more blue cards in your Combo
+  // Area" with the verb moved, read by the same code (#961).
+  if ((m = /^(\d+ or (?:more|less|fewer)) (.+?) (?:is|are) (in (?:play|your [a-z-]+(?: area)?|your opponent's [a-z-]+(?: area)?))$/.exec(t))) {
+    const moved = parseCountCondition(`there are ${m[1]} ${m[2]} ${m[3]}`);
+    if (moved) return { cond: moved };
+  }
   const counted = parseCountCondition(t);
   if (counted) return { cond: counted };
   // Several conditions joined; "and" binds tightly.
@@ -525,6 +563,18 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // "You have **a total of 2 or more** green cards in your Combo Area" (#961):
+  // the article took the number and the clause below read "at least 1". With
+  // one description the total is the plain count; across three or more places
+  // it is still the cross-kind total #915 refuses.
+  const totalOf = !none && !num ? /^total of (\d+ or (?:more|less|fewer) .+)$/.exec(said) : null;
+  if (totalOf) {
+    // A list of places ("in your energy, Z-Energy, Battle Area, and Drop", P-456)
+    // is not one count of one area either way.
+    if (/(?:,|\band\b)\s*(?:the\s+)?(?:your\s+|their\s+)?(?:energy|z-energy|battle|drop|warp|hand|life|combo|unison|deck)\b/i.test(totalOf[1])) return refuseCount();
+    const plain = parseCountCondition(t.replace(/\b(?:an?|any) total of /, ""));
+    return plain && plain.kind === "count" && (plain.sel.areas?.length ?? 0) >= 3 ? refuseCount() : plain;
+  }
   // "You have 3 or more energy **and you send** 1 red card, 1 blue card, …
   // from your Drop Area to your Warp" (SD16-03, #728): a count's description
   // never has a second subject in it. Read as one, the action became a colour
@@ -602,6 +652,10 @@ function parseCountCondition(t: string): Cond | null {
   // "at least 1" across four areas. Refused, as the issue asks, until a total
   // across kinds has a word of its own.
   if (/^total of \d/.test(said) && (sel.areas?.length ?? 0) >= 3) return refuseCount();
+  // "… in your Battle Area **and/or** Combo Area" (BT16-087): the pair of places
+  // counted together. A target reads the last place of a pair and drops the
+  // first, so the clause is refused unless the places came back as a list (#961).
+  if (/\band\/or\b/.test(rest) && (sel.areas?.length ?? 0) < 2) return refuseCount();
   // A count reads the whole area, not one card out of it.
   delete sel.count;
   delete sel.upTo;

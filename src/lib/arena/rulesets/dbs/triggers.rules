@@ -511,6 +511,16 @@ DEFINE TRIGGER opponentOwnEnergyActiveByCounter
   BIND "subject"
   text: "when your opponent switches their energy to Active Mode using a [Counter] skill"
 
+-- §1-10-1, §0-2-4-1 — when this card itself is switched from Rest Mode to Active
+-- Mode (TB3-019, #922), by a skill or by the Charge Phase alike. A card already
+-- Active does not switch, so no `modeSwitched` is fired for it. An arrival in
+-- the Battle Area (a play, or the preliminary move of an energy-base [EX-Evolve],
+-- 22-5-3-1-1) is a movement, never a mode switch, and does not match.
+DEFINE TRIGGER selfRestToActive
+  ON modeSwitched(mode: active, in: [battle, leader, unison])
+  BIND "self"
+  text: "when this card is switched from Rest Mode to Active Mode"
+
 -- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode by one of
 -- your skills. The card is face down by the time it answers, and the pattern
 -- naming `hidden: true` is what lets its front side do so (`matchTriggers`).

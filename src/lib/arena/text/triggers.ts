@@ -446,6 +446,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // moment, never the source card's other lines), on either player's turn.
     case "opponentOwnEnergyActiveByCounter":
       return /when your opponent switches their energy to active mode using an? \[?counter\]? skill\b/.test(head.toLowerCase());
+    // #922: the card's own Rest -> Active switch, said in full.
+    case "selfRestToActive":
+      return /^when this card is switched from rest mode to active mode\b/.test(head.toLowerCase());
     case "opponentAttacksRedUnison2":
       return /when your opponent attacks your red unison card with a specified cost of 2\b/.test(head.toLowerCase());
     case "opponentCombos":
