@@ -101,6 +101,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   opponentAttacks: "when your opponent attacks",
   opponentEnergyActiveBySkill: "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn",
   opponentOwnEnergyActiveBySkill: "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn",
+  opponentOwnEnergyActiveByCounter: "when your opponent switches their energy to Active Mode using a [Counter] skill",
   opponentAttacksRedUnison2: "when your opponent attacks your red Unison Card with a specified cost of 2",
   opponentCombos: "when your opponent combos",
   youCombo: "when you combo",

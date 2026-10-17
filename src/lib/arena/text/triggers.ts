@@ -442,6 +442,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when your opponent switches energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
     case "opponentOwnEnergyActiveBySkill":
       return /when your opponent switches (?:their )?energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
+    // #916: the skill must itself be a [Counter] (a typed cause on the
+    // moment, never the source card's other lines), on either player's turn.
+    case "opponentOwnEnergyActiveByCounter":
+      return /when your opponent switches their energy to active mode using an? \[?counter\]? skill\b/.test(head.toLowerCase());
     case "opponentAttacksRedUnison2":
       return /when your opponent attacks your red unison card with a specified cost of 2\b/.test(head.toLowerCase());
     case "opponentCombos":

@@ -168,7 +168,7 @@ export interface ScriptHost {
    * the rules engine fires "…by one of your skills" off it, where the legacy
    * engine pends that moment by name and ignores it.
    */
-  setMode(id: string, mode: Mode, by?: { card: string; master: PlayerId; keyword?: KeywordSkill["name"] }): boolean;
+  setMode(id: string, mode: Mode, by?: { card: string; master: PlayerId; keyword?: KeywordSkill["name"]; kind?: "counter" }): boolean;
   /** 3-9-2-1: turn a card face up or face down where it stands. */
   setFaceUp(id: string, faceUp: boolean): void;
   /** 23-5: switch a Battle Card between Hidden and Revealed Mode. */

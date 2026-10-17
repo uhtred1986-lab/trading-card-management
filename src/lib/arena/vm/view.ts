@@ -237,6 +237,8 @@ function withStep(state: VmState, label: string, view: PromptView): PromptView {
 function hiddenChoices(state: VmState, p: PlayerId, viewer: PlayerId, mine: boolean): string[] {
   const pr = state.prompt;
   if (pr.kind !== "chooseCards" || pr.player !== viewer) return [];
+  // A blind choice (the opponent's face-down Life, #916) shows the chooser no face.
+  if (pr.choice.blind) return [];
   const zones = state.sides[p].zones;
   const at = (zone: string): string[] => zones[zone] ?? [];
   const faceUp = (zone: string): string[] => at(zone).filter((id) => state.cards[id]?.faceUp);

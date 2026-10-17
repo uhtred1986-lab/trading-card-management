@@ -2120,7 +2120,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       // measure's, not a place, and does not let the clause through.
       if (to === "hand" && /^add /.test(t) && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among|of)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, "").replace(/\bspecified costs? of\b/g, ""))) return null;
       const ref = refFor(m[1], c);
-      return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
+      const moved = ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
+      // #916: the opponent's Life lies face down (3-9-2), and placing a card of
+      // it in the Drop Area is chosen without reading it, so asking reveals
+      // none of the candidates to the chooser: they are offered by position.
+      return moved && to === "drop" ? moved.map((o) => (o.op === "choose" && o.sel.side === "opponent" && o.sel.area === "life" && !o.sel.special ? { ...o, blind: true as const } : o)) : moved;
     }
   }
 
@@ -3079,7 +3083,31 @@ const KEYWORD_SKILL_CHOICE = /^choose (?:up to )?(?:\d+|a|an|one) (?:of (?:the )
 const NEGATE_THAT_SKILL = /^(?:and )?(?:negate (?:it|that skill)|that skill is negated)\b/i;
 
 /** The clause loop, shared by a skill's body and by each modal option. */
-export function compileClauseList(clauses: string[], c: Ctx, unsupported: string[]): Op[] {
+/**
+ * #916: "place up to 1 card in your opponent's life and 1 card in your
+ * opponent's energy in their Drop Area" — one placement said once, over two
+ * areas. `splitClauses` cuts it at "and", leaving a first half with no
+ * destination and a second with no "up to". Owner-confirmed reading: the
+ * "up to" holds for both, so each area is its own optional choice and its own
+ * move, read by the ordinary single-area placement. Two *different* areas only.
+ */
+const SPLIT_PLACE_FIRST = /^(place up to \d+ cards?) in (your opponent'?s) (life|energy)(?: area)?$/i;
+const SPLIT_PLACE_SECOND = /^(\d+ cards?) in (your opponent'?s) (life|energy)(?: area)? in (?:their|its owner'?s) drop(?: area)?$/i;
+function joinSplitPlacements(clauses: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < clauses.length; i++) {
+    const first = SPLIT_PLACE_FIRST.exec(clauses[i].trim());
+    const second = first ? SPLIT_PLACE_SECOND.exec(clauses[i + 1]?.trim() ?? "") : null;
+    if (first && second && first[2].toLowerCase() === second[2].toLowerCase() && first[3].toLowerCase() !== second[3].toLowerCase()) {
+      out.push(`${first[1]} in ${first[2]} ${first[3]} in their drop area`, `place up to ${second[1]} in ${second[2]} ${second[3]} in their drop area`);
+      i++;
+    } else out.push(clauses[i]);
+  }
+  return out;
+}
+
+export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[]): Op[] {
+  const clauses = joinSplitPlacements(rawClauses);
   // "if you do" (20-16) makes the rest conditional on the previous choice, and
   // a run of conditions all have to hold, so a group carries a list of them.
   type Group = {
