@@ -13,6 +13,7 @@ import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
+import { completablePicks, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
 
@@ -165,6 +166,19 @@ export interface Selector {
    * a namesake is chosen.
    */
   differentNames?: true;
+  /**
+   * "Send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop to
+   * your Warp" (BT10-025, #970): each slot of a multi-card price is a choice of
+   * its own, and one catalog card may carry several of the names. A choice
+   * that lists the variables of the earlier slots here never offers a card
+   * they bound, so one card cannot pay two slots. `resolveSelector` drops the
+   * bound cards; a `choose` also offers an earlier slot only the cards that
+   * still leave every later slot a card of its own (`vm/disjoint.ts`), and a
+   * price is payable only when such an assignment exists. Only a `choose`'s own
+   * selector may carry it, naming a variable an earlier `choose` of the same
+   * program binds (`programProblem`). A variable not yet bound excludes nothing.
+   */
+  notIn?: string[];
   /**
    * "Choose any number of your opponent's Battle Cards **for which the total
    * cost adds up to 5 or less** and KO them" (BT3-036): another bound on the
@@ -1958,7 +1972,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const cands = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!bound || measure(id) <= room));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!bound || measure(id) <= room));
+        // #970: a slot of a disjoint set offers only the cards that leave the
+        // slots after it a card each — never a way into a dead end, and a
+        // duplicate is not a candidate for the answer to be checked against.
+        const later = laterSlots(frame.ops, frame.ip);
+        const cands = later.length
+          ? completablePicks(open, Math.max(0, want - sofar.length - 1), later, (next, id) => h.resolveSelector({ ...frame, vars: { ...frame.vars, [op.as]: [...sofar, id] } }, next.sel))
+          : open;
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {

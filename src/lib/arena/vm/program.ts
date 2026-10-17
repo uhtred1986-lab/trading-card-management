@@ -1256,8 +1256,11 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     const printed = predicateOf(parseFilter(printedDescription(sk)), game);
     matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
   }
+  // #970: cards an earlier choice of this program bound are not on offer again.
+  const chosenBefore = sel.notIn?.length ? new Set(sel.notIn.flatMap((v) => frame.vars[v] ?? [])) : null;
   return out.filter((id) => {
     if (matchesPrinted && !matchesPrinted(id)) return false;
+    if (chosenBefore?.has(id)) return false;
     const card = state.cards[id];
     if (!card) return false;
     const movementInfo = sel.special === "subject" && id === frame.subject ? frame.subjectInfo : undefined;

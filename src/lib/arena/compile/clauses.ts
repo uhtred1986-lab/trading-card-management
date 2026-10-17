@@ -1,3 +1,4 @@
+import { disjointMoveSpans } from "./disjoint-shape";
 // ── clause splitting ───────────────────────────────────────────────────────
 
 /** Split on commas, semicolons, full stops and "then"/"and", ignoring anything inside brackets. */
@@ -144,8 +145,16 @@ export function splitClauses(text: string): string[] {
     if (piece) out.push(piece);
     start = end + skip;
   };
+  // #970: "send 1 <A> card, 1 <B> card, and 1 <C> card from your Drop to your
+  // Warp" is one clause; its commas and "and"s are the list's own.
+  const wholeMoves = disjointMoveSpans(text);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
+    const whole = wholeMoves.find(([from, to]) => i > from && i < to);
+    if (whole) {
+      i = whole[1] - 1;
+      continue;
+    }
     ASIDE_DASH.lastIndex = i;
     if (dashes >= 2 && dashes % 2 === 0 && ASIDE_DASH.test(text)) {
       inAside = !inAside;

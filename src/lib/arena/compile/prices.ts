@@ -3,6 +3,7 @@ import type { Color, Skill } from "../types";
 import type { Cond, Op, Ref, Script, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, foldBothQualifier } from "./conditions";
+import { disjointMoveSpans } from "./disjoint-shape";
 import { compileClauseList } from "./effects";
 import type { Ctx } from "./shared";
 import { countWord } from "./shared";
@@ -198,7 +199,11 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // copies of this card for the turn" — and those are read as they stand.
   const bare = dropTheSubject(said);
   if ((sc.unsupported.length || !sc.ops.length) && bare !== said) sc = read(bare);
-  const out = sc.unsupported.length || !sc.ops.length ? null : sc;
+  // #970: disjoint choices are charged on an [Activate] line's own price only —
+  // an [Auto], a [Counter] and a keyword's move have their own payment
+  // planners, and none of them matches cards across slots.
+  const disjoint = sc.ops.some((op) => op.op === "choose" && op.sel.notIn);
+  const out = sc.unsupported.length || !sc.ops.length || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
 }
@@ -374,6 +379,10 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // states (`parseTarget`). Refused whole: cut at its "and", the choice half
   // was read into the Leader condition before it.
   if (SUMMED_COUNT.test(said) || EACH_COUNT.test(said)) return NO_PRICE;
+  // #970: a multi-slot send/place beside an aside the readers above did not fold
+  // ("a <Gogeta> or <Veku> card―both with the [aegis] skill―in play", BT22-033)
+  // would keep the condition half-read: left unread whole.
+  if (disjointMoveSpans(said).length && /[―—–]|--/.test(said)) return NO_PRICE;
   const cued = /^(?:if|when|while|during)\b/i.test(said);
   const whole = cued ? null : compileAction(said, skill);
   if (whole) return { conds: [], program: whole };

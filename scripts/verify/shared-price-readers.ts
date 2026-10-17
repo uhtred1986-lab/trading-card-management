@@ -282,7 +282,7 @@ function lifeBoard(lifeCards: number): { s: VmState; id: string; target: string 
 assert.ok(unread("[Activate: Main] If your Leader is red and―your Leader is a Z-Leader, or you have a foo of bar: Draw 1 card."), "an alternative that does not read leaves the line unread");
 assert.ok(unread("[Activate: Main]{r}, if your Leader is red and―: Draw 1 card."), "a dash with nothing after it is unread");
 assert.ok(unread("[Activate: Main] If your Leader is a <Son Goku> or <Vegeta> card—both red and with [EX-Evolve]—and you have 2 or more energy: Draw 1 card."), "a qualifier that says more than a colour is not folded");
-assert.ok(unread("[Activate: Main]{r}{r}{r}, send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop Area to your Warp: Play this card from your hand."), "BT10-025's three-card send stays unread: one card may carry two names");
+assert.ok(reads("[Activate: Main]{r}{r}{r}, send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop Area to your Warp: Play this card from your hand."), "BT10-025's three-card send reads since #970 (disjoint choices)");
 assert.ok(unread("[Activate: Main] Place 1 card from your life and 1 card from your hand to the Drop Area: Draw 1 card."), "a two-source place price stays unread");
 assert.ok(reads("[Activate: Main] If your Leader is red and you have 2 or more energy: Draw 1 card."), "plain conditions still read");
 assert.ok(reads("[Activate: Main] Place 1 card from your life in the Drop Area: Draw 1 card."), "the 'in' wording still reads");

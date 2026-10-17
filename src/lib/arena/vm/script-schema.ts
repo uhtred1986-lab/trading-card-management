@@ -1718,6 +1718,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
   // *before* it, so "draw X, then choose X cards" is refused and "choose any
   // number of cards, then draw X" is not.
   let bound = xBound;
+  const chosen = new Set<string>();
   for (const [i, raw] of ops.entries()) {
     const here = `${at}[${i}]`;
     if (!isRecord(raw)) return `${here} is not a step`;
@@ -1752,6 +1753,13 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       return `${step}: only an attack, a declared play, a switch of energy to Active Mode or a skill activation is taxed with "unlessPay", and never beside "unless"`;
     if (o.op === "forbid" && o.attackTarget !== undefined && o.what !== "attack") return `${step}: "attackTarget" only qualifies an attack declaration`;
     if (o.op === "choose" && o.bindX === true) bound = true;
+    // #970: "not these cards" names choices already made, in this program.
+    if (o.op === "choose") {
+      const barred = isRecord(o.sel) && Array.isArray(o.sel.notIn) ? o.sel.notIn : [];
+      const unbound = barred.find((n) => !chosen.has(n as string));
+      if (unbound !== undefined) return `${step}.sel.notIn names ${JSON.stringify(unbound)}, which no earlier choose of this program binds`;
+      if (typeof o.as === "string") chosen.add(o.as);
+    }
     const stray2 = strayBound(o, step);
     if (stray2) return stray2;
   }
@@ -1857,6 +1865,7 @@ const SELECTOR_KEYS = {
   ownedByOpponent: 1,
   notSelf: 1,
   differentNames: 1,
+  notIn: 1,
   sumAtMost: 1,
   printed: 1,
 } as const satisfies Record<keyof Selector, 1>;
@@ -1903,6 +1912,9 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
   }
   for (const k of ["differentNames", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  // #970: the variables of earlier choices this one never repeats. Where they
+  // must be bound, and that only a choose may carry them, is `programProblem`'s.
+  if (v.notIn !== undefined && !(Array.isArray(v.notIn) && v.notIn.length > 0 && v.notIn.every((n) => typeof n === "string" && n !== ""))) return wrong("notIn", "a list of bound names");
   // `TOTAL energyCost <= 5` (BT3-036): a measure and an amount, and a bound
   // on a set — so never on a special, which names one card. Where it may
   // stand at all is `strayBound`'s question.
@@ -2060,6 +2072,7 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   if (!isRecord(v)) return null;
   if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
   if (!top && v.minCount !== undefined) return `${at}: "minCount" bounds a choice, so only a choose's own selector may carry it`;
+  if (!top && v.notIn !== undefined) return `${at}: "notIn" (EXCEPT $…) excludes the cards earlier choices bound, so only a choose's own selector may carry it`;
   const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
@@ -2508,6 +2521,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.differentNames ? " with different card names" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
+  // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
+  (sel.notIn?.length ? " other than the cards already chosen" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.
   (sel.sumAtMost ? ` whose total ${ATTR_NOUNS[sel.sumAtMost.attr]} is ${describeAmount(sel.sumAtMost.total)} or less` : "") +
   (sel.printed ? " matching the description printed on this line" : "");

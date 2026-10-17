@@ -178,6 +178,8 @@ export function printSelector(sel: Selector): string {
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
   else if (sel.notSelf === "name") parts.push("otherThanSameName");
   if (sel.differentNames) parts.push("differentNames");
+  // `EXCEPT $c0 $c1` (#970): the cards earlier choices bound are not on offer again.
+  if (sel.notIn !== undefined) parts.push(`EXCEPT ${sel.notIn.map((v) => `$${v}`).join(" ")}`);
   // "…whose total cost adds up to 5 or less" (BT3-036): `TOTAL energyCost <= 5`.
   if (sel.sumAtMost !== undefined) parts.push(`TOTAL ${sel.sumAtMost.attr} <= ${printAmount(sel.sumAtMost.total)}`);
   if (sel.printed) parts.push("asPrinted");
