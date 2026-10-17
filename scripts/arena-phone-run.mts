@@ -129,20 +129,20 @@ const UI = `(() => {
   const buttons = bar ? [...bar.querySelectorAll("button")].filter((b) => !b.disabled && b.getBoundingClientRect().width > 0) : [];
   const text = (b) => b.innerText.trim();
   const dlg = [...document.querySelectorAll("dialog[open], [role=dialog], [role=alertdialog]")].some((d) => d.getBoundingClientRect().height > 0);
-  const notice = [...document.querySelectorAll("[role=alertdialog]")].find((d) => d.getBoundingClientRect().height > 0);
+  const notice = [...document.querySelectorAll("[data-arena-notice]")].find((d) => d.getBoundingClientRect().height > 0);
   return {
-    next: buttons.some((b) => text(b).startsWith("Next")), skip: buttons.some((b) => text(b) === "Skip"), retry: buttons.some((b) => text(b) === "Retry"),
+    next: buttons.some((b) => text(b).startsWith("Next")), skip: !!document.querySelector("[data-skip-chip]"), retry: buttons.some((b) => text(b) === "Retry"),
     line: (bar?.querySelector("p")?.innerText ?? "").trim().slice(0, 200), dialog: dlg,
     storage: document.body.innerText.includes("Could not save on this device"),
     targeting: (bar?.innerText ?? "").includes("Choose what to attack"),
     notice: notice ? notice.innerText.replace(/\\s+/g, " ").trim().slice(0, 300) : null,
   };
 })()`;
-/** A blocking dialog or sheet: a card sheet, a search, or a no-target notice (`QuietNotice`, #783, `role=alertdialog`). */
+/** A blocking dialog or sheet: a card sheet or a search. (The no-target notice is a non-blocking chip since #982, `role=status`.) */
 const DIALOG_SEL = "dialog[open], [role=dialog], [role=alertdialog]";
 const DIALOG = `[...document.querySelectorAll(${JSON.stringify(DIALOG_SEL)})].find((d) => d.getBoundingClientRect().height > 0)`;
-/** The no-target notice of #783: it holds the board until its OK is tapped. */
-const NOTICE = `[...document.querySelectorAll("[role=alertdialog]")].find((d) => d.getBoundingClientRect().height > 0)`;
+/** The no-target notice (#783, a chip since #982): it holds nothing and fades on its own. */
+const NOTICE = `[...document.querySelectorAll("[data-arena-notice]")].find((d) => d.getBoundingClientRect().height > 0)`;
 const SKIP_IN_SHEET = String.raw`/^(close|expand|previous card|next card|details|abilities now|×|see the board|inspect energy)/i`;
 
 /** Finders: a function body (as text) returning candidate elements, best first. */
@@ -659,15 +659,15 @@ interface Play { decisions: number; attempts: Attempt[]; reviews: Review[]; noti
 const newPlay = (): Play => ({ decisions: 0, attempts: [], reviews: [], notices: [], playbackShots: 0, stalls: [], end: null });
 
 /**
- * The no-target notice (#783) stands over the board, holding the story, the player's moves and the
- * computer's next advance until OK is tapped. Shot, then acknowledged through its own OK button.
+ * The no-target notice (#783) is a chip since #982: it holds neither the story nor the player's
+ * moves, has no button, and fades by itself (1.5 s for a player, 4 s for an SL). Shot, then waited
+ * out; "acknowledged" now means it left the screen without a tap.
  */
 async function acknowledgeNotice(page: Page, caseId: string, s: Snapshot | null, text: string): Promise<Notice> {
   const shot = await shoot(page, caseId, "no-target-notice", s, { force: true, note: text });
-  const r = await tapFind(page, `() => { const d = ${NOTICE}; return d ? [...d.querySelectorAll("button")].filter((b) => b.innerText.trim() === "OK") : []; }`);
   let gone = false;
-  for (let i = 0; i < 20 && r.ok; i++) { if (!(await page.eval<boolean>(`!!${NOTICE}`))) { gone = true; break; } await sleep(100); }
-  const n: Notice = { revision: s?.game.revision ?? -1, text, acknowledged: gone, how: r.ok ? (gone ? "OK tapped" : "OK tapped, the notice stayed") : `OK not tappable (${r.why})`, shot: shot.n };
+  for (let i = 0; i < 80; i++) { if (!(await page.eval<boolean>(`!!${NOTICE}`))) { gone = true; break; } await sleep(100); }
+  const n: Notice = { revision: s?.game.revision ?? -1, text, acknowledged: gone, how: gone ? "faded on its own" : "the notice stayed past 8 s", shot: shot.n };
   log(`  ${caseId}: no-target notice "${text.slice(0, 90)}" — ${n.how}`);
   return n;
 }
@@ -686,7 +686,7 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
     if (ui.notice) {
       const n = await acknowledgeNotice(page, caseId, s, ui.notice);
       play.notices.push(n);
-      if (!n.acknowledged) throw new Error(`${caseId}: a no-target notice could not be acknowledged by touch (${n.how})`);
+      if (!n.acknowledged) throw new Error(`${caseId}: a no-target notice did not fade on its own (${n.how})`);
       waitingSince = Date.now();
       continue;
     }
@@ -694,7 +694,7 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
       // The story of a turn: one shot per beat ("Next" at the step pace, a change of line otherwise).
       if (ui.line !== lastLine) { await shoot(page, caseId, "playback", s, { note: ui.line, logFrom }); play.playbackShots++; lastLine = ui.line; logFrom = s.log.length; }
       if (ui.next) await tapButton(page, "Next");
-      else if (Date.now() - waitingSince > 120_000) { play.stalls.push(`playback did not end in 120 s at revision ${s.game.revision}: "${ui.line}"`); await tapButton(page, "Skip"); }
+      else if (Date.now() - waitingSince > 120_000) { play.stalls.push(`playback did not end in 120 s at revision ${s.game.revision}: "${ui.line}"`); await tapFind(page, `() => [...document.querySelectorAll("[data-skip-chip]")]`); }
       await sleep(ui.next ? 200 : 300);
       continue;
     }
@@ -1118,8 +1118,8 @@ function findingsMd(all: Array<Finding & { shot: Shot }>): string {
   const allRuns = [...results, ...(recovery ? [recovery.result] : [])];
   const notices = allRuns.flatMap((r) => r.notices.map((n) => ({ ...n, case: r.id })));
   L.push("", "## No-target notices (#783)", "");
-  if (!notices.length) L.push("**Not exercised:** no case met a no-target notice in this run, so acknowledging one by touch is unproven here.");
-  else { L.push("| Case | At revision | Notice | Acknowledged by touch | Shot |", "|---|---|---|---|---|"); for (const n of notices) L.push(`| ${n.case} | ${n.revision} | ${n.text.replace(/\|/g, "/").slice(0, 140)} | ${n.acknowledged ? "yes" : `**no** (${n.how})`} | ${n.shot} |`); }
+  if (!notices.length) L.push("**Not exercised:** no case met a no-target notice in this run, so the chip fading on its own is unproven here.");
+  else { L.push("| Case | At revision | Notice | Gone by itself | Shot |", "|---|---|---|---|---|"); for (const n of notices) L.push(`| ${n.case} | ${n.revision} | ${n.text.replace(/\|/g, "/").slice(0, 140)} | ${n.acknowledged ? "yes" : `**no** (${n.how})`} | ${n.shot} |`); }
   if (recovery) { L.push("", "## Recovery", ""); for (const s of recovery.steps) L.push(`- ${s.ok ? "ok" : "**FAIL**"} ${s.what}: ${s.detail}${s.shot ? ` (shot ${s.shot})` : ""}`); }
   L.push("", "## Objective screen findings", "", "Counted over every shot; `decision` checks (the overview) only at human decisions with no sheet open.", "", "| Finding | Severity | Shots | Examples |", "|---|---|---|---|");
   const byKind = new Map<string, Array<Finding & { shot: Shot }>>();

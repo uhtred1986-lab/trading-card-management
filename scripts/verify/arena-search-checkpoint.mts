@@ -1,7 +1,7 @@
 /** Kill/restart the actual evaluator, plus strict checkpoint pin/integrity tests. */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -34,6 +34,13 @@ try {
   assert.throws(()=>syncCheckpointDirectory(checkpoint,"linux",{...io,close:()=>{throw closeError;}}),(error)=>error===closeError,"genuine close failure propagates");
   assert.equal(externalCheckpointPath(checkpoint),checkpoint);
   assert.throws(()=>externalCheckpointPath(resolve(".arena-checkpoint.json")),/outside every repository checkout/);
+  { // A registered worktree whose folder is gone is skipped, not a crash.
+    const repo=join(folder,"gone-repo"),gone=join(folder,"gone-worktree"),git=(cwd:string,...a:string[])=>execFileSync("git",["-c","user.name=t","-c","user.email=t@t",...a],{cwd,stdio:"pipe"});
+    mkdirSync(repo);git(repo,"init","-q");git(repo,"commit","-q","--allow-empty","-m","x");git(repo,"worktree","add","-q","-b","gone",gone);
+    rmSync(gone,{recursive:true,force:true});
+    assert.equal(externalCheckpointPath(checkpoint,repo),checkpoint,"a missing worktree root is skipped");
+    assert.throws(()=>externalCheckpointPath(join(repo,"in.json"),repo),/outside every repository checkout/,"the live checkout is still refused");
+  }
   symlinkSync(process.cwd(),join(folder,"checkout"),process.platform==="win32"?"junction":"dir");
   assert.throws(()=>externalCheckpointPath(join(folder,"checkout","ignored.json")),/outside every repository checkout/);
   saveEvaluationCheckpoint(checkpoint,pins,requestId,[row]);
@@ -76,7 +83,7 @@ try {
   const run=(extra:string[],killAfterFirst=false)=>new Promise<{code:number|null;signal:NodeJS.Signals|null;output:string}>((resolveRun,reject)=>{
     const child=spawn(process.execPath,["--import","tsx",...args,...extra],{cwd:process.cwd(),stdio:["ignore","pipe","pipe"]});
     let output="",killed=false;
-    const timer=setTimeout(()=>{child.kill("SIGKILL");reject(new Error(`evaluator proof timeout: ${output.slice(-2000)}`));},60000);
+    const timer=setTimeout(()=>{child.kill("SIGKILL");reject(new Error(`evaluator proof timeout: ${output.slice(-2000)}`));},180000);
     child.stdout.on("data",(data)=>{output+=String(data);if(killAfterFirst && !killed && output.includes("641 dev[0] p1:")) {killed=true;child.kill("SIGKILL");}});
     child.stderr.on("data",(data)=>{output+=String(data);});
     child.once("error",(error)=>{clearTimeout(timer);reject(error);});

@@ -50,12 +50,12 @@ export const checkpointChecks=(records:EvaluationRecord[]):EvaluationChecks=>rec
   executionFailures:sum.executionFailures+row.checks.executionFailures,
 }),{privacyChecks:0,nontrivialTwins:0,executionFailures:0});
 
-/** Refuse every registered checkout, including ignored paths and symlinked parents. */
+/** Refuse every registered checkout, including ignored paths and symlinked parents. A registered worktree whose folder is gone cannot hold the checkpoint and is skipped. */
 export function externalCheckpointPath(path:string,cwd=process.cwd()):string {
   const absolute=resolve(path);
   assert.ok(!existsSync(absolute) || !lstatSync(absolute).isSymbolicLink(),"checkpoint cannot be a symlink");
   const target=resolve(realpathSync(dirname(absolute)),absolute.slice(dirname(absolute).length+1));
-  const roots=execFileSync("git",["worktree","list","--porcelain","-z"],{cwd}).toString().split("\0").filter((part)=>part.startsWith("worktree ")).map((part)=>realpathSync(part.slice(9)));
+  const roots=execFileSync("git",["worktree","list","--porcelain","-z"],{cwd}).toString().split("\0").filter((part)=>part.startsWith("worktree ")).flatMap((part)=>{try{return [realpathSync(part.slice(9))];}catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT") return [];throw error;}});
   for(const root of roots) {
     const rel=relative(root,target);
     assert.ok(rel!=="" && (rel===".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)),"checkpoint must be outside every repository checkout (use /tmp or another private directory)");
