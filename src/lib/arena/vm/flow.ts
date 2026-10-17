@@ -292,7 +292,8 @@ const STEP_WORK: Record<string, Work> = {
           // `by:` — the Charge Phase stands cards up as a rule of the turn, not
           // as a skill, which is what keeps "rested by one of your skills" off it.
           const shown = mode === "active" || mode === "rest" ? ({ type: "mode", card: id, mode } as const) : null;
-          emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: state.turnPlayer, args: { mode } }, shown);
+          // #922: it says where the card stands (`in`), as a skill's switch does, so "when this card is switched from Rest Mode to Active Mode" answers the rule-made restand too; the by/byOpponent/kind patterns still need a cause it does not carry.
+          emit(ctx, game, state, ev, { event: "modeSwitched", card: id, controller: state.turnPlayer, args: { mode, in: zone } }, shown);
         }
       }
       // "…will not switch to Active Mode during your next Charge Phase": the
