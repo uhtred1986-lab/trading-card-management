@@ -45,7 +45,7 @@ export function TurnBanner({ call, view, lighting, ms, holdUntilTap }: { call: T
         style={{ "--tb": sideTint(side, yours, view, lighting), animationDuration: `${ms}ms` } as React.CSSProperties}
       >
         <div className="arena-turnbanner-inner" style={{ animationDuration: `${ms}ms` }}>
-          <p className="arena-turnbanner-text arena-impact select-none text-4xl font-black uppercase italic tracking-tight sm:text-6xl lg:text-7xl">{turnWords(yours, side.name)}</p>
+          <p className="arena-turnbanner-text arena-impact max-w-[88vw] select-none truncate text-4xl font-black uppercase italic tracking-tight sm:text-6xl lg:text-7xl">{turnWords(yours, side.name)}</p>
           <p className="arena-turnbanner-sub select-none text-xs font-black uppercase tracking-[0.5em] sm:text-sm">Turn {call.turn}</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function TurnPill({ view, className = "" }: { view: BoardView; className?
   const yours = view.turnPlayer === view.you.player;
   const name = (yours ? view.you : view.them).name;
   return (
-    <div role="status" className={`arena-turnpill inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full py-1.5 pl-2 pr-2.5 sm:gap-2 sm:pl-2.5 sm:pr-3 ${className}`} data-turn={yours ? "you" : "them"}>
+    <div role="status" className={`arena-turnpill inline-flex min-w-0 max-w-[min(100%,26rem)] items-center gap-1.5 rounded-full py-1.5 pl-2 pr-2.5 sm:gap-2 sm:pl-2.5 sm:pr-3 ${className}`} data-turn={yours ? "you" : "them"}>
       <span className="arena-turnpill-dot h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden />
       <span className="arena-turnpill-who truncate px-px text-[15px] uppercase leading-none sm:text-base lg:text-xl">{turnWords(yours, name)}</span>
       <span className="arena-turnpill-num shrink-0 whitespace-nowrap text-[13px] leading-none tabular-nums">Turn {view.turn}</span>

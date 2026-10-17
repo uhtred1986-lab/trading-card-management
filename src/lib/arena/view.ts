@@ -127,6 +127,8 @@ export interface PermanentView {
 export interface SideView {
   player: PlayerId;
   name: string;
+  /** Set by the board when `name` was shortened for display (the computer's seat): the full deck name, for a tooltip. */
+  deckName?: string;
   leader: CardView | null;
   unison: CardView | null;
   battle: CardView[];
