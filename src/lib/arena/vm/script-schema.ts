@@ -1175,7 +1175,21 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
       const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
       const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
-      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
+      // "with 10000 power or less" (#990): the bound is part of the Leader
+      // description, and the VM asks it. Left out, the reading claims a wider
+      // Leader than the card does.
+      const power =
+        f.powerMin != null && f.powerMin === f.powerMax
+          ? `with ${f.powerMin} power`
+          : f.powerMin != null && f.powerMax != null
+            ? `with power between ${f.powerMin} and ${f.powerMax}`
+            : f.powerMax != null
+              ? `with ${f.powerMax} power or less`
+              : f.powerMin != null
+                ? `with ${f.powerMin} power or more`
+                : "";
+      const said = [bits.join(" ") || f.names?.join("/") || (power ? "a card" : "a match"), power].filter(Boolean).join(" ");
+      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${said}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
   },
