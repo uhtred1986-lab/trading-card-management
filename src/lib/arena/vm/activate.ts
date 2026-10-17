@@ -83,6 +83,7 @@
  */
 import type { EngineContext, GameEvent, Payer } from "../types";
 import { counterKindOf, type Area, type Color, type PlayerId, type Requirement, type Skill } from "../types";
+import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
@@ -946,9 +947,14 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   // The activating card leaves the hand as part of the activation (12-2-2),
   // so it is not also there to be discarded.
   const inHand = hand.includes(card) ? 1 : 0;
-  for (const op of ops) {
+  // #970: choices that must pick different cards are paid or not as a set — a
+  // matching over their candidates, never each slot against the whole pool.
+  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel))) return false;
+  const linked = new Set(disjointGroups(ops).flat());
+  for (const [at, op] of ops.entries()) {
     switch (op.op) {
       case "choose": {
+        if (linked.has(at)) break;
         // "Up to" can always be paid with nothing (5-2-4).
         if (op.sel.upTo) break;
         // 5-8-2-2: a chosen card the price then switches pays only if it is

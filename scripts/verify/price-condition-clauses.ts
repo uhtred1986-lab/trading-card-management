@@ -23,7 +23,7 @@ import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
-import { priceCondition, priceIsUnread } from "../../src/lib/arena/compile/prices";
+import { priceIsUnread } from "../../src/lib/arena/compile/prices";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -54,11 +54,10 @@ const one = (text: string) => parseSkills(text)[0]!;
   assert.deepEqual([count.sel!.area, count.sel!.side], ["combo", "you"], "… in your Combo Area");
   assert.deepEqual(count.sel!.filter.colors, ["Blue", "Yellow"], "… blue and/or yellow cards, counted together");
 
+  // #970: the two-card send price is read now (disjoint slots, `scripts/verify/disjoint-send-costs.ts`).
   const gotenks = compileSkill(one(P_441));
-  assert.ok(gotenks.unsupported.length > 0, "P-441's send-to-Warp price cannot be charged, so the whole line is unread");
-  assert.deepEqual(gotenks.ops, [], "…and no program is left that would play the card for {u} alone");
-  assert.equal(priceCondition(one(P_441)), null, "no Leader-only condition is offered in its place");
-  assert.equal(priceIsUnread(one(P_441)), true);
+  assert.deepEqual(gotenks.unsupported, [], "P-441 reads whole: the Leader list and the two-slot send");
+  assert.equal(priceIsUnread(one(P_441)), false);
 
   const list = compileSkill(one(LIST));
   assert.deepEqual(list.unsupported, [], "the Leader property list reads whole");
@@ -73,8 +72,8 @@ const one = (text: string) => parseSkills(text)[0]!;
 {
   const unread = (text: string) => compileSkill(one(text)).unsupported.length > 0;
   // A Leader description never swallows what follows it.
-  assert.ok(unread("[Activate: Main]{r}{r}{r}, send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop Area to your Warp: Play this card from your hand."), "BT10-025's three-card send price stays unread");
-  assert.ok(unread("[Activate: Main]{r}, if your Leader Card is a black ≪Saiyan≫ card and you send 1 <Son Gohan: Xeno> card and 1 <Trunks: Xeno> card from your Drop Area to your Warp: Play this card from your hand."), "a Leader condition does not hide an unread send price");
+  assert.ok(!unread("[Activate: Main]{r}{r}{r}, send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop Area to your Warp: Play this card from your hand."), "BT10-025's three-card send price reads since #970 (disjoint choices)");
+  assert.ok(unread("[Activate: Main]{r}, if your Leader Card is a black ≪Saiyan≫ card and you send this card and 1 <Goku Black> card from your Combo Area to their owners' Warps: Play this card from your hand."), "a Leader condition does not hide an unread send price");
   // "and/or" across places counts the places together, which one count cannot say.
   assert.ok(unread("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."), "BT16-087's two places are unread");
   // "A total of N" is N, not the article's one; across a list of places it is unread, never one place's count.
@@ -83,7 +82,7 @@ const one = (text: string) => parseSkills(text)[0]!;
   assert.equal((total.ops[0] as { cond: { atLeast: number } }).cond.atLeast, 2, "'a total of 2 or more' asks for 2");
   assert.ok(unread("[Permanent] If you have a total of 7 or more cards in your energy, Z-Energy, Battle Area, and Drop, reduce this card's energy cost in your hand by 2."), "a total across a list of places is unread");
   // A price that is neither a condition nor an action the compiler can charge is no free price.
-  assert.ok(unread("[Activate: Main]{u}, send 1 blue card with <Son Goten> in its character name and 1 blue card with <Trunks> in its character name from your hand and/or Drop to your Warp: Play this card from your hand."), "a bare unreadable action price leaves the line unread");
+  assert.ok(unread("[Activate: Main]{u}, send 1 blue card with <Son Goten> in its character name and up to 1 blue card with <Trunks> in its character name from your hand and/or Drop to your Warp: Play this card from your hand."), "a bare unreadable action price leaves the line unread");
   // Readable prices are untouched.
   const priced = compileSkill(one("[Activate: Main]{u}, send 1 blue card from your hand to your Warp: Play this card from your hand."));
   assert.deepEqual(priced.unsupported, [], "a one-card send price still reads");
@@ -132,9 +131,7 @@ const game = (() => {
   assert.deepEqual(rec("BT19-145").unread, []);
   const price = roundtrip(rec("BT19-145").cost) as { condition?: { kind: string } } | null;
   assert.equal(price?.condition?.kind, "all", "BT19-145's stored price condition holds both requirements");
-  assert.ok(rec("P-441").unread.length > 0, "P-441's stored record is unread");
-  const loaded441 = ctx.scripts!["P-441"];
-  assert.ok(!loaded441.complete, "P-441 does not load as a complete rule");
+  assert.deepEqual(rec("P-441").unread, [], "P-441's stored record is read (#970)");
 }
 
 function take(s: VmState, action: Action): VmState {
@@ -215,15 +212,19 @@ for (const leader of ["L961-BLUE", "L961-YELLOW"]) {
   assert.equal(activates(c, card145).length, 0, "a red Leader: not offered");
 }
 
-// P-441: unread, so never offered — not with a <Gotenks> Leader, the energy, nor the two cards the price names.
-for (const leader of ["L961-GOTENKS", "L961-BLUE"]) {
+// P-441 (#970): the Leader list gates it, and the price needs a Goten and a Trunks card of its own.
+for (const [leader, cards, offered] of [
+  ["L961-GOTENKS", ["GOTEN961", "TRUNKS961"], true],
+  ["L961-GOTENKS", ["GOTEN961"], false],
+  ["L961-GOTENKS", [], false],
+  ["L961-BLUE", ["GOTEN961", "TRUNKS961"], false],
+] as [string, string[], boolean][]) {
   const s = main(leader);
   clear(s);
   const card441 = stage(s, "P-441", "hand");
   stage(s, "B961", "energy");
-  stage(s, "GOTEN961", "hand");
-  stage(s, "TRUNKS961", "hand");
-  assert.equal(activates(s, card441).length, 0, `${leader}: P-441 is not offered for {u} alone`);
+  for (const c of cards) stage(s, c, "hand");
+  assert.equal(activates(s, card441).length > 0, offered, `${leader} with ${cards.join("+") || "nothing"}: P-441 ${offered ? "is" : "is not"} offered`);
 }
 
 // The Leader property list (no send price) is read in full: only a blue <Gotenks> Leader with the energy qualifies.
@@ -241,4 +242,4 @@ for (const [leader, energy, offered] of [
   assert.equal(activates(s, id).length > 0, offered, `${leader}, ${energy} energy: the property list ${offered ? "holds" : "does not hold"}`);
 }
 
-console.log("  #961: BT19-145 read whole and gated by its Combo Area count; P-441 left unread; Leader property list read, controls kept");
+console.log("  #961: BT19-145 read whole and gated by its Combo Area count; P-441 read with its two-slot send (#970); Leader property list read, controls kept");

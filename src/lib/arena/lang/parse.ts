@@ -652,6 +652,14 @@ class Parser {
       this.places(sel);
       return;
     }
+    // `EXCEPT $c0 $c1` (#970): never a card those earlier choices bound — the
+    // slots of "send 1 <Pilaf> card and 1 <Shu> card …" are different cards.
+    if (this.eatKw("EXCEPT")) {
+      const names = [this.variable()];
+      while (this.isPunct("$")) names.push(this.variable());
+      sel.notIn = names;
+      return;
+    }
     // `TOTAL energyCost <= 5`: the chosen cards' measure, added up, may not
     // pass the bound — "…for which the total cost adds up to 5 or less"
     // (BT3-036). Only `<=`: no card bounds a choice's sum from below yet.

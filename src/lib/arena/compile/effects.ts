@@ -4,6 +4,7 @@ import { emptyFilter, parseFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
 import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
+import { compileDisjointMove } from "./disjoint";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
@@ -799,6 +800,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // 1 card from your life in your Drop Area", the order the move patterns read.
     .replace(/^place (.+?) in ((?:your|their) drop(?: area)?) (from (?:your|their) (?:life|hand|energy(?: area)?|battle area|combo area))$/, "place $1 $3 in $2");
   let m: RegExpExecArray | null;
+
+  // #970: "send 1 <A> card and 1 <B> card from your Drop to your Warp" — one
+  // choice per slot, each a card of its own.
+  const disjoint = compileDisjointMove(t, c);
+  // An optional one ("you may place 1 <A> card and 1 <B> card …") is a choice to do all of it: not read.
+  if (disjoint !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : disjoint;
 
   // An omitted subject at this particular conjunction is unambiguously self
   // (#910). Reuse both readers, accepting only an identity gain: no guessing

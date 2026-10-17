@@ -3400,6 +3400,10 @@
       "part": "flag"
     },
     {
+      "field": "notIn",
+      "part": "fromVar"
+    },
+    {
       "field": "sumAtMost",
       "part": "sum"
     },
