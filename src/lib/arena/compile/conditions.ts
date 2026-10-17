@@ -422,6 +422,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: m[2] === "is" ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
     }
   }
+  // "If a multicolored card is in your energy" (BT7-005, BT7-029, BT7-058,
+  // BT7-078, #921): the card first, then the Energy Area — which prints as
+  // "your energy" as often as "your Energy Area". The card phrase carries the
+  // filter ("multicolored" = two colours or more on the card itself), so the
+  // reading is the same count of at least one that the other areas get; many
+  // such cards are no more than one. `parseCountCondition` reads this word
+  // order too, so the area is spelled out for `parseTarget` rather than
+  // taught to it.
+  if ((m = /^(.+?) (is|isn't|is not|are|aren't|are not) in your energy(?: area)?$/.exec(t)) && !/\b(?:the|that|those|these|this)\b/.test(m[1])) {
+    const sel = parseTarget(`${m[1]} in your energy`);
+    if (sel && sel.area === "energy" && (sel.side ?? "you") === "you") {
+      delete sel.count;
+      delete sel.upTo;
+      const counted: Selector = { ...sel, area: "energy", side: "you" };
+      return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
+    }
+  }
   // "If you don't have a Unison in play", "if you don't have any Battle Cards in play".
   //
   // And the same sentence about the other player: "if **your opponent doesn't

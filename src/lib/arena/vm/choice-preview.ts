@@ -60,7 +60,7 @@ export function choicePreviews(ctx: EngineContext, game: GameDefinition, state: 
     const skills = action.type === "activate"
       ? showing.skills.filter((skill) => skill.index === action.skill && skill.kind === "activate:main")
       : showing.skills.filter((skill) => skill.kind === "auto" && /when this card is played from your hand/i.test(skill.raw)
-        && (showing.scripts.bySkill[skill.index]?.trigger ?? ["played"]).includes("played"));
+        && (showing.scripts.bySkill[skill.index]?.trigger ?? ["played"]).some((t) => t === "played" || t === "playedFromHand"));
     for (const skill of skills) {
       const script = showing.scripts.bySkill[skill.index];
       if (!script || script.unsupported.length) {

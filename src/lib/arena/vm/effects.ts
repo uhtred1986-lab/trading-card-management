@@ -478,6 +478,12 @@ export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
 
 // ── [Permanent] statics (9-5, 9-9) ──────────────────────────────────────────
 
+/** A change to a card's identity (traits, characters, colours, names) printed "in all areas" (TB1-095, #936). */
+function identityInAllAreas(op: Op): boolean {
+  if (op.op === "gains") return op.allAreas === true;
+  return op.op === "modifyAttr" && op.allAreas === true && (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames");
+}
+
 /**
  * Every standing change a [Permanent] makes right now.
  *
@@ -505,15 +511,26 @@ export function permanents(
   const inPlay = new Set(inPlayZones(game));
   // The Warp only for the one permission about the card's own line used from
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
-  // holds from the Warp, the same as the legacy `staticEffects`.
+  // holds from the Warp, the same as the legacy `staticEffects`; and, in the
+  // Warp and everywhere else, the identity a card "gains ... in all areas".
   const zones = [...inPlay, "hand", "zDeck", "warp", "combo"].filter((zone) => game.zones[zone]?.place !== false);
+  // "This card gains ≪Universe 7≫ in all areas" (TB1-095, #936) holds in
+  // every area a card can be in, the Drop included — which is where "9 or more
+  // ≪Universe 7≫ in your Drop Area" counts it. Looked for in these areas only
+  // on a card whose printed text says "all areas", so the Drop's cards cost a
+  // string test each.
+  const everywhere = Object.keys(game.zones).filter((zone) => !zones.includes(zone) && game.zones[zone]?.place !== false);
   for (const p of Object.keys(state.sides) as PlayerId[]) {
-    for (const zone of zones) {
+    for (const zone of [...zones, ...everywhere]) {
+      const extra = everywhere.includes(zone);
       for (const src of state.sides[p].zones[zone] ?? []) {
         const card = state.cards[src];
         if (!card || card.hidden || skillsNegated(state, src)) continue;
+        const printed = ctx.defs[card.cardId];
+        if (extra && !/all areas/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
         const showing = skillsShowing(ctx, state, src);
-        if (zone === "warp" && !showing.skills.some((sk) => sk.keyword?.name === "Over Realm")) continue;
+        const overRealm = showing.skills.some((sk) => sk.keyword?.name === "Over Realm");
+        if (zone === "warp" && !overRealm && !showing.skills.some((sk) => sk.kind === "permanent")) continue;
         for (const sk of showing.skills) {
           if (sk.kind !== "permanent") continue;
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
@@ -526,8 +543,10 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          const ops = zone === "warp" ? program.ops.filter((op) => op.op === "permit" && op.what === "overRealmFromWarp")
+          const ops = extra ? program.ops.filter(identityInAllAreas)
+            : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
             : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
+          if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
       }

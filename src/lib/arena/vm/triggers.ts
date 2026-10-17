@@ -398,7 +398,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 5-5-1: a play into the Battle Area is also a placing (owner's ruling,
       // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
       // skill whose record says both answers that arrival once, as `played`.
-      if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && p.trigger === "played")) continue;
+      if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && (p.trigger === "played" || p.trigger === "playedFromHand"))) continue;
       const subject = match.subject !== undefined ? { subject: match.subject } : {};
       // Ordinary movement emits after the real move; the cleanup's 8-5-6
       // notice passes its projected new-area information explicitly. Either

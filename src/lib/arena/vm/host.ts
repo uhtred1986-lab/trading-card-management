@@ -71,7 +71,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
 import { activationMoment, activationTaxGate, canPayPriceProgram, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -406,10 +406,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       else b.guard = into;
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, into)} takes ${nameOfCard(ctx, state, out)}'s place in the battle` });
     },
+    // #936: an attacker whose attacks can't be negated (EX03-14, a
+    // `permit attackUnnegatable`, timed or [Permanent]) keeps its attack. The
+    // instruction fails and says so (`false`), so "if you negated" reads it.
+    // Read at the moment of negation, off the card now attacking (8-1-7-2).
     negateAttack: () => {
-      if (!state.battle) return;
+      if (!state.battle) return false;
+      const attacker = state.battle.attacker;
+      if (permissions(ctx, game, state, "attackUnnegatable").some((p) => p.target === attacker)) {
+        log(ev, { type: "note", text: `${nameOfCard(ctx, state, attacker)}'s attacks can't be negated` });
+        return false;
+      }
       state.battle.negated = true;
       log(ev, { type: "attackNegated" });
+      return true;
     },
     // 22-10-8 (#552): "negate [Counter]" eliminates the counter motion that
     // would have resolved the [Counter] this one answers, and its effects fail
