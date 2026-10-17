@@ -3562,8 +3562,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // that negates something must come back with a negative measure on it,
       // or the clause goes to the referee. An unread clause costs tokens; a
       // backwards one loses the game.
-      const read = seen ? filterFor(seen[2], null) : undefined;
-      const negates = seen ? /\b(?:not|non|other than|except|besides)\b/i.test(seen[2]) : false;
+      // "If it's a black ≪Shadow Dragon≫ card **you may add it to your hand**"
+      // (BT14-131 …, #969): the action rides on the condition with no comma of
+      // its own; read whole it was swallowed by the description and lost. It is
+      // put back as the clause after the condition.
+      const tail = seen ? /^(.+?)(?:,\s*|\s+)(you may .+)$/i.exec(seen[2]) : null;
+      const described = tail ? tail[1] : seen?.[2];
+      const read = described ? filterFor(described, null) : undefined;
+      const negates = described ? /\b(?:not|non|other than|except|besides)\b/i.test(described) : false;
       const carriesNegative = read
         ? read.notColors.length > 0 || read.notCharacters.length > 0 || read.notTraits.length > 0 || read.notNames.length > 0 || read.notKeywords.length > 0 || (read.notKeywordsExact?.length ?? 0) > 0 || read.notType != null || read.notToken
         : false;
@@ -3571,6 +3577,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       if (seen && filter && v) {
         groups.push({ conds: [{ kind: "varMatches", var: v, filter }], ops: [] });
         c.lastTarget = { var: v };
+        if (tail) clauses.splice(i + 1, 0, tail[2]);
         continue;
       }
     }
