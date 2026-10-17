@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -451,6 +451,22 @@ function compileSkillText(skill: Skill): Script {
         if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
         triggerCond = { kind: "count", sel: { special: "subject", filter: cause }, atLeast: 1 };
       }
+    }
+    // "When this card is played from your hand or discarded by a <Shadow Dragon>
+    // card's skill" (BT14-131 …, #969): the discard half is `droppedFromHand`,
+    // which hands the skill's card on as the subject, so which card's skill it
+    // was is a condition on a subject — and only the discard half has one. The
+    // play has none, which is what "no subject" says; a description that cannot
+    // be read refuses the skill rather than widening the discard to any skill.
+    const discardCause = skill.kind === "auto" ? discardedBySkillCause(trigger) : null;
+    if (discardCause) {
+      const cause = filterFor(discardCause, null);
+      if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
+      const subject = { special: "subject" } as const;
+      triggerCond = { kind: "any", conds: [
+        { kind: "not", cond: { kind: "count", sel: subject, atLeast: 1 } },
+        { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 },
+      ] };
     }
     // "When this card attacks a Leader Card" / "… attacks a Battle Card"
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
