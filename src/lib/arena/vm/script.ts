@@ -2197,7 +2197,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           // "When this card is placed in your Drop Area from your hand by a
           // skill" (SD13-05, BT7-127, BT11-022) — the hand's side of the above.
-          if (leftHand && h.areaOf(id) === "drop") h.pend("droppedFromHand", id);
+          if (leftHand && h.areaOf(id) === "drop") h.pend("droppedFromHand", id, frame.card);
           // Your own skill sent your own card from your deck to the Warp. The
           // skill's card is the subject, so "by your <Heles> card's skill" is
           // a condition the rule asks of it — the same way `restedBySkill`

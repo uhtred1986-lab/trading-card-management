@@ -145,7 +145,28 @@ const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played)
  * "from your deck or hand" and "…, during your opponent's turn" name more than
  * the hand and stay a plain `played` as they were.
  */
-const PLAYED_FROM_HAND = /when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$))/;
+/**
+ * "… or **discarded by a skill**" (#969): the second moment of "when this card
+ * is played [from your hand] or discarded by a <Shadow Dragon> card's skill"
+ * (BT14-131 …, BT15-130 …, P-313) — a skill took the card out of its owner's
+ * hand into the Drop (20-7-1), as its effect or its price: `droppedFromHand`.
+ * The cause is a description of the skill's card, read by the compiler as a
+ * condition on that discard half alone (`discardedBySkillCause`); the sentence must stop
+ * there, so any other tail stays an unread gap.
+ */
+const DISCARDED_BY_SKILL = String.raw`(?:when )?(?:(?:it|this card) (?:is )?)?discarded by (?:an? |one of your |your )?[^,:]{0,80}?\bskills?\s*(?:,|:|\.|$)`;
+/** The wording of the discard half of a coordinated play, to be read by the compiler: the cause as printed, or "" for any skill. */
+export function discardedBySkillCause(trigger: string): string | null {
+  const m = /(?:\bor (?:when )?(?:(?:it|this card) is )?|^when this card is )discarded by (?:an? |one of your |your )?([^,:]{0,80}?)\s*(?:,|:|\.|$)/i.exec(trigger.trim());
+  if (!m) return null;
+  const said = m[1].trim();
+  if (/^skills?$/i.test(said)) return "";
+  const by = /^(.+?)(?: card)?'s? skills?$/i.exec(said);
+  return by ? by[1] : null;
+}
+const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})`);
+/** The coordinated tail of "when you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046, -059, -061, -120, -121, -122): a skill, whoever's, ends the sentence. */
+const PLAYED_OR_DROPPED_FROM_BATTLE = /^when (?:you play this card|this card is played),? or (?:when )?(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill\s*(?:,|:|\.|$)/;
 const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
 
 /**
@@ -247,7 +268,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // anywhere, so this cannot simply widen that one: a card bounced to the
     // hand is that moment and not this.
     case "droppedFromBattle":
-      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t);
+      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t)
+        // "When you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046 …, #969): the play, and this.
+        || PLAYED_OR_DROPPED_FROM_BATTLE.test(head);
     // The same move by an opponent's skill (SD15-03, #728).
     case "droppedByOpponent":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
@@ -256,7 +279,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // SD13-05 says "**If** this card is placed …" after a condition before the
     // colon; it is the same moment, and the compiler drops it as a trigger.
     case "droppedFromHand":
-      return /(?:when|if) this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill/.test(t);
+      return /(?:when|if) this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill/.test(t)
+        // "…is played [from your hand] or discarded by a <Shadow Dragon> card's skill" (#969): the second moment, only when the sentence stops there.
+        || new RegExp(String.raw`^when (?:(?:you play this card|this card is played)(?: from your hand)?,? or |this card is )${DISCARDED_BY_SKILL}`).test(head);
     // The same sentence with no cause named at all, which is every cause: a
     // skill putting it there and a battle KO alike. Kept apart from the one
     // above because that one *does* name a cause, and a KO is not it.
@@ -540,6 +565,9 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (/^\[(?:dark )?over realm\]/.test(rest) || (qualifier && /^(?:your )?(?:drop|warp|deck|hand|energy)\b/.test(rest))) return false;
   if (/^(?:this card |it )?attacks\s*(?:,|:|\.|$)/.test(rest)) return !autoTriggerMatches(sk, "attacks");
   if (/^(?:used|use|combo)\b/.test(rest)) return false;
+  // #969: a skill's discard (`droppedFromHand`), and a skill's move from a Battle Area to the Drop (`droppedFromBattle`).
+  if (/^(?:(?:it|this card) is )?discarded by\b/.test(rest)) return !autoTriggerMatches(sk, "droppedFromHand") || (discardedBySkillCause(head) === null);
+  if (/^(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from\b/.test(rest)) return !autoTriggerMatches(sk, "droppedFromBattle");
   if (/^switched to (?:revealed|hidden) mode\b/.test(rest)) return !(["switchedRevealed", "switchedHidden"] as const).some((t) => autoTriggerMatches(sk, t));
   if (/^(?:this card|it) is placed in (?:a|the|your|their|an opponent's) battle area\b/.test(rest)) return !autoTriggerMatches(sk, "placed");
   if (/^(?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(rest))
