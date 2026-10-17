@@ -15,6 +15,21 @@
     "back": null
   },
   {
+    "id": "EX24-05",
+    "name": "Frieza, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": ["Blue"],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[activate: main][limit 1] If you only have blue ≪Power Wish≫ <Son Goku> cards in play in your Battle Area: Play this card from your hand. [activate: main][once per turn]{1}: Draw 1 card, and this card gains [dual attack] for the turn.",
+    "characters": ["Frieza"],
+    "traits": ["Frieza Clan", "Frieza's Army", "Power Wish"],
+    "back": null
+  },
+  {
     "id": "EX24-08",
     "name": "Oolong, Guided by the Dragon Balls",
     "type": "BATTLE",

@@ -485,6 +485,26 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
   }
+  // "If you **only** have blue ≪Power Wish≫ <Son Goku> cards in play in your
+  // Battle Area" (EX24-05, BT7-004, P-210; owner's ruling of 17 Oct 2026): every
+  // Battle Card you have fits the description, AND there is at least one. An
+  // empty Battle Area does not satisfy "only" — that is `every`, which is false
+  // with nothing to find (0-2-4-1), not a count of the cards that do not fit
+  // (which an empty area would pass). Battle Area only: other places keep their
+  // own readings. A description the target reader did not take in leaves the
+  // two selectors identical, and the condition would always hold: a gap instead.
+  if ((m = /^you only have (.+? cards?) (?:in play )?in your battle area$/.exec(t))) {
+    const whole = parseTarget("your cards in play in your battle area");
+    const part = parseTarget(`your ${m[1]} in play in your battle area`);
+    if (whole && part && !part.filter?.unreadable) {
+      for (const sel of [whole, part]) {
+        delete sel.count;
+        delete sel.upTo;
+      }
+      if (JSON.stringify(whole) !== JSON.stringify(part)) return { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } };
+    }
+    return null;
+  }
   // "If **all** of your opponent's energy is in Rest Mode" (XD1-01): the whole
   // set against the part of it the description picks out. Read as two
   // selectors so that the description can be a mode as easily as a colour.

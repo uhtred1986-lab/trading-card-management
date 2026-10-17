@@ -49,6 +49,12 @@ Object.assign(defs, {
   PWX910: pw("PWX910"), PWY910: pw("PWY910"),
   PWOOLONG910: pw("PWOOLONG910", { characters: ["Oolong"] }), PWCHEELAI910: pw("PWCHEELAI910", { characters: ["Cheelai: Br"] }),
   PLAIN910: card("PLAIN910", { skill: null }),
+  // EX24-05's "only": blue Power Wish Son Goku cards and the near misses.
+  GOKUPW910: card("GOKUPW910", { colors: ["Blue"], characters: ["Son Goku"], traits: ["Saiyan", "Power Wish"], skill: null }),
+  GOKURED910: card("GOKURED910", { colors: ["Red"], characters: ["Son Goku"], traits: ["Saiyan", "Power Wish"], skill: null }),
+  GOKUNOPW910: card("GOKUNOPW910", { colors: ["Blue"], characters: ["Son Goku"], traits: ["Saiyan"], skill: null }),
+  GOKUBLUEREDPW910: card("GOKUBLUEREDPW910", { colors: ["Blue", "Red"], characters: ["Son Goku"], traits: ["Saiyan", "Power Wish"], skill: null }),
+  PWOTHER910: card("PWOTHER910", { colors: ["Blue"], characters: ["Vegeta"], traits: ["Saiyan", "Power Wish"], skill: null }),
   // A Unison with two orbs of specified cost, a Shenron by trait.
   SHEN2: card("SHEN2", { type: "Z-UNISON", colors: ["Red", "Blue"], energyCost: null, zEnergyCost: 1, traits: ["Shenron"], skill: null }),
   // Shenron only while in play: the trait it leaves with is not the trait it has afterwards (event-time information).
@@ -119,6 +125,21 @@ const costOf = (id: string) => rec(id, "activate:main").cost!;
   assert.ok(price("[Auto][Once per turn] When your ≪Shenron≫ Z-Unison leaves the Unison Area or the Battle Area, draw 1 card.").trigger.length === 0
     || price("[Auto][Once per turn] When your ≪Shenron≫ Z-Unison leaves the Unison Area or the Battle Area, draw 1 card.").unread.length > 0, "an alternative place is not read as the Unison Area alone");
   assert.ok(skillRecords(card("GEN2", { skill: "[Auto] When your ≪Shenron≫ Z-Unison leaves the Unison Area, add up to 2 ≪Power Wish≫ cards from your deck to your hand for every 1 specified cost on that card, then shuffle your deck." }))[0].unread.length, "'up to 2 … for every 1' is another allowance: unread");
+
+  // EX24-05: "only" is every Battle Card fits AND there is one (owner's ruling, 17 Oct 2026).
+  const e05 = rec("EX24-05", "activate:main");
+  assert.deepEqual(e05.unread, [], "EX24-05's Activate reads in full");
+  const only = e05.cost!.condition as { kind: string; sel: { side: string; area: string; filter?: unknown }; matching: { side: string; area: string; filter: { colors: string[]; traits: string[]; characters: string[] } } };
+  assert.equal(only.kind, "every", "'only' is `every`: false with nothing to find, never a count of the cards that do not fit");
+  assert.deepEqual([only.sel.side, only.sel.area, only.sel.filter], ["you", "battle", undefined], "the whole is every card in your Battle Area");
+  assert.deepEqual([only.matching.side, only.matching.area, only.matching.filter.colors, only.matching.filter.traits, only.matching.filter.characters], ["you", "battle", ["Blue"], ["power wish"], ["son goku"]]);
+  assert.deepEqual(e05.ops.map((o) => o.op), ["choose", "play"], "the effect is playing this card from the hand");
+  const onlyOf = (said: string, where = "in play in your Battle Area") => price(`[Activate: Main] If you only have ${said} ${where}: Draw 1 card.`);
+  const generic = onlyOf("red <Vegeta> cards");
+  assert.deepEqual([generic.unread, (generic.cost!.condition as { kind: string }).kind], [[], "every"], "generic: any description, no card ids");
+  assert.ok(onlyOf("mumble frobnicate cards").unread.length, "a description it cannot read stays unread (never 'always true')");
+  assert.deepEqual(onlyOf("<Cell> cards", "in your Battle Area").unread, [], "the wording without 'in play' is the same shape (P-210)");
+  assert.ok(onlyOf("<Cell> cards", "in your Drop Area").unread.length, "another area keeps its own (unread) reading");
 
   const e10 = rec("EX24-10", "activate:main");
   const pick10 = e10.cost!.program![0] as { sel: { area: string; ownedByOpponent: boolean } };
@@ -196,6 +217,62 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(done.s.sides[seat].zones.battle.includes(ok.id), "the card is played");
     assert.equal(restCount(done.s, seat), 1, "{1} paid");
     assert.equal(count(done.s, seat, "energy"), 3, "the energy stays where it is, rested");
+  }
+
+  // ── 2b. EX24-05: "only" needs a Battle Card, and every one must fit ─────────
+  {
+    const board = (mine: string[] = [], theirs: string[] = []) => {
+      const s = fresh(seat, "LPW910");
+      const id = stage(s, seat, "EX24-05", "hand");
+      for (let i = 0; i < 4; i++) stage(s, seat, "V1", "energy");
+      const staged = mine.map((d) => stage(s, seat, d, "battle"));
+      for (const d of theirs) stage(s, foe, d, "battle");
+      return { s, id, staged };
+    };
+    const empty = board();
+    assert.equal(count(empty.s, seat, "battle"), 0);
+    assert.equal(offer(empty.s, empty.id), undefined, `${seat}: an empty Battle Area does not satisfy "only": not offered`);
+    assert.ok(refusal(empty.s, empty.id)?.some((r) => r.kind === "condition"), `${seat}: refused as a condition`);
+    assert.throws(() => RULES.apply(ctx, roundtrip(empty.s), forged(empty.s, seat, empty.id)), IllegalAction, `${seat}: a forged declaration with an empty Battle Area changes nothing`);
+
+    const ok = board(["GOKUPW910"]);
+    assert.ok(offer(ok.s, ok.id), `${seat}: offered with one blue Power Wish Son Goku`);
+    assert.ok(offer(board(["GOKUPW910", "GOKUPW910"]).s, ok.id), `${seat}: offered with two of them`);
+    assert.ok(offer(board(["GOKUPW910"], ["V-BLUE"]).s, ok.id), `${seat}: your opponent's Battle Cards are not "yours in your Battle Area"`);
+    for (const [why, b] of [
+      ["that plus any other Battle Card", board(["GOKUPW910", "V1"])],
+      ["that plus another Power Wish card that is not Son Goku", board(["GOKUPW910", "PWOTHER910"])],
+      ["a red Power Wish Son Goku", board(["GOKURED910"])],
+      ["a blue Son Goku without Power Wish", board(["GOKUNOPW910"])],
+      ["a blue Power Wish card that is not Son Goku", board(["PWOTHER910"])],
+      ["a blue Power Wish Son Goku plus a red one", board(["GOKUPW910", "GOKURED910"])],
+      ["only a plain Battle Card", board(["V1"])],
+    ] as const) {
+      assert.equal(offer(b.s, b.id), undefined, `${seat}: not offered with ${why}`);
+      assert.ok(refusal(b.s, b.id)?.some((r) => r.kind === "condition"), `${seat}: ${why} is refused as a condition`);
+      const before = JSON.stringify(b.s);
+      assert.throws(() => RULES.apply(ctx, roundtrip(b.s), forged(b.s, seat, b.id)), IllegalAction, `${seat}: a forged declaration with ${why} changes nothing`);
+      assert.equal(JSON.stringify(b.s), before, "nothing moved");
+    }
+    // A blue/red Son Goku is a blue card (the filter is "has the colour", as everywhere else) — pinned, not a ruling.
+    assert.ok(offer(board(["GOKUBLUEREDPW910"]).s, ok.id), `${seat}: a multicolour card that includes blue counts as a blue card, as everywhere else`);
+
+    const restBefore = restCount(ok.s, seat), energyBefore = count(ok.s, seat, "energy"), handBefore = count(ok.s, seat, "hand");
+    const done = run(ok.s, seat, offer(ok.s, ok.id)!.action);
+    assert.ok(!done.s.sides[seat].zones.hand.includes(ok.id) && done.s.sides[seat].zones.battle.includes(ok.id), "EX24-05 moved from the hand to the Battle Area");
+    assert.equal(count(done.s, seat, "hand"), handBefore - 1, "…and nothing else left the hand");
+    assert.equal(count(done.s, seat, "battle"), 2, "…beside the Son Goku");
+    assert.equal(restCount(done.s, seat), restBefore, "no energy paid (the skill has no price and plays it for free)");
+    assert.equal(count(done.s, seat, "energy"), energyBefore, "the energy stays where it is");
+    assert.equal(done.s.cards[ok.id].mode, "active", "played in Active Mode");
+
+    // [Limit 1]: a second activation in the same turn is not offered, even with the condition holding again.
+    const again = roundtrip(done.s);
+    assert.ok(moveCard(again, game, ok.id, "hand", { owner: seat }).ok);
+    assert.equal(count(again, seat, "battle"), 1);
+    assert.equal(offer(again, ok.id), undefined, `${seat}: [Limit 1] holds after the first use this turn`);
+    // …and survives a reload.
+    assert.equal(offer(roundtrip(again), ok.id), undefined, `${seat}: …through a reload`);
   }
 
   // ── 3. EX24-08 / EX24-13: the pair is the price ───────────────────────────
@@ -382,4 +459,4 @@ for (const seat of ["p1", "p2"] as const) {
   }
 }
 
-console.log("  ok #910: EX24-04 conjunct list, EX24-08/13 add-two Z-Energy price, EX24-03 Z-Deck specified cost, EX24-01 leave-Unison search, EX24-10 borrowed-card choice — both seats, through reloads");
+console.log("  ok #910: EX24-04 conjunct list, EX24-08/13 add-two Z-Energy price, EX24-03 Z-Deck specified cost, EX24-01 leave-Unison search, EX24-10 borrowed-card choice, EX24-05 only-have (needs a Battle Card, all of them blue Power Wish Son Goku) — both seats, through reloads");
