@@ -302,7 +302,8 @@
             "originalPower",
             "comboPower",
             "energyCost",
-            "comboCost"
+            "comboCost",
+            "specifiedCost"
           ]
         },
         {
@@ -3270,7 +3271,8 @@
             "originalPower",
             "comboPower",
             "energyCost",
-            "comboCost"
+            "comboCost",
+            "specifiedCost"
           ]
         },
         {
@@ -3386,6 +3388,10 @@
       "part": "flag"
     },
     {
+      "field": "ownedByOpponent",
+      "part": "flag"
+    },
+    {
       "field": "notSelf",
       "part": "flag"
     },
@@ -3434,6 +3440,10 @@
     {
       "word": "notInBattle",
       "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
+    },
+    {
+      "word": "ownedByOpponent",
+      "doc": "only cards you control whose owner is your opponent — a control exchange's loans (20-9); EX24-10's \"Battle Cards whose owner is your opponent\""
     },
     {
       "word": "otherThanSelf",
@@ -3948,7 +3958,8 @@
     "originalPower",
     "comboPower",
     "energyCost",
-    "comboCost"
+    "comboCost",
+    "specifiedCost"
   ],
   "costItems": [
     {
@@ -4104,6 +4115,10 @@
     {
       "name": "yourCardReturnedToHand",
       "words": "when a card is returned from your Battle Area to its owner's hand"
+    },
+    {
+      "name": "yourUnisonLeft",
+      "words": "when a Unison leaves your Unison Area"
     },
     {
       "name": "battleOrDeckToWarp",

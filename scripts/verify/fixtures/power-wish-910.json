@@ -1,0 +1,62 @@
+[
+  {
+    "id": "EX24-04",
+    "name": "SS Son Goku, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": ["Blue"],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[deflect][double strike] [auto][spirit boost x] When this card attacks, it gets +5000 power multiplied by X for the battle. Additionally, if X is 7 or greater, this card gains [barrier] for the turn. [activate: main][limit 1]{1}, if your Leader is a ≪Power Wish≫ card, you have 3 or more energy, and neither you nor your opponent have a Battle Card in play: Play this card from your hand.",
+    "characters": ["Son Goku"],
+    "traits": ["Saiyan", "Power Wish"],
+    "back": null
+  },
+  {
+    "id": "EX24-08",
+    "name": "Oolong, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": ["Green"],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 4000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[auto] When this card is played, draw 1 card. [activate: main][limit 1] If your Leader is a ≪Power Wish≫ card and you add this card and 1 non-<Oolong> ≪Power Wish≫ card from your hand to your Z-Energy: Draw 2 cards.",
+    "characters": ["Oolong"],
+    "traits": ["Earthling", "Power Wish"],
+    "back": null
+  },
+  {
+    "id": "EX24-10",
+    "name": "Goku Black, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": ["Yellow"],
+    "energyCost": 5,
+    "zEnergyCost": null,
+    "power": 25000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[deflect][double strike] [auto] When this card is played, play up to 1 yellow ≪Power Wish≫ <Zamasu> card from your deck, then shuffle your deck. [activate: main][limit 1]{1}, if your Leader is a ≪Power Wish≫ card, choose 1 of your Battle Cards whose owner is your opponent: Play this card from your hand on top of the chosen card in Active Mode.",
+    "characters": ["Goku Black"],
+    "traits": ["Power Wish"],
+    "back": null
+  },
+  {
+    "id": "EX24-13",
+    "name": "Cheelai, Guided by the Dragon Balls",
+    "type": "BATTLE",
+    "colors": ["Black"],
+    "energyCost": 1,
+    "zEnergyCost": null,
+    "power": 4000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Power Wish≫ card to your hand, then shuffle your deck. [activate: main][limit 1] If your Leader is a ≪Power Wish≫ card and you add this card and 1 non-<Cheelai: Br> ≪Power Wish≫ card from your hand to your Z-Energy: Draw 2 cards.",
+    "characters": ["Cheelai: Br"],
+    "traits": ["Frieza's Army", "Power Wish"],
+    "back": null
+  }
+]

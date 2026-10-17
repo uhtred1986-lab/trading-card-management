@@ -194,6 +194,7 @@ export function splitClauses(text: string): string[] {
         !andJoinsColours(text, start, i) &&
         !andJoinsTwoSwitched(text, start, i) &&
         !andJoinsTwoCosts(text, start, i) &&
+        !andJoinsThisCardAndAnother(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
         // keyword tag with no verb of its own to be read as a clause.
@@ -407,6 +408,19 @@ function andJoinsARange(text: string, start: number, i: number): boolean {
  */
 function andJoinsTwoCosts(text: string, start: number, i: number): boolean {
   return /\b(?:reduce|increase|decrease) the energy costs?\s*$/i.test(text.slice(start, i)) && /^z-energy costs?\b/i.test(text.slice(i + 5));
+}
+
+/**
+ * "Add **this card and 1 non-<Oolong> ≪Power Wish≫ card from your hand** to
+ * your Z-Energy" (EX24-08, EX24-13): one verb and one destination for two
+ * cards, this one and a counted one from the hand. Kept whole only in this
+ * exact shape; `compileClause` reads it as the pair of moves it is.
+ */
+function andJoinsThisCardAndAnother(text: string, start: number, i: number): boolean {
+  return (
+    /(?:^\s*|[,;:]\s+|\byou\s+)add this card(?: in your hand)?\s*$/i.test(text.slice(start, i)) &&
+    /^ and (?:\d+|an?|one) [^.;]*? from your hand (?:in|into|to) your z-energy\s*$/i.test(text.slice(i).replace(/[.;]$/, ""))
+  );
 }
 
 /**

@@ -138,6 +138,12 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * "…Battle Cards **whose owner is your opponent**" (EX24-10): only cards the
+   * chooser controls but does not own — the ones a control exchange (20-9)
+   * brought over. Read off the card's owner, not the area it lies in.
+   */
+  ownedByOpponent?: true;
+  /**
    * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
    * Clan≫ card among them **other than copies of this card**". Refusing to
    * *resolve* to this card is only half of it: read as nothing, the phrase
@@ -211,7 +217,7 @@ export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id
  * `energyCost`, and the reason it is a separate measure rather than a flag on
  * `power`.
  */
-export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "originalPower";
+export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "originalPower" | "specifiedCost";
 
 /**
  * A number an effect needs — an *expression*, since 12 Sep 2026 (20-5).
@@ -2643,6 +2649,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // [Activate] said the same thing with a duration on it — XD1-05's
         // "…by 1 for the duration of the turn" — and a skill that resolves has
         // to put it in force itself, or it resolves to nothing at all.
+        // "Ignore the specified costs on …" (EX24-03): no specified cost at all
+        // for the span (1-2-3-2), the same standing change a [Permanent] writes
+        // (`collectStatics`), here with the duration the skill gave it.
+        if (op.what === "specified" && op.all) {
+          for (const id of h.resolveRef(frame, op.target)) {
+            h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: [], sign: 1, all: true }, until: op.until ?? "turn" });
+          }
+          break;
+        }
         const by = h.amount(frame, op.amount);
         if (!by) break;
         // "specified" carries its own value shape — see `collectStatics` and

@@ -130,8 +130,7 @@ for (const id of wishIds) for (const area of ["zDeck","unison"] as const) {
   assert.equal(s.cards[control].markers,2,"non-Shenron Z-Unison never gains a marker");
   if(s.prompt.kind==="chooseCards") assert.ok(!s.prompt.choice.candidates.includes(control));
 }
-// The full real supporting lines remain honest dependencies, never approximated.
-assert.deepEqual(rows.find(r=>r.cardId==="EX24-01" && r.side==="back" && r.skillIndex===0)!.trigger,[],"leave-Unison watcher is not yet supported");
-assert.ok(rows.find(r=>r.cardId==="EX24-01" && r.side==="back" && r.skillIndex===0)!.unread.some(u=>u.includes("specified cost")),"variable leave-Unison search is still an explicit gap");
-assert.ok(rows.find(r=>r.cardId==="EX24-03" && r.skillIndex===10)!.unread.some(u=>u.includes("specified costs")),"Z-Deck permission is still an explicit gap");
-console.log("  ok #910: seven real Permanents, stored rows, self/area boundaries, all-area identity, attack refusal, EX24 marker cost/targets; leave-search and Pilaf gaps retained");
+// The leave-Unison search and Pilaf's permission are proved in power-wish-910.ts; here only that they now read.
+assert.deepEqual(rows.find(r=>r.cardId==="EX24-01" && r.side==="back" && r.skillIndex===0)!.unread,[],"leave-Unison search reads (#910 supporting effects)");
+assert.deepEqual(rows.find(r=>r.cardId==="EX24-03" && r.skillIndex===10)!.unread,[],"Pilaf's Z-Deck permission reads (#910 supporting effects)");
+console.log("  ok #910: seven real Permanents, stored rows, self/area boundaries, all-area identity, attack refusal, EX24 marker cost/targets; leave-search and Pilaf now read");

@@ -594,6 +594,11 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
       return num(now.comboCostOf);
     case "energyCost":
       return num(now.costOf);
+    // 1-2-3: the number of orbs the specified cost asks for, as it stands (or
+    // as it stood, for a card read from a movement's captured information);
+    // a card with no specified cost to read has none.
+    case "specifiedCost":
+      return Array.isArray(now.specifiedCost) ? now.specifiedCost.length : 0;
   }
 }
 
@@ -1262,6 +1267,8 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.hidden != null && (movementInfo?.hidden ?? card.hidden) !== sel.hidden) return false;
     // "…that's not in a battle" (8-1-2, #537).
     if (sel.notInBattle && state.battle && (state.battle.attacker === id || state.battle.guard === id)) return false;
+    // "…whose owner is your opponent" (EX24-10): owned by the other player.
+    if (sel.ownedByOpponent && card.owner === frame.master) return false;
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && state.cards[frame.card] && card.cardId === state.cards[frame.card].cardId) return false;

@@ -886,6 +886,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // +5000 power for each card in your Drop" would otherwise read as a flat
   // +5000 and say nothing about having dropped the rest of the sentence.
   if (/\bfor each\b|\bfor every\b|\bequal to the number of\b/.test(t)) {
+    // "Add up to 1 ≪Power Wish≫ card from your deck to your hand **for every
+    // 1 specified cost on that card**" (EX24-01b): one card allowed per orb of
+    // the specified cost the Unison that left had — read from the movement's
+    // captured information, so a later change to it does not count. Only the
+    // "up to 1 … for every 1" shape, where the allowance is the orb count
+    // itself, and only after a trigger whose subject "that card" is.
+    if (
+      (m = /^add up to 1 (.+?) from your deck to your hand for every 1 specified costs? on (?:that card|it)$/.exec(t)) &&
+      c.lastTarget &&
+      "sel" in c.lastTarget &&
+      c.lastTarget.sel.special === "subject"
+    ) {
+      const base = compileClause(`add up to 1 ${m[1]} from your deck to your hand`, c);
+      const pick = base?.[0];
+      if (!base || base.length !== 2 || pick?.op !== "choose" || pick.sel.area !== "deck") return null;
+      return [{ ...pick, sel: { ...pick.sel, count: undefined, upTo: true }, atMost: { attr: { sel: { special: "subject" } }, name: "specifiedCost" } }, base[1]];
+    }
     const counted = compileForEach(t, c);
     if (counted) return counted;
     // "For each marker on this card, **it** gets +5000 power" (EX19-21):
@@ -1316,6 +1333,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   //   number" clause this compiler cannot read, and an unread "if" refuses
   //   every clause it governs (see the `if`/`while`/`unless` refusal further
   //   down) rather than compiling the "then" half in a vacuum.
+  // "During this turn, **ignore the specified costs on** ≪Shenron≫ Z-Unisons
+  // in your Z-Deck" (EX24-03): the cards are treated as having no specified
+  // cost (1-2-3-2) for the span — the same standing change [Warrior of
+  // Universe 7] makes (22-19-2), here timed. The description must name its
+  // place (a Z-Deck, hand…): a bare one would be every card in play.
+  if ((m = /^ignore the specified costs? (?:of|on) (.+? in your [a-z-]+(?: area)?)(?: during this turn)?$/.exec(qq))) {
+    const ref = refFor(m[1], c);
+    if (!ref || !("sel" in ref) || ref.sel.special || (c.stale && ref === c.stale)) return null;
+    // Every card the description covers, never "one of them": a plural noun
+    // reads as a count of 1 here, and a choice is not what this says.
+    const whole = { ...ref.sel };
+    delete whole.count;
+    delete whole.upTo;
+    return [{ op: "costReduction", target: { sel: whole }, amount: 0, what: "specified" as const, all: true, until: durationOf(clause) }];
+  }
   if ((m = /^(reduce|increase|decrease) the specified costs? (?:of|on) (.+?) by ((?:\{[rugykbw]\})+)$/.exec(qq))) {
     const sign = m[1] === "increase" ? -1 : 1;
     const ref = refFor(m[2], c);
@@ -2083,6 +2115,31 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       ref = sel ? { sel: { ...sel, fromVar: sel.fromVar ?? c.lastSeen } } : null;
     } else ref = refFor(said, c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "zDeck", ...(faceUp ? { faceUp: true, reveal: true } : {}) })) : null;
+  }
+
+  // "Add **this card and 1 non-<Oolong> ≪Power Wish≫ card from your hand** to
+  // your Z-Energy" (EX24-08, EX24-13): two cards go, this one and one more the
+  // player picks from the hand. The second is "another" card by the sentence's
+  // own count — this card is the first — so the choice excludes it
+  // (`notSelf`), and it is made before either moves. Only a counted
+  // description that names the hand is read; anything vaguer stays unread.
+  if ((m = /^add this card(?: in your hand)? and (\d+|an?|one) (.+? from your hand) (?:in|into|to) your z-energy$/.exec(t))) {
+    const chosen = refFor(`${/^\d+$/.test(m[1]) ? m[1] : "1"} ${m[2]}`, c);
+    if (!chosen || !("sel" in chosen) || chosen.sel.special || chosen.sel.area !== "hand" || chosen.sel.count !== 1 || chosen.sel.upTo) return null;
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { ...chosen.sel, notSelf: "card" }, as: v, reason: clause },
+      { op: "moveTo", target: { sel: { special: "self", area: "hand" } }, to: "zEnergy" },
+      { op: "moveTo", target: { var: v }, to: "zEnergy" },
+    ];
+  }
+
+  // "…you add **this card in your hand** to your Z-Energy" (EX24-03): the card
+  // is used from the hand (9-1-3-2; the official Q&A for the sister lines says
+  // these only work from the hand), so the move names it. Said with "in" and
+  // read only here: the general "this card in your hand" reading is untouched.
+  if (/^add this card in your hand (?:in|into|to) your z-energy$/.test(t)) {
+    return [{ op: "moveTo", target: { sel: { special: "self", area: "hand" } }, to: "zEnergy" }];
   }
 
   // Area moves (3-1).
