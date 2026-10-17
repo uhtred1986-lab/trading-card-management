@@ -288,6 +288,7 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   // #537: either description in full — <V1>, or a blue card costing 2 or less.
   anyOf: { anyOf: [{ ...emptyFilter(), characters: ["V1"] }, { ...emptyFilter(), colors: ["Blue"], costMax: 2 }] },
   onlyCharacters: { onlyCharacters: true, characters: ["V1"] },
+  onlyTraits: { onlyTraits: true, traits: ["Saiyan", "God"] },
   notTraits: { notTraits: ["Saiyan"] },
   names: { names: ["BIG"] },
   notNames: { notNames: ["BIG"] },
