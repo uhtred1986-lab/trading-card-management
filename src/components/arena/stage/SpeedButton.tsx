@@ -11,6 +11,19 @@ const TITLE: Record<Pace, string> = {
 };
 
 /**
+ * Skip the story being told: a small chip beside the turn pill, shown only
+ * while beats play, never a button in the field. A 44 px target round a small
+ * pill, like the speed button.
+ */
+export function SkipChip({ onSkip }: { onSkip: () => void }) {
+  return (
+    <button type="button" onClick={onSkip} className="tap flex h-11 shrink-0 items-center justify-center" aria-label="Fast-forward" title="Skip to the end of this turn's moves" data-skip-chip>
+      <span className="arena-speed grid place-items-center px-2 text-[11px] leading-none">⏩</span>
+    </button>
+  );
+}
+
+/**
  * The top bar's speed button (`docs/arena-redesign/` frame 01): the same
  * preference as the menu's `PaceToggle`, cycling on tap and remembered.
  */
