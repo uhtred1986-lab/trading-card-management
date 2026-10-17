@@ -1,4 +1,4 @@
-.overlay { position: absolute; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; contain: paint; --accent: #7eeaff; }
+.overlay { position: fixed; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; contain: paint; --accent: #7eeaff; }
 .stage { position: absolute; top: 27%; inset-inline: 3%; height: 250px; border: 1px solid var(--accent); border-radius: 16px; overflow: hidden; background: #07182ff2; box-shadow: 0 0 35px #0009; animation: receipt var(--duration) ease both; }
 .title { position: absolute; top: 16px; inset-inline: 18px; text-align: center; color: var(--accent); font-size: clamp(18px, 4vw, 26px); }
 .aura { position: absolute; inset: 0; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%); }

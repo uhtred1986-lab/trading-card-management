@@ -6,7 +6,8 @@ import type { PlayerId } from "@/lib/arena/types";
 import { combatMoment, soundCue } from "@/lib/arena/immersion/events";
 import { arenaAudio } from "@/lib/arena/immersion/audio";
 import { useImmersionPreferences, setImmersionPreferences } from "@/lib/arena/immersion/preferences";
-import { CombatBanner } from "./CombatBanner";
+import { CombatBanner, warmSheet } from "./CombatBanner";
+import { resolveCharacter } from "@/lib/arena/immersion/characters";
 import { skillMoment } from "@/lib/arena/immersion/skills";
 import { SkillBanner } from "./SkillBanner";
 import { SoundControls } from "./SoundControls";
@@ -16,10 +17,22 @@ export function ImmersionSettings() {
   const prefs = useImmersionPreferences();
   return <div className="space-y-3"><button type="button" className="tap min-h-11 text-sm" aria-pressed={prefs.banners} onClick={() => setImmersionPreferences({ banners: !prefs.banners })}>Combat banners: {prefs.banners ? "on" : "off"}</button><SoundControls enabled={prefs.sound} volume={prefs.volume} onEnabled={sound => setImmersionPreferences({ sound })} onVolume={volume => setImmersionPreferences({ volume })} /></div>;
 }
-export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, reducedMotion, durationMs, suppressed, onSkip }: {
+export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, reducedMotion, durationMs, suppressed, onSkip, board = [] }: {
+  /** The cards in play: their hero sheets are fetched ahead, so the first attack already shows its hero. */
+  board?: (CardView | null | undefined)[];
   gameId: number; beat: NumberedBeat | null; events?: Beats | null; cardOf: (id: string) => CardView | null; art: Record<string, BeatArt>; viewer: PlayerId; reducedMotion: boolean; durationMs: number; suppressed: boolean; onSkip: () => void;
 }) {
   const prefs = useImmersionPreferences();
+  const warmKey = board.map((c) => (c && !c.hidden ? `${c.cardId}:${c.flipped}` : "")).join("|");
+  useEffect(() => {
+    if (!prefs.banners) return;
+    for (const c of board) {
+      const hero = c && !c.hidden ? resolveCharacter(c.cardId, c.name, c.flipped) : null;
+      if (hero) warmSheet(hero.sheet);
+    }
+    // The key stands for the board's cards; the array itself is new every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warmKey, prefs.banners]);
   const visible = useSyncExternalStore(watchVisibility, () => !document.hidden, () => true);
   const seen = useRef("");
   const observed = useRef({ gameId, seq: events?.seq ?? 0, initialized: !!events });

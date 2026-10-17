@@ -1,7 +1,8 @@
 "use client";
 import { CardReader } from "./CardReader";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useArenaAdmin } from "./admin-context";
 import type { Spotlight } from "@/lib/arena/games";
 import type { BoardView, CardView } from "@/lib/arena/view";
 import { CardDetail, ChipRow, type InspectorChip } from "./shared-sheets";
@@ -88,87 +89,63 @@ export function StepBanner({ step, hold = false }: { step: string; hold?: boolea
   );
 }
 
+/**
+ * A skill firing, shown as a card: its art, its name and a short tag, centred under the top bar for
+ * about two seconds. The rules text is one tap away ("read") and shown from the start only to an SL;
+ * a player does not need a paragraph to know which card just did something. Never draggable, never
+ * blocks the board: only the small controls take taps.
+ */
 export function SkillSpotlight({ spotlight }: { spotlight: (Spotlight & { imageUrl: string | null }) | null }) {
+  const admin = useArenaAdmin();
   const [shown, setShown] = useState<(Spotlight & { imageUrl: string | null }) | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const seen = useRef<number | null>(null);
-  const drag = useRef<{ startX: number; startY: number; from: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
     if (!spotlight || seen.current === spotlight.seq) return;
     seen.current = spotlight.seq;
     setShown(spotlight);
     setExpanded(false);
-    setOffset({ x: 0, y: 0 });
   }, [spotlight]);
 
   const shownSeq = shown?.seq;
   useEffect(() => {
-    if (shownSeq == null) return;
-    const timer = setTimeout(() => setShown(null), 4000);
+    if (shownSeq == null || expanded) return;
+    const timer = setTimeout(() => setShown(null), admin ? 4000 : 2200);
     return () => clearTimeout(timer);
-  }, [shownSeq]);
-
-  const startDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    drag.current = { startX: e.clientX, startY: e.clientY, from: offset };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const { startX, startY, from } = drag.current;
-    setOffset({ x: from.x + (e.clientX - startX), y: from.y + (e.clientY - startY) });
-  };
-  const endDrag = () => {
-    drag.current = null;
-  };
+  }, [shownSeq, expanded, admin]);
 
   if (!shown) return null;
+  const showText = expanded || admin;
   return (
-    <div
-      className="fixed left-2 top-24 z-40 w-[19rem] sm:left-4 sm:top-28 sm:w-[23rem]"
-      style={{ transform: offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
-      aria-live="polite"
-      data-skill-spotlight={shown.seq}
-    >
-      <div className={`arena-drop arena-float relative flex gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-6 backdrop-blur ${shown.unread ? "border-dbs-yellow" : "border-ki-500"}`}>
+    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-40 flex justify-center px-2 sm:top-16" aria-live="polite" data-skill-spotlight={shown.seq}>
+      <div className={`arena-drop arena-float pointer-events-auto relative flex w-[min(19rem,100%)] gap-2 rounded-xl border-l-4 bg-space-900/95 p-2 pr-8 backdrop-blur ${shown.unread && admin ? "border-dbs-yellow" : "border-ki-500"}`}>
         <button
           type="button"
           onClick={() => {
             setShown(null);
           }}
-          className="tap absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-space-400 hover:bg-space-800 hover:text-space-50"
+          className="tap absolute right-0 top-0 flex h-11 w-9 items-center justify-center text-space-400 hover:text-space-50"
           aria-label="Dismiss"
         >
           ×
         </button>
-        <div
-          className="flex min-w-0 flex-1 cursor-grab touch-none select-none gap-2 active:cursor-grabbing"
-          onPointerDown={startDrag}
-          onPointerMove={onDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          {shown.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
-            <img src={cardImage(shown.imageUrl, "thumb")} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-space-50">{shown.name}</p>
-            <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+        {shown.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- transient overlay, art already loaded by the board.
+          <img src={cardImage(shown.imageUrl, "thumb")} alt="" className="card-aspect h-16 shrink-0 rounded object-cover sm:h-20" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-space-50">{shown.name}</p>
+          <span className="mt-0.5 inline-block rounded bg-ki-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ki-300">{shown.label}</span>
+          {showText ? (
             <p className={`mt-1 whitespace-pre-wrap text-[11px] leading-snug text-space-200 sm:text-xs ${expanded ? "max-h-48 overflow-y-auto pr-1" : "line-clamp-3"}`}>{plainText(shown.text)}</p>
-            {shown.unread && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">The referee ruled on this card&apos;s text.</p>}
-          </div>
+          ) : (
+            <button type="button" onClick={() => setExpanded(true)} className="tap mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400">
+              read
+            </button>
+          )}
+          {shown.unread && admin && <p className="mt-1 text-[10px] font-semibold text-dbs-yellow">The referee ruled on this card&apos;s text.</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setExpanded((v) => !v);
-          }}
-          className="tap absolute bottom-1 right-1 rounded px-1 text-[10px] font-semibold uppercase tracking-wide text-ki-300 hover:text-ki-400"
-        >
-          {expanded ? "less" : "more"}
-        </button>
       </div>
     </div>
   );

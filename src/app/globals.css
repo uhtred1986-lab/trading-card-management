@@ -1368,6 +1368,74 @@ input[type="number"] {
   font-style: italic;
   font-weight: 800;
 }
+/* A focused moment (FocusMoments.tsx): a dimmed board, the card(s) large in the centre, gone inside --focus-ms.
+   The play spotlight shrinks away as the card's own flight settles it; a fight holds until its beat ends. */
+@keyframes arena-focus {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes arena-focus-card {
+  0% {
+    transform: scale(0.7) rotate(-3deg);
+  }
+  16% {
+    transform: scale(1.05);
+  }
+  26%,
+  70% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.6) translateY(60px);
+  }
+}
+.arena-focus {
+  background: rgba(3, 8, 20, 0.62);
+  animation: arena-focus var(--focus-ms, 900ms) ease-out both;
+}
+.arena-focus .arena-focus-card {
+  animation: arena-focus-card var(--focus-ms, 900ms) cubic-bezier(0.2, 0.9, 0.2, 1.1) both;
+}
+.arena-focus-hold .arena-focus-card {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-focus,
+  .arena-focus .arena-focus-card {
+    animation: none;
+  }
+}
+/* The no-effect chip: in, hold, out inside --chip-ms. Reduced motion: no animation, the timer removes it. */
+@keyframes arena-chip {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.arena-chip {
+  animation: arena-chip var(--chip-ms, 1500ms) ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-chip {
+    animation: none;
+  }
+}
 /* #783: the Leader, named on both sides — gold for you, blue for them, as the avatars are. It sits on
    the card's top edge, inside the row's padding, so a sideways-scrolling row cannot clip it. */
 .arena-leader-tag {
@@ -2417,6 +2485,27 @@ input[type="number"] {
 }
 .arena-clash-boom {
   transform: scale(2.1);
+}
+/* Once the clash lands the side that came out ahead is lit and the other steps back. */
+.arena-clash-won {
+  filter: drop-shadow(0 0 14px var(--color-ki-400));
+  scale: 1.06;
+  transition:
+    scale 160ms ease-out,
+    filter 160ms ease-out;
+}
+.arena-clash-lost {
+  opacity: 0.55;
+  filter: saturate(0.4);
+  transition:
+    opacity 160ms ease-out,
+    filter 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-clash-won,
+  .arena-clash-lost {
+    transition: none;
+  }
 }
 /* The place a card left for the fight keeps its shape but is not a dashed box:
    nothing is missing there, the card is in the fight. */

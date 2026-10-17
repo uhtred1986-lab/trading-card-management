@@ -24,6 +24,7 @@ export function Hand({
   defending = false,
   browseEnabled = true,
   onPeek,
+  sendingId = null,
 }: {
   cards: CardView[];
   cardProps: (c: CardView) => React.ComponentProps<typeof StageCard>;
@@ -42,6 +43,8 @@ export function Hand({
   browseEnabled?: boolean;
   /** The card whose preview is open (null when none), so the board can offer its action — a charge — for it. */
   onPeek?: (id: string | null) => void;
+  /** A card just tapped and on its way to the fight (a combo): it lifts toward it at once. */
+  sendingId?: string | null;
 }) {
   // Measure the hand and card at the current board scale for overlap spacing.
   const fan = useRef<HTMLDivElement | null>(null);
@@ -198,14 +201,14 @@ export function Hand({
               key={c.id}
               {...(!wide && browsing ? {} : handlers)}
               data-hand-browse-card={c.id}
-              className={`${styles.handCard} relative shrink-0 transition-[opacity,filter] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
+              className={`${styles.handCard} relative shrink-0 transition-[opacity,filter,transform] duration-150 ${chargeable?.(c.id) ? "arena-chargeable" : ""}`}
               style={{
                 marginLeft: i === 0 ? 0 : step - card,
                 zIndex: wide && up ? 60 : i + 1,
                 // Keep horizontal swipes for browsing while retaining vertical drags.
                 touchAction: browsing ? "none" : handlers ? (wide ? "none" : "pan-x") : undefined,
-                transform: visiblePeek?.id === c.id ? "translateY(-12px)" : undefined,
-                ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : null),
+                transform: visiblePeek?.id === c.id ? "translateY(-12px)" : sendingId === c.id ? "translateY(-44px) scale(1.1)" : undefined,
+                ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : sendingId === c.id ? { opacity: 0.55 } : null),
               }}
             >
               <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={browsing ? undefined : props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />

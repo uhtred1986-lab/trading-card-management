@@ -298,6 +298,22 @@
         "reviewedCardArtSha256": "1c84dc6a31ab8d76a27685a6d6311c46b644b4e04408fcac84c8bcd37d4eae6b",
         "visualReview": "Inspected the bundled classic tutorial front: black-haired Son Goku in orange gi with blue undershirt and wristbands, matching the Goku sheet. Awakened face intentionally unmapped."
       }
+    },
+    {
+      "cardId": "BT1-084",
+      "face": "front",
+      "name": "Frieza",
+      "characterId": "frieza",
+      "evidence": {
+        "catalogCardName": "Frieza",
+        "catalogCharacter": [
+          "Frieza"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://trading-card-management.vercel.app/arena/tutorial/classic/BT1-084-front.png",
+        "reviewedCardArtSha256": "dc4cc8a28993efcdf50bc913d33b30ab071a1ed53eb618b86242b142c66b1e15",
+        "visualReview": "Inspected the bundled classic tutorial front: Frieza in the white-bodied, purple-accented final form shown by the sheet. Awakened face intentionally unmapped."
+      }
     }
   ],
   "sources": [

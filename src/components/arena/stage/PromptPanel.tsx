@@ -121,6 +121,8 @@ export function PromptPanel({
   const ownsTurn = view.turnPlayer === view.you.player;
   const defending = !!view.battle && !ownsTurn;
   const responseQuestion = defending ? view.prompt.kind === "counter" ? "Cancel the attack with a Counter card?" : view.prompt.kind === "blocker" ? "Let a [Blocker] take the hit instead?" : view.prompt.kind === "combo" ? "Add combo power to your defender?" : null : null;
+  /** The defence window has its own one-sentence brief below, so the bar does not say it twice. */
+  const defenceBrief = defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && !bad && !!view.battle;
   const line: React.ReactNode = playing ? (
     `${playingMine ? "Your move" : `${view.them.name} is playing`} · ${playingIndex + 1} of ${playingTotal}${playingMine && pace === "step" ? " · tap Next" : ""}`
   ) : overOutcome ? (
@@ -202,7 +204,7 @@ export function PromptPanel({
       ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
           {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
-          <span className={phaseLevel && !bad ? undefined : "line-clamp-3"}>{line}</span>
+          <span className={phaseLevel && !bad ? undefined : "line-clamp-3"}>{defenceBrief ? null : line}</span>
         </p>
       )}
 
@@ -236,19 +238,7 @@ export function PromptPanel({
       )}
       {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
         <div className="w-full" data-defend-step={view.prompt.kind}>
-          <p className="mb-1 flex flex-wrap items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-space-300" aria-label="Counter, Block, Combo response steps">
-            <span className={view.prompt.kind === "counter" ? "text-ki-300" : ""}>1 Counter{view.battle?.emptyResponses?.includes("counter") ? " · none" : ""}</span><span>›</span>
-            <span className={view.prompt.kind === "blocker" ? "text-ki-300" : ""}>2 Block{view.battle?.emptyResponses?.includes("blocker") ? " · none" : ""}</span><span>›</span>
-            <span className={view.prompt.kind === "combo" ? "text-ki-300" : ""}>3 Combo{view.battle?.emptyResponses?.includes("defenseCombo") ? " · none" : ""}</span>
-          </p>
-          {view.prompt.kind === "combo" && view.battle && (() => {
-            const b = view.battle!;
-            const base = b.contributions?.[b.guard];
-            const combo = view.you.combo.reduce((sum, card) => sum + (b.contributions?.[card.id] ?? 0), 0);
-            return <p className="mb-1 text-xs leading-snug" data-combo-meter>
-              {base != null ? `${base.toLocaleString("en")} + ${combo.toLocaleString("en")} = ` : ""}{b.guardPower.toLocaleString("en")} vs {b.attackPower.toLocaleString("en")} · {stakesSummary(b)}
-            </p>;
-          })()}
+          <DefenceBrief view={view} kind={view.prompt.kind as "counter" | "blocker" | "combo"} />
           {defendOptions.length > 0 && <div className="max-h-[24dvh] space-y-1.5 overflow-y-auto" aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
             {defendOptions.map((option, i) => (
               <div key={`${option.card.id}:${i}`} className={`rounded-xl border ${option.reason ? "border-loss/50 bg-loss/5" : "border-space-600 bg-space-900/90"} p-2`} data-defend-card={option.card.id}>
@@ -273,8 +263,8 @@ export function PromptPanel({
           ? attacksRemaining > 0 ? `${attacksRemaining} ${attacksRemaining === 1 ? "attacker" : "attackers"} can still attack` : "No attackers left"
           : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
             : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
-              : l.action.type === "block" && l.action.card == null ? "Keep the current target"
-                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "If unchanged: take the hit" : "If unchanged: defend the hit" : "Finish adding combo power"
+              : l.action.type === "block" && l.action.card == null ? "No block"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "Take the hit" : "Keep it as is" : "Done adding power"
                 : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
                   : view.prompt.passConsequence ?? "Pass this decision";
         return (
@@ -313,5 +303,53 @@ export function PromptPanel({
         </div>
       )}
     </section>
+  );
+}
+
+/** The step the defender is on, as three dots with the current one lit; the words are for screen readers. */
+const DEFENCE_STEPS = ["counter", "blocker", "combo"] as const;
+
+/**
+ * What you are answering, in one sentence and one comparison (owner, 17 Oct 2026: "no need for a
+ * lot of text if the UI is being clear"). The sentence names the attacker and what it is hitting;
+ * the two figures are yours against theirs, lit by who is ahead. The engine's step names, the
+ * "tied: attacker wins ties" arithmetic and the stakes sentence stay in the decision details above
+ * (and for SLs): a player needs "add power or take the hit", not the rulebook.
+ */
+function DefenceBrief({ view, kind }: { view: BoardView; kind: (typeof DEFENCE_STEPS)[number] }) {
+  const b = view.battle;
+  if (!b) return null;
+  const known = [view.them.leader, view.them.unison, ...view.them.battle, view.you.leader, view.you.unison, ...view.you.battle];
+  const nameOf = (id: string) => known.find((c) => c?.id === id)?.name ?? "A card";
+  const attacker = nameOf(b.attacker);
+  const mine = view.you.leader?.id === b.guard ? "your Leader" : view.you.unison?.id === b.guard ? "your Unison" : nameOf(b.guard);
+  const holding = b.guardPower > b.attackPower;
+  const s = b.stakes;
+  const stakes = !s ? null : !s.hit ? "You hold" : s.target === "leader" ? `−${s.lifeDamage} life` : s.target === "unison" ? "Unison loses markers" : s.koPrevented ? "No KO" : "KO";
+  const ask = kind === "counter" ? "play a Counter or let it through" : kind === "blocker" ? "block with a Blocker or let it through" : holding ? "you are holding" : "add combo power or take the hit";
+  const cell = (label: string, power: number, ahead: boolean) => (
+    <div className={`min-w-0 flex-1 rounded-xl border px-2 py-1 text-center ${ahead ? "border-ki-400 bg-ki-500/15" : "border-loss/60 bg-loss/10"}`}>
+      <span className="block truncate text-[10px] font-bold uppercase tracking-wide text-space-200">{label}</span>
+      <b className={`block font-mono text-xl font-black tabular-nums ${ahead ? "text-ki-300" : "text-loss"}`}>{power.toLocaleString("en")}</b>
+    </div>
+  );
+  return (
+    <div className="mb-1.5 space-y-1.5">
+      <p className="text-sm font-semibold leading-snug text-space-50" data-defence-line>
+        {attacker} attacks {mine} — {ask}.
+      </p>
+      <div className="flex items-center gap-2" data-combo-meter aria-label={`Your ${b.guardPower.toLocaleString("en")} against ${b.attackPower.toLocaleString("en")}`}>
+        {cell("You", b.guardPower, holding)}
+        <span className="shrink-0 font-mono text-[10px] font-bold tracking-widest text-space-400" aria-hidden>VS</span>
+        {cell(view.them.name, b.attackPower, !holding)}
+        {stakes && <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-black uppercase ${holding ? "bg-ki-500/20 text-ki-300" : "bg-loss/20 text-loss"}`}>{stakes}</span>}
+      </div>
+      <p className="flex items-center gap-1" aria-label="Counter, Block, Combo response steps">
+        {DEFENCE_STEPS.map((step) => (
+          <span key={step} className={`h-1.5 w-6 rounded-full ${step === kind ? "bg-ki-400" : "bg-space-600"}`} title={step === "blocker" ? "block" : step} />
+        ))}
+        <span className="sr-only">Step: {kind === "blocker" ? "Block" : kind === "counter" ? "Counter" : "Combo"}</span>
+      </p>
+    </div>
   );
 }

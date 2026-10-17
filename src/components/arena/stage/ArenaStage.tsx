@@ -80,6 +80,7 @@ import { StoryList } from "../shared-display";
 import { BattleRow, cardIdOf, Lane, MenuSection, PlayerStrip, ReferenceCounts } from "./StageZones";
 import { SpeedButton } from "./SpeedButton";
 import { QuietNotice } from "./QuietNotice";
+import { FightSpotlight, PlaySpotlight } from "./FocusMoments";
 import { quietSkills } from "./quiet-skills";
 
 /**
@@ -225,6 +226,8 @@ export function ArenaStage({
   const [rowHover, setRowHover] = useState<string | null>(null);
   const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
+  /** A combo tapped and sent but not yet drawn by the engine: the fight and the hand show it at once. */
+  const [pendingCombo, setPendingCombo] = useState<{ id: string; name: string; plus: number; rev: number } | null>(null);
   /** The desktop inspector's lower tab: In play, or the battle log (the bar's log button opens it). */
   const [deskTab, setDeskTab] = useState<"play" | "log">("play");
   const [adminOpen, setAdminOpen] = useState(false);
@@ -372,7 +375,8 @@ export function ArenaStage({
 
   // The fight, worked out once (`BattleParts`) and drawn by whichever staging
   // is chosen. `inplace` is the original board and lifts nothing.
-  const [phoneCinema, setPhoneCinema] = useState(false);
+  // On by default: the fight is staged on a phone too (owner, 17 Oct 2026). The settings sheet still offers the compact board.
+  const [phoneCinema, setPhoneCinema] = useState(true);
   const effectiveStaging = !wide && !phoneCinema ? "inplace" : staging;
   const staged = effectiveStaging !== "inplace" && !!view.battle;
   const shape = staged ? battleShape(view, firedInBattle(beats?.list)) : null;
@@ -416,6 +420,8 @@ export function ArenaStage({
   const asksForBoard = yourAsk && Object.keys(taps.byCard).some((id) => !lifted.has(id) && !handIds.has(id));
   const asksForHand = yourAsk && Object.keys(taps.byCard).some((id) => handIds.has(id));
   const takeoverOn = !!shape && effectiveStaging === "takeover" && !asksForBoard;
+  // Only until the engine answers: a new revision, or a refusal, and the real chain takes over.
+  const incoming = pendingCombo && pendingCombo.rev === live.game.revision && !error && pendingCombo.plus > 0 ? pendingCombo : null;
   const bandOn = !!shape && !takeoverOn;
 
   useWakeLock(playable && !live.over);
@@ -456,11 +462,11 @@ export function ArenaStage({
   const pendingQuiet = quiet.find((q) => q.n > noticeMark && !acknowledged.has(q.n)) ?? null;
   const notice = pendingQuiet && (!playback.playing || (beatNow != null && beatNow.n >= pendingQuiet.n)) ? pendingQuiet : null;
   useLayoutEffect(() => {
-    noticeUp.current = !!pendingQuiet;
-  }, [pendingQuiet]);
+    noticeUp.current = admin && !!pendingQuiet;
+  }, [pendingQuiet, admin]);
   const acknowledge = (n: number) => {
     setAcknowledged((prev) => new Set(prev).add(n));
-    noticeUp.current = quiet.some((q) => q.n > noticeMark && q.n !== n && !acknowledged.has(q.n));
+    noticeUp.current = admin && quiet.some((q) => q.n > noticeMark && q.n !== n && !acknowledged.has(q.n));
     if (advanceHeld.current && !noticeUp.current) {
       advanceHeld.current = false;
       asked.current = false;
@@ -529,7 +535,7 @@ export function ArenaStage({
   };
 
   const send = (action: Action) => {
-    if (notice) return;
+    if (notice && admin) return;
     setSheet(null);
     setPinned(null);
     setSelected(null);
@@ -666,6 +672,17 @@ export function ArenaStage({
     }
     const options = taps.byCard[id];
     const why = whyOf(id);
+    // A combo window asks for exactly one thing from the hand, and the hint says "tap a glowing card":
+    // one tap adds it. The card lifts and the fight's total counts it at once (`pendingCombo`) rather
+    // than opening a review and waiting for a second confirm.
+    if (view.prompt.kind === "combo" && inHand(id)) {
+      const combos = (options ?? []).filter((i) => legal[i].action.type === "combo");
+      if (combos.length === 1) {
+        const card = cardOf(id);
+        setPendingCombo({ id, name: card?.name ?? "", plus: card?.comboPower ?? 0, rev: live.game.revision });
+        return send(legal[combos[0]].action);
+      }
+    }
     // On a phone, touching a hand card always opens its review. The action
     // button inside that review is the deliberate commit; drags still work.
     if (!wide && inHand(id)) {
@@ -1534,13 +1551,14 @@ export function ArenaStage({
                   progress={playback.playing ? { index: playback.index, total: playback.total } : null}
                   note={asksForHand ? "Tap hand cards to combo" : null}
                   yourPick={asksForHand}
+                  incoming={incoming}
                   desk={wide}
                 />
               )}
               {/* Who won the fight, named. Outside the stagings on purpose: it must
                   appear on all three, and a battle that has already closed by the
                   time the beats arrive has no staging left to carry it. */}
-              <BattleVerdict beat={immersionPrefs.banners ? null : beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} />
+              <BattleVerdict beat={immersionPrefs.banners ? null : beat} sideOf={sideOf} leaders={[view.you.leader?.id, view.them.leader?.id]} unisons={[view.you.unison?.id, view.them.unison?.id]} viewer={view.you.player} />
             </section>
           </div>
 
@@ -1563,7 +1581,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand sendingId={incoming?.id ?? null} onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* This single decision panel stays with the hand on phones and moves
@@ -1807,9 +1825,12 @@ export function ArenaStage({
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
-        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} suppressed={!!sheet || moreOpen || !!notice || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
+        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} board={[view.you.leader, view.them.leader, view.you.unison, view.them.unison, ...view.you.battle, ...view.them.battle]} suppressed={!!sheet || moreOpen || (!!notice && admin) || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
         <ClashBeam beat={beat} hostRef={boardRef} />
         <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
+        {/* The opponent playing a card, and a fight no staging is drawing: a dimmed board, the cards large. */}
+        <PlaySpotlight beat={playback.playing ? beat : null} art={beats?.art ?? {}} viewer={view.you.player} ms={beat ? msFor(beat, pace) : 900} />
+        {!shape && <FightSpotlight beat={playback.playing ? beat : null} art={beats?.art ?? {}} sideOf={sideOf} ms={beat ? msFor(beat, pace) : 900} />}
 
         {/* The end of the game, on the board (redesign frame 10): once the last
             beat has played, never over it. */}

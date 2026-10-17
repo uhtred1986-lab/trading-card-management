@@ -13,5 +13,5 @@ assert.equal(soundCue({t:'over',n:6,winner:null,reason:'draw'},'p1'),null);
 assert.equal(soundCue({t:'clash',n:7,attacker:'a',guard:'g',hit:true,attackPower:2,guardPower:1},'p1'),'hit');
 console.log('Immersion: actual blocker, resolved result, hidden/unknown fallback and cue routing pass.');
 assert.equal(combatMoment(7,{t:'clash',n:8,attacker:'a',guard:'g',hit:true,attackPower:2,guardPower:1},lookup,{})?.caption,undefined,'hit does not invent KO or damage');
-assert.equal(combatMoment(7,{t:'damage',n:9,player:'p2',amount:2,critical:true,cards:[]},lookup,{})?.caption,'2 DAMAGE · CRITICAL');
+assert.equal(combatMoment(7,{t:'damage',n:9,player:'p2',amount:2,critical:true,cards:[]},lookup,{})?.caption,'−2 LIFE · CRITICAL');
 assert.equal(combatMoment(7,{t:'ko',n:10,card:'g',owner:'p2'},lookup,{})?.caption,'KO');
