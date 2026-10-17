@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, playedOrUnplacedLeave, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -396,7 +396,7 @@ function compileSkillText(skill: Skill): Script {
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
-    if (playedOrUnplacedLeave(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
+    if (playedOrUnplacedAlternative(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
     const returned = RETURNED_FROM_YOUR_BATTLE.exec(trigger.trim());
     if (returned) {
       returnedFromBattle = true;

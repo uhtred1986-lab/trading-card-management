@@ -145,8 +145,17 @@ const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played)
  * "from your deck or hand" and "…, during your opponent's turn" name more than
  * the hand and stay a plain `played` as they were.
  */
-const PLAYED_FROM_HAND = /when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$))/;
+const PLAYED_FROM_HAND = /when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$))/;
 const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
+
+/**
+ * "When this card is played **or attacks**" (#960) — one skill, two moments
+ * (9-6-2): the play and the attack. The second moment is read only when the
+ * sentence stops there ("…attacks," / "…attacks:"): "attacks an opponent's
+ * Battle Card" (BT26-100) names a target, which would be a condition on the
+ * attack half alone and cannot be put on the skill without also gating the play.
+ */
+const PLAYED_OR_ATTACKS = /^when (?:this card (?:in your hand )?is played(?: from your hand)?|you play this card(?: from your hand)?),? or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)/;
 
 /** "When this card [in a Battle Area] is [played or] switched to X Mode [or Y Mode]", with no cause after it: the modes named, or "" for none. */
 function switchedTo(t: string): string {
@@ -199,7 +208,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "When you attack or combo with this card" is this trigger and the
       // self combo entry trigger (`comboUsed`; `comboed` is its stored alias).
       // As with "play or combo", each fires at its own moment.
-      return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t);
+      // "When this card is **played or attacks**" (#960; BT25-128, P-575 …) and
+      // its spellings ("when you play this card or when it attacks", "played
+      // from your hand or attacks") say the attack as the second moment of one
+      // skill. `played` (or `playedFromHand`) reads the first half; this reads
+      // the second, so the skill answers to both and a play is not an attack.
+      return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t) || PLAYED_OR_ATTACKS.test(head);
     case "attacked":
       return /when this card is attacked/.test(t);
     // 8-1: a Battle Card watching the *Leader* be attacked. The Leader's own
@@ -487,19 +501,35 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
 }
 
 /**
- * "When this card is played **or** removed from a Battle Area by a skill"
- * (BT31-015, #940) names two moments, and the `played` half is all a reader
- * that stops at "when this card is played" sees: the other half was dropped
- * with the rest of the trigger clause and the program read clean. The
- * alternatives the engine can place are each trigger's own wording above
- * (`removedFromBattle`, `removedByOpponent`, `koed`); this is true when the
- * head coordinates "played or" with a way of leaving play that none of them
- * recognised, so the compiler refuses the clause (an unread gap) instead of
- * keeping half of it.
+ * "When this card is played **or** …" (BT31-015, #940; #960) names two moments,
+ * and the `played` half is all a reader that stops at "when this card is played"
+ * sees: the other half was dropped with the rest of the trigger clause and the
+ * program read clean. The alternatives the engine can place are each trigger's
+ * own wording above — leaving play (`removedFromBattle`, `removedByOpponent`,
+ * `koed`), the attack (`attacks`), a mode switch (`switchedRevealed`,
+ * `switchedHidden`) and a combo entry (`comboUsed`). This is true when the
+ * head coordinates "played or" with something else, or qualifies the play in a
+ * way no reader keeps ("using [Union-Potara]"), so the compiler refuses the
+ * clause (an unread gap) instead of keeping half of it.
  */
-export function playedOrUnplacedLeave(sk: Skill): boolean {
+const PLAYED_COORDINATED = /^when (?:this card (?:in your hand )?is played|you play this card)((?: from your hand| using \[[^\]]*\])?)\s*,?\s+or\s+(?:when\s+)?([\s\S]*)$/;
+export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
   const head = effectHead(maskNames(sk.effect).text);
-  if (!/^when this card is played or (?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(head)) return false;
-  return !(["removedFromBattle", "removedByOpponent", "koed"] as const).some((t) => autoTriggerMatches(sk, t));
+  const m = PLAYED_COORDINATED.exec(head);
+  if (!m) return false;
+  const [, qualifier, rest] = m;
+  // A qualifier on the play that `played` would ignore: only "from your hand"
+  // and "using [Over Realm]" have readers of their own.
+  if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;
+  // "…using [Over Realm] or [Dark Over Realm]" and "…from your hand or Drop
+  // Area" are one moment with two ways of arriving, not two moments.
+  if (/^\[(?:dark )?over realm\]/.test(rest) || (qualifier && /^(?:your )?(?:drop|warp|deck|hand|energy)\b/.test(rest))) return false;
+  if (/^(?:this card |it )?attacks\s*(?:,|:|\.|$)/.test(rest)) return !autoTriggerMatches(sk, "attacks");
+  if (/^(?:used|use|combo)\b/.test(rest)) return false;
+  if (/^switched to (?:revealed|hidden) mode\b/.test(rest)) return !(["switchedRevealed", "switchedHidden"] as const).some((t) => autoTriggerMatches(sk, t));
+  if (/^(?:this card|it) is placed in (?:a|the|your|their|an opponent's) battle area\b/.test(rest)) return !autoTriggerMatches(sk, "placed");
+  if (/^(?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(rest))
+    return !(["removedFromBattle", "removedByOpponent", "koed"] as const).some((t) => autoTriggerMatches(sk, t));
+  return true;
 }
