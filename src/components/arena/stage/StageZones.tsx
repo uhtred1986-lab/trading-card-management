@@ -432,7 +432,7 @@ export function PlayerStrip({
           <span className="arena-avatar grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs lg:h-7 lg:w-7 lg:text-sm" data-them={flag} aria-hidden>
             {side.name.slice(0, 1).toUpperCase()}
           </span>
-          <span className="truncate text-[13px] lg:text-base">{side.name}</span>
+          <span className="truncate text-[13px] lg:text-base" title={side.deckName ? `Deck: ${side.deckName}` : undefined}>{side.name}</span>
         </span>
         {/* The labelled number saves space on phones; desktop keeps its original life pips. */}
         <span key={`life-desktop-${lifeCue?.beat ?? "idle"}`} className={`relative hidden shrink-0 items-baseline gap-1 whitespace-nowrap tabular-nums lg:flex ${lifeCue ? "arena-feedback-life" : ""}`} role="img" aria-label={lifeWord}>

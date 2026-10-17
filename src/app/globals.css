@@ -999,14 +999,6 @@ input[type="number"] {
     --arena: 1.8;
   }
 }
-@media (min-width: 1600px) and (min-height: 860px) {
-  .arena-board .arena-field.arena-hand { --arena: 1.5; }
-  .arena-board .arena-field { --arena: 1.8; }
-}
-@media (min-width: 1800px) and (min-height: 900px) {
-  .arena-board .arena-field.arena-hand { --arena: 1.6; }
-  .arena-board .arena-field { --arena: 1.9; }
-}
 @media (min-width: 1280px) {
   .arena-board {
     grid-template-rows: auto minmax(0, 1fr) auto auto;
@@ -1019,12 +1011,11 @@ input[type="number"] {
   .arena-board .arena-stage { padding-block: 0; }
   .arena-board .arena-stage .arena-row { padding-block: 0; }
   .arena-board .arena-stage .arena-row:has(.arena-leader) {
-    min-height: calc(112px * var(--arena, 1) + 8px) !important;
+    min-height: calc(112px * var(--arena, 1) + 16px) !important;
   }
   .arena-board .arena-lane { min-height: 0; margin-block: 0; padding-block: 0; }
   .arena-board [data-player-resources]:not([data-player-resources-open]) { display: none; }
   .arena-board [data-player-resources-open] { display: flex; }
-  .arena-board:has([data-player-resources-open]) .arena-field:not(.arena-hand) { --arena: 1.45; }
   .arena-board .arena-context > :first-child > [data-arena-quiet-controls] { padding-block: 0; }
   /* Place the one decision panel beside the hand; keep card details in the
      inspector column. The prompt remains in the same React instance. */
@@ -1045,26 +1036,63 @@ input[type="number"] {
     border-left: 2px solid var(--ink);
     background: rgba(255, 255, 255, 0.78);
   }
-  /* A response panel can be much taller than the quiet main-turn controls.
-     Keep the battlefield and all response choices visible in that window. */
-  .arena-board[data-response-window] .arena-field:not(.arena-hand) { --arena: 1.45; }
-  /* Long opening and response decisions need more than a viewport's height.
-     Let the whole board grow so cards, choices, and the hand stay reachable. */
-  .arena-board[data-response-window],
-  .arena-board:has(.arena-bar[data-prompt-kind="chooseCards"]),
-  .arena-board:has(.arena-bar[data-prompt-kind="payCost"]) {
-    height: auto;
-    min-height: calc(100dvh + 10rem);
-    overflow-x: clip;
-    overflow-y: visible;
+  /* The board never grows past the screen (owner, 17 Oct 2026: "the battle
+     screen on a laptop should always show the cards"). A tall decision scrolls
+     inside its own panel (`.arena-context > :first-child`, capped below) and the
+     card sizes step down with the viewport's height instead (the ladder at the
+     end of this block), so the whole table, the prompt and every hand card stay
+     on one screen with no page scroll. */
+  .arena-board {
+    min-height: 0;
+    /* The grid's own rows may shrink below their content: the field takes what
+       the strips, the prompt and the hand leave. */
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
   }
-  .arena-board:has(.arena-bar[data-prompt-kind="mulligan"]) {
-    height: auto;
-    min-height: calc(100dvh + 3rem);
-    overflow-x: clip;
-    overflow-y: visible;
+  .arena-board .arena-field:not(.arena-hand) { min-height: 0; }
+  .arena-board .arena-context > :first-child {
+    max-height: 30dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
-  .arena-board:has(.arena-bar[data-prompt-kind="mulligan"]) .arena-field:not(.arena-hand) { --arena: 1.55; }
+  .arena-board .arena-topbar { min-height: 52px; padding-block: 0; }
+  .arena-board [data-hand-toolbar] { min-height: 0; }
+  .arena-board [data-hand-toolbar] > * { min-height: 34px !important; }
+  /* A defence (counter, blocker, combo) has the longest panel. It may take more
+     of the screen, because the fight is drawn over the field and needs little. */
+  .arena-board:has([data-defend-step]) .arena-context > :first-child { max-height: 38dvh; }
+  /* Whatever the panel's length, what a player does with it comes first: the
+     buttons sit beside the question, the options and the step summary below,
+     so scrolling the panel never hides the way to answer. */
+  .arena-board .arena-context .arena-bar > [data-defend-step] { order: 4; }
+  .arena-board .arena-context .arena-bar > [data-decision-summary] { order: 5; }
+  /* The fight takes the field's height, as on a phone: the rows under it need
+     none of their own, or the field would be taller than its grid row. */
+  .arena-board .arena-stage[data-takeover] .arena-row,
+  .arena-board .arena-stage[data-takeover] .arena-lane {
+    min-height: 0 !important;
+    height: 0;
+    padding-block: 0;
+    overflow: hidden;
+  }
+}
+/* The fight's figures step down with the height, like the cards (the ladder below). */
+@media (min-width: 1280px) and (max-height: 959px) {
+  .arena-board .arena-clash-pow { font-size: 46px; }
+  .arena-board .arena-clash-vs { font-size: 58px; }
+}
+@media (min-width: 1280px) and (max-height: 859px) {
+  .arena-board .arena-clash-pow { font-size: 42px; }
+  .arena-board .arena-clash-vs { font-size: 52px; }
+  .arena-board .arena-fight { gap: 2px; padding-block: 4px; }
+}
+@media (min-width: 1280px) and (max-height: 779px) {
+  /* The step line under the buttons is the first thing to give up its height. */
+  .arena-board .arena-context .arena-bar > [data-decision-summary] { display: none; }
+}
+@media (min-width: 1280px) and (max-height: 739px) {
+  .arena-board .arena-clash-pow { font-size: 30px; }
+  .arena-board .arena-clash-vs { font-size: 34px; }
+  .arena-board .arena-clash-role { font-size: 9px; }
 }
 /* The inspector's card when it has no art to show: the prototype's 150 px. */
 .arena-inspect-art {
@@ -1088,6 +1116,161 @@ input[type="number"] {
   .arena-inspect-art {
     --arena: 1.5;
   }
+}
+/*
+ * The height ladder (xl and up): the board is exactly the viewport's height, so
+ * the card scale is chosen from it. Each step is what the strips, a worst-case
+ * prompt panel, the hand and two rows of cards add up to at that height, with
+ * the hand a little smaller than the field. `--arena` must stay a plain number
+ * (the hand reads it to space its cards), hence steps, not a calc() on dvh.
+ */
+@media (min-width: 1280px) {
+  .arena-board { --arena: 1.8; }
+  .arena-board .arena-field { --arena: 1.8; }
+  .arena-board .arena-fight { --arena: 1.4; }
+  .arena-board .arena-field.arena-hand { --arena: 1.65; }
+  .arena-inspect-art { --arena: 1.8; }
+}
+@media (min-width: 1280px) and (max-height: 1049px) {
+  .arena-board { --arena: 1.55; }
+  .arena-board .arena-field { --arena: 1.55; }
+  .arena-board .arena-fight { --arena: 1.15; }
+  .arena-board .arena-field.arena-hand { --arena: 1.4; }
+  .arena-inspect-art { --arena: 1.55; }
+}
+@media (min-width: 1280px) and (max-height: 959px) {
+  .arena-board { --arena: 1.4; }
+  .arena-board .arena-field { --arena: 1.4; }
+  .arena-board .arena-fight { --arena: 1.0; }
+  .arena-board .arena-field.arena-hand { --arena: 1.25; }
+  .arena-inspect-art { --arena: 1.4; }
+}
+@media (min-width: 1280px) and (max-height: 899px) {
+  .arena-board { --arena: 1.25; }
+  .arena-board .arena-field { --arena: 1.25; }
+  .arena-board .arena-fight { --arena: 0.85; }
+  .arena-board .arena-field.arena-hand { --arena: 1.1; }
+  .arena-inspect-art { --arena: 1.25; }
+}
+@media (min-width: 1280px) and (max-height: 859px) {
+  .arena-board { --arena: 1.12; }
+  .arena-board .arena-field { --arena: 1.12; }
+  .arena-board .arena-fight { --arena: 0.8; }
+  .arena-board .arena-field.arena-hand { --arena: 1.0; }
+  .arena-inspect-art { --arena: 1.12; }
+}
+@media (min-width: 1280px) and (max-height: 819px) {
+  .arena-board { --arena: 1.0; }
+  .arena-board .arena-field { --arena: 1.0; }
+  .arena-board .arena-fight { --arena: 0.72; }
+  .arena-board .arena-field.arena-hand { --arena: 0.9; }
+  .arena-inspect-art { --arena: 1.0; }
+}
+@media (min-width: 1280px) and (max-height: 779px) {
+  .arena-board { --arena: 0.9; }
+  .arena-board .arena-field { --arena: 0.9; }
+  .arena-board .arena-fight { --arena: 0.64; }
+  .arena-board .arena-field.arena-hand { --arena: 0.8; }
+  .arena-inspect-art { --arena: 0.9; }
+}
+@media (min-width: 1280px) and (max-height: 739px) {
+  .arena-board { --arena: 0.78; }
+  .arena-board .arena-field { --arena: 0.78; }
+  .arena-board .arena-fight { --arena: 0.56; }
+  .arena-board .arena-field.arena-hand { --arena: 0.7; }
+  .arena-inspect-art { --arena: 0.78; }
+}
+@media (min-width: 1280px) and (max-height: 699px) {
+  .arena-board { --arena: 0.66; }
+  .arena-board .arena-field { --arena: 0.66; }
+  .arena-board .arena-fight { --arena: 0.5; }
+  .arena-board .arena-field.arena-hand { --arena: 0.6; }
+  .arena-inspect-art { --arena: 0.66; }
+}
+@media (min-width: 1280px) and (max-height: 659px) {
+  .arena-board { --arena: 0.55; }
+  .arena-board .arena-field { --arena: 0.55; }
+  .arena-board .arena-fight { --arena: 0.45; }
+  .arena-board .arena-field.arena-hand { --arena: 0.5; }
+  .arena-inspect-art { --arena: 0.55; }
+}
+@media (min-width: 1280px) and (max-height: 619px) {
+  .arena-board { --arena: 0.45; }
+  .arena-board .arena-field { --arena: 0.45; }
+  .arena-board .arena-fight { --arena: 0.38; }
+  .arena-board .arena-field.arena-hand { --arena: 0.4; }
+  .arena-inspect-art { --arena: 0.45; }
+}
+
+/* The same ladder keyed on the board's own height (`use-board-fit.ts`), which outranks the viewport's. */
+@media (min-width: 1280px) {
+  .arena-board[data-fit="0"] { --arena: 1.8; }
+  .arena-board[data-fit="0"] .arena-field { --arena: 1.8; }
+  .arena-board[data-fit="0"] .arena-field.arena-hand { --arena: 1.65; }
+  .arena-board[data-fit="0"] .arena-fight { --arena: 1.4; }
+  .arena-board[data-fit="0"] .arena-inspect-art { --arena: 1.8; }
+  .arena-board[data-fit="1"] { --arena: 1.55; }
+  .arena-board[data-fit="1"] .arena-field { --arena: 1.55; }
+  .arena-board[data-fit="1"] .arena-field.arena-hand { --arena: 1.4; }
+  .arena-board[data-fit="1"] .arena-fight { --arena: 1.15; }
+  .arena-board[data-fit="1"] .arena-inspect-art { --arena: 1.55; }
+  .arena-board[data-fit="2"] { --arena: 1.4; }
+  .arena-board[data-fit="2"] .arena-field { --arena: 1.4; }
+  .arena-board[data-fit="2"] .arena-field.arena-hand { --arena: 1.25; }
+  .arena-board[data-fit="2"] .arena-fight { --arena: 1.0; }
+  .arena-board[data-fit="2"] .arena-inspect-art { --arena: 1.4; }
+  .arena-board[data-fit="3"] { --arena: 1.25; }
+  .arena-board[data-fit="3"] .arena-field { --arena: 1.25; }
+  .arena-board[data-fit="3"] .arena-field.arena-hand { --arena: 1.1; }
+  .arena-board[data-fit="3"] .arena-fight { --arena: 0.85; }
+  .arena-board[data-fit="3"] .arena-inspect-art { --arena: 1.25; }
+  .arena-board[data-fit="4"] { --arena: 1.12; }
+  .arena-board[data-fit="4"] .arena-field { --arena: 1.12; }
+  .arena-board[data-fit="4"] .arena-field.arena-hand { --arena: 1.0; }
+  .arena-board[data-fit="4"] .arena-fight { --arena: 0.8; }
+  .arena-board[data-fit="4"] .arena-inspect-art { --arena: 1.12; }
+  .arena-board[data-fit="5"] { --arena: 1.0; }
+  .arena-board[data-fit="5"] .arena-field { --arena: 1.0; }
+  .arena-board[data-fit="5"] .arena-field.arena-hand { --arena: 0.9; }
+  .arena-board[data-fit="5"] .arena-fight { --arena: 0.72; }
+  .arena-board[data-fit="5"] .arena-inspect-art { --arena: 1.0; }
+  .arena-board[data-fit="6"] { --arena: 0.9; }
+  .arena-board[data-fit="6"] .arena-field { --arena: 0.9; }
+  .arena-board[data-fit="6"] .arena-field.arena-hand { --arena: 0.8; }
+  .arena-board[data-fit="6"] .arena-fight { --arena: 0.64; }
+  .arena-board[data-fit="6"] .arena-inspect-art { --arena: 0.9; }
+  .arena-board[data-fit="7"] { --arena: 0.78; }
+  .arena-board[data-fit="7"] .arena-field { --arena: 0.78; }
+  .arena-board[data-fit="7"] .arena-field.arena-hand { --arena: 0.7; }
+  .arena-board[data-fit="7"] .arena-fight { --arena: 0.56; }
+  .arena-board[data-fit="7"] .arena-inspect-art { --arena: 0.78; }
+  .arena-board[data-fit="8"] { --arena: 0.66; }
+  .arena-board[data-fit="8"] .arena-field { --arena: 0.66; }
+  .arena-board[data-fit="8"] .arena-field.arena-hand { --arena: 0.6; }
+  .arena-board[data-fit="8"] .arena-fight { --arena: 0.5; }
+  .arena-board[data-fit="8"] .arena-inspect-art { --arena: 0.66; }
+  .arena-board[data-fit="9"] { --arena: 0.55; }
+  .arena-board[data-fit="9"] .arena-field { --arena: 0.55; }
+  .arena-board[data-fit="9"] .arena-field.arena-hand { --arena: 0.5; }
+  .arena-board[data-fit="9"] .arena-fight { --arena: 0.45; }
+  .arena-board[data-fit="9"] .arena-inspect-art { --arena: 0.55; }
+  .arena-board[data-fit="10"] { --arena: 0.45; }
+  .arena-board[data-fit="10"] .arena-field { --arena: 0.45; }
+  .arena-board[data-fit="10"] .arena-field.arena-hand { --arena: 0.4; }
+  .arena-board[data-fit="10"] .arena-fight { --arena: 0.38; }
+  .arena-board[data-fit="10"] .arena-inspect-art { --arena: 0.45; }
+  .arena-board[data-fit="2"] .arena-clash-pow, .arena-board[data-fit="3"] .arena-clash-pow { font-size: 46px; }
+  .arena-board[data-fit="2"] .arena-clash-vs, .arena-board[data-fit="3"] .arena-clash-vs { font-size: 58px; }
+  .arena-board:is([data-fit="4"], [data-fit="5"], [data-fit="6"]) .arena-clash-pow { font-size: 42px; }
+  .arena-board:is([data-fit="4"], [data-fit="5"], [data-fit="6"]) .arena-clash-vs { font-size: 52px; }
+  .arena-board:is([data-fit="4"], [data-fit="5"], [data-fit="6"]) .arena-fight { gap: 2px; padding-block: 4px; }
+  .arena-board:is([data-fit="7"], [data-fit="8"], [data-fit="9"], [data-fit="10"]) .arena-clash-pow { font-size: 30px; }
+  .arena-board:is([data-fit="7"], [data-fit="8"], [data-fit="9"], [data-fit="10"]) .arena-clash-vs { font-size: 34px; }
+  .arena-board:is([data-fit="7"], [data-fit="8"], [data-fit="9"], [data-fit="10"]) .arena-fight { gap: 2px; padding-block: 4px; }
+  .arena-board:is([data-fit="7"], [data-fit="8"], [data-fit="9"], [data-fit="10"]) .arena-clash-role { font-size: 9px; }
+  .arena-board:is([data-fit="6"], [data-fit="7"], [data-fit="8"], [data-fit="9"], [data-fit="10"]) .arena-context .arena-bar > [data-decision-summary] { display: none; }
+  .arena-board:is([data-fit="0"], [data-fit="1"]) .arena-clash-pow { font-size: 60px; }
+  .arena-board:is([data-fit="0"], [data-fit="1"]) .arena-clash-vs { font-size: 80px; }
 }
 
 /* The MATCH rows: avatar, name over a line, the life count in the impact face. */
