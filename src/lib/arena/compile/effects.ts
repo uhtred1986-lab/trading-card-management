@@ -2131,6 +2131,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     ];
   }
 
+  // "…you add **this card in your hand** to your Z-Energy" (EX24-03): the card
+  // is used from the hand (9-1-3-2; the official Q&A for the sister lines says
+  // these only work from the hand), so the move names it. Said with "in" and
+  // read only here: the general "this card in your hand" reading is untouched.
+  if (/^add this card in your hand (?:in|into|to) your z-energy$/.test(t)) {
+    return [{ op: "moveTo", target: { sel: { special: "self", area: "hand" } }, to: "zEnergy" }];
+  }
+
   // Area moves (3-1).
   const MOVES: [RegExp, ScriptArea, { position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; owner?: Side; faceUp?: boolean }][] = [
     // "their owners' decks", "its owner's hand": several cards go to several

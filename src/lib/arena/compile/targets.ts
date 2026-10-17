@@ -30,10 +30,6 @@ const SELF_FROM_RE = new RegExp(
  */
 export function selfFrom(phrase: string): Selector {
   const m = SELF_FROM_RE.exec(phrase);
-  // "…you add **this card in your hand** to your Z-Energy" (EX24-03): the same
-  // area said with "in". Only the hand: it is where a card is used from, and
-  // every other area word here keeps its "from".
-  if (!m && /\bthis card in your hand\b/i.test(phrase)) return { special: "self", area: "hand" };
   if (!m) return { special: "self" };
   const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);
   return areas.length === 1 ? { special: "self", area: areas[0] } : { special: "self", areas };
