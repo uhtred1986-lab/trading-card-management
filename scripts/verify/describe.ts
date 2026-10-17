@@ -13,7 +13,7 @@ import { dbsWords } from "../../src/lib/arena/board-words";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseCond } from "../../src/lib/arena/lang/parse";
 import { parseSkills } from "../../src/lib/arena/text/cards";
-import { parseFilter } from "../../src/lib/arena/text/filters";
+import { emptyFilter, parseFilter } from "../../src/lib/arena/text/filters";
 import { ZONE_NOUNS, describeCond, describeFilter, describeScript, describeSelector } from "../../src/lib/arena/vm/script-schema";
 import type { Selector } from "../../src/lib/arena/vm/script";
 
@@ -87,4 +87,18 @@ import type { Selector } from "../../src/lib/arena/vm/script";
     assert.equal(noun, board[area]?.replace(/^(your|the) /, ""), `ZONE_NOUNS.${area} is not words.rules' word for it`);
   }
   assert.deepEqual(Object.keys(ZONE_NOUNS).sort(), Object.keys(board).filter((a) => a !== "removed").sort(), "every board area has its word");
+}
+
+// ── "both X and Y" names are said in a Leader condition (#907) ───────────────
+// `leaderMatches` printed only colours, characters and traits, so BT23-073's
+// "your leader is a Green <Trunks: Future> <Mai: Future> card" read "your leader is Green".
+{
+  const cond = { kind: "leaderMatches" as const, filter: { ...emptyFilter(), colors: ["Green" as const], charactersAll: ["Trunks: Future", "Mai: Future"] } };
+  assert.equal(describeCond(cond), "your leader is Green <Trunks: Future> <Mai: Future>");
+  const named = { kind: "leaderMatches" as const, filter: { ...emptyFilter(), colors: ["Blue" as const], charactersAll: ["Son Goku"], namesAll: ["Vegeta"] } };
+  assert.equal(describeCond(named), "your leader is Blue <Son Goku> {Vegeta}");
+  // …and from the printed clause, through the compiler.
+  const printed = compileSkill(parseSkills("[Auto] When you play this card, if your Leader is a Green <Trunks: Future> <Mai: Future> card, draw 1 card.")[0]);
+  assert.deepEqual(printed.unsupported, []);
+  assert.match(describeScript(printed.ops), /Green <Trunks: Future> <Mai: Future>/i);
 }
