@@ -91,7 +91,7 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   const bt12059 = compile("[Auto][Once per turn] When your opponent activates a [Counter: Attack] skill, your opponent chooses 6 cards in their hand, discards the rest, then you and your opponent draw 1 card.");
   assert.deepEqual(bt12059.unsupported, []);
   const picks = find(bt12059.ops, "choose");
-  assert.deepEqual(picks.map((p) => [p.chooser, p.sel.count, p.sel.upTo ?? false, p.sel.notIn ? true : false]), [["opponent", 6, false, false], [undefined, 99, true, true]], "they keep 6; everything else is the second choice");
+  assert.deepEqual(picks.map((p) => [p.chooser, p.sel.count, p.sel.upTo ?? false, p.sel.notIn ? true : false]), [["opponent", 6, false, false], [undefined, 99, false, true]], "they keep 6; everything else is the second choice");
   assert.deepEqual(picks[1].sel.notIn, [picks[0].as]);
   assert.deepEqual(find(bt12059.ops, "moveTo").map((m) => [m.to, (m.target as { var: string }).var]), [["drop", picks[1].as]], "the rest, not the six, go to the Drop");
   assert.equal(validateProgram(bt12059.ops), true);
@@ -99,7 +99,7 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   const bt20148 = compile("[auto] When this card is played, choose all of your opponent's Battle Cards, ignoring [barrier], send them to their owners' Warps, then your opponent chooses 5 cards in their hand and adds the rest to their Z-Energy, and this card gains [barrier] for the turn.");
   assert.deepEqual(bt20148.unsupported, []);
   assert.deepEqual(find(bt20148.ops, "moveTo").map((m) => m.to), ["warp", "zEnergy"]);
-  assert.equal(find(bt20148.ops, "gains").length, 1, "and the sentence goes on after it");
+  assert.equal(find(bt20148.ops, "grant").length, 1, "and the sentence goes on after it");
   assert.equal(validateProgram(bt20148.ops), true);
 
   const bt12038 = compile("[auto] If your Leader Card is mono-blue and you have 6 or fewer cards in your hand: At the end of your opponent's turn, they choose 3 cards in their hand and place the rest at the bottom of their deck in any order.");
@@ -135,7 +135,7 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
 // ── "until they have N cards in hand" ────────────────────────────────────────
 {
   const bt7105 = compile("[Auto] When you play this card, you may choose 1 card in your life and add it to your hand. If you do, your opponent chooses cards in their hand and places them in their Drop Area until they have 12 cards in hand.");
-  const [guard] = find(bt7105.ops, "if").filter((o) => find(o.then, "discard").length);
+  const guard = find(bt7105.ops, "if").filter((o) => o.then.some((x) => x.op === "discard"))[0];
   assert.deepEqual(guard.cond, { kind: "count", sel: { side: "opponent", area: "hand" }, atLeast: 13 }, "only when they hold more than 12");
   const [d] = find(guard.then, "discard");
   assert.deepEqual([d.side, d.to ?? "drop", d.n], ["opponent", "drop", { plus: [{ count: { side: "opponent", area: "hand" } }, -12] }], "the excess over 12");
@@ -169,7 +169,7 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   const bt6125 = compile("[Auto] When this card attacks, if your life is at 1, your opponent chooses all of the cards in their hand and places them in their Drop Area.");
   assert.deepEqual(bt6125.unsupported, []);
   const [pick] = find(bt6125.ops, "choose");
-  assert.deepEqual([pick.sel.count, pick.sel.upTo, pick.chooser], [99, true, "opponent"]);
+  assert.deepEqual([pick.sel.count, pick.sel.upTo, pick.chooser], [99, undefined, "opponent"]);
   assert.deepEqual(find(bt6125.ops, "moveTo").map((m) => m.to), ["drop"]);
   const gate = find(bt6125.ops, "if")[0];
   assert.deepEqual(gate.cond, { kind: "life", side: "you", atLeast: 1, atMost: 1 });

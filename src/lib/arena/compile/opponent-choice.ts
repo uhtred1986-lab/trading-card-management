@@ -60,9 +60,12 @@ export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => 
     if (!m) return null;
     const keep = `c${c.n++}`;
     const gone = `c${c.n++}`;
+    // The rest is "all" (count 99) and taken without a question; `minCount: 99` keeps it out of the
+    // disjoint matching (`plainSlot`), which would otherwise demand 99 cards for it and leave the
+    // first choice nothing to offer. A hand of fewer is simply taken whole (5-2-5).
     const choose: Op[] = [
       { op: "choose", sel: { side: "opponent", area: "hand", count: Number(m[1]) }, as: keep, chooser: "opponent", reason: `keep ${words.items[0]}` },
-      { op: "choose", sel: { side: "opponent", area: "hand", count: 99, upTo: true, notIn: [keep] }, as: gone, reason: "the rest of their hand" },
+      { op: "choose", sel: { side: "opponent", area: "hand", count: 99, minCount: 99, notIn: [keep] }, as: gone, reason: "the rest of their hand" },
     ];
     for (const o of choose) track(o);
     return [...choose, { op: "moveTo", target: { var: gone }, to: dest.to, ...dest.opts }];
@@ -70,7 +73,7 @@ export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => 
   const selectors: Selector[] = [];
   for (const item of words.items) {
     if (item === "all of the cards in their hand") {
-      selectors.push({ side: "opponent", area: "hand", count: 99, upTo: true });
+      selectors.push({ side: "opponent", area: "hand", count: 99 });
       continue;
     }
     const m =/^(up to )?(\d+) (?:cards? (?:in|from) their (.+)|of their (.+))$/.exec(item);
@@ -89,7 +92,7 @@ export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => 
   }
   const only = selectors[0];
   // The long-standing reading of a lone card chosen from the hand.
-  if (selectors.length === 1 && only.area === "hand" && !only.upTo && !only.filter && typeof only.count === "number" && (dest.to === "drop" || dest.to === "warp")) {
+  if (selectors.length === 1 && only.area === "hand" && !only.upTo && !only.filter && typeof only.count === "number" && only.count < 99 && (dest.to === "drop" || dest.to === "warp")) {
     return [{ op: "discard", n: only.count, side: "opponent", ...(dest.to === "warp" ? { to: "warp" as const } : {}) }];
   }
   const out: Op[] = [];
