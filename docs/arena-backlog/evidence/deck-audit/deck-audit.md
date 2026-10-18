@@ -6,16 +6,16 @@ Pre-check for the deck-first review: every skill of every card in the eligible d
 
 | | OK | SUSPECT | UNREAD | MISSING | total |
 |---|---|---|---|---|---|
-| Before (rows as stored) | 560 | 54 | 1 | 0 | 615 |
+| Before (rows as stored) | 559 | 55 | 1 | 0 | 615 |
 | After (this PR, with the Refresh line applied) | 607 | 8 | 0 | 0 | 615 |
 
 306 cards, 615 skill rows. MISSING is 0: every skill the card text prints has a row. OK means the stored reading matches the printed text and the FAQ; a keyword whose reading is empty on purpose (Barrier, Blocker, Swap, Over Realm, Union, deck-building lines) is OK, and so are the owner's corrected and confirmed rows unless one is wrong against the card text. Before-SUSPECT includes the draft rows only a Refresh brings up to date.
 
 ## What the audit changed
 
-- **Compiler**: after a look, a plain `choose` that names no area and no owner is read from the cards looked at (BT3-028 chose among the cards in play; 13 other catalog skills had the same fault). "SD3-04: When you've sent 7 or more cards to your Warp" is read as 7 or more cards in your Warp (labelled best guess).
-- **Readings** (`describeScript`; the programs were right): the rest of a look is "the rest of the cards looked at" (was "the chosen cards", 8 deck skills), "for each <Son Goku> or <Vegeta> in the Drop" keeps its description, a combo-cost reduction says "combo cost", "play ... on top of ..." and "with its skills negated" are said, a limited attack allowance reads "can attack ... only one more time", and a replacement aimed at their cards says "one of your skills".
-- **Refresh**: 48 deck skills are draft compiler rows whose stored reading or program is older than the current compile (the PR body carries the Refresh line).
+- **Compiler**: "SD3-04: When you've sent 7 or more cards to your Warp" is read as 7 or more cards in your Warp (labelled best guess). The other compiler findings of this audit - a plain `choose` after a look read from the cards in play (BT3-028 and thirteen more skills), and the readings that said "the chosen cards" for "the rest", dropped the filter of a "for each", or called a combo-cost reduction "costs 1 less" - were fixed on main (#1049) while this audit ran; this PR merges that work and the Refresh line below brings the stored rows up to it.
+- **Readings** (`describeScript`; the programs were right): "play ... on top of ..." and "with its skills negated" are said (fifteen skills, among them BT31-088/-089, BT10-073), a limited attack allowance reads "can attack ... only one more time" (BT3-104) instead of "can't attack ... once more", and a replacement aimed at their cards says "one of your skills" (BT29-040).
+- **Refresh**: 49 deck skills are draft compiler rows whose stored reading or program is older than the current compile (the PR body carries the Refresh line).
 
 ## Still SUSPECT after the fixes (Flag)
 
@@ -284,7 +284,7 @@ Never refresh (not compiler drafts, and a fresh compile reads them worse): BT7-0
 | BT5-042 South Kai, Keeping Watch | 1 | #0 OK |
 | BT5-043 West Kai, Keeping Watch | 1 | #0 OK; #10 OK |
 | BT5-050 Dimension Magic | 1 | #0 OK; #10 OK |
-| BT5-057 Spirited Search Pan | 1 | #0 OK |
+| BT5-057 Spirited Search Pan | 1 | #0 OK (was SUSPECT) |
 | BT5-059 Defensive Stance SS Vegeta | 1 | #0 OK; #10 OK |
 | BT5-061 Defensive Stance Piccolo | 1 | #0 OK; #10 OK |
 | BT5-062 Negotiator Krillin | 1 | #0 OK; #10 OK |
@@ -377,7 +377,7 @@ Never refresh (not compiler drafts, and a fresh compile reads them worse): BT7-0
 - **BT29-040#10** Yes, Time to Die! (1): Reading text is the same, but the stored cost lacks the printed cost/Awaken condition the current compile reads (the condition is parsed now). Fixed by: Refresh (draft row).
 - **BT29-098#0** Trunks, Battle With a God (1): Stored reading is older than the current compile and misses printed text (e.g. 'ignoring [Barrier]', or 'or' between names). Fixed by: Refresh (draft row, current compile is more faithful).
 - **BT29-098#10** Trunks, Battle With a God (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
-- **BT3-028#0** Grand Tour Spaceship (1): Program chose the card from the cards in play, not from the 7 cards looked at. Fixed by: compiler: a plain choose after a look is read from the cards looked at.
+- **BT3-028#0** Grand Tour Spaceship (1): Program chose the card from the cards in play, not from the 7 cards looked at. Fixed by: compiler: a plain choose after a look is read from the cards looked at (landed on main in #1049 while this audit ran; same fix).
 - **BT3-048#0** Out of Control Evil, Majin Buu (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
 - **BT3-050#0** Majin Buu, Dawn of the Rampage (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
 - **BT3-062#0** Trunks, Bridge to the Future (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
@@ -402,6 +402,7 @@ Never refresh (not compiler drafts, and a fresh compile reads them worse): BT7-0
 - **BT31-139#0** Absorb and Power Up (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
 - **BT31-149#20** SS Gogeta, Hell-Piercing Flash (1): Stored reading is older than the current compile and misses printed text (e.g. 'ignoring [Barrier]', or 'or' between names). Fixed by: Refresh (draft row, current compile is more faithful).
 - **BT31-149#30** SS Gogeta, Hell-Piercing Flash (1): Stored reading is older than the current compile and misses printed text (e.g. 'ignoring [Barrier]', or 'or' between names). Fixed by: Refresh (draft row, current compile is more faithful).
+- **BT5-057#0** Spirited Search Pan (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
 - **BT5-101#0** Time Magic (1): Stored reading is older than the current compile and misses printed text (e.g. 'ignoring [Barrier]', or 'or' between names). Fixed by: Refresh (draft row, current compile is more faithful).
 - **BT6-005#0** Son Goku, Prepping for Fusion (1): Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads. Fixed by: describeScript wording + Refresh.
 - **BT6-007#10** Harmonic Energy SSB Vegeta (1): Stored reading is older than the current compile and misses printed text (e.g. 'ignoring [Barrier]', or 'or' between names). Fixed by: Refresh (draft row, current compile is more faithful).

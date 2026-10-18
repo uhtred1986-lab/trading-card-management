@@ -3,8 +3,8 @@
  "source": "stored card_rules rows of the cards in the eligible decks (read-only), the printed text of the current catalog, faq.generated.json",
  "counts": {
   "before": {
-   "OK": 560,
-   "SUSPECT": 54,
+   "OK": 559,
+   "SUSPECT": 55,
    "UNREAD": 1
   },
   "after": {
@@ -56,6 +56,7 @@
   "BT31-139#0",
   "BT31-149#20",
   "BT31-149#30",
+  "BT5-057#0",
   "BT5-101#0",
   "BT6-005#0",
   "BT6-007#10",
@@ -2683,7 +2684,7 @@
      "reason": "Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads.",
      "fix": "describeScript wording + Refresh",
      "storedReading": "this card +5000 power for each of your cards in the Drop for the turn",
-     "currentReading": "this card +5000 power for each of the <son goku> or <vegeta> cards in your Drop Area for the turn"
+     "currentReading": "this card +5000 power for each of <son goku> or <vegeta> cards in your Drop Area for the turn"
     }
    ]
   },
@@ -3711,7 +3712,7 @@
      "after": "OK",
      "flag": false,
      "reason": "Program chose the card from the cards in play, not from the 7 cards looked at.",
-     "fix": "compiler: a plain choose after a look is read from the cards looked at",
+     "fix": "compiler: a plain choose after a look is read from the cards looked at (landed on main in #1049 while this audit ran; same fix)",
      "storedReading": "look at the top 7, choose 1 <Son Goku: GT> <Trunks: GT> <Pan> <Giru> card with 15000 power or less you have in play, play the chosen cards, shuffle",
      "currentReading": "look at the top 7, choose 1 <Son Goku: GT> or <Trunks: GT> or <Pan> or <Giru> card with 15000 power or less of the cards looked at, play the chosen cards, shuffle"
     }
@@ -4724,7 +4725,7 @@
      "reason": "Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads.",
      "fix": "describeScript wording + Refresh",
      "storedReading": "all ≪saiyan≫ cards in your hand costs 1 less",
-     "currentReading": "all ≪saiyan≫ cards in your hand's combo cost is 1 less"
+     "currentReading": "all ≪saiyan≫ cards in your hand costs 1 less (combo cost)"
     }
    ]
   },
@@ -5171,7 +5172,7 @@
      "flag": false,
      "reason": "Stored reading text is older than the current describe wording (program unchanged, owner/claude row so it is not refreshed).",
      "storedReading": "choose up to 1 ≪Maiden Squadron≫ Battle Card in your Battle Area, the chosen cards +5000 power for every 2 of your cards in the Warp for the battle",
-     "currentReading": "choose up to 1 ≪Maiden Squadron≫ Battle Card in your Battle Area, the chosen cards +5000 power for every 2 of the ≪universe 2≫ cards in your Warp for the battle"
+     "currentReading": "choose up to 1 ≪Maiden Squadron≫ Battle Card in your Battle Area, the chosen cards +5000 power for every 2 of ≪universe 2≫ cards in your Warp for the battle"
     }
    ]
   },
@@ -7338,10 +7339,13 @@
      "kind": "activate:main",
      "status": "draft",
      "source": "compiler",
-     "before": "OK",
+     "before": "SUSPECT",
      "after": "OK",
      "flag": false,
-     "storedReading": "choose up to 1 green {Super Saiyan Son Goku} {Spirited Search SS Trunks} card with an energy cost of 2 in your deck, play the chosen cards, shuffle"
+     "reason": "Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads.",
+     "fix": "describeScript wording + Refresh",
+     "storedReading": "choose up to 1 green {Super Saiyan Son Goku} {Spirited Search SS Trunks} card with an energy cost of 2 in your deck, play the chosen cards, shuffle",
+     "currentReading": "choose up to 1 green {Super Saiyan Son Goku} or {Spirited Search SS Trunks} card with an energy cost of 2 in your deck, play the chosen cards, shuffle"
     }
    ]
   },
@@ -9742,7 +9746,7 @@
      "reason": "Stored reading says less or something else than the printed text (the program is right, or was right with the wording lost): see storedReads/freshReads.",
      "fix": "describeScript wording + Refresh",
      "storedReading": "all blue yellow ≪universe 6≫ cards in your hand costs 1 less",
-     "currentReading": "all blue yellow ≪universe 6≫ cards in your hand's combo cost is 1 less"
+     "currentReading": "all blue yellow ≪universe 6≫ cards in your hand costs 1 less (combo cost)"
     }
    ]
   },

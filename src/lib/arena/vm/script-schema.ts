@@ -646,9 +646,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
-        // A combo-cost reduction is not "costs 1 less" (XD1-05, BT3-092: "reduce the combo cost"; the energy cost is untouched): it
-        // takes the worded form below, which names the cost.
-        if ((op.what === undefined || op.what === "energy" || op.what === "zEnergy") && !op.skillKind) {
+        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
           const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
