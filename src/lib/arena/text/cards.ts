@@ -407,7 +407,39 @@ function tagFor(kw: KeywordSkill): string {
   return kw.name;
 }
 
+/**
+ * Two printings the effect text is tidied of before anything reads it (`raw`
+ * keeps the line as printed). A missing space after a count — "choose up to
+ * 1of your opponent's Battle Cards", "choose 1of your energy" (BT2-036,
+ * BT26-093, P-607 and four more) — made "1of" a word no pattern knew, so the
+ * count was lost and, in BT2-036's case, the choice read as *all* of the
+ * energy. And "**Activate this skill when** you play this card from your hand
+ * or Warp. If …" (BT4-076, P-090, BT7-004, BT6-121) is how those four sets
+ * print "When …,": the trigger sentence, which was read as an instruction and
+ * so turned "when you play this card" into *playing* it. It is the same
+ * trigger said as its own sentence, so it becomes the "When X, …" every other
+ * [Auto] prints. The rules (9-6-2) say an [Auto] is activated by its trigger;
+ * "activate this skill" is that and nothing more.
+ *
+ * A third: BT12-041 and BT12-140 print their trigger with an "If" — "[Auto]
+ * **If** your opponent activates a [Counter] skill during a battle with this
+ * card, send 1 card …" — where their nine neighbours in the same sets (BT12-092,
+ * BT12-059, BT12-100 …) print "When". The skill names no other moment, and an
+ * [Auto] with no trigger would never fire, so the "If" is the trigger's word
+ * (best guess: the same set, the same sentence, the same effect shape as
+ * BT12-092). And "it's owner's" for "its owner's" (P-159).
+ */
+function tidyEffect(effect: string): string {
+  return effect
+    .replace(/(\d)of\b/g, "$1 of")
+    .replace(/\bit's owner/gi, "its owner")
+    .replace(/^activate this skill (when\b.*?)\.\s+(?=[A-Z])/i, "$1, ")
+    .replace(/^if (your opponent activates an? \[counter[^\]]*\] skill(?: during a battle (?:with|in which) this card)?,)/i, (all: string, rest: string) => (/\bwhen\b/i.test(effect) ? all : `when ${rest}`));
+}
+
 function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, cost: string, effect: string, raw: string): Skill {
+  effect = tidyEffect(effect);
+  cost = tidyEffect(cost);
   const lower = tags.map((t) => t.toLowerCase());
   const num = (re: RegExp): number | null => {
     for (const t of lower) {

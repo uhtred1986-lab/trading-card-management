@@ -2514,7 +2514,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   const host = sel.underHost ? describeUnderHost(sel.underHost) : null;
   const where = sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
   const mode = describeMode(sel);
-  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
+  // 22-16-2: a choice that reaches past [Barrier] says so, or the reading of "ignoring [Barrier]" is the same words as a choice that does not.
+  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel) + (sel.ignoreBarrier ? " ignoring [Barrier]" : "");
 }
 
 function describeUnderHost(sel: Selector): string {
