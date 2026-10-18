@@ -284,7 +284,7 @@ export function isPublicPath(pathname: string): boolean {
   if (pathname === LOGIN_PAGE || pathname === LOGIN_START_PATH || pathname === CALLBACK_PATH) return true;
   if (pathname === PASSWORD_LOGIN_PATH || pathname === JOIN_PAGE || pathname === JOIN_REDEEM_PATH) return true;
   if (pathname === "/manifest.webmanifest" || pathname === "/sw.js" || pathname === "/favicon.ico") return true;
-  if (pathname.startsWith("/icons/") || pathname.startsWith("/_next/")) return true;
+  if (pathname.startsWith("/icons/") || pathname.startsWith("/themes/") || pathname.startsWith("/_next/")) return true;
   return false;
 }
 

@@ -88,7 +88,7 @@ async function main() {
   assert.equal(await verifyFlow(token, SECRET, NOW), null, "a session cookie is no flow");
 
   // ── Public paths ──
-  for (const p of [LOGIN_PAGE, LOGIN_START_PATH, CALLBACK_PATH, PASSWORD_LOGIN_PATH, "/manifest.webmanifest", "/sw.js", "/icons/192.png", "/favicon.ico"]) {
+  for (const p of [LOGIN_PAGE, LOGIN_START_PATH, CALLBACK_PATH, PASSWORD_LOGIN_PATH, "/manifest.webmanifest", "/sw.js", "/icons/192.png", "/themes/ultra-instinct.webp", "/favicon.ico"]) {
     assert.equal(isPublicPath(p), true, p);
   }
   for (const p of ["/", "/collection", "/login/x", "/api/auth", "/api/auth/callback/google/x", "/password-login/x", "/settings/users", "/api/v1/decks"]) {

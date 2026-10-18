@@ -12,7 +12,7 @@
  * the first time it comes up — mulligan, main (with a card on the field), combo, a choice, the end — the
  * board's playback is skipped and the screen is shot, and what a player would feel is measured:
  *
- *   - `pageScroll`: how far the document can scroll (0 is a one-screen board; with the defence brief of #982 up it is noted, not failed);
+ *   - `pageScroll`: how far the document can scroll (0 is a one-screen board, with a defence prompt up too);
  *   - `chrome`: whether the app's header or tab bar is on the page;
  *   - `leaders`: the "Leader" labels the board draws (both sides).
  *
@@ -86,8 +86,7 @@ let failed = 0;
 const browser = await Browser.launch();
 
 async function measure(page: Page) {
-  return page.eval<{ pageScroll: number; chrome: boolean; leaders: number; notice: string | null; defence: boolean }>(`(() => ({
-    defence: !!document.querySelector("[data-defend-step]"),
+  return page.eval<{ pageScroll: number; chrome: boolean; leaders: number; notice: string | null }>(`(() => ({
     pageScroll: Math.max(0, document.scrollingElement.scrollHeight - innerHeight),
     chrome: !!document.querySelector("header nav, nav[aria-label], body > div header") && !!document.querySelector("header") && getComputedStyle(document.querySelector("header")).display !== "none",
     leaders: document.querySelectorAll("[data-leader-label]").length,
@@ -166,8 +165,7 @@ try {
           report.push({ viewport: vp.name, skin, step, file: basename(file), ...m });
           console.log(`${vp.name} ${skin} ${step}: scroll ${m.pageScroll}px, chrome ${m.chrome}, leader labels ${m.leaders}`);
           if (tag !== "before" && !TEXT && PHONES.has(vp.name)) {
-            if (m.pageScroll > 0 && step !== "end" && !m.defence) { failed++; console.log(`  FAIL: the page scrolls ${m.pageScroll}px at ${step}`); }
-            if (m.pageScroll > 0 && m.defence) console.log(`  note: the defence brief (#982) scrolls the page ${m.pageScroll}px at ${step}; not counted`);
+            if (m.pageScroll > 0 && step !== "end") { failed++; console.log(`  FAIL: the page scrolls ${m.pageScroll}px at ${step}`); }
             if (m.chrome) { failed++; console.log("  FAIL: app chrome on the board"); }
             if (step !== "end" && step !== "mulligan" && m.leaders < 2) { failed++; console.log(`  FAIL: ${m.leaders} Leader label(s)`); }
           }

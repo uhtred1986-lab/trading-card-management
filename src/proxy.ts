@@ -49,6 +49,10 @@ import { checkAddedSl, checkPlayerDevice } from "@/lib/auth/proxy-checks";
  * give away is the app's name, its icon and a list of public card-image hosts —
  * no data, and no way in.
  *
+ * `/themes/*` (the design system's background art, requested by the signed-out `/arena/offline`
+ * page) is not matched either: public static images, no data, and without the exemption a signed-out
+ * browser gets 401 for them and never finishes loading that page.
+ *
  * Exactly three more paths are not matched, the offline shell (#659) and its pack (#660):
  * `/arena/offline`, `/arena/offline/shell.json` and `/arena/offline/pack.json`. The service worker
  * fetches the first two without credentials to keep them for a launch with no network, which must
@@ -108,7 +112,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$|arena/offline$|arena/offline/shell.json$|arena/offline/pack.json$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|themes/|manifest.webmanifest|sw.js|api/sync/|api/ai/agent-sdk$|arena/offline$|arena/offline/shell.json$|arena/offline/pack.json$).*)",
     // A Server Function POST runs on whatever route it is posted to, so it always meets the proxy,
     // even on a path the entry above skips.
     { source: "/:path*", has: [{ type: "header", key: "next-action" }] },

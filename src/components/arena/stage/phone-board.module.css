@@ -141,6 +141,27 @@
  .board :global(.arena-row) { --arena: 1; }
 }
 
+/*
+ * A phone board with the field showing (the compact board of the settings sheet, or a fight staged as a
+ * band) leaves a defence prompt only what is under the field. Like the laptop board (globals.css), the answer's
+ * buttons come first and the explanation below, and the panel scrolls inside itself rather than
+ * pushing the page: the page never scrolls during a turn.
+ */
+@media (max-width: 767px) {
+ .dock :global(.arena-bar > [data-defend-step]) { order: 4; }
+ .dock :global(.arena-bar > [data-decision-summary]) { order: 5; }
+ .dock :global(.arena-bar) { max-height: 34dvh; overflow-y: auto; overscroll-behavior-y: contain; }
+ /* `useCompactSqueeze` steps the field's cards down until the board is no taller than the screen. */
+
+ /* A banded fight keeps the rows 84 px high (`data-phone-cinema`); a squeezed board lets them follow their cards. */
+ .board[data-phone-cinema="true"][data-squeeze] :global(.arena-row) { min-height: 0 !important; }
+ .board[data-squeeze="1"] :global(.arena-row) { --arena: .5; }
+ .board[data-squeeze="2"] :global(.arena-row) { --arena: .42; }
+ .board[data-squeeze="3"] :global(.arena-row) { --arena: .35; }
+ .board[data-squeeze="4"] :global(.arena-row) { --arena: .3; }
+ .board[data-squeeze="3"] :global(.arena-pstrip), .board[data-squeeze="4"] :global(.arena-pstrip) { min-height: 36px; }
+}
+
 /* Tablets retain the touch layout rather than squeezing a desktop inspector beside it. */
 @media (min-width: 768px) and (max-width: 1279px) {
  .board { display: flex; height: calc(100dvh - 1rem); min-height: 620px; max-width: 1180px; }
