@@ -88,7 +88,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
@@ -830,7 +830,12 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  if (!waived) spendSkillCostUses(state, ev, card, sk);
+  if (!waived) {
+    spendSkillCostUses(state, ev, card, sk);
+    // An Extra used from the hand pays its energy cost with the line (12-2-2):
+    // "the next time you activate it, reduce the energy cost by {g}" is spent here.
+    if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(state, ev, card);
+  }
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   // Not for a keyword's own move: its `DO` says where the card goes, and

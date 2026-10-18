@@ -298,8 +298,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     addEffect: (e) => {
       // "…while this card is in a Battle Area": a source already gone by the
       // time the effect resolves gives it no period to last for at all.
-      if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return;
-      addEffect(state, ev, e);
+      if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return undefined;
+      return addEffect(state, ev, e);
     },
     schedule: (d) => {
       schedule(state, ev, d);
