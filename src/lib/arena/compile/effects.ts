@@ -2,7 +2,7 @@ import { keywordOf, orbsIn } from "../text/cards";
 import { playTaxWording } from "../text/play-tax";
 import { emptyFilter, parseFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
-import type { DelayScope, DelayTiming, SkillKindPrefix } from "../types";
+import type { DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
 import { compileDisjointMove } from "./disjoint";
 import { TWO_NAMED_CARDS } from "./clauses";
@@ -1241,29 +1241,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
   }
 
-  const skillKindFromTag = (tag: string): SkillKindPrefix | null => {
-    const word = tag.trim().toLowerCase();
-    if (word === "counter") return "counter";
-    if (word === "activate") return "activate";
-    if (word === "auto") return "auto";
-    if (word === "permanent") return "permanent";
-    return null;
-  };
-
-  const skillScope = (raw: string): { target: Ref; skillKind?: SkillKindPrefix } | null => {
-    let mSkill: RegExpExecArray | null;
-    // "…of [Counter] skills on yellow <Vegito> cards in your hand…"
-    if ((mSkill = /^(?:(?:your|their|the)\s+)?\[([a-z0-9:\- /]+)\] skills? (?:on|of) (.+)$/i.exec(raw))) {
-      const kind = skillKindFromTag(mSkill[1]);
-      const target = refFor(mSkill[2], c);
-      return kind && target && !(c.stale && target === c.stale) ? { target, skillKind: kind } : null;
-    }
-    // "…of this card's [Counter] skill…"
-    if ((mSkill = /^(.+?)'?s \[([a-z0-9:\- /]+)\] skills?$/i.exec(raw))) {
-      const kind = skillKindFromTag(mSkill[2]);
-      const target = refFor(mSkill[1], c);
-      return kind && target && !(c.stale && target === c.stale) ? { target, skillKind: kind } : null;
-    }
+  const skillScope = (raw: string): SkillScope | null => {
+    // "…of [Counter] skills on yellow <Vegito> cards in your hand…", "…of this
+    // card's [Counter] skill…", "[Z-Awaken] skill on {X} in your Z-Deck".
+    const scoped = skillScopeOf(raw, c);
+    if (scoped) return scoped;
     // Any other explicit "skill(s)" scope is refused whole rather than guessed.
     if (/\bskills?\b/i.test(raw)) return null;
     const target = refFor(raw, c);
@@ -1312,6 +1294,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     qq = `${verb} the ${passive[1] ?? ""}cost of ${passive[2]} by ${passive[4]}`;
   }
   qq = qq.replace(/\bactivation costs?\b/gi, "skill cost");
+  // "...by an additional 1" (BT6-018): the second sentence's own reduction, which
+  // stacks with the first sentence's (both hold at 10 or more).
+  qq = qq.replace(/ by an additional (\d+|(?:\{[rugykbw\d]+\})+)$/i, " by $1");
+  // "Reduce the [Z-Awaken] skill cost on {X} in your Z-Deck by {y}" (BT24-079b,
+  // BT25-043, P-649, BT31-028): the keyword tag sits inside the noun phrase.
+  // Said the other way round it is the shape the reducer below already reads.
+  qq = qq.replace(/^(reduce|increase|decrease) the (\[[^\]]+\]) skill costs? (?:of|on) (.+?) by /i, "$1 the skill cost of the $2 skill on $3 by ");
+  // BT26-043 prints "the energy cost o this card in your hand": a typo for "of".
+  qq = qq.replace(/\bcost o (this card)\b/i, "cost of $1");
   // "Reduce the Z-Energy cost by 1" (BT22-034): the bare, no-subject
   // continuation that "reduce the energy/combo cost by N" stays unread for
   // everywhere else in the catalog (deliberately — the noun alone does not
@@ -1366,6 +1357,39 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // cost (1-2-3-2) for the span — the same standing change [Warrior of
   // Universe 7] makes (22-19-2), here timed. The description must name its
   // place (a Z-Deck, hand…): a bare one would be every card in play.
+  // "Treat ≪Agent of Destruction≫ cards in your hand as if they had no specified
+  // cost" (BT6-047, EX13-29, P-434b), "treat this card in your hand as if it had no
+  // specified cost" (P-203, P-321, SD16-05, BT12-153), "treat ≪Universe 9≫ cards in
+  // all areas as if they have no specified cost" (P-268, TB2-065): 1-2-3-2 - the
+  // specified cost is removed and the total is not reduced; the same standing change
+  // [Warrior of Universe 7] makes (22-19-2). "In all areas" is the two places a price
+  // is asked, the hand and the Z-Deck - the DSL's own reading of that keyword - and
+  // the cards are the master's.
+  if ((m = /^treat (.+?) as if (?:it|they) (?:has|have|had) no specified costs?(?: in all areas)?$/.exec(qq))) {
+    let phrase = m[1].trim();
+    const everywhere = /\bin all areas\b/.test(phrase) || /\bin all areas$/.test(qq);
+    phrase = phrase.replace(/\s*\bin all areas\b/, "");
+    if (/\boriginal\b|\bnon-|\bwith .* as part of\b/.test(phrase)) return null;
+    if (/^this card\b/.test(phrase)) {
+      const self = refFor(phrase, c);
+      if (!self || !("sel" in self) || !self.sel.special) return null;
+      return [{ op: "costReduction", target: self, amount: 0, what: "specified" as const, all: true, until: durationOf(clause) }];
+    }
+    if (!everywhere && !/\bin your (?:hand|z-deck)$/.test(phrase)) return null;
+    const noun = /\b(?:cards?|unisons?|extras?|battle cards?)$/.test(phrase.replace(/\s*\bin your (?:hand|z-deck)$/, "")) ? phrase : phrase.replace(/(\s*\bin your (?:hand|z-deck))?$/, " cards$1");
+    const place = everywhere ? "" : "";
+    void place;
+    const ref = refFor(everywhere ? `your ${noun}` : noun, c);
+    if (!ref || !("sel" in ref) || ref.sel.special || (c.stale && ref === c.stale)) return null;
+    const whole = { ...ref.sel };
+    delete whole.count;
+    delete whole.upTo;
+    if (everywhere) {
+      whole.areas = ["hand", "zDeck"];
+      delete whole.area;
+    }
+    return [{ op: "costReduction", target: { sel: whole }, amount: 0, what: "specified" as const, all: true, until: durationOf(clause) }];
+  }
   if ((m = /^ignore the specified costs? (?:of|on) (.+? in your [a-z-]+(?: area)?)(?: during this turn)?$/.exec(qq))) {
     const ref = refFor(m[1], c);
     if (!ref || !("sel" in ref) || ref.sel.special || (c.stale && ref === c.stale)) return null;
@@ -1429,11 +1453,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     let ref = refFor(targetText, c);
     const kindWordTrim = kindWord?.trim();
     let skillKind: SkillKindPrefix | undefined;
+    let scopeTag: string | undefined;
+    let scopeEvolve = false;
     if (kindWordTrim === "skill" || kindWordTrim === "evolve") {
       const scope = skillScope(targetText);
       if (!scope) return null;
       ref = scope.target;
       skillKind = scope.skillKind;
+      scopeTag = scope.tag;
+      scopeEvolve = !!scope.evolve;
+      // "{X} in your hand" is every copy, not a choice of one (the skill's own price is per line).
+      if ("sel" in ref && !ref.sel.special && ref.sel.count !== undefined) ref = { sel: { ...ref.sel, count: 99, upTo: undefined } };
     } else if (!ref) return null;
     // A pronoun that resolves to a stale target is a wrong answer, not a
     // right one for the wrong reason — see the `c.stale` note in `refFor`.
@@ -1473,7 +1503,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // `holdForGame` rewrites this to "game"; anywhere else it is what says how
     // long the change is in force.
     const what =
-      kindWordTrim === "combo"
+      scopeEvolve
+        ? ({ what: "evolve" as const })
+        : kindWordTrim === "combo"
         ? ({ what: "combo" as const })
         : kindWordTrim === "z-energy"
           ? ({ what: "zEnergy" as const })
@@ -1482,7 +1514,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }];
+    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }];
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -3225,7 +3257,7 @@ function track(o: Op, c: Ctx): void {
 
 /** A clause that is nothing but a duration, split off from the effect it belongs to. */
 const PURE_DURATION =
-  /^(?:during this turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
+  /^(?:during (?:this|that|the) turn|for the (?:duration of the )?(?:turn|battle)|for the rest of the turn|until the end of (?:your|your opponent's|the)(?: next)? turn|until the (?:start|beginning) of your (?:next )?turn|until the (?:start|beginning) of your opponent's next turn)[.,]?$/i;
 
 /**
  * A clause that is nothing but "for each marker on this card", split off from
@@ -3247,37 +3279,181 @@ const PURE_FOREACH_OWN_TOKENS = /^for each of your\b[^,]*\btokens?\b[^,]*[.,]?$/
  * `splitClauses` cuts it at its comma into these two halves, neither a
  * sentence alone; `nextActivationReduction` reads the pair.
  */
-const NEXT_ACTIVATION = /^(?:and |then )?the next time you activate (.+?) (?:during )?this turn[.,]?$/i;
-const REDUCE_THAT_SKILL_COST = /^(?:then )?reduce (?:its|the|that skill's|the skill's) (?:skill )?cost(?: of (?:it|that skill))? by ((?:\{[rugykbw\d]+\})+|\d+)[.]?$/i;
+const NEXT_ACTIVATION = /^(?:and |then )?(?:during (?:this|that) turn,? )?(?:the next time|if) (?:you|your) (?:would )?(activate|play|place|use|pay the energy cost to place) (.+?)(?: (?:during )?(?:this|that|the) (turn|battle))?[.,]?$/i;
+const REDUCE_THAT_SKILL_COST = /^(?:then |and )?reduce (?:its|the|that card's|that skill's|the skill's|their|this card's) (?:(skill|energy|specified|activation) )?costs?(?: of (?:it|that (?:\[[^\]]+\] )?skill|that card|the extra card))? by ((?:\{[rugykbw\d]+\})+|\d+)(?: for the turn)?[.]?$/i;
+/** A sentence that is a cost reducer ending in its amount - what a leading "for each ..." count is hung on. */
+/**
+ * A count a cost reducer can hang on as it stands: one description in one place. Not "among" colours,
+ * not the cost of other cards, not two places ("Battle Area and/or Drop"), not markers or tokens - those
+ * are read wrongly as a plain count of cards, so they stay unread.
+ */
+const SIMPLE_COUNT = /^(?!.*\b(?:among|colou?rs?|costs?|markers?|tokens?|and|or)\b).+$/i;
+/** `SIMPLE_COUNT`, and not "in play" with no side named: "Battle Card in play" is both players' cards, which the target reader reads as yours. */
+const simpleCount = (counted: string): boolean => SIMPLE_COUNT.test(counted) && !(/\bin play\b/i.test(counted) && !/\b(?:your|their|opponent's)\b/i.test(counted));
+// (Not the Z-Energy cost: P-464 prints a cap, "(Up to 2)", that the note-stripper has already dropped by now.)
+const COST_REDUCER = /^(?!.*z-energy)(?:reduce|decrease) .*\bcosts?\b.* by (?:\d+|(?:\{[rugykbw\d]+\})+)[.]?$/i;
+/** "When you would play a Unison with [Empower] from your hand, reduce the specified cost by {y}" (P-733): every such play this turn. */
+const WHEN_WOULD_PLAY = /^when you would play (.+?)(?: during this turn)?$/i;
+/** [Permanent] "When you activate X, reduce its skill cost by N" (BT27-069): the standing form of the pair above. */
+const WHEN_ACTIVATE = /^when (?:you )?(?:activate|activating) (.+)$/i;
+
+/** What a bracketed tag in a cost sentence names: a kind of line, the [Evolve] family, or one keyword skill. */
+export interface SkillTag {
+  skillKind?: SkillKindPrefix;
+  evolve?: true;
+  tag?: string;
+}
+/** The keyword skills a cost change may be about, spelled as the card prints them. */
+const KEYWORD_NAMES: Record<string, KeywordSkill["name"]> = { arrival: "Arrival", swap: "Swap", union: "Union", successor: "Successor", "z-awaken": "Z-Awaken", field: "Field", revive: "Revive", aegis: "Aegis", alliance: "Alliance", overlord: "Overlord", rejuvenate: "Rejuvenate" };
+const KEYWORD_TAGS = new Set(["arrival", "swap", "union", "successor", "z-awaken", "field", "revive", "aegis", "alliance", "overlord", "rejuvenate"]);
+export function skillTagOf(raw: string): SkillTag | null {
+  const word = raw.trim().toLowerCase().split(/[:\s/]/)[0];
+  if (word === "activate" || word === "counter" || word === "auto" || word === "permanent") return { skillKind: word };
+  // 22-5-2-2: "[Evolve] skills" are [Evolve], [EX-Evolve] and [Xeno-Evolve] alike.
+  if (word === "evolve") return { evolve: true };
+  if (word === "ex-evolve" || word === "xeno-evolve") return { evolve: true, tag: word };
+  if (word.startsWith("union")) return { tag: "union" };
+  if (/^(?:dark )?over realm\b/i.test(raw.trim())) return { tag: /^dark/i.test(raw.trim()) ? "dark over realm" : "over realm" };
+  return KEYWORD_TAGS.has(word) ? { tag: word } : null;
+}
+
+export interface SkillScope extends SkillTag {
+  target: Ref;
+}
+/**
+ * "[Z-Awaken] skills on <Majin Buu> cards in your Z-Deck", "this card's [Union]
+ * skill in your hand", "[Arrival Red/Yellow] on a <Beerus> card" - the tag and
+ * the cards it is on. `anySkill` also reads "a skill on X" (no tag: every line).
+ */
+function skillScopeOf(raw: string, c: Ctx, anySkill = false): SkillScope | null {
+  const r = raw.trim();
+  // Places this reader cannot hold together are refused rather than narrowed:
+  // "in your Battle Area and/or Combo Area" read as the Combo Area alone, a card
+  // "under" another as the pair of them, and two descriptions joined by "or"
+  // ("on X from your Z-Deck or Y from your hand") as one merged description.
+  if (/\band\/or\b|\bunder\b|\bcardunder\b/i.test(r)) return null;
+  if ((r.match(/\b(?:in|from) your (?:hand|z-deck|drop(?: area)?|warp|battle area)\b/gi) ?? []).length > 1) return null;
+  let m: RegExpExecArray | null;
+  let tagText: string | null = null;
+  let who: string;
+  if ((m = /^(?:(?:your|their|the|an?)\s+)?\[([^\]]+)\](?: skills?)? (?:on|of) (.+)$/i.exec(r))) [tagText, who] = [m[1], m[2]];
+  else if ((m = /^(.+?)'?s \[([^\]]+)\](?: skills?)?(?: (in your (?:hand|z-deck|drop(?: area)?|battle area)))?$/i.exec(r))) [tagText, who] = [m[2], m[3] ? `${m[1]} ${m[3]}` : m[1]];
+  else if (anySkill && (m = /^(?:an?|the) skills? (?:on|of) (.+)$/i.exec(r))) who = m[1];
+  // "a [Dark Over Realm] skill from your hand" (BT27-092b): no card is named, so any card there.
+  else if ((m = /^(?:an?|the) \[([^\]]+)\] skills? in your (hand|z-deck|drop(?: area)?|warp)$/i.exec(r))) [tagText, who] = [m[1], `cards in your ${m[2]}`];
+  else return null;
+  const kind: SkillTag | null = tagText === null ? {} : skillTagOf(tagText);
+  if (!kind) return null;
+  // "in their hand and Battle Area" is the union of the two, which the target
+  // reader holds only as "or".
+  const target = refFor(who.replace(/\b(hand|z-deck|drop area|battle area|warp) and (hand|z-deck|drop area|battle area|warp)\b/i, "$1 or $2"), c);
+  if (!target || (c.stale && target === c.stale)) return null;
+  // "the Extra Card's [Activate: Main] skill" (EX19-11) points back at a card an earlier clause
+  // named, which a description cannot hold: read as one it is every Extra in the hand.
+  if (/^the\s+(?!chosen\b)/i.test(who) && "sel" in target) return null;
+  return { target, ...kind };
+}
 
 /**
- * The one-use skill-cost change the pair above says: `uses: 1`, bounded by the
- * turn. The scope is a kind of skill line on named cards — "an [Activate]
- * skill of your Leader", "the [Activate: Main/Battle] skill on {X} in your
- * Battle Area", "this card's [Activate: Main] skill" — and a tag's timing
- * words ("Main/Battle") are not kept: `skillKind` has the kind and no more,
- * which reaches both timings of the line, the only ones those cards print.
- * Anything else in the scope is refused whole rather than guessed.
+ * The cost change a "the next time you activate / play / place X, reduce its
+ * ... cost by N" pair says (the pair `splitClauses` cuts at the comma), or
+ * "When you activate X, reduce the skill cost by N" on a [Permanent] (`once`
+ * false: standing, no budget).
+ *
+ * Three nouns, three costs:
+ * - "skill cost": one skill line's orbs (`what: skill`/`evolve`, `skillKind`
+ *   or `tag` naming the line). The scope is "an [Activate] skill of your
+ *   Leader", "the [Activate: Main/Battle] skill on {X} in your Battle Area",
+ *   "this card's [Activate: Main] skill", "[Arrival Red/Yellow] on a <Beerus>
+ *   card in your hand", "an [EX-Evolve] skill on {X} from your hand", "that
+ *   card's [Swap] skill". A tag's timing words are not kept: `skillKind` has
+ *   the kind and no more, which reaches both timings of the line.
+ * - "energy cost": the card's own price, for a play or an Extra's activation
+ *   (12-2-2) - the scope is then the cards themselves ("a green <World
+ *   Tournament> Extra in your hand", "a red <Broly> card from your Z-Deck").
+ * - "specified cost": the coloured half alone (owner's BT19-039 ruling).
+ * It is `uses: 1` and shared by every card the words reach (the engine ends the
+ * lot when one is paid for), bounded by the turn - or the battle, for
+ * "during the battle". Anything else in the scope is refused whole.
  */
-function nextActivationReduction(scope: string, amountText: string, c: Ctx): Op[] | null {
-  const tag = (raw: string): SkillKindPrefix | null => {
-    const word = raw.trim().toLowerCase().split(/[:\s]/)[0];
-    return word === "activate" || word === "counter" || word === "auto" ? word : null;
-  };
-  let m: RegExpExecArray | null;
-  let kind: SkillKindPrefix | null = null;
-  let who: string | null = null;
-  if ((m = /^(?:an?|the|your) \[([a-z0-9:\- /]+)\] skill (?:of|on) (.+)$/i.exec(scope.trim()))) [kind, who] = [tag(m[1]), m[2]];
-  else if ((m = /^(.+?)'s? \[([a-z0-9:\- /]+)\] skill$/i.exec(scope.trim()))) [kind, who] = [tag(m[2]), m[1]];
-  if (!kind || !who) return null;
-  let target = refFor(who, c);
-  if (!target || (c.stale && target === c.stale)) return null;
-  // "The skill on {X} in your Battle Area" is every {X} there, not a choice of one.
-  if ("sel" in target && !target.sel.special && target.sel.count !== undefined) target = { sel: { ...target.sel, count: 99, upTo: undefined } };
+function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefined, amountText: string, until: Duration, c: Ctx, once: boolean): Op[] | null {
   const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
   const amount = orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText);
   if (!amount) return null;
-  return [{ op: "costReduction", target, amount, what: "skill", skillKind: kind, ...(orbs ? { colors: orbsToList(orbs) } : {}), until: "turn", uses: 1 }];
+  const colors = orbs ? orbsToList(orbs) : null;
+  // "from your hand" / "in your Battle Area from your Z-Deck": where the card is
+  // while it is paid for, which is the place to look.
+  let scope = scopeRaw
+    .trim()
+    .replace(/ in your battle area from your (z-deck|hand)$/i, " in your $1")
+    .replace(/ from your (hand|z-deck|drop(?: area)?|warp)\b/i, " in your $1");
+  // "...place a Z-Extra in your Battle Area" (BT23-081): a Z-card is placed from the Z-Deck.
+  if ((verb === "place" || verb === "play") && /\bin your battle area$/i.test(scope)) {
+    if (!/\bz-/i.test(scope)) return null;
+    scope = scope.replace(/ in your battle area$/i, " in your z-deck");
+  }
+  const word = (noun ?? "").toLowerCase();
+  if (/\band\/or\b|\bunder\b/i.test(scope)) return null;
+  // "...without using skills" (P-329) limits the play to one made by the rules, which a description cannot say.
+  if (/\bwithout using skills\b/i.test(scope)) return null;
+  // Two energy-cost descriptions ("mono-black with an energy cost of 10 or multicolor with an
+  // energy cost of 8", EX23-45) are two kinds of card, which one filter cannot say.
+  if ((scope.match(/energy costs?/gi) ?? []).length > 1) return null;
+  if ((scope.match(/\bin your (?:hand|z-deck|drop(?: area)?|warp|battle area)\b/gi) ?? []).length > 1) return null;
+  // "Original energy cost" asks about the printed price, which the filter cannot
+  // tell from the one this very change is moving; unread rather than a loop.
+  if (/\boriginal (?:energy )?costs?\b/i.test(scope)) return null;
+  const every = (target: Ref): Ref => ("sel" in target && !target.sel.special && target.sel.count !== undefined ? { sel: { ...target.sel, count: 99, upTo: undefined } } : target);
+  // A card that is about to be bought is in the hand, not in play (20-1-6's
+  // default), unless the words name its place.
+  const toHand = (target: Ref): Ref =>
+    "sel" in target && target.sel.area === "play" && !/\b(?:hand|deck|drop|energy|warp|life|battle area|z-deck)\b/i.test(scope) ? { sel: { ...target.sel, area: "hand" } } : target;
+  const budget = once ? { uses: 1 } : {};
+  if (word === "specified") {
+    if (!colors || verb === "activate" || verb === "use") return null;
+    const target = refFor(scope, c);
+    if (!target || (c.stale && target === c.stale)) return null;
+    return [{ op: "costReduction", target: every(toHand(target)), amount, what: "specified", colors, until, ...budget }];
+  }
+  if (word === "energy") {
+    // The card's own price: a play, a placement from the Z-Deck, an Extra's use.
+    let target: Ref | null = null;
+    if (verb === "activate" || verb === "use") {
+      const wide = skillScopeOf(scope, c, true);
+      if (wide) {
+        // The price belongs to the card, not to one of its lines. An Extra is
+        // bought by activating it, so "[Activate]" adds nothing; a keyword
+        // names the cards that print it; any other line (a [Counter], an
+        // [Evolve]) would make the change wider than printed - unread.
+        if (wide.evolve || (wide.skillKind && wide.skillKind !== "activate")) return null;
+        target = wide.target;
+        if (wide.tag) {
+          const named = KEYWORD_NAMES[wide.tag];
+          if (!named || !("sel" in target) || target.sel.special || !target.sel.filter) return null;
+          target = { sel: { ...target.sel, filter: { ...target.sel.filter, keywords: [...target.sel.filter.keywords, named] } } };
+        }
+      } else target = /\bskills?\b/i.test(scope) ? null : refFor(scope, c);
+    } else target = refFor(scope, c);
+    if (!target || (c.stale && target === c.stale)) return null;
+    return [{ op: "costReduction", target: every(toHand(target)), amount, ...(colors ? { colors } : {}), until, ...budget }];
+  }
+  // Skill cost (the default noun after "activate").
+  if (verb !== "activate" && verb !== "use") return null;
+  const scoped = skillScopeOf(scope, c, true);
+  if (!scoped) return null;
+  return [
+    {
+      op: "costReduction",
+      target: every(scoped.target),
+      amount,
+      what: scoped.evolve ? "evolve" : "skill",
+      ...(scoped.skillKind ? { skillKind: scoped.skillKind } : {}),
+      ...(scoped.tag ? { tag: scoped.tag } : {}),
+      ...(colors ? { colors } : {}),
+      until,
+      ...budget,
+    },
+  ];
 }
 
 /** The two halves of the copied-skill wording (20-18); see the merge in `compileClauseList`. */
@@ -3505,7 +3681,40 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     const nextTime = NEXT_ACTIVATION.exec(clause.trim());
     const reduce = nextTime && i + 1 < clauses.length ? REDUCE_THAT_SKILL_COST.exec(clauses[i + 1].trim()) : null;
     if (nextTime && reduce) {
-      const ops = nextActivationReduction(nextTime[1], reduce[1], c);
+      const verb = nextTime[1].toLowerCase().startsWith("pay") ? "place" : nextTime[1].toLowerCase();
+      // "the skill cost" after "activate", "the energy cost" after a play.
+      const noun = reduce[1]?.toLowerCase().replace("activation", "skill") ?? (verb === "activate" || verb === "use" ? "skill" : "energy");
+      const ops = nextTimeReduction(verb, nextTime[2], noun, reduce[2], nextTime[3]?.toLowerCase() === "battle" ? "battle" : "turn", c, true);
+      if (ops) push(ops);
+      else {
+        refuse(clause);
+        refuse(clauses[i + 1]);
+      }
+      i++;
+      continue;
+    }
+    // [Permanent] "When you activate an [Activate: Main/Battle] skill on {X} in
+    // your hand, reduce the skill cost by {y}{y}" (BT27-069): the standing form.
+    // "Once per turn, when you activate ..." (BT28-078b) counts uses, which a
+    // standing change cannot; the clause before it says so and it stays unread.
+    const wouldPlay = WHEN_WOULD_PLAY.exec(clause.trim());
+    const reduceWould = wouldPlay && i + 1 < clauses.length ? REDUCE_THAT_SKILL_COST.exec(clauses[i + 1].trim()) : null;
+    if (wouldPlay && reduceWould && reduceWould[1]?.toLowerCase() === "specified") {
+      const ops = nextTimeReduction("play", wouldPlay[1], "specified", reduceWould[2], "turn", c, false);
+      if (ops) push(ops);
+      else {
+        refuse(clause);
+        refuse(clauses[i + 1]);
+      }
+      i++;
+      continue;
+    }
+    const whenActivate = c.permanent ? WHEN_ACTIVATE.exec(clause.trim()) : null;
+    const reduceStanding = whenActivate && i + 1 < clauses.length ? REDUCE_THAT_SKILL_COST.exec(clauses[i + 1].trim()) : null;
+    if (whenActivate && reduceStanding && !(i > 0 && /\bonce per turn\b|\blimit\b/i.test(clauses[i - 1]))) {
+      const noun = reduceStanding[1]?.toLowerCase().replace("activation", "skill") ?? "skill";
+      // An energy price belongs to the card, not to one line: only an Extra is bought by activating it.
+      const ops = noun === "skill" || /\bextra\b/i.test(whenActivate[1]) ? nextTimeReduction("activate", whenActivate[1], noun, reduceStanding[2], "game", c, false) : null;
       if (ops) push(ops);
       else {
         refuse(clause);
@@ -3561,6 +3770,25 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // behind, and `compileForEach` reads it out of the merged clause.
     if ((PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) || PURE_FOREACH_OWN_TOKENS.test(clause.trim())) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
+      continue;
+    }
+    // "For each green Unison Card in your Drop, reduce the Z-Energy cost of this
+    // card in your Z-Deck by 1" (P-464) and "If your Leader is a green <Son Goku: GT>
+    // card, for each green <Son Goku: GT> card in your Warp, reduce the energy cost
+    // of this card in your hand by 1" (BT20-068): the count leads the reducer, which
+    // reads it trailing ("by 1 for each ..."); the condition in front is its own clause.
+    const leadFor = /^(if .+?), (for (?:each|every) .+)$/i.exec(clause.trim());
+    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && simpleCount(leadFor[2].replace(/^for (?:each|every) /i, ""))) {
+      clauses.splice(i, 1, leadFor[1], leadFor[2]);
+      i--;
+      continue;
+    }
+    const countFirst = /^for (?:each|every) (.+?)[.,]?$/i.exec(clause.trim());
+    if (countFirst && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && !/\bfor (?:each|every)\b/i.test(clauses[i + 1]) && simpleCount(countFirst[1])) {
+      // The count now trails the reducer; the clause it led is gone, so the
+      // guard below (a reducer after an unread "for each") does not take it.
+      clauses.splice(i, 2, `${clauses[i + 1].trim().replace(/[.]$/, "")} for each ${countFirst[1]}`);
+      i--;
       continue;
     }
     // "Otherwise, draw 1 card" — the else of the condition just before it,
@@ -3961,7 +4189,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // ever runs, and this one is not a reminder. Compiling "reduce … by 1"
     // alone would apply the reduction flatly, unconditionally and without a
     // ceiling — none of which the card says — so it is refused here instead.
-    if (i > 0 && /^for (?:each|every)\b/i.test(clauses[i - 1].trim()) && got?.some((o) => o.op === "costReduction" && o.what === "zEnergy")) {
+    if (i > 0 && /^for (?:each|every)\b/i.test(clauses[i - 1].trim()) && !/\bfor (?:each|every)\b/i.test(clause) && got?.some((o) => o.op === "costReduction")) {
       got = null;
     }
     // The same cap, on the chance it ever survives `stripNotes` as a clause

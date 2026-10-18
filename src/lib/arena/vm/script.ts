@@ -742,6 +742,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** `costReduction`'s `tag`, carried through unchanged. */
+      tag?: string;
       pay?: "none" | "life" | "program" | "energy";
       n?: number;
       for?: "counter" | "play" | "activate:battle";
@@ -783,6 +785,13 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /**
+       * With `what: "skill"`/`"evolve"`: the keyword skill the change reaches
+       * ("reduce the [Z-Awaken] skill cost of ...", "the next time you activate
+       * [Arrival Red/Yellow] on ..."), lower-case; [Evolve] needs none (22-5-2-2
+       * makes a bare "[Evolve]" all three) and "ex-evolve"/"xeno-evolve" narrow it.
+       */
+      tag?: string;
       until?: Duration;
       /**
        * With `what: "skill"`/`"evolve"` and a duration: how many activations
@@ -792,6 +801,9 @@ export type Op =
        * the change reaches spends one; once none are left it is gone, and
        * `until` still ends it unused. Absent is every activation in the
        * duration. Not read on a [Permanent], which has no activation to count.
+       * Also read on an energy cost (`what` absent) and on `what: "specified"`:
+       * "the next time you play X, reduce its energy cost by {r}" is spent by the
+       * play that pays it. The effects one op puts in force share the one use.
        */
       uses?: number;
       /**
@@ -2718,8 +2730,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (op.what === "specified") {
           if (!op.colors?.length) break;
           const sign: 1 | -1 = by < 0 ? -1 : 1;
+          // "The next time you play it, reduce its specified cost by {r}" (BT27-002b):
+          // one use, shared by every card the words reached.
+          const uses = op.uses != null && op.uses > 0 ? op.uses : undefined;
+          if (op.uses != null && uses === undefined) break;
+          let group: number | undefined;
           for (const id of h.resolveRef(frame, op.target)) {
-            h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn" });
+            const made = h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn", ...(uses !== undefined ? { uses } : {}), ...(group !== undefined ? { group } : {}) });
+            if (uses !== undefined && group === undefined && made) {
+              group = made.id;
+              made.group = made.id;
+            }
           }
           break;
         }
@@ -2739,10 +2760,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // here. It means something only on a line's own price, which is the
         // one place an activation spends it (`spendSkillCostUses`, both
         // engines); a budget of nothing puts nothing in force.
-        const uses = op.uses != null && (kind === "skillCost" || kind === "evolveCost") ? op.uses : undefined;
+        const uses = op.uses != null && (kind === "skillCost" || kind === "evolveCost" || kind === "cost") ? op.uses : undefined;
         if (uses !== undefined && uses <= 0) break;
+        let group: number | undefined;
         for (const id of h.resolveRef(frame, op.target)) {
-          h.addEffect({
+          const made = h.addEffect({
             ...onto,
             master: frame.master,
             source: frame.card,
@@ -2751,9 +2773,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             value: by,
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
-            ...(op.colors?.length ? { colors: op.colors } : {}),
+            ...(op.colors?.length && (kind === "cost" || kind === "skillCost" || kind === "evolveCost") ? { colors: op.colors } : {}),
             ...(uses !== undefined ? { uses } : {}),
+            ...(op.tag && (kind === "skillCost" || kind === "evolveCost") ? { tag: op.tag } : {}),
+            ...(group !== undefined ? { group } : {}),
           });
+          if (uses !== undefined && group === undefined && made) {
+            group = made.id;
+            made.group = made.id;
+          }
         }
         break;
       }

@@ -563,6 +563,19 @@ export interface ContinuousEffect {
    * bounded by `until`. Absent is every activation for the whole duration.
    */
   uses?: number;
+  /**
+   * `skillCost` only: the change reaches only the keyword skill of this name -
+   * "reduce the [Z-Awaken] skill cost of ...", "the next time you activate
+   * [Arrival Red/Yellow] on ..." - lower-case, with the [Evolve] family spelled
+   * "ex-evolve"/"xeno-evolve" (22-5-2-2: a bare "[Evolve]" is all three, so it
+   * needs none). Absent reaches every line `skillKind` allows.
+   */
+  tag?: string;
+  /**
+   * Effects put in force together by one "the next time ..." share their use:
+   * spending any of them ends the lot. The id of the first one made.
+   */
+  group?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
   /**

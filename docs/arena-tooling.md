@@ -729,8 +729,8 @@ npm run arena:refresh-ids:verify      # offline PGlite test (~30 s, so not part 
 
 Replaces the throwaway per-PR scripts (`arena-refresh-2026-10-17.mts` and its siblings). Ids are `CARD#SKILL`
 (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back face); `CARD/side/SKILL` also works. With no suffix and no
-front skill of that index, the back is used and the output says so. `--pr` reads the PR body from the first
-line mentioning "refresh" to the next heading, extracts `card#skill` ids (best effort) and prints what it found.
+front skill of that index, the back is used and the output says so. A bare card id (`BT10-114`, or `BT10-114b` for the back only) expands to every stored skill row of that card. `--pr` reads the PR body from the first
+line mentioning "refresh" (or "Stored rows needing") to the next heading, extracts `card#skill` ids and space- or comma-separated bare card ids (best effort) and prints what it found.
 
 Each id is recompiled from the current `cards` text and compared with its `card_rules` row, then called
 **pending**, **up-to-date** or **excluded** (with the reason). Never written: a missing card or row, a

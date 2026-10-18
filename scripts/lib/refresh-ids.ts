@@ -14,7 +14,9 @@ import { OFFICIAL_ERRATA } from "../../src/lib/catalog/errata";
 import { applyReviewedRefresh, applyReviewedUnreadRefresh } from "./reviewed-rule-refresh";
 
 export type Side = "front" | "back";
-export interface IdSpec { cardId: string; side: Side | null; skill: number; raw: string }
+/** `skill` is null for a bare card id (`BT10-114`, or `BT10-114b` for the back): it expands to every stored skill row of the card. */
+export interface IdSpec { cardId: string; side: Side | null; skill: number | null; raw: string }
+type Concrete = IdSpec & { skill: number };
 
 /** Never refreshed by this tool, whatever its row looks like (#907: its total-across-kinds clause stays unread by design). */
 export const ALWAYS_EXCLUDED: Record<string, string> = { "P-616": "P-616 is always excluded (#907)" };
@@ -25,7 +27,10 @@ export function parseSpec(token: string): IdSpec | null {
   let m = /^([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)\/(front|back)\/(\d+)$/.exec(raw);
   if (m) return { cardId: m[1], side: m[2] as Side, skill: Number(m[3]), raw };
   m = /^([A-Za-z0-9]+(?:-[A-Za-z0-9]+)+)#(?:(front|back)#)?(\d+)(?:(b)|#(front|back))?$/i.exec(raw);
-  if (!m) return null;
+  if (!m) {
+    // A bare card id; a trailing b may be the back-face marker, which classifyIds settles against the catalog.
+    return /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+$/.test(raw) ? { cardId: raw, side: null, skill: null, raw } : null;
+  }
   const side = (m[2] ?? m[5])?.toLowerCase() ?? (m[4] ? "back" : null);
   return { cardId: m[1], side: side as Side | null, skill: Number(m[3]), raw };
 }
@@ -42,17 +47,21 @@ export function parseIdList(text: string): { specs: IdSpec[]; bad: string[] } {
   return { specs, bad };
 }
 
-/** Best-effort: the ids written in the PR body's "refresh" section (from the first line mentioning refresh to the next heading);
- * with no such line, none. Returns the section it read so the caller can print what it found. */
+/** Bare card ids (`BT10-114`, `BT10-114b`): an uppercase set prefix, so ordinary hyphenated words are not read as cards. */
+const BARE_ID = /(?<![\w#\/-])[A-Z]{1,4}\d{0,3}-\d{1,4}b?(?![\w#\/-])/g;
+
+/** Best-effort: the ids written in the PR body's "refresh" section (from the first line mentioning refresh, or "Stored rows needing",
+ * to the next heading); with no such line, none. Skill ids (`CARD#N`) and bare card ids (space- or comma-separated) are both read. Returns the section it read so the caller can print what it found. */
 export function idsFromPrBody(body: string): { specs: IdSpec[]; section: string } {
   const lines = body.split(/\r?\n/);
-  const start = lines.findIndex((l) => /refresh/i.test(l));
+  const start = lines.findIndex((l) => /refresh|stored rows needing/i.test(l));
   if (start < 0) return { specs: [], section: "" };
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i++) if (/^#{1,6}\s/.test(lines[i])) { end = i; break; }
   const section = lines.slice(start, end).join("\n");
   const found = section.match(/\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#(?:front#|back#)?\d+(?:b|#front|#back)?|\/(?:front|back)\/\d+)(?![\w#])/g) ?? [];
-  return { specs: parseIdList(found.join(" ")).specs, section };
+  const bare = section.replace(/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#\S*|\/(?:front|back)\/\d+)/g, " ").match(BARE_ID) ?? [];
+  return { specs: parseIdList([...found, ...bare].join(" ")).specs, section };
 }
 
 const FIELDS = ["kind", "trigger", "cost", "cond", "ops", "unread", "pattern", "reads"] as const;
@@ -85,8 +94,9 @@ export interface Verdict {
 
 const reading = (unread: string[], reads: string) => (unread.length ? `UNREAD: ${unread.join(" | ")}` : reads || "(nothing)");
 
-export async function classifyIds(db: Db, specs: IdSpec[], opts: { unreadOk?: boolean } = {}): Promise<Verdict[]> {
-  const ids = [...new Set(specs.map((s) => s.cardId))];
+export async function classifyIds(db: Db, input: IdSpec[], opts: { unreadOk?: boolean } = {}): Promise<Verdict[]> {
+  // A bare id may carry the back marker ("BT10-114b"): look up both spellings.
+  const ids = [...new Set(input.flatMap((s) => (s.skill == null && /b$/i.test(s.cardId) ? [s.cardId, s.cardId.slice(0, -1)] : [s.cardId])))];
   const catalog = ids.length ? await db.select().from(cards).where(inArray(cards.id, ids)) : [];
   const byCard = new Map(catalog.map((c) => [c.id, c]));
   const raw = ids.length
@@ -96,6 +106,22 @@ export async function classifyIds(db: Db, specs: IdSpec[], opts: { unreadOk?: bo
     : [];
   const stored = new Map(raw.map((r) => [`${r.card_id}/${r.side}/${r.skill_index}`, r]));
   const out: Verdict[] = [];
+  // Expand bare card ids into one spec per stored skill row (of the back only, when the id said "b").
+  const specs: Concrete[] = [];
+  const seen = new Set<string>();
+  const push = (s: Concrete) => { const k = `${s.cardId}/${s.side ?? "-"}/${s.skill}`; if (!seen.has(k)) { seen.add(k); specs.push(s); } };
+  for (const s of input) {
+    if (s.skill != null) { push(s as Concrete); continue; }
+    let cardId = s.cardId, side: Side | null = s.side;
+    if (!byCard.has(cardId) && /b$/i.test(cardId) && byCard.has(cardId.slice(0, -1))) { cardId = cardId.slice(0, -1); side = "back"; }
+    const mine = raw.filter((r) => r.card_id === cardId && (!side || r.side === side))
+      .sort((a, b) => (a.side === b.side ? 0 : a.side === "front" ? -1 : 1) || Number(a.skill_index) - Number(b.skill_index));
+    if (!byCard.has(cardId) || !mine.length) {
+      out.push({ spec: s, key: `${cardId}/${side ?? "front"}/*`, status: "excluded", reason: byCard.has(cardId) ? "no stored card_rules rows for this card" : "no such card in the catalog" });
+      continue;
+    }
+    for (const r of mine) push({ cardId, side: r.side as Side, skill: Number(r.skill_index), raw: `${s.raw} -> ${cardId}#${r.skill_index}${r.side === "back" ? "b" : ""}` });
+  }
   for (const spec of specs) {
     const card = byCard.get(spec.cardId);
     const excl = (side: Side, reason: string, extra: Partial<Verdict> = {}): Verdict =>
