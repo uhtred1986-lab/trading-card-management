@@ -92,9 +92,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
           found = found.filter((id) => host.areaOf(id) === "life" && host.isFaceUp(id) !== (next.faceUp ?? true));
         const picked = f.awaiting === op.as ? f.vars[op.as] ?? [] : [];
         const all = [...new Set([...found, ...picked])];
-        if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf) < (sel.minCount ?? sel.count ?? 1)) unpaid();
+        if (!sel.upTo && op.atMost === undefined && selectedCount(sel, all, host.nameOf, undefined, (id) => host.defOf(id).characters) < (sel.minCount ?? sel.count ?? 1)) unpaid();
       }
-      if (op?.op === "reveal" && op.sel === sel && selectedCount(sel, found, host.nameOf) < (sel.count ?? 1)) unpaid();
+      if (op?.op === "reveal" && op.sel === sel && selectedCount(sel, found, host.nameOf, undefined, (id) => host.defOf(id).characters) < (sel.count ?? 1)) unpaid();
       return found;
     },
     resolveRef: (f, ref) => {
@@ -128,7 +128,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         && (found.length !== 1 || found.some((id) => !state.cards[id] || !inPlayZones(game).includes(host.areaOf(id) ?? "")))) unpaid();
       if ("var" in ref) {
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
-        if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf) < (chosen.sel.minCount ?? chosen.sel.count ?? 1)) unpaid();
+        if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf, undefined, (id) => host.defOf(id).characters) < (chosen.sel.minCount ?? chosen.sel.count ?? 1)) unpaid();
       }
       if (["moveTo", "switchMode", "hidden", "removeMarker"].includes(op?.op) && !found.length && !("var" in ref && f.vars[ref.var]?.length === 0)) unpaid();
       return found;

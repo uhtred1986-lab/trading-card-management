@@ -72,7 +72,7 @@ import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
-import { activationMoment, activationTaxGate, canPayPriceProgram, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -130,6 +130,21 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // #926: `payActionPrice` — the strict frame that pays a keyword move's
     // printed action price, in front of the `DO` frame (`vm/keyword-costs.ts`).
     payKeywordPrice: (frame) => queueKeywordCost(state, frame),
+    fieldSkill: (player, id) => {
+      const line = fieldLineOf(ctx, game, state, player, id);
+      return line === null ? "none" : line === "blocked" ? "blocked" : "ready";
+    },
+    activateField: (player, id) => {
+      const line = fieldLineOf(ctx, game, state, player, id);
+      if (!line || line === "blocked") throw new IllegalAction("that card's [Field] skill can no longer be activated");
+      const moment = activationMoment(ctx, game, state, player, line);
+      const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
+      spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
+      const queued = state.programs.length;
+      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
+      if (gate) queueTaxGate(state, gate, state.programs.length - queued);
+      fire(ctx, game, state, moment);
+    },
     invokeSkill: (player, id, skillIndex, op) => {
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");

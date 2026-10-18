@@ -809,7 +809,7 @@ function parseCountCondition(t: string): Cond | null {
   // yellow cards", "<Pan> cards **and/or** cards with <GT>" in the description
   // (not in the place list after it) is a union of two descriptions: split at the
   // "or" it was either part alone, joined whole its colours were intersected.
-  if (/\bdifferent (?!card names\b)/.test(said)) return refuseCount();
+  if (/\bdifferent (?!(?:card|character) names\b)/.test(said)) return refuseCount();
   if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
@@ -843,6 +843,17 @@ function parseCountCondition(t: string): Cond | null {
   const theirs = /^your opponent has/.test(t);
 
   const parts = total ? [rest] : splitDisjunction(rest);
+  // "a **black** <Vegito> or <Vegito: Xeno> card in play" (BT31-087), "a red
+  // <Gamma 1: SH> or <Gamma 2: SH> card" (BT22-025): one colour word in front of
+  // two names, and the "or" cut it off the second. Nothing in the manual
+  // (2-2, 2-10) or the Q&A says how an adjective carries across "or"; the three
+  // cards that print the shape (also BT21-001b's "red <Son Goku> or <Piccolo>
+  // Z-Battle Card") all say it once before a pair of names of one colour and
+  // share the noun after them, which is how English reads it, so the colour
+  // is kept on every name (a labelled best guess, 18 Oct 2026). A name that
+  // brings a colour of its own, or a part that is not a bare name, is left alone.
+  const sharedColour = parts.length > 1 ? /^(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)+(?=[<≪{])/i.exec(parts[0])?.[0] : undefined;
+  if (sharedColour) for (let i = 1; i < parts.length; i++) if (/^[<≪{]/.test(parts[i])) parts[i] = sharedColour + parts[i];
   if (parts.length > 1) {
     const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play))$/i.exec(parts[parts.length - 1]);
     const trailingArea = trailingAreaMatch ? trailingAreaMatch[1] : null;
