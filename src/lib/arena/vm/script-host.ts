@@ -146,7 +146,7 @@ export interface ScriptHost {
   /** Does this condition hold (9-4)? */
   condHolds(frame: ScriptFrame, c: Cond): boolean;
   /** `choose … namedSet`: the cards among `sel` that can still be part of a complete set of the line's named characters, one printed power, given those already picked (22-13-4-2). */
-  namedCandidates(frame: ScriptFrame, sel: Selector, picked: string[]): string[];
+  namedCandidates(frame: ScriptFrame, sel: Selector, picked: string[], samePower?: boolean): string[];
 
   // ── what the program can change ──────────────────────────────────────────
 

@@ -175,7 +175,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref),
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
-    namedCandidates: (frame, sel, picked) => namedCandidates(ctx, game, state, frame, sel, picked),
+    namedCandidates: (frame, sel, picked, samePower) => namedCandidates(ctx, game, state, frame, sel, picked, samePower),
 
     // ── what the program can change ──────────────────────────────────────
     note: (text) => {

@@ -476,6 +476,14 @@ export function emptyFilter(): CardFilter {
   };;
 }
 
+/**
+ * "…with an energy cost **greater than their current energy**": a card's cost
+ * measured against a player's energy count, which no field of a filter carries.
+ * `parseFilter` flags it `unreadable`; a trigger's subject (`subjectFilterOf`)
+ * takes it out first, as it always left such a description's other words alone.
+ */
+export const ENERGY_COST_VS_ENERGY = /\benergy costs? (?:that is |which is )?(?:greater|more|higher|less|lower|fewer) than (?:or equal to )?(?:their|your opponent'?s|the opponent'?s|your) (?:current )?energy\b/;
+
 export function parseFilter(text: string): CardFilter {
   return eitherFilter(text) ?? parseOneFilter(text);
 }
@@ -688,7 +696,12 @@ function parseOneFilter(text: string): CardFilter {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\[[^\]]*\]/g, " ");
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black|white)\b/.test(lower)) f.monoColor = true;
-  if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // "**Non-multicolor** energy" (BT8-122) is the opposite of "multicolor": the
+  // word boundary between the hyphen and "multicolor" used to match, so the
+  // card read as asking for the multicoloured energy it excludes. A card has
+  // one colour or several (2-2), so what is not multicoloured is mono.
+  if (/\bnon-?multi-?colou?r(?:ed)?\b/.test(lower)) f.monoColor = true;
+  else if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
   // one direction is read.
@@ -754,6 +767,16 @@ function parseOneFilter(text: string): CardFilter {
   // The long-standing refusal (#537) held because no field carried it; dropped, the
   // description offered every card the rest of it named.
   if (ENERGY_BOUND.test(lower)) f.costAtMostEnergy = true;
+  // The same measure the other way round, and the forms #979 does not carry:
+  // "with an energy cost **greater than their current energy**" (about 30
+  // skills: BT19-036, DB2-129, P-159 …). The words "their current energy" were
+  // read as the area to look in, so every one of them chose a card in the
+  // opponent's *Energy Area* — a wrong card, not a missing one — and
+  // DB1-059's "greater than or equal to your opponent's energy" dropped the
+  // bound and chose a Battle Card with no cost test at all. `costAtMostEnergy`
+  // is the one comparison a field carries ("at most your energy"); every other
+  // comparison with an energy count is refused rather than read as a place.
+  if (ENERGY_COST_VS_ENERGY.test(lower) && !ENERGY_BOUND.test(lower)) f.unreadable = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
   // `originallySkillLess` above for why bare "skill-less" is a separate

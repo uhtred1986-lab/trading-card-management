@@ -211,7 +211,7 @@ export function Hand({
                 ...(dragId === c.id ? { opacity: 0.22, filter: "grayscale(0.7)" } : sendingId === c.id ? { opacity: 0.55 } : null),
               }}
             >
-              <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={browsing ? undefined : props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
+              <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
               {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>

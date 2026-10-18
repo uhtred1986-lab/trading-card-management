@@ -315,6 +315,29 @@ async function inputScenario() {
     check("keyboard: the coach says so", /Press Tab/.test((await coachLine(kb))?.instruction ?? ""));
     await kb.close();
 
+    // #997: a mouse double-click on a hand card charges it in the Charge Phase (browse mode used to swallow it).
+    const dbl = await open(b, DESK, { scale: 1 });
+    await loadTutorial(dbl, base);
+    await skipIntro(dbl);
+    await idle(dbl);
+    await sleep(3000);
+    const s0 = (await state(dbl))!;
+    const handBefore = await dbl.eval<number>(`document.querySelectorAll('[data-hand-browse-card]').length`);
+    const pos = await dbl.eval<{ x: number; y: number }>(`(() => { const el = document.querySelector('[data-hand-browse-card] button'); el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await dbl.cdp("Input.dispatchMouseEvent", { type: "mouseMoved", x: pos.x, y: pos.y });
+    for (const n of [1, 2]) {
+      await dbl.cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: pos.x, y: pos.y, button: "left", buttons: 1, clickCount: n });
+      await dbl.cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: pos.x, y: pos.y, button: "left", buttons: 0, clickCount: n });
+    }
+    let moved = false;
+    for (let i = 0; i < 40 && !moved; i++) { moved = (await state(dbl))!.energy > s0.energy; await sleep(150); }
+    const s1 = (await state(dbl))!;
+    await idle(dbl);
+    const handAfter = await dbl.eval<number>(`document.querySelectorAll('[data-hand-browse-card]').length`);
+    check("mouse: double-clicking a hand card in the Charge Phase moves it to energy", moved && handAfter === handBefore - 1, `prompt ${s0.prompt}, energy ${s0.energy} -> ${s1.energy}, hand ${handBefore} -> ${handAfter}`);
+    await shot(dbl, out, "input-doubleclick-charge-1440");
+    await dbl.close();
+
     const narrow = await open(b, { name: "narrow", width: 390, height: 844, mobile: false }, { scale: 1 });
     await loadTutorial(narrow, base);
     await skipIntro(narrow);

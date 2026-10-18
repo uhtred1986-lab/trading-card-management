@@ -314,6 +314,13 @@
           "type": "boolean"
         },
         {
+          "name": "anyPower",
+          "required": false,
+          "nullable": false,
+          "offCard": "with namedSet: the named cards need not share a power — [Union-Potara] (22-13-5-2), which asks only for one Battle Card of each specified character; left out the set is of one printed power, as [Union-Fusion] needs (22-13-4-2)",
+          "type": "boolean"
+        },
+        {
           "name": "blind",
           "required": false,
           "nullable": false,
