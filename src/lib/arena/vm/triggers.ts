@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { autoTriggerMatches, triggeredPermanent, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -321,7 +321,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // through its declaration's `at:` (Stage 7 — [Offering] at `played`),
       // which is the one place a keyword's moment is written down.
       const keyword = sk.kind === "keyword" ? keywordMomentOf(game, sk, match.trigger) : undefined;
-      if (sk.kind !== "auto" && !keyword) continue;
+      if (sk.kind !== "auto" && !keyword && !triggeredPermanent(sk)) continue;
       // 22-21: a pending Auto is only created while its Bond condition is
       // valid. Unknown named selectors are left for the normal unread-rule
       // boundary; they must never be treated as an unrestricted count here.

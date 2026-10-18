@@ -141,7 +141,11 @@ export function costText(cost: string): string {
   // #926: the slash of "{b}/{w}, if you have 3 or more energy …" (BT29-141)
   // is orb notation too (5-8-2-1), as `costIsOnlyOrbs` reads it — left on,
   // "/{w}, if …" was no price at all and the line was refused as unread.
+  // #907: BT26-020 prints "{r}. if your Leader's back side is …" — a full stop
+  // where its siblings (BT25-131 …) print the comma. LABELLED BEST GUESS (a
+  // misprint; no FAQ entry): read as the comma, so the condition is the price's.
   return stripNotes(cost)
+    .replace(/^((?:\{[^}]*\}|\s|,|\/)+)\.(?=\s*if\b)/i, "$1")
     .replace(/^(?:\{[^}]*\}|\s|,|\/)+/, "")
     .trim();
 }
