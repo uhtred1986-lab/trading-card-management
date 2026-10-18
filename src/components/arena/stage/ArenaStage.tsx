@@ -27,7 +27,7 @@ import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
 import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
 import { withShortOpponent } from "./opponent-name";
-import { useBoardFit } from "./use-board-fit";
+import { useBoardFit, useCompactSqueeze } from "./use-board-fit";
 import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -383,6 +383,7 @@ export function ArenaStage({
   // On by default: the fight is staged on a phone too (owner, 17 Oct 2026). The settings sheet still offers the compact board.
   const [phoneCinema, setPhoneCinema] = useState(true);
   const effectiveStaging = !wide && !phoneCinema ? "inplace" : staging;
+  useCompactSqueeze(boardRef, !wide);
   const staged = effectiveStaging !== "inplace" && !!view.battle;
   const shape = staged ? battleShape(view, firedInBattle(beats?.list)) : null;
   // Every card the staging draws, so the rows below do not draw it a second

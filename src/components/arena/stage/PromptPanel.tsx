@@ -273,6 +273,8 @@ export function PromptPanel({
             type="button"
             disabled={busy}
             data-pass-action={isGhostAction(l.action) ? "" : undefined}
+            data-action-label={l.label}
+            data-action-type={l.action.type}
             data-payment-option={l.action.type === "payCost" ? l.action.option : undefined}
             onClick={() => onSend(l.action)}
             className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}

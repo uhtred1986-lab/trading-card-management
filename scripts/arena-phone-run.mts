@@ -508,8 +508,9 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
   let recoveryMs = 0;
   const acts = () => page.eval<Action[]>("window.__acts ?? []");
   const sentWithin = async (ms: number) => { const end = Date.now() + ms; do { if ((await acts()).length) return true; await sleep(80); } while (Date.now() < end); return false; };
-  const tap = async (what: string, finder: string) => {
-    let r = await tapFind(page, finder, false);
+  const tap = async (what: string, finder: string, containing?: string) => {
+    const only = containing ? `() => (${finder})().filter((e) => e.innerText.includes(${JSON.stringify(containing)}))` : finder;
+    let r = await tapFind(page, only, false);
     if (!r.ok && r.blockedBy) {
       // The control the move needs is under a skill pop-up: a UX failure in its own right (owner, #787
       // review), shot as the player sees it before anything is touched. The harness then closes the
@@ -523,7 +524,7 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
       await sleep(60);
       await page.pointer("up", b.x, b.y);
       await sleep(350);
-      r = await tapFind(page, finder, false);
+      r = await tapFind(page, only, false);
       recoveryMs += Date.now() - tr;
       obstructions.push({ target: what, by: b.what, closeW: b.w, closeH: b.h, shot: shot.n, recovered: r.ok });
       taps.push(`${what}: covered by the pop-up ${b.what.slice(0, 40)}; the harness closed it (${b.w}x${b.h} px control)`);
@@ -540,18 +541,40 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
     if (intent.type === "payCost") {
       await tap(`payment option ${intent.option}`, F.attr(`[data-payment-option="${intent.option}"]`));
     } else if (!card) {
-      if (!(await tap(`button "${shortLabel(l.label)}"`, F.buttonText(l.label)))) {
+      // The prompt bar's buttons carry the legal action's label (`data-action-label`): the words on a
+      // pass button are the player's ("Take the hit", "No block"), not the engine's ("No counter").
+      if (!(await tap(`button "${shortLabel(l.label)}"`, F.attr(`button[data-action-label=${JSON.stringify(l.label)}]`)))
+        && !(await tap(`button "${shortLabel(l.label)}" by its words`, F.buttonText(l.label)))) {
         if (await tap("Choose from …", F.startsWith("Choose from"))) { await sleep(500); if (!(await tap(`"${l.label}"`, F.buttonText(l.label)))) await tap("Choose none", F.startsWith("Choose none")); }
       }
     } else {
       const name = cardName(s, card);
       const target = intent.type === "attack" ? intent.target : null;
       if ((await ui()).dialog && (await tap(`row "${name}"`, F.dialogRowNamed(name)))) { /* a search sheet already open */ }
+      else if (["counter", "block"].includes(intent.type) && await tap(`defence option "${name}"`, F.attr(`[data-defend-card=${JSON.stringify(card)}] [data-defend-action]`))) { /* a counter or blocker offered by the defence prompt */ }
       else if (await tap(`card "${name}"`, F.card(card))) { /* on the board or in the hand */ }
+      // A combo or counter card of the fight on screen is a chip ("+10,000 Name"), not a card, in the takeover.
+      else if (await tap(`combo chip "${name}"`, F.attr("button.arena-clash-combo"), name)) { /* opens the card's sheet */ }
       else if (await tap("Choose from …", F.startsWith("Choose from"))) { await sleep(500); await tap(`row "${name}"`, F.dialogRowNamed(name)); }
       if (!(await sentWithin(900))) {
+        // A card tapped in the hand or on the board may only select it: the prompt bar then asks to confirm
+        // ("Charge it", "Play it", "Choose it"; an option's own label when a play has several).
+        const confirm = `[data-charge-confirm] button:not([data-pass-action]), [data-play-confirm] [data-play-action], [data-pick-confirm] [data-pick-action]`;
+        if (await page.eval<boolean>(`!!document.querySelector(${JSON.stringify(confirm)})`) && await tap("the confirm button", F.attr(confirm))) await sentWithin(900);
+      }
+      if (!(await sentWithin(0))) {
+        // A tap on a hand card opens a non-modal preview first; its "⋯" opens the card's sheet with the actions.
+        if (await page.eval<boolean>(`!!document.querySelector("[data-hand-peek]")`) && await tap('"⋯" in the hand preview', F.attr('[data-hand-peek] button[aria-label="Card details and actions"]'))) await sleep(700);
         let u = await ui();
-        if (u.dialog) { await tap(`sheet row "${l.label}"`, F.sheetRow(l.label, intent.type === "attack")); if (!(await sentWithin(900))) u = await ui(); }
+        if (u.dialog) {
+          const row = () => tap(`sheet row "${l.label}"`, F.sheetRow(l.label, intent.type === "attack"));
+          await sleep(600); // the sheet slides in
+          // The sheet opens on the card's art; its actions are behind the "Actions (n)" toggle.
+          if (!(await row()) && await tap('"Actions" in the card sheet', F.attr('button[aria-label="Show card details and actions"][aria-pressed="true"]'))) { await sleep(400); await row(); }
+          // A row scrolled into view can be tapped while the list still moves: once more.
+          if (!(await sentWithin(900)) && await row()) await sentWithin(900);
+          if (!(await sentWithin(0))) u = await ui();
+        }
         if (target && u.targeting) await tap(`target "${cardName(s, target)}"`, F.card(target));
       }
     }
