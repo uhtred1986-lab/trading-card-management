@@ -786,7 +786,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       return op.instead
         ? `the card being played is not played and goes to the ${op.instead} instead`
         : op.mode === "rest"
-          ? "the card being played is played in Rest Mode"
+          ? `the card being played is played in Rest Mode${op.negated ? " with its skills negated" : ""}`
           : "the card being played is played with its skills negated";
     },
     doc: '[Counter: Play] only (9-6). With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',

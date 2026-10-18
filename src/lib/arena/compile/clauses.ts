@@ -590,6 +590,10 @@ export function anaphora(text: string): string {
       // player leave alone. Read as a fresh description it was any Battle Card in
       // the player's own Battle Area.
       .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")
+      // "…it has its skills negated for the turn and is played in Rest Mode"
+      // (BT10-121): one play changed two ways. Cut at the "and" the second half
+      // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
+      .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")
       .replace(/\b([Tt])hat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "$1hat card")
       // "those Battle Cards" is the plural pronoun said with its noun, as "that
       // Battle Card" is the singular (BT7-025b has no antecedent to bind and is
