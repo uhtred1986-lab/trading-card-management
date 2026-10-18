@@ -388,6 +388,9 @@ npm run arena:specified # The specified (coloured) half of a play's price: prove
 npm run arena:readings # The other half: what the compiler reads every skill to *mean*, printed text
                        # beside the program in words. Diff it before and after a compiler change — a
                        # clause that compiles and reads wrongly moves no coverage number (--grep, --unread)
+npm run arena:refresh-ids # Guarded stored-rule refresh for an explicit id list after a compiler PR: dry run by default,
+                       # --apply writes through the atomic lock-and-compare writers (--ids | --ids-file | --pr N, --unread-ok);
+                       # needs DATABASE_URL, the owner's/coordinator's to run. Offline test: arena:refresh-ids:verify
 npm run arena:diff     # Replay a saved game's action log from its seed and compare with the row
                        # (-- <gameId> | --all): replays a saved game from its seed on the rules engine
 ```
