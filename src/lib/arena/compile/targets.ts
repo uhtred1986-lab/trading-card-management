@@ -741,6 +741,14 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // for a later clause to answer and there is no area here to read it as.
   const seen = looked ?? pool;
   const namesPool = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) || (!!seen && /\bfrom it\b/.test(t));
+  // #1015: "choose up to 1 **of those Battle Cards**" (BT7-025b: the Battle
+  // Cards just combo'd, which no variable holds) points at a plural nothing
+  // names; read as a description it was any Battle Card in your own Battle Area.
+  // Refused, the clause stays unread. Likewise "that Extra Card" (P-028), whose
+  // antecedent is the Extra being activated — not the life card chosen in the
+  // same sentence, and not "all Extra Cards in your hand". (`anaphora` in
+  // `clauses.ts` turns the other forms of both into the pronoun.)
+  if (/\bof those (?:battle|leader|unison|extra) cards\b/.test(t) || /\bthat extra cards?\b/.test(t)) return null;
   const fromVar = namesPool ? (seen ?? "looked") : looked;
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
@@ -889,6 +897,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // a place ("from your Drop") or a means ("using [Over Realm]", "by a
     // skill") is not, and is what the trigger itself answers or refuses.
     /^(?:your opponent|you) plays? (?:an?|1|up to \d+|\d+) (.+?)(?: (?:from|in|to|by|using) .*)?$/.exec(t)?.[1] ??
+    // "When your opponent **uses a skill to play** a Battle Card with …"
+    // (BT15-005, #1015): the same card, the means said before it.
+    /^your opponent uses an? skill to play (?:an?|1|up to \d+|\d+) (.+?)(?: (?:from|in|to|by|using) .*)?$/.exec(t)?.[1] ??
     // "When you combo with a skill-less card" (BT6-105b, `youCombo`): the card
     // used in the combo. Not "…using this card's skill", which is a means.
     /^you combo with (?:an?|1) ((?!.*\busing\b).+)$/.exec(t)?.[1] ??
@@ -936,12 +947,21 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
-  // A cost measured against the energy count (BT12-132, BT17-124 …) is a
-  // measure no filter carries; it used to ride through as words `parseFilter`
-  // ignored. It is still left out here, so the subject keeps being the kind of
-  // card it was and the skill still fires — now said, not by accident.
-  const withoutEnergyBound = description.toLowerCase().replace(new RegExp(`\\s*(?:(?:with|whose)\\s+)?(?:an?\\s+)?${ENERGY_COST_VS_ENERGY.source}`, "gi"), "");
-  return filterFor(withoutEnergyBound, null) ?? undefined;
+  // A cost measured against the energy count (BT12-132, BT17-124, BT15-005 …):
+  // taken off the words `parseFilter` reads and put on the filter as the
+  // comparison itself (`costAboveEnergy` … with `energyOfOpponent`), the way
+  // `parseTarget` does for a selector (#1011). #1015: it used to be left out
+  // here, so the skill fired when the opponent played a card cheaper than the
+  // text allows. The trigger's subject is a selector (`special: "subject"`), so
+  // `resolveSelector` applies it to the card played, at its cost as played.
+  const boundAt = new RegExp(`\\s*(?:(?:with|whose)\\s+)?(?:an?\\s+)?${ENERGY_COST_VS_ENERGY.source}`, "i").exec(description.toLowerCase());
+  const withoutEnergyBound = boundAt ? description.toLowerCase().replace(boundAt[0], "") : description.toLowerCase();
+  const subject = filterFor(withoutEnergyBound, null);
+  if (!boundAt) return subject ?? undefined;
+  // A description the filter cannot read stays unfiltered (ground rule 6), as before.
+  if (subject === null) return undefined;
+  const { key, opponent } = energyBoundOf(ENERGY_COST_VS_ENERGY.exec(boundAt[0].trim()) as RegExpExecArray);
+  return { ...(subject ?? emptyFilter()), [key]: true, energyOfOpponent: opponent };
 }
 
 

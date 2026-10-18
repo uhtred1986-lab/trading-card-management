@@ -1,5 +1,6 @@
 import { disjointMoveSpans } from "./disjoint-shape";
 import { namedSetSpans } from "./named-set-shape";
+import { opponentChoiceSpans } from "./opponent-choice-shape";
 // ── clause splitting ───────────────────────────────────────────────────────
 
 /** Split on commas, semicolons, full stops and "then"/"and", ignoring anything inside brackets. */
@@ -171,7 +172,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Warp" is one clause; its commas and "and"s are the list's own.
   // #907: "choose up to 1 <A> card, 1 <B> card, and 1 <C> card―all red―from
   // your hand and/or Drop and place them under this card" likewise.
-  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text)];
+  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...opponentChoiceSpans(text)];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const whole = wholeMoves.find(([from, to]) => i > from && i < to);
@@ -580,5 +581,22 @@ export function stripNotes(text: string): string {
  * be mistaken for).
  */
 export function anaphora(text: string): string {
-  return text.replace(/\bthat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "that card");
+  return (
+    text
+      // "[Counter: Play] **When the Battle Card is played, choose up to 1 of those
+      // Battle Cards** and it gets -15000 power" (DB1-020, #1015): the clause before
+      // the comma only repeats the [Counter: Play]'s own timing, and "those Battle
+      // Cards" are the card being played — one card, which "up to 1" lets the
+      // player leave alone. Read as a fresh description it was any Battle Card in
+      // the player's own Battle Area.
+      .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")
+      .replace(/\b([Tt])hat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "$1hat card")
+      // "those Battle Cards" is the plural pronoun said with its noun, as "that
+      // Battle Card" is the singular (BT7-025b has no antecedent to bind and is
+      // refused where it is read, `parseTarget`; a description that goes on, or a
+      // list "of those Battle Cards in …", is left alone).
+      // (The first letter is kept: "Those Battle Cards get …" opens a sentence, and a
+      // lower-case word after a full stop is read as the sentence going on.)
+      .replace(/(?<!\bof )\b([Tt])hose (?:battle|leader|unison) cards\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "$1hose cards")
+  );
 }
