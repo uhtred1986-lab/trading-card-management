@@ -596,9 +596,17 @@ export function printedNames(sk: Pick<Skill, "effect" | "cost">): string[] {
  * find one, no card may answer two names, and with `samePower` the cards
  * found must share a power. One reading for both engines.
  */
-export function eachNamedHolds(names: string[], pool: { id: string; characters: string[]; power: number }[], samePower: boolean): boolean {
+export function eachNamedHolds<T extends { id: string; characters: string[]; power: number }>(names: readonly NamedNeed<T>[], pool: T[], samePower: boolean): boolean {
   return namedSetCandidates(names, pool, [], samePower).length > 0;
 }
+
+/**
+ * What one specified character asks of the card standing for it (22-13-4-1,
+ * 22-13-5-1): its name, and — when the printed description qualifies *that*
+ * name ("Yellow <Son Goku> card with 5000 power", "blue <Kale>") — a test of
+ * its own (#925). A bare name string means the name alone.
+ */
+export type NamedNeed<T = { characters: string[] }> = string | { name: string; accepts?: (card: T) => boolean };
 
 /**
  * The cards of `pool` that can still be part of a complete set (22-13-4-2,
@@ -608,14 +616,23 @@ export function eachNamedHolds(names: string[], pool: { id: string; characters: 
  * different name, and a candidate is offered only if the names still open can
  * be filled from the pool around it. With nothing picked, an empty answer
  * means no complete set exists (which is what `eachNamedHolds` asks).
+ *
+ * A name may carry its own `accepts` (#925): the colour, type, cost or power
+ * the card prints for *that* character only, so "Yellow <Son Goku> and blue
+ * <Vegeta>" is never satisfied by a blue Goku and a yellow Vegeta. A card
+ * answers a name only when it has the character and passes that name's test;
+ * a card that could answer two names still fills one (one physical card per
+ * required character).
  */
-export function namedSetCandidates(names: string[], pool: { id: string; characters: string[]; power: number }[], picked: string[], samePower: boolean): string[] {
-  if (!names.length) return [];
-  const answers = (name: string, c: { characters: string[] }) => c.characters.some((x) => x.toLowerCase() === name.toLowerCase());
+export function namedSetCandidates<T extends { id: string; characters: string[]; power: number }>(needs: readonly NamedNeed<T>[], pool: T[], picked: string[], samePower: boolean): string[] {
+  if (!needs.length) return [];
+  type Need = { name: string; accepts?: (card: T) => boolean };
+  const names: Need[] = needs.map((n) => (typeof n === "string" ? { name: n } : n));
+  const answers = (need: Need, c: T) => c.characters.some((x) => x.toLowerCase() === need.name.toLowerCase()) && (need.accepts ? need.accepts(c) : true);
   const fixed = pool.filter((c) => picked.includes(c.id));
   if (fixed.length !== picked.length) return [];
   /** Can these names be given distinct cards (the ones in `used` already spoken for), all of power `power` when it is set? */
-  const fill = (open: string[], used: Set<string>, power: number | null): boolean => {
+  const fill = (open: Need[], used: Set<string>, power: number | null): boolean => {
     if (!open.length) return true;
     const [name, ...rest] = open;
     return pool.some((c) => !used.has(c.id) && answers(name, c) && (power === null || c.power === power) && fill(rest, new Set([...used, c.id]), power));
@@ -631,7 +648,7 @@ export function namedSetCandidates(names: string[], pool: { id: string; characte
       const power = sameOf(all);
       if (power === false) return false;
       // Which names the cards are standing for is itself a search: try each way of seating them.
-      const seat = (cards: typeof fixed, open: string[]): boolean => {
+      const seat = (cards: typeof fixed, open: Need[]): boolean => {
         if (!cards.length) return fill(open, new Set(all.map((x) => x.id)), power);
         const [x, ...rest] = cards;
         return open.some((n, i) => answers(n, x) && seat(rest, open.filter((_, j) => j !== i)));
