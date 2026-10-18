@@ -79,6 +79,13 @@ export interface CardFilter {
    * program without it reads as before.
    */
   onlyTraits?: boolean;
+  /**
+   * "A blue ≪Great Ape≫ ≪Bardock's Crew≫ card" (BT18-106, #907 round 5): two
+   * traits written side by side with nothing between them are traits the one
+   * card has **both** of, the trait twin of `charactersAll`. Written only when
+   * printed, so a stored program without it reads as before.
+   */
+  traitsAll?: string[];
   names: string[];
   /**
    * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
@@ -358,6 +365,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   anyOf: "filters",
   onlyCharacters: "boolean",
   onlyTraits: "boolean",
+  traitsAll: "strings",
   names: "strings",
   notNames: "strings",
   namesIncluding: "strings",
@@ -692,6 +700,11 @@ function parseOneFilter(text: string): CardFilter {
     for (const token of [a, b]) (token.startsWith("<") ? f.charactersAll : f.namesAll).push(token.slice(1, -1).trim());
     return " ";
   });
+  // "…a red ≪Great Ape≫ ≪Bardock's Crew≫ card": the trait twin of the line above.
+  t = t.replace(/\bboth\s+(≪[^≫]+≫)\s+and\s+(≪[^≫]+≫)/gi, (_whole, a: string, b: string) => {
+    (f.traitsAll ??= []).push(a.slice(1, -1).trim(), b.slice(1, -1).trim());
+    return " ";
+  });
   // "…with <Son Goku> in its character name", "…{SS4} in its card name",
   // "…without <Turles> in their character names", and the bare "{Cabba} in
   // its name" (card name, #758). Read before the exact loops
@@ -720,6 +733,28 @@ function parseOneFilter(text: string): CardFilter {
   t = t.replace(/(character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
     const value = token.slice(1, -1).trim();
     (which.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding).push(value);
+    return " ";
+  });
+  // Names written side by side, nothing between them (#907 round 5): "if your Leader is a red
+  // <Son Goku: GT> <Vegeta: GT> card" (BT18-010), "[Z-Awaken]: Yellow <Son Goku> <Vegeta>"
+  // (BT20-086), "play up to 1 <Baby> <Janemba> Battle Card" (P-388), "≪Great Ape≫ ≪Bardock's
+  // Crew≫ cards" (BT18-106). The card prints every name it means, so the card has *all* of
+  // them: the Leader of BT18-001 has the character names Son Goku: GT and Vegeta: GT (2-10-4,
+  // names separated by slashes), and the official FAQ for BT22-138 calls the same sort of
+  // Leader "a red ＜Son Goku/Vegeta/Trunks: Future＞ card" against a "＜Son Goku＞-only" Z-Leader.
+  // Any-of is always written with a word between ("<A> or <B>", "<A>, <B>, and <C>",
+  // "<A>/<B>"), which the loops below still read as `characters` / `traits`. Not after "non-":
+  // "non-≪God≫ ≪Universe 7≫" is one exclusion and one trait.
+  t = t.replace(/(?<!non-)(<[^<>]+>(?:\s+<[^<>]+>)+)/g, (whole, run: string, at: number, all: string) => {
+    // "<A> <B>-only" is the any-of list `onlyCharacters` reads, not a pair of names.
+    if (all.startsWith("-only", at + whole.length)) return whole;
+    for (const m of run.matchAll(/<([^<>]+)>/g)) f.charactersAll.push(m[1].trim());
+    return " ";
+  });
+  t = t.replace(/(?<!non-)(≪[^≪≫]+≫(?:\s+≪[^≪≫]+≫)+)/g, (whole, run: string, at: number, all: string) => {
+    // "≪A≫ ≪B≫-only" (#932) likewise stays the list `onlyTraits` reads.
+    if (all.startsWith("-only", at + whole.length)) return whole;
+    for (const m of run.matchAll(/≪([^≪≫]+)≫/g)) (f.traitsAll ??= []).push(m[1].trim());
     return " ";
   });
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
@@ -1129,6 +1164,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   const traitOk = !f.traits.length || f.traits.some((c) => hasTrait(d, c));
   // "with both <A> and <B>" (#768): each one, where `characters` takes any.
   if (!(f.charactersAll ?? []).every((c) => hasCharacter(d, c))) return false;
+  // "a ≪Great Ape≫ ≪Saiyan≫ card" (#907 round 5): every trait named.
+  if (!(f.traitsAll ?? []).every((c) => hasTrait(d, c))) return false;
   // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
   if (f.characterOrTrait) {
     if (!f.characters.some((c) => hasCharacter(d, c)) && !f.traits.some((c) => hasTrait(d, c))) return false;

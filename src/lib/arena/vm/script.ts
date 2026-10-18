@@ -1869,7 +1869,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // The game is over the moment the skill says so: nothing after it in
         // this program, or waiting behind it, is played.
         const [winner] = sideOf(master, op.side);
-        h.winGame(winner, `${h.playerName(winner)} won: ${h.nameOf(frame.card)} says "you win the game"`);
+        h.winGame(winner, `${h.playerName(winner)} won: ${h.nameOf(frame.card)} says "${op.side === "opponent" ? "you lose the game" : "you win the game"}"`);
         frame.ip = frame.ops.length;
         return "done";
       }

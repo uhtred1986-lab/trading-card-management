@@ -381,7 +381,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => renderTemplate(`${(raw as OpOf<"damage">).side === "you" ? "take" : "deal"} {n} damage`, raw as unknown as Record<string, unknown>, OP_SCHEMA.damage.fields, r),
     doc: "life to hand",
   },
-  mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
+  mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of {side:your opponent's|the} deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
   declare: {
@@ -1217,13 +1217,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const f = c.filter;
       // "-only" (BT29-108) and "<Baby> or ≪Brainwashed≫" are said as printed:
       // without them the reading claims a wider Leader than the card does.
-      const chars = f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`);
+      const chars = anyOfNames(f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`));
       // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
-      const traits = f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`);
+      const traits = anyOfNames(f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
       // "a Green <Trunks: Future> <Mai: Future> card" (BT23-073, #768): every
       // name of an all-of list is required, so each is said, characters as `<…>`
       // and card names as `{…}`, the way the other name lists are.
-      const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
+      const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.traitsAll ?? []).map((x) => `≪${x}≫`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
       const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
       const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
@@ -2310,6 +2310,15 @@ const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
+/**
+ * Names of one kind written side by side are *all* of them (#907 round 5), so an any-of list has to
+ * carry its "or" — "<A> or <B>" — to be told from "<A> <B>", both in the reading and on the way
+ * back through `parseFilter`.
+ */
+function anyOfNames(tokens: string[]): string[] {
+  return tokens.length > 1 ? [tokens.join(" or ")] : tokens;
+}
+
 function allOfPhrases(characters: string[], names: string[]): string[] {
   const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
   const out: string[] = [];
@@ -2341,13 +2350,15 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // "battle card" is the same sentence as no filter at all.
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
   // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
-  bits.push(...f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
+  bits.push(...anyOfNames(f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`)));
+  // Traits written side by side are all of them (#907 round 5), the way the cards print them.
+  bits.push(...(f.traitsAll ?? []).map((x) => `≪${x}≫`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
   // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
   // and the word `parseFilter` reads the flag back from.
   if (f.characterOrTrait && f.traits.length && f.characters.length) bits.push("or");
   // "<Son Goku>-only" (BT29-108), on the last character named, as printed.
-  bits.push(...f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`));
+  bits.push(...anyOfNames(f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`)));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));
   // In a sentence a token and a Z-card are the noun itself — "a {Majin}
@@ -2658,14 +2669,17 @@ function describeRef(ref: Ref): string {
 /** The measures `attr` and `sumOf` read, as a person names them. */
 const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost", specifiedCost: "specified cost" };
 
+/** "+2" / "-2": the sign a per-count change is printed with (EX19-26's "-2000 power for each" read "+-2000"). */
+const signedTimes = (times: number | undefined): string => ((times ?? 1) >= 0 ? `+${times ?? 1}` : `${times}`);
+
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
-    if ("count" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
-    if ("markers" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
+    if ("count" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+    if ("markers" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
-    if ("life" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("life" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
     if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
     if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;

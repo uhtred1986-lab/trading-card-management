@@ -3811,6 +3811,14 @@
       ]
     },
     {
+      "field": "traitsAll",
+      "type": "strings",
+      "printed": "≪Saiyan≫",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
       "field": "names",
       "type": "strings",
       "printed": "{Saiyan}",

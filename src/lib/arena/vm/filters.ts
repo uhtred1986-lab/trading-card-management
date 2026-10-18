@@ -97,6 +97,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   anyOf: { reads: [] },
   onlyCharacters: { reads: ["characters"] },
   onlyTraits: { reads: ["traits"] },
+  traitsAll: { reads: ["traits"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
@@ -277,6 +278,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const traitOk = !f.traits.length || f.traits.some((t) => same(traits, t));
   // "with both <A> and <B>" (#768): each one, where `characters` takes any.
   if (!(f.charactersAll ?? []).every((c) => same(characters, c))) return false;
+  // "a ≪Great Ape≫ ≪Saiyan≫ card" (#907 round 5): every trait named.
+  if (!(f.traitsAll ?? []).every((t) => same(traits, t))) return false;
   // "<Baby> or ≪Brainwashed≫" (BT29-114): either one answers.
   if (f.characterOrTrait) {
     if (!f.characters.some((c) => same(characters, c)) && !f.traits.some((t) => same(traits, t))) return false;
