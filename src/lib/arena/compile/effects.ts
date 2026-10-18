@@ -3024,6 +3024,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       if (named) sel = "sel" in named ? { ...named.sel } : { fromVar: named.var, count: 1 };
     }
     if (!sel) return null;
+    // "Look at up to 7 cards from the top of your deck, and **choose 1 <Pan> … and play it**" (BT3-028, deck audit 18 Oct 2026):
+    // after a look, a description that names no area of its own is read from the cards looked at (20-12), as the `play` and
+    // `add … to your hand` clauses already do. "Among them" was the only wording that said so; without it the choice was
+    // one of the cards already in play, and the skill played one of those.
+    // "…choose up to 1 **of your** <Paikuhan> cards" (BT12-027), "…up to 1 of your mono-red Leaders" (BT18-147) name whose cards they
+    // are: those are cards on the table, however far after a look they stand.
+    if (c.lastSeen && !sel.special && !sel.fromVar && !/\b(?:of|from) (?:your|their|its owner's)\b|\byour opponent/i.test(clause) && !AREA_WORDS.some(([re]) => re.test(clause.toLowerCase()))) {
+      const looked = parseTarget(clause.replace(/^\s*choose\s+/i, ""), c.lastSeen);
+      if (looked && !looked.special && looked.fromVar) sel = looked;
+    }
     // 20-16 / #538: "you may choose N" offers a plain multi-card choice as a
     // whole. compileEffect wraps it in `may`; accepting it owes N, declining
     // chooses nothing. Making it up-to moved partial payments before "if you

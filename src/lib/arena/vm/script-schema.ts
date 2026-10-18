@@ -489,7 +489,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
         return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
       }
-      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
+        // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
+        + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
+        + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
       return played + on;
@@ -643,7 +646,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
-        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
+        // A combo-cost reduction is not "costs 1 less" (XD1-05, BT3-092: "reduce the combo cost"; the energy cost is untouched): it
+        // takes the worded form below, which names the cost.
+        if ((op.what === undefined || op.what === "energy" || op.what === "zEnergy") && !op.skillKind) {
           const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
@@ -687,7 +692,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [{ name: "from", type: { list: { enum: ["battle", "combo"] } } }, { name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo"] } }, { name: "bySide", type: { enum: ["opponent"] } }, { name: "mode", type: MODE }, { name: "position", type: { enum: ["top", "bottom"] } }, { name: "requestedTo", type: { enum: ["hand"] } }, { name: "until", type: "duration" }, { name: "optional", type: "boolean" }, SELF],
     sentence: (raw) => {
       const op = raw as OpOf<"replaceLeave">;
-      const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
+      // `bySide: "opponent"` is the opponent of the card's OWNER: aimed at their cards (BT29-040: "returned to its owner's hand by a skill on
+      // your card") it is a skill of yours, not "an opponent's".
+      const aimedAtTheirs = op.target && "sel" in op.target && op.target.sel.side === "opponent";
+      const whose = op.bySide === "opponent" ? (aimedAtTheirs ? "one of your skills" : "an opponent's skill") : "a skill";
       const cause = op.from ? `leave the ${op.from.join(" or ")} area` : op.by === "ko" ? "be KO'd" : op.by === "skill" ? `be removed from the Battle Area by ${whose}` : op.by === "skillOrKo" ? `be removed from the Battle Area by ${whose} or KO'd` : "leave the Battle Area";
       const request = op.requestedTo ? ` to the ${op.requestedTo}` : "";
       const duration = op.until ? DURATION_IN_WORDS[op.until] : "";
@@ -852,6 +860,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // different sets of cards, and the sentence has to keep them apart.
       if (op.what === "attack" && op.attackOnly) return `${who} can only attack ${describeRef(op.attackOnly)}${op.filter ? ` with ${describeFilter(op.filter)}` : ""}${escape}${forThe(op.until, r)}`;
       if (op.what === "attack" && op.attackTarget) return `${who} can't attack ${describeFilter(op.attackTarget)}${op.filter ? ` with ${describeFilter(op.filter)}` : ""}${escape}${forThe(op.until, r)}`;
+      // `uses` is how many attacks are still allowed before the ban bites (BT3-104: "can only attack one more time"): said as the allowance, not as a ban.
+      if (op.what === "attack" && op.filter && !op.target && op.uses != null) return `${who} can attack with ${describeFilter(op.filter)} only ${op.uses === 1 ? "one more time" : `${describeAmount(op.uses)} more times`}${escape}${forThe(op.until, r)}`;
       if (op.what === "attack" && op.filter && !op.target) return `${who} can't attack with ${describeFilter(op.filter)}${op.uses != null ? (op.uses === 1 ? " once more" : ` ${describeAmount(op.uses)} more times`) : ""}${escape}${forThe(op.until, r)}`;
       const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? (op.exceptEvolve ? " by a skill other than an [Evolve]" : " by a skill") : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
       // Which cards the ban is about, when it is about cards rather than the
@@ -2658,6 +2668,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
+  // `minus` is "the rest" (BT3-062: "place the rest of the cards in the Drop Area"): said as that, not as the chosen cards.
+  if ("var" in ref && ref.minus !== undefined) return ref.var === "looked" ? "the rest of the cards looked at" : "the rest of those cards";
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
 }
 
@@ -2736,6 +2748,9 @@ function describeEach(sel: Selector): string {
     return `${who}Hidden Mode cards${where}${describeNotSelf(sel)}`;
   }
   const mode = describeMode(sel);
+  // "+5000 power for each <Son Goku> and <Vegeta> in your Drop Area" (BT2-012): the description is what is counted; dropping it
+  // read as "each of your cards in the Drop".
+  if (sel.filter && selectorWords(sel)) return `the ${selectorNoun(sel, true)} ${describeWhere(sel)}${mode}${describeNotSelf(sel)}`;
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;
 }
