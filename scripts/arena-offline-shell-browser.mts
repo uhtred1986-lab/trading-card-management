@@ -210,7 +210,7 @@ try {
     setTimeout(() => void page.fulfillFetchBytes(p.requestId, pngFor(art), "image/png").catch(() => {}), 25);
   });
   await page.goto(`${BASE}${SHELL_PATH}`);
-  await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, "the shell page");
+  await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, "the shell page");
   await until(page, `document.querySelector('[data-offline-status]')`, "the preparation panel");
   await inPage(page, `caches.open("unrelated-origin-cache").then((c) => c.put("/keep-me", new Response("not the app's")))`);
 
@@ -326,7 +326,7 @@ try {
     if (method === "Network.loadingFailed" && !p.canceled) failedLoads.push(`${ids.get(p.requestId) ?? p.requestId}: ${p.errorText}`);
   });
   await page.goto(`${BASE}/arena`);
-  await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, "the shell, offline", 60000);
+  await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, "the shell, offline", 60000);
   const where = await page.eval<string>("location.pathname");
   check(where === SHELL_PATH, `C. a cold launch of /arena with no network lands on the cached shell (${where})`);
   await until(page, `navigator.serviceWorker.controller`, "control offline");

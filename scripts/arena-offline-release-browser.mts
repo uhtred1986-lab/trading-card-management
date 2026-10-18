@@ -266,7 +266,7 @@ async function coldLaunch(): Promise<Launch> {
 async function openShell(l: Launch): Promise<{ shellMs: number; startableMs: number; where: string; controlled: boolean }> {
   const t0 = Date.now();
   await l.page.goto(`${BASE}/arena`);
-  await until(l.page, `document.querySelector("h1")?.textContent === "Play on this device"`, 60000);
+  await until(l.page, `document.querySelector("h1")?.textContent === "Play the computer"`, 60000);
   const shellMs = Date.now() - t0;
   const where = await l.page.eval<string>("location.pathname");
   await until(l.page, `document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, 60000);

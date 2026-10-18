@@ -113,14 +113,19 @@ export function PlayPicker({
   const opponentSection = <div className="space-y-3">
       <section aria-label="Opponent" className="space-y-2">
         <h2 className="text-xs uppercase tracking-widest text-space-400">Opponent</h2>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {/* The built-in computer has its own setup on this device (#896); it costs no AI tokens. */}
+          <Link href="/arena/offline" data-opponent-computer className={`${chip(false)} block`}>
+            <span className="block font-medium">Built-in computer · Free</span>
+            <span className="block text-[11px] text-space-400">On this device, no AI tokens →</span>
+          </Link>
           <button type="button" aria-pressed={!friend && claudeKind === "sparring"} onClick={() => { setFriend(false); setClaudeKind("sparring"); }} className={chip(!friend && claudeKind === "sparring")}>
             <span className="block font-medium">Claude · Sparring</span>
-            <span className="block text-[11px] text-space-400">Practice and learn</span>
+            <span className="block text-[11px] text-space-400">Practice and learn · uses AI tokens</span>
           </button>
           <button type="button" aria-pressed={!friend && claudeKind === "tournament"} onClick={() => { setFriend(false); setClaudeKind("tournament"); }} className={chip(!friend && claudeKind === "tournament")}>
             <span className="block font-medium">Claude · Tournament</span>
-            <span className="block text-[11px] text-space-400">A competitive match</span>
+            <span className="block text-[11px] text-space-400">A competitive match · uses AI tokens</span>
           </button>
           <button type="button" aria-pressed={friend} onClick={() => setFriend(true)} className={chip(friend)}>
             <span className="block font-medium">A friend</span>
