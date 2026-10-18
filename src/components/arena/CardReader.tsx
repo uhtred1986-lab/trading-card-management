@@ -14,7 +14,7 @@ import styles from "./CardReader.module.css";
  * a coloured keyword chip, a short name, and a "+" that opens that one skill's full text. The
  * "Full text" toggle opens them all. Inspection only: reading or swiping can never submit a game action.
  */
-export function CardReader({ card, showAbilities, direction }: { card: CardView; showAbilities: boolean; direction: "next" | "prev" }) {
+export function CardReader({ card, showAbilities, direction, docked = false }: { card: CardView; showAbilities: boolean; direction: "next" | "prev"; /** In the desktop inspector: the scan is sized to the inspector's height, not to a sheet of its own. */ docked?: boolean }) {
   const id = useId();
   const admin = useArenaAdmin();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -54,7 +54,7 @@ export function CardReader({ card, showAbilities, direction }: { card: CardView;
     })}
     {abilities.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}
   </div>;
-  return <div className={styles.reader} data-card-reader data-reader-layout={hasArt ? "anchored" : "tray"}>
+  return <div className={styles.reader} data-card-reader data-reader-docked={docked || undefined} data-reader-layout={hasArt ? "anchored" : "tray"}>
     <div className={styles.face} data-reader-direction={direction} data-reader-face>
       {hasArt ? <>
         {/* eslint-disable-next-line @next/next/no-img-element -- use the best available original, without inventing image detail. */}

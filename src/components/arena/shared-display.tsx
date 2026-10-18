@@ -292,7 +292,7 @@ export function DockedInspector({
   return (
     <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
       {basicActions}
-      <div data-desktop-reader><CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" /></div>
+      <div data-desktop-reader><CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" docked /></div>
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
         {pinned && (
@@ -414,9 +414,10 @@ export function InspectorColumn({
   return (
     // The board's right-hand column (#444): its full height, the card over the tabs.
     <div className="arena-sidecol flex h-full flex-col overflow-hidden" aria-label="Card review">
-      {/* A fixed height, scrolling inside: the tabs below must not move when a
-          taller card fills it, or a row under the pointer slides away from it. */}
-      <div className="arena-sidecol-sheet h-[58%] shrink-0 overflow-y-auto">{inspector}</div>
+      {/* The card over the tabs. The tab panel has a fixed height, so the tabs never move when a
+          taller card fills the sheet, or a row under the pointer would slide away from it. */}
+      {/* The sheet is the size container the docked reader measures its scan against. */}
+      <div className="arena-sidecol-sheet min-h-0 flex-1 overflow-y-auto [container-type:size]">{inspector}</div>
       <div role="tablist" className="arena-sidecol-tabs flex shrink-0 gap-2 p-2.5 text-sm font-semibold">
         {(
           [
@@ -436,7 +437,7 @@ export function InspectorColumn({
           </button>
         ))}
       </div>
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
+      <div role="tabpanel" className="h-[clamp(120px,22dvh,240px)] shrink-0 overflow-y-auto">
         {tab === "play" ? (
           inPlay
         ) : (

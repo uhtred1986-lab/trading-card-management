@@ -173,7 +173,7 @@ export function BattleRow({
   return (
     // The outline and the pill live outside the row: the row may scroll
     // sideways and would clip a pill that sits above it.
-    <div className="arena-field arena-dropzone relative" data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
+    <div className="arena-field arena-dropzone relative" data-field-row data-drop={drop ? (drop.ok ? "ok" : "no") : undefined} data-hot={drop?.hot ? "" : undefined}>
       <div
         ref={rowRef}
         aria-label={label}

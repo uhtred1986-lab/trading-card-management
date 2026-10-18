@@ -171,6 +171,8 @@
  .board :global(.arena-pstrip) { min-height: 52px; padding: 0 16px; }
  .board :global(.arena-lane) { min-height: 48px; }
  .handCards { justify-content: center; padding-top: 12px; }
+ /* A fan starts at the left edge, where its cost and power overlays are placed. */
+ .fanViewport .handCards { justify-content: flex-start; }
  .board :global(.arena-context > :first-child) { max-height: 42dvh; overflow-y: auto; flex-shrink: 0; border: 0; overscroll-behavior: contain; }
  .board :global(.arena-context .arena-bar) { padding: 8px 16px; }
  .handAction { width: 64px; font-size: 10px; }

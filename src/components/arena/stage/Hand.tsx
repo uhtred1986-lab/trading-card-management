@@ -134,7 +134,7 @@ export function Hand({
           the cards themselves. */}
       {(firstProps?.onInspect || onZones) && (
         <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden xl:flex"}`}>
-          <span className="mr-auto hidden text-xs font-semibold text-space-100 xl:inline">Hand · {n}<span className="ml-2 font-normal">Swipe to browse</span></span>
+          <span className="mr-auto hidden text-xs font-semibold text-space-100 xl:inline">Hand · {n}<span className="ml-2 font-normal">Hover to review · drag to play</span></span>
           {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
           {firstProps?.onInspect && <button
             type="button"
@@ -188,8 +188,9 @@ export function Hand({
         style={browsing ? { touchAction: "none" } : undefined}
         className={`${styles.handViewport} ${fanMode ? styles.fanViewport : ""}`} tabIndex={0} aria-label="Scrollable hand cards">
       <div
-        className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
-        // One card's height and its dip, so an empty hand keeps the board's shape.
+        className={`${styles.handCards} flex items-end ${fanMode ? "justify-start" : "justify-center"} px-2.5 ${wide ? "pb-6" : "pb-3"} ${charging ? "pt-4" : "pt-3"}`}
+        // One card's height and its dip, so an empty hand keeps the board's shape. A fan starts at the
+        // left edge, where its cost and power overlays are placed (`left: 10 + i * step`).
           style={{ minHeight: n ? `calc(${Math.round((cardWidth * 88) / 63)}px * var(--arena, 1) + 32px)` : 0 }}
       >
         {cards.map((c, i) => {
@@ -217,7 +218,8 @@ export function Hand({
             >
               <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
-              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
+              {/* Under the card, wherever its fan dip has put it: anchored to the slot, it would sit on the power. */}
+              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} style={dip ? { bottom: -17 - dip } : undefined} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
           );
         })}

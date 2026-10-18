@@ -1000,12 +1000,16 @@ input[type="number"] {
   }
 }
 @media (min-width: 1280px) {
+  /* The play column (field over hand) and the right column (the decision over
+     the card inspector), as the motion prototype lays a tablet or PC out
+     (`docs/design/arena-motion-prototype`, 18 Oct 2026). The decision used to
+     sit in a row of its own between the field and the hand, where it floated
+     over the board's corner and took the field's height. */
   .arena-board {
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
       "top top"
       "field side"
-      "decision side"
       "hand side";
   }
   .arena-board .arena-stage { padding-block: 0; }
@@ -1013,29 +1017,43 @@ input[type="number"] {
   .arena-board .arena-stage .arena-row:has(.arena-leader) {
     min-height: calc(112px * var(--arena, 1) + 16px) !important;
   }
-  .arena-board .arena-lane { min-height: 0; margin-block: 0; padding-block: 0; }
   .arena-board [data-player-resources]:not([data-player-resources-open]) { display: none; }
   .arena-board [data-player-resources-open] { display: flex; }
   .arena-board .arena-context > :first-child > [data-arena-quiet-controls] { padding-block: 0; }
-  /* Place the one decision panel beside the hand; keep card details in the
-     inspector column. The prompt remains in the same React instance. */
-  .arena-board .arena-context { display: contents; }
-  .arena-board .arena-context > :first-child {
-    grid-area: decision;
-    max-height: none;
-    overflow: visible;
-    border: 0;
-  }
-  .arena-board .arena-context > :last-child {
+  .arena-board .arena-context {
     grid-area: side;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     overflow: hidden;
     border-left: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
     background: rgba(4, 7, 18, 0.55);
   }
-  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-context > :last-child {
+  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-context {
     border-left: 2px solid var(--ink);
     background: rgba(255, 255, 255, 0.78);
   }
+  .arena-board .arena-context > :first-child {
+    flex: 0 0 auto;
+    overflow-y: auto;
+  }
+  .arena-board .arena-context > :last-child:not(:first-child) {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  /* The field: both Battle Areas share its height, the lane between them is a
+     slim band for the narration, and the cards are sized to what the field
+     has (`useFieldFit`, `--field-fit`), not to a viewport-height step. */
+  .arena-board .arena-stage [data-field-row] {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .arena-board .arena-lane { flex: 0 0 auto; min-height: 40px; margin-block: 0; padding-block: 0; }
+  .arena-board[data-field-fit] .arena-stage [data-field-row] { --arena: var(--field-fit); }
   /* The board never grows past the screen (owner, 17 Oct 2026: "the battle
      screen on a laptop should always show the cards"). A tall decision scrolls
      inside its own panel (`.arena-context > :first-child`, capped below) and the
@@ -1045,12 +1063,13 @@ input[type="number"] {
   .arena-board {
     min-height: 0;
     /* The grid's own rows may shrink below their content: the field takes what
-       the strips, the prompt and the hand leave. */
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+       the strips and the hand leave. */
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
   .arena-board .arena-field:not(.arena-hand) { min-height: 0; }
+  /* The decision tops the right column; the inspector takes what it leaves. */
   .arena-board .arena-context > :first-child {
-    max-height: 30dvh;
+    max-height: 42dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -1059,7 +1078,7 @@ input[type="number"] {
   .arena-board [data-hand-toolbar] > * { min-height: 34px !important; }
   /* A defence (counter, blocker, combo) has the longest panel. It may take more
      of the screen, because the fight is drawn over the field and needs little. */
-  .arena-board:has([data-defend-step]) .arena-context > :first-child { max-height: 38dvh; }
+  .arena-board:has([data-defend-step]) .arena-context > :first-child { max-height: 58dvh; }
   /* Whatever the panel's length, what a player does with it comes first: the
      buttons sit beside the question, the options and the step summary below,
      so scrolling the panel never hides the way to answer. */
@@ -1067,6 +1086,7 @@ input[type="number"] {
   .arena-board .arena-context .arena-bar > [data-decision-summary] { order: 5; }
   /* The fight takes the field's height, as on a phone: the rows under it need
      none of their own, or the field would be taller than its grid row. */
+  .arena-board .arena-stage[data-takeover] [data-field-row] { flex: 0 0 auto; }
   .arena-board .arena-stage[data-takeover] .arena-row,
   .arena-board .arena-stage[data-takeover] .arena-lane {
     min-height: 0 !important;

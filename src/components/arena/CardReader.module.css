@@ -22,7 +22,10 @@
 .ability[data-chip="activate"] .chip { background: #b45309; }
 .ability[data-chip="counter"] .chip { background: #c2410c; }
 .ability[data-chip="keyword"] .chip { background: #0f766e; }
-.summary { flex: 1; min-width: 0; padding: 2px 0; }
+/* A narrow scan (the desktop inspector's) cannot hold chip, name and "+" on one line: the name then
+   takes a line of its own with the "+" beside it, instead of wrapping one word per line. */
+.bar { flex-wrap: wrap; row-gap: 0; }
+.summary { flex: 1 1 96px; min-width: 0; padding: 2px 0; }
 .name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
 .note { display: block; margin-top: 1px; font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--soft); }
 .info { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 0 8px 8px 0; background: transparent; color: var(--ink); font-size: 26px; font-weight: 700; line-height: 1; cursor: pointer; }
@@ -30,6 +33,10 @@
 .info:focus-visible, .fullToggle:focus-visible { outline: 3px solid #ffc14f; outline-offset: -3px; }
 .fullText { padding: 8px 12px 12px; border-top: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); user-select: text; }
 .fullText p { margin: 0; font-size: 14px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+/* Docked in the desktop inspector, which is the size container: the scan leaves room under it for
+   the card's name and stats, and the reader does not scroll on its own. */
+.reader[data-reader-docked] { container-type: normal; flex: none; overflow: visible; padding: 0; }
+.reader[data-reader-docked] .face { width: min(100%, 300px, calc((100cqh - 150px) * .716)); }
 .tray { width: min(100%, 340px); display: flex; flex-direction: column; padding-bottom: 4px; }
 .empty { margin: 0; padding: 8px; font-size: 14px; line-height: 1.5; }
 

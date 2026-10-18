@@ -27,7 +27,7 @@ import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
 import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
 import { withShortOpponent } from "./opponent-name";
-import { useBoardFit, useCompactSqueeze } from "./use-board-fit";
+import { useBoardFit, useCompactSqueeze, useFieldFit } from "./use-board-fit";
 import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -278,6 +278,8 @@ export function ArenaStage({
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { legal, taps, beats } = live;
   const view = useMemo(() => withShortOpponent(live.view, live.game.mode), [live.view, live.game.mode]);
+  // Desktop: the field's cards fill the two Battle Areas (`useFieldFit`).
+  useFieldFit(boardRef, wide, Math.max(view.you.battle.length + (view.you.unison ? 1 : 0), view.them.battle.length + (view.them.unison ? 1 : 0)));
   const [planOpen, setPlanOpen] = useState(false);
   const [planRevision, setPlanRevision] = useState(live.game.revision);
   const [planFirst, setPlanFirst] = useState<Action | null>(null);
