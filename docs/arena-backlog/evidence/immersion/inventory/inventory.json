@@ -1,0 +1,5293 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-18T09:58:23.122Z",
+  "snapshotHash": "4a1a3139f5c9ac50957804794824c0c28bf519052845e05231afc89ccd9326fb",
+  "scope": {
+    "game": "dbs",
+    "built": true,
+    "virtual": true,
+    "excludesTestFlag": true
+  },
+  "counts": {
+    "candidateDecks": 26,
+    "eligibleDecks": 25,
+    "builtDecks": 8,
+    "virtualDecks": 17,
+    "excludedTesting": 1,
+    "excludedTrainingConfirmed": 0,
+    "uncertainForReview": 2,
+    "distinctCards": 314,
+    "distinctCardFaces": 333,
+    "characters": 115,
+    "entries": 340,
+    "duplicateFormMerges": 1,
+    "multiCharacterCards": 6
+  },
+  "coverage": {
+    "cardFaces": {
+      "covered": 15,
+      "missing": 318,
+      "exception": 0
+    },
+    "entries": {
+      "covered": 15,
+      "missing": 264,
+      "exception": 61
+    },
+    "characters": {
+      "covered": 5,
+      "partial": 4,
+      "missing": 105,
+      "exception": 1
+    },
+    "tranche1CardFaces": 0,
+    "tranche2CardFaces": 15
+  },
+  "review": [
+    {
+      "ordinal": 1,
+      "built": true,
+      "reasons": [
+        "decklist identical to a known training recipe (arena-firstwave-recipes)"
+      ],
+      "cardCount": 51,
+      "listHash": "7e7b8109812a9209"
+    },
+    {
+      "ordinal": 2,
+      "built": false,
+      "reasons": [
+        "decklist identical to a known training recipe (arena-firstwave-recipes)"
+      ],
+      "cardCount": 51,
+      "listHash": "7e7b8109812a9209"
+    }
+  ],
+  "entries": [
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "10x Kamehameha",
+      "cardIds": [
+        "BT4-096"
+      ],
+      "deckCount": 3,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Absorb and Power Up",
+      "cardIds": [
+        "BT31-139"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Afterimage Technique",
+      "cardIds": [
+        "BT5-023"
+      ],
+      "deckCount": 4,
+      "copies": 14,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Battles of the Gods of Destruction",
+      "cardIds": [
+        "BT28-138"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Broly Control Mechanism",
+      "cardIds": [
+        "BT6-076"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Broly's Ring",
+      "cardIds": [
+        "BT1-081"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Buu Make You Cookie",
+      "cardIds": [
+        "BT3-054"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Buying Time",
+      "cardIds": [
+        "BT31-025"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Cabba's Awakening",
+      "cardIds": [
+        "BT1-027"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Cell Jr. Summon",
+      "cardIds": [
+        "BT31-141"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Cell's Kamehameha",
+      "cardIds": [
+        "BT31-142"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Cell's Solar Flare",
+      "cardIds": [
+        "BT31-138"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Chronoa, God's Power Stolen",
+      "cardIds": [
+        "BT31-087"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Cold Bloodlust",
+      "cardIds": [
+        "BT1-107"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Dark Plot",
+      "cardIds": [
+        "BT3-121"
+      ],
+      "deckCount": 2,
+      "copies": 7,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Delivery of Love",
+      "cardIds": [
+        "BT30-106"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Denial of Hope",
+      "cardIds": [
+        "BT7-023"
+      ],
+      "deckCount": 3,
+      "copies": 10,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Dimension Magic",
+      "cardIds": [
+        "BT5-050"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Dragon Ball",
+      "cardIds": [
+        "BT5-117"
+      ],
+      "deckCount": 1,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Family Kamehameha",
+      "cardIds": [
+        "BT1-082"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Fearsome Conquest",
+      "cardIds": [
+        "BT29-041"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Flying Nimbus",
+      "cardIds": [
+        "BT3-104"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Frieza : Xeno, Darkness Overflowing",
+      "cardIds": [
+        "SD13-02"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Frieza's Call",
+      "cardIds": [
+        "BT1-109"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Full Power Energy",
+      "cardIds": [
+        "BT1-080"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Grand Tour Spaceship",
+      "cardIds": [
+        "BT3-028"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Instant Transmission",
+      "cardIds": [
+        "BT4-097"
+      ],
+      "deckCount": 5,
+      "copies": 19,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Is That All You've Got?",
+      "cardIds": [
+        "BT6-026"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "King Vegeta's Surprise Attack",
+      "cardIds": [
+        "BT1-079"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Loyalty to Cooler",
+      "cardIds": [
+        "BT29-042"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "March of the Great Ape",
+      "cardIds": [
+        "BT3-106"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Master Roshi, Potential Unleashed",
+      "cardIds": [
+        "DB3-001"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Niagara Drop",
+      "cardIds": [
+        "DB1-019"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "One-Star Ball, Parasitic Darkness",
+      "cardIds": [
+        "BT10-091"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Oolong's Wish",
+      "cardIds": [
+        "BT5-024"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Planet M-2",
+      "cardIds": [
+        "BT3-030"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Planet Vegeta",
+      "cardIds": [
+        "BT3-105"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Power Burst",
+      "cardIds": [
+        "BT5-115"
+      ],
+      "deckCount": 4,
+      "copies": 13,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Power Release",
+      "cardIds": [
+        "BT31-024"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Regeneration Skill",
+      "cardIds": [
+        "BT31-140"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Shocking Death Ball",
+      "cardIds": [
+        "BT5-075"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Soul Punisher, Purifying Blast",
+      "cardIds": [
+        "BT30-110"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Spirit Sword",
+      "cardIds": [
+        "BT6-052"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "SS Cabba, Spirit Resonance",
+      "cardIds": [
+        "SD15-02"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Stop Laughing!",
+      "cardIds": [
+        "BT28-102"
+      ],
+      "deckCount": 2,
+      "copies": 7,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Strategies of Universe 7",
+      "cardIds": [
+        "TB1-023"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Successor of Hope",
+      "cardIds": [
+        "BT4-095"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Support Broadcast",
+      "cardIds": [
+        "BT30-084"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "The Mightiest Warrior's Power",
+      "cardIds": [
+        "BT31-054"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "The Most Evil Absorption in History",
+      "cardIds": [
+        "BT3-052"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Time Magic",
+      "cardIds": [
+        "BT5-101"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Time's Judgement",
+      "cardIds": [
+        "BT3-122"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Transcendent Limit Break",
+      "cardIds": [
+        "BT28-110"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Transcendent Strike",
+      "cardIds": [
+        "BT6-025"
+      ],
+      "deckCount": 3,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Unending Awakening",
+      "cardIds": [
+        "BT3-027"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "United Across Time",
+      "cardIds": [
+        "BT31-110"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Whis's Coercion",
+      "cardIds": [
+        "BT1-055"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "World Peace",
+      "cardIds": [
+        "BT5-119"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Wrathful Charge",
+      "cardIds": [
+        "BT6-078"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Yes, Time to Die!",
+      "cardIds": [
+        "BT29-040"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "(no character label)",
+      "face": "front",
+      "form": "Zen-Oh Button",
+      "cardIds": [
+        "BT2-067"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "exception",
+      "characterId": null,
+      "tranche": null,
+      "detail": [
+        "catalog carries no character label"
+      ]
+    },
+    {
+      "character": "Android 17",
+      "face": "front",
+      "form": "Android 17, Teaming Up to Protect the Earth",
+      "cardIds": [
+        "BT28-121"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Android 17",
+      "face": "front",
+      "form": "Limitless Energy Android 17",
+      "cardIds": [
+        "EX03-17"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "android17",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Android 18",
+      "face": "front",
+      "form": "Android 18, Steadfast Technique",
+      "cardIds": [
+        "BT9-031"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "android18",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Android 18",
+      "face": "front",
+      "form": "Android 18, Supporter",
+      "cardIds": [
+        "BT31-126"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Android 18",
+      "face": "front",
+      "form": "Infinite Energy Android 18",
+      "cardIds": [
+        "TB1-055"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "android18",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Ba: Br",
+      "face": "front",
+      "form": "Ties that Bind Ba",
+      "cardIds": [
+        "BT6-069"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "ba",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "back",
+      "form": "Unwavering Justice Bardock",
+      "cardIds": [
+        "BT3-082"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-ss",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Bardock",
+      "cardIds": [
+        "BT3-082"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Bardock, Destiny-Changing Willpower",
+      "cardIds": [
+        "BT27-095"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Desperate Warrior Super Saiyan Bardock",
+      "cardIds": [
+        "BT3-084"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-ss",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Great Protector, Great Ape Bardock",
+      "cardIds": [
+        "BT3-085"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Power Charge Bardock",
+      "cardIds": [
+        "SD5-02"
+      ],
+      "deckCount": 4,
+      "copies": 10,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-ss",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock",
+      "face": "front",
+      "form": "Striker Bardock",
+      "cardIds": [
+        "BT3-086"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock: Xeno",
+      "face": "front",
+      "form": "Awakened Warrior Bardock",
+      "cardIds": [
+        "BT3-110"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-xeno",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bardock: Xeno",
+      "face": "front",
+      "form": "SS3 Bardock, Power Unleashed",
+      "cardIds": [
+        "BT3-109"
+      ],
+      "deckCount": 2,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-xeno-ss3",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Beerus: Br",
+      "face": "front",
+      "form": "Godly Destruction Beerus",
+      "cardIds": [
+        "SD8-10"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "beerus",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Belmod",
+      "face": "front",
+      "form": "Clownish Destruction Belmod",
+      "cardIds": [
+        "EX03-24"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "belmod",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Bio Warrior",
+      "face": "front",
+      "form": "Overflowing Bio Warrior Army",
+      "cardIds": [
+        "BT1-078"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Borgos",
+      "face": "front",
+      "form": "Unwavering Solidarity Borgos",
+      "cardIds": [
+        "BT3-101"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "borgos",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Brianne De Chateau",
+      "face": "back",
+      "form": "The 2nd Universe's Witchy Warriors",
+      "cardIds": [
+        "BT30-082"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Brianne De Chateau",
+      "face": "front",
+      "form": "Brianne De Chateau",
+      "cardIds": [
+        "BT30-082"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Brianne De Chateau",
+      "face": "front",
+      "form": "Brianne De Chateau, Hope of the Multiverse",
+      "cardIds": [
+        "BT30-098"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Brianne De Chateau",
+      "face": "front",
+      "form": "Formation!! Brianne De Chateau",
+      "cardIds": [
+        "BT30-097"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "back",
+      "form": "Broly, The Legendary Super Saiyan",
+      "cardIds": [
+        "BT1-057"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "front",
+      "form": "Broly",
+      "cardIds": [
+        "BT1-057"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "front",
+      "form": "Broly, Dawn of the Rampage",
+      "cardIds": [
+        "BT1-076"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "front",
+      "form": "Broly, The Rampaging Horror",
+      "cardIds": [
+        "BT1-073"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "front",
+      "form": "Deathless Warrior Broly",
+      "cardIds": [
+        "EX03-16"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly",
+      "face": "front",
+      "form": "Rampaging Lifeform Bio-Broly",
+      "cardIds": [
+        "BT1-074"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "back",
+      "form": "Broly, Evil Unleashed",
+      "cardIds": [
+        "SD8-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "front",
+      "form": "Broly",
+      "cardIds": [
+        "SD8-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "front",
+      "form": "Broly, Berserker Origins",
+      "cardIds": [
+        "BT6-062"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "front",
+      "form": "Broly, Rushing Forth",
+      "cardIds": [
+        "SD8-03"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "front",
+      "form": "Broly, the Ravager",
+      "cardIds": [
+        "SD8-02"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Broly: Br",
+      "face": "front",
+      "form": "Broly, Unrealized Ambition",
+      "cardIds": [
+        "BT6-063"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Bulma",
+      "face": "front",
+      "form": "Dragon Ball Seeker Bulma",
+      "cardIds": [
+        "BT5-107"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Bulma",
+      "face": "front",
+      "form": "Youthful Bulma",
+      "cardIds": [
+        "BT3-095"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Bulma: Br",
+      "face": "front",
+      "form": "Bulma, from the Sidelines",
+      "cardIds": [
+        "BT6-011"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Burter",
+      "face": "front",
+      "form": "Burter, Fastest in the Universe",
+      "cardIds": [
+        "BT10-080"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "back",
+      "form": "Vegeta & Cabba, Master & Pupil",
+      "cardIds": [
+        "XD1-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "front",
+      "form": "Cabba",
+      "cardIds": [
+        "XD1-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "front",
+      "form": "Cabba, Brimming with Spirit",
+      "cardIds": [
+        "BT7-082"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "front",
+      "form": "Cabba, Saiyan of Universe 6",
+      "cardIds": [
+        "XD1-06"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "front",
+      "form": "Cabba, Undisguised Rage",
+      "cardIds": [
+        "BT7-081"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cabba",
+      "face": "front",
+      "form": "Saiyan Cabba",
+      "cardIds": [
+        "BT1-014"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Caulifla",
+      "face": "front",
+      "form": "Caulifla, the Bold Sister",
+      "cardIds": [
+        "BT7-085"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Caulifla",
+      "face": "front",
+      "form": "Caulifla, Troublemaker of Universe 6",
+      "cardIds": [
+        "XD1-07"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "back",
+      "form": "Cell, Perfect Power",
+      "cardIds": [
+        "BT31-116"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell",
+      "cardIds": [
+        "BT31-116"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Absorbed Form",
+      "cardIds": [
+        "BT31-130"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Creeping Terror",
+      "cardIds": [
+        "BT31-119"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Ominous Android",
+      "cardIds": [
+        "BT31-131"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Ominous Larva",
+      "cardIds": [
+        "BT31-132"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Perfect Form",
+      "cardIds": [
+        "BT31-129"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell",
+      "face": "front",
+      "form": "Cell, Ultimate Form",
+      "cardIds": [
+        "BT31-128"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cell Jr.",
+      "face": "front",
+      "form": "Cell Jr., the Fiendish",
+      "cardIds": [
+        "BT31-133"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cheelai: Br",
+      "face": "front",
+      "form": "Cheelai, Frieza Force Soldier",
+      "cardIds": [
+        "SD8-05"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Chi-Chi",
+      "face": "front",
+      "form": "Dynasty's Solace Chi-Chi",
+      "cardIds": [
+        "BT4-089"
+      ],
+      "deckCount": 4,
+      "copies": 16,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cooler",
+      "face": "back",
+      "form": "Cooler, Incredible Strongest Warrior",
+      "cardIds": [
+        "BT29-029"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cooler",
+      "face": "front",
+      "form": "Cooler",
+      "cardIds": [
+        "BT29-029"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cooler",
+      "face": "front",
+      "form": "Cooler, Incredible Ultimate Evolution",
+      "cardIds": [
+        "BT29-031"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cooler",
+      "face": "front",
+      "form": "Cooler, Incredible Ultimate Power",
+      "cardIds": [
+        "BT29-032"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Cooler’s Armored Squadron",
+      "face": "front",
+      "form": "Armored Squadron, Attack!",
+      "cardIds": [
+        "BT29-030"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Demigra",
+      "face": "front",
+      "form": "Dimension Control Demigra",
+      "cardIds": [
+        "P-048"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dodoria",
+      "face": "front",
+      "form": "Dodoria the Cold-Blooded",
+      "cardIds": [
+        "BT10-083"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dodoria",
+      "face": "front",
+      "form": "Dodoria, Frieza's Devoted Servant",
+      "cardIds": [
+        "SD13-05"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dore",
+      "face": "front",
+      "form": "Dore, Elite Squad Splendor",
+      "cardIds": [
+        "BT29-036"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dore",
+      "face": "front",
+      "form": "Dore, Power",
+      "cardIds": [
+        "BT29-037"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dragon Ball",
+      "face": "back",
+      "form": "Miraculous Arrival Shenron",
+      "cardIds": [
+        "SD7-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Dragon Ball",
+      "face": "front",
+      "form": "Dragon Ball",
+      "cardIds": [
+        "SD7-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "East Supreme Kai",
+      "face": "front",
+      "form": "Unyielding Defender, East Supreme Kai",
+      "cardIds": [
+        "BT3-038"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Evil Wizard Babidi",
+      "face": "front",
+      "form": "Agent of Resurrection, Babidi",
+      "cardIds": [
+        "BT3-045"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Evil Wizard Bibidi",
+      "face": "front",
+      "form": "Magician's Father, Bibidi",
+      "cardIds": [
+        "BT3-046"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Fasha",
+      "face": "front",
+      "form": "Hidden Power Great Ape Fasha",
+      "cardIds": [
+        "BT3-098"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Fasha",
+      "face": "front",
+      "form": "Unwavering Solidarity Fasha",
+      "cardIds": [
+        "BT3-099"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza",
+      "face": "back",
+      "form": "Last Resort Frieza",
+      "cardIds": [
+        "SD13-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza",
+      "face": "front",
+      "form": "Avenging Frieza",
+      "cardIds": [
+        "BT1-089"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza",
+      "face": "front",
+      "form": "Frieza",
+      "cardIds": [
+        "SD13-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza",
+      "face": "front",
+      "form": "Frieza, Cosmic Horror",
+      "cardIds": [
+        "BT10-072"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza",
+      "face": "front",
+      "form": "Frieza, Terrifying Transformation",
+      "cardIds": [
+        "BT10-073"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frieza: Xeno",
+      "face": "front",
+      "form": "Frieza the Power Monger",
+      "cardIds": [
+        "BT10-087"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Frost",
+      "face": "front",
+      "form": "Frost, the Path to Full Power",
+      "cardIds": [
+        "BT7-087"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gine",
+      "face": "front",
+      "form": "Gine, Family of Justice",
+      "cardIds": [
+        "BT3-087"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Ginyu",
+      "face": "front",
+      "form": "Ginyu, Frieza's Greatest Soldier",
+      "cardIds": [
+        "SD13-03"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Giru",
+      "face": "front",
+      "form": "Handy Giru",
+      "cardIds": [
+        "BT3-013"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta",
+      "face": "front",
+      "form": "SS Gogeta, Hell-Piercing Flash",
+      "cardIds": [
+        "BT31-149"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta",
+      "face": "front",
+      "form": "SS Gogeta, Invincible Power",
+      "cardIds": [
+        "BT31-003"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta",
+      "face": "front",
+      "form": "SS Gogeta, Revoker of Evil",
+      "cardIds": [
+        "BT31-014"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta",
+      "face": "front",
+      "form": "SS Gogeta, Vanquisher",
+      "cardIds": [
+        "BT31-015"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta: Br",
+      "face": "front",
+      "form": "Gogeta, Unparalleled Fusion Warrior",
+      "cardIds": [
+        "BT6-015"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gogeta: Br",
+      "face": "front",
+      "form": "SSB Gogeta, Fusion Onslaught",
+      "cardIds": [
+        "BT6-014"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gotenks",
+      "face": "front",
+      "form": "Energy Power Gotenks",
+      "cardIds": [
+        "BT1-071"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gotenks",
+      "face": "front",
+      "form": "Super Saiyan Gotenks",
+      "cardIds": [
+        "BT1-070"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Grand Supreme Kai",
+      "face": "front",
+      "form": "Universal Leader, Grand Supreme Kai",
+      "cardIds": [
+        "BT3-037"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gravy",
+      "face": "front",
+      "form": "Gravy, in Demigra's Thrall",
+      "cardIds": [
+        "BT4-114"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Gravy",
+      "face": "front",
+      "form": "Gravy, Lightning's Might",
+      "cardIds": [
+        "BT4-113"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Haru Haru",
+      "face": "front",
+      "form": "Haru Haru, Attacker Majin",
+      "cardIds": [
+        "BT3-120"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Heles",
+      "face": "front",
+      "form": "Heles, Graceful Beauty",
+      "cardIds": [
+        "BT30-083"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Hit",
+      "face": "front",
+      "form": "Hit, Ace of Universe 6",
+      "cardIds": [
+        "XD1-05"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Jaco",
+      "face": "front",
+      "form": "Full Surveillance Jaco",
+      "cardIds": [
+        "BT5-088"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Jiren",
+      "face": "back",
+      "form": "Explosive Power Jiren",
+      "cardIds": [
+        "EX03-19"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Jiren",
+      "face": "front",
+      "form": "Jiren",
+      "cardIds": [
+        "EX03-19"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kakarot",
+      "face": "front",
+      "form": "Kakarot, the Child Who Got Away",
+      "cardIds": [
+        "BT3-091"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kakunsa",
+      "face": "front",
+      "form": "Kakunsa, Witchy Warrior",
+      "cardIds": [
+        "BT30-099"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kakunsa",
+      "face": "front",
+      "form": "Song of Love and Victory! Maiden Squadron",
+      "cardIds": [
+        "BT30-096"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kami",
+      "face": "front",
+      "form": "Kami, Global Unifier",
+      "cardIds": [
+        "BT5-108"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kibito",
+      "face": "front",
+      "form": "Kibito, Kai's Attendant",
+      "cardIds": [
+        "BT3-042"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Kibito Kai",
+      "face": "front",
+      "form": "Powers Combined, Kibito Kai",
+      "cardIds": [
+        "BT3-043"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "King Vegeta",
+      "face": "front",
+      "form": "Absolute Defense Great Ape King Vegeta",
+      "cardIds": [
+        "BT3-092"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "King Vegeta",
+      "face": "front",
+      "form": "Lord of the Great Apes, King Vegeta",
+      "cardIds": [
+        "BT3-093"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Krillin",
+      "face": "front",
+      "form": "Negotiator Krillin",
+      "cardIds": [
+        "BT5-062"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Ledgic",
+      "face": "front",
+      "form": "Bodyguard Ledgic",
+      "cardIds": [
+        "BT3-015"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Lemo: Br",
+      "face": "front",
+      "form": "Lemo, Frieza Force Soldier",
+      "cardIds": [
+        "SD8-06"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Magetta",
+      "face": "front",
+      "form": "Magetta, Defender of Universe 6",
+      "cardIds": [
+        "BT7-089"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "back",
+      "form": "Majin Buu, Completely Revived",
+      "cardIds": [
+        "BT3-031"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Awakening Evil Majin Buu",
+      "cardIds": [
+        "BT2-027"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "God Absorber Majin Buu",
+      "cardIds": [
+        "BT3-051"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Majin Buu",
+      "cardIds": [
+        "BT3-031"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Majin Buu, Dawn of the Rampage",
+      "cardIds": [
+        "BT3-050"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Out of Control Evil, Majin Buu",
+      "cardIds": [
+        "BT3-048"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Power Absorbing Majin Buu",
+      "cardIds": [
+        "BT3-049"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "Rampant Evil Majin Buu",
+      "cardIds": [
+        "EX03-05"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Majin Buu",
+      "face": "front",
+      "form": "The Ultimate Evil, Majin Buu",
+      "cardIds": [
+        "BT3-047"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Masked Saiyan",
+      "face": "back",
+      "form": "Bardock, Unbound by Darkness",
+      "cardIds": [
+        "SD3-01"
+      ],
+      "deckCount": 2,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "covered",
+      "characterId": "bardock-xeno-ss3",
+      "tranche": 2,
+      "detail": []
+    },
+    {
+      "character": "Masked Saiyan",
+      "face": "front",
+      "form": "Encroaching Threat Masked Saiyan",
+      "cardIds": [
+        "SD3-04"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Masked Saiyan",
+      "face": "front",
+      "form": "The Masked Saiyan",
+      "cardIds": [
+        "SD3-01"
+      ],
+      "deckCount": 2,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Master Roshi",
+      "face": "front",
+      "form": "Master Roshi, Strict Instructor",
+      "cardIds": [
+        "BT6-110"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Nappa: Adolescence",
+      "face": "front",
+      "form": "Nappa, Vegeta's Attendant",
+      "cardIds": [
+        "BT3-102"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Neiz",
+      "face": "front",
+      "form": "Neiz, Elite Squad Splendor",
+      "cardIds": [
+        "BT29-038"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Neiz",
+      "face": "front",
+      "form": "Neiz, Speed",
+      "cardIds": [
+        "BT29-039"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "North Supreme Kai",
+      "face": "front",
+      "form": "Majin Defier, North Supreme Kai",
+      "cardIds": [
+        "BT3-041"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Oolong",
+      "face": "front",
+      "form": "Scheming Oolong",
+      "cardIds": [
+        "BT5-014"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Pan",
+      "face": "front",
+      "form": "Pan",
+      "cardIds": [
+        "BT3-009"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Pan",
+      "face": "front",
+      "form": "Plucky Dynasty Pan",
+      "cardIds": [
+        "BT4-086"
+      ],
+      "deckCount": 3,
+      "copies": 12,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Pan",
+      "face": "front",
+      "form": "Spirited Search Pan",
+      "cardIds": [
+        "BT5-057"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Paragus",
+      "face": "front",
+      "form": "Paragus, Controller of Monsters",
+      "cardIds": [
+        "BT1-077"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Paragus: Br",
+      "face": "front",
+      "form": "Defending Father Paragus",
+      "cardIds": [
+        "SD8-04"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Paragus: Br",
+      "face": "front",
+      "form": "Paragus, Deadly Premonition",
+      "cardIds": [
+        "BT6-065"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Piccolo",
+      "face": "front",
+      "form": "Defensive Stance Piccolo",
+      "cardIds": [
+        "BT5-061"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Piccolo",
+      "face": "front",
+      "form": "Piccolo, Namekian Fortification",
+      "cardIds": [
+        "DB2-004"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Puar",
+      "face": "front",
+      "form": "Puar, Best Pal",
+      "cardIds": [
+        "BT5-013"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Raditz",
+      "face": "front",
+      "form": "Raditz, the Oppressor",
+      "cardIds": [
+        "BT7-003"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Ribrianne",
+      "face": "front",
+      "form": "Ribrianne, Witchy Warrior",
+      "cardIds": [
+        "BT30-095"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Ribrianne",
+      "face": "front",
+      "form": "Song of Love and Victory! Maiden Squadron",
+      "cardIds": [
+        "BT30-096"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Rozie",
+      "face": "front",
+      "form": "Rozie, Witchy Warrior",
+      "cardIds": [
+        "BT30-102"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Rozie",
+      "face": "front",
+      "form": "Song of Love and Victory! Maiden Squadron",
+      "cardIds": [
+        "BT30-096"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Salza",
+      "face": "front",
+      "form": "Salza, Elite Squad Splendor",
+      "cardIds": [
+        "BT29-033"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Salza",
+      "face": "front",
+      "form": "Salza, Technique",
+      "cardIds": [
+        "BT29-035"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Sanka Ku",
+      "face": "front",
+      "form": "Formation! Sanka Ku",
+      "cardIds": [
+        "BT30-100"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Sanka Ku",
+      "face": "front",
+      "form": "Sanka Ku, Fighting Maiden",
+      "cardIds": [
+        "BT30-101"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Saonel",
+      "face": "front",
+      "form": "Namekian Partner Saonel",
+      "cardIds": [
+        "BT7-090"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Shenron",
+      "face": "front",
+      "form": "Shenron, Figure of Majesty",
+      "cardIds": [
+        "SD7-04"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Shugesh",
+      "face": "front",
+      "form": "Unwavering Solidarity Shugesh",
+      "cardIds": [
+        "BT3-100"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Shun Shun",
+      "face": "front",
+      "form": "Shun Shun, Protector Majin",
+      "cardIds": [
+        "BT3-119"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Gohan",
+      "face": "front",
+      "form": "Adoptive Father Son Gohan",
+      "cardIds": [
+        "BT4-091"
+      ],
+      "deckCount": 3,
+      "copies": 12,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Gohan: Adolescence",
+      "face": "front",
+      "form": "Great Saiyaman, Town Hero",
+      "cardIds": [
+        "BT5-032"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Gohan: Adolescence",
+      "face": "front",
+      "form": "Surprise Attack Son Gohan",
+      "cardIds": [
+        "SD15-04"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Gohan: Childhood",
+      "face": "front",
+      "form": "Ultimate Potential SS2 Son Gohan",
+      "cardIds": [
+        "SD5-05"
+      ],
+      "deckCount": 4,
+      "copies": 10,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Gohan: Youth",
+      "face": "front",
+      "form": "Intrepid Dynasty Son Gohan",
+      "cardIds": [
+        "BT4-084"
+      ],
+      "deckCount": 3,
+      "copies": 12,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "back",
+      "form": "SS Gogeta, Situation Reversal Fusion",
+      "cardIds": [
+        "BT31-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Bundle of Curiosity Son Goku",
+      "cardIds": [
+        "BT2-072"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Dependable Dynasty Son Goku",
+      "cardIds": [
+        "BT4-078"
+      ],
+      "deckCount": 4,
+      "copies": 16,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Indomitable Dynasty SS Son Goku",
+      "cardIds": [
+        "BT4-077"
+      ],
+      "deckCount": 3,
+      "copies": 12,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Last One Standing Son Goku",
+      "cardIds": [
+        "EX03-14"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Pressure Assault Super Saiyan Son Goku",
+      "cardIds": [
+        "BT3-058"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Relentless Super Saiyan 3 Son Goku",
+      "cardIds": [
+        "BT2-004"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku & Vegeta",
+      "cardIds": [
+        "BT31-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Battling Against Evil",
+      "cardIds": [
+        "BT31-010"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Warriors United",
+      "cardIds": [
+        "BT31-088"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku, Other World Warrior",
+      "cardIds": [
+        "BT31-008"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku, Spirit Boost Warrior",
+      "cardIds": [
+        "SD15-03"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Son Goku, Training in Another World",
+      "cardIds": [
+        "BT31-009"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "SS3 Son Goku, Struggle in Another World",
+      "cardIds": [
+        "BT31-007"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "SSB Son Goku, at the Apex",
+      "cardIds": [
+        "SD5-03"
+      ],
+      "deckCount": 4,
+      "copies": 13,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Super Saiyan 3 Son Goku",
+      "cardIds": [
+        "P-003"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku",
+      "face": "front",
+      "form": "Super Saiyan Son Goku",
+      "cardIds": [
+        "BT14-006"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "back",
+      "form": "SSB Gogeta, Fusion Perfected",
+      "cardIds": [
+        "BT6-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Harmonic Energy SSB Son Goku",
+      "cardIds": [
+        "BT6-003"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Preemptive Strike SSG Son Goku",
+      "cardIds": [
+        "BT6-004"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Son Goku and Vegeta",
+      "cardIds": [
+        "BT6-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Son Goku, Prepping for Fusion",
+      "cardIds": [
+        "BT6-005"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Son Goku, Saiyan Youth",
+      "cardIds": [
+        "BT11-008"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Br",
+      "face": "front",
+      "form": "Son Goku, Time to Fight",
+      "cardIds": [
+        "SD8-07"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Childhood",
+      "face": "front",
+      "form": "Mega Focus Son Goku",
+      "cardIds": [
+        "SD7-05"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Childhood",
+      "face": "front",
+      "form": "Son Goku",
+      "cardIds": [
+        "BT5-004"
+      ],
+      "deckCount": 3,
+      "copies": 11,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Childhood",
+      "face": "front",
+      "form": "Son Goku, Adventure Partner",
+      "cardIds": [
+        "BT30-019"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Childhood",
+      "face": "front",
+      "form": "Unbroken Dynasty Son Goku",
+      "cardIds": [
+        "BT4-079"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "back",
+      "form": "Long Odds SS4 Son Goku",
+      "cardIds": [
+        "SD5-01"
+      ],
+      "deckCount": 3,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Blazing Spirit Son Goku",
+      "cardIds": [
+        "BT4-005"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Determined Super Saiyan Son Goku",
+      "cardIds": [
+        "BT3-005"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Dynasty Deferred Son Goku",
+      "cardIds": [
+        "BT4-081"
+      ],
+      "deckCount": 4,
+      "copies": 16,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Golden Great Ape Son Goku",
+      "cardIds": [
+        "SD5-01"
+      ],
+      "deckCount": 3,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Pint-sized Warrior Son Goku",
+      "cardIds": [
+        "BT3-006"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Reborn Might SS4 Son Goku",
+      "cardIds": [
+        "SD5-04"
+      ],
+      "deckCount": 4,
+      "copies": 10,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Rising Fist Super Saiyan 2 Son Goku",
+      "cardIds": [
+        "BT3-004"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Super Saiyan Son Goku",
+      "cardIds": [
+        "BT5-056"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: GT",
+      "face": "front",
+      "form": "Victorious Fist Super Saiyan 3 Son Goku",
+      "cardIds": [
+        "BT3-003"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Xeno",
+      "face": "front",
+      "form": "Dimensional Warrior Son Goku",
+      "cardIds": [
+        "SD7-02"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goku: Xeno",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Interdimensional Warriors United",
+      "cardIds": [
+        "BT31-089"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goten",
+      "face": "front",
+      "form": "Prodigal Dynasty Son Goten",
+      "cardIds": [
+        "BT4-085"
+      ],
+      "deckCount": 3,
+      "copies": 12,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Son Goten: Br",
+      "face": "front",
+      "form": "Support Attack Son Goten",
+      "cardIds": [
+        "BT6-006"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "South Kai",
+      "face": "front",
+      "form": "South Kai, Keeping Watch",
+      "cardIds": [
+        "BT5-042"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "South Supreme Kai",
+      "face": "front",
+      "form": "Majin Defier, South Supreme Kai",
+      "cardIds": [
+        "BT3-040"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Su Roas",
+      "face": "front",
+      "form": "Formation! Su Roas",
+      "cardIds": [
+        "BT30-103"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Su Roas",
+      "face": "front",
+      "form": "Su Roas, Fighting Maiden",
+      "cardIds": [
+        "BT30-104"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Supreme Kai of Time",
+      "face": "front",
+      "form": "Supreme Kai of Time, World's Protector",
+      "cardIds": [
+        "BT3-113"
+      ],
+      "deckCount": 3,
+      "copies": 11,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Tien Shinhan",
+      "face": "front",
+      "form": "Tien Shinhan, Universe 7 Challenger",
+      "cardIds": [
+        "BT14-010"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Tora",
+      "face": "front",
+      "form": "Hidden Power Great Ape Tora",
+      "cardIds": [
+        "BT3-096"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Tora",
+      "face": "front",
+      "form": "Unwavering Solidarity Tora",
+      "cardIds": [
+        "BT3-097"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Future",
+      "face": "front",
+      "form": "Trunks, Battle With a God",
+      "cardIds": [
+        "BT29-098"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Future",
+      "face": "front",
+      "form": "Trunks, Bridge to the Future",
+      "cardIds": [
+        "BT3-062"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Future",
+      "face": "front",
+      "form": "Unyielding Justice SS2 Trunks",
+      "cardIds": [
+        "BT3-061"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: GT",
+      "face": "front",
+      "form": "Intensifying Power Trunks",
+      "cardIds": [
+        "BT4-012"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: GT",
+      "face": "front",
+      "form": "Quick Rush Trunks",
+      "cardIds": [
+        "BT3-011"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: GT",
+      "face": "front",
+      "form": "Reliable Trunks",
+      "cardIds": [
+        "BT3-010"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Killer Sword Trunks",
+      "cardIds": [
+        "SD3-02"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Quick blade Trunks",
+      "cardIds": [
+        "SD3-03"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Temporal Rescue Trunks",
+      "cardIds": [
+        "BT5-114"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Time Patrol Trunks",
+      "cardIds": [
+        "EX02-01"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Trunks, Power Overseeing Time",
+      "cardIds": [
+        "BT3-111"
+      ],
+      "deckCount": 2,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Xeno",
+      "face": "front",
+      "form": "Unrelenting Assault Trunks",
+      "cardIds": [
+        "BT3-112"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Trunks: Youth: Br",
+      "face": "front",
+      "form": "Support Attack Trunks",
+      "cardIds": [
+        "BT6-010"
+      ],
+      "deckCount": 2,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Uub",
+      "face": "front",
+      "form": "Physical Mastery Uub",
+      "cardIds": [
+        "BT5-063"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "back",
+      "form": "SS Gogeta, Situation Reversal Fusion",
+      "cardIds": [
+        "BT31-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "back",
+      "form": "SSB Vegeta, Spirit Boost Elite",
+      "cardIds": [
+        "SD15-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Double Shot Super Saiyan 2 Vegeta",
+      "cardIds": [
+        "BT2-010"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Final Explosion Prince of Destruction Vegeta",
+      "cardIds": [
+        "BT3-036"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Gale Strike Vegeta",
+      "cardIds": [
+        "TB1-005"
+      ],
+      "deckCount": 2,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Raging Attacker Vegeta",
+      "cardIds": [
+        "BT1-064"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Son Goku & Vegeta",
+      "cardIds": [
+        "BT31-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Battling Against Evil",
+      "cardIds": [
+        "BT31-010"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Warriors United",
+      "cardIds": [
+        "BT31-088"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "SS Vegeta, Struggle in Another World",
+      "cardIds": [
+        "BT31-011"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Surprise Attack SSB Vegeta",
+      "cardIds": [
+        "SD15-05"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Ultimate Evil Dark Prince Vegeta",
+      "cardIds": [
+        "BT2-009"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Vegeta",
+      "cardIds": [
+        "SD15-01"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Vegeta, Back From the Brink of Death",
+      "cardIds": [
+        "BT29-065"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Vegeta, Backup From Afar",
+      "cardIds": [
+        "BT31-071"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Vegeta, Hellish Warrior",
+      "cardIds": [
+        "BT31-012"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta",
+      "face": "front",
+      "form": "Vegeta, the Targeted Prince",
+      "cardIds": [
+        "BT31-070"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "back",
+      "form": "SSB Gogeta, Fusion Perfected",
+      "cardIds": [
+        "BT6-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Harmonic Energy SSB Vegeta",
+      "cardIds": [
+        "BT6-007"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Preemptive Strike SSG Vegeta",
+      "cardIds": [
+        "BT6-008"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Son Goku and Vegeta",
+      "cardIds": [
+        "BT6-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Vegeta, Prepping for Fusion",
+      "cardIds": [
+        "BT6-009"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Vegeta, Saiyan Youth",
+      "cardIds": [
+        "BT11-011"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Br",
+      "face": "front",
+      "form": "Vegeta, Time to Fight",
+      "cardIds": [
+        "SD8-08"
+      ],
+      "deckCount": 2,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: GT",
+      "face": "front",
+      "form": "Daily Training Vegeta",
+      "cardIds": [
+        "BT4-011"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: GT",
+      "face": "front",
+      "form": "Defensive Stance SS Vegeta",
+      "cardIds": [
+        "BT5-059"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: GT",
+      "face": "front",
+      "form": "Digging Deep Vegeta",
+      "cardIds": [
+        "BT4-010"
+      ],
+      "deckCount": 2,
+      "copies": 8,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Xeno",
+      "face": "front",
+      "form": "Son Goku & Vegeta, Interdimensional Warriors United",
+      "cardIds": [
+        "BT31-089"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": true,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Xeno",
+      "face": "front",
+      "form": "Vegeta, Returned from Darkness",
+      "cardIds": [
+        "SD7-03"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegeta: Youth",
+      "face": "front",
+      "form": "Vegeta",
+      "cardIds": [
+        "BT3-094"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "back",
+      "form": "Fusion Warrior Super Saiyan Vegito",
+      "cardIds": [
+        "BT2-001"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "back",
+      "form": "Going All In, SSB Vegito",
+      "cardIds": [
+        "BT3-055"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "back",
+      "form": "SSB Vegito, Ultimate Power",
+      "cardIds": [
+        "BT31-085"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "Lightning Speed Vegito",
+      "cardIds": [
+        "BT2-013"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "Repeated Force Vegito",
+      "cardIds": [
+        "BT2-012"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "SS Vegito, Dimension Transcending Fusion Warrior",
+      "cardIds": [
+        "BT31-096"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "SSB Kaio-ken Vegito, True God Power",
+      "cardIds": [
+        "BT31-150"
+      ],
+      "deckCount": 1,
+      "copies": 1,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "SSB Vegito, Azure Flash",
+      "cardIds": [
+        "BT31-090"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "SSB Vegito, Fusion Surpassing the Legends",
+      "cardIds": [
+        "BT31-091"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "Vegito",
+      "cardIds": [
+        "BT2-001",
+        "BT3-055",
+        "BT31-085"
+      ],
+      "deckCount": 3,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito",
+      "face": "front",
+      "form": "Vegito, the Mightiest Fusion",
+      "cardIds": [
+        "BT31-092"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito: Xeno",
+      "face": "front",
+      "form": "SS3 Vegito, Unparalleled Power",
+      "cardIds": [
+        "BT31-095"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito: Xeno",
+      "face": "front",
+      "form": "SS4 Limit Breaker Vegito, Crimson Flash, Super Full Power",
+      "cardIds": [
+        "BT31-093"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito: Xeno",
+      "face": "front",
+      "form": "SS4 Vegito, Barrage",
+      "cardIds": [
+        "BT27-093"
+      ],
+      "deckCount": 2,
+      "copies": 6,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Vegito: Xeno",
+      "face": "front",
+      "form": "SS4 Vegito, Dimension Transcending Peerless Warrior",
+      "cardIds": [
+        "BT31-094"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Veku",
+      "face": "front",
+      "form": "Veku, Incomplete Fusion",
+      "cardIds": [
+        "BT31-013"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Veku: Br",
+      "face": "front",
+      "form": "Veku, Contents Under Pressure",
+      "cardIds": [
+        "BT6-012"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Veku: Br",
+      "face": "front",
+      "form": "Veku, the Fragile",
+      "cardIds": [
+        "BT6-013"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "West Kai",
+      "face": "front",
+      "form": "West Kai, Keeping Watch",
+      "cardIds": [
+        "BT5-043"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "West Supreme Kai",
+      "face": "front",
+      "form": "Majin Defier, West Supreme Kai",
+      "cardIds": [
+        "BT3-039"
+      ],
+      "deckCount": 1,
+      "copies": 3,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Whis: Br",
+      "face": "front",
+      "form": "Godly Destruction Whis",
+      "cardIds": [
+        "SD8-09"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Yamcha",
+      "face": "front",
+      "form": "Yamcha",
+      "cardIds": [
+        "BT5-010"
+      ],
+      "deckCount": 2,
+      "copies": 5,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Yamcha",
+      "face": "front",
+      "form": "Yamcha, Merciless Barrage",
+      "cardIds": [
+        "BT10-008"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Yamcha",
+      "face": "front",
+      "form": "Yamcha, the Cunning",
+      "cardIds": [
+        "BT8-051"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Zarbon",
+      "face": "front",
+      "form": "Zarbon the Gorgeous",
+      "cardIds": [
+        "BT10-085"
+      ],
+      "deckCount": 1,
+      "copies": 4,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    },
+    {
+      "character": "Zarbon",
+      "face": "front",
+      "form": "Zarbon, Frieza's Right-Hand Man",
+      "cardIds": [
+        "SD13-04"
+      ],
+      "deckCount": 1,
+      "copies": 2,
+      "multiCharacter": false,
+      "status": "missing",
+      "characterId": null,
+      "tranche": null,
+      "detail": []
+    }
+  ],
+  "note": "Counts describe the current owner's eligible decks only; catalog-wide counts are not current-deck coverage. Uncertain decks stay in the inventory until the coordinator rules on them."
+}
