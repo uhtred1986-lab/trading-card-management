@@ -4,6 +4,7 @@ import { SectionTabs } from "@/components/ui";
 const items = [
   { href: "/arena/rules", label: "Workbench", match: (p: string) => p === "/arena/rules" || p.startsWith("/arena/rules/build/") },
   { href: "/arena/rules/review", label: "Review queue", match: (p: string) => p.startsWith("/arena/rules/review") },
+  { href: "/arena/rules/progress", label: "Progress", match: (p: string) => p === "/arena/rules/progress" },
   { href: "/arena/rules/keywords", label: "Keywords", match: (p: string) => p === "/arena/rules/keywords" },
   { href: "/arena/rules/language", label: "Language", match: (p: string) => p === "/arena/rules/language" },
   { href: "/arena/rules/game", label: "Ruleset", match: (p: string) => p === "/arena/rules/game" },

@@ -1036,18 +1036,32 @@ export const cardRules = pgTable(
     timesSeen: integer("times_seen").notNull().default(0),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    /**
+     * A suspected misread, in a sentence (the rule-assumption audit or an MCP
+     * review writes it). Null: nothing suspected. The rules progress page
+     * (`/arena/rules/progress`) keeps a flagged row out of "confirmed".
+     */
+    reviewFlag: text("review_flag"),
     /** Who confirmed it from the claude.ai rules-review connector: the SL's address from the token. Null for every other path. */
     confirmedBy: text("confirmed_by"),
     /** The owner's confirmation words, verbatim, as the connector's `confirm_rule` received them. */
     confirmNote: text("confirm_note"),
-    /** A suspected misread, with the reason (connector `flag_rule`). Null when nobody flagged it; informational, never read by the engine. */
-    reviewFlag: text("review_flag"),
-    reviewFlaggedAt: timestamp("review_flagged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("card_rules_skill").on(t.cardId, t.side, t.skillIndex), index("card_rules_status").on(t.status)],
 );
+
+/** One row a day of the deck-weighted rules progress (`/arena/rules/progress`); the page writes it. */
+export const rulesProgressSnapshots = pgTable("rules_progress_snapshots", {
+  snapshotDate: date("snapshot_date").primaryKey(),
+  confirmedCards: integer("confirmed_cards").notNull(),
+  totalCards: integer("total_cards").notNull(),
+  readSkills: integer("read_skills").notNull(),
+  unreadSkills: integer("unread_skills").notNull(),
+  flagged: integer("flagged").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const aiRuns = pgTable(
   "ai_runs",
