@@ -12,6 +12,8 @@ import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../../src/db/schema.ts";
 import type { Db } from "../../src/db/index.ts";
 import { handleMcpPost } from "../../src/lib/rules-review/mcp.ts";
+import { currentPrinted } from "../../src/lib/rules-review/deck-review.ts";
+import { faqKey, parseCardFaq } from "../../src/lib/rules-review/faq.ts";
 import { mcpOriginAllowed } from "../../src/lib/oauth/origin.ts";
 import { authorizationServerMetadata, parseRegistration, pkceChallengeFor, resourceOf } from "../../src/lib/oauth/core.ts";
 import { resolveAuthorizeRequest } from "../../src/lib/oauth/authorize.ts";
@@ -117,7 +119,7 @@ const fakeFetch = (async (url: string, init: RequestInit) => {
 }) as unknown as typeof fetch;
 const READ = ["rules-read"];
 const BOTH = ["rules-read", "rules-write"];
-const deps = { db, env: { GITHUB_ISSUES_TOKEN: "ghp_secret_token" } as Record<string, string | undefined>, scopes: BOTH, fetch: fakeFetch };
+const deps = { db, env: { GITHUB_ISSUES_TOKEN: "ghp_secret_token" } as Record<string, string | undefined>, scopes: BOTH, email: "owner@example.com" as string | undefined, fetch: fakeFetch };
 
 const rpc = async (method: string, params?: unknown, d = deps) => {
   const res = await handleMcpPost(new Request("http://x/api/mcp", { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", ...(method.startsWith("notifications/") ? {} : { id: 1 }), method, params }) }), d);
@@ -133,8 +135,11 @@ const tool = async (name: string, args: unknown, d = deps) => {
 assert.equal((await rpc("initialize", { protocolVersion: "2025-03-26" })).result.serverInfo.name, "dbs-rules-review");
 assert.equal(await rpc("notifications/initialized"), null);
 const names = (d = deps) => rpc("tools/list", undefined, d).then((r) => r.result.tools.map((t: { name: string }) => t.name));
-assert.deepEqual(await names(), ["list_open_families", "list_open_rules", "get_card", "list_assumptions", "record_ruling", "comment_ruling"]);
-assert.deepEqual(await names({ ...deps, scopes: READ }), ["list_open_families", "list_open_rules", "get_card", "list_assumptions"], "rules-read lists no writing tool");
+const READ_TOOLS = ["list_open_families", "list_open_rules", "get_card", "list_assumptions", "deck_review_queue", "get_card_review"];
+assert.deepEqual(await names(), [...READ_TOOLS, "confirm_rule", "flag_rule", "record_ruling", "comment_ruling"]);
+assert.deepEqual(await names({ ...deps, scopes: READ }), READ_TOOLS, "rules-read lists no writing tool");
+assert.equal((await tool("confirm_rule", { cardId: "BT1-001", skillIndex: 1, side: "front", confirmation: "ok" }, { ...deps, scopes: READ })).isError, true, "rules-read cannot confirm");
+assert.equal((await tool("flag_rule", { cardId: "BT1-001", skillIndex: 1, side: "front", reason: "x" }, { ...deps, scopes: READ })).isError, true, "rules-read cannot flag");
 assert.equal((await tool("record_ruling", { cardIds: ["A-1"], title: "t", decision: "d" }, { ...deps, scopes: READ })).isError, true, "and cannot call one");
 
 const fam = (await tool("list_open_families", {})).out;
@@ -166,7 +171,138 @@ const unlabelled = (async (_u: string, init: RequestInit) =>
   init.method === "POST" ? new Response(JSON.stringify({ html_url: "u" }), { status: 201 }) : new Response(JSON.stringify({ labels: [{ name: "bug" }] }))) as unknown as typeof fetch;
 assert.equal((await tool("comment_ruling", { issueNumber: 5, text: "hi" }, { ...deps, fetch: unlabelled })).isError, true, "only rule-assumption issues");
 const rows = await db.select().from(schema.cardRules);
-assert.equal(rows.length, 3, "the MCP never writes card_rules");
+assert.equal(rows.length, 3, "the record/comment tools never write card_rules");
+
+// ── Deck review: queue, packets, confirm, flag ──
+const GOOD = "[Auto] When you play this card, draw 1 card.";
+await db.insert(schema.cards).values([
+  { id: "BT1-002", setCode: "BT1", game: "dbs", name: "Vegeta", cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: "vegeta", skill: GOOD },
+  { id: "BT1-003", setCode: "BT1", game: "dbs", name: "Krillin", cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: "krillin", skill: GOOD },
+  { id: "BT1-004", setCode: "BT1", game: "dbs", name: "Piccolo", cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: "piccolo", skill: GOOD },
+  { id: "BT1-005", setCode: "BT1", game: "dbs", name: "Gohan", cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: "gohan", skill: GOOD },
+  { id: "BT1-006", setCode: "BT1", game: "dbs", name: "Not in a deck", cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: "x", skill: GOOD },
+] as never);
+const printedNow = currentPrinted({ skill: GOOD, backSkill: null }, "front", 0);
+assert.ok(printedNow, "the fixture skill parses");
+const mk = (cardId: string, over: Record<string, unknown> = {}) => ({
+  cardId, side: "front", skillIndex: 0, printed: printedNow, kind: "Auto", ops: [], status: "draft", source: "compiler", unread: [], reads: "draw 1 card", ...over,
+});
+await db.insert(schema.cardRules).values([
+  mk("BT1-002"), // fully read draft: confirmable
+  mk("BT1-003", { unread: ["do something odd"] }), // unread clause
+  mk("BT1-004", { printed: "[Auto] An older wording." }), // stale printed text
+  mk("BT1-005", { status: "confirmed", confirmedAt: new Date("2026-10-01") }), // already done: leaves the queue
+  mk("BT1-006"),
+] as never);
+const slOwner = "owner@example.com";
+const [mine, other, testing, fusion, shared] = await db
+  .insert(schema.decks)
+  .values([
+    { name: "Mine", game: "dbs", owner: slOwner },
+    { name: "Someone else's", game: "dbs", owner: "player-x" },
+    { name: "Testing", game: "dbs", owner: slOwner, isTesting: true },
+    { name: "Fusion", game: "fusion", owner: slOwner },
+    { name: "Unowned", game: "dbs", owner: null },
+  ] as never)
+  .returning({ id: schema.decks.id });
+const inDeck = (deckId: number, cardId: string) => ({ deckId, cardId, zone: "main", quantity: 2 });
+await db.insert(schema.deckCards).values([
+  inDeck(mine.id, "BT1-002"), inDeck(shared.id, "BT1-002"), inDeck(other.id, "BT1-002"),
+  inDeck(mine.id, "BT1-003"), inDeck(mine.id, "BT1-004"), inDeck(mine.id, "BT1-005"), inDeck(mine.id, "BT1-001"),
+  inDeck(testing.id, "BT1-006"), inDeck(fusion.id, "BT1-006"), inDeck(other.id, "BT1-006"),
+] as never);
+
+assert.equal((await tool("deck_review_queue", {}, { ...deps, email: undefined })).isError, true, "no SL address, no queue");
+const q = (await tool("deck_review_queue", { limit: 10 })).out;
+assert.equal(q.decks, 2, "own + unowned dbs decks; not testing, fusion or someone else's");
+assert.deepEqual(q.cards.map((c: any) => c.cardId), ["BT1-002", "BT1-001", "BT1-003", "BT1-004"], "by deck appearances desc, then id; confirmed and out-of-deck cards absent");
+assert.equal(q.cards[0].decks.count, 2, "the other owner's deck does not count");
+assert.deepEqual(q.cards[0].decks.names, ["Mine", "Unowned"]);
+assert.equal(q.cards[0].skills[0].canConfirm, true);
+assert.equal(q.cards[2].skills[0].canConfirm, false);
+assert.match(q.cards[2].skills[0].cannotConfirmBecause, /unread/);
+assert.match(q.cards[3].skills[0].cannotConfirmBecause, /no longer matches/);
+assert.equal(q.skillsConfirmed, 1);
+const pg = (await tool("deck_review_queue", { limit: 2 })).out;
+assert.equal(pg.cards.length, 2);
+assert.equal(pg.nextOffset, 2);
+assert.equal((await tool("deck_review_queue", { limit: 2, offset: 2 })).out.nextOffset, null);
+
+// get_card_review: packet + the open rule-assumption issues that mention it
+const issuesFetch = (async (url: string) =>
+  url.includes("/issues?labels=")
+    ? new Response(JSON.stringify([
+        { number: 9, title: "Ruling: BT1-002 — draw", body: "", html_url: "u9" },
+        { number: 10, title: "Ruling: BT1-0021 — other", body: "", html_url: "u10" },
+        { number: 11, title: "pr", body: "BT1-002", html_url: "u11", pull_request: {} },
+      ]))
+    : new Response("{}")) as unknown as typeof fetch;
+const pk = (await tool("get_card_review", { cardId: "bt1-002" }, { ...deps, fetch: issuesFetch })).out;
+assert.equal(pk.name, "Vegeta");
+assert.deepEqual(pk.openRuleAssumptionIssues.map((i: any) => i.number), [9]);
+assert.equal(pk.skills[0].reading, "draw 1 card");
+assert.equal((await tool("get_card_review", { cardId: "NOPE-1" })).isError, true);
+const nogh = (await tool("get_card_review", { cardId: "BT1-002" }, { ...deps, env: {} })).out;
+assert.match(nogh.openRuleAssumptionIssues, /not configured/);
+
+// FAQ: parsed at pack time, keyed by padded id, shown in the packet
+const faqHtml = '<h5 class="points baseTxt box-in">SD2-01\u3000Son Goku</h5><dl class="faqCol"><dt><i>Q1.</i><span class="textCol">Q one?</span></dt><dd><i>A1.</i><span class="textCol">Yes.<br>Really &amp; truly.</span></dd></dl>';
+const parsedFaq = parseCardFaq(faqHtml);
+assert.deepEqual(parsedFaq["SD2-001"], [{ name: "Son Goku", qa: [{ q: "Q one?", a: "Yes.\nReally & truly." }] }]);
+assert.equal(faqKey("BT18-020_SPR"), "BT18-020");
+const faqPacket = (await tool("get_card_review", { cardId: "BT1-001" })).out;
+assert.ok(Array.isArray(faqPacket.faq), "FAQ is an array (BT1-001 has official Q/As)");
+assert.ok(faqPacket.faq.length > 0 && faqPacket.faq[0].qa.length > 0);
+
+// confirm_rule: allowed case, then every refusal
+const conf = (cardId: string, over: Record<string, unknown> = {}) =>
+  tool("confirm_rule", { cardId, skillIndex: 0, side: "front", confirmation: "Ja, passt so.", ...over });
+const before = (await db.select().from(schema.cardRules)).find((r) => r.cardId === "BT1-002")!;
+await db.update(schema.cardRules).set({ reviewFlag: "looked odd" }).where((await import("drizzle-orm")).eq(schema.cardRules.id, before.id));
+assert.equal((await conf("BT1-002", { confirmation: "  " })).isError, true, "the owner's words are required");
+assert.equal((await conf("BT1-002", { side: "left" })).isError, true);
+const ok = await conf("BT1-002");
+assert.equal(ok.isError, false, ok.text);
+assert.equal(ok.out.confirmed, true);
+assert.equal(ok.out.reading, "draw 1 card", "the stored reading is returned");
+const after = (await db.select().from(schema.cardRules)).find((r) => r.id === before.id)!;
+assert.equal(after.status, "confirmed");
+assert.equal(after.confirmedBy, "owner@example.com");
+assert.equal(after.confirmNote, "Ja, passt so.");
+assert.ok(after.confirmedAt);
+assert.equal(after.reviewFlag, null, "confirming clears the flag");
+assert.deepEqual([after.ops, after.reads, after.printed, after.version, after.source], [before.ops, before.reads, before.printed, before.version, before.source], "the program is untouched");
+const again = await conf("BT1-002");
+assert.equal(again.isError, true, "a confirmed rule is never re-confirmed or rewritten");
+assert.match(again.text, /already confirmed/);
+const unreadTry = await conf("BT1-003");
+assert.match(unreadTry.text, /unread clause/);
+assert.match((await conf("BT1-004")).text, /no longer matches/);
+assert.match((await conf("BT1-001", { skillIndex: 0 })).text, /unread clause/, "an open unread row");
+assert.match((await conf("BT1-001", { skillIndex: 1 })).text, /reads as nothing/, "an open row that reads as nothing");
+assert.match((await conf("BT1-001", { skillIndex: 9 })).text, /no stored/);
+await db.insert(schema.cardRules).values(mk("BT1-006", { skillIndex: 1, source: "claude" }) as never);
+assert.match((await conf("BT1-006", { skillIndex: 1 })).text, /source is claude/);
+assert.equal((await tool("confirm_rule", { cardId: "BT1-006", skillIndex: 0, side: "front", confirmation: "x" }, { ...deps, email: undefined })).isError, true);
+assert.equal((await db.select().from(schema.cardRules)).filter((r) => r.status === "confirmed").length, 2, "only the one allowed row (plus the seeded one) is confirmed");
+
+// flag_rule: only the flag moves; optional issue
+const fl = await tool("flag_rule", { cardId: "BT1-003", skillIndex: 0, side: "front", reason: "reads the wrong target" });
+assert.equal(fl.isError, false, fl.text);
+const flagged = (await db.select().from(schema.cardRules)).find((r) => r.cardId === "BT1-003")!;
+assert.match(flagged.reviewFlag ?? "", /reads the wrong target/);
+assert.equal(flagged.status, "draft");
+assert.equal((await tool("flag_rule", { cardId: "BT1-003", skillIndex: 0, side: "front", reason: "" })).isError, true);
+const callsBefore = calls.length;
+const withIssue = await tool("flag_rule", { cardId: "BT1-003", skillIndex: 0, side: "front", reason: "second thought", openIssue: true });
+assert.equal(withIssue.out.issue.number, 77);
+assert.equal(calls.length, callsBefore + 1);
+assert.match(JSON.parse(calls.at(-1)!.init.body as string).title, /^Misread: BT1-003#0/);
+const flagged2 = (await db.select().from(schema.cardRules)).find((r) => r.cardId === "BT1-003")!;
+assert.match(flagged2.reviewFlag ?? "", /reads the wrong target[\s\S]*second thought/, "flags append");
+const noToken = await tool("flag_rule", { cardId: "BT1-003", skillIndex: 0, side: "front", reason: "r", openIssue: true }, { ...deps, env: {} });
+assert.equal(noToken.isError, false, "the flag is saved even when the issue cannot be");
+assert.match(noToken.out.issueError, /not configured/);
 
 // ── The route's locks ──
 process.env.SL_EMAILS = "owner@example.com";

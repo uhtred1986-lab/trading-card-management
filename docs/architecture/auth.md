@@ -122,7 +122,9 @@ caller's IP (`x-real-ip`, else the first `x-forwarded-for`; the address is never
 Ported from gullet-cove-dm. claude.ai connects to `https://trading-card-management.vercel.app/api/mcp` and does the
 OAuth 2.1 dance itself; the user signs in with Google. What it can do is the rules review (`docs/arena-tooling.md`,
 "Rules review with claude.ai"): read open rules and assumptions, and open or comment on `rule-assumption` GitHub
-issues. **It never writes a rule** (`card_rules`).
+issues. Deck-first review (18 Oct 2026) adds `deck_review_queue`, `get_card_review`, `confirm_rule`, `flag_rule`
+(`src/lib/rules-review/deck-review.ts`). **It never writes a program**: its only `card_rules` writes are marking a fully
+read compiler draft `confirmed` (with `confirmed_by`, `confirm_note`; clears `review_flag`) and setting `review_flag`.
 
 - **Doors** (`OAUTH_PUBLIC_PATHS` in `src/lib/auth/core.ts`, public to the proxy because an MCP client has no
   cookie): `/api/mcp` (POST only), `/api/oauth/register` (RFC 7591, rate-limited with the join-attempt counter,
@@ -133,7 +135,7 @@ issues. **It never writes a rule** (`card_rules`).
   (`isSlOnlyPath`), and the action is `requireSl()`. A Basic Auth SL has no Google address to bind a token to and is
   told to sign in with Google. If the proxy sends you to `/login` first, you land on the home page after signing in
   (there is no return-to); start the connection again from claude.ai.
-- **Scopes**: `rules-read` (all read tools) and `rules-write` (`record_ruling`, `comment_ruling`; starts unticked).
+- **Scopes**: `rules-read` (all read tools) and `rules-write` (`confirm_rule`, `flag_rule`, `record_ruling`, `comment_ruling`; starts unticked).
   `tools/list` shows only what the token's scopes allow.
 - **Locks on every `/api/mcp` call** (`src/app/api/mcp/route.ts`): `Origin` (if present) must be this site,
   claude.ai/claude.com, loopback or `MCP_ALLOWED_ORIGINS`; a Bearer access token verified against our own tables
@@ -164,4 +166,5 @@ a code; an SL with no `sl_accounts` row acts under `BASIC_AUTH_USER`.
 
 ## Inviting a friend to a 1 v 1
 
-From a match's waiting screen an SL can invite a friend by name (src/app/arena/invite-actions.ts, src/lib/arena/friend-invite.ts). It creates an ordinary player whose owner is the typed name (refused when ownerNameTaken finds it used by a player, deck, lot or SL, because a player's data is found by the owner string alone), issues the usual one-time join code and returns /join?c=CODE&next=/arena/match/ID. safeNext (src/lib/auth/join-url.ts) lets /join and /api/join redirect only to a /arena/match/<digits> page. A friend who already has a signed-in phone is sent the match link instead of a new code. Players cannot invite: the action opens with equireSl() and checks the caller hosts the match.
+From a match's waiting screen an SL can invite a friend by name (src/app/arena/invite-actions.ts, src/lib/arena/friend-invite.ts). It creates an ordinary player whose owner is the typed name (refused when ownerNameTaken finds it used by a player, deck, lot or SL, because a player's data is found by the owner string alone), issues the usual one-time join code and returns /join?c=CODE&next=/arena/match/ID. safeNext (src/lib/auth/join-url.ts) lets /join and /api/join redirect only to a /arena/match/<digits> page. A friend who already has a signed-in phone is sent the match link instead of a new code. Players cannot invite: the action opens with 
+equireSl() and checks the caller hosts the match.

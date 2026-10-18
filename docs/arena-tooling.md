@@ -778,8 +778,10 @@ and records assumptions as GitHub issues labelled `rule-assumption`. Two parts:
 
 - **The connector** (live data, files issues): the MCP server at `/api/mcp` (`src/lib/rules-review/mcp.ts`, OAuth
   in `docs/architecture/auth.md`, "The MCP connector"). Tools: `list_open_families`, `list_open_rules`, `get_card`,
-  `list_assumptions` (`rules-read`), `record_ruling`, `comment_ruling` (`rules-write`). Read-only on the database;
-  its only write is a GitHub issue. A ruling is stored later with `npm run arena:rule`, as in §5.
+  `list_assumptions`, `deck_review_queue`, `get_card_review` (`rules-read`), `confirm_rule`, `flag_rule`,
+  `record_ruling`, `comment_ruling` (`rules-write`). `confirm_rule` refuses anything but a fully read compiler draft/open
+  row whose printed text still matches the catalog; it never changes a program. Official card FAQ Q/As come from
+  `faq.generated.json` (built by `rules:skill-pack`). A ruling is stored later with `npm run arena:rule`, as in §5.
 - **The skill** (conversation guide + a static snapshot for when the connector is not attached).
 
 Setup, once: (1) set `GITHUB_ISSUES_TOKEN` in Vercel (fine-grained token, Issues read/write on this repo only);

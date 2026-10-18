@@ -1042,6 +1042,10 @@ export const cardRules = pgTable(
      * (`/arena/rules/progress`) keeps a flagged row out of "confirmed".
      */
     reviewFlag: text("review_flag"),
+    /** Who confirmed it from the claude.ai rules-review connector: the SL's address from the token. Null for every other path. */
+    confirmedBy: text("confirmed_by"),
+    /** The owner's confirmation words, verbatim, as the connector's `confirm_rule` received them. */
+    confirmNote: text("confirm_note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
