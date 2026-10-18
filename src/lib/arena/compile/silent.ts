@@ -28,3 +28,19 @@ export function readsAsNothingSilently(skill: Skill, script: Script): boolean {
   if (/\b(?:include|included)\b.*\bin your deck\b|\bin your deck\b.*\bas you like\b/i.test(text)) return false;
   return true;
 }
+
+/**
+ * Known gaps found while closing #1005: each is a clause whose reading says
+ * nothing at all and is not yet fixed. Shrink this list; never grow it.
+ * Shared by `arena:readings --silent` and `arena:corpus` (#897).
+ */
+export const KNOWN_SILENT = new Set<string>([
+  // "When you activate this card, you can't activate {X} for the turn": a
+  // reminder `connective()` skips on purpose (the Extra's own once-per-name rule).
+  "BT6-051#0", "BT7-024#20", "BT7-048#20", "BT7-073#20", "BT7-098#20", "BT8-063#0", "BT8-087#0",
+  // "This card can't be played from any area if/unless …": `connective()` skips the
+  // bare "this card can't be played", and with it the condition — a real hole.
+  "BT9-078#10", "BT9-079#10", "P-281#10", "BT22-077#0",
+  // Wordings no reader takes and none reports: found by this check, not yet fixed.
+  "BT13-084#20", "BT14-074#10", "BT18-003#20", "BT20-017#0", "BT20-019#0", "BT25-133#20", "BT4-003#40",
+]);
