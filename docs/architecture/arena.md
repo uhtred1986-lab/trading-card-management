@@ -23,6 +23,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   (`games.ts`): `loadGame` reads cards and rules in one round, keeps the art, and works
   `legal` out on first read; `applyToGame` takes a game the caller already loaded and is
   still guarded by its `version`.
+- **Rules progress** (`/arena/rules/progress`, `src/lib/arena/rules-progress.ts`): deck-first, owner decision 18 Oct 2026 — how many cards in the eligible decks (dbs, not testing, owner-scoped; main + Z + leader, both faces) have every skill confirmed or owner-authored. A row with `card_rules.review_flag` set (written by the audit/MCP) is a suspected misread and never counts as confirmed. One snapshot a day lands in `rules_progress_snapshots` when the page is opened (no cron).
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
