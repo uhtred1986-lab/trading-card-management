@@ -77,7 +77,7 @@ import { interruptingPolicy } from "./contract";
 /** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
 export { lifeLoss };
 
-export const COMBAT_POLICY_VERSION = 1;
+export const COMBAT_POLICY_VERSION = 2;
 
 export const COMBAT_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -91,7 +91,7 @@ export const COMBAT_LIMITS = {
 /** The windows this module answers. */
 export const COMBAT_WINDOWS = ["blocker", "counter", "combo"] as const;
 
-const COST = { lethal: 1000, handCard: 1, energy: 0.25, restBlocker: 0.25, marker: 0.75, activation: 0.5, unknownAlt: 1 } as const;
+const COST = { future: 0.5, lethal: 1000, handCard: 1, energy: 0.25, restBlocker: 0.25, marker: 0.75, activation: 0.5, unknownAlt: 1 } as const;
 
 export interface CombatChoice {
   id: string;
@@ -200,6 +200,8 @@ interface Resource {
   energy: number;
   /** What spending it loses, energy aside. */
   loss: number;
+  /** Power it gives the guard "for the turn" (#899), so it also holds the battles still to come; absent for a one-battle figure. */
+  turn?: number;
 }
 
 interface Cover {
@@ -255,6 +257,33 @@ function pumpOf(line: string, own: CardFacts | null, inBattle: CardFacts | null,
   return 0;
 }
 
+const COLOURS = ["white", "red", "blue", "green", "yellow", "black", "purple"];
+
+/**
+ * "+N power" a defensive activation gives the guard **for the turn** (or "for the
+ * duration of the turn"), read off the line's own words (#899): it holds this
+ * battle and every later one this turn, unlike a combo or a "for the battle" figure.
+ * The line must name the guard's kind ("your white Battle Cards", "your Leader
+ * Cards or Battle Cards", "your Leader"); a colour word must be one the guard has.
+ */
+function turnPumpOf(line: string, guard: CardFacts | null, target: Battle["target"]): number {
+  const m = /\+(\d+) power/i.exec(line);
+  if (!m || !guard || !/\bfor the (?:duration of the )?turn\b/i.test(line)) return 0;
+  if (target === "leader") return /\byour leader\b/i.test(line) ? Number(m[1]) : 0;
+  if (target !== "battle") return 0;
+  const kind = /\byour (?:(\w+) )?battle cards?\b/i.exec(line) ?? /\bor battle cards?\b/i.exec(line);
+  if (!kind) return 0;
+  const colour = (kind[1] ?? "").toLowerCase();
+  if (COLOURS.includes(colour) && !guard.colors.some((c) => c.toLowerCase() === colour)) return 0;
+  return Number(m[1]);
+}
+
+/** Cards the line draws before anything else ("Draw 1 card, then …"): they pay back the card an Extra spends. */
+function drawnFirst(line: string): number {
+  const m = /^\s*(?:\[[^\]]*\]\s*)+draw (\d+) cards?\b/i.exec(line);
+  return m ? Number(m[1]) : 0;
+}
+
 /** The lines of a card's text of one kind ("[Counter: Attack] …", "[Activate: Battle] …"). */
 function linesOf(text: string | null, tag: RegExp): string[] {
   if (!text) return [];
@@ -278,9 +307,14 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
       const used = typeof d.action.card === "string" ? activationsThisTurn(o, o.seat, d.action.card) : null;
       if (used === null || used >= 1) continue;
       const lines = linesOf(card?.text ?? null, /\[Activate: (Main\/)?Battle\]/i);
-      const power = Math.max(0, ...lines.map((l) => pumpOf(l, card, mine, isLeader)));
+      const turn = bt.attacking ? 0 : Math.max(0, ...lines.map((l) => turnPumpOf(l, bt.guardCard, bt.target)));
+      const power = Math.max(turn, ...lines.map((l) => pumpOf(l, card, mine, isLeader)));
       if (!power) continue;
-      out.push({ id: d.id, power, energy: Math.max(0, (d.cost?.energy ?? 0) + Math.max(0, d.cost?.markers ?? 0)), loss: COST.activation });
+      const energy = Math.max(0, (d.cost?.energy ?? 0) + Math.max(0, d.cost?.markers ?? 0));
+      // From the hand it spends that card (an Extra), less what it draws first; on the field it costs the activation.
+      const fromHand = !!card && (o.you.hand ?? []).some((c) => c.id === card.id);
+      const loss = fromHand ? Math.max(0, COST.handCard - Math.max(0, ...lines.map(drawnFirst))) : COST.activation;
+      out.push({ id: d.id, power, energy, loss, ...(turn >= power ? { turn } : {}) });
     }
   }
   return out;
@@ -407,11 +441,44 @@ function comboChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecision
   const need = bt.attacking ? bt.guard - bt.attack : bt.attack - bt.guard + 1;
   if (need <= 0) return { d: pass, loss: 0, how: bt.attacking ? `passes: ${bt.attack} already beats ${bt.guard} (ties go to the attacker)` : `passes: ${bt.guard} already holds ${bt.attack}` };
   const worth = hitLoss(bt, bt.target, bt.guardCard);
-  const cover = cheapestCover(offeredResources(o, bt, open, work), need, Math.max(0, o.you.activeEnergy), work);
+  const resources = offeredResources(o, bt, open, work);
+  const energy = Math.max(0, o.you.activeEnergy);
+  let cover: Cover | null = cheapestCover(resources, need, energy, work);
+  // #899: a "for the turn" figure also holds the public attackers still to come, a one-battle combo does not.
+  // Only when one is offered are the covers weighed by what they leave exposed; otherwise the choice is unchanged.
+  const turnLong = resources.filter((r) => r.turn);
+  let score = cover?.cost ?? Infinity;
+  if (turnLong.length) {
+    const turnOf = (ids: readonly string[]) => ids.reduce((n, id) => n + (resources.find((r) => r.id === id)?.turn ?? 0), 0);
+    const weigh = (c: Cover) => c.cost + exposure(o, bt, bt.guard + turnOf(c.ids), worth);
+    if (cover) score = weigh(cover);
+    for (const r of turnLong) {
+      if (!work.step() || r.power < need || r.energy > energy) continue;
+      const alone: Cover = { ids: [r.id], power: r.power, cost: r.loss + COST.energy * r.energy };
+      const s = weigh(alone);
+      if (s < score - 1e-9) {
+        cover = alone;
+        score = s;
+      }
+    }
+  }
   if (!cover) return { d: pass, loss: worth, how: `passes: ${need} more power is out of reach` };
-  if (cover.cost >= worth) return { d: pass, loss: worth, how: `passes: the cover (${cover.cost.toFixed(2)}) costs more than the battle is worth (${worth.toFixed(2)})` };
-  const first = open.find((d) => d.id === cover.ids[0])!;
-  return { d: first, loss: cover.cost, how: `${bt.attacking ? "offence" : "defence"}: ${cover.ids.length} resource(s) cover ${need} (${cover.power}), cost ${cover.cost.toFixed(2)} < worth ${worth.toFixed(2)}` };
+  if (score >= worth) return { d: pass, loss: worth, how: `passes: the cover (${score.toFixed(2)}) costs more than the battle is worth (${worth.toFixed(2)})` };
+  const first = open.find((d) => d.id === cover!.ids[0])!;
+  return { d: first, loss: score, how: `${bt.attacking ? "offence" : "defence"}: ${cover.ids.length} resource(s) cover ${need} (${cover.power}), cost ${score.toFixed(2)} < worth ${worth.toFixed(2)}` };
+}
+
+/**
+ * What the guard still risks this turn at guard power `guard` (#899): each other
+ * public active attacker of the opponent that reaches it (ties go to the attacker, 8-4-6)
+ * might be sent at it, weighted `COST.future`. Read from the observation only.
+ */
+function exposure(o: PolicyObservation, bt: Battle, guard: number, hit: number): number {
+  if (bt.attacking) return 0;
+  const them = o.them;
+  let n = 0;
+  for (const c of [them.leader, ...them.battle]) if (c && c.mode === "active" && c.id !== bt.attackerCard?.id && (c.power ?? 0) >= guard) n++;
+  return n * COST.future * hit;
 }
 
 /** The battle choice for this input, or null outside the battle's windows (or with nothing to choose). Pure. */
