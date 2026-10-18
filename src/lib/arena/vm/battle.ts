@@ -78,7 +78,7 @@ import { costIsOnlyOrbs, costText } from "../compile";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
 import { vmHost } from "./host";
 import { actionCostOf, altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts } from "./costs";
-import type { VmAltCost } from "./effects";
+import { dueDelays, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
@@ -493,6 +493,13 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // before the stand.
       if (b.attacker !== b.guard) fireHook(ctx, game, state, b.attacker, "battleEnd");
       fireHook(ctx, game, state, b.guard, "battleEnd");
+      // #1042: 8-5-9's "at the end of a battle" also covers the effects a
+      // skill wrote down earlier ("KO that card after the battle", 1-7-2-1-1).
+      // They go behind the hooks' bodies on the queue, like any later-written
+      // effect, so one that stops to ask is drained by the runner. A battle
+      // that ended early (8-1-6-1, 8-1-7: a negated attack jumps here) pays
+      // them too.
+      state.programs.push(...dueDelays(state, "battleEnd"));
       if (end && game.id === "dbs") {
         end.stage = "battleEndCheckpoint";
       }
