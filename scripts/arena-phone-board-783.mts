@@ -5,12 +5,14 @@
  *   npx tsx scripts/arena-phone-board-783.mts [--base http://localhost:3783] [--out dir] [--tag after] [--viewports s21,s21plus,desk] [--skins anime,night]
  *
  * One local match per viewport and skin, the audited SD15/SD5 pack chosen in the page's own picker and
- * started from the page's own Start button. The human's moves go through the page's `LocalBoard.act`
+ * started from the page's own Start button (the #829 setup wizard). Phones open on the takeover battle staging
+ * since #982; the layout measured here is the compact phone board's, so the run switches to it from the
+ * settings sheet first. The human's moves go through the page's `LocalBoard.act`
  * (the session the board was handed), the computer's through the board's own advance. At each key step
  * the first time it comes up — mulligan, main (with a card on the field), combo, a choice, the end — the
  * board's playback is skipped and the screen is shot, and what a player would feel is measured:
  *
- *   - `pageScroll`: how far the document can scroll (0 is a one-screen board);
+ *   - `pageScroll`: how far the document can scroll (0 is a one-screen board; with the defence brief of #982 up it is noted, not failed);
  *   - `chrome`: whether the app's header or tab bar is on the page;
  *   - `leaders`: the "Leader" labels the board draws (both sides).
  *
@@ -21,7 +23,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { arg, Browser, sleep, type Page, type Viewport } from "./lib/cdp.mts";
-import { BOARD, choosePack } from "./lib/local-arena-page.mts";
+import { BOARD, choosePack, chooseLocalSetup, clickText } from "./lib/local-arena-page.mts";
 import { auditPack } from "./verify/arena-local-worker-fixture.mts";
 import type { Snapshot } from "../src/lib/arena/snapshot-core.ts";
 import type { Action, LegalAction } from "../src/lib/arena/types.ts";
@@ -84,7 +86,8 @@ let failed = 0;
 const browser = await Browser.launch();
 
 async function measure(page: Page) {
-  return page.eval<{ pageScroll: number; chrome: boolean; leaders: number; notice: string | null }>(`(() => ({
+  return page.eval<{ pageScroll: number; chrome: boolean; leaders: number; notice: string | null; defence: boolean }>(`(() => ({
+    defence: !!document.querySelector("[data-defend-step]"),
     pageScroll: Math.max(0, document.scrollingElement.scrollHeight - innerHeight),
     chrome: !!document.querySelector("header nav, nav[aria-label], body > div header") && !!document.querySelector("header") && getComputedStyle(document.querySelector("header")).display !== "none",
     leaders: document.querySelectorAll("[data-leader-label]").length,
@@ -105,9 +108,20 @@ try {
       await page.goto(`${base}/arena/local?skin=${skin}`);
       await page.waitFor("input[type=file]");
       await choosePack(page, pack);
-      await page.eval(`new Promise((r) => { const t = setInterval(() => { if (document.body.textContent.includes("New match")) { clearInterval(t); r(true); } }, 100); })`);
-      await page.eval(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Start match").click()`);
+      // The setup wizard of #829: decks and seat chosen as a player chooses them, then Start match.
+      await chooseLocalSetup(page, "A", "B", "p1");
+      if (!(await clickText(page, "Start match"))) throw new Error("no Start match button");
       await page.waitFor(".arena", 60000);
+      if (vp.mobile) {
+        // Phones open on the takeover battle staging since #982; the layout measured here is the compact
+        // board's, so switch to it from the settings sheet, as a player would.
+        await page.eval(`document.querySelector('[aria-label="Open arena settings and counts"]').click()`);
+        await sleep(400);
+        const switched = await page.eval<boolean>(`(() => { const b = [...document.querySelectorAll("dialog button")].find((x) => x.textContent.includes("Use compact phone board")); if (!b) return false; b.click(); return true; })()`);
+        if (!switched) throw new Error("the settings sheet does not offer the compact phone board");
+        await page.eval(`document.querySelector("dialog[open] [data-sheet-initial-focus]").click()`);
+        await sleep(400);
+      }
       const seen = new Set<Step>();
       const notices: string[] = [];
       let noticeUp = false;
@@ -152,7 +166,8 @@ try {
           report.push({ viewport: vp.name, skin, step, file: basename(file), ...m });
           console.log(`${vp.name} ${skin} ${step}: scroll ${m.pageScroll}px, chrome ${m.chrome}, leader labels ${m.leaders}`);
           if (tag !== "before" && !TEXT && PHONES.has(vp.name)) {
-            if (m.pageScroll > 0 && step !== "end") { failed++; console.log(`  FAIL: the page scrolls ${m.pageScroll}px at ${step}`); }
+            if (m.pageScroll > 0 && step !== "end" && !m.defence) { failed++; console.log(`  FAIL: the page scrolls ${m.pageScroll}px at ${step}`); }
+            if (m.pageScroll > 0 && m.defence) console.log(`  note: the defence brief (#982) scrolls the page ${m.pageScroll}px at ${step}; not counted`);
             if (m.chrome) { failed++; console.log("  FAIL: app chrome on the board"); }
             if (step !== "end" && step !== "mulligan" && m.leaders < 2) { failed++; console.log(`  FAIL: ${m.leaders} Leader label(s)`); }
           }

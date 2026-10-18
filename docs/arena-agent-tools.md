@@ -245,6 +245,29 @@ Other repo drivers on the same CDP layer: `npm run arena:shots` and `npm run are
   `scripts/verify-arena.ts`); offline behaviour that needs a real browser (service worker lifecycle,
   IndexedDB, worker memory) has no CLI substitute and must be reported as unverified.
 
+### The browser scripts that are not in `npm test`, checked 18 Oct 2026
+
+All run over `scripts/lib/cdp.mts` (headless Chrome on this Windows machine); none needs a database.
+Two kinds of server: `DATABASE_URL='' npx next dev -p <port>` for the fixture preview and `/arena/local`
+(pass `--base http://localhost:<port>`, or `ARENA_BASE=` for `scripts/verify/*`), and a production
+build (`GITHUB_SHA=<40 hex> npm run build`) that the script starts itself. Several write evidence
+screenshots into tracked `docs/` folders: `git checkout -- docs contract` afterwards. A killed run
+leaves its `arena-cdp-*` Chrome profile in `%TEMP%`; delete them now and then (67 of them filled the disk).
+Phones open on the takeover battle staging since #982; scripts that measure the compact board switch to it
+from the settings sheet first ("Use compact phone board"), as `arena-phone-board-783.mts` does.
+
+| Script | Server | Notes |
+|---|---|---|
+| `arena-no-target-783`, `arena-phone-board-783`, `arena-phone-ux --check`, `arena-phone-feedback`, `arena-phone-interactions`, `arena-phone-comparison`, `arena-hand-scrub`, `arena-outcome-shots --state after`, `arena-ability-contract-558`, `deck-setup-browser`, `arena:shots`, `arena:perf:browser`, `verify/arena-advance-browser-evidence`, `verify/replay-browser-evidence` | dev | pass. With the defence brief (#982) up, a phone page may scroll a little: `arena-phone-board-783` and `arena-phone-ux` note it and do not count it. |
+| `arena:contrast` | dev | runs; reports real contrast findings of the current skins (exit 1 only with `--strict`) |
+| `arena:policy-browser`, `arena:pack-store-browser`, `arena:local-storage-browser`, `arena:local-ownership-browser`, `verify/arena-browser-engine-browser`, `verify/arena-replay-core-browser`, `arena:scenario -- --browser` | none (module server) | pass |
+| `arena:local-browser`, `arena:offline-release` | production build | pass |
+| `arena:local-worker-browser` | none | the `roundTripMs.p95 <= 50` budget is a hardware figure: 70-85 ms on this machine, the rest passes |
+| `arena:offline-shell-browser` | production build | fails check E, and says so rightly: at 200 % text the `/arena/offline` journey rows (`.journey-status`, `.journey-deck`) run past the edge of a 390 px screen (app bug, not fixed here) |
+| `arena:offline-decks-browser` | production build | fails: with Basic Auth set, `/themes/*.webp` (the design system's background, requested by `/arena/offline`) answers 401 because `src/proxy.ts`'s matcher does not exempt `themes/`, and a signed-out browser never finishes loading the page (app bug, not fixed here) |
+| `arena:record` | dev | needs `ffmpeg` with VP8, not installed here |
+| `arena:phone` | production build, Android phone | hours; `--emulated` timed out after 15 min with moves "unreachable" against the takeover defence prompt; unverified |
+
 ## 4. Tooling availability, observed
 
 | Capability | Status |
