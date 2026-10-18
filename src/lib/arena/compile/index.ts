@@ -262,7 +262,8 @@ function unionFusionAreasPermit(text: string): Op | null {
   }
   const m = /^you (?:can|may) choose the specified battle cards in your battle area or your drop when choosing cards to use with the \[union\] skill of an? (.+?) cards? from your hand\.?\s*if you do,? send the chosen cards to their owner'?s warp\.?$/i.exec(text.trim());
   if (!m) return null;
-  const filter = filterFor(m[1].replace(/\s+or\s+/gi, " "), null);
+  // "red <Veku> or <Gogeta>" keeps its "or": names side by side are all of them (#907 round 5).
+  const filter = filterFor(m[1], null);
   if (!filter) return null;
   return { op: "permit", what: "unionFusionAreas", target: { sel: { special: "self" } }, until: "game", filter };
 }

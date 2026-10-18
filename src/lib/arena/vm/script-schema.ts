@@ -1217,13 +1217,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const f = c.filter;
       // "-only" (BT29-108) and "<Baby> or ≪Brainwashed≫" are said as printed:
       // without them the reading claims a wider Leader than the card does.
-      const chars = f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`);
+      const chars = anyOfNames(f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`));
       // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
-      const traits = f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`);
+      const traits = anyOfNames(f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
       // "a Green <Trunks: Future> <Mai: Future> card" (BT23-073, #768): every
       // name of an all-of list is required, so each is said, characters as `<…>`
       // and card names as `{…}`, the way the other name lists are.
-      const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
+      const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.traitsAll ?? []).map((x) => `≪${x}≫`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
       const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
       const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
@@ -2310,6 +2310,15 @@ const once = (op: { oncePerTurn?: true }): string => (op.oncePerTurn ? "once per
 /** "BATTLE" → "Battle Card", the card type as the card prints it. */
 const typeNoun = (type: string, plural: boolean): string => `${type.charAt(0)}${type.slice(1).toLowerCase()} ${plural ? "Cards" : "Card"}`;
 
+/**
+ * Names of one kind written side by side are *all* of them (#907 round 5), so an any-of list has to
+ * carry its "or" — "<A> or <B>" — to be told from "<A> <B>", both in the reading and on the way
+ * back through `parseFilter`.
+ */
+function anyOfNames(tokens: string[]): string[] {
+  return tokens.length > 1 ? [tokens.join(" or ")] : tokens;
+}
+
 function allOfPhrases(characters: string[], names: string[]): string[] {
   const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
   const out: string[] = [];
@@ -2341,13 +2350,15 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // "battle card" is the same sentence as no filter at all.
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
   // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
-  bits.push(...f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
+  bits.push(...anyOfNames(f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`)));
+  // Traits written side by side are all of them (#907 round 5), the way the cards print them.
+  bits.push(...(f.traitsAll ?? []).map((x) => `≪${x}≫`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
   // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
   // and the word `parseFilter` reads the flag back from.
   if (f.characterOrTrait && f.traits.length && f.characters.length) bits.push("or");
   // "<Son Goku>-only" (BT29-108), on the last character named, as printed.
-  bits.push(...f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`));
+  bits.push(...anyOfNames(f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`)));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
   bits.push(...f.names.map((x) => `{${x}}`));
   // In a sentence a token and a Z-card are the noun itself — "a {Majin}
