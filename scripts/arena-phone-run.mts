@@ -159,17 +159,24 @@ const F = {
   startsWith: (prefix: string) => `() => [...document.querySelectorAll("button")].filter((b) => !b.disabled && b.innerText.trim().startsWith(${JSON.stringify(prefix)}))`,
   ariaStarts: (prefix: string) => `() => [...document.querySelectorAll("button[aria-label]")].filter((b) => !b.disabled && b.getAttribute("aria-label").startsWith(${JSON.stringify(prefix)}))`,
   dialogRowNamed: (name: string) => `() => { const d = ${DIALOG}; return d ? [...d.querySelectorAll("button")].filter((b) => !b.disabled && b.innerText.includes(${JSON.stringify(name)})) : []; }`,
-  sheetRow: (label: string, attack: boolean) => `() => {
+  sheetRow: (label: string, attack: boolean, skill: number | null) => `() => {
     const d = ${DIALOG};
     if (!d) return [];
     const want = ${JSON.stringify(label.toLowerCase())}, short = ${JSON.stringify(shortLabel(label).toLowerCase())};
     const words = want.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
-    const rows = [...d.querySelectorAll("button")].filter((b) => !b.disabled && !b.closest("[role=group]") && !${SKIP_IN_SHEET}.test((b.getAttribute("aria-label") || b.innerText || "").trim()));
+    // A "Preview a payment" option sits in the same ability row as the Activate button and only
+    // highlights the energy it would rest (#1008): it is not a move, so it is never a candidate.
+    const rows = [...d.querySelectorAll("button")].filter((b) => !b.disabled && !b.closest("[role=group]") && !b.hasAttribute("data-payment-option") && !${SKIP_IN_SHEET}.test((b.getAttribute("aria-label") || b.innerText || "").trim()));
     // An ability's button may say only "Activate": its row's ability text (data-ability-index) names it.
+    // An activation names its skill: the button in that skill's own row is the move (the leader's [Awaken]
+    // shares its sheet with an "Attack with …" row whose words overlap the label, #1008).
+    const ofSkill = ${skill} == null ? [] : rows.filter((b) => b.closest("[data-ability-index]")?.getAttribute("data-ability-index") === String(${skill}));
+    if (ofSkill.length === 1) return ofSkill;
     const textOf = (b) => (b.innerText + " " + (b.closest("[data-ability-index]")?.innerText ?? "")).replace(/\\s+/g, " ").toLowerCase();
     const score = (b) => { const t = textOf(b); if (b.innerText.toLowerCase().includes(want)) return 100; if (${attack} && b.innerText.toLowerCase().startsWith("attack with")) return 90; if (t.includes(short)) return 80; return words.filter((w) => t.includes(w)).length; };
-    const ranked = rows.map((b) => [b, score(b)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([b]) => b);
-    return ranked.length ? ranked : rows.length === 1 ? rows : [];
+    const pool = ofSkill.length ? ofSkill : rows.filter((b) => ${attack} || !/^attack\\b/i.test(b.innerText.trim()));
+    const ranked = pool.map((b) => [b, score(b)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([b]) => b);
+    return ranked.length ? ranked : pool.length === 1 ? pool : [];
   }`,
 };
 
@@ -537,6 +544,10 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
   const ui = () => page.eval<{ targeting: boolean; dialog: boolean }>(UI);
   let problem: string | null = null;
   try {
+    // A story still being told (its "Skip" chip is up) holds the decision back: the prompt bar's buttons
+    // come back when it ends, so a player waits, and so does the run (#1008: a mulligan was made through
+    // the board while the opening story played). Up to 20 s; a story that outlasts that is a stall.
+    for (let i = 0; i < 100 && (await page.eval<{ skip: boolean }>(UI)).skip; i++) await sleep(200);
     const card = cardIdOf(intent);
     if (intent.type === "payCost") {
       await tap(`payment option ${intent.option}`, F.attr(`[data-payment-option="${intent.option}"]`));
@@ -544,14 +555,17 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
       // The prompt bar's buttons carry the legal action's label (`data-action-label`): the words on a
       // pass button are the player's ("Take the hit", "No block"), not the engine's ("No counter").
       if (!(await tap(`button "${shortLabel(l.label)}"`, F.attr(`button[data-action-label=${JSON.stringify(l.label)}]`)))
-        && !(await tap(`button "${shortLabel(l.label)}" by its words`, F.buttonText(l.label)))) {
+        && !(await tap(`button "${shortLabel(l.label)}" by its words`, F.buttonText(l.label)))
+        // A search sheet words its "choose none" as "Pass · Choose nothing" / "KO nothing" (#1008).
+        && !(l.label.startsWith("Choose none") && await tap("the search sheet's Pass", F.attr("[data-search-none]")))) {
         if (await tap("Choose from …", F.startsWith("Choose from"))) { await sleep(500); if (!(await tap(`"${l.label}"`, F.buttonText(l.label)))) await tap("Choose none", F.startsWith("Choose none")); }
       }
     } else {
       const name = cardName(s, card);
       const target = intent.type === "attack" ? intent.target : null;
       if ((await ui()).dialog && (await tap(`row "${name}"`, F.dialogRowNamed(name)))) { /* a search sheet already open */ }
-      else if (["counter", "block"].includes(intent.type) && await tap(`defence option "${name}"`, F.attr(`[data-defend-card=${JSON.stringify(card)}] [data-defend-action]`))) { /* a counter or blocker offered by the defence prompt */ }
+      // A card with two ways to answer is two rows, each under its own label: the one that says this move's words first.
+      else if (["counter", "block"].includes(intent.type) && (await tap(`defence option "${l.label}"`, F.attr(`[data-defend-card=${JSON.stringify(card)}] [data-defend-action]`), l.label) || await tap(`defence option "${name}"`, F.attr(`[data-defend-card=${JSON.stringify(card)}] [data-defend-action]`)))) { /* a counter or blocker offered by the defence prompt */ }
       else if (await tap(`card "${name}"`, F.card(card))) { /* on the board or in the hand */ }
       // A combo or counter card of the fight on screen is a chip ("+10,000 Name"), not a card, in the takeover.
       else if (await tap(`combo chip "${name}"`, F.attr("button.arena-clash-combo"), name)) { /* opens the card's sheet */ }
@@ -567,7 +581,12 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
         if (await page.eval<boolean>(`!!document.querySelector("[data-hand-peek]")`) && await tap('"⋯" in the hand preview', F.attr('[data-hand-peek] button[aria-label="Card details and actions"]'))) await sleep(700);
         let u = await ui();
         if (u.dialog) {
-          const row = () => tap(`sheet row "${l.label}"`, F.sheetRow(l.label, intent.type === "attack"));
+          const finder = F.sheetRow(l.label, intent.type === "attack", intent.type === "activate" ? intent.skill : null);
+          const row = async () => {
+            const names = await page.eval<string[]>(`(${finder})().map((b) => b.innerText.replace(/\\s+/g, " ").trim().slice(0, 30))`).catch(() => []);
+            taps.push(`rows [${names.join(" | ")}]`);
+            return tap(`sheet row "${l.label}"`, finder);
+          };
           await sleep(600); // the sheet slides in
           // The sheet opens on the card's art; its actions are behind the "Actions (n)" toggle.
           if (!(await row()) && await tap('"Actions" in the card sheet', F.attr('button[aria-label="Show card details and actions"][aria-pressed="true"]'))) { await sleep(400); await row(); }
@@ -582,6 +601,9 @@ async function perform(page: Page, caseId: string, s: Snapshot): Promise<Attempt
   await sentWithin(1500);
   const sent = await acts();
   if (!sent.length) {
+    // What the player could tap when the harness gave up, so an unreachable move says what was in the way.
+    const seen = await page.eval<string>(`(() => { const d = ${DIALOG}; const root = d ?? document.querySelector(".arena-bar") ?? document.body; return (d ? "sheet buttons: " : "bar buttons: ") + [...root.querySelectorAll("button")].filter((b) => b.getBoundingClientRect().width > 0).map((b) => (b.getAttribute("aria-label") || b.innerText).replace(/\\s+/g, " ").trim().slice(0, 40) + (b.disabled ? " (disabled)" : "")).join(" | "); })()`).catch(() => "");
+    log(`  ${caseId} r${s.game.revision}: ${seen}`);
     const shot = await shoot(page, caseId, "unreachable", s, { note: `${l.label} — taps: ${taps.join(" → ") || "none"}`, force: true });
     await tidy(page);
     const err = await page.eval<string | null>(`${BOARD_NOW}.act(${key}, ${s.game.revision}, crypto.randomUUID()).then((r) => r.error)`).catch((e) => String(e));
@@ -760,6 +782,8 @@ async function playOn(page: Page, caseId: string, play: Play, o: { stop?: (s: Sn
     }
     const a = await perform(page, caseId, s);
     play.attempts.push(a);
+    // The moves #1008 was about, logged whatever happens: a sheet's Activate, a leader's Awaken, a mulligan.
+    if (a.result === "tapped" && /^(Activate|Awaken)|mulligan/i.test(a.label)) log(`  ${caseId} r${a.revision}: tapped "${a.label.slice(0, 70)}" (${a.taps.join(" → ")})`);
     if (a.result !== "tapped") log(`  ${caseId} r${a.revision}: ${a.result} "${a.label}" (${a.taps.join(" → ")})${a.problem ? ` — ${a.problem}` : ""}`);
     const t = Date.now();
     while (Date.now() - t < 30000) {
@@ -817,7 +841,7 @@ async function openShell(caseId: string): Promise<{ page: Page; shellMs: number;
   T.browser!.on((m) => { if (m === "Network.loadingFailed") failedRequests++; });
   await page.eval(INSTRUMENT).catch(() => {});
   await watchWorkers(page);
-  await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, 90000, "the offline shell's heading");
+  await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, 90000, "the offline shell's heading");
   const shellMs = Date.now() - t0;
   const landedOn = await page.eval<string>("location.pathname");
   await until(page, `document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, 60000, '"Ready for offline play"');
@@ -1051,7 +1075,7 @@ try {
   // 5. the phone's own pace back (on a page of the app, offline is fine)
   if (run.pacePrevious !== undefined) {
     const { page } = await T.coldLaunch(`${BASE}/arena`);
-    await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, 60000).catch(() => {});
+    await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, 60000).catch(() => {});
     await page.eval(`(() => { try { const p = ${JSON.stringify(run.pacePrevious)}; if (p === null) localStorage.removeItem("arena.pace"); else localStorage.setItem("arena.pace", p); } catch {} })()`).catch(() => {});
     await T.endCase();
   }

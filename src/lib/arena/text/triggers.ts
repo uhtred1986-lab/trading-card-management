@@ -235,6 +235,9 @@ function switchedTo(t: string): string {
   return m ? m[1] : "";
 }
 
+/** #1015: the words that say a play was a skill's ("uses a skill to play", "using a skill", "using a non-keyword skill", "by a skill"). */
+const OPPONENT_SKILL_PLAY_WORDS = /\buses? an? (?:non-keyword )?skill to play\b|\busing an? (?:non-keyword )?skill\b|\bby an? (?:non-keyword )?skill\b/;
+
 /**
  * Read the "When …" clause of an [Auto] skill. Unrecognised wording never
  * pends — a skill the engine cannot place in time is better left out than
@@ -500,7 +503,25 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // The card the opponent played is the subject, whichever way round the
     // sentence names it. "Plays this card" is never how a card says it.
     case "opponentPlayed":
-      return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t);
+      // #1015: a play the text says a **skill** made ("uses a skill to play",
+      // "plays … using a skill", "using a non-keyword skill") is not every play.
+      // `opponentPlayedBySkill` reads the first two; the third (which skills
+      // are keywords) and "… using a skill or activates a [Counter] skill" have
+      // no moment to ask, and before this fired on every play the opponent made.
+      return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t) && !OPPONENT_SKILL_PLAY_WORDS.test(head.toLowerCase());
+    // #1015: "when your opponent uses a skill to play a Battle Card with an
+    // energy cost greater than their current energy" (BT15-005, BT15-085,
+    // BT15-101) and "when your opponent plays a Battle Card … using a skill"
+    // (BT12-132): the opponent's own skill played the subject. A description
+    // with an "or" the filter cannot read whole stays a gap, as for `youPlayed`.
+    case "opponentPlayedBySkill": {
+      const m = /^when your opponent (?:uses an? skill to play|plays) ((?:an?|1|up to \d+|\d+) [^,:]+?)(?: using an? skill)?\s*(?:,|:|$)/.exec(head.toLowerCase());
+      if (!m || !OPPONENT_SKILL_PLAY_WORDS.test(head.toLowerCase())) return false;
+      const said = expandSharedCardDescription(effect.unmask(m[1]));
+      // "using a non-keyword skill", "from their hand": a means or a place the moment cannot tell apart.
+      if (/\busing\b|\bfrom\b|\bby\b/.test(said)) return false;
+      return !/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) || readsOr(said);
+    }
     // Your own side of `opponentPlayed`: a card of yours watching another of
     // your cards arrive. Not "this card" — that is `played`, the card's own
     // arrival — and not the opponent's.

@@ -316,7 +316,15 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // and reading only the half before "unless" forbids the attack outright,
   // which is a stricter rule than the card prints. 20 clauses of the catalog
   // read that way before `unless` existed (BT11-053, BT13-082, BT13-140 …).
-  const unreadable = one("[Auto] When this card is played, your opponent can't attack for the turn unless they place 1 of their energy in its owner's Drop Area.");
+  // #1015: a price it can read ("place 1 of their energy in its owner's Drop")
+  // is a tax paid for every attack (BT11-053; the official card FAQ says of the
+  // sister BT11-035 that the opponent must pay "in order to attack"), not a ban.
+  const priced = one("[Auto] When this card is played, your opponent can't attack for the turn unless they place 1 of their energy in its owner's Drop Area.");
+  assert.deepEqual(priced.unsupported, []);
+  assert.equal(priced.ops.length, 1);
+  assert.ok((priced.ops[0] as { unlessPay?: unknown[] }).unlessPay?.length, "a price, not a bare ban");
+  // …and one it cannot read is the whole prohibition refused, not a prohibition without it.
+  const unreadable = one("[Auto] When this card is played, your opponent can't attack for the turn unless they shuffle their deck twice.");
   assert.deepEqual(unreadable.ops, [], "an unreadable escape refuses the prohibition rather than over-forbidding");
   assert.equal(unreadable.unsupported.length, 1, "…and says so as an unread clause");
 

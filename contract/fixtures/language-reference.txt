@@ -4175,6 +4175,10 @@
       "words": "when your opponent plays a card"
     },
     {
+      "name": "opponentPlayedBySkill",
+      "words": "when your opponent uses a skill to play a card"
+    },
+    {
       "name": "placed",
       "words": "when this card is placed in a Battle Area"
     },

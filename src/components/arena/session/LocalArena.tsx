@@ -317,7 +317,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
     <Shell>
       <div className="space-y-4">
         <p className="text-sm text-space-300">
-          The match runs in this browser and is saved on this device after every move. Nothing is sent to a server, and no account or connection is needed once the pack is here.
+          You play the built-in computer player, not Claude, so no AI tokens are used. The match runs in this browser and is saved on this device after every move. Nothing is sent to a server, and no account or connection is needed once the pack is here.
         </p>
 
         {installed && <UpdateNotice />}
@@ -403,7 +403,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 pb-6">
       <Link href="/arena" className="tap inline-flex items-center text-sm text-space-300 hover:text-ki-300">← Arena</Link>
-      <h1 className="text-xl font-semibold text-space-50">Play on this device</h1>
+      <h1 className="text-xl font-semibold text-space-50">Play the computer</h1>
       {children}
     </div>
   );

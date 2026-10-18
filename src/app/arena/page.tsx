@@ -12,6 +12,7 @@ import { ArenaHeader } from "@/components/arena/ArenaHeader";
 import { PlayPicker } from "@/components/arena/PlayPicker";
 import { ContinueStrip, GamesList } from "@/components/arena/GamesList";
 import { Invitations } from "@/components/arena/Invitations";
+import { ComputerPlayCard } from "@/components/arena/ComputerPlayCard";
 import { startGameForm } from "./actions";
 import { PageHeader, SectionTabs } from "@/components/ui";
 
@@ -99,23 +100,16 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         { href: "/arena", label: "Play", active: !onGames },
         { href: "/arena?tab=games#games", label: "Games", active: onGames },
         { href: "/arena/tutorial", label: "Learn" },
-        { href: "/arena/offline", label: "On this device" },
+        { href: "/arena/offline", label: "Vs computer" },
       ]} />
-      {onGames ? <PageHeader title="Games" eyebrow="Arena" description="Continue a match or revisit your recent games." /> : <PageHeader title="Set up a match" eyebrow="Arena · Play" description="Choose a ready Masters deck and how you want to play." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Learn to play</Link>} />}
+      {onGames ? <PageHeader title="Games" eyebrow="Arena" description="Continue a match or revisit your recent games." /> : <PageHeader title="Set up a match" eyebrow="Arena · Play" description="Play the built-in computer for free, or choose a ready Masters deck to play Claude or a friend." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Learn to play</Link>} />}
       {/* Phone: `?tab=games` is a screen of its own, so the play screen steps aside below `sm`; the desktop keeps both. Otherwise the Games list is desktop-only. */}
       <div className={`space-y-5 ${onGames ? "hidden sm:block" : ""}`}>
         {/* The Continue strip is the first thing under the header (ah-05), then any open invitation. */}
         {playing[0] && <ContinueStrip game={playing[0]} me={me} />}
         {!onGames && invites}
-        {/* A match that runs in the browser, saved on the device (#656): no Claude, no server, no connection once a pack is here. */}
-        {!onGames && (
-          <p className="text-xs text-space-400">
-            <Link href="/arena/offline" className="tap inline-flex items-center text-ki-300 hover:underline">
-              Play on this device
-            </Link>{" "}
-            — against the built-in computer player, saved here. Prepare the starter decks once and no connection is needed.
-          </p>
-        )}
+        {/* The built-in computer (#896): a first-class choice, no Claude and no tokens (#656); not gated on server decks. */}
+        {!onGames && <ComputerPlayCard />}
       {playable.length < 1 && allPlayable.length > 0 ? (
         <section className="rounded-xl border border-dashed border-space-700 p-6 text-center">
           <p className="text-sm text-space-200">Your playable decks are marked for testing and are hidden from the default picker.</p>
