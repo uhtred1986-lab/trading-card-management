@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, keywordName, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, keywordName, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf, specifiedCostUnknown } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
@@ -229,6 +229,31 @@ export interface CardFilter {
   specifiedCostMin: number | null;
   specifiedCostMax: number | null;
   /**
+   * "A black Unison Card **with no specified cost** and 15000 power"
+   * (BT12-139, P-287 and a dozen more lines): the card prints no orbs at all.
+   * Answered the way the engine already prices a card (`specifiedCostOf`,
+   * the rules engine's `specifiedCost` attribute): a card with no stored orbs
+   * and no number or X to fill them from demands none — in the feed 104 of the
+   * 210 Unisons have no energy cost at all and 106 print "X" (17 Oct 2026).
+   * An "X" nobody entered is only unknown, not "none", and never matches
+   * (#980). The reading is exact for Unisons the owner has entered; a Unison
+   * the feed prints blank that does carry orbs (SD15-02 is one, entered by
+   * ruling) would count as "none" until its orbs are stored. Not the same as a
+   * bound of 0, which "unknown" also fails and "none" does not claim.
+   */
+  specifiedCostNone: boolean;
+  /**
+   * "Play up to 1 blue skill-less Battle Card from your Drop Area with an
+   * **energy cost less than or equal to your current energy**" (BT12-030,
+   * TB3-046, EX03-12 and a dozen more): a bound that is not a number but how
+   * many energy cards the player running the skill has *when it resolves*, so
+   * — like `powerRel` — it is applied where the skill runs (`resolveSelector`),
+   * not by the definition-level `matches`. The energy is the master's own even
+   * when the cards chosen are the opponent's (EX03-12). "Their current energy"
+   * (BT13-152) is another player's count and stays unread (#979).
+   */
+  costAtMostEnergy: boolean;
+  /**
    * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
@@ -289,7 +314,8 @@ export interface CardFilter {
  * before asking the card-description parser to read it.
  */
 export function expandSharedCardDescription(text: string): string {
-  return text.replace(/(?:-|—|–)\s*both\s+(.+?)(?:-|—|–)\s*/g, " $1 ").trim();
+  // The feed sometimes decodes the dash as "?" (SD20-05: "card?both yellow?or").
+  return text.replace(/(?:-|—|–|―|(?<=[a-z>≫}])\?)\s*both\s+(.+?)(?:-|—|–|―|\?)\s*/g, " $1 ").trim();
 }
 
 /**
@@ -345,6 +371,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   markersMax: "number",
   specifiedCostMin: "number",
   specifiedCostMax: "number",
+  specifiedCostNone: "boolean",
+  costAtMostEnergy: "boolean",
   originallySkillLess: "boolean",
   skillLess: "boolean",
   powerRel: "powerRel",
@@ -438,6 +466,8 @@ export function emptyFilter(): CardFilter {
     markersMax: null,
     specifiedCostMin: null,
     specifiedCostMax: null,
+    specifiedCostNone: false,
+    costAtMostEnergy: false,
     originallySkillLess: false,
     skillLess: false,
     powerRel: null,
@@ -463,6 +493,17 @@ export function readsOr(text: string): boolean {
 
 /** The list measures an "or" between two descriptions already reads as either. */
 const OR_ABLE: (keyof CardFilter)[] = ["characters", "charactersIncluding", "names", "namesIncluding", "traits", "characterOrTrait"];
+/**
+ * "…with an energy cost less than or equal to your current energy" (#979), with
+ * the "with"/"an" it hangs on. `parseTarget` takes it off the phrase before the
+ * areas are read — "your energy" at the end of it is not the Energy Area — and
+ * puts the measure back on the selector's filter.
+ */
+export const ENERGY_BOUND = /(?:\b(?:with|and) )?(?:\ban? )?\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/i;
+/** A piece that is only colours and one name token (names masked as "N"): "blue ≪Saiyan≫", "mono-green <Vegeta: GT>". */
+const NAMES_ONLY = /^(?:(?:(?:non-|mono-)?(?:red|blue|green|yellow|black|white)|multicolou?r|an?|1|up to \d+)\s+)*N$/i;
+/** Does a (masked) piece start with a name, after any colour or count words? */
+const STARTS_WITH_NAME = /^(?:(?:(?:non-|mono-)?(?:red|blue|green|yellow|black|white)|multicolou?r|an?|1|up to \d+)\s+)*N\b/i;
 const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leaders?|unisons?)\b/i;
 
 /**
@@ -477,7 +518,11 @@ const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leader
  * Goku> card or <Vegeta> card" stays one filter, as it always read.
  */
 function eitherFilter(text: string): CardFilter | null {
-  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  // "…≪Namekian≫ or ≪Demon Clan≫ card―both green and with an energy cost of
+  // 4 or less―or 1 green Unison with a specified cost of 2" (BT18-083, #980):
+  // the aside belongs to the description in front of it, so it is folded into
+  // that description before the alternatives are cut apart.
+  const t = expandSharedCardDescription(text.replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
   // "…with an energy cost of 1 or 5" (BT29-032, #537): two costs, either one.
   // Read as a bound it was the first number alone. "4 or less" is not this.
   // Not "…with an energy cost of 1 **or 1 yellow Unison** with a specified
@@ -510,8 +555,27 @@ function eitherFilter(text: string): CardFilter | null {
     }
   }
   pieces.push(t.slice(from));
-  if (pieces.length < 2) return null;
-  const cleaned = pieces.map((p) => p.trim().replace(/^(?:a|an|1|up to \d+|any number of)\s+/i, ""));
+  // "blue ≪Saiyan≫ **or** ≪Earthling≫ card with an energy cost of 3 or less
+  // **or** 1 blue Unison with a specified cost of 3" (BT14-040, #980): a piece
+  // that is only a colour and a name has no card noun because its noun is in
+  // the next piece — "either name" is one description, joined back to it. A
+  // run of names that ends before a piece which does not start with a name
+  // ("<Hirudegarn>, <Tapion>, <Minotia>, or green Unison with a specified cost
+  // of 1", DB3-074) is a description of its own: those cards, by name.
+  const mask = (p: string) => p.trim().replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "N");
+  const joined: string[] = [];
+  let carry = "";
+  for (const [i, p] of pieces.entries()) {
+    const nameOnly = i < pieces.length - 1 && !CARD_NOUN.test(p) && NAMES_ONLY.test(mask(p));
+    if (nameOnly && STARTS_WITH_NAME.test(mask(pieces[i + 1]))) {
+      carry = carry ? `${carry} or ${p}` : p;
+      continue;
+    }
+    joined.push((carry ? `${carry} or ${p}` : p) + (nameOnly ? " card" : ""));
+    carry = "";
+  }
+  if (joined.length < 2) return null;
+  const cleaned = joined.map((p) => p.trim().replace(/^(?:a|an|1|up to \d+|any number of)\s+/i, ""));
   if (!cleaned.every((p) => CARD_NOUN.test(p) && !/^(?:less|more|fewer)\b/i.test(p))) return null;
   const alts = cleaned.map((p) => parseOneFilter(p));
   if (alts.some((a) => a.unreadable)) return null;
@@ -656,6 +720,12 @@ function parseOneFilter(text: string): CardFilter {
   // BT25-127 prints "a specified costof 1": the missing space is a typo, not
   // another measure, and before #728 it slipped past the refusal below and
   // chose any green Z-Unison.
+  // "…Unison Card **with no specified cost** and 15000 power" (BT12-139, #980):
+  // the card prints no orbs — see `specifiedCostNone`. Only the descriptive
+  // "with no …": "treat this card as if it had no specified cost" is a
+  // sentence about the card, not a measure of it, and stays refused.
+  const noSpecified = /\bwith no specified costs?\b/.test(lower);
+  if (noSpecified) f.specifiedCostNone = true;
   const specified = /\bspecified costs?\s*(?:of\s*)?(\d+)(?: or (less|fewer|more))?\b/.exec(lower);
   if (specified) {
     if (specified[2] !== "more") f.specifiedCostMax = Number(specified[1]);
@@ -670,10 +740,20 @@ function parseOneFilter(text: string): CardFilter {
     // still standing here (not a bound's, not between two colours) refuses it.
     const loose = colourText
       .replace(/\b(?:or|and\/or) (?:less|more|fewer)\b/g, " ")
-      .replace(/\b(?:red|blue|green|yellow|black|white),? (?:and\/or|or) (?=red|blue|green|yellow|black|white)/g, " ");
+      .replace(/\b(?:red|blue|green|yellow|black|white),? (?:and\/or|or) (?=red|blue|green|yellow|black|white)/g, " ")
+      // "…from your deck **or** hand" (BT28-039, #980) lists places, not
+      // descriptions: the areas a card is taken from are read by the selector.
+      .replace(/\b(?:from|in) (?:your |their )?(?:hand|deck|drop(?: area)?|warp|life(?: area)?)(?:,? (?:and\/or|or) (?:your |their )?(?:hand|deck|drop(?: area)?|warp|life(?: area)?))+/g, " ");
     if (/\bor\b/.test(loose)) f.unreadable = true;
   }
-  if ((!specified && /\bspecified cost/.test(lower)) || /\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/.test(lower)) f.unreadable = true;
+  // BT31-051 prints "Unison with a specified **of** 2": the word "cost" is
+  // missing, and a description that drops the bound would offer every Unison.
+  if (!specified && !noSpecified && /\bspecified (?:cost|of\b)/.test(lower)) f.unreadable = true;
+  // "…with an energy cost less than or equal to your (current) energy" (#979):
+  // the cost is measured against the master's energy count — see `costAtMostEnergy`.
+  // The long-standing refusal (#537) held because no field carried it; dropped, the
+  // description offered every card the rest of it named.
+  if (ENERGY_BOUND.test(lower)) f.costAtMostEnergy = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
   // `originallySkillLess` above for why bare "skill-less" is a separate
@@ -1010,7 +1090,18 @@ export function matches(d: CardDef, given: CardFilter): boolean {
     if (f.specifiedCostMin != null && orbs < f.specifiedCostMin) return false;
     if (f.specifiedCostMax != null && orbs > f.specifiedCostMax) return false;
   }
+  if (f.specifiedCostNone && !specifiedCostNone(d)) return false;
   return true;
+}
+
+/**
+ * "Has no specified cost" (1-2-3), as far as the data can say it: nothing
+ * stored, no X cost to leave unentered, and no orbs by the one-per-colour
+ * convention (`specifiedCostOf`). A Unison off the feed with no energy cost is
+ * the case — the same reading the rules engine's `specifiedCost` attribute makes.
+ */
+export function specifiedCostNone(d: CardDef): boolean {
+  return !specifiedCostUnknown(d) && Object.values(specifiedCostOf(d)).every((n) => !n);
 }
 
 /**

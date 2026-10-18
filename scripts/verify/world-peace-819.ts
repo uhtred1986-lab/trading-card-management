@@ -3,8 +3,9 @@
  * https://www.dbs-cardgame.com/us-en/rule/errata-cards.php (BT5-119).
  * Official full front: https://www.dbs-cardgame.com/us-en/cardlist/index.php?free=BT5-119&search=true
  * Owner selected the errata on 14 Oct 2026. The limit is 3, independently
- * of energy. The original dynamic wording remains unread; no stored record
- * is rewritten. Synthetic targets isolate type/area/cost on the real VM.
+ * of energy. The original dynamic wording reads since #979 (a measure of the
+ * master's energy), but `correctSkillText` replaces it before any compile; no
+ * stored record is rewritten from it. Synthetic targets isolate type/area/cost on the real VM.
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
@@ -68,7 +69,16 @@ const skill = compileCard(defs["BT5-119"]).bySkill[10];
 assert.deepEqual(skill.unsupported, [], "the complete official Activate line compiles");
 assert.match(describeScript(skill.ops), /energy cost of 3 or less/);
 assert.match(JSON.stringify(skill.price), /shenron/, "the printed Leader condition is preserved as a price");
-assert.ok(compileCard({ ...defs["BT5-119"], skill: BEFORE }).bySkill[10].unsupported.length > 0, "raw historical current-energy wording stays unread");
+// #979: "cost less than or equal to your current energy" is a measure the compiler
+// reads now, so the raw historical text is no longer a gap. What keeps BT5-119 at
+// 3 is the erratum — `correctSkillText` rewrites the catalog line before any
+// compile — and the corrected reading carries the number, not the energy bound.
+{
+  const historical = compileCard({ ...defs["BT5-119"], skill: BEFORE }).bySkill[10];
+  assert.deepEqual(historical.unsupported, [], "the historical wording reads (as the energy bound) once the measure exists");
+  assert.match(describeScript(historical.ops), /less than or equal to your current energy/);
+  assert.doesNotMatch(describeScript(skill.ops), /current energy/, "the corrected line never carries the dynamic bound");
+}
 const rule = { kind: "activate:main", trigger: [], cost: null, cond: null, ops: skill.ops };
 const parsed = parseRule(printRule(rule)); assert.ok(parsed.ok, JSON.stringify(parsed));
 assert.equal(validateRule(parsed.value, rule.kind), null);

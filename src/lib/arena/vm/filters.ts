@@ -143,6 +143,9 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // `energyCost` is read to tell a known cost from an unknown one (below).
   specifiedCostMin: { reads: ["specifiedCost", "energyCost"] },
   specifiedCostMax: { reads: ["specifiedCost", "energyCost"] },
+  // "…with no specified cost" (#980): a known, empty list of orbs.
+  specifiedCostNone: { reads: ["specifiedCost"] },
+  costAtMostEnergy: { instance: "a bound read off how many energy cards the player running the skill has when it resolves, so it is applied where the skill runs" },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   nameInSkillTextOf: { instance: "a name looked up in the skill text of another card the skill has chosen (2-3-2), so it is applied where that card is known" },
@@ -337,6 +340,10 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
     if (f.specifiedCostMin != null && orbs < f.specifiedCostMin) return false;
     if (f.specifiedCostMax != null && orbs > f.specifiedCostMax) return false;
   }
+  // "…with no specified cost" (#980): `attrsNow` seeds the attribute off `specifiedCostOf`
+  // and leaves it unset for an X cost nobody entered, so an empty list is "none" and
+  // an unset one is only unknown.
+  if (f.specifiedCostNone && !(Array.isArray(attrs.specifiedCost) && attrs.specifiedCost.length === 0)) return false;
   return true;
 }
 
