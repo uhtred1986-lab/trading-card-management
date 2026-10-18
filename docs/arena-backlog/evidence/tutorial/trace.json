@@ -1,0 +1,99 @@
+{
+  "commit": "72858569",
+  "fixture": "arena:masters-first-match:classic-v2",
+  "date": "2026-10-18",
+  "viewport": "390x844 touch",
+  "note": "accepted journal of a match played through the real controls; intro skipped, hints on",
+  "steps": [
+    {
+      "n": 1,
+      "basedOn": 0,
+      "player": "p1",
+      "action": "charge"
+    },
+    {
+      "n": 2,
+      "basedOn": 1,
+      "player": "p1",
+      "action": "play"
+    },
+    {
+      "n": 3,
+      "basedOn": 2,
+      "player": "p1",
+      "action": "endMain"
+    },
+    {
+      "n": 4,
+      "basedOn": 3,
+      "player": "p2",
+      "action": "charge"
+    },
+    {
+      "n": 5,
+      "basedOn": 4,
+      "player": "p2",
+      "action": "play"
+    },
+    {
+      "n": 6,
+      "basedOn": 5,
+      "player": "p2",
+      "action": "payCost"
+    },
+    {
+      "n": 7,
+      "basedOn": 6,
+      "player": "p2",
+      "action": "choose"
+    },
+    {
+      "n": 8,
+      "basedOn": 7,
+      "player": "p2",
+      "action": "attack"
+    },
+    {
+      "n": 9,
+      "basedOn": 8,
+      "player": "p2",
+      "action": "pass"
+    },
+    {
+      "n": 10,
+      "basedOn": 9,
+      "player": "p1",
+      "action": "pass"
+    },
+    {
+      "n": 11,
+      "basedOn": 10,
+      "player": "p2",
+      "action": "attack"
+    },
+    {
+      "n": 12,
+      "basedOn": 11,
+      "player": "p2",
+      "action": "pass"
+    },
+    {
+      "n": 13,
+      "basedOn": 12,
+      "player": "p1",
+      "action": "pass"
+    },
+    {
+      "n": 14,
+      "basedOn": 13,
+      "player": "p2",
+      "action": "endMain"
+    },
+    {
+      "n": 15,
+      "basedOn": 14,
+      "player": "p2",
+      "action": "choose"
+    }
+  ]
+}
