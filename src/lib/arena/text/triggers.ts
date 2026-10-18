@@ -505,8 +505,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       const said = m[1].replace(/\s+from your hand$/, "");
       // "An energy cost of 1 **or** more" is one bound, not two kinds.
       const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
-      // "Original" (20-3-1) is a measure the filter reads as the current cost.
-      if (/ or |\[|\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b|\boriginal\b/.test(kinds)) return false;
+      // "Original" (20-3-1) is the printed cost: `originalCostMin`/`originalCostMax` read it (#907 round 6).
+      if (/ or |\[|\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b/.test(kinds)) return false;
       return !parseFilter(effect.unmask(said)).unreadable;
     }
     // 1-10: the narrower [Alliance] wording just below is read first, so a card

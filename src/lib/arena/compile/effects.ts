@@ -12,7 +12,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
+import { AREA_WORDS, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -719,7 +719,7 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // front of an area read as the number of *cards* there (EX19-26 read "-2000
   // power for each of your energy" for "each card color in your Energy Area").
   if (colors === undefined && !markersOn && !countsCards(what)) return null;
-  const sel = colors ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(what) ?? energyYouHave(what)));
+  const sel = colors ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), count: 99, upTo: false };
@@ -1699,7 +1699,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText));
     let by: Amount = flat;
     if (perText) {
-      const per = parseTarget(perText);
+      const per = parseTarget(countAreasSaidWithAnd(perText));
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(perStepOf > 1 ? { per: perStepOf } : {}), ...(flat === 1 ? {} : { times: flat }) };
     }
@@ -1886,7 +1886,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   // "It loses -5000 power" and "it loses 5000 power" both mean the same thing;
   // the sign on the card is decoration, the verb is what counts.
-  if ((m = /^(.*?) loses ([+-]?\d+) power$/.exec(q))) {
+  // "Choose all of your opponent's Battle Cards, and **they lose** -10000 power" (BT3-018, BT3-019, P-070b):
+  // the plural verb is the same sentence.
+  // Not "they **both** lose" (BT4-002b): two separate choices, of which a bare reference names only the last.
+  if ((m = /^(.*?) loses? ([+-]?\d+) power$/.exec(q)) && !/\bboth\b/.test(m[1])) {
     const refs = refsFor(m[1], c);
     const until = durationOf(t);
     return refs ? refs.map((target) => ({ op: "power", target, amount: -Math.abs(Number(m![2])), until }) as Op) : null;
@@ -1900,6 +1903,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // (P-414, BT15-061b): the "and" leaves a second amount with no subject, for the card the first named.
   if ((m = /^([+-]\d+) power$/.exec(q)) && c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") {
     return [{ op: "power", target: c.lastTarget, amount: Number(m[1]), until: durationOf(t) }];
+  }
+  // #907 round 6: "Your Red/Green multicolor <Broly> cards in all areas get -1 combo cost **and -5000 combo power**"
+  // (BT22-055b, BT23-072, BT23-072b): the second amount is for the cards the first named, the combo cost
+  // reducer just before it.
+  if ((m = /^([+-]\d+) combo power$/.exec(q)) && c.lastOp === "costReduction" && c.lastTarget && "sel" in c.lastTarget) {
+    return [{ op: "comboPower", target: c.lastTarget, amount: Number(m[1]), until: durationOf(t) }];
+  }
+  // 2-8: "add +10000 to this card's Combo for the duration of the turn" (BT1-045, BT1-069, BT1-100) is the card's
+  // combo power (the number it adds when used in a combo) raised by that much.
+  if ((m = /^add ([+-]\d+) to (this card)'?s combo$/.exec(q))) {
+    return [{ op: "comboPower", target: { sel: { special: "self" } }, amount: Number(m[1]), until: durationOf(t) }];
   }
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
@@ -2476,7 +2490,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   // "Place up to 2 {Dragon Ball} from your Drop into the Battle Area" — placed,
   // not played (5-5), so nothing that triggers on a play fires.
-  if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand)(?: area)? (?:into|in) (?:your|the|their) battle area$/.exec(t))) {
+  // "Place up to 1 {Scouter} from your Z-Deck in your Battle Area" (BT25-047, BT25-050, BT25-098, BT25-099,
+  // BT22-036 to -038, #907 round 6) is the same placement from the Z-Deck: 17-2-1's "place a face-down Z-Extra
+  // Card from the Z-Deck into the Battle Area" is what a play does after paying; a skill that says "place"
+  // names no price, as its Drop/Warp/hand siblings here name none. A labelled best guess (the manual and the
+  // official FAQ give no ruling on a skill's placement from the Z-Deck).
+  if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand|z-deck)(?: area)? (?:into|in) (?:your|the|their) battle area$/.exec(t))) {
     const ref = refFor(`${m[1]} in your ${m[2]}`, c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "battle" })) : null;
   }
@@ -2835,6 +2854,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     : t;
   if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(tp))) {
     if (/token/.test(t)) return compileToken(clause, c);
+    // "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**" (P-500,
+    // P-508, P-548, P-694, BT1-051, BT7-069, EX06-03, EX25-02, P-208): a permission that lifts the life gate of a
+    // keyword, not the play of a card. It read as "you may choose 6 Leader Cards in your Life Area and play them"
+    // - or, with "5 or more life", as playing the Leader (#907 round 6). Unread until the gate is a thing the
+    // engine can lift for a turn.
+    if (/^activate\b/.test(tp) && /\beven (?:if|when)\b/.test(t)) return null;
+    // A Leader is never played, so "activate your Leader Card's [Activate: Main]" (P-208, cut at its list commas
+    // before the "even when") is not one either.
+    if (/^activate (?:your )?leader(?: card)?'s \[/.test(tp)) return null;
     // "…and **activate its [Activate: Main] skill**" (BT5-002, #979) uses a
     // skill of a card; it does not play the card that bears it (12-2-4). The
     // bounded Desire choice before it is read whole above; when what "its"
@@ -3019,11 +3047,24 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "When your opponent plays a Battle Card, you may choose **that card**":
     // the trigger already named it, so there is nothing to pick out of an area
     // — the only question is whether to take it.
-    if (!sel) {
+    // Only the bare pronoun: `refFor` takes any phrase with "the chosen" in it for the chosen card, so a description
+    // the parser refused ("a card name in the chosen card's skill text", P-269b) came back as a re-choice of the
+    // price's card, which was then played (#907 round 6).
+    if (!sel && BARE_TARGET.test(t.replace(/^choose\s+/, "").replace(/^(?:up to )?\d+ of /, "").replace(/[.,]$/, ""))) {
       const named = refFor(t.replace(/^choose\s+/, ""), c);
       if (named) sel = "sel" in named ? { ...named.sel } : { fromVar: named.var, count: 1 };
     }
     if (!sel) return null;
+    // "Look at up to the top 5 cards of your deck, **choose up to 1 red ≪Ginyu Force≫ card with an energy cost
+    // of 2 and play it**. Then place the rest at the bottom of your deck" (TB3-007, TB3-008, TB3-010, #907
+    // round 6): after a look, a description that names no area of its own is read from the cards looked at
+    // (20-12), as the `play`, `add … to your hand` and combo clauses already do. Read as an unqualified card
+    // it was one already in play, and "the rest" then put the card just played back in the deck.
+    // Not "choose up to 1 **of your** <Paikuhan> cards" (BT12-027, BT18-147, BT22-114): an owner is a place.
+    if (c.lastSeen && !sel.special && !sel.fromVar && sel.take == null && !AREA_WORDS.some(([re]) => re.test(t)) && !/\b(?:your|their|opponent'?s)\b/.test(t)) {
+      const looked = parseTarget(clause, c.lastSeen);
+      if (looked && !looked.special) sel = looked;
+    }
     // 20-16 / #538: "you may choose N" offers a plain multi-card choice as a
     // whole. compileEffect wraps it in `may`; accepting it owes N, declining
     // chooses nothing. Making it up-to moved partial payments before "if you
@@ -3983,9 +4024,8 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
   // energy cost of 8", EX23-45) are two kinds of card, which one filter cannot say.
   if ((scope.match(/energy costs?/gi) ?? []).length > 1) return null;
   if ((scope.match(/\bin your (?:hand|z-deck|drop(?: area)?|warp|battle area)\b/gi) ?? []).length > 1) return null;
-  // "Original energy cost" asks about the printed price, which the filter cannot
-  // tell from the one this very change is moving; unread rather than a loop.
-  if (/\boriginal (?:energy )?costs?\b/i.test(scope)) return null;
+  // "Original energy cost" (20-3-1) asks about the printed price, which is not the one this very change
+  // is moving - `originalCostMin`/`originalCostMax` read it (#907 round 6), so it no longer needs refusing.
   const every = (target: Ref): Ref => ("sel" in target && !target.sel.special && target.sel.count !== undefined ? { sel: { ...target.sel, count: 99, upTo: undefined } } : target);
   // A card that is about to be bought is in the hand, not in play (20-1-6's
   // default), unless the words name its place.
@@ -4151,6 +4191,13 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     pendingMay = null;
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
+    // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
+    // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
+    // clause was cut off as a condition and the rest read as a play of the Leader (#907 round 6): unread whole.
+    if (/\byou (?:can|may) activate\b[^.]*\[[a-z: -]+\][^.]*\beven (?:if|when)\b/i.test(clause)) {
+      refuse(clause);
+      continue;
+    }
     // "…from your deck or life and add them to your hand. Then shuffle any
     // areas you looked through" (SD7-01, #539): search results are shown as
     // one pool, and the running frame records which closed areas were actually

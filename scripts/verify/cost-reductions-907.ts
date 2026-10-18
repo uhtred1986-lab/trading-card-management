@@ -127,8 +127,12 @@ const ops = (text: string): CostOp[] => {
   const [would] = ops("[auto] If your Leader's back side is {SS Son Goku, Fearless Fighter}: When this card is played, during this turn, when you would play a Unison with [empower] from your hand, reduce the specified cost by {y}.");
   assert.deepEqual([would.what, would.uses], ["specified", undefined]);
 
-  // "Original energy cost" asks for the printed price, which the filter cannot tell from the one being moved.
-  assert.deepEqual(ops("[Permanent] When activating a [Field] skill of a green Extra Card with an original energy cost of 2 from your hand, reduce that card's energy cost by 1."), []);
+  // "Original energy cost" asks for the printed price, which the filter could not tell from the one being moved until #907 round 6
+  // gave it a measure of its own (`originalCostMin`/`originalCostMax`): the scope is the printed 2, not the price being lowered.
+  const printed = ops("[Permanent] When activating a [Field] skill of a green Extra Card with an original energy cost of 2 from your hand, reduce that card's energy cost by 1.");
+  assert.equal(printed.length, 1);
+  const scope = printed[0].target.sel?.filter as { originalCostMin?: number; originalCostMax?: number; costMin: number | null } | undefined;
+  assert.deepEqual([scope?.originalCostMin, scope?.originalCostMax, scope?.costMin], [2, 2, null], "scoped by the printed price");
   // A different line of the Extra ([Counter]) would make the change wider than printed.
   assert.deepEqual(ops("[Activate: Main] During this turn, the next time you activate the [Counter] skill on a red Extra in your hand, reduce the energy cost by 1."), []);
 }

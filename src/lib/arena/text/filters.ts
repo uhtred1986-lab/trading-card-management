@@ -184,6 +184,16 @@ export interface CardFilter {
   /** Energy cost bounds, inclusive. */
   costMin: number | null;
   costMax: number | null;
+  /**
+   * "An **original** energy cost of 3" (20-3-1, 62 skills): the printed total, before any skill
+   * effect is applied, so a cost reduction or increase in force does not move it. Its own pair of
+   * fields because the two words ask different questions - "original energy cost of 1" is how
+   * BT13-001 picks the cards it then gives +2 energy cost - and a reading that cannot tell them
+   * apart cannot be signed off (#907 round 6). Answered by the printed `energyCost` attribute. Optional and
+   * written only when read, like `traitsAll`, so no stored filter grows two nulls.
+   */
+  originalCostMin?: number | null;
+  originalCostMax?: number | null;
   powerMin: number | null;
   powerMax: number | null;
   /**
@@ -384,6 +394,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   notToken: "boolean",
   costMin: "number",
   costMax: "number",
+  originalCostMin: "number",
+  originalCostMax: "number",
   powerMin: "number",
   powerMax: "number",
   originalPowerMin: "number",
@@ -916,6 +928,13 @@ function parseOneFilter(text: string): CardFilter {
     if (!kw) f.unreadable = true;
     else addKeyword(f, kw, m[1].trim());
   }
+  // A name, a character or a trait asked of a card's SKILL TEXT: "a blue Z-Extra with <Janemba> in its skill text"
+  // (EX24-23), "a Battle Card with a card name in the chosen card's skill text" (P-269b), "a card that has
+  // ≪Agent of Destruction≫ in its skill text" (P-677). The words name text, not a character or a trait, and the
+  // parser took them for the card's own - EX24-23 read as "<Janemba> Z-Extras", P-269b as any Battle Card in the
+  // hand (#907 round 6). A bracketed KEYWORD in the text ("[Rejuvenate] in its skill text") is read as the
+  // keyword, which is what it asks. Only `nameInSkillTextOf` (above, a chosen card's text) says the rest.
+  if (!f.nameInSkillTextOf && /(?:[<≪{][^<>≪≫{}]+[>≫}]|\bcard names?) in (?:its|their|the chosen card'?s|that card'?s) skill text\b/.test(lower)) f.unreadable = true;
   // "Battle Cards **without [Barrier]** in Active Mode" — the same thing
   // "non-[Barrier]" says, written the long way. Sixteen of the cards that let
   // an active card be attacked carve out [Barrier] like this, and a
@@ -983,12 +1002,27 @@ function parseOneFilter(text: string): CardFilter {
   // the "between" line admitted it, so the other three read no cost at all and
   // handed back every card in the area. Silent, and the wrong direction: the
   // filter that vanishes is always the one that was narrowing the target.
-  if ((m = /energy costs? (?:of )?(\d+) or less/.exec(lower))) f.costMax = Number(m[1]);
-  else if ((m = /energy costs? (?:of )?(\d+) or more/.exec(lower))) f.costMin = Number(m[1]);
-  else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(lower))) {
+  // "An **original** energy cost of 3" (20-3-1): the printed total, a measure of its own - read first and
+  // taken out of the text, so the plain cost patterns below do not read the same number a second time as
+  // a cost bound. "Whose original energy cost was 5 or more" (BT2-105) and "an original cost of 1"
+  // (BT26-095) are the same measure said another way.
+  let costText = lower;
+  const original = /\boriginal (?:energy )?costs? (?:of |was |were )?(?:(\d+) or (less|more)\b|between (\d+) and (\d+)|(\d+)\b)/.exec(costText);
+  if (original) {
+    if (original[2] === "less") f.originalCostMax = Number(original[1]);
+    else if (original[2] === "more") f.originalCostMin = Number(original[1]);
+    else if (original[3]) {
+      f.originalCostMin = Number(original[3]);
+      f.originalCostMax = Number(original[4]);
+    } else f.originalCostMin = f.originalCostMax = Number(original[5]);
+    costText = costText.replace(original[0], " ");
+  }
+  if ((m = /energy costs? (?:of )?(\d+) or less/.exec(costText))) f.costMax = Number(m[1]);
+  else if ((m = /energy costs? (?:of )?(\d+) or more/.exec(costText))) f.costMin = Number(m[1]);
+  else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(costText))) {
     f.costMin = Number(m[1]);
     f.costMax = Number(m[2]);
-  } else if ((m = /energy costs? (?:of )?(\d+)\b/.exec(lower))) f.costMin = f.costMax = Number(m[1]);
+  } else if ((m = /energy costs? (?:of )?(\d+)\b/.exec(costText))) f.costMin = f.costMax = Number(m[1]);
   // "Battle Cards with power between 30000 and 35000", "up to 2 black Battle
   // Cards with powers between 20000 and 30000" — the same range the cost line
   // above already reads, which the sets also write for power. Read before the
@@ -1192,6 +1226,9 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   const cost = typeof d.energyCost === "number" ? d.energyCost : null;
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;
+  // 20-3-1: `d.energyCost` is the printed total, which is what "original" asks.
+  if (f.originalCostMin != null && (cost == null || cost < f.originalCostMin)) return false;
+  if (f.originalCostMax != null && (cost == null || cost > f.originalCostMax)) return false;
   if (f.powerMin != null && (d.power == null || d.power < f.powerMin)) return false;
   if (f.powerMax != null && (d.power == null || d.power > f.powerMax)) return false;
   // `d` is always a `CardDef` — the catalog row, or `cardNow`'s copy of it

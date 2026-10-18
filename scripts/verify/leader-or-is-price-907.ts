@@ -51,7 +51,10 @@ assert.deepEqual(condOf(BT31_049).conds![0].conds![1].filter!.charactersIncludin
 {
   const unread = (text: string) => compileSkill(one(text)).unsupported.length > 0;
   assert.ok(unread("[Activate: Main]{r}, if your Leader Card is a black ≪Saiyan≫ card and you send this card and 1 <Goku Black> card from your Combo Area to their owners' Warps: Play this card from your hand."), "a Leader condition does not hide an unread send price");
-  assert.ok(unread("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."), "BT16-087's two places stay unread");
+  // BT16-087's two places read since #907 round 6 (the Combo Area is an area word): one count over both, either colour.
+  const places = compileSkill(one("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."));
+  assert.deepEqual(places.unsupported, [], "BT16-087's two places read");
+  assert.ok(JSON.stringify(places.ops).includes('"areas":["battle","combo"]'), "as one count over the Battle Area and the Combo Area");
   // A verb after a comma or "and" is another clause, not a restated alternative.
   assert.ok(unread("[Activate: Main]{1}, if your Leader is green or is blue and you send 1 card from your Drop Area to your Warp, you have 3 or more energy: Play this card from your hand."), "a second clause after the alternatives stays unread");
   assert.ok(unread("[Activate: Main]{1}, if your Leader is green and has <GT> in its character name and 3 or more blue and/or yellow cards are in your Combo Area and/or Drop: Play this card from your hand."), "an unread count behind a Leader list stays unread");
