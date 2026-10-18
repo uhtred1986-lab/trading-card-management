@@ -158,6 +158,9 @@ export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition,
     if (e.kind !== "replaceLeave") continue;
     const r = e.value as Replacement;
     if (r.kind !== "life" || r.master !== owner || (r.lifeTo && r.lifeTo !== dest)) continue;
+    // "…would reveal **this card** from your life": the rule is the taken card's
+    // own, so no other life card answers to it (and a copy in play does not).
+    if (r.lifeSelf && e.source !== id) continue;
     if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }
