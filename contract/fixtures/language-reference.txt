@@ -551,6 +551,13 @@
           ]
         },
         {
+          "name": "activating",
+          "required": false,
+          "nullable": false,
+          "offCard": "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; any other card is played as before",
+          "type": "boolean"
+        },
+        {
           "name": "counterWindow",
           "required": false,
           "nullable": false,
@@ -2475,6 +2482,13 @@
           "required": true,
           "nullable": false,
           "type": "string"
+        },
+        {
+          "name": "shown",
+          "required": false,
+          "nullable": false,
+          "offCard": "the remark is the card's whole effect (\"You and your opponent compliment each other\", #907): the reading says it, where an engine remark says nothing",
+          "type": "boolean"
         }
       ],
       "sentence": "",
@@ -3425,6 +3439,10 @@
       "part": "flag"
     },
     {
+      "field": "differentCharacters",
+      "part": "flag"
+    },
+    {
       "field": "distinctColors",
       "part": "flag"
     },
@@ -3493,6 +3511,10 @@
     {
       "word": "differentNames",
       "doc": "the cards chosen may not share a card name (BT29-030's \"different card names\"); a count over it counts names, not cards (BT18-104)"
+    },
+    {
+      "word": "differentCharacters",
+      "doc": "differentNames on the character name (2-10): the cards chosen may not share character names (BT18-107's \"different character names\"); a count over it counts the distinct character names, not the cards (BT18-119)"
     },
     {
       "word": "distinctColors",

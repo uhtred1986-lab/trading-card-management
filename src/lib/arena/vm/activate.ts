@@ -645,6 +645,40 @@ export function usableFrom(script: Script | undefined): Area[] {
 // the keyword's `DO` alone.
 const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim() || (line.keyword && !line.script) ? true : !!line.script && line.script.unsupported.length === 0);
 
+/**
+ * 22-3-3 (#907, BT10-052): "activate {Tragedy Overground}" said by another card's
+ * skill is the activation of that Extra's [Field] skill — not a play of the
+ * card. The line it activates, or `null` when this card has none that can be
+ * activated now.
+ *
+ * Wherever the card lies (the text names the places: "from your hand, Drop
+ * Area, deck, or Energy Area"): the selector that found it is the caller's,
+ * and `activationsOf` is not asked, since it leaves a keyword's move in the
+ * Drop out of the menu — a menu is about what a player may *offer*, this is a
+ * card's skill naming one. The printed price is waived (12-2-4), as for
+ * `invokedMainLines`; the gates that are not a price are not: negated skills,
+ * a prohibition on activating (20-14), a tax that cannot be paid.
+ *
+ * `null` is a card with no [Field] skill at all (the caller plays it, as the
+ * text always read); `"blocked"` is one that has the skill and may not
+ * activate it now, which must not fall back to a play.
+ */
+export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): ActivationLine | "blocked" | null {
+  const inst = state.cards[card];
+  if (!inst || inst.owner !== player || inst.hidden || !isExtra(ctx, game, state, card)) return null;
+  const showing = skillsShowing(ctx, state, card);
+  for (const skill of showing.skills) {
+    const keyword = keywordMoveOf(game, skill);
+    if (keyword?.name !== "Field") continue;
+    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return "blocked";
+    const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
+    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
+    if (usesLeft(state, player, card, skill) === 0) return "blocked";
+    return line;
+  }
+  return null;
+}
+
 /** SD7-01: choose an Extra's real Main line, retaining every non-price activation gate. */
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
   if (op.from !== "hand" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
@@ -969,7 +1003,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
         const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
-        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id)) < (op.sel.count ?? 1)) return false;
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":

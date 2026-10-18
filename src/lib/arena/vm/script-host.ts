@@ -197,6 +197,10 @@ export interface ScriptHost {
   invokableSkills(player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): { index: number; label: string }[];
   /** #926: put the strict frame that pays this keyword `DO` frame's printed action price in front of it (`payActionPrice`). */
   payKeywordPrice(frame: ScriptFrame): void;
+  /** 22-3-3: does this card have a [Field] skill, and may it be activated by another card's skill now? */
+  fieldSkill(player: PlayerId, card: string): "none" | "blocked" | "ready";
+  /** 22-3-3: activate this card's [Field] skill, its price waived, through the activation and trigger queue. */
+  activateField(player: PlayerId, card: string): void;
   /** Invoke the selected line through this engine's activation and trigger queue. */
   invokeSkill(player: PlayerId, card: string, skillIndex: number, op: Extract<Op, { op: "invokeSkill" }>): void;
   /** 20-9-2: the turn a card entered play, kept across a change of control. */
