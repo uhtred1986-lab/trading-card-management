@@ -164,7 +164,14 @@ export function discardedBySkillCause(trigger: string): string | null {
   const by = /^(.+?)(?: card)?'s? skills?$/i.exec(said);
   return by ? by[1] : null;
 }
-const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})`);
+/**
+ * "When this card **in your hand** is played or placed in your energy" (EX19-26 …,
+ * P-353, #907): the hand is where the card is for both halves, so the play half
+ * is a play from the hand, and the other half is `placedInEnergyFromHand`.
+ */
+const PLAYED_HAND_THEN_ENERGY = String.raw`when this card in your hand is played(?=\s+or placed in your energy\s*(?:,|:|\.|$))`;
+const PLACED_IN_ENERGY_TAIL = String.raw`(?=\s*(?:,|:|\.|$))`;
+const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})|${PLAYED_HAND_THEN_ENERGY}`);
 /** The coordinated tail of "when you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046, -059, -061, -120, -121, -122): a skill, whoever's, ends the sentence. */
 const PLAYED_OR_DROPPED_FROM_BATTLE = /^when (?:you play this card|this card is played),? or (?:when )?(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill\s*(?:,|:|\.|$)/;
 const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
@@ -177,6 +184,50 @@ const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
  * attack half alone and cannot be put on the skill without also gating the play.
  */
 const PLAYED_OR_ATTACKS = /^when (?:this card (?:in your hand )?is played(?: from your hand)?|you play this card(?: from your hand)?),? or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)/;
+
+/**
+ * The cause a Rest Mode trigger prints (#907), or null when the head is not a
+ * "this card is switched to Rest Mode by …" trigger at all.
+ *
+ *   side  whose skill: `mine` ("by one of your [yellow card] skills", "your
+ *         Leader's skill"), `opponent`, `any` ("by a skill", "with
+ *         {Name}'s skill") or `alliance` (the keyword's own switch, 22-32-3)
+ *   desc  the description of the skill's card as printed ("yellow card",
+ *         "yellow <turles> card", "leader", a masked {name}), "" for none
+ *   played the sentence also says "is played or switched", so a condition on
+ *         the cause belongs to the Rest half alone
+ *
+ * Best guess, no ruling: only a skill's own switch is "by a skill" — paying
+ * Rest Mode as a skill cost is not, and [Alliance] keeps its own trigger.
+ */
+export interface RestCause { side: "mine" | "opponent" | "any" | "alliance"; desc: string; played: boolean }
+export function restedCauseOf(head: string): RestCause | null {
+  const masked = maskNames(head.toLowerCase().trim());
+  // The clause up to its comma or colon, outside <…> (a character's subtitle) and {…}.
+  let clause = masked.text, depth = 0;
+  for (let i = 0; i < masked.text.length; i++) {
+    const c = masked.text[i];
+    if (c === "<") depth++; else if (c === ">") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (c === "," || c === ":")) { clause = masked.text.slice(0, i); break; }
+  }
+  clause = clause.replace(/[.\s]+$/, "");
+  const leader = /^when you use your leader'?s skill to switch this card to rest mode$/.exec(clause);
+  if (leader) return { side: "mine", desc: "leader", played: false };
+  const m = /^when this card(?: in (?:a|your) battle area)? is (played or )?switched (?:from active mode )?to rest mode (?:by|with) (.+)$/.exec(clause);
+  if (!m) return null;
+  const played = !!m[1], by = m[2];
+  const make = (side: RestCause["side"], desc: string): RestCause => ({ side, desc: masked.unmask(desc).trim(), played });
+  if (/^(?:an? )?\[alliance\](?: skill)?$/.test(by)) return make("alliance", "");
+  if (/^(?:a|any) skills?$/.test(by)) return make("any", "");
+  if (/^(?:one of )?your skills?$/.test(by)) return make("mine", "");
+  const opp = /^(?:one of )?your opponent'?s? (?:(.+?) (?:card'?s? )?)?skills?$/.exec(by);
+  if (opp) return make("opponent", opp[1] ?? "");
+  const named = /^(\{\d+\})'?s? skills?$/.exec(by);
+  if (named) return make("any", named[1]);
+  const mine = /^(?:one of )?your (?!opponent)(.+?)(?:'s)? (?:card )?skills?$/.exec(by);
+  if (mine) return make("mine", /\b(?:card|leader)$/.test(mine[1]) ? mine[1] : `${mine[1]} card`);
+  return null;
+}
 
 /** "When this card [in a Battle Area] is [played or] switched to X Mode [or Y Mode]", with no cause after it: the modes named, or "" for none. */
 function switchedTo(t: string): string {
@@ -376,14 +427,29 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // 1-10: the narrower [Alliance] wording just below is read first, so a card
     // that names the keyword is not also caught by this.
     case "restedBySkill":
-      return /when this card is switched to rest mode by (?:one of )?your skills?\b/.test(t);
+      return /when this card is switched to rest mode by (?:one of )?your skills?\b/.test(t) || restedCauseOf(head)?.side === "mine";
+    // #907: the other two sides of the cause — a skill of either player's, and
+    // the opponent's. The skill's card (a colour, a name, a Leader) is asked of
+    // the moment's subject by the compiler; here only the side is read.
+    case "restedByAnySkill":
+      return restedCauseOf(head)?.side === "any";
+    case "restedByOpponentSkill":
+      return restedCauseOf(head)?.side === "opponent";
+    // #907: entering the Energy Area, by the Charge Phase's placing (7-2-11) or a
+    // skill's. "From your hand" is the other declaration; "this card in your hand
+    // is played or placed" is that one too (the play half is `playedFromHand`).
+    case "placedInEnergy":
+      return new RegExp(String.raw`^when this card is (?:placed|added|put) (?:in|into|to) (?:your |its owner'?s )?energy(?: area)?${PLACED_IN_ENERGY_TAIL}`).test(head);
+    case "placedInEnergyFromHand":
+      return new RegExp(String.raw`^when this card is placed in your energy(?: area)? from your hand${PLACED_IN_ENERGY_TAIL}`).test(head)
+        || new RegExp(String.raw`^when this card in your hand is (?:played or )?placed in your energy(?: area)?${PLACED_IN_ENERGY_TAIL}`).test(head);
     // The other end of the same act: your skill resting one of *theirs*,
     // watched by your cards in play. The only printed wording names their
     // Battle Cards and energy, and that is exactly where it is pended.
     case "restedTheirsBySkill":
       return /when (?:one of )?your (?:card )?skills? switch(?:es)? (?:an|your) opponent'?s/.test(head) && /rest mode/.test(head);
     case "restedByAlliance":
-      return /when this card is switched to rest mode by (?:an?|one of your) \[alliance\]/.test(t);
+      return /when this card is switched to rest mode by (?:an?|one of your)? ?\[alliance\]/.test(t);
     // 1-10-2, 23-5-2-4: the same sentence about Hidden Mode (BT28-116,
     // BT28-119), "in a Battle Area" or not.
     case "hiddenBySkill":
@@ -568,6 +634,9 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   // #969: a skill's discard (`droppedFromHand`), and a skill's move from a Battle Area to the Drop (`droppedFromBattle`).
   if (/^(?:(?:it|this card) is )?discarded by\b/.test(rest)) return !autoTriggerMatches(sk, "droppedFromHand") || (discardedBySkillCause(head) === null);
   if (/^(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from\b/.test(rest)) return !autoTriggerMatches(sk, "droppedFromBattle");
+  // #907: the Rest half of "played or switched to Rest Mode by …" and the energy half of "played or placed in your energy".
+  if (/^switched (?:from active mode )?to rest mode\b/.test(rest)) return restedCauseOf(head) === null || !(["restedBySkill", "restedByAnySkill", "restedByOpponentSkill"] as const).some((t) => autoTriggerMatches(sk, t));
+  if (/^placed in your energy\b/.test(rest)) return !autoTriggerMatches(sk, "placedInEnergyFromHand");
   if (/^switched to (?:revealed|hidden) mode\b/.test(rest)) return !(["switchedRevealed", "switchedHidden"] as const).some((t) => autoTriggerMatches(sk, t));
   if (/^(?:this card|it) is placed in (?:a|the|your|their|an opponent's) battle area\b/.test(rest)) return !autoTriggerMatches(sk, "placed");
   if (/^(?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(rest))

@@ -48,6 +48,7 @@
     "arena:offline-release": "tsx scripts/arena-offline-release-browser.mts",
     "arena:offline-decks-browser": "tsx scripts/arena-offline-decks-browser.mts",
     "arena:phone": "tsx scripts/arena-phone-run.mts",
+    "arena:tutorial-browser": "tsx scripts/arena-tutorial-browser.mts",
     "arena:vs": "tsx --env-file-if-exists=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file-if-exists=.env.local scripts/arena-gaps.mts",
     "arena:feedback": "tsx --env-file-if-exists=.env.local scripts/arena-feedback.mts",

@@ -2315,8 +2315,28 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // words lead to the same place. A card that says "play … in Rest Mode" is
   // still played from wherever it is; the mode belongs to the play, not to the
   // choice, or the choice would go looking for a card already rested.
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(t))) {
+  // "…play it **with a marker on it**" (P-288), "play up to 1 blue Unison with a
+  // specified cost of 2 **and 3 markers on it** from your Drop" (BT28-148, #980):
+  // the markers the card arrives with, a modifier of the play (13-2-3) and not a
+  // measure of the card chosen. Taken off the phrase first so the description
+  // is read without it.
+  const arrivesWith: { markers?: number } = {};
+  const tp = /^play /.test(t)
+    ? t.replace(/\s+(?:with|and) (a|an|\d+) markers? on (?:it|them)\b/, (_w, n: string) => {
+        arrivesWith.markers = /^\d+$/.test(n) ? Number(n) : 1;
+        return "";
+      })
+    : t;
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(tp))) {
     if (/token/.test(t)) return compileToken(clause, c);
+    // "…and **activate its [Activate: Main] skill**" (BT5-002, #979) uses a
+    // skill of a card; it does not play the card that bears it (12-2-4). The
+    // bounded Desire choice before it is read whole above; when what "its"
+    // points at was chosen with that energy bound and the pair was not read
+    // there (another kind of skill, another area), the clause is left unread
+    // rather than read as the play of the card it names. Before the bound was
+    // readable the choice itself failed and there was nothing to point at.
+    if (/^activate its \[activate[^\]]*\]\s*skills?\b/.test(t) && c.choices.some((ch) => ch.var === c.last && ch.sel.filter?.costAtMostEnergy)) return null;
     // "…and play it **in your opponent's Battle Area**" (BT15-118, BT18-087):
     // the card goes to the other side of the table, and `play` has no word for
     // whose Battle Area it lands in — read without it, the card was played
@@ -2348,7 +2368,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the specified-cost descriptions #728 made readable; the same default on
     // other "play" clauses is older and left as it reads (see the PR).
     if ("sel" in ref && ref.sel.area === "play" && !ref.sel.special && !ref.sel.fromVar && !ref.sel.areas?.length && (ref.sel.filter?.specifiedCostMin != null || ref.sel.filter?.specifiedCostMax != null)) return null;
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -3302,6 +3322,29 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     if (invoked && /^activate its \[activate: ?main\] skill[.]?$/i.test(clauses[i + 1]?.trim() ?? "")) {
       push([{ op: "invokeSkill", trait: invoked[1], skillKind: "activate:main", from: "hand", maxCost: "currentEnergy" }]);
       i++;
+      continue;
+    }
+    // The Desire family (#979): "Choose 1 red or black ≪Desire≫ card in your hand
+    // with an energy cost less than or equal to your current energy" followed by
+    // "activate its [Activate: Main] skill" (BT5-002 and five more), or the same
+    // said in one clause — "Activate the [Activate: Main] skill of up to 1 red or
+    // black ≪Desire≫ from your hand with …" (BT21-002). SD7-01's bare form above
+    // keeps its own spelling; these carry the colours too, as a one-card hand
+    // selector with the energy bound, so the card is a hand Extra of the
+    // description the text gives and no other. Anything the selector cannot say
+    // exactly (another area, another count, a further measure) stays unread.
+    const desireTwo = /^choose (1) ((?:(?:red|blue|green|yellow|black|white)(?: or (?:red|blue|green|yellow|black|white))? )?≪[^≫]+≫ card) (?:in|from) your hand (with an energy cost less than or equal to your current energy)$/i.exec(clause.trim());
+    const desireOne = /^activate the \[activate: ?main\] skill of (up to 1) ((?:(?:red|blue|green|yellow|black|white)(?: or (?:red|blue|green|yellow|black|white))? )?≪[^≫]+≫(?: card)?) from your hand (with an energy cost less than or equal to your current energy)$/i.exec(clause.trim());
+    const desire = desireOne ?? (desireTwo && /^activate its \[activate: ?main\] skill[.]?$/i.test(clauses[i + 1]?.trim() ?? "") ? desireTwo : null);
+    if (desire) {
+      const sel = parseTarget(`${desire[1]} ${desire[2]} in your hand ${desire[3]}`);
+      if (sel && sel.side === "you" && sel.area === "hand" && sel.count === 1 && !!sel.upTo === (desire === desireOne) && sel.filter && !sel.filter.unreadable
+        && sel.filter.traits.length === 1 && sel.filter.costAtMostEnergy && !sel.special && !sel.fromVar) {
+        push([{ op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }]);
+        if (desire === desireTwo) i++;
+        continue;
+      }
+      refuse(clause);
       continue;
     }
     // BT31-116 (#539/#680): another effect activates the hand Extra's real

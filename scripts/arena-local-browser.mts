@@ -47,7 +47,7 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { Browser, findChrome, sleep, VIEWPORTS, type Page } from "./lib/cdp.mts";
-import { BOARD, IDB_FAULT, WORKER_TAP, WorkerTaps, choosePack, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
+import { BOARD, IDB_FAULT, WORKER_TAP, WorkerTaps, chooseLocalSetup, choosePack, clickText, readJournalExpr, textOf, until } from "./lib/local-arena-page.mts";
 import { auditPack } from "./verify/arena-local-worker-fixture.mts";
 import { inProcessChannel } from "./verify/arena-local-worker-channel.ts";
 import { humanAsked, humanPick, playLoop, requestIds } from "./verify/arena-local-storage-driver.ts";
@@ -247,7 +247,7 @@ try {
   await a.goto(URL_LOCAL);
   await a.waitFor("input[type=file]");
   await choosePack(a, packText);
-  await until(a, `document.body.textContent.includes("New match")`);
+  await chooseLocalSetup(a, "A", "B", "p1"); // the setup wizard of #829
   await online(a, false);
   if (!(await clickText(a, "Start match"))) throw new Error("no Start button");
   await until(a, `(() => { const b = ${BOARD_NOW}; return !!(b && b.snapshot && b.state.kind === "owner"); })()`, 60000);

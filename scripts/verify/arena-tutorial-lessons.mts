@@ -10,6 +10,16 @@ session.subscribe(t => { last = { type: "transition", ...t }; progress = lessonR
 const snapshot = session.getSnapshot();
 assert.match(compactCoach("t1.charge", snapshot).instruction, /Tap a hand card, then Charge it/);
 assert.match(compactCoach("t1.charge", snapshot).instruction, /Pass means no charge/);
+// #844: the coach words its instruction for the input mode the browser detected, and keeps the other modes discoverable.
+assert.match(compactCoach("t1.charge", snapshot, "touch").instruction, /^Tap a hand card/);
+assert.match(compactCoach("t1.charge", snapshot, "mouse").instruction, /Click a hand card, then choose Charge/);
+assert.match(compactCoach("t1.charge", snapshot, "keyboard").instruction, /Tab .*Enter/);
+for (const mode of ["touch", "mouse", "keyboard"] as const) {
+  const coach = compactCoach("t1.charge", snapshot, mode);
+  assert.match(coach.input, mode === "touch" ? /^Touch:/ : mode === "mouse" ? /^Mouse:/ : /^Keyboard:/);
+  if (mode !== "touch") assert.doesNotMatch(coach.instruction, /\bTap\b/, `${mode} instruction must not tell the player to tap`);
+  assert.match(coach.concept, /stays in Energy/);
+}
 assert.match(compactCoach("t1.charge", snapshot).concept, /stays in Energy/);
 assert.match(BADGE_GLOSSARY, /BLK = Blocker/);
 assert.match(BADGE_GLOSSARY, /not colors/);

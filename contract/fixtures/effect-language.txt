@@ -13,7 +13,7 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     add cards from life to hand until that many life remain (21-3-2)
   {"op":"shuffle","side"?:"you"|"opponent","areas"?:["deck"|"life"],"inspectedOnly"?:true|false}
   {"op":"invokeSkill","trait"?:"…","sel"?:SELECTOR,"skillKind":"activate:main"|"activate:main/battle","from":"hand","maxCost"?:"currentEnergy"}
-    12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.
+    12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.
   {"op":"energyMarker","n":AMOUNT,"side"?:"you"|"opponent"}
   {"op":"choose","sel":SELECTOR,"as":"…","reason"?:"…","chooser"?:"you"|"opponent","bindX"?:true|false}
     binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)

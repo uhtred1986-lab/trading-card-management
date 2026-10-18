@@ -71,6 +71,13 @@ export interface Moment {
   subjectInfo?: import("./cards").Attrs;
   /** Auto indexes negated before a Battle-to-Warp move cleared old effects. */
   sourceNegated?: number[];
+  /**
+   * The card whose skill caused this moment (#907: a mode switch by a skill).
+   * A `BIND "self"` declaration hands it on as the pending's `subject`, so the
+   * cause a card prints ("by one of your yellow card skills") is a condition
+   * on a subject, exactly as for `deckToWarpBySkill`.
+   */
+  source?: string;
 }
 
 /**

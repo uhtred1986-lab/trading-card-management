@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -468,6 +468,26 @@ function compileSkillText(skill: Skill): Script {
         { kind: "not", cond: { kind: "count", sel: subject, atLeast: 1 } },
         { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 },
       ] };
+    }
+    // "When this card is [played or] switched to Rest Mode by one of your yellow
+    // card skills" (BT13-112/113/116, EX19-18), "… by your yellow <Turles> card's
+    // skill" (BT24-102), "… by your Leader's skill" (BT23-110, SD20-05),
+    // "… with {Secret Treaty Hercule}'s skill" (TB2-009) (#907): the moment is the
+    // switch by a skill (`restedBySkill`, `restedByAnySkill`,
+    // `restedByOpponentSkill`), which hands the skill's card on as the subject, so
+    // what the card says about the cause is a condition on that subject. In a
+    // coordinated "played or switched" the play has no subject, and the condition
+    // belongs to the Rest half alone. A description the filter cannot read refuses
+    // the skill: firing for any skill would be wider than the card.
+    const restCause = skill.kind === "auto" ? restedCauseOf(trigger) : null;
+    if (restCause && restCause.side !== "alliance" && restCause.desc) {
+      const cause = filterFor(restCause.desc, null);
+      if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
+      const subject = { special: "subject" } as const;
+      const has: Cond = { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 };
+      triggerCond = restCause.played
+        ? { kind: "any", conds: [{ kind: "not", cond: { kind: "count", sel: subject, atLeast: 1 } }, has] }
+        : has;
     }
     // "When this card attacks a Leader Card" / "… attacks a Battle Card"
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks

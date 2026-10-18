@@ -2,7 +2,7 @@
  *
  *   npm run arena:refresh-ids -- [--apply] [--unread-ok] (--ids "BT12-003#10,P-274#0" | --ids-file path | --pr 123)
  *
- * Ids are `CARD#SKILL` (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back). Default is a dry run. See docs/arena-tooling.md. */
+ * Ids are `CARD#SKILL` (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back). A bare `CARD` (or `CARDb`, the back) expands to every stored skill row of the card. Default is a dry run. See docs/arena-tooling.md. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
