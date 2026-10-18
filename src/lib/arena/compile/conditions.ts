@@ -1,5 +1,5 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
-import type { Cond, Ref, Selector } from "../vm/script";
+import type { Cond, Ref, ScriptArea, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
 import { colorCountSelector, filterFor, parseTarget } from "./targets";
 
@@ -70,6 +70,26 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
  * answering one nobody asked.
  */
 let probing = false;
+/**
+ * "your deck or hand", "your hand, energy, or Drop Area": the areas a combo
+ * card is said to come from, as the names the engine keeps (`comboFrom`). Only
+ * the player's own areas, each named once; anything else is not read.
+ */
+const COMBO_SOURCE_AREAS: Record<string, ScriptArea> = {
+  hand: "hand", deck: "deck", drop: "drop", "drop area": "drop", warp: "warp", life: "life", "life area": "life",
+  energy: "energy", "energy area": "energy", "battle area": "battle", "z-energy": "zEnergy", "z-energy area": "zEnergy",
+};
+function comboSourceAreas(said: string): ScriptArea[] | null {
+  const parts = said.trim().split(/\s*,\s*(?:and\/or |or |and )?|\s+(?:and\/or|or)\s+/).filter(Boolean);
+  const out: ScriptArea[] = [];
+  for (const part of parts) {
+    const area = COMBO_SOURCE_AREAS[part.replace(/^your\s+/, "").trim()];
+    if (!area || out.includes(area)) return null;
+    out.push(area);
+  }
+  return out.length ? out : null;
+}
+
 function readsAsAction(said: string): boolean {
   if (probing || !said) return false;
   probing = true;
@@ -453,6 +473,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     const above = filterFor(m[1], null);
     if (above === null) return null;
     return { cond: { kind: "count", sel: { special: "onTop", filter: above }, atLeast: 1 }, subject: { sel: { special: "onTop", filter: above } } };
+  }
+  // "This card was used in a combo from your deck or hand" (BT12-071, -072,
+  // -074, -075): the area the card left to enter the Combo Area, which the
+  // battle keeps (`comboFrom`). Every area named has to be one the engine can
+  // say, or the condition is refused whole rather than widened.
+  if ((m = /^this card (?:was|is) used in a combo from (.+)$/.exec(t))) {
+    const areas = comboSourceAreas(m[1]);
+    if (!areas) return null;
+    return { cond: { kind: "comboFrom", sel: { special: "self" }, areas }, subject: { sel: { special: "self" } } };
   }
   // A card's own mode as a condition (1-10).
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {

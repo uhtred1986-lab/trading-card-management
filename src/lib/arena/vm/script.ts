@@ -511,7 +511,17 @@ export type Cond =
    * refused by it on its own card is a marker skill, so using it spends the
    * lock (22-42-2). A `DEFINE KEYWORD` body's word, on no card (#155).
    */
-  | { kind: "markerSkillUsed"; sel: Selector };
+  | { kind: "markerSkillUsed"; sel: Selector }
+  /**
+   * "This card was used in a combo from your deck or hand" (BT12-071, -072,
+   * -074, -075): did one of these cards enter the Combo Area of the battle in
+   * progress from one of `areas`? The engine keeps the area a combo card left
+   * for as long as the battle runs (`VmBattle.comboOrigins`, set as it lands
+   * and forgotten when it leaves the Combo Area at the end), so the question
+   * is asked of the battle, and a card that is in no Combo Area has no origin
+   * and answers false.
+   */
+  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[] };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
@@ -2197,8 +2207,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.awaiting = op.as;
         frame.vars[op.as] = sofar;
         h.resume(frame);
-        const asked = (op.sel.minCount !== undefined ? ` (${minimum > sofar.length ? `${minimum - sofar.length} required, ` : ""}up to ${left} more)` : left === 1 ? "" : ` (${left} more)`) + (bound ? ` (${bound.attr === "energyCost" ? "energy cost" : bound.attr} ${room} or less left)` : "");
-        const howMany = op.sel.minCount !== undefined ? `${minimum} to ${want}` : upTo ? `up to ${want}` : want;
+        const asked = (op.sel.minCount !== undefined ? ` (${minimum > sofar.length ? `${minimum - sofar.length} required, ` : ""}${want >= 99 ? "as many more as you like" : `up to ${left} more`})` : left === 1 ? "" : ` (${left} more)`) + (bound ? ` (${bound.attr === "energyCost" ? "energy cost" : bound.attr} ${room} or less left)` : "");
+        const howMany = op.sel.minCount !== undefined ? (want >= 99 ? `${minimum} or more` : `${minimum} to ${want}`) : upTo ? `up to ${want}` : want;
         h.ask({
           kind: "chooseCards",
           // 20-7: whoever the card says chooses, chooses.

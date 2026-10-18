@@ -66,7 +66,7 @@ import { TRIGGERS } from "../gaps";
 import { RulesetBroken } from "./errors";
 import { NotYet } from "./errors";
 import type { Moment } from "./events";
-import type { VmState } from "./state";
+import type { ComboOrigin, VmState } from "./state";
 import { bondIsValid } from "./bond";
 import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
@@ -289,13 +289,13 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
  * `pendByName`, where a program says "this card, this trigger" and nothing
  * else on the board is being asked.
  */
-export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean, subjectInfo?: Attrs, cleanupOccurrence?: string, comboOrigin?: "hand" | "other"): VmPending[] {
+export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean, subjectInfo?: Attrs, cleanupOccurrence?: string, comboOrigin?: ComboOrigin): VmPending[] {
   const pended: VmPending[] = [];
   // The entry moment carries the actual source area. Save it on the battle,
   // since several actions and even a JSON reload may separate entry from
   // 8-5's cleanup departure. A later entry of this same copy replaces it.
   if (state.battle && moment.event === "moved" && moment.card && moment.args.to === "combo" && moment.args.from !== "combo") {
-    (state.battle.comboOrigins ??= {})[moment.card] = moment.args.from === "hand" ? "hand" : "other";
+    (state.battle.comboOrigins ??= {})[moment.card] = typeof moment.args.from === "string" ? moment.args.from : "other";
   }
   for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;

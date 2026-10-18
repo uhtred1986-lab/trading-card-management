@@ -6,7 +6,7 @@ import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
-import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
+import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
@@ -516,7 +516,7 @@ function compileSkillText(skill: Skill): Script {
       clauses.shift();
     }
   }
-  if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
+  if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? "")) && !isComboDropReplacement(clauses[0] ?? "")) {
     const trigger = clauses.shift()!;
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could

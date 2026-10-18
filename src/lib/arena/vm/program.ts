@@ -1616,6 +1616,19 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // is used and cleared with the turn.
     case "markerSkillUsed":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!state.cards[id]?.usedMarkerSkill);
+    // BT12-071's "this card was used in a combo from your deck or hand": the
+    // area the card left to enter the Combo Area, kept on the battle
+    // (`VmBattle.comboOrigins`). A battle saved before the area was kept says
+    // only "other", which names no area, so it answers false.
+    case "comboFrom": {
+      const origins = state.battle?.comboOrigins;
+      if (!origins) return false;
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => {
+        const from = origins[id];
+        if (from === undefined || findCard(state, id)?.zone !== "combo") return false;
+        return (c.areas as string[]).includes(from);
+      });
+    }
   }
 }
 

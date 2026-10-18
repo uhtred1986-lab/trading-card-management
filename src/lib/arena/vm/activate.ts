@@ -1024,7 +1024,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
         const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
-        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.count ?? 1)) return false;
+        if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":

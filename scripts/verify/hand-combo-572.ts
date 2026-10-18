@@ -114,7 +114,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
   const attacker = stage("p1", "V1", "battle", state);
   state = take(state, { type: "attack", player: "p1", attacker, target: leaderOf(state, "p2") }).state;
   const second = take(state, { type: "combo", player: "p1", card: combo });
-  assert.equal(second.state.battle?.comboOrigins?.[combo], "other");
+  assert.equal(second.state.battle?.comboOrigins?.[combo], "battle");
   const later = finish(second.state);
   assert.equal(skillEvents(later.events, "C572-BT2", later.state).length, 0, "old hand source cannot leak into the next battle");
   assert.ok(zoneOf(later.state, "p1", "drop").includes(combo));
@@ -154,7 +154,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
   assert.ok(zoneOf(state, "p1", "battle").includes(combo), `rules: staged card left battle ${JSON.stringify(state.cards[combo])}`);
   assert.equal(state.cards[combo].mode, "active", `rules: staged combo card rested unexpectedly`);
   const joined = take(state, { type: "combo", player: "p1", card: combo });
-  assert.equal(joined.state.battle?.comboOrigins?.[combo], "other");
+  assert.equal(joined.state.battle?.comboOrigins?.[combo], "battle");
   const ended = finish(joined.state);
   assert.equal(skillEvents(ended.events, "C572-BT2", ended.state).length, 0);
   assert.ok(zoneOf(ended.state, "p1", "drop").includes(combo));

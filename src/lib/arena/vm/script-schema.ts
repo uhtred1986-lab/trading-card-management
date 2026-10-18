@@ -1459,6 +1459,15 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)",
   },
+  comboFrom: {
+    fields: [SEL, { name: "areas", type: { list: { enum: AREAS } }, required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"comboFrom">;
+      const where = c.areas.map((a) => (a in ZONE_NOUNS ? ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] : a)).join(" or ");
+      return `${describeSelector(c.sel, "any of the")} was used in a combo from the ${where}`;
+    },
+    doc: "did one of these cards enter the Combo Area of the battle in progress from one of these areas — \"this card was used in a combo from your deck or hand\" (BT12-071, -072, -074, -075)? The engine keeps the area a combo card left (`VmBattle.comboOrigins`) until the card leaves the Combo Area at the end of the battle, so the question is asked of the battle; a card in no Combo Area has no origin and answers false",
+  },
 };
 
 /** Primitive or macro for a condition — `docs/arena-ruleset-spec.md` §2.4, and see `OP_CLASS` above. */
@@ -1496,6 +1505,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   sumsTo:         "primitive",
   attacked:       "macro over `count`",
   markerSkillUsed: "macro over `count`",
+  comboFrom:      "primitive",
 };
 
 /**
@@ -2504,7 +2514,8 @@ function describeWhere(sel: Selector): string {
   const parts: string[] = [];
   if (zones.length) parts.push(`in ${owner} ${zones.join(" or ")}`);
   if (areas.includes("play")) parts.push(`${has} in play`);
-  if (areas.includes("under")) parts.push(`under ${owner} cards`);
+  // The pile under the card whose skill this is (23-2): `areaCards` reads the source card's `under`, whatever the side says; a pile under another card carries its `underHost` and is worded there.
+  if (areas.includes("under")) parts.push("under this card");
   if (areas.includes("removed")) parts.push(`${has} out of the game`);
   return parts.join(" or ");
 }
@@ -2547,7 +2558,10 @@ export function describeSelector(sel: Selector, all = "all"): string {
       ? `the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
       : sel.count == null
         ? all
-        : sel.count === 99
+        : sel.count === 99 && sel.minCount !== undefined && sel.minCount < 99
+          ? // "Discard 1 or more cards" (BT20-090): a floor and no ceiling.
+            `${sel.minCount} or more`
+          : sel.count === 99
           ? // "Choose any number of … whose total cost adds up to 5 or less"
             // (BT3-036): every card is not the choice when a sum bounds it.
             sel.upTo && sel.sumAtMost
