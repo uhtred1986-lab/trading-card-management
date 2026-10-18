@@ -56,6 +56,12 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "DB2-151": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
   "DB2-153": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
 
+  // NOT an official erratum: a catalog misprint. BT9-126b prints "[activate main]" with no colon
+  // in the source text (the printed card reads [Activate: Main]), so the line parsed as a
+  // [Permanent] and its win condition could never run (#907). The parser is also tolerant of the
+  // missing colon (`kindOf`); this fix keeps the stored text right for every other reader.
+  "BT9-126": [[/\[activate\s+main\]/gi, "[activate: main]"]],
+
   // Five more official errata (#934), all re-read on the live errata page on
   // 2026-10-17 (the 15 Oct snapshot still carried the "before" wording). The
   // exact before/after strings are kept in OFFICIAL_ERRATA below for audit.

@@ -1,5 +1,5 @@
 import { disjointMoveSpans } from "./disjoint-shape";
-import { namedSetSpans } from "./named-set-shape";
+import { namedPairPresenceSpans, namedSetSpans } from "./named-set-shape";
 import { opponentChoiceSpans } from "./opponent-choice-shape";
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -172,7 +172,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Warp" is one clause; its commas and "and"s are the list's own.
   // #907: "choose up to 1 <A> card, 1 <B> card, and 1 <C> card―all red―from
   // your hand and/or Drop and place them under this card" likewise.
-  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...opponentChoiceSpans(text)];
+  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...namedPairPresenceSpans(text), ...opponentChoiceSpans(text)];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const whole = wholeMoves.find(([from, to]) => i > from && i < to);

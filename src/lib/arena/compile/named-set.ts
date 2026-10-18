@@ -50,16 +50,16 @@ export function compileNamedSet(clause: string, c: Ctx): Op[] | null | undefined
   // choices across slots, which a keyword move's price may not carry).
   if (words.required) {
     return selectors.flatMap((sel, i): Op[] => [
-      { op: "choose", sel, as: vars[i], reason: `${words.slots[i]} from ${words.source}, to place under this card` },
-      { op: "moveTo", target: { var: vars[i] }, to: "under" },
+      { op: "choose", sel, as: vars[i], reason: `${words.slots[i]} from ${words.source}, ${words.dest === "hand" ? "to add to your hand" : "to place under this card"}` },
+      { op: "moveTo", target: { var: vars[i] }, to: words.dest },
     ]);
   }
   const chooses: Op[] = selectors.map((sel, i) => ({
     op: "choose",
     sel: { ...sel, ...(i ? { notIn: vars.slice(0, i) } : {}) },
     as: vars[i],
-    reason: `${words.slots[i]} from ${words.source}, to place under this card`,
+    reason: `${words.slots[i]} from ${words.source}, ${words.dest === "hand" ? "to add to your hand" : "to place under this card"}`,
   }));
-  const moves: Op[] = vars.map((v) => ({ op: "moveTo", target: { var: v }, to: "under" }));
+  const moves: Op[] = vars.map((v) => ({ op: "moveTo", target: { var: v }, to: words.dest }));
   return [...chooses, ...moves];
 }

@@ -1275,7 +1275,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // **from your deck** to your hand" is a search of the deck, look or no look,
   // and the same test `parseTarget` uses is what says so.
   {
-    const add = c.lastSeen ? /^add (.+?) to your hand$/.exec(t) : null;
+    // "…card―both red and with an energy cost of 4 or less―to your hand": the closing dash
+    // of an aside is run up against "to", so the space before it is optional (#907).
+    const add = c.lastSeen ? /^add (.+?)\s*to your hand$/.exec(t) : null;
     const desc = add?.[1];
     if (desc && !AREA_WORDS.some(([re]) => re.test(desc.toLowerCase()))) {
       // Only a description that names a card of its own. "Add **it** to your
@@ -1349,6 +1351,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const alt = counterAltCost(t, c);
     return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
   }
+
+  // "If …, you can activate this card's [Awaken] (skill) when your life is at 6 or less" (BT3-056,
+  // BT6-105 and a few more): a standing permission to use the [Awaken] at a wider moment. It is not
+  // an instruction to play the card, which the "activate … → play" reader below made of it (#907).
+  // The engine has no widened [Awaken] moment, so it stays unread (ground rule 5).
+  if (/^activate this card's \[awaken\]/.test(t)) return null;
 
   const skillScope = (raw: string): SkillScope | null => {
     // "…of [Counter] skills on yellow <Vegito> cards in your hand…", "…of this

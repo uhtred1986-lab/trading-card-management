@@ -28,14 +28,23 @@ const COLOUR = "(?:red|blue|green|yellow|black|white)";
  * a price). The source may also be introduced by "in" (EX06-19, BT9-044).
  */
 const SHAPES = [
-  { verb: "choose", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) .+?) and place them under this card$/i },
-  { verb: "place", required: false, re: /^place (up to 1 .+?) from ((?:your|their) .+?) under this card$/i },
-  { verb: "choose", required: true, re: /^choose (1 .+?) (?:from|in) ((?:your|their) .+?) and place them under this card$/i },
-  { verb: "place", required: true, re: /^place (1 .+?) (?:from|in) ((?:your|their) .+?) under this card$/i },
+  { verb: "choose", dest: "under", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) .+?) and place them under this card$/i },
+  { verb: "place", dest: "under", required: false, re: /^place (up to 1 .+?) from ((?:your|their) .+?) under this card$/i },
+  { verb: "choose", dest: "under", required: true, re: /^choose (1 .+?) (?:from|in) ((?:your|their) .+?) and place them under this card$/i },
+  { verb: "place", dest: "under", required: true, re: /^place (1 .+?) (?:from|in) ((?:your|their) .+?) under this card$/i },
+  // #907 round 2: the same pair of names, taken to the hand. "Add up to 1 yellow <Son Goten: GT>
+  // card and up to 1 yellow <Trunks: GT> card from your Drop Area to your hand" (BT10-111, BT10-112,
+  // P-255, P-256) and "choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your
+  // Drop Area and add them to your hand" (BT6-012, BT6-013, P-095, P-108). The colour sits in front of
+  // each name here rather than once in a pair of dashes.
+  { verb: "choose", dest: "hand", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) .+?) and add them to your hand$/i },
+  { verb: "add", dest: "hand", required: false, re: /^add (up to 1 .+?) from ((?:your|their) .+?) to your hand$/i },
 ] as const;
 
 export interface NamedSetWords {
-  verb: "choose" | "place";
+  verb: "choose" | "place" | "add";
+  /** Where every card taken goes: under this card, or to the hand. */
+  dest: "under" | "hand";
   source: string;
   colour: string | null;
   /** True for "1 each of <A> and <B>": every slot is a card that must be had. */
@@ -51,7 +60,7 @@ function listItems(list: string): string[] {
 
 /** The words of a clause of this shape, or `null`. */
 export function namedSetWords(clause: string): NamedSetWords | null {
-  const said = clause.trim().replace(/[.]$/, "").replace(/([―—–])(?=\S)/g, "$1 ");
+  const said = clause.trim().replace(/[.,]$/, "").replace(/([―—–])(?=\S)/g, "$1 ");
   for (const shape of SHAPES) {
     const m = shape.re.exec(said);
     if (!m) continue;
@@ -68,12 +77,18 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     if (DASH_ANYWHERE.test(list)) return null;
     // "1 <Android 14> and <Android 15> card" says "card" once, at the end.
     const raw = listItems(list).map((x) => (shape.required && !/\bcards?$/i.test(x) ? `${x} card` : x));
-    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:1 )?${NAME} cards?$`, "i").test(x))) return null;
-    // Only the first slot says "up to 1"; every item is one named card.
-    const slots = raw.map((x) => `${shape.required ? "1" : "up to 1"} ${colour ? `${colour} ` : ""}${x.replace(/^1 /, "")}`);
+    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:${COLOUR} )?${NAME} cards?$`, "i").test(x))) return null;
+    // Only the first slot says "up to 1"; every item is one named card. A colour in front of an
+    // item (BT6-012) is that item's own and wins over the one the dashes give all of them.
+    const slots = raw.map((x) => {
+      const body = x.replace(/^(?:up to )?(?:1 )?/i, "");
+      const own = new RegExp(`^(${COLOUR}) `, "i").exec(body);
+      const here = own ? own[1].toLowerCase() : colour;
+      return `${shape.required ? "1" : "up to 1"} ${here ? `${here} ` : ""}${own ? body.slice(own[0].length) : body}`;
+    });
     // The same name twice would be one slot twice over.
-    if (new Set(raw.map((x) => x.toLowerCase().replace(/^1 /, ""))).size !== raw.length) return null;
-    return { verb: shape.verb, source: m[2].trim(), colour, required: shape.required, slots };
+    if (new Set(slots.map((x) => x.toLowerCase())).size !== slots.length) return null;
+    return { verb: shape.verb, dest: shape.dest, source: m[2].trim(), colour, required: shape.required, slots };
   }
   return null;
 }
@@ -83,7 +98,7 @@ const DASH_ANYWHERE = /[―—–]|--/;
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function namedSetSpans(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const start = new RegExp(`\\b(?:choose|place) (?:up to )?1 (?:each of )?${NAME}`, "gi");
+  const start = new RegExp(`\\b(?:choose|place|add) (?:up to )?1 (?:each of )?(?:${COLOUR} )?${NAME}`, "gi");
   for (let m = start.exec(text); m; m = start.exec(text)) {
     for (let end = m.index + 1; end <= text.length; end++) {
       const stops = end === text.length || ".;".includes(text[end]) || text.startsWith(", and ", end) || text.startsWith(" then ", end);
@@ -94,4 +109,24 @@ export function namedSetSpans(text: string): [number, number][] {
     }
   }
   return out;
+}
+
+const PLACE = "(?:drop area|warp|hand|energy area|life area|z-deck|battle area|combo area)";
+// Only straight after the condition word: "if your Leader Card is a ≪Shenron≫ card and {Oolong's
+// Wish} is in your Drop Area" (BT5-014) is a Leader test and a presence test, not a pair of names.
+const PAIR_PRESENT = new RegExp(`(?<=\\b(?:if|when|while) )${NAME}(?: cards?)? and ${NAME}(?: cards?)? (?:are|is) in (?:play in )?your ${PLACE}\\b`, "gi");
+
+/**
+ * #907: "If <Android 14> and <Android 15> are in your Drop Area" (BT3-056),
+ * "if <Kakunsa> and <Rozie> are in play in your Battle Area" (TB1-051b,
+ * TB1-056, TB1-058, TB1-059): two named cards that must both be there. The
+ * "and" is the condition's own, and `parseConditionClause` already reads the
+ * pair (each name a count of at least one, both required), but `splitClauses`
+ * cut the sentence at that "and" first, so it never arrived whole. Kept
+ * together here, as the named-set gathers are.
+ */
+export function namedPairPresenceSpans(text: string): [number, number][] {
+  // The span starts one character early: `splitClauses` skips what is strictly inside a span, and a
+  // name's own "<" must be seen there to open (and its ">" to close) the bracket depth.
+  return [...text.matchAll(PAIR_PRESENT)].map((m) => [m.index! - 1, m.index! + m[0].length] as [number, number]);
 }
