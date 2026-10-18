@@ -246,6 +246,11 @@ function kindOf(tags: string[], keyword: KeywordSkill | null): SkillKind {
     const t = raw
       .toLowerCase()
       .replace(/\s*:\s*/, ":")
+      // A misprinted timing tag with no colon, "[activate main]" (BT9-126b), is
+      // the same tag: left unread the line became a [Permanent] whose effect
+      // could never run. Only "activate"/"counter" followed by a word, so the
+      // bare "[Counter]" keyword is untouched.
+      .replace(/^(activate|counter)\s+(?=\S)/, "$1:")
       .replace(/\s+/g, " ");
     if (t === "activate:main") return "activate:main";
     if (t === "activate:battle") return "activate:battle";
@@ -469,6 +474,15 @@ function tidyEffect(effect: string): string {
   return effect
     .replace(/(\d)of\b/g, "$1 of")
     .replace(/\bit's owner/gi, "its owner")
+    // "from you hand" (BT2-081, a misprint of "your"): no area reader knew the phrase, and for
+    // "you can play this card from you hand without paying …" that left a permission to be read as
+    // an instruction to play the card (#907).
+    .replace(/\bfrom you hand\b/gi, "from your hand")
+    // The feed decodes the dash pair of "card―both blue and with an energy cost of 5 or less―or 1
+    // blue Unison …" as "?" (BT18-047, BT18-050, BT18-051, BT18-116, SD20-05: #907). A "?" there is
+    // not the end of a sentence, but the sentence cutter took it for one and split the aside off.
+    // Put back as the dash it is, the existing aside readers take it.
+    .replace(/(?<=[a-z>≫}])\?(both\b[^?.]*?)\?/gi, "—$1—")
     // BT31-109 prints "an energy cost less **then** or equal to their current energy" (#1011):
     // the "then" was read as the word that starts the next step, which cut the clause in two
     // and left the first half choosing a Battle Card with no cost test at all.

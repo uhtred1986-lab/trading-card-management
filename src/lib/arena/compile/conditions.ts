@@ -657,6 +657,18 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     }
     return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]), back: true }, subject: { sel: { special: "leader" } } };
   }
+  // "If <Son Gohan: Adolescence> is in your Battle Area or Leader Area" (BT2-018, BT2-050,
+  // BT2-081, BT3-012, TB1-017, #907): the card is in either of two named areas - a count of at
+  // least one in each, either will do. Only the two areas "battle" and "leader", in either order.
+  if ((m = /^(.+?) is in your (battle|leader) area or (battle|leader) area$/.exec(t)) && m[2] !== m[3]) {
+    const sel = parseTarget(m[1]);
+    if (sel && !sel.special) {
+      delete sel.count;
+      delete sel.upTo;
+      const at = (area: "battle" | "leader"): Cond => ({ kind: "count", sel: { ...sel, area, side: sel.side ?? "you" }, atLeast: 1 });
+      return { cond: { kind: "any", conds: [at("battle"), at("leader")] }, subject: { sel } };
+    }
+  }
   // "If {Son Goku, Hero} is in play in your Unison Area", "if your <Vegeta>
   // card is in play", "if a <Bulma> card is in your Combo Area" — the card
   // first, then where it has to be: a count of at least one.
