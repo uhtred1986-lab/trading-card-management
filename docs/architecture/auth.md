@@ -105,7 +105,7 @@ An SL session passes (`/login` and `/join` send it home). A player whose device 
 that an SL-only page sends them home and an SL-only API or action gets a 403. A Basic Auth header the old
 checks accept passes. With nothing configured at all everything passes (local dev). The public paths
 pass (`/login`, `/join`, `/api/join`, the Google routes, `/password-login`, the manifest, `/sw.js`,
-`/icons/*`, and the offline shell `/arena/offline` with its `/arena/offline/shell.json` — both
+`/icons/*`, `/themes/*` (public background art), and the offline shell `/arena/offline` with its `/arena/offline/shell.json` — both
 prerendered at build, reading no cookie and no data, #659), but a **Server Function posted to a public path is refused**. Without Google the browser gets
 the Basic popup; with Google a page redirects to `/login` and an API route or Server Function call gets a
 401. The matcher skips static files, `/api/sync/*` and exactly `/api/ai/agent-sdk`; a second entry sends

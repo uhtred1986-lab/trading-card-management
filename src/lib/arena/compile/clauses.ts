@@ -555,5 +555,10 @@ export function stripNotes(text: string): string {
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
     else if (depth === 0) out += ch;
   }
-  return out.replace(/\s+/g, " ").trim();
+  // "Choose up to 1 of your opponent's Leaders or Battle Cards**—both in Rest
+  // Mode—**and it can't attack …" (BT24-130, #1005): the dashes set a
+  // qualifier off from the list it qualifies, and it qualifies each kind
+  // named. Left in, the whole sentence was one clause whose "subject" began
+  // at "choose", and "it" in it resolved to this card.
+  return out.replace(/\s*[—–]\s*both in (rest|active) mode\s*[—–]\s*/gi, " in $1 mode ").replace(/\s+/g, " ").trim();
 }

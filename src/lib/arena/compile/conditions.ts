@@ -566,15 +566,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // just above, said as a verb rather than a participle. 8-1 gives an attack
   // no object but the opponent's cards, so what follows the verb is never
   // itself read — only that the subject is the one attacking is.
-  // "…this card **can** attack a Battle Card in Active Mode" (BT22-133) is a
-  // permission, not "this card attacks": the modal in front of the verb makes
-  // it an instruction, and read as a condition it swallowed the clause whole
-  // (a [Permanent] DB3-011 and EX03-03 read as nothing at all). Only the
-  // permission, "can/may attack": the same trap for "can't attack" (about
-  // twenty [Permanent]s, BT21-077 and its neighbours) is a separate audit,
-  // because reading those exposes pronouns that resolve to the wrong card
-  // (BT19-035b, BT24-130).
-  if ((m = /^(?!.*\b(?:can|may)\s+attacks?\b)(.+?) attacks? .+$/.exec(t))) {
+  // A modal in front of the verb makes it an instruction, not a moment.
+  // "…this card **can** attack a Battle Card in Active Mode" (BT22-133, #1004)
+  // is a permission, and "your opponent's Battle Cards **can't** attack
+  // Leaders" (BT21-077, #1005) a prohibition; read as "if … attack" and chained
+  // behind an "if", either was taken for a second condition and swallowed the
+  // clause whole — the rule it printed vanished with no unread clause.
+  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && (m = /^(.+?) attacks? .+$/.exec(t))) {
     const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
     if (sel) {
       delete sel.count;
