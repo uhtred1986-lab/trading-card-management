@@ -3412,6 +3412,10 @@
       "part": "flag"
     },
     {
+      "field": "distinctColors",
+      "part": "flag"
+    },
+    {
       "field": "notIn",
       "part": "fromVar"
     },
@@ -3476,6 +3480,10 @@
     {
       "word": "differentNames",
       "doc": "the cards chosen may not share a card name (BT29-030's \"different card names\"); a count over it counts names, not cards (BT18-104)"
+    },
+    {
+      "word": "distinctColors",
+      "doc": "a count over it counts the different colors the cards have, not the cards (EX19-26's \"for each card color in your Energy Area\"); a multicolor card counts each of its colors (1-8-1-1)"
     },
     {
       "word": "asPrinted",

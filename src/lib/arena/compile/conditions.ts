@@ -1,7 +1,7 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import type { Cond, Ref, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
-import { filterFor, parseTarget } from "./targets";
+import { colorCountSelector, filterFor, parseTarget } from "./targets";
 
 /**
  * A price, or the head of one, read as the one or more conditions it states.
@@ -783,6 +783,15 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // "There are 4 or more **colors among** cards in your energy" (BT16-016,
+  // P-393, SD21-01…): the number is of colors, not of cards. Read as "4 or more
+  // cards in your energy" it held with four energy of one color. Any other
+  // count of colors than "N or more/less" is refused rather than read as cards.
+  const colored = colorCountSelector(said);
+  if (colored !== undefined) {
+    if (!colored || none || !num) return refuseCount();
+    return { kind: "count", sel: colored, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
+  }
   // "You have **a total of 2 or more** green cards in your Combo Area" (#961):
   // the article took the number and the clause below read "at least 1". With
   // one description the total is the plain count; across three or more places
