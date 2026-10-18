@@ -1179,13 +1179,21 @@ import type { EngineState, Trigger } from "./harness";
   assert.equal(oppSel("up to 1 card from your Drop to your opponent's Battle Area"), "you", "BT22-006");
   assert.equal(oppSel("up to 1 of your opponent's Rest Mode Battle Cards"), "opponent");
   assert.equal(oppSel("up to 1 Battle Card in your opponent's Battle Area"), "opponent");
+  // DB1-059 and EX08-06 ("an energy cost greater than or equal to your
+  // opponent's [current] energy") and the 35 skills of the same measure were
+  // read with the comparison DROPPED (the words "their current energy" were
+  // taken for the area, and once that was fixed for the area the bound still
+  // went missing): "choose 1 Battle Card in your Battle Area, KO it" for DB1-059.
+  // No selector field carries a cost measured against a player's energy count,
+  // so the description is refused (ground rule 5) rather than widened. The area
+  // and the side must still never come out as an Energy Area, so a phrase with
+  // the bound is a refusal, and the same phrase without it still reads.
   for (const number of ["DB1-059", "EX08-06"]) {
-    const target = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy");
-    assert.equal(target?.area, "battle", `${number}: the comparison is not an energy area`);
-    assert.equal(target?.side, "opponent", `${number}: the source Battle Card belongs to the opponent`);
-    const printedTarget = parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy");
-    assert.equal(printedTarget?.area, "battle", `${number} printed: area is battle`);
-    assert.equal(printedTarget?.side, "you", `${number} printed: side is you`);
+    assert.equal(parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy"), null, `${number}: refused, not widened`);
+    assert.equal(parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy"), null, `${number} printed: refused, not widened`);
+    const bare = parseTarget("up to 1 of your opponent's Battle Cards");
+    assert.equal(bare?.area, "battle", `${number}: the Battle Cards themselves still read`);
+    assert.equal(bare?.side, "opponent", `${number}: and belong to the opponent`);
   }
   {
     const ex25 = parseTarget("all of your opponent's skill-less Battle Cards and Battle Cards with 15000 power or less ―all in Rest Mode―");
