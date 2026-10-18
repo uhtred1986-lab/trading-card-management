@@ -2314,7 +2314,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\"}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"source\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -2334,7 +2334,10 @@
             "evolveFromZEnergy",
             "aegisAltDrop",
             "aegisAltOpponentHand",
-            "attackUnnegatable"
+            "attackUnnegatable",
+            "unionSourceUnder",
+            "unionSourceOpponentBattle",
+            "playInOpponentBattle"
           ]
         },
         {
@@ -2360,6 +2363,12 @@
           "required": false,
           "nullable": false,
           "type": "string"
+        },
+        {
+          "name": "source",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",

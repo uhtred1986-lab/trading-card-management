@@ -58,6 +58,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
+import { other as otherPlayer } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -71,7 +72,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -545,13 +546,31 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const source = cards[0];
         const watch = [source, ...(opts.onto ? [opts.onto] : []), ...(opts.under ?? [])];
         const epoch = (id: string) => state.cards[id]?.zoneEpoch ?? 0;
+        const declared = !frame.unionBound;
+        const sourceAt = findCard(state, source);
+        // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand in the
+        // opponent's Battle Area, so that is the Battle Area its materials must stand in.
+        const dest = union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, source) ? otherPlayer(opts.player) : opts.player;
+        const inBattle = (id: string, who: PlayerId = opts.player) => { const at = findCard(state, id); return at?.zone === "battle" && at.owner === who; };
+        const materials = [...(opts.onto ? [opts.onto] : []), ...(opts.under ?? [])];
+        // 22-13-5-2 (+ -1, #927): at the declaration every material is a Battle Card of the
+        // master's Battle Area, or in a place a [Permanent] adds (under a Unison, the
+        // opponent's Battle Area; the energy and Warp ones were moved by the skill's own
+        // `DO`, #930). 22-13-5-2-1-1: those are first moved to the Battle Area the card is
+        // played into - silently: no movement trigger pended, no counter timing - and the
+        // skill then resolves normally. Once bound, a material that has not moved since
+        // (`stood`) is still where it was chosen from, whatever the permission now says.
+        if (declared && union === "Union-Potara" && materials.length && sourceAt?.zone === "hand" && sourceAt.owner === opts.player) {
+          const extras = unionPotaraExtras(ctx, game, state, opts.player, source);
+          if (materials.every((m) => inBattle(m) || extras.includes(m))) {
+            for (const m of materials) if (!inBattle(m, dest)) moveTo(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
+          }
+        }
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
         const stood = bound.length === watch.length && watch.every((id, i) => bound[i].card === id && bound[i].zoneEpoch === epoch(id));
-        const inBattle = (id: string) => { const at = findCard(state, id); return at?.zone === "battle" && at.owner === opts.player; };
-        const sourceAt = findCard(state, source);
         const ready = stood
           && (union === "Union-Absorb" ? true : sourceAt?.zone === "hand" && sourceAt.owner === opts.player)
-          && (union === "Union-Fusion" || (!!opts.onto && inBattle(opts.onto) && (opts.under ?? []).every(inBattle)));
+          && (union === "Union-Fusion" || (!!opts.onto && (declared ? union === "Union-Absorb" ? inBattle(opts.onto) : materials.every((m) => inBattle(m, dest)) : true)));
         if (!ready) {
           // Fusion/Potara: the card that activated it, if it is still in the hand. Absorb: the chosen card, if it is still where it was chosen from.
           const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand";
@@ -593,9 +612,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // play or a Rest-to-Active switch of the underlying card, and opens
         // no second counter window. Normal stacking/play remains shared.
         if (energyBase && opts.onto) moveTo(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
+        // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
+        // in the opponent's Battle Area.
+        const side = union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
+          ...(union === "Union-Potara" && opts.under?.length ? { under: opts.under } : {}),
+          ...(side !== opts.player ? { side } : {}),
           negated: opts.negated,
           ...(r?.negated ? { negatedForTurn: true } : {}),
           ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
@@ -605,16 +629,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) (frame.did ??= {}).play = true;
-        // 22-13-5-4: [Union-Potara]'s other material goes under the card just
-        // played — as part of this play, so a play that failed moved none of them.
-        if (played && union === "Union-Potara") {
-          for (const under of opts.under ?? []) {
-            if (!moveCard(state, game, under, "drop", { under: id }).ok) continue;
-            clearAutoReveal(state, under);
-            log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
-            emit(ctx, game, state, ev, { event: "placedUnder", card: under, controller: opts.player, args: { to: "under" } }, null);
-          }
-        }
+        // 22-13-5-4: [Union-Potara]'s materials all go under the card in the play
+        // itself (`resolvePlay`'s `under`), so a play that failed moved none of them.
+        if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
         frame.evolutionBase = undefined;
         frame.unionBound = undefined;
         if (r) state.resolving = null;

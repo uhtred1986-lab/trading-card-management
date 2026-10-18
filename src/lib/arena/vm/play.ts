@@ -131,6 +131,15 @@ export interface PlayOptions {
   /** #1015: a skill made the play (`"skill"`), and whether it was the other player's. A declared play (5-5-2) names neither. */
   by?: "skill";
   byOpponent?: boolean;
+  /**
+   * 22-13-5-4 (#927): [Union-Potara]'s other materials, in the order chosen —
+   * `onto` is the first, directly beneath the played card, these follow it.
+   * They go under the card in this very play (the stack is one move), and a
+   * play that failed moved none of them.
+   */
+  under?: string[];
+  /** BT20-125 (#927): the player whose Battle Area the card is played into, when not the player playing it. */
+  side?: PlayerId;
 }
 
 /**
@@ -181,6 +190,10 @@ export function resolvePlay(
   const def = inst && ctx.defs[inst.cardId];
   if (!def) throw new RulesetBroken(state.game, `there is no card ${card} to play`);
   const printed = String(attrsOf(def, game).attrs.type ?? "");
+  // #927 (BT20-125): the card goes into this side's Battle Area when its own
+  // [Permanent] has it played in the opponent's; everything below is about the
+  // area it lands in, so the side replaces the player.
+  player = opts.side ?? player;
   // 22-46-6: a card played *onto* another goes where its host stands — a
   // Z-Leader by [Z-Awaken] onto the Leader, which is the one way a card joins
   // the Leader Area (6-1-4); the old Leader goes under it and does not leave
@@ -230,7 +243,7 @@ export function resolvePlay(
   // Battle Area: that is `removedFromBattle`'s move (`moved(by: skill, from:
   // battle)`), and this play must not answer to it.
   const cause: { by?: string; byOpponent?: boolean } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, cause);
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
@@ -269,7 +282,7 @@ export function resolvePlay(
     log(ev, { type: "note", text: `${def.name} was played with its skills negated` });
   }
   const arrived = findCard(state, card);
-  const success = arrived?.zone === to && arrived.owner === player && (!host || state.cards[card].under.includes(host));
+  const success = arrived?.zone === to && arrived.owner === player && (!host || state.cards[card].under.includes(host)) && (opts.under ?? []).every((id) => state.cards[card].under.includes(id));
   // 22-5-2-3/4: evolution is a successful play, separate from using the
   // keyword from hand. Failed/countered plays and ordinary stacks have none.
   if (success && evolution) fire(ctx, game, state, { event: "evolved", card, controller: player, args: { to } });
@@ -286,9 +299,13 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, cause: { by?: string; byOpponent?: boolean } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean } = {}): void {
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
+  // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the
+  // order chosen. Each with the pile it already carried (23-2-6), read before
+  // anything moves, so the stack ends as card, first + its pile, second + its pile.
+  const groups = [host, ...extra].map((id) => [id, ...(state.cards[id]?.under ?? [])]);
   moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host, ...cause });
   // 23-2-1, 23-2-2: the stack is a single card in the host's area — this
   // player's, 3-1-1 — so the arrival must be standing in that very area before
@@ -306,8 +323,21 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   list.splice(list.indexOf(card), 1);
   list.splice(Math.min(Math.max(slot, 0), list.length), 0, card);
   if (mode !== undefined) state.cards[card].mode = mode;
-  for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = card;
-  state.effects = state.effects.filter((e) => e.target !== host);
+  // The other materials go under the same card, each as its own move (the
+  // card underneath answers no moment of leaving, 23-2-2-2), then the pile is
+  // put in the order chosen.
+  const placed = [host];
+  for (const id of extra) if (moveCard(state, game, id, to, { under: card }).ok) placed.push(id);
+  if (extra.length) {
+    const order = groups.flat().filter((id) => state.cards[card].under.includes(id));
+    state.cards[card].under = [...order, ...state.cards[card].under.filter((id) => !order.includes(id))];
+  }
+  // 21-5-2 / 22-13-5-4-1: the continuous effects on the power of the cards
+  // that were played onto carry over - from every material, and from the
+  // cards in each one's pile - and the others end.
+  const carried = new Set(groups.filter((g) => placed.includes(g[0])).flat());
+  for (const e of state.effects) if (carried.has(e.target) && e.kind === "power") e.target = card;
+  state.effects = state.effects.filter((e) => !carried.has(e.target));
   const b = state.battle;
   if (b && (b.attacker === host || b.guard === host)) {
     state.cards[card].battledThisTurn = true;
@@ -317,7 +347,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).
-  fire(ctx, game, state, { event: "placedUnder", card: host, controller: player, args: { to: "under" } });
+  for (const id of placed) fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under" } });
 }
 
 /** The base type a zone is chosen by (14-1, 19-1) — `vm/filters.ts`'s reading of the same attribute. */
