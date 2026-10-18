@@ -367,7 +367,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
   // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
   // omits `side` means the other player's life, never its own.
-  damage: { fields: [n(), { name: "side", type: "side", default: "opponent" }], sentence: "deal {n} damage", doc: "life to hand" },
+  // "inflict 2 damage to your life" (EX03-11) is `side: "you"`, and says so.
+  damage: {
+    fields: [n(), { name: "side", type: "side", default: "opponent" }],
+    sentence: (raw, r) => renderTemplate(`${(raw as OpOf<"damage">).side === "you" ? "take" : "deal"} {n} damage`, raw as unknown as Record<string, unknown>, OP_SCHEMA.damage.fields, r),
+    doc: "life to hand",
+  },
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
