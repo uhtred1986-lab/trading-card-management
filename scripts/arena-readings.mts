@@ -13,6 +13,10 @@
  *
  * `npm run arena:readings [-- --grep "leader" --unread --silent]  > after.txt`
  *
+ * `--programs` prints the compiled program itself (JSON) instead of the reading, one line per skill: the
+ * thing to diff against origin/main when a change is blind to the reading (an all-of that reads the same
+ * words as an any-of, #907 round 5), and sign off by hand.
+ *
  * `--silent` prints only the skills that read as an EMPTY program with NO
  * unread clause (`readsAsNothingSilently`): printed text that plays as blank
  * and is counted by nothing, the worst way to fail (#1005). Every run ends
@@ -38,6 +42,8 @@ const grep = value("grep")?.toLowerCase();
 const withUnread = args.includes("--unread");
 /** Only the skills that read as nothing without saying so. */
 const onlySilent = args.includes("--silent");
+/** The compiled program as JSON, one line per skill, instead of the reading. */
+const programs = args.includes("--programs");
 const silent: string[] = [];
 
 const raw = await fetchDeckplanet("dbs");
@@ -71,6 +77,11 @@ for (const d of defs) {
       // duration would say something the card does not — the same reason
       // `describeScript` takes the flag rather than guessing.
       const reading = describeScript(s.ops, { permanent: sk.kind === "permanent" });
+      if (programs) {
+        console.log(`${d.id}${face}#${sk.index} ${JSON.stringify({ ops: s.ops, unread: s.unsupported })}`);
+        lines++;
+        continue;
+      }
       console.log(`${d.id}${face}#${sk.index} ${sk.kind}`);
       console.log(`  printed: ${flat(sk.raw).slice(0, 300)}`);
       console.log(`  reads:   ${reading || "(nothing)"}`);

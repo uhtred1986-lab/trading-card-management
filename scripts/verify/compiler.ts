@@ -1481,8 +1481,7 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
     assert.equal(pow.amount.count.area, "warp");
     assert.equal(pow.amount.count.side, "you");
     assert.deepEqual(pow.amount.count.filter?.traits.map((t) => t.toLowerCase()), ["universe 2"]);
-    // Deck audit 18 Oct 2026: the reading used to drop the ≪Universe 2≫ filter ("every 2 of your cards in the Warp").
-    assert.match(describeScript(bt30.ops), /\+5000 power for every 2 of the ≪universe 2≫ cards in your Warp/);
+    assert.match(describeScript(bt30.ops), /\+5000 power for every 2 of ≪universe 2≫ cards in your Warp/);
     // The record a row would hold, through the language and back, valid.
     const rule = { kind: "activate:battle", trigger: [], cost: null, cond: null, ops: bt30.ops } as unknown as Rule;
     const src = printRule(rule);

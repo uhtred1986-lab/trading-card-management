@@ -72,6 +72,13 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   // on this unflipped, effect-free corpus; §26 covers their board divergence.
   costMin: { only: ["BLOCKER", "BERGAMO", "CRIT", "DOUBLE", "DUAL", "INDESTRUCT", "REVENGE", "BIG", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "CHEAP", "TOUGH", "PERMTOUGH", "PERMLOCK", "SELFMUTE", "BECOMES", "RECOLOR", "RENAMED", "CHEAPCOMBO", "BLUECOMBO", "FREEPLAY", "EXILE", "MAYWARP", "EARTHWARP", "WARPER", "E-LIFE", "COMBOBACK", "RAINBOW"] },
   costMax: { except: ["L-RED", "L-BLUE", "CRIT", "DOUBLE", "DUAL", "BIG", "U1", "EVO", "COST3", "UNI2", "XBAT", "CHEAP", "CHEAPCOMBO", "BLUECOMBO", "E-LIFE", "COMBOBACK", "RAINBOW"] },
+  // #907 round 6: the printed total, the same list as the bare bounds on this effect-free corpus.
+  originalCostMin: { only: ["BLOCKER", "BERGAMO", "CRIT", "DOUBLE", "DUAL", "INDESTRUCT", "REVENGE", "BIG", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "CHEAP", "TOUGH", "PERMTOUGH", "PERMLOCK", "SELFMUTE", "BECOMES", "RECOLOR", "RENAMED", "CHEAPCOMBO", "BLUECOMBO", "FREEPLAY", "EXILE", "MAYWARP", "EARTHWARP", "WARPER", "E-LIFE", "COMBOBACK", "RAINBOW"] },
+  originalCostMax: { except: ["L-RED", "L-BLUE", "CRIT", "DOUBLE", "DUAL", "BIG", "U1", "EVO", "COST3", "UNI2", "XBAT", "CHEAP", "CHEAPCOMBO", "BLUECOMBO", "E-LIFE", "COMBOBACK", "RAINBOW"] },
+  // #907 round 6: the printed combo cost (2-9). BLOCKER prints 1, CHEAPCOMBO and BLUECOMBO print 2, every other row 0 or none;
+  // a card with no combo cost (the Leaders, Extras, Unisons and Z-cards) matches no bound.
+  comboCostMin: { only: ["BLOCKER", "CHEAPCOMBO", "BLUECOMBO"] },
+  comboCostMax: { except: ["L-RED", "L-BLUE", "E-NEGATE", "E-DRAW", "U1", "ZB", "ZCHEAP", "UNI2", "CHEAPCOMBO", "BLUECOMBO", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY"] },
   powerMin: { only: ["BERGAMO", "CRIT", "DOUBLE", "DUAL", "BIG", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "RAINBOW"] },
   powerMax: { except: ["BERGAMO", "CRIT", "DOUBLE", "DUAL", "BIG", "E-NEGATE", "E-DRAW", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "E-STOP", "E-LIFE", "E-CC", "E-MYSTERY", "RAINBOW"] },
   originalPowerMin: { only: ["BERGAMO", "CRIT", "DOUBLE", "DUAL", "BIG", "ZB", "ZCHEAP", "EVO", "SWAPPER", "COST3", "RAINBOW"] },

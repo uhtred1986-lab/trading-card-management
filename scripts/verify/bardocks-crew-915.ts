@@ -78,7 +78,11 @@ for (const [id] of PRINTED) {
   const characters = skillRecords(card("R915C", { skill: "[Permanent] If your Leader is a ≪Bardock's Crew≫ card and there are 4 or more ≪Bardock's Crew≫ cards with different character names in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power." }))[0];
   assert.deepEqual(characters.unread, []);
   assert.ok(JSON.stringify(characters.ops).includes('"differentCharacters":true') && !JSON.stringify(characters.ops).includes('"differentNames"'), "'different character names' is not 'different card names'");
-  assert.ok(refused("[Permanent] If there are 3 or more blue and/or yellow cards in your Battle Area and/or Combo Area, this card gets +6000 power."), "a union of descriptions stays unread");
+  // "blue and/or yellow cards in your Battle Area and/or Combo Area" reads since #907 round 6 (the Combo Area is an area word): a card of
+  // either colour, counted once, over both places - not two descriptions.
+  const union = skillRecords(card("R915U", { skill: "[Permanent] If there are 3 or more blue and/or yellow cards in your Battle Area and/or Combo Area, this card gets +6000 power." }))[0];
+  assert.deepEqual(union.unread, []);
+  assert.ok(JSON.stringify(union.cond).includes('"areas":["battle","combo"]') && JSON.stringify(union.cond).includes('"colors":["Blue","Yellow"]'), "one count, over both areas, of cards of either colour");
   assert.ok(refused("[Permanent] If you have a total of 7 or more cards with <GT> in their character names among all cards in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power."), "P-616's total across kinds stays unread");
   // #907 (BT25-131 and four more, census of 18 Oct 2026): exactly two plain descriptions with one place at the end are
   // now read, as one count over an either-description (`anyOf`) — a card that fits both counts once. The compound still
