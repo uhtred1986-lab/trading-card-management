@@ -291,294 +291,6 @@
       "detail": "focus=hand"
     },
     {
-      "scenario": "guided",
-      "name": "reload during the intro restores the screen and the lesson (screen 3 of 5)",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "charging an alternate (not the suggested) card is offered by the board",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint charge (rev 0): lesson cue \"hand\" highlights a visible anchor",
-      "ok": true,
-      "detail": "Your hand, dock, flex w-full flex-wrap it"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 200 hand top 687 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "the alternate charge was accepted and the lesson moved on",
-      "ok": true,
-      "detail": "rev 0 -> 1, prompt main"
-    },
-    {
-      "scenario": "guided",
-      "name": "an unaffordable card cannot be played: no move, no lesson progress, and the board says why",
-      "ok": true,
-      "detail": "rev 1->1"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:play (rev 1): lesson cue \"decision\" highlights a visible anchor",
-      "ok": true,
-      "detail": "hand toolbar (hidden), dock"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 237 hand top 792 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint play:review (rev 1): lesson cue \"decision\" highlights a visible anchor",
-      "ok": true,
-      "detail": "hand toolbar (hidden), dock"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 218 hand top 703 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "resize to landscape with a review open: the review is still open and the cue still on a visible anchor",
-      "ok": true,
-      "detail": "review kept true; hand toolbar (hidden), dock"
-    },
-    {
-      "scenario": "guided",
-      "name": "resize back to portrait: the review and the cue are unchanged",
-      "ok": true,
-      "detail": "focus decision -> decision"
-    },
-    {
-      "scenario": "guided",
-      "name": "reload during an action review restores accepted moves and closes the unconfirmed review",
-      "ok": true,
-      "detail": "rev 1 -> 1, journal 1 -> 1"
-    },
-    {
-      "scenario": "guided",
-      "name": "the board's own battle beats keep playing with the coach up (a Skip control is offered while the opponent moves)",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "reload while the opponent's moves are being played back: the match is restored at the saved revision",
-      "ok": true,
-      "detail": "rev 9 -> 9, journal 9 -> 9"
-    },
-    {
-      "scenario": "guided",
-      "name": "reload while the opponent's moves are being played back: the match carries on by itself to your next decision (a response window or your turn), nothing duplicated",
-      "ok": true,
-      "detail": "turn 2 -> 2, prompt combo, rev 9 -> 9, 9 journal entries"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint prompt:combo (rev 9): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 236 hand top 661 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint charge (rev 15): lesson cue \"hand\" highlights a visible anchor",
-      "ok": true,
-      "detail": "Your hand, dock"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 200 hand top 745 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:play (rev 16): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 236 hand top 791 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint play:review (rev 16): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 236 hand top 721 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:attack (rev 17): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint main:attack: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 200 hand top 755 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint attack:picked (rev 17): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint attack:picked: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 200 hand top 0 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint attack:target (rev 17): lesson cue \"attack\" highlights a visible anchor",
-      "ok": true,
-      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint attack:target: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 200 hand top 0 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint prompt:combo (rev 19): lesson cue \"hand\" highlights a visible anchor",
-      "ok": true,
-      "detail": "Your hand, dock"
-    },
-    {
-      "scenario": "guided",
-      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
-      "ok": true,
-      "detail": "coach bottom 236 hand top 789 hit true/true"
-    },
-    {
-      "scenario": "guided",
-      "name": "the guided match covered charge, play review, own attack and target and a response window",
-      "ok": true,
-      "detail": "main:play, play:review, prompt:combo, charge, main:attack, attack:picked, attack:target"
-    },
-    {
-      "scenario": "guided",
-      "name": "the lesson reached its hand-off after the demonstrated attack and defence",
-      "ok": true,
-      "detail": "11 measured checkpoints"
-    },
-    {
-      "scenario": "guided",
-      "name": "hand-off is offered at a stable boundary: your main prompt, no battle",
-      "ok": true,
-      "detail": "prompt main, battle false"
-    },
-    {
-      "scenario": "guided",
-      "name": "hand-off says honestly what was skipped and where to replay it",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "the prediction question spends no action",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "Play without guidance removes the coach and keeps the same match",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "the choice is saved with the match (hints off, hand-off done)",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "reload after hand-off restores the same match, hints still off, no hand-off card again",
-      "ok": true,
-      "detail": "rev 21 -> 21"
-    },
-    {
-      "scenario": "guided",
-      "name": "no duplicated actions after reload: every journal entry is unique and in order",
-      "ok": true,
-      "detail": "21 entries"
-    },
-    {
-      "scenario": "guided",
-      "name": "hints can be restored mid-match from the toolbar",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "the board's own menu offers the same hints switch",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "turning hints off from the board menu works",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "an unguided game is played through the UI to its end (after hand-off)",
-      "ok": true,
-      "detail": "44 steps, 341 s; winner p2; life 0 vs 3"
-    },
-    {
-      "scenario": "guided",
-      "name": "the end of the match uses practice wording and offers replay and return",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "scenario": "guided",
-      "name": "the finished match's journal is clean (unique request ids, sequential revisions)",
-      "ok": true,
-      "detail": "81 accepted actions"
-    },
-    {
-      "scenario": "guided",
-      "name": "reload after the match ended still shows the finished practice match",
-      "ok": true,
-      "detail": ""
-    },
-    {
       "scenario": "intro",
       "name": "phone: full copy and natural reading order",
       "ok": true,
@@ -889,6 +601,744 @@
       "name": "safe areas: the intro's side padding follows env(safe-area-inset-*)",
       "ok": true,
       "detail": "padding 47/47/21 with insets 47/47/21"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload during the intro restores the screen and the lesson (screen 3 of 5)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "charging an alternate (not the suggested) card is offered by the board",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge (rev 0): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock, flex w-full flex-wrap it"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 687 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "the alternate charge was accepted and the lesson moved on",
+      "ok": true,
+      "detail": "rev 0 -> 1, prompt main"
+    },
+    {
+      "scenario": "guided",
+      "name": "an unaffordable card cannot be played: no move, no lesson progress, and the board says why",
+      "ok": true,
+      "detail": "rev 1->1"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play (rev 1): lesson cue \"decision\" highlights a visible anchor",
+      "ok": true,
+      "detail": "hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 237 hand top 792 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review (rev 1): lesson cue \"decision\" highlights a visible anchor",
+      "ok": true,
+      "detail": "hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 218 hand top 703 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "resize to landscape with a review open: the review is still open and the cue still on a visible anchor",
+      "ok": true,
+      "detail": "review kept true; hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "resize back to portrait: the review and the cue are unchanged",
+      "ok": true,
+      "detail": "focus decision -> decision"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload during an action review restores accepted moves and closes the unconfirmed review",
+      "ok": true,
+      "detail": "rev 1 -> 1, journal 1 -> 1"
+    },
+    {
+      "scenario": "guided",
+      "name": "the board's own battle beats keep playing with the coach up (a Skip control is offered while the opponent moves)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "reload while the opponent's moves are being played back: the match is restored at the saved revision",
+      "ok": true,
+      "detail": "rev 9 -> 9, journal 9 -> 9"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload while the opponent's moves are being played back: the match carries on by itself to your next decision (a response window or your turn), nothing duplicated",
+      "ok": true,
+      "detail": "turn 2 -> 2, prompt combo, rev 9 -> 9, 9 journal entries"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo (rev 9): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 703 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge (rev 15): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 745 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play (rev 16): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 791 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review (rev 16): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 721 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:attack (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:attack: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 755 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:picked (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:picked: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 0 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:target (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:target: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 0 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo (rev 19): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 789 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "the guided match covered charge, play review, own attack and target and a response window",
+      "ok": true,
+      "detail": "main:play, play:review, prompt:combo, charge, main:attack, attack:picked, attack:target"
+    },
+    {
+      "scenario": "guided",
+      "name": "the lesson reached its hand-off after the demonstrated attack and defence",
+      "ok": true,
+      "detail": "11 measured checkpoints"
+    },
+    {
+      "scenario": "guided",
+      "name": "hand-off is offered at a stable boundary: your main prompt, no battle",
+      "ok": true,
+      "detail": "prompt main, battle false"
+    },
+    {
+      "scenario": "guided",
+      "name": "hand-off says honestly what was skipped and where to replay it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the prediction question spends no action",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "Play without guidance removes the coach and keeps the same match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the choice is saved with the match (hints off, hand-off done)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "reload after hand-off restores the same match, hints still off, no hand-off card again",
+      "ok": true,
+      "detail": "rev 21 -> 21"
+    },
+    {
+      "scenario": "guided",
+      "name": "no duplicated actions after reload: every journal entry is unique and in order",
+      "ok": true,
+      "detail": "21 entries"
+    },
+    {
+      "scenario": "guided",
+      "name": "hints can be restored mid-match from the toolbar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the board's own menu offers the same hints switch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "turning hints off from the board menu works",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "replay: Lessons > Replay welcome reopens the announcer's welcome",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "replay: skipping it again returns to the same match, no move spent",
+      "ok": true,
+      "detail": "rev 21 -> 21"
+    },
+    {
+      "scenario": "guided",
+      "name": "an unguided game is played through the UI to its end (after hand-off)",
+      "ok": true,
+      "detail": "44 steps, 362 s; winner p2; life 0 vs 3"
+    },
+    {
+      "scenario": "guided",
+      "name": "the end of the match uses practice wording and offers replay and return",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the finished match's journal is clean (unique request ids, sequential revisions)",
+      "ok": true,
+      "detail": "81 accepted actions"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload after the match ended still shows the finished practice match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "Replay practice starts a fresh match from the welcome",
+      "ok": true,
+      "detail": "journal 0"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: the page wears the anime skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: the board has the anime skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: Tab never traps focus",
+      "ok": true,
+      "detail": "28 different stops in 45 presses, longest stay 0; NEXTJS-PORTAL@0,0 > body > Hints on · turn off@8,8 > Goku vs Frieza · BT1@140,8 > Explain@289,63 > Exit@10,229"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "a step trace of the accepted journal is written (commit, fixture version, every accepted action)",
+      "ok": true,
+      "detail": "15 steps at 72858569, fixture arena:masters-first-match:classic-v2"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "63 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 390x844: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: the page wears the anime skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: the board has the anime skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: Tab never traps focus",
+      "ok": true,
+      "detail": "27 different stops in 45 presses, longest stay 0; NEXTJS-PORTAL@0,0 > body > Hints on · turn off@8,8 > Goku vs Frieza · BT1@165,8 > Explain@719,63 > Exit@18,172"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "53 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 820x1180: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: the page wears the anime skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: the board has the anime skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "7 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: Tab never traps focus",
+      "ok": true,
+      "detail": "35 different stops in 45 presses, longest stay 0; Charge Son Gohan, Family of Ju@1076,239 > Read full text: Blocker@1342,556 > Other abilities (1)@1089,728 > More card details@1076,761 > In play@1066,833 > Battle log@1248,833"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "53 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "anime 1440x1000: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: the page wears the night skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: the board has the night skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: Tab never traps focus",
+      "ok": true,
+      "detail": "26 different stops in 45 presses, longest stay 0; NEXTJS-PORTAL@0,0 > body > Hints on · turn off@8,8 > Goku vs Frieza · BT1@140,8 > Explain@289,63 > Exit@10,228"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "53 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 390x844: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: the page wears the night skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: the board has the night skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: Tab never traps focus",
+      "ok": true,
+      "detail": "27 different stops in 45 presses, longest stay 0; NEXTJS-PORTAL@0,0 > body > Hints on · turn off@8,8 > Goku vs Frieza · BT1@165,8 > Explain@719,63 > Exit@18,172"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "53 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 820x1180: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: the page wears the night skin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: the intro has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: the board has the night skin and no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "7 controls tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: Tab never traps focus",
+      "ok": true,
+      "detail": "35 different stops in 45 presses, longest stay 0; Charge Son Gohan, Family of Ju@1074,239 > Read full text: Blocker@1342,558 > Other abilities (1)@1087,729 > More card details@1074,762 > In play@1064,833 > Battle log@1247,833"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: a charge made with the real controls is accepted",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: still no covered control after the move",
+      "ok": true,
+      "detail": "7 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: no console error, page exception or failed request",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: every request is to this origin (no artwork hotlink, no third party)",
+      "ok": true,
+      "detail": "53 requests"
+    },
+    {
+      "scenario": "audit",
+      "name": "night 1440x1000: no /api call (no AI, no sync, no production API)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "short landscape 844x390: the board has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "short landscape 844x390: no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "short landscape 844x390: the board's menu is there and the page scrolls to everything",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "200% zoom (1280x800 window): the board has no horizontal overflow",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "200% zoom (1280x800 window): no hand, dock or coach control is covered",
+      "ok": true,
+      "detail": "8 tested"
+    },
+    {
+      "scenario": "audit",
+      "name": "200% zoom (1280x800 window): the board's menu is there and the page scrolls to everything",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "audit",
+      "name": "phone frame: the iframe's own viewport measures 390 x 844 and the welcome renders in it",
+      "ok": true,
+      "detail": "390 x 844"
+    },
+    {
+      "scenario": "audit",
+      "name": "phone frame: no horizontal overflow inside the frame",
+      "ok": true,
+      "detail": "0 px"
+    },
+    {
+      "scenario": "audit",
+      "name": "controls: the tutorial board has the same zones as the non-tutorial ArenaStage",
+      "ok": true,
+      "detail": "14 vs 14 zone anchors"
+    },
+    {
+      "scenario": "audit",
+      "name": "controls: its main-phase dock offers the same End turn control with the same label",
+      "ok": true,
+      "detail": "tutorial dock: ? | End turn; ArenaStage dock: ? | End turn"
+    },
+    {
+      "scenario": "audit",
+      "name": "controls: both have the board's own setting menu and tappable hand cards",
+      "ok": true,
+      "detail": ""
     }
   ]
 }

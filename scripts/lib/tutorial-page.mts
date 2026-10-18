@@ -126,11 +126,11 @@ export async function open(b: Browser, vp: Viewport, o: OpenOptions = {}): Promi
 }
 
 /** Wait for the intro heading (the page is client-rendered and compiles on first request in dev). */
-export async function loadTutorial(page: Page, base: string, o: { keepSave?: boolean } = {}) {
+export async function loadTutorial(page: Page, base: string, o: { keepSave?: boolean; query?: string } = {}) {
   // A browser shares localStorage between its tabs: start every scenario from a practice match nobody has touched.
   // Once per tab (sessionStorage marks it), before the page's own scripts, so a reload later keeps what the page saved.
   if (!o.keepSave) await page.beforeLoad(`try { if (!sessionStorage.getItem("__tut_fresh")) { localStorage.removeItem(${JSON.stringify(KEY)}); sessionStorage.setItem("__tut_fresh", "1"); } } catch {}`);
-  await page.goto(`${base}/arena/tutorial`, 120000);
+  await page.goto(`${base}/arena/tutorial${o.query ?? ""}`, 120000);
   if (!(await until(page, `!!document.querySelector('#tutorial-heading') || !!document.querySelector('[data-arena-zone]')`, 60000))) throw new Error("the tutorial did not render");
   await sleep(400);
 }
@@ -256,6 +256,8 @@ async function attackWith(page: Page, s: State, attacker: string, target: string
   await first("attack:picked", s);
   await first("attack:target", s);
   await tapCard(target);
+  // The review of the attack (stakes, Confirm attack) renders a moment after the target is picked.
+  for (let i = 0; i < 25 && !(await has(page, /^Confirm attack/)); i++) await sleep(120);
   if (await has(page, /^Confirm attack/)) { await first("attack:confirm", s); await click(page, /^Confirm attack/); }
   await sameRev(page, s.rev, 6000);
 }
