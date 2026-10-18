@@ -806,9 +806,10 @@ export function CardSheet({
               </div>
               <button type="button" onClick={() => go(at + 1)} disabled={at >= items.length - 1} aria-label="Next card" className="tap h-11 w-11 shrink-0 rounded-full border border-space-500 text-xl text-space-50 disabled:opacity-30">›</button>
             </div>}
-            {quickMoves.length > 0 && <div className="flex max-h-24 shrink-0 flex-wrap gap-2 overflow-y-auto px-4 py-2" data-reader-actions>
-              {quickMoves.map(move => <button type="button" key={move.index} onClick={() => needsPlayReview(move) ? setFullArt(false) : onPick(move)} className="tap min-h-11 flex-1 rounded-xl border border-ki-500 bg-space-800 px-3 py-2 text-sm font-semibold text-space-50">{move.targets ? "Attack · choose target" : needsPlayReview(move) ? "Review play" : move.legal.label}<span className="block text-xs font-normal text-space-200">{move.targets ? `${move.targets} ${move.targets === 1 ? "target" : "targets"}` : priceOf(move.legal.action, card, move.legal.label, move.legal.cost)}</span></button>)}
-            </div>}
+            <div className="flex shrink-0 gap-2 px-4 pb-1 pt-2" data-reader-actions>
+              {quickMoves.map(move => <button type="button" key={move.index} onClick={() => needsPlayReview(move) ? setFullArt(false) : onPick(move)} className="tap min-h-[52px] min-w-0 flex-[2] rounded-xl border-2 border-ki-400 bg-ki-500 px-3 py-2 text-base font-black text-space-950 shadow-[0_0_16px_rgba(250,204,21,0.25)]">{move.targets ? "Attack · choose target" : needsPlayReview(move) ? "Review play" : move.legal.label}<span className="block text-xs font-semibold opacity-80">{move.targets ? `${move.targets} ${move.targets === 1 ? "target" : "targets"}` : priceOf(move.legal.action, card, move.legal.label, move.legal.cost)}</span></button>)}
+              <button type="button" onClick={onClose} className="tap min-h-[52px] min-w-0 flex-1 rounded-xl border-2 border-space-400 bg-space-800 px-3 py-2 text-base font-bold text-space-50">Close</button>
+            </div>
           </>
         ) : <div ref={body} className="arena-review-body min-h-0 flex-1 touch-pan-y space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain px-4">
           {quickMoves.length > 0 && <div className="space-y-2" data-review-basic-actions>
