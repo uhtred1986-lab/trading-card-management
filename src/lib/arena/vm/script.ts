@@ -167,6 +167,19 @@ export interface Selector {
    */
   differentNames?: true;
   /**
+   * "4 or more non-<Bardock> ≪Bardock's Crew≫ cards with **different character
+   * names** in your energy" (BT18-119), "place up to 4 … cards with different
+   * character names from your Drop under this card" (BT18-107): `differentNames`'s
+   * twin on the other measure. 2-10 keeps the character name (the <> brackets)
+   * apart from the card name (2-3): the cards found are told apart by the
+   * character names they have now (`characterKey`), so two prints of <Tora>
+   * are one character name however their card names differ. A choose stops
+   * offering a card whose character names match a pick's; a count counts the
+   * distinct sets of names. A card with no character name has none to differ
+   * by and is never counted or offered.
+   */
+  differentCharacters?: true;
+  /**
    * "For each card color in your Energy Area" (EX19-26), "4 or more colors
    * among cards in your energy" (BT16-016): the count is of the different
    * colors the cards found have, not of the cards. A multicolor card has each
@@ -217,13 +230,36 @@ export interface Selector {
 }
 
 /**
+ * What a card's character names (2-10) are, as one comparable key: the names it
+ * has now, case-blind and in a fixed order. 2-10-1-1: <Son Goku> and <Son Goku :
+ * Childhood> are different character names, so the key is the whole name and
+ * never a part of one. A card with several names is told apart by the set of
+ * them (a guess for the rare multi-name card: two cards differ unless they have
+ * exactly the same names); a card with none answers `null`.
+ */
+export function characterKey(characters: readonly string[]): string | null {
+  const names = [...new Set(characters.map((c) => c.toLowerCase().replace(/[’‘]/g, "'").trim()).filter(Boolean))].sort();
+  return names.length ? names.join("\u0000") : null;
+}
+
+/**
  * How many the cards a selector found are, as that selector counts them: one
  * per card, or one per card name under `differentNames` ("4 or more
  * ≪Bardock's Crew≫ cards with different card names in your energy",
  * BT18-104). Both engines' `count` conditions and amounts read through this,
  * so the two cannot count the same board differently.
  */
-export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id: string) => string, colorsOf?: (id: string) => readonly string[]): number {
+export function selectedCount(
+  sel: Selector,
+  ids: readonly string[],
+  nameOf: (id: string) => string,
+  colorsOf?: (id: string) => readonly string[],
+  charactersOf?: (id: string) => readonly string[],
+): number {
+  if (sel.differentCharacters) {
+    if (!charactersOf) throw new Error("a character-name count was asked without a way to read character names");
+    return new Set(ids.map((id) => characterKey(charactersOf(id))).filter((k) => k !== null)).size;
+  }
   if (sel.distinctColors) {
     // Counting cards here would be the very mistake the flag exists to stop.
     if (!colorsOf) throw new Error("a color count was asked without a way to read colors");
@@ -557,7 +593,7 @@ export type Op =
    * read. Without it the card is played beside the host instead of onto it.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -1077,7 +1113,8 @@ export type Op =
    * still knows which card "it" was.
    */
   | { op: "delay"; at: DelayTiming; scope?: DelayScope; ops: Op[]; label?: string }
-  | { op: "note"; text: string }
+  /** `shown` is a remark that IS the card's effect (the compliment promos, #907), so the reading says it; any other note is a remark about the engine's own work and says nothing. */
+  | { op: "note"; text: string; shown?: true }
   /**
    * Set a `DEFINE ATTRIBUTE of: player` fact (issue #269) — `grewUnison` after
    * 13-3's growth resolves. `value` defaults to `true`, since every use so far
@@ -2026,8 +2063,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
         // "…and different card names" (BT29-030): a card whose name is
         // already among the picks is no longer on offer.
-        const nameKey = (id: string) => h.nameOf(id).toLowerCase();
-        const taken = new Set(op.sel.differentNames ? sofar.map(nameKey) : []);
+        // The same under "different character names" (BT18-107): the key is the
+        // card's character names (2-10) instead of its card name; a card with
+        // none has no key and is never on offer.
+        const byCharacters = !!op.sel.differentCharacters;
+        const nameKey = (id: string) => (byCharacters ? characterKey(h.defOf(id).characters) ?? `\u0001${id}` : h.nameOf(id).toLowerCase());
+        const taken = new Set(op.sel.differentNames || byCharacters ? sofar.map(nameKey) : []);
         // "…for which the total cost adds up to 5 or less" (BT3-036): what is
         // left of the bound after the picks so far, and only the cards that
         // still fit under it are on offer — the offer shrinks as the sum
@@ -2036,7 +2077,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!bound || measure(id) <= room));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.
@@ -2062,7 +2103,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const picked = [...sofar];
           for (const id of answer) {
             if (!cands.includes(id) || picked.includes(id)) continue;
-            if (op.sel.differentNames && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            if ((op.sel.differentNames || byCharacters) && picked.some((o) => nameKey(o) === nameKey(id))) continue;
             // A host handing several cards at once is held to the bound card
             // by card, the same as one answer at a time would be.
             if (bound) {
@@ -2096,7 +2137,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Only ask when the answer can differ: a forced pick is taken silently.
         // Under "different card names" two namesakes among the candidates are
         // a real choice between them, even when there are few enough to take.
-        const namesakes = !!op.sel.differentNames && new Set(cands.map(nameKey)).size < cands.length;
+        const namesakes = !!(op.sel.differentNames || byCharacters) && new Set(cands.map(nameKey)).size < cands.length;
         // Under a summed bound, taking every candidate is forced only when
         // all of them fit under it together.
         const allFit = !bound || cands.reduce((n, id) => n + measure(id), 0) <= room;
@@ -2977,6 +3018,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
+        // 22-3-3 (#907): "activate {Tragedy Overground}" names a [Field] Extra's
+        // skill. A card that has one is activated, not played: its [Field]
+        // resolves with the activation's own prohibitions and moments, the
+        // printed price waived. Any other card it names is played as before.
+        if (op.activating && candidates.length === 1) {
+          const field = h.fieldSkill(master, candidates[0]);
+          // Has the skill but may not activate it (negated, forbidden, a tax
+          // unpaid): nothing happens, and above all it is not played instead.
+          if (field === "blocked") break;
+          if (field === "ready") {
+            frame.did.play = true;
+            frame.ip++;
+            h.resume(frame);
+            h.activateField(master, candidates[0]);
+            return "done";
+          }
+        }
         const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand is put in Drop. A printed Drop evolution already is there.

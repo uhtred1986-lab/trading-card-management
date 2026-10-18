@@ -261,6 +261,17 @@ function parseAreasOtherThan(text: string): { matched: string; listed: ScriptAre
 const DIFFERENT_NAMES = /\s*\b(?:(?:with|and|of|having) )?different (?:card )?names\b/i;
 
 /**
+ * The same on the character name (2-10): "4 or more non-<Bardock> ≪Bardock's
+ * Crew≫ cards with different character names in your energy" (BT18-119),
+ * "place up to 4 … cards with different character names from your Drop under
+ * this card" (BT18-107). Another measure than the card name (2-3 and 2-10 are
+ * separate definitions), so it is the selector's `differentCharacters`.
+ * Until 18 Oct 2026 a count refused it and a choose dropped the words, so
+ * BT18-107's four distinct names became any four cards.
+ */
+const DIFFERENT_CHARACTERS = /\s*\b(?:(?:with|and|of|having) )?different character names?\b/i;
+
+/**
  * "Choose any number of your opponent's Battle Cards **for which the total
  * cost adds up to 5 or less** and KO them" (BT3-036), and the other ways the
  * sets print it: "of which the total power adds up to 30000 or less" (BT1-024),
@@ -349,6 +360,12 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(borrowed[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     if (!sel || sel.special || sel.side === "opponent") return null;
     return { ...sel, ownedByOpponent: true };
+  }
+  const characters = DIFFERENT_CHARACTERS.exec(phrase);
+  if (characters) {
+    const sel = parseTarget(phrase.replace(characters[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special || sel.differentNames) return null;
+    return { ...sel, differentCharacters: true };
   }
   const different = DIFFERENT_NAMES.exec(phrase);
   if (!different) return parseTargetPhrase(phrase, looked, pool);

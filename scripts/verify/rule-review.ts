@@ -94,8 +94,8 @@ assert.equal(findOnce("Draw 2 cards.", "draw 2"), null, "exact case unless asked
 
 // ── an unread clause: red dashed, and the skill plays as blank ─────────────
 {
-  const t = check(reviewText(record("[Auto] When this card attacks, you and your opponent compliment each other, then draw 1 card.")));
-  assert.deepEqual(t.unread.map((u) => [u.text, !!u.span]), [["you and your opponent compliment each other", true]], "the unread clause is the compiler's own slice of the line");
+  const t = check(reviewText(record("[Auto] When this card attacks, you and your opponent shake hands on it, then draw 1 card.")));
+  assert.deepEqual(t.unread.map((u) => [u.text, !!u.span]), [["you and your opponent shake hands on it", true]], "the unread clause is the compiler's own slice of the line");
   assert.equal(t.segments.filter((s) => s.kind === "unread").length, 1);
   assert.equal(t.blank, true);
   assert.match(t.will, /^Nothing yet/, "an open skill does nothing in a game");

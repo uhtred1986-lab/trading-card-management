@@ -5,6 +5,7 @@ import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from
 import type { DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
 import { compileDisjointMove } from "./disjoint";
+import { compileNamedSet } from "./named-set";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
@@ -857,6 +858,22 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // #970: "send 1 <A> card and 1 <B> card from your Drop to your Warp" — one
   // choice per slot, each a card of its own.
+  // "You and your opponent compliment each other." (P-514–P-516, P-588–P-592):
+  // a table-talk promo with no game effect. No rule, errata or Q&A entry
+  // covers it (the text asks for something said between the players). The
+  // owner's ruling, recorded with `arena:rule` on all eight records (15 Oct
+  // 2026): show a compliment, then acknowledge the instruction. Read as two
+  // notes in the game log, in that order — a compliment shown, then the
+  // instruction acknowledged — and nothing else moves. A labelled best guess
+  // for "show" and "acknowledge"; a button the player presses is not built.
+  if (/^you and your opponent compliment each other$/.test(t)) {
+    return [
+      { op: "note", text: "Compliment: “Good game so far — nice cards!” Each player pays the other a compliment.", shown: true },
+      { op: "note", text: "Instruction acknowledged: you and your opponent compliment each other.", shown: true },
+    ];
+  }
+  const named = compileNamedSet(t, c);
+  if (named !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : named;
   const disjoint = compileDisjointMove(t, c);
   // An optional one ("you may place 1 <A> card and 1 <B> card …") is a choice to do all of it: not read.
   if (disjoint !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : disjoint;
@@ -2540,7 +2557,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the specified-cost descriptions #728 made readable; the same default on
     // other "play" clauses is older and left as it reads (see the PR).
     if ("sel" in ref && ref.sel.area === "play" && !ref.sel.special && !ref.sel.fromVar && !ref.sel.areas?.length && (ref.sel.filter?.specifiedCostMin != null || ref.sel.filter?.specifiedCostMax != null)) return null;
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...arrivesWith } as const;
+    // 22-3-3: "activate {Tragedy Overground}" (BT10-052, and the Leader-area
+    // "activate up to 1 {…} from your deck" family) names an Extra card by its
+    // braces. If it has a [Field] skill that skill is what is activated, not a
+    // play (`activating`); a card with none is played as before.
+    // Only the bare form "activate [up to N] {Name} [card] [from …]": "activate
+    // the [Activate: Main] skill of {Name}", "activate this skill when you play
+    // {Name}" and the permissions ("you may activate {Name} from your hand
+    // without paying its energy cost") are other things.
+    const activating = /^activate\b/.test(tp) && /^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from (?!.*\bwithout paying\b).+)?$/.test(m[1]);
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
