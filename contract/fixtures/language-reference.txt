@@ -3603,6 +3603,14 @@
       ]
     },
     {
+      "field": "onlyTraits",
+      "type": "boolean",
+      "printed": "card",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
       "field": "names",
       "type": "strings",
       "printed": "{Saiyan}",

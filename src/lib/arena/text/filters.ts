@@ -71,6 +71,14 @@ export interface CardFilter {
    * among others, the way a fusion or a pair card does.
    */
   onlyCharacters: boolean;
+  /**
+   * "A black ≪Saiyan≫**-only** card" (BT12-136, BT12-137, P-286, #932): the
+   * trait twin of `onlyCharacters` — a card whose traits are only the ones
+   * named, not a card that lists ≪Saiyan≫ among others (a [Saiyan, Earthling]
+   * Leader is not "≪Saiyan≫-only"). Written only when printed, so a stored
+   * program without it reads as before.
+   */
+  onlyTraits?: boolean;
   names: string[];
   /**
    * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
@@ -334,6 +342,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   characterOrTrait: "boolean",
   anyOf: "filters",
   onlyCharacters: "boolean",
+  onlyTraits: "boolean",
   names: "strings",
   notNames: "strings",
   namesIncluding: "strings",
@@ -654,6 +663,8 @@ function parseOneFilter(text: string): CardFilter {
   for (const m of t.matchAll(/(non-)?<([^>]+)>/g)) (m[1] ? f.notCharacters : f.characters).push(m[2].trim());
   if (f.characters.length && /<[^>]+>-only\b/i.test(t)) f.onlyCharacters = true;
   for (const m of t.matchAll(/(non-)?≪([^≫]+)≫/g)) (m[1] ? f.notTraits : f.traits).push(m[2].trim());
+  // "≪Saiyan≫-only" (#932): nothing but the traits named — the trait twin of the line above.
+  if (f.traits.length && /≪[^≫]+≫-only\b/i.test(t)) f.onlyTraits = true;
   // "<Baby> or ≪Brainwashed≫", "≪Brainwashed≫ and/or <Baby>": one of each kind
   // joined by "or" is a choice between them, not both at once.
   if (f.characters.length && f.traits.length && /<[^>]+>\s*(?:or|and\/or)\s+(?:a |an )?≪[^≫]+≫|≪[^≫]+≫\s*(?:or|and\/or)\s+(?:a |an )?<[^>]+>/i.test(t)) f.characterOrTrait = true;
@@ -1034,6 +1045,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   } else if (!characterOk || !traitOk) return false;
   // "<Son Goku>-only": nothing but the characters named.
   if (f.onlyCharacters && !(d.characters ?? []).every((c) => f.characters.some((n) => n.toLowerCase() === c.toLowerCase()))) return false;
+  // "≪Saiyan≫-only" (#932): every trait the card has is one of those named.
+  if (f.onlyTraits && !(d.traits ?? []).every((t) => f.traits.some((n) => n.toLowerCase() === t.toLowerCase()))) return false;
   if (f.notCharacters.some((c) => hasCharacter(d, c))) return false;
   if ((f.notCharactersIncluding ?? []).some((c) => characterIncludes(d, c))) return false;
   if (f.notTraits.some((c) => hasTrait(d, c))) return false;

@@ -56,6 +56,18 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "DB2-151": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
   "DB2-153": [[/When\s+this\s+card\s+is\s+placed\s+in\s+a\s+Drop\s+Area\s+from\s+a\s+Battle\s+Area\s+or\s+Combo\s+Area/g, "When this card is removed from a Battle Area or Combo Area"]],
 
+  // Five more official errata (#934), all re-read on the live errata page on
+  // 2026-10-17 (the 15 Oct snapshot still carried the "before" wording). The
+  // exact before/after strings are kept in OFFICIAL_ERRATA below for audit.
+  // BT2-015's is a reminder, so the compiler reads the same either way.
+  "BT2-015": [[/with\s+the\s+same\s+power\s+into\s+your\s+Drop\s+Area/g, "with the same power from your hand into your Drop Area"]],
+  // The payer of the draw: the opponent's energy is the condition, YOU draw.
+  "BT22-137": [[/energy\s+and\s+draws\s+2\s+cards/g, "energy and you draw 2 cards"]],
+  // A required cost, not an optional one: "up to" would let it be paid with nothing.
+  "BT3-070": [[/choose\s+up\s+to\s+1\s+each\s+of/g, "choose 1 each of"]],
+  "BT4-108": [[/\+5000\s+power\s+for\s+each\s+card\s+in\s+your\s+Warp(?=\s*\.)/g, "+5000 power for each card in your Warp for the duration of the turn"]],
+  "P-360": [[/Choose\s+up\s+to\s+1(?=\s+red\s+or\s+blue\s+\S{1,6}Saiyan\S{1,6}\s+card\s+in\s+your\s+hand\s+and\s+discard\s+it)/g, "Choose 1"]],
+
   "BT3-104": [[/your\s+opponent's\s+can\s+only\s+attack/g, "your opponent can only attack"]],
   "BT4-059": [[/<Lord\s+Slug>with/g, "<Lord Slug> with"]],
   // Official 2019-11-01 errata, reconfirmed 2026-10-14 (#819): World Peace
@@ -154,6 +166,65 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "SB02-054": [[/by\s+an\s+ooponent's\s+skill/g, "by an opponent's skill"]],
   "ST01-027": [[/energy,\s+duing\s+this\s+turn/g, "energy, during this turn"]],
 };
+
+/**
+ * Official errata (#934), kept as data for audit: what the catalog snapshot
+ * prints (`snapshot`), what Bandai's errata page says it should read
+ * (`corrected`), and the page's own before/after (`officialBefore`/`officialAfter`).
+ * `snapshot` and `corrected` are the full skill clause as the catalog stores it
+ * (inventory.json of #923, 15 Oct 2026; P-360 and BT4-108 are the clause the
+ * errata names, which the Union audit did not list in full); `CORRECTIONS`
+ * above is what makes the first become the second on every sync.
+ */
+export const OFFICIAL_ERRATA: {
+  cardId: string;
+  dated: string;
+  snapshot: string;
+  corrected: string;
+  officialBefore: string;
+  officialAfter: string;
+}[] = [
+  {
+    cardId: "BT2-015",
+    dated: "2017-10-20",
+    snapshot: "[union-fusion] {r}{1}:<Son Goten> and <Trunks: Youth> (Place 1 each of the specified card with the same power into your Drop Area and play this card)",
+    corrected: "[union-fusion] {r}{1}:<Son Goten> and <Trunks: Youth> (Place 1 each of the specified card with the same power from your hand into your Drop Area and play this card)",
+    officialBefore: "(Place 1 each of the specified card with the same power into your Drop Area and play this card)",
+    officialAfter: "(Place 1 each of the specified card with the same power from your hand into your Drop Area and play this card)",
+  },
+  {
+    cardId: "BT22-137",
+    dated: "2023-08-25",
+    snapshot: "[union-fusion]{u}{y}{2}, if your opponent has 3 or more energy and draws 2 cards: Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power.",
+    corrected: "[union-fusion]{u}{y}{2}, if your opponent has 3 or more energy and you draw 2 cards: Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power.",
+    officialBefore: "[Union-Fusion] ● ● (2), if your opponent has 3 or more energy and draws 2 cards : Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power.",
+    officialAfter: "[Union-Fusion] ● ● (2), if your opponent has 3 or more energy and you draw 2 cards : Yellow <Son Goku> card with 5000 power and blue <Vegeta> card with 5000 power.",
+  },
+  {
+    cardId: "BT3-070",
+    dated: "2018-03-02",
+    snapshot: "[union absorb] {g} , choose up to 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.",
+    corrected: "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.",
+    officialBefore: "[Union-Absorb] ● , choose up to 1 each",
+    officialAfter: "[Union-Absorb] ● , choose 1 each",
+  },
+  {
+    cardId: "BT4-108",
+    dated: "2018-07-13",
+    snapshot: "[auto] When this card attacks, this card gains +5000 power for each card in your Warp.",
+    corrected: "[auto] When this card attacks, this card gains +5000 power for each card in your Warp for the duration of the turn.",
+    officialBefore: "[Auto] When this card attacks, this card gains +5000 power for each card in your Warp.",
+    officialAfter: "[Auto] When this card attacks, this card gains +5000 power for each card in your Warp for the duration of the turn .",
+  },
+  {
+    cardId: "P-360",
+    dated: "2022-02-10",
+    snapshot: "[activate: battle][once per turn] Choose up to 1 red or blue ≪Saiyan≫ card in your hand and discard it: Look at up to 3 cards from the top of your deck,",
+    corrected: "[activate: battle][once per turn] Choose 1 red or blue ≪Saiyan≫ card in your hand and discard it: Look at up to 3 cards from the top of your deck,",
+    officialBefore: "[Activate Battle][Once per turn] Choose up to 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck,",
+    officialAfter: "[Activate Battle][Once per turn] Choose 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck,",
+  },
+];
 
 /** The printed text with the source's typos corrected. Safe to call twice. */
 export function correctSkillText(cardId: string, text: string | null | undefined): string | null {

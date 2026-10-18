@@ -14,6 +14,11 @@ import type { Action, CardDef, Color, PlayerId } from "../../src/lib/arena/types
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const defs: Record<string, CardDef> = { ...DEFS,
   LEAD924: card("LEAD924", { type: "LEADER", colors: ["Black"], traits: ["Saiyan"], power: 10000, skill: null }),
+  // #932: "a black ≪Saiyan≫-only card" is a black Leader whose traits are Saiyan and nothing else.
+  LEADTWO932: card("LEADTWO932", { type: "LEADER", colors: ["Black"], traits: ["Saiyan", "Earthling"], power: 10000, skill: null }),
+  LEADNOSAIYAN932: card("LEADNOSAIYAN932", { type: "LEADER", colors: ["Black"], traits: ["Earthling"], power: 10000, skill: null }),
+  LEADREDSAIYAN932: card("LEADREDSAIYAN932", { type: "LEADER", colors: ["Red"], traits: ["Saiyan"], power: 10000, skill: null }),
+  LEADMULTI932: card("LEADMULTI932", { type: "LEADER", colors: ["Black", "Red"], traits: ["Saiyan"], power: 10000, skill: null }),
   ENERGY924: card("ENERGY924", { colors: ["Black"], skill: null }),
   GOKU924: card("GOKU924", { colors: ["Black"], characters: ["Son Goku: Xeno"], power: 10000, skill: null }),
   VEG924: card("VEG924", { colors: ["Black"], characters: ["Vegeta: Xeno"], power: 10000, skill: null }),
@@ -99,6 +104,17 @@ for (const row of rows) {
   assert.ok(union(s, own)); assert.equal(union(s, other), undefined, "self permission cannot leak to another Fusion");
   s.cards[s.sides.p2.zones.leader[0]].cardId = "L-RED";
   assert.equal(union(s, own), undefined, "printed black Saiyan-only Leader condition remains required");
+  // #932: the Leader matrix through the same stored rule. Only a black Leader with the Saiyan trait alone answers.
+  for (const [leader, offered, why] of [
+    ["LEAD924", true, "black [Saiyan] alone is allowed"],
+    ["LEADMULTI932", true, "black/red [Saiyan] is still black and Saiyan-only"],
+    ["LEADTWO932", false, "black [Saiyan, Earthling] is not Saiyan-only"],
+    ["LEADNOSAIYAN932", false, "black without Saiyan is refused"],
+    ["LEADREDSAIYAN932", false, "red [Saiyan] is the wrong colour"],
+  ] as const) {
+    s.cards[s.sides.p2.zones.leader[0]].cardId = leader;
+    assert.equal(!!union(s, own), offered, `${row.id}: ${why}`);
+  }
 }
 {
   let s = board(9244); const gog = stage(s, "p2", "BT12-136", "hand");

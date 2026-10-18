@@ -367,7 +367,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
   // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
   // omits `side` means the other player's life, never its own.
-  damage: { fields: [n(), { name: "side", type: "side", default: "opponent" }], sentence: "deal {n} damage", doc: "life to hand" },
+  // "inflict 2 damage to your life" (EX03-11) is `side: "you"`, and says so.
+  damage: {
+    fields: [n(), { name: "side", type: "side", default: "opponent" }],
+    sentence: (raw, r) => renderTemplate(`${(raw as OpOf<"damage">).side === "you" ? "take" : "deal"} {n} damage`, raw as unknown as Record<string, unknown>, OP_SCHEMA.damage.fields, r),
+    doc: "life to hand",
+  },
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
@@ -1169,7 +1174,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "-only" (BT29-108) and "<Baby> or ≪Brainwashed≫" are said as printed:
       // without them the reading claims a wider Leader than the card does.
       const chars = f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`);
-      const traits = f.traits.map((x) => `\u226a${x}\u226b`);
+      // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
+      const traits = f.traits.map((x, i) => `\u226a${x}\u226b${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`);
       // "a Green <Trunks: Future> <Mai: Future> card" (BT23-073, #768): every
       // name of an all-of list is required, so each is said, characters as `<…>`
       // and card names as `{…}`, the way the other name lists are.
@@ -1177,7 +1183,21 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
       const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
       const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
-      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${bits.join(" ") || f.names?.join("/") || "a match"}`;
+      // "with 10000 power or less" (#990): the bound is part of the Leader
+      // description, and the VM asks it. Left out, the reading claims a wider
+      // Leader than the card does.
+      const power =
+        f.powerMin != null && f.powerMin === f.powerMax
+          ? `with ${f.powerMin} power`
+          : f.powerMin != null && f.powerMax != null
+            ? `with power between ${f.powerMin} and ${f.powerMax}`
+            : f.powerMax != null
+              ? `with ${f.powerMax} power or less`
+              : f.powerMin != null
+                ? `with ${f.powerMin} power or more`
+                : "";
+      const said = [bits.join(" ") || f.names?.join("/") || (power ? "a card" : "a match"), power].filter(Boolean).join(" ");
+      return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${said}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
   },
@@ -2253,7 +2273,8 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // one direction ground rule 5 forbids. "Non-black Battle Cards" printed as
   // "battle card" is the same sentence as no filter at all.
   bits.push(...f.notColors.map((c) => `non-${c.toLowerCase()}`));
-  bits.push(...f.traits.map((x) => `≪${x}≫`));
+  // "≪Saiyan≫-only" (#932), on the last trait named, as printed.
+  bits.push(...f.traits.map((x, i) => `≪${x}≫${f.onlyTraits && i === f.traits.length - 1 ? "-only" : ""}`));
   bits.push(...f.notTraits.map((x) => `non-≪${x}≫`));
   // "≪Brainwashed≫ or <Baby>" (BT29-114): the one word that makes it either,
   // and the word `parseFilter` reads the flag back from.

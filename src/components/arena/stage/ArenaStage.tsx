@@ -8,7 +8,7 @@ import { ArenaImmersion, ImmersionSettings } from "../immersion/ArenaImmersion";
 import { GamePlanPanel } from "./GamePlanPanel";
 
 import { LayoutGroup, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import type { ArenaSession } from "../session/contract";
 
 import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
@@ -26,6 +26,8 @@ import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
 import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
+import { withShortOpponent } from "./opponent-name";
+import { useBoardFit } from "./use-board-fit";
 import type { TurnCall } from "./useBeatPlayer";
 import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/arena/lighting";
 import type { ArenaSkin } from "@/lib/arena/skin";
@@ -240,6 +242,7 @@ export function ArenaStage({
   const [endDismissed, setEndDismissed] = useState(false);
   const asked = useRef(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
+  useBoardFit(boardRef);
   /**
    * The no-target notices the player has acknowledged (#783), by beat number, and the last beat the
    * board had already seen when it mounted: a reload tells nothing again.
@@ -273,7 +276,8 @@ export function ArenaStage({
   const liveGame = useLiveGame(session, snapshot, pending || advancing || pollWhile || (snapshot.game.mode === "versus" && snapshot.game.status === "playing"));
   const live = liveGame.snapshot;
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
-  const { view, legal, taps, beats } = live;
+  const { legal, taps, beats } = live;
+  const view = useMemo(() => withShortOpponent(live.view, live.game.mode), [live.view, live.game.mode]);
   const [planOpen, setPlanOpen] = useState(false);
   const [planRevision, setPlanRevision] = useState(live.game.revision);
   const [planFirst, setPlanFirst] = useState<Action | null>(null);
