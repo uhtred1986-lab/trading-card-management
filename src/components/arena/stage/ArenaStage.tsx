@@ -683,7 +683,9 @@ export function ArenaStage({
     // than opening a review and waiting for a second confirm.
     if (view.prompt.kind === "combo" && inHand(id)) {
       const combos = (options ?? []).filter((i) => legal[i].action.type === "combo");
-      if (combos.length === 1) {
+      // One tap adds it only when the combo is all the card can do: a card that also has an
+      // [Activate] to offer opens its sheet, which lists both (#1008).
+      if (combos.length === 1 && options?.length === 1) {
         const card = cardOf(id);
         setPendingCombo({ id, name: card?.name ?? "", plus: card?.comboPower ?? 0, rev: live.game.revision });
         return send(legal[combos[0]].action);
@@ -713,7 +715,11 @@ export function ArenaStage({
     // A ready card goes straight to legal targets. Its other skills and full
     // rules remain available through the inspect gesture and card review.
     const targets = targetsOf(id);
-    if (targets && Object.keys(targets).length > 0) return select(id);
+    // On a phone a card with an attack AND another legal move (a leader's [Awaken], a Battle Card's
+    // [Activate: Main]) opens its sheet, which lists both: selecting would start the attack pick and
+    // leave the other move out of reach (#1008). Attacking alone stays one tap.
+    const attackOnly = options.every((i) => legal[i].action.type === "attack");
+    if (targets && Object.keys(targets).length > 0 && (wide || attackOnly)) return select(id);
     if (options.length === 1 && !why?.length && legal[options[0]].action.type !== "charge") return send(legal[options[0]].action);
     const card = cardOf(id);
     if (card) setSheet(card);
@@ -1286,7 +1292,10 @@ export function ArenaStage({
       if (!card) return [];
       const projected = live.blockPreviews?.find((entry) => entry.action === index);
       const b = projected?.state === "known" ? projected.battle : null;
-      return [{ card, action, label: card.name, detail: card.text,
+      // A card with two ways to answer (a Counter also payable "by adding 1 from your life") is listed
+      // twice, each under its engine label, so the rows can be told apart.
+      const ways = legal.filter((entry) => entry.action.type === responseType && "card" in entry.action && entry.action.card === action.card).length;
+      return [{ card, action, label: ways > 1 ? offer.label : card.name, detail: card.text,
         cost: priceOf(action, card, offer.label, offer.cost), reason: null,
         impact: responseType === "block" ? b?.stakes ? `${b.guardPower.toLocaleString("en")} vs ${b.attackPower.toLocaleString("en")}: ${stakesSummary(b)} You lose ${b.stakes.lifeDamage} life.` : projected?.reason ?? "The exact outcome needs the next battle snapshot." : null }];
     }),
