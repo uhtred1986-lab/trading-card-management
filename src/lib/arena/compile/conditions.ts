@@ -561,7 +561,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // just above, said as a verb rather than a participle. 8-1 gives an attack
   // no object but the opponent's cards, so what follows the verb is never
   // itself read — only that the subject is the one attacking is.
-  if ((m = /^(.+?) attacks? .+$/.exec(t))) {
+  // "…this card **can** attack a Battle Card in Active Mode" (BT22-133) is a
+  // permission, not "this card attacks": the modal in front of the verb makes
+  // it an instruction, and read as a condition it swallowed the clause whole
+  // (a [Permanent] DB3-011 and EX03-03 read as nothing at all). Only the
+  // permission, "can/may attack": the same trap for "can't attack" (about
+  // twenty [Permanent]s, BT21-077 and its neighbours) is a separate audit,
+  // because reading those exposes pronouns that resolve to the wrong card
+  // (BT19-035b, BT24-130).
+  if ((m = /^(?!.*\b(?:can|may)\s+attacks?\b)(.+?) attacks? .+$/.exec(t))) {
     const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
     if (sel) {
       delete sel.count;

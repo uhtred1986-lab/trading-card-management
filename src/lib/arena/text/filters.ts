@@ -624,7 +624,12 @@ function parseOneFilter(text: string): CardFilter {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\[[^\]]*\]/g, " ");
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black|white)\b/.test(lower)) f.monoColor = true;
-  if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // "**Non-multicolor** energy" (BT8-122) is the opposite of "multicolor": the
+  // word boundary between the hyphen and "multicolor" used to match, so the
+  // card read as asking for the multicoloured energy it excludes. A card has
+  // one colour or several (2-2), so what is not multicoloured is mono.
+  if (/\bnon-?multi-?colou?r(?:ed)?\b/.test(lower)) f.monoColor = true;
+  else if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
   // one direction is read.
