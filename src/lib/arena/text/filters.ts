@@ -446,6 +446,14 @@ export function emptyFilter(): CardFilter {
   };;
 }
 
+/**
+ * "…with an energy cost **greater than their current energy**": a card's cost
+ * measured against a player's energy count, which no field of a filter carries.
+ * `parseFilter` flags it `unreadable`; a trigger's subject (`subjectFilterOf`)
+ * takes it out first, as it always left such a description's other words alone.
+ */
+export const ENERGY_COST_VS_ENERGY = /\benergy costs? (?:that is |which is )?(?:greater|more|higher|less|lower|fewer) than (?:or equal to )?(?:their|your opponent'?s|the opponent'?s|your) (?:current )?energy\b/;
+
 export function parseFilter(text: string): CardFilter {
   return eitherFilter(text) ?? parseOneFilter(text);
 }
@@ -678,6 +686,13 @@ function parseOneFilter(text: string): CardFilter {
       .replace(/\b(?:red|blue|green|yellow|black|white),? (?:and\/or|or) (?=red|blue|green|yellow|black|white)/g, " ");
     if (/\bor\b/.test(loose)) f.unreadable = true;
   }
+  // The same measure the other way round: "with an energy cost **greater than
+  // their current energy**" (about 30 skills: BT19-036, DB2-129, P-159 …). The words
+  // "their current energy" were read as the area to look in, so every one of
+  // them chose a card in the opponent's *Energy Area* — a wrong card, not a
+  // missing one. It is a comparison with a count no field carries, so the
+  // description is refused rather than read as a place.
+  if (ENERGY_COST_VS_ENERGY.test(lower)) f.unreadable = true;
   if ((!specified && /\bspecified cost/.test(lower)) || /\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/.test(lower)) f.unreadable = true;
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see

@@ -134,6 +134,20 @@ for (const [id, text] of Object.entries(PRINTED)) assert.deepEqual(read(text).un
   assert.deepEqual([m.monoColor, m.multiColor], [false, true]);
   assert.match(describeScript(read("[Auto] When you play this card from your hand, choose all of your opponent's non-multicolor energy, negate their skills.").ops), /mono-colour/);
 }
+{
+  // A cost compared with the energy count has no field: refused, not read as "in the Energy Area" or widened.
+  for (const text of [
+    "[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy and place it at the bottom of its owner's deck.",
+    "[Activate: Main] Choose 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy and return it to its owner's hand.",
+    "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost greater than their energy, ignoring [Barrier], switch it to Rest Mode.",
+  ]) {
+    const sk = read(text);
+    assert.ok(sk.unsupported.length > 0 && !flat(sk.ops as unknown as AnyOp[]).some((o) => o.op === "choose"), `refused: ${text.slice(0, 60)}`);
+  }
+  // A trigger's subject keeps being the kind of card it was (ground rule 6).
+  const bt12132 = read("[Auto][Once per turn] When your opponent plays a Battle Card with an energy cost greater than their current energy using a skill, this card gets +10000 power until the end of your next turn.");
+  assert.deepEqual(bt12132.unsupported, []);
+}
 
 // ── play: the rules engine ────────────────────────────────────────────────────
 const TEMP: string[] = [];
