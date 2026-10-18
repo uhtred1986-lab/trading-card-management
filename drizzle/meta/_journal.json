@@ -400,6 +400,13 @@
       "when": 1792342565534,
       "tag": "0056_next_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1792343041303,
+      "tag": "0057_rules_review_confirm",
+      "breakpoints": true
     }
   ]
 }

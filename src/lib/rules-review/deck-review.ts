@@ -7,7 +7,7 @@
  *   reading, nothing the engine could not run) and whose printed line is still the catalog's into `confirmed`. It
  *   never edits the program (`ops`, `cost`, `trigger`, `reads`), never touches a row a person already confirmed
  *   or corrected, never a Claude/user-sourced row.
- * - `flag_rule` only writes `review_flag` (+ its time). It changes no status and no program.
+ * - `flag_rule` only writes `review_flag`. It changes no status and no program.
  * - Queue and packets are scoped to the token's SL: decks of `slOwner(email)` or of nobody, game `dbs`, not testing
  *   (the same rule as `scripts/arena-immersion-inventory.mts`).
  */
@@ -42,7 +42,6 @@ interface Row {
   confirmedBy: string | null;
   confirmNote: string | null;
   reviewFlag: string | null;
-  reviewFlaggedAt: Date | null;
 }
 interface CardInfo {
   id: string;
@@ -67,7 +66,6 @@ const ruleCols = {
   confirmedBy: cardRules.confirmedBy,
   confirmNote: cardRules.confirmNote,
   reviewFlag: cardRules.reviewFlag,
-  reviewFlaggedAt: cardRules.reviewFlaggedAt,
 };
 const cardCols = { id: cards.id, name: cards.name, backName: cards.backName, skill: cards.skill, backSkill: cards.backSkill };
 
@@ -252,7 +250,7 @@ export async function confirmRule(deps: { db: Db; env: Record<string, string | u
   // The same conditions again in the UPDATE, so a row that moved since the read is not confirmed by mistake.
   const done = await deps.db
     .update(cardRules)
-    .set({ status: "confirmed", confirmedAt: new Date(), confirmedBy: deps.email.trim().toLowerCase(), confirmNote: confirmation, reviewFlag: null, reviewFlaggedAt: null, updatedAt: new Date() })
+    .set({ status: "confirmed", confirmedAt: new Date(), confirmedBy: deps.email.trim().toLowerCase(), confirmNote: confirmation, reviewFlag: null, updatedAt: new Date() })
     .where(
       and(
         eq(cardRules.id, row.id),
@@ -292,8 +290,8 @@ export async function flagRule(
   const stamp = new Date();
   const entry = `${stamp.toISOString().slice(0, 10)} ${deps.email.trim().toLowerCase()}: ${reason}`;
   const merged = row.reviewFlag ? `${row.reviewFlag}\n${entry}`.slice(-1000) : entry;
-  // Only the flag columns: status, program and confirmation stay exactly as they were.
-  await deps.db.update(cardRules).set({ reviewFlag: merged, reviewFlaggedAt: stamp }).where(eq(cardRules.id, row.id));
+  // Only the flag column: status, program and confirmation stay exactly as they were.
+  await deps.db.update(cardRules).set({ reviewFlag: merged }).where(eq(cardRules.id, row.id));
   const out: Record<string, unknown> = { flagged: true, key: keyOf(row), status: row.status, flag: merged };
   const wantsIssue = args.openIssue === true || args.issueNumber != null;
   if (wantsIssue) {
