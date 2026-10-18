@@ -27,6 +27,10 @@ export function skillLines(text: string | null | undefined): string[] {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
+    // P-202 and P-337 come out of the feed with "owner&apos;s" and "isn&apos;t":
+    // an apostrophe the possessive and "can't" readers never saw (#1015).
+    .replace(/&(?:apos|#0?39|#x27);/gi, "'")
+    .replace(/&quot;/g, '"')
     .replace(/[’‘]/g, "'")
     // Some sets set a run of the text in full-width forms, and every one of
     // them reads the same to a person and matches nothing here. It is not only

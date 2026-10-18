@@ -560,5 +560,25 @@ export function stripNotes(text: string): string {
   // qualifier off from the list it qualifies, and it qualifies each kind
   // named. Left in, the whole sentence was one clause whose "subject" began
   // at "choose", and "it" in it resolved to this card.
-  return out.replace(/\s*[—–]\s*both in (rest|active) mode\s*[—–]\s*/gi, " in $1 mode ").replace(/\s+/g, " ").trim();
+  return anaphora(out.replace(/\s*[—–]\s*both in (rest|active) mode\s*[—–]\s*/gi, " in $1 mode ").replace(/\s+/g, " ").trim());
+}
+
+/**
+ * "…you may choose **that Battle Card** and have it get -15000 power"
+ * (BT15-005, P-202, BT10-115): "that" + a kind of card is the pronoun "that
+ * card" said with its noun, pointing back at the card the trigger or an earlier
+ * clause named (#1015). The compiler's pronoun readers knew only the bare
+ * "that card", so "that Battle Card" fell through to a fresh description, every
+ * Battle Card in *your own* Battle Area, and the skill picked a card nobody had
+ * named. The kind adds nothing an antecedent does not already carry, so it is
+ * dropped here, once, before any clause is read. The printed text
+ * (`Skill.raw`) is untouched. A noun that goes on to describe ("that Battle Card
+ * with ...") is left alone. Not widened to "those Battle Cards" (BT7-025b,
+ * DB1-020: their antecedent is a played or combo'd card no variable holds, so
+ * "those cards" would point at nothing) nor to "that Extra Card" (P-028: the
+ * activated Extra Card, which the choice just made in the same sentence would
+ * be mistaken for).
+ */
+export function anaphora(text: string): string {
+  return text.replace(/\bthat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "that card");
 }
