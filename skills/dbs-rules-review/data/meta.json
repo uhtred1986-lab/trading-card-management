@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-10-18T09:01:54.543Z",
+  "gitSha": "727c5b31",
+  "counts": {
+    "skills": 13615,
+    "openSkills": 1931,
+    "families": 1527,
+    "assumptions": 29,
+    "silent": 18,
+    "silentKnown": 18
+  },
+  "largestFamilies": [
+    {
+      "family": "at the start of the game",
+      "count": 59
+    },
+    {
+      "family": "add up to N <c> <n> card with an energy cost of N or less",
+      "count": 10
+    },
+    {
+      "family": "when placing this card in your energy from any area",
+      "count": 6
+    },
+    {
+      "family": "{N}, if your leader's back side is a <c> <n> card and you have a total of N or more multicolor <n> cards and/or multicolor cards with <n> in their character nam",
+      "count": 5
+    },
+    {
+      "family": "add up to N <n> or <n> card—both <c> and with an energy cost of N or less—to your hand",
+      "count": 5
+    },
+    {
+      "family": "add up to N <n> or <n> card―both <c> and with an energy cost of N or less―to your hand",
+      "count": 5
+    },
+    {
+      "family": "declare N number",
+      "count": 5
+    },
+    {
+      "family": "if <n>",
+      "count": 5
+    },
+    {
+      "family": "if <n> is in your battle area or leader area",
+      "count": 5
+    },
+    {
+      "family": "if this card has [indestructible]",
+      "count": 5
+    }
+  ]
+}

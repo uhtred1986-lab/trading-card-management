@@ -117,6 +117,36 @@ every request carrying `Next-Action` through the proxy, whatever its path.
 caller's IP (`x-real-ip`, else the first `x-forwarded-for`; the address is never stored) and refuse over
 **10 a minute or 50 an hour**; rows older than an hour are pruned on every write. It fails closed.
 
+## The MCP connector (claude.ai rules review)
+
+Ported from gullet-cove-dm. claude.ai connects to `https://trading-card-management.vercel.app/api/mcp` and does the
+OAuth 2.1 dance itself; the user signs in with Google. What it can do is the rules review (`docs/arena-tooling.md`,
+"Rules review with claude.ai"): read open rules and assumptions, and open or comment on `rule-assumption` GitHub
+issues. **It never writes a rule** (`card_rules`).
+
+- **Doors** (`OAUTH_PUBLIC_PATHS` in `src/lib/auth/core.ts`, public to the proxy because an MCP client has no
+  cookie): `/api/mcp` (POST only), `/api/oauth/register` (RFC 7591, rate-limited with the join-attempt counter,
+  grants nothing), `/api/oauth/token`, `/api/oauth/revoke`, and the metadata documents
+  `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` (+ `/api/mcp` twin). Each
+  authenticates itself; `scripts/verify/guards.ts` lists them in `ROUTE_EXEMPT`.
+- **`/oauth/authorize`** is *not* public: it needs a signed-in SL (`requireSlPage`), the proxy sends a player home
+  (`isSlOnlyPath`), and the action is `requireSl()`. A Basic Auth SL has no Google address to bind a token to and is
+  told to sign in with Google. If the proxy sends you to `/login` first, you land on the home page after signing in
+  (there is no return-to); start the connection again from claude.ai.
+- **Scopes**: `rules-read` (all read tools) and `rules-write` (`record_ruling`, `comment_ruling`; starts unticked).
+  `tools/list` shows only what the token's scopes allow.
+- **Locks on every `/api/mcp` call** (`src/app/api/mcp/route.ts`): `Origin` (if present) must be this site,
+  claude.ai/claude.com, loopback or `MCP_ALLOWED_ORIGINS`; a Bearer access token verified against our own tables
+  (`verifyAccessToken`: hash on file, unexpired, unrevoked, client unrevoked, bound to `<origin>/api/mcp`, and its
+  Google address **still an SL**); otherwise 401 with `WWW-Authenticate: Bearer resource_metadata="…"`, one answer
+  for every failure.
+- **Tables** (`oauth_clients`, `oauth_codes`, `oauth_tokens`; migration 0055): only SHA-256 hashes of codes and
+  tokens. A code is single use (a replay revokes its tokens), PKCE S256 only, exact redirect URIs, public clients
+  only; a refresh token rotates and a replay revokes the family; a refresh cannot widen scopes. Access tokens last
+  an hour, refresh tokens 30 days. Removing an SL cuts their tokens off at the next call.
+- **Env**: `GITHUB_ISSUES_TOKEN` (fine-grained, issues read/write on this repo only; never logged). No other secret.
+- Tested by `scripts/verify/rules-review-mcp.mts` (PGlite, GitHub mocked) and `scripts/verify/auth.ts`.
+
 ## Environment
 
 `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SL_EMAILS` — all four, or Google sign-in

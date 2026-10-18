@@ -80,7 +80,12 @@ for (const [id] of PRINTED) {
   assert.ok(JSON.stringify(characters.ops).includes('"differentCharacters":true') && !JSON.stringify(characters.ops).includes('"differentNames"'), "'different character names' is not 'different card names'");
   assert.ok(refused("[Permanent] If there are 3 or more blue and/or yellow cards in your Battle Area and/or Combo Area, this card gets +6000 power."), "a union of descriptions stays unread");
   assert.ok(refused("[Permanent] If you have a total of 7 or more cards with <GT> in their character names among all cards in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power."), "P-616's total across kinds stays unread");
-  assert.ok(refused("[Permanent] If your Leader is green or yellow and you have a total of 2 or more <Pan> cards and/or cards with <GT> in their character names in your Combo Area, this card gets +6000 power."), "and a compound that carries one stays unread whole");
+  // #907 (BT25-131 and four more, census of 18 Oct 2026): exactly two plain descriptions with one place at the end are
+  // now read, as one count over an either-description (`anyOf`) — a card that fits both counts once. The compound still
+  // carries its Leader condition, and the shapes above (a place list, a total across kinds) stay unread.
+  const either = skillRecords(card("R915E", { skill: "[Permanent] If your Leader is green or yellow and you have a total of 2 or more <Pan> cards and/or cards with <GT> in their character names in your Combo Area, this card gets +6000 power." }))[0];
+  assert.deepEqual(either.unread, [], "an and/or of two descriptions with one place is read (#907)");
+  assert.ok(JSON.stringify(either).includes('"anyOf"') && /"leader(?:Color|Matches)"/.test(JSON.stringify(either)),"as an either-description count behind the Leader condition");
   assert.deepEqual(skillRecords(card("R916", { skill: "[Permanent] If there are 5 or more {Infinite Multiplication Meta-Cooler} in your energy, Battle Area, and/or Drop, this card gets +6000 power." }))[0].unread, [], "a plain three-area list with and/or reads");
 }
 

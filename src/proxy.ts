@@ -38,6 +38,10 @@ import { checkAddedSl, checkPlayerDevice } from "@/lib/auth/proxy-checks";
  * The decision is `decide()` in `src/lib/auth/core.ts`, tested by
  * `scripts/verify/auth.ts`; this file is only the I/O.
  *
+ * The claude.ai rules-review connector's OAuth/MCP doors (`OAUTH_PUBLIC_PATHS`)
+ * pass `decide()` as public paths: each authenticates itself with a bearer
+ * token or a one-time code. `/oauth/authorize` is behind the SL sign-in.
+ *
  * `/api/sync/*` is not matched: Vercel's cron can't sign in, and that route
  * requires the CRON_SECRET bearer token. `/api/ai/agent-sdk` (exactly that
  * path) is not matched for the same reason: its callers are other functions,

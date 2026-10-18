@@ -273,14 +273,31 @@ export async function verifyFlow(token: string | undefined | null, secret: strin
 // ── What passes the proxy without signing in ───────────────────────────────
 
 /**
+ * The OAuth / MCP doors of the claude.ai rules-review connector (docs/architecture/auth.md,
+ * "The MCP connector"): an MCP client has no browser session, so each route authenticates itself
+ * (a bearer token, a registration rate limit, a one-time code with PKCE) and the metadata documents
+ * hold no data. `/oauth/authorize` is NOT here: it needs an SL's sign-in.
+ */
+export const OAUTH_PUBLIC_PATHS: readonly string[] = [
+  "/api/mcp",
+  "/api/oauth/register",
+  "/api/oauth/token",
+  "/api/oauth/revoke",
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/oauth-protected-resource/api/mcp",
+  "/.well-known/oauth-authorization-server",
+];
+
+/**
  * Paths the proxy lets through signed out. Exactly these, no prefixes beyond
- * the ones named: the sign-in itself, and the files the browser fetches
+ * the ones named: the sign-in itself, the OAuth/MCP doors above, and the files the browser fetches
  * without credentials (the web-app manifest, its icons and the service worker;
  * also skipped by the matcher). `/api/sync/*` and `/api/ai/agent-sdk` never
  * reach the proxy at all — the matcher leaves them out and each checks its own
  * bearer secret.
  */
 export function isPublicPath(pathname: string): boolean {
+  if (OAUTH_PUBLIC_PATHS.includes(pathname)) return true;
   if (pathname === LOGIN_PAGE || pathname === LOGIN_START_PATH || pathname === CALLBACK_PATH) return true;
   if (pathname === PASSWORD_LOGIN_PATH || pathname === JOIN_PAGE || pathname === JOIN_REDEEM_PATH) return true;
   if (pathname === "/manifest.webmanifest" || pathname === "/sw.js" || pathname === "/favicon.ico") return true;
@@ -301,6 +318,7 @@ export function isSlOnlyPath(pathname: string): boolean {
   if (pathname === "/arena/review" || pathname === "/arena/feedback") return true;
   if (/^\/arena\/\d+\/debug$/.test(pathname)) return true;
   if (/^\/sets\/[^/]+\/review$/.test(pathname)) return true;
+  if (pathname === "/oauth/authorize") return true; // the connector's consent screen: players never get a token
   return false;
 }
 

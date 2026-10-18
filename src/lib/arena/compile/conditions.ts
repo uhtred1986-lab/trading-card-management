@@ -469,6 +469,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return { cond: { kind: "not", cond: { kind: "did", what: "addToHand" } } };
   }
   if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
+  // "If you didn't play a card" (BT12-005, -006, -009, -010, -024, P-314; #907):
+  // the other half of the question above — the skill's earlier play did not
+  // happen, whether the offer in front of it was declined or the play found no
+  // card or was stopped. `did.play` is set false at every attempted play and
+  // true only on success (20-16), and is never set by an offer that was not
+  // taken, so "not did play" is exactly "no card was played by this skill so far".
+  if (/^you (?:did not|didn'?t|do not|don'?t|chose not to) play (?:a|any|1 or more|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "did", what: "play" } } };
   if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
   if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
   if (/^you ko'?d (?:a|1 or more|any|one or more) (?:battle )?cards?(?: (?:this way|with this skill))?$/.test(t)) return { cond: { kind: "did", what: "ko" } };
@@ -525,6 +532,20 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       delete host.upTo;
       return { cond: { kind: "count", sel: { side: "you", area: "under", underHost: host }, atLeast: Number(m[2]) }, subject: { sel: host } };
     }
+  }
+  // "If this card has [Indestructible]" (BT21-005, -006, -007, -023, BT23-008,
+  // BT26-054 "[Servant]", P-491; #907): the card has that keyword skill *now* —
+  // printed or granted, since a keyword gained is a skill like any other
+  // (20-18-1, 22-1) and the filter's keyword test reads the card's skills as
+  // they stand. The same count-of-one the other "this card is …" conditions
+  // are, with the description a keyword filter. A keyword the filter does not
+  // know leaves the filter blank, so the condition would hold for every card:
+  // that stays a gap. Only the bracketed keyword itself (not "[Blocker] skill
+  // negated" or a list of several), and only for this card.
+  if ((m = /^this card has (?:the )?\[([^\]]+)\](?: skill)?$/.exec(t))) {
+    const filter = parseFilter(`card with [${m[1]}]`);
+    if (filter.unreadable || filter.keywords.length !== 1) return null;
+    return { cond: { kind: "count", sel: { special: "self", filter }, atLeast: 1 }, subject: { sel: { special: "self" } } };
   }
   // "If you **only** have blue ≪Power Wish≫ <Son Goku> cards in play in your
   // Battle Area" (EX24-05, BT7-004, P-210; owner's ruling of 17 Oct 2026): every
@@ -777,6 +798,23 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
  * Combo Area" — one shape, many areas, and the target phrase after the number
  * is the same grammar every other clause uses.
  */
+function unionCount(said: string, who: string | null): Selector | null {
+  const place = /\s+(in (?:your|their|your opponent's) [a-z-]+(?: area)?)$/.exec(said)?.[1];
+  const halves = said.split(/\s+and\/or\s+/);
+  if (!who || !place || halves.length !== 2 || !halves[1].endsWith(place)) return null;
+  const sels = [halves[0], halves[1].slice(0, halves[1].length - place.length).trim()].map((half) => parseTarget(`${who} ${half} ${place}`));
+  const [a, b] = sels;
+  if (!a || !b || !a.filter || !b.filter || a.filter.unreadable || b.filter.unreadable) return null;
+  const rest = (s: Selector) => JSON.stringify({ ...s, filter: undefined, count: undefined, upTo: undefined });
+  if (a.special || b.special || a.fromVar || b.fromVar || rest(a) !== rest(b) || a.filter.anyOf?.length || b.filter.anyOf?.length) return null;
+  // A half the target reader took no measure from would match every card.
+  if (filterIsBlank(a.filter) || filterIsBlank(b.filter)) return null;
+  const sel: Selector = { ...a, filter: { ...emptyFilter(), anyOf: [a.filter, b.filter] } };
+  delete sel.count;
+  delete sel.upTo;
+  return sel;
+}
+
 function parseCountCondition(t: string): Cond | null {
   // "a Battle Card" and a bare plural both mean "at least one"; "no" means none.
   // The sets print the contraction as readily as the long form — "**if
@@ -833,6 +871,17 @@ function parseCountCondition(t: string): Cond | null {
   // (not in the place list after it) is a union of two descriptions: split at the
   // "or" it was either part alone, joined whole its colours were intersected.
   if (/\bdifferent (?!(?:card|character) names\b)/.test(said)) return refuseCount();
+  // "You have a total of 2 or more multicolor <Pan> cards **and/or** multicolor
+  // cards with <GT> in their character names in your energy" (BT25-131, -132,
+  // -134, -135, -136; #907): two descriptions of one count, the place printed
+  // once at the end. Cards that fit either description are counted — once each,
+  // the way "cards that are A and/or B" reads — so it is one selector whose
+  // filter is the either-description (`anyOf`, #537), not two counts added up
+  // (a card that fits both would count twice) and not a count of the one
+  // description the "or" split would leave. Only the plain shape: exactly two
+  // descriptions, one place for both, a number to reach.
+  const either = !none && num ? unionCount(said, /^you have/.test(t) ? "your" : /^your opponent has/.test(t) ? "your opponent's" : null) : null;
+  if (either) return { kind: "count", sel: either, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
   if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
