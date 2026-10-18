@@ -4281,6 +4281,14 @@
       "words": "when this card is rested by one of your skills"
     },
     {
+      "name": "restedByAnySkill",
+      "words": "when this card is rested by a skill"
+    },
+    {
+      "name": "restedByOpponentSkill",
+      "words": "when this card is rested by your opponent's skill"
+    },
+    {
       "name": "restedTheirsBySkill",
       "words": "when your skill rests an opponent's card"
     },
@@ -4335,6 +4343,14 @@
     {
       "name": "spiritBoostPaid",
       "words": "when you pay a [Spirit Boost] cost from this card"
+    },
+    {
+      "name": "placedInEnergy",
+      "words": "when this card is placed in your energy"
+    },
+    {
+      "name": "placedInEnergyFromHand",
+      "words": "when this card is placed in your energy from your hand"
     },
     {
       "name": "energyToDrop",

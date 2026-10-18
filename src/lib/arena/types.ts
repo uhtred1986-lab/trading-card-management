@@ -763,6 +763,14 @@ export type Trigger =
   | "restedByAlliance"
   /** "When this card is switched to Rest Mode by one of your skills" (1-10). */
   | "restedBySkill"
+  /** "When this card is switched to Rest Mode by a skill" (1-10), either player's (#907; BT18-104, P-492). */
+  | "restedByAnySkill"
+  /** "When this card is switched to Rest Mode by your opponent's skill" (1-10, #907). */
+  | "restedByOpponentSkill"
+  /** "When this card is placed in your energy" (3-8, 7-2-11), by a charge or a skill alike (#907; BT18-052, EX17-02). */
+  | "placedInEnergy"
+  /** The same arrival from your hand (#907; BT13-040, EX19-26 "played or placed in your energy"). */
+  | "placedInEnergyFromHand"
   /** The other end of it: your skill resting one of theirs (1-10). */
   | "restedTheirsBySkill"
   /** "When this card in a Battle Area is switched to Hidden Mode by one of your skills" (1-10-2, 23-5-2-4; BT28-116, BT28-119). */

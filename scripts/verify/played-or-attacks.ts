@@ -29,11 +29,11 @@ const PRINTED = {
   HAND962: "[Auto] When this card is played from your hand or attacks, draw 1 card.",
   YOU962: "[Auto] When you play this card or when it attacks, draw 1 card.",
   // Honest gaps.
-  ENERGY962: "[Auto] When this card in your hand is played or placed in your energy, draw 1 card.",
+  ENERGY962: "[Auto] When this card is played or placed in your energy from your Drop Area, draw 1 card.",
   TARGET962: "[Auto] When this card is played or attacks and opponent's Battle Card, draw 1 card.",
   OPPATK962: "[Auto] When this card is played or your opponent attacks, draw 1 card.",
   USING962: "[Auto] When this card is played using [Union-Potara] or attacks, draw 1 card.",
-  REST962: "[Auto] When this card is played or switched to Rest Mode by one of your yellow card skills, draw 1 card.",
+  REST962: "[Auto] When this card is played or switched to Rest Mode by a skill of an opponent's card, draw 1 card.",
   // Untouched neighbours.
   PLAYONLY962: "[Auto] When this card is played, draw 1 card.",
   ATKONLY962: "[Auto] When this card attacks, draw 1 card.",
