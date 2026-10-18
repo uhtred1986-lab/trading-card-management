@@ -3884,6 +3884,38 @@
       ]
     },
     {
+      "field": "costBelowEnergy",
+      "type": "boolean",
+      "printed": "card with an energy cost less than your current energy",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
+      "field": "costAtLeastEnergy",
+      "type": "boolean",
+      "printed": "card with an energy cost greater than or equal to your current energy",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
+      "field": "costAboveEnergy",
+      "type": "boolean",
+      "printed": "card with an energy cost greater than your current energy",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
+      "field": "energyOfOpponent",
+      "type": "boolean",
+      "printed": "card",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
       "field": "originallySkillLess",
       "type": "boolean",
       "printed": "originally skill-less",

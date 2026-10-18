@@ -90,6 +90,11 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   specifiedCostNone: { only: ["L-RED", "L-BLUE"] },
   // #979: applied where the skill runs (`resolveSelector`), so the card-level predicate ignores it.
   costAtMostEnergy: { except: [] },
+  // #1011: the other comparators and whose count — the same, applied where the skill runs.
+  costBelowEnergy: { except: [] },
+  costAtLeastEnergy: { except: [] },
+  costAboveEnergy: { except: [] },
+  energyOfOpponent: { except: [] },
   originallySkillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   skillLess: { only: ["L-BLUE", "V1", "V-BLUE", "BIG", "COST3", "XBAT", "BUUHOST", "RECOLORED", "BLUECOMBO", "TRAITED", "RENAMED+alsoNames", "TOK", "ZED", "RAINBOW", "MUTE", "COMBO10K", "NOCOMBO"] },
   powerRel: { except: [] },
