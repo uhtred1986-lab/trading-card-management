@@ -686,6 +686,8 @@ export type Trigger =
    * "that card" and "it" point at it.
    */
   | "opponentPlayed"
+  /** #1015: the same, but the opponent's own skill played it ("when your opponent uses a skill to play a Battle Card", BT15-005). A play the opponent declares from the hand is not this moment. */
+  | "opponentPlayedBySkill"
   /** Your own side of it: "when your blue ≪God≫ card is played", "when you play a red ≪Android≫ card". */
   | "youPlayed"
   | "opponentAttacks"

@@ -128,6 +128,9 @@ export interface PlayOptions {
    * separately announce success after landing, not keyword activation.
    */
   using?: string;
+  /** #1015: a skill made the play (`"skill"`), and whether it was the other player's. A declared play (5-5-2) names neither. */
+  by?: "skill";
+  byOpponent?: boolean;
 }
 
 /**
@@ -222,8 +225,13 @@ export function resolvePlay(
   // as it arrives. 22-13-6-3 / 22-5-5: played *onto* another card, it takes
   // that card's place and the card goes under it (`stackOnto`); with the host
   // gone from the area, it is an ordinary play beside it — the legacy reading.
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to);
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}) });
+  // #1015: a skill's play says so (`opponentPlayedBySkill`'s `moved(by: skill)`);
+  // a play the player declares carries no cause. Not for a card coming out of a
+  // Battle Area: that is `removedFromBattle`'s move (`moved(by: skill, from:
+  // battle)`), and this play must not answer to it.
+  const cause: { by?: string; byOpponent?: boolean } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, cause);
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
   // (`playedUsing`). Set after the arrival, which resets the copy (3-1-4).
@@ -278,10 +286,10 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, cause: { by?: string; byOpponent?: boolean } = {}): void {
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
-  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host });
+  moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host, ...cause });
   // 23-2-1, 23-2-2: the stack is a single card in the host's area — this
   // player's, 3-1-1 — so the arrival must be standing in that very area before
   // the host goes under it. Read where the move really put it rather than

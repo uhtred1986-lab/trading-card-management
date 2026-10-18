@@ -97,6 +97,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   comboToDrop: "when a card in your Combo Area is placed in your Drop Area",
   comboUsed: "when you combo with this card",
   opponentPlayed: "when your opponent plays a card",
+  opponentPlayedBySkill: "when your opponent uses a skill to play a card",
   youPlayed: "when you play a card",
   opponentAttacks: "when your opponent attacks",
   opponentEnergyActiveBySkill: "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn",

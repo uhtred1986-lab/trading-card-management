@@ -65,7 +65,9 @@ function chooses(node: unknown, out: Extract<Op, { op: "choose" }>[] = []): Extr
   // BT15-085: the opponent picks, from either place.
   const BT15_085 = compile("[Auto] Switch this card to Rest Mode: When your opponent uses a skill to play a Battle Card with an energy cost greater than their current energy, they choose 1 card in their hand or 1 of their Battle Cards and place it in its owner's Drop Area.");
   assert.deepEqual(BT15_085.unsupported, []);
-  const mode = BT15_085.ops.find((o) => o.op === "chooseMode");
+  // The trigger's energy-cost bound is a condition now (#1015), so the menu sits inside it.
+  const inside = BT15_085.ops.flatMap((o) => (o.op === "if" ? o.then : [o]));
+  const mode = inside.find((o) => o.op === "chooseMode");
   assert.ok(mode && mode.op === "chooseMode" && mode.chooser === "opponent" && mode.modes.length === 2);
   const areas = chooses(BT15_085.ops).map((c) => [c.sel.side, c.sel.area, c.chooser]);
   assert.deepEqual(areas, [["opponent", "hand", "opponent"], ["opponent", "battle", "opponent"]]);

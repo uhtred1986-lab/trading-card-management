@@ -6,6 +6,8 @@ import type { DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../
 import { parseConditionClause } from "./conditions";
 import { compileDisjointMove } from "./disjoint";
 import { compileNamedSet } from "./named-set";
+import { compileOpponentChoice } from "./opponent-choice";
+import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
@@ -874,6 +876,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   const named = compileNamedSet(t, c);
   if (named !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : named;
+  // #1015: "your opponent chooses 2 cards in their hand and places them at the
+  // bottom of their deck" — the opponent's own choice and the move it ends in,
+  // one sentence (see `opponent-choice.ts`). Not an offer; "you may" is refused.
+  const opponentMove = compileOpponentChoice(t, c, (o) => track(o, c));
+  if (opponentMove !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : opponentMove;
   const disjoint = compileDisjointMove(t, c);
   // An optional one ("you may place 1 <A> card and 1 <B> card …") is a choice to do all of it: not read.
   if (disjoint !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : disjoint;
@@ -2838,6 +2845,12 @@ const typeOfWord = (w: string): "LEADER" | "BATTLE" | "UNISON" | null => {
  */
 function attackSideFilter(said: string): CardFilter | null {
   let text = said.trim().replace(DURATION_AFTER_OBJECT, "").replace(/^(?:your opponent'?s|your|their|the|an?)\s+/, "");
+  // "cards **other than their Leader**" (BT26-127, #1015): every kind but that
+  // one. `filterFor` read the kind it names and dropped the "other than", so the
+  // rule was about the Leader alone — the opposite card. A Battle Card or Unison
+  // can only be attacked with by being one, so the three kinds make this exact.
+  const otherKind = /^cards?\s+other than\s+(?:(?:your|their|the)\s+)?(leader|battle|unison)s?(?:\s+cards?)?$/.exec(text);
+  if (otherKind) return { ...parseFilter(""), notType: otherKind[1].toUpperCase() as "LEADER" | "BATTLE" | "UNISON" };
   // "{Krillin, Concerned for a God} card **in a Unison Area**" (BT31-037): the
   // area says the card is a Unison, which is the only card that stands there.
   const inUnisonArea = /\s+in an? unison area$/.test(text);
@@ -3043,11 +3056,23 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return null;
     }
     if (!/^attack\b/.test(rest) || /^attack (?:this card|it)\b/.test(rest)) return null;
-    const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+    // "…during your opponent's next turn, **they** can't attack with Battle
+    // Cards unless …" (BT11-034, BT14-122): "they" is the opponent the same
+    // sentence has just named.
+    const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) || (subject === "they" && /\byour opponent\b/i.test(c.raw)) ? "opponent" : null;
     if (side) {
       if (side !== tax.payer) return null;
-      if (/\bwith\b/.test(rest)) return null;
-      return [{ op: "forbid", what: "attack", side, until, unlessPay: tax.ops }];
+      // A bare "can't attack" taxes every attack; "with Battle Cards" taxes
+      // the attacks those cards make (a `filter` on the attacker, which
+      // `ruleApplies` tests on the card asked about, #1015). A description of
+      // the **defender** ("attack Leader Cards", "your non-Leader cards",
+      // BT13-082, BT14-076, BT18-099) is not read: the tax is asked per
+      // attacker, before a defender is known, and charging it on every attack
+      // would tax attacks the card does not name.
+      if (/^attack(?:\s+with cards?)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "attack", side, until, unlessPay: tax.ops }];
+      const objects = attackObjects(rest.replace(/^attack\s+/, ""));
+      if (!objects?.attacker || objects.defender) return null;
+      return [{ op: "forbid", what: "attack", side, until, filter: objects.attacker, unlessPay: tax.ops }];
     }
     const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
     if (!target) return null;
@@ -3253,7 +3278,30 @@ export function taxWordings(text: string): string {
     .replace(
       /\b(can(?:'|no)t activate [^.]*?) unless they choose (\d+) (cards?) in their hand and send (?:it|them) to their warp\b/gi,
       (_m, head: string, n: string, cards: string) => `${head} unless they send ${n} ${cards} from their hand to their warp`,
-    );
+    )
+    .replace(CHOSEN_PRICE, chosenPrice);
+}
+
+/**
+ * "…can't attack with Battle Cards unless **they choose 1 of their Battle Cards
+ * with an energy cost of 2 or more and place it in its owner's Drop Area**"
+ * (BT10-063, BT11-034, BT19-049, and every card that prints the price this way:
+ * BT11-035, BT13-082, BT13-140, BT14-076, BT14-082, BT14-122, BT16-105,
+ * BT16-149, BT18-099, BT20-099, P-151, P-442; #1015). The price is one act said
+ * as two clauses, "choose X" and "<verb> it", and the sentence was cut at its
+ * "and" into a choice nothing is done to (half a price, refused) and a verb with
+ * no object. Said as the one verb it is — "place 1 of their Battle Cards with an
+ * energy cost of 2 or more in its owner's Drop Area" — the price reads the way
+ * BT17-053's printed form always has. The choice stays the payer's: `taxProgram`
+ * turns "their" into "your" and the engine runs the price in the payer's chair.
+ * "Cards in their hand/life" become "cards from their hand/life", the form the
+ * price readers know.
+ */
+const CHOSEN_PRICE =
+  /\bunless (they|your opponent) chooses? (up to )?(\d+) (cards? (?:in|from) their (?:hand|life|life area|drop area|drop|energy|energy area)|of (?:their|your opponent'?s) [^,.]+?) and (place|send|discard|switch|return|put) (?:it|them)\b([^,.]*)/gi;
+function chosenPrice(_m: string, who: string, upTo: string | undefined, n: string, what: string, verb: string, tail: string): string {
+  const from = what.replace(/^(cards?) in\b/i, "$1 from");
+  return `unless ${who} ${verb.toLowerCase()} ${upTo ?? ""}${n} ${from}${tail}`;
 }
 
 /** The steps a tax may be made of: the price ops both engines can say in advance whether a player can pay (`canPayPriceProgram`). */
@@ -3277,9 +3325,16 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
   // activation is one act too (#677): the printed cards say it without "each
   // time" ("unless they discard 2 cards from their hand", BT29-022), and
   // 20-14-1 charges every activation it governs either way.
+  // #1015: an attack's price may leave "each time" out too (BT11-035, P-151,
+  // BT11-053, BT24-087). The official card FAQ says of BT11-035 that the
+  // opponent "has to choose 1 card from their hand and place it on the bottom
+  // of their deck in order to attack" and of P-442 that they cannot declare an
+  // attack with no card to pay with; 20-14-1 makes action B the condition of
+  // every action A. It is read as paid for every attack — LABELLED BEST GUESS
+  // for "every" (no ruling says once or each time for the cards that omit it).
   const m =
     /^(your opponent|they|you)\s+(.+?)\s+each time(?:\s+(?:until|for|during)\b.*)?$/.exec(said) ??
-    (on === "attack" ? null :/^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said));
+    /^(your opponent|they|you)\s+(.+?)(?:\s+(?:until the end of .+|for the (?:duration of the )?(?:turn|game)|during .+))?$/.exec(said);
   if (!m) return null;
   const payer: Side = m[1] === "you" ? "you" : "opponent";
   let clause = m[2];
@@ -4350,7 +4405,9 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // that print it as ", ignoring [Barrier], and KO it" are read above. The
     // words come off the description (they would otherwise be the end of a
     // card description no filter reads) and mark the choice they ended.
-    const inlineIgnoresBarrier = /\S\s+ignoring \[barrier\]/i.test(saidWhole);
+    // (Not for "your opponent chooses A and B, ignoring [Barrier], and sends
+    // them …", whose reader takes the words itself, #1015.)
+    const inlineIgnoresBarrier = /\S\s+ignoring \[barrier\]/i.test(saidWhole) && !opponentChoiceWords(saidWhole);
     const said = inlineIgnoresBarrier ? saidWhole.replace(/\s+ignoring \[barrier\]/i, "") : saidWhole;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
