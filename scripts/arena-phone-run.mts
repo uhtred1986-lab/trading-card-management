@@ -841,7 +841,7 @@ async function openShell(caseId: string): Promise<{ page: Page; shellMs: number;
   T.browser!.on((m) => { if (m === "Network.loadingFailed") failedRequests++; });
   await page.eval(INSTRUMENT).catch(() => {});
   await watchWorkers(page);
-  await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, 90000, "the offline shell's heading");
+  await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, 90000, "the offline shell's heading");
   const shellMs = Date.now() - t0;
   const landedOn = await page.eval<string>("location.pathname");
   await until(page, `document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, 60000, '"Ready for offline play"');
@@ -1075,7 +1075,7 @@ try {
   // 5. the phone's own pace back (on a page of the app, offline is fine)
   if (run.pacePrevious !== undefined) {
     const { page } = await T.coldLaunch(`${BASE}/arena`);
-    await until(page, `document.querySelector("h1")?.textContent === "Play on this device"`, 60000).catch(() => {});
+    await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, 60000).catch(() => {});
     await page.eval(`(() => { try { const p = ${JSON.stringify(run.pacePrevious)}; if (p === null) localStorage.removeItem("arena.pace"); else localStorage.setItem("arena.pace", p); } catch {} })()`).catch(() => {});
     await T.endCase();
   }

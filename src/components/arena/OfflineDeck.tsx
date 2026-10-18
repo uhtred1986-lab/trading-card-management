@@ -100,7 +100,7 @@ export async function othersProblem(ids: number[], device: DevicePack | null, do
   return [
     gone.length ? `${gone.map((id) => `"${name(id)}"`).join(", ")} ${gone.length === 1 ? "is" : "are"} no longer one of your decks.` : "",
     blocked.length ? `${blocked.map((id) => `"${name(id)}"`).join(", ")} can no longer be played offline.` : "",
-    "Remove it from this device on the Play on this device page first.",
+    "Remove it from this device on the Play the computer page first.",
   ].filter(Boolean).join(" ");
 }
 
@@ -186,11 +186,11 @@ export function OfflineDeck({ deckId, deckName, check, revision }: { deckId: num
       {check.ready && !mine && device !== undefined && (
         <p className="text-sm text-space-300">Download it to play it on this device with no connection, against the computer or against another deck on the device.</p>
       )}
-      {mine && !stale && <p className="text-sm text-space-300">You can pick it on Play on this device, as your deck or the computer&rsquo;s.</p>}
+      {mine && !stale && <p className="text-sm text-space-300">You can pick it on Play the computer, as your deck or the computer&rsquo;s.</p>}
       {stale && check.ready && <p className="text-sm text-space-300">Update it to play the list as it is now. Until then the device plays the list you downloaded.</p>}
       {mine && !prepared && (
         <p className="text-sm text-space-300">
-          To play with no connection, also prepare this device once on <Link className="text-ki-300 underline" href="/arena/offline">Play on this device</Link>.
+          To play with no connection, also prepare this device once on <Link className="text-ki-300 underline" href="/arena/offline">Play the computer</Link>.
         </p>
       )}
 

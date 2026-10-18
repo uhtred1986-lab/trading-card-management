@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ComputerPlayCard } from "@/components/arena/ComputerPlayCard";
 import { PlayPicker, type PlayDeck } from "@/components/arena/PlayPicker";
 import { DeckDiscovery } from "@/components/DeckDiscovery";
 import { DeckBuilder } from "@/components/DeckBuilder";
@@ -21,7 +22,7 @@ export function SetupPreview({ view = "online", local }: {view?:string;local?:Pa
    {view==="library" ? <DeckDiscovery label="Browse decks" decks={setupDecks.map((d)=>({id:String(d.id),name:d.name,description:d.description??null,colors:d.colors??[],leaderId:d.leaderId,leaderName:d.leaderName,group:d.isBuilt?"Built":"Virtual",mainCount:50,href:`/decks/${d.id}`,status:"legal"}))} />
    : view==="builder" ? <><DeckBuilder deckId={-1} game="dbs" /><NewDeckWithClaude enabled={false} /></>
    : view==="local" && local ? <LocalMatchSetup facts={local} mine={mine} theirs={theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} busy={false} pendingLabel="" start={()=>setSubmitted(JSON.stringify({mine,theirs,seat}))} />
-   : <PlayPicker decks={setupDecks} initialDeck={1} initialClaudeDeck={2} costs={{sparring:"~12¢ a game",tournament:"~25¢ a game"}} canVersus={true} versusNote="" action={(data)=>setSubmitted(JSON.stringify(Object.fromEntries(data)))} showTestingDecks={false} testingToggleHref="/arena?testing=1" hiddenTestingDeckName={null} />}
+   : <>{view==="play" && <ComputerPlayCard />}<PlayPicker decks={setupDecks} initialDeck={1} initialClaudeDeck={2} costs={{sparring:"~12¢ a game",tournament:"~25¢ a game"}} canVersus={true} versusNote="" action={(data)=>setSubmitted(JSON.stringify(Object.fromEntries(data)))} showTestingDecks={false} testingToggleHref="/arena?testing=1" hiddenTestingDeckName={null} /></>}
    <output data-setup-submitted>{submitted}</output>
  </div>;
 }
