@@ -161,7 +161,9 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
       // declaration that names `hidden: true` is what specifies it.
       if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
       if (!holdsFor(game, state, trigger, card)) continue;
-      const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card } : {};
+      // A self-moment a skill caused hands that skill's card on as the subject (#907).
+      const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card }
+        : trigger.bind === "self" && moment.source !== undefined ? { subject: moment.source } : {};
       out.push({ trigger: trigger.name, card, ...subject, ...(asksHidden && card === moment.card ? { front: true as const } : {}), ...(fromHand.has(card) ? { handWatcher: true as const } : {}) });
     }
   }
