@@ -247,6 +247,18 @@ function unionPotaraSourcePermit(text: string): Op[] | null {
   return [{ op: "permit", what: "unionSourceUnder", target: { sel: { special: "self" } }, until: "game", filter, source }];
 }
 
+/**
+ * 22-5-2 widened (BT19-077/078/081/082): "This card's [EX-Evolve] can also be
+ * activated from your Z-Energy." One standing permission about the card's own
+ * Evolve line's source area. The official card Q&A (BT19-077 Q1) reads it as
+ * "activate [EX-Evolve] while it is in your Z-Energy, then play it on top of the
+ * target card in the Battle Area", so the base area is untouched.
+ */
+function evolveFromZEnergyPermit(text: string): Op | null {
+  if (!/^this card['’]s \[(?:ex-)?evolve\] can also be activated from your z-energy\.?$/i.test(text.trim())) return null;
+  return { op: "permit", what: "evolveFromZEnergy", target: { sel: { special: "self" } }, until: "game" };
+}
+
 /** 22-5-3-1: one standing permission, not a choice followed by a free play. */
 function evolveEnergyBasesPermit(text: string): Op | null {
   if (!/^when using this card['’]s \[evolve\] skill from your hand,? you can choose battle cards from your energy and play this card in active mode\.?$/i.test(text.trim())) return null;
@@ -349,6 +361,8 @@ function compileSkillText(skill: Skill): Script {
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;
   if (potaraSources) return { ops: potaraSources, unsupported: [] };
+  const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
+  if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
   if (evolveAreas) return { ops: [evolveAreas], unsupported: [] };
   // #930, P-360: "[Permanent] Red <Gogeta: Br> cards in your hand gain the
