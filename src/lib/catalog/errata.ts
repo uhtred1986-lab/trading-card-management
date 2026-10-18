@@ -77,6 +77,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT6-013": [[/1\s+red&lt;Vegeta:\s+Br&gt;/g, "1 red &lt;Vegeta: Br&gt;"]],
   "BT20-083": [[/≪Saiyan≫card/g, "≪Saiyan≫ card"]],
   "BT25-032": [[/2\s+oor\s+more\s+energy/g, "2 or more energy"]],
+  // A typo in the catalog's copy (#930): "…on top of this card, the shuffle your
+  // deck." Every sibling Absorb prints ", then shuffle your deck". Not one of the
+  // official errata (no entry in OFFICIAL_ERRATA); the clause was left unread.
+  "BT28-012": [[/,\s*the\s+shuffle\s+your\s+deck/g, ", then shuffle your deck"]],
   "BT25-054": [[/shuffle\s+your\s+dec\./g, "shuffle your deck."]],
   "BT25-061": [[/all\s+blue\s+adn\s+with/g, "all blue and with"]],
   "BT25-086": [[/Active\s+Moe/g, "Active Mode"]],
