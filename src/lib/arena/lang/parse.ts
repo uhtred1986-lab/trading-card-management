@@ -45,6 +45,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   otherThanCopies: (s) => (s.notSelf = "copies"),
   otherThanSameName: (s) => (s.notSelf = "name"),
   differentNames: (s) => (s.differentNames = true),
+  distinctColors: (s) => (s.distinctColors = true),
   asPrinted: (s) => (s.printed = true),
 };
 

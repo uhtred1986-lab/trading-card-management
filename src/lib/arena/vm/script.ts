@@ -167,6 +167,15 @@ export interface Selector {
    */
   differentNames?: true;
   /**
+   * "For each card color in your Energy Area" (EX19-26), "4 or more colors
+   * among cards in your energy" (BT16-016): the count is of the different
+   * colors the cards found have, not of the cards. A multicolor card has each
+   * of its colors (1-8-1-1), so a red and a red/blue card are two colors.
+   * Only a count reads it (`selectedCount`); a `choose` over it is not a
+   * wording any card prints.
+   */
+  distinctColors?: true;
+  /**
    * "Send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop to
    * your Warp" (BT10-025, #970): each slot of a multi-card price is a choice of
    * its own, and one catalog card may carry several of the names. A choice
@@ -214,7 +223,12 @@ export interface Selector {
  * BT18-104). Both engines' `count` conditions and amounts read through this,
  * so the two cannot count the same board differently.
  */
-export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id: string) => string): number {
+export function selectedCount(sel: Selector, ids: readonly string[], nameOf: (id: string) => string, colorsOf?: (id: string) => readonly string[]): number {
+  if (sel.distinctColors) {
+    // Counting cards here would be the very mistake the flag exists to stop.
+    if (!colorsOf) throw new Error("a color count was asked without a way to read colors");
+    return new Set(ids.flatMap((id) => colorsOf(id))).size;
+  }
   return sel.differentNames ? new Set(ids.map((id) => nameOf(id).toLowerCase())).size : ids.length;
 }
 

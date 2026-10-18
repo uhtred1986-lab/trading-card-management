@@ -1899,6 +1899,7 @@ const SELECTOR_KEYS = {
   ownedByOpponent: 1,
   notSelf: 1,
   differentNames: 1,
+  distinctColors: 1,
   notIn: 1,
   sumAtMost: 1,
   printed: 1,
@@ -1945,7 +1946,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
   }
-  for (const k of ["differentNames", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  for (const k of ["differentNames", "distinctColors", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
   // #970: the variables of earlier choices this one never repeats. Where they
   // must be bound, and that only a choose may carry them, is `programProblem`'s.
   if (v.notIn !== undefined && !(Array.isArray(v.notIn) && v.notIn.length > 0 && v.notIn.every((n) => typeof n === "string" && n !== ""))) return wrong("notIn", "a list of bound names");
@@ -2556,6 +2557,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
+  (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
