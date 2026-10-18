@@ -1,0 +1,894 @@
+{
+  "base": "http://localhost:3121",
+  "date": "2026-10-18",
+  "results": [
+    {
+      "scenario": "input",
+      "name": "phone with a coarse pointer starts in touch wording",
+      "ok": true,
+      "detail": "touch: Tap a hand card, then Charge it. Pass means no charge this turn."
+    },
+    {
+      "scenario": "input",
+      "name": "the touch help line is shown, the other two stay discoverable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "input",
+      "name": "a mouse press on a touch device switches the coach to mouse wording",
+      "ok": true,
+      "detail": "mouse: Click a hand card, then choose Charge in the card panel (or drag the card onto Energy). Pass means no charge this turn."
+    },
+    {
+      "scenario": "input",
+      "name": "a Tab key press switches the coach to keyboard wording",
+      "ok": true,
+      "detail": "keyboard: Press Tab to reach a hand card, Enter to select it, then choose its Charge button. Pass means no charge this turn."
+    },
+    {
+      "scenario": "input",
+      "name": "a finger tap switches it back to touch wording",
+      "ok": true,
+      "detail": "touch"
+    },
+    {
+      "scenario": "input",
+      "name": "desktop with a fine pointer starts in mouse wording",
+      "ok": true,
+      "detail": "mouse: Click a hand card, then choose Charge in the card panel (or drag the card onto Energy). Pass means no charge this turn."
+    },
+    {
+      "scenario": "input",
+      "name": "mouse: clicking a hand card and its Charge button charges the card",
+      "ok": true,
+      "detail": "rev 0 -> 1"
+    },
+    {
+      "scenario": "input",
+      "name": "desktop: Tab switches to keyboard wording",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "input",
+      "name": "keyboard: Tab reaches a hand card and Enter offers its Charge button",
+      "ok": true,
+      "detail": "Charge Son Gohan, Family of Justice+1 en"
+    },
+    {
+      "scenario": "input",
+      "name": "keyboard: the coach says so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "input",
+      "name": "a 390 px wide window with a mouse is NOT treated as touch (width does not decide)",
+      "ok": true,
+      "detail": "mouse: Click a hand card, then choose Charge in the card panel (or drag the card onto Energy). Pass means no charge this turn."
+    },
+    {
+      "scenario": "input",
+      "name": "an 820 px wide touch device IS touch (a coarse pointer, not a narrow screen)",
+      "ok": true,
+      "detail": "touch: Tap a hand card, then Charge it. Pass means no charge this turn."
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: the coach sits above the board in normal flow (not an overlay)",
+      "ok": true,
+      "detail": "position relative"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: the coach ends above the hand (no overlap)",
+      "ok": true,
+      "detail": "coach bottom 200, hand top 745"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: the hand and the action dock are present and are not covered by the coach",
+      "ok": true,
+      "detail": "hand true/true dock true/true"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: the Charge cue highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: all ten board zones are present",
+      "ok": true,
+      "detail": "14 zone anchors"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: hints off removes the coach and nothing on the board",
+      "ok": true,
+      "detail": "board text 390 vs 390 chars"
+    },
+    {
+      "scenario": "boards",
+      "name": "phone: Restore hints brings the coach back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: the coach sits above the board in normal flow (not an overlay)",
+      "ok": true,
+      "detail": "position relative"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: the coach ends above the hand (no overlap)",
+      "ok": true,
+      "detail": "coach bottom 163, hand top 910"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: the hand and the action dock are present and are not covered by the coach",
+      "ok": true,
+      "detail": "hand true/true dock true/true"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: the Charge cue highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: all ten board zones are present",
+      "ok": true,
+      "detail": "14 zone anchors"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: hints off removes the coach and nothing on the board",
+      "ok": true,
+      "detail": "board text 390 vs 390 chars"
+    },
+    {
+      "scenario": "boards",
+      "name": "tablet: Restore hints brings the coach back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: the coach sits above the board in normal flow (not an overlay)",
+      "ok": true,
+      "detail": "position relative"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: the coach ends above the hand (no overlap)",
+      "ok": true,
+      "detail": "coach bottom 163, hand top 724"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: the hand and the action dock are present and are not covered by the coach",
+      "ok": true,
+      "detail": "hand true/true dock true/true"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: the Charge cue highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: all ten board zones are present",
+      "ok": true,
+      "detail": "14 zone anchors"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: hints off removes the coach and nothing on the board",
+      "ok": true,
+      "detail": "board text 1015 vs 1015 chars"
+    },
+    {
+      "scenario": "boards",
+      "name": "desk: Restore hints brings the coach back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "unguided",
+      "name": "hints are off from the first move",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "unguided",
+      "name": "an unguided game is played through the UI to its end (hints off from the start)",
+      "ok": true,
+      "detail": "57 steps, 312 s; winner p2; life 0 vs 5"
+    },
+    {
+      "scenario": "unguided",
+      "name": "the end of the match uses practice wording and offers replay and return",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "unguided",
+      "name": "the finished match's journal is clean (unique request ids, sequential revisions)",
+      "ok": true,
+      "detail": "82 accepted actions"
+    },
+    {
+      "scenario": "unguided",
+      "name": "reload after the match ended still shows the finished practice match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "motion",
+      "name": "full motion: the announcer's arrival animation exists (0.35 s) and ends",
+      "ok": true,
+      "detail": "tutorial-module__HO5YcW__arrive@tutorial-module__HO5YcW__introArt:350"
+    },
+    {
+      "scenario": "motion",
+      "name": "full motion: the intro is fully readable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "motion",
+      "name": "full motion: the compact coach and the focus cue are immediate (no animation of their own)",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "scenario": "motion",
+      "name": "full motion: the instruction is in the DOM and readable once the board is up",
+      "ok": true,
+      "detail": "Tap a hand card, then Charge it. Pass means no charge this turn."
+    },
+    {
+      "scenario": "motion",
+      "name": "full motion: the focus cue is a static outline",
+      "ok": true,
+      "detail": "focus=hand"
+    },
+    {
+      "scenario": "motion",
+      "name": "reduced motion: the announcer's arrival animation is absent",
+      "ok": true,
+      "detail": "none recorded"
+    },
+    {
+      "scenario": "motion",
+      "name": "reduced motion: the intro is fully readable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "motion",
+      "name": "reduced motion: the compact coach and the focus cue are immediate (no animation of their own)",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "scenario": "motion",
+      "name": "reduced motion: the instruction is in the DOM and readable once the board is up",
+      "ok": true,
+      "detail": "Tap a hand card, then Charge it. Pass means no charge this turn."
+    },
+    {
+      "scenario": "motion",
+      "name": "reduced motion: the focus cue is a static outline",
+      "ok": true,
+      "detail": "focus=hand"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload during the intro restores the screen and the lesson (screen 3 of 5)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "charging an alternate (not the suggested) card is offered by the board",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge (rev 0): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock, flex w-full flex-wrap it"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 687 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "the alternate charge was accepted and the lesson moved on",
+      "ok": true,
+      "detail": "rev 0 -> 1, prompt main"
+    },
+    {
+      "scenario": "guided",
+      "name": "an unaffordable card cannot be played: no move, no lesson progress, and the board says why",
+      "ok": true,
+      "detail": "rev 1->1"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play (rev 1): lesson cue \"decision\" highlights a visible anchor",
+      "ok": true,
+      "detail": "hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 237 hand top 792 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review (rev 1): lesson cue \"decision\" highlights a visible anchor",
+      "ok": true,
+      "detail": "hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 218 hand top 703 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "resize to landscape with a review open: the review is still open and the cue still on a visible anchor",
+      "ok": true,
+      "detail": "review kept true; hand toolbar (hidden), dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "resize back to portrait: the review and the cue are unchanged",
+      "ok": true,
+      "detail": "focus decision -> decision"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload during an action review restores accepted moves and closes the unconfirmed review",
+      "ok": true,
+      "detail": "rev 1 -> 1, journal 1 -> 1"
+    },
+    {
+      "scenario": "guided",
+      "name": "the board's own battle beats keep playing with the coach up (a Skip control is offered while the opponent moves)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "reload while the opponent's moves are being played back: the match is restored at the saved revision",
+      "ok": true,
+      "detail": "rev 9 -> 9, journal 9 -> 9"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload while the opponent's moves are being played back: the match carries on by itself to your next decision (a response window or your turn), nothing duplicated",
+      "ok": true,
+      "detail": "turn 2 -> 2, prompt combo, rev 9 -> 9, 9 journal entries"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo (rev 9): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 661 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge (rev 15): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint charge: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 745 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play (rev 16): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:play: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 791 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review (rev 16): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint play:review: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 721 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:attack (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint main:attack: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 755 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:picked (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:picked: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 0 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:target (rev 17): lesson cue \"attack\" highlights a visible anchor",
+      "ok": true,
+      "detail": "p2:leader, pointer-events-none abso, p2:battle, p1:leader, p1:battle"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint attack:target: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 200 hand top 0 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo (rev 19): lesson cue \"hand\" highlights a visible anchor",
+      "ok": true,
+      "detail": "Your hand, dock"
+    },
+    {
+      "scenario": "guided",
+      "name": "checkpoint prompt:combo: coach does not overlap the hand; the coach never covers the hand or the dock",
+      "ok": true,
+      "detail": "coach bottom 236 hand top 789 hit true/true"
+    },
+    {
+      "scenario": "guided",
+      "name": "the guided match covered charge, play review, own attack and target and a response window",
+      "ok": true,
+      "detail": "main:play, play:review, prompt:combo, charge, main:attack, attack:picked, attack:target"
+    },
+    {
+      "scenario": "guided",
+      "name": "the lesson reached its hand-off after the demonstrated attack and defence",
+      "ok": true,
+      "detail": "11 measured checkpoints"
+    },
+    {
+      "scenario": "guided",
+      "name": "hand-off is offered at a stable boundary: your main prompt, no battle",
+      "ok": true,
+      "detail": "prompt main, battle false"
+    },
+    {
+      "scenario": "guided",
+      "name": "hand-off says honestly what was skipped and where to replay it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the prediction question spends no action",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "Play without guidance removes the coach and keeps the same match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the choice is saved with the match (hints off, hand-off done)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "reload after hand-off restores the same match, hints still off, no hand-off card again",
+      "ok": true,
+      "detail": "rev 21 -> 21"
+    },
+    {
+      "scenario": "guided",
+      "name": "no duplicated actions after reload: every journal entry is unique and in order",
+      "ok": true,
+      "detail": "21 entries"
+    },
+    {
+      "scenario": "guided",
+      "name": "hints can be restored mid-match from the toolbar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the board's own menu offers the same hints switch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "turning hints off from the board menu works",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "an unguided game is played through the UI to its end (after hand-off)",
+      "ok": true,
+      "detail": "44 steps, 341 s; winner p2; life 0 vs 3"
+    },
+    {
+      "scenario": "guided",
+      "name": "the end of the match uses practice wording and offers replay and return",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "guided",
+      "name": "the finished match's journal is clean (unique request ids, sequential revisions)",
+      "ok": true,
+      "detail": "81 accepted actions"
+    },
+    {
+      "scenario": "guided",
+      "name": "reload after the match ended still shows the finished practice match",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: full copy and natural reading order",
+      "ok": true,
+      "detail": "heading, then copy, then controls"
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: controls are at least 44 px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: every control reachable, no scroll trap",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: no timed auto-advance",
+      "ok": true,
+      "detail": "step unchanged after 6 s idle"
+    },
+    {
+      "scenario": "intro",
+      "name": "phone: a touch walkthrough (Next, Back, Next x4, Let's play) reaches the board",
+      "ok": true,
+      "detail": "after Back 1, last 5, board true"
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: full copy and natural reading order",
+      "ok": true,
+      "detail": "heading, then copy, then controls"
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: controls are at least 44 px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: every control reachable, no scroll trap",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: no timed auto-advance",
+      "ok": true,
+      "detail": "step unchanged after 6 s idle"
+    },
+    {
+      "scenario": "intro",
+      "name": "tablet: a touch walkthrough (Next, Back, Next x4, Let's play) reaches the board",
+      "ok": true,
+      "detail": "after Back 1, last 5, board true"
+    },
+    {
+      "scenario": "intro",
+      "name": "desk: full copy and natural reading order",
+      "ok": true,
+      "detail": "heading, then copy, then controls"
+    },
+    {
+      "scenario": "intro",
+      "name": "desk: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "desk: controls are at least 44 px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "desk: every control reachable, no scroll trap",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "desk: no timed auto-advance",
+      "ok": true,
+      "detail": "step unchanged after 6 s idle"
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: the intro heading takes focus on arrival",
+      "ok": true,
+      "detail": "h1 \"Welcome to the tournament!\""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: Tab visits the controls in reading order",
+      "ok": true,
+      "detail": "summary:Why? > button:Next > button:Skip opening > a:Exit practice > summary:Optional read-aloud"
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: the focused control is always on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: a visible focus ring (3 px outline)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: Enter on Next advances",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: the new step's heading takes focus",
+      "ok": true,
+      "detail": "h1 \"Meet your board\""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: Enter on Back returns a step",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: the five screens can be read through with Enter alone",
+      "ok": true,
+      "detail": "step 5"
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: Let's play opens the board",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "keyboard: focus does not fall to the page after the intro closes",
+      "ok": true,
+      "detail": "focus is div \"Practice guidance\""
+    },
+    {
+      "scenario": "intro",
+      "name": "Next twice reaches step 3",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "Back keeps the earlier step and its progress",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "reload restores the step you were reading",
+      "ok": true,
+      "detail": "step 3"
+    },
+    {
+      "scenario": "intro",
+      "name": "browser back to the tutorial restores the step",
+      "ok": true,
+      "detail": "step 3"
+    },
+    {
+      "scenario": "intro",
+      "name": "Exit practice is an explicit link to the Arena",
+      "ok": true,
+      "detail": "/arena"
+    },
+    {
+      "scenario": "intro",
+      "name": "Restart asks first",
+      "ok": true,
+      "detail": "Restart this practice match and its lesson progress?"
+    },
+    {
+      "scenario": "intro",
+      "name": "declining the Restart prompt changes nothing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "accepting Restart starts the practice over from the welcome",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "200% zoom (1280x800 window): no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "200% zoom (1280x800 window): every control reachable, the copy is not clipped, the page scrolls",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "200% zoom (1280x800 window): the dialogue uses the width (not a squeezed column)",
+      "ok": true,
+      "detail": "92% of the viewport"
+    },
+    {
+      "scenario": "intro",
+      "name": "200% zoom (1280x800 window): full copy present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "200% text size (phone): no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "200% text size (phone): every control reachable, the copy is not clipped, the page scrolls",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "200% text size (phone): the dialogue uses the width (not a squeezed column)",
+      "ok": true,
+      "detail": "89% of the viewport"
+    },
+    {
+      "scenario": "intro",
+      "name": "200% text size (phone): full copy present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 844x390: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 844x390: every control reachable, the copy is not clipped, the page scrolls",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 844x390: the dialogue uses the width (not a squeezed column)",
+      "ok": true,
+      "detail": "94% of the viewport"
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 844x390: full copy present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 667x375: no horizontal overflow",
+      "ok": true,
+      "detail": "overflow 0 px"
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 667x375: every control reachable, the copy is not clipped, the page scrolls",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 667x375: the dialogue uses the width (not a squeezed column)",
+      "ok": true,
+      "detail": "93% of the viewport"
+    },
+    {
+      "scenario": "intro",
+      "name": "short landscape 667x375: full copy present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "intro",
+      "name": "safe areas: the intro's side padding follows env(safe-area-inset-*)",
+      "ok": true,
+      "detail": "padding 47/47/21 with insets 47/47/21"
+    }
+  ]
+}
