@@ -1006,6 +1006,8 @@ export type Op =
       side?: Side;
       filter?: CardFilter;
       attackTarget?: CardFilter;
+      /** "…can only attack this card" (#1005): the only defenders an attack may be declared against. */
+      attackOnly?: Ref;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
       exceptEvolve?: boolean;
@@ -2652,7 +2654,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), player: players[0] },
             });
           break;
         }
@@ -2666,6 +2668,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           forbid: {
             what: op.what,
             ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}),
+            ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}),
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
