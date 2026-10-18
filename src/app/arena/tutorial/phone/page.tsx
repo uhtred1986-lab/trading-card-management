@@ -10,7 +10,8 @@ export default async function TutorialPhonePage() {
   return (
     <section className="ds-page flex min-w-0 flex-col items-center gap-4">
       <PageHeader title="Tutorial phone preview" eyebrow="Arena · Learn" description="390 × 844 px viewport. On smaller screens, the preview fits the available width." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Open tutorial directly</Link>} />
-      <Panel className="w-full max-w-[390px] p-0">
+      {/* .ds-panel sets its own padding and border: both are taken out of the width so the frame's viewport is exactly 390 CSS px wide. */}
+      <Panel className="w-full" style={{ padding: 0, border: 0, maxWidth: 390, overflow: "hidden" }}>
       <iframe
         src="/arena/tutorial"
         title="Arena tutorial — 390 × 844 phone preview"

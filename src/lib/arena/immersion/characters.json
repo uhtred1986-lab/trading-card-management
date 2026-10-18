@@ -316,6 +316,22 @@
       }
     },
     {
+      "cardId": "BT10-072",
+      "face": "front",
+      "name": "Frieza, Cosmic Horror",
+      "characterId": "frieza",
+      "evidence": {
+        "catalogCardName": "Frieza, Cosmic Horror",
+        "catalogCharacter": [
+          "Frieza"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-072.png",
+        "reviewedCardArtSha256": "52eabce95ebe9442af4a0c112d936ba845e5248beca4fd88f0e5365d8396001a",
+        "visualReview": "Frieza in his white-and-purple final form with the purple chest gem, matching the Frieza sheet; not an earlier transformation or Golden Frieza."
+      }
+    },
+    {
       "cardId": "BT10-074",
       "face": "front",
       "name": "Frieza",
@@ -393,6 +409,38 @@
         "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT29-001.png",
         "reviewedCardArtSha256": "15818c006f2c845e97d1b97c9478533f29e4bb5b2270f9a23d959eb234f119ad",
         "visualReview": "Visually inspected the front: adult bald Krillin, consistent with the sheet. The awakened back is intentionally unmapped."
+      }
+    },
+    {
+      "cardId": "BT3-031",
+      "face": "front",
+      "name": "Majin Buu",
+      "characterId": "buu",
+      "evidence": {
+        "catalogCardName": "Majin Buu",
+        "catalogCharacter": [
+          "Majin Buu"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-031.png",
+        "reviewedCardArtSha256": "ab18a2fa5d178b04383237442968277ef916c11e82b12b3af128b19982d1727b",
+        "visualReview": "Leader front shows fat pink Majin Buu with purple cape, black vest and yellow gloves, matching the Majin Buu sheet. Awakened back face (slender pink form) intentionally unmapped."
+      }
+    },
+    {
+      "cardId": "BT3-051",
+      "face": "front",
+      "name": "God Absorber Majin Buu",
+      "characterId": "buu",
+      "evidence": {
+        "catalogCardName": "God Absorber Majin Buu",
+        "catalogCharacter": [
+          "Majin Buu"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-051.png",
+        "reviewedCardArtSha256": "dae9175e2c8ea1fda319a3d5bf39e5fc9daf3f994fabdd2b073959caea83b0b8",
+        "visualReview": "Fat pink Majin Buu with black vest, purple cape knot, white pants and yellow gloves, matching the Majin Buu sheet; no Kid or Super Buu form is depicted."
       }
     },
     {
@@ -528,6 +576,22 @@
       }
     },
     {
+      "cardId": "BT4-078",
+      "face": "front",
+      "name": "Dependable Dynasty Son Goku",
+      "characterId": "goku",
+      "evidence": {
+        "catalogCardName": "Dependable Dynasty Son Goku",
+        "catalogCharacter": [
+          "Son Goku"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT4-078.png",
+        "reviewedCardArtSha256": "40a7e19ee55e4ff311800d5d6ca490e47a0bda14d7722b480ca91ec04164db22",
+        "visualReview": "Black-haired adult Son Goku in a red-orange gi with blue undershirt and wristbands, matching the base Goku sheet; no Super Saiyan or other transformation is depicted."
+      }
+    },
+    {
       "cardId": "BT6-069",
       "face": "front",
       "name": "Ties that Bind Ba",
@@ -624,6 +688,26 @@
       }
     },
     {
+      "cardId": "SD13-01",
+      "face": "back",
+      "name": "Last Resort Frieza",
+      "characterId": "frieza",
+      "evidence": {
+        "catalogCardName": "Frieza",
+        "catalogCharacter": [
+          "Frieza"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Last Resort Frieza",
+        "catalogBackCharacter": [
+          "Frieza"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD13-01_b.png",
+        "reviewedCardArtSha256": "a8a88847dd1e005cc09de1fe9a487fe2a642a2f67467aaf4d0f06d9ab026c0e3",
+        "visualReview": "Awakened back face shows Frieza in his muscular white-and-purple final form with purple chest gem, matching the Frieza sheet. The first-form front is intentionally unmapped."
+      }
+    },
+    {
       "cardId": "SD3-01",
       "face": "back",
       "name": "Bardock, Unbound by Darkness",
@@ -673,6 +757,22 @@
         "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-10.png",
         "reviewedCardArtSha256": "011a15173332e41bd40ec92b4c5dab48f30dd0ad2c52947ee920aad5a7d8b9c0",
         "visualReview": "Beerus, purple cat-like God of Destruction in his black top and blue trousers with gold ornaments; matches the sheet."
+      }
+    },
+    {
+      "cardId": "TB1-005",
+      "face": "front",
+      "name": "Gale Strike Vegeta",
+      "characterId": "vegeta",
+      "evidence": {
+        "catalogCardName": "Gale Strike Vegeta",
+        "catalogCharacter": [
+          "Vegeta"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/TB1-005.png",
+        "reviewedCardArtSha256": "ee3d84f50698cbd8572b1df6e73068dc0ba561bb46415bdf33a4b4bebe5d5da6",
+        "visualReview": "Black-haired Vegeta in blue bodysuit with white Saiyan armour and gloves, matching the Vegeta sheet; no Super Saiyan or Super Saiyan Blue form is depicted."
       }
     },
     {

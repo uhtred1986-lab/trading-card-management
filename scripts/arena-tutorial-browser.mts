@@ -17,13 +17,17 @@
  *                card, an alternate charge, resize with a review open, reload in the intro, in a play review, during the
  *                opponent's turn and after hand-off, hints off and restored, and the match played to its end unguided.
  *   unguided #845  a whole match with hints off from the first move, to its end, through the real controls.
+ *   audit   #846  both skins (anime, night) x 390 / 820 / 1440 and the board in short landscape and at 200 % zoom: console,
+ *                network (this origin only, no /api, no hotlink), covered controls, Tab traps, overflow, a step trace
+ *                (trace.json), and the zones and controls compared with the non-tutorial ArenaStage.
  *
  * The session is only READ (through React's fiber) to know which prompt is up; every move is a tap, click or key.
  */
+import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { arg, Browser, sleep, type Viewport } from "./lib/cdp.mts";
-import { buttons, click, closeBrowser, drive, launchBrowser, focused, has, idle, loadTutorial, open, press, saved, shot, skipIntro, tapText, state, text, until, type Page } from "./lib/tutorial-page.mts";
+import { buttons, click, closeBrowser, drive, launchBrowser, focused, has, idle, KEY, loadTutorial, open, press, saved, shot, skipIntro, tapText, state, text, until, type Page } from "./lib/tutorial-page.mts";
 
 const base = (arg("base") ?? "http://localhost:3121").replace(/\/$/, "");
 const out = arg("out") ?? join(process.cwd(), "docs", "arena-backlog", "evidence", "tutorial");
@@ -449,6 +453,7 @@ async function boardsScenario() {
 async function guidedScenario() {
   scenario = "guided";
   const b = await launchBrowser();
+  dialogs(b, { accept: true, seen: [] });
   const t0 = Date.now();
   try {
     const page = await open(b, PHONE, { scale: 1 });
@@ -617,6 +622,23 @@ async function guidedScenario() {
       if ((await measure(page)).hint) await click(page, /^Hints on/);
     }
 
+    // Replay a lesson: the practice menu's Lessons list reopens the welcome; skipping it again returns to the same match.
+    {
+      const before = (await state(page))!.rev;
+      await page.eval(`(() => { const s = [...document.querySelectorAll('summary')].find((x) => /^Goku vs Frieza/.test(x.textContent.trim())); if (s) s.click(); })()`);
+      await sleep(300);
+      const lessons = await click(page, /^Lessons/);
+      await sleep(300);
+      const replayed = lessons && (await click(page, /^Replay welcome/));
+      await sleep(500);
+      check("replay: Lessons > Replay welcome reopens the announcer's welcome", replayed && /Welcome to the tournament/.test(await text(page)), "");
+      if (replayed) {
+        await click(page, /^Skip opening/);
+        await sleep(800);
+        check("replay: skipping it again returns to the same match, no move spent", !!(await page.eval<boolean>(`!!document.querySelector('[data-arena-zone]')`)) && (await state(page))!.rev === before, `rev ${before} -> ${(await state(page))!.rev}`);
+      }
+    }
+
     await finishMatch(page, t0, "after hand-off");
     await page.close();
   } finally {
@@ -640,6 +662,11 @@ async function finishMatch(page: Page, t0: number, label: string) {
     check("the finished match's journal is clean (unique request ids, sequential revisions)", new Set(jFinal.map((j) => j.requestId)).size === jFinal.length && jFinal.every((j, i) => j.basedOn === i), `${jFinal.length} accepted actions`);
     await reload(page);
     check("reload after the match ended still shows the finished practice match", (await text(page)).includes("Practice match finished") || !!(await state(page))?.over);
+    // Replay practice (asks first, accepted here): a fresh match from the welcome, nothing carried over.
+    await click(page, /^Replay practice/);
+    await sleep(800);
+    const fresh = await saved(page);
+    check("Replay practice starts a fresh match from the welcome", /Welcome to the tournament/.test(await text(page)) && (!fresh || fresh.session.journal.length === 0), `journal ${fresh?.session.journal.length ?? "cleared"}`);
   }
 }
 
@@ -647,6 +674,7 @@ async function finishMatch(page: Page, t0: number, label: string) {
 async function unguidedScenario() {
   scenario = "unguided";
   const b = await launchBrowser();
+  dialogs(b, { accept: true, seen: [] });
   const t0 = Date.now();
   try {
     const page = await open(b, PHONE, { scale: 1 });
@@ -663,6 +691,182 @@ async function unguidedScenario() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+/**
+ * #846: the board and the whole page in every skin and size the issue names. Watches the console, the network and
+ * the page for the problems the other scenarios would not notice: errors, a request to anything but this origin,
+ * an /api call, an artwork hotlink; checks hit-testing of the hand and dock, that Tab can leave every control (no
+ * focus trap), no horizontal overflow, and compares the board's zones and controls with the non-tutorial
+ * ArenaStage (`/arena/preview?fixture=play`). Writes `trace.json`, the step trace of a played match.
+ */
+async function auditScenario() {
+  scenario = "audit";
+  const b = await launchBrowser();
+  const dlg = { accept: false, seen: [] as string[] };
+  dialogs(b, dlg);
+  const errors: string[] = [];
+  const requests: string[] = [];
+  const failed: string[] = [];
+  b.on((method, params) => {
+    if (method === "Runtime.exceptionThrown") errors.push(String(params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text).slice(0, 160));
+    else if (method === "Runtime.consoleAPICalled" && params.type === "error") errors.push((params.args ?? []).map((a: { value?: unknown; description?: string }) => String(a.value ?? a.description)).join(" ").slice(0, 160));
+    else if (method === "Network.requestWillBeSent") requests.push(String(params.request.url));
+    else if (method === "Network.loadingFailed" && !params.canceled) failed.push(`${params.errorText} ${params.requestId}`);
+  });
+  const mark = () => ({ e: errors.length, r: requests.length, f: failed.length });
+  const clean = (m: { e: number; r: number; f: number }) => {
+    const reqs = requests.slice(m.r).filter((u) => !u.startsWith("data:") && !u.startsWith("blob:"));
+    const foreign = reqs.filter((u) => new URL(u).origin !== new URL(base).origin);
+    const api = reqs.filter((u) => new URL(u).origin === new URL(base).origin && /\/api\//.test(new URL(u).pathname));
+    return { errs: errors.slice(m.e), foreign, api, failed: failed.slice(m.f), n: reqs.length };
+  };
+  /** Visible hand, dock and coach controls whose centre is covered by something that is not the control (or part of it). */
+  const covered = (page: Page) => page.eval<{ tested: number; covered: string[] }>(`(() => {
+    const els = [...document.querySelectorAll('[data-arena-dock] button, [data-arena-dock] a, [data-hand-browse-card] button, section[aria-label="Announcer coach"] button')].filter((e) => e.checkVisibility() && !e.disabled);
+    const bad = []; let tested = 0;
+    for (const e of els) {
+      e.scrollIntoView({ block: 'center', inline: 'center' }); // as a player does: the hand sits under the sticky dock until the page is scrolled
+      const r = e.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+      tested++; const t = document.elementFromPoint(x, y);
+      if (t && t.tagName === 'NEXTJS-PORTAL') continue; // next dev's own indicator (bottom left): not part of the app, absent in production
+      if (!t ||!(e.contains(t) || t.contains(e))) bad.push((e.getAttribute('aria-label') || e.textContent).trim().slice(0, 24) + ' under ' + (t ? t.tagName + '.' + String(t.className).slice(0, 30) : 'nothing'));
+    }
+    return { tested, covered: bad };
+  })()`);
+  /** Tab through the page: how many different controls get focus, and does it ever stick. */
+  const tabWalk = async (page: Page, n = 45) => {
+    const seen: string[] = [];
+    let stuck = 0, run = 0, last = "";
+    await page.eval(`document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)`);
+    for (let i = 0; i < n; i++) {
+      await press(page, "Tab");
+      const sig = await page.eval<string>(`(() => { const e = document.activeElement; if (!e || e === document.body) return "body"; const r = e.getBoundingClientRect(); return (e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 30) + '@' + Math.round(r.left) + ',' + Math.round(r.top + scrollY); })()`);
+      run = sig === last ? run + 1 : 0;
+      stuck = Math.max(stuck, run);
+      last = sig;
+      seen.push(sig);
+    }
+    return { distinct: new Set(seen).size, stuck, sample: [...new Set(seen)].slice(0, 6).join(" > ") };
+  };
+  try {
+    const sizes: Array<{ vp: Viewport; tag: string }> = [
+      { vp: PHONE, tag: "390x844" }, { vp: TABLET, tag: "820x1180" }, { vp: { name: "desk", width: 1440, height: 1000, mobile: false }, tag: "1440x1000" },
+    ];
+    let traced = false;
+    for (const skin of ["anime", "night"]) {
+      for (const { vp, tag } of sizes) {
+        const page = await open(b, vp, { scale: 1 });
+        await page.setCookie("arenaSkin", skin, base);
+        const m = mark();
+        await loadTutorial(page, base, { query: `?skin=${skin}` });
+        const label = `${skin} ${tag}`;
+        check(`${label}: the page wears the ${skin} skin`, (await page.eval<string>(`document.documentElement.dataset.skin`)) === skin);
+        check(`${label}: the intro has no horizontal overflow`, (await overflowX(page)) === 0, `${await overflowX(page)} px`);
+        await skipIntro(page);
+        check(`${label}: the board has the ${skin} skin and no horizontal overflow`, (await page.eval<string>(`document.querySelector('[data-arena-zone]').closest('[data-skin]').dataset.skin`)) === skin && (await overflowX(page)) === 0, `${await overflowX(page)} px`);
+        const hit0 = await covered(page);
+        check(`${label}: no hand, dock or coach control is covered`, hit0.tested >= 2 && hit0.covered.length === 0, `${hit0.tested} controls tested${hit0.covered.length ? `; covered: ${hit0.covered.join("; ")}` : ""}`);
+        const tw = await tabWalk(page);
+        check(`${label}: Tab never traps focus`, tw.stuck < 3 && tw.distinct >= 6, `${tw.distinct} different stops in 45 presses, longest stay ${tw.stuck}; ${tw.sample}`);
+        // One real move through the page's own controls, then look again.
+        await idle(page);
+        let r: { stalled: string | null } = { stalled: null };
+        if (vp.mobile) r = await drive(page, { until: (s) => s.rev >= 1, maxSteps: 30 });
+        else {
+          // A mouse and keyboard desktop: click a hand card, then its Charge button in the card panel (what the coach says).
+          await sleep(2500);
+          await page.tap("[data-hand-browse-card] button");
+          await sleep(600);
+          await click(page, /^Charge /);
+          for (let i = 0; i < 40 && (await state(page))!.rev < 1; i++) await sleep(150);
+        }
+        await idle(page);
+        check(`${label}: a charge made with the real controls is accepted`, !r.stalled && (await state(page))!.rev >= 1, `rev ${(await state(page))?.rev}`);
+        const hit1 = await covered(page);
+        check(`${label}: still no covered control after the move`, hit1.covered.length === 0, `${hit1.tested} tested${hit1.covered.length ? `; ${hit1.covered.join("; ")}` : ""}`);
+        await page.eval(`window.scrollTo(0, 0)`);
+        await shot(page, out, `board-${skin}-${vp.width}`);
+        if (!traced && skin === "anime" && vp === PHONE) {
+          // The step trace: a played stretch of the practice match, from the accepted journal (not from the DOM).
+          await drive(page, { until: (s) => s.rev >= 14 || !!s.over, maxSteps: 150 });
+          await idle(page);
+          const sv = (await saved(page))!;
+          let commit = "unknown";
+          try { commit = execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim(); } catch { /* not a checkout */ }
+          const steps = sv.session.journal.map((j, i) => ({ n: i + 1, basedOn: j.basedOn, player: j.action.player, action: j.action.type }));
+          writeFileSync(join(out, "trace.json"), JSON.stringify({ commit, fixture: KEY, date: new Date().toISOString().slice(0, 10), viewport: "390x844 touch", note: "accepted journal of a match played through the real controls; intro skipped, hints on", steps }, null, 2));
+          check("a step trace of the accepted journal is written (commit, fixture version, every accepted action)", steps.length >= 10 && steps.every((s, i) => s.basedOn === i), `${steps.length} steps at ${commit}, fixture ${KEY}`);
+          traced = true;
+        }
+        const c = clean(m);
+        check(`${label}: no console error, page exception or failed request`, c.errs.length === 0 && c.failed.length === 0, [...c.errs, ...c.failed].join(" | "));
+        check(`${label}: every request is to this origin (no artwork hotlink, no third party)`, c.foreign.length === 0, c.foreign.slice(0, 3).join(" ") || `${c.n} requests`);
+        check(`${label}: no /api call (no AI, no sync, no production API)`, c.api.length === 0, c.api.slice(0, 3).join(" "));
+        await page.close();
+      }
+    }
+
+    // Short landscape on the board, and a 200 % zoom of the board, in the night skin.
+    for (const { name, vp, scale } of [
+      { name: "short landscape 844x390", vp: { name: "land", width: 844, height: 390, mobile: true }, scale: 1 },
+      { name: "200% zoom (1280x800 window)", vp: { name: "z200", width: 640, height: 400, mobile: false }, scale: 2 },
+    ]) {
+      const page = await open(b, vp, { scale });
+      await page.setCookie("arenaSkin", "night", base);
+      await loadTutorial(page, base, { query: "?skin=night" });
+      await skipIntro(page);
+      check(`${name}: the board has no horizontal overflow`, (await overflowX(page)) === 0, `${await overflowX(page)} px`);
+      const h = await covered(page);
+      check(`${name}: no hand, dock or coach control is covered`, h.covered.length === 0, `${h.tested} tested${h.covered.length ? `; ${h.covered.join("; ")}` : ""}`);
+      const reach = await page.eval<{ ok: boolean; missing: string[] }>(`(() => { const missing = []; if (![...document.querySelectorAll('button')].some((x) => /^open arena setting/i.test(x.getAttribute('aria-label') || ''))) missing.push("settings menu"); const can = document.documentElement.scrollHeight <= innerHeight + 1 || (window.scrollTo(0, 99999), window.scrollY > 0); if (!can) missing.push("page cannot scroll"); window.scrollTo(0, 0); return { ok: !missing.length, missing }; })()`);
+      check(`${name}: the board's menu is there and the page scrolls to everything`, reach.ok, reach.missing.join(", "));
+      await shot(page, out, `board-night-${vp.name}`);
+      await page.close();
+    }
+
+    // The phone-frame route (#875): the practice match inside a 390 x 844 iframe, measured from inside the frame.
+    {
+      const page = await open(b, { name: "deskframe", width: 1440, height: 1000, mobile: false }, { scale: 1 });
+      await loadTutorial(page, base, { query: "" });
+      await page.goto(`${base}/arena/tutorial/phone`, 120000);
+      await until(page, `!!document.querySelector('iframe')?.contentDocument?.querySelector('#tutorial-heading')`, 60000);
+      const fr = await page.eval<{ w: number; h: number; overflow: number; heading: boolean } | null>(`(() => { const f = document.querySelector('iframe'); const w = f && f.contentWindow; if (!w) return null; return { w: w.innerWidth, h: w.innerHeight, overflow: Math.max(0, w.document.documentElement.scrollWidth - w.innerWidth), heading: !!w.document.querySelector('#tutorial-heading') }; })()`);
+      check("phone frame: the iframe's own viewport measures 390 x 844 and the welcome renders in it", !!fr && fr.w === 390 && fr.h === 844 && fr.heading, fr ? `${fr.w} x ${fr.h}` : "no iframe");
+      check("phone frame: no horizontal overflow inside the frame", !!fr && fr.overflow === 0, `${fr?.overflow} px`);
+      await shot(page, out, "phone-frame-1440");
+      await page.close();
+    }
+
+    // Controls and labels against the non-tutorial ArenaStage.
+    const sig = `(() => ({
+      zones: [...new Set([...document.querySelectorAll('[data-arena-zone]')].map((e) => e.getAttribute('data-arena-zone')))].sort().join(','),
+      dock: [...document.querySelectorAll('[data-arena-dock] button')].filter((e) => e.getClientRects().length).map((e) => e.textContent.trim().replace(/\\s+/g, ' ')).filter(Boolean),
+      menu: [...document.querySelectorAll('button')].some((e) => /^open arena setting/i.test(e.getAttribute('aria-label') || '')),
+      handCards: document.querySelectorAll('[data-hand-browse-card]').length > 0,
+    }))()`;
+    type Sig = { zones: string; dock: string[]; menu: boolean; handCards: boolean };
+    const ref = await open(b, PHONE, { scale: 1 });
+    await ref.goto(`${base}/arena/preview?fixture=play&skin=anime`);
+    await sleep(2500);
+    const refSig = await ref.eval<Sig>(sig);
+    await ref.close();
+    const tut = await open(b, PHONE, { scale: 1 });
+    await tut.setCookie("arenaSkin", "anime", base);
+    await loadTutorial(tut, base, { query: "?skin=anime" });
+    await skipIntro(tut);
+    await drive(tut, { until: (s) => s.rev >= 1, maxSteps: 30 });
+    await idle(tut);
+    const tutSig = await tut.eval<Sig>(sig);
+    check("controls: the tutorial board has the same zones as the non-tutorial ArenaStage", tutSig.zones === refSig.zones, `${tutSig.zones.split(",").length} vs ${refSig.zones.split(",").length} zone anchors`);
+    check("controls: its main-phase dock offers the same End turn control with the same label", refSig.dock.includes("End turn") && tutSig.dock.includes("End turn"), `tutorial dock: ${tutSig.dock.join(" | ")}; ArenaStage dock: ${refSig.dock.join(" | ")}`);
+    check("controls: both have the board's own setting menu and tappable hand cards", tutSig.menu && refSig.menu && tutSig.handCards && refSig.handCards);
+    await tut.close();
+  } finally {
+    await closeBrowser(b);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 const started = Date.now();
 if (only.has("intro")) await introScenario();
 if (only.has("input")) await inputScenario();
@@ -670,6 +874,7 @@ if (only.has("motion")) await motionScenario();
 if (only.has("boards")) await boardsScenario();
 if (only.has("guided")) await guidedScenario();
 if (only.has("unguided")) await unguidedScenario();
+if (only.has("audit")) await auditScenario();
 // A partial run (`--only`) replaces only the scenarios it ran and keeps the rest of the last results.
 let kept: typeof results = [];
 try { kept = (JSON.parse(readFileSync(join(out, "results.json"), "utf8")).results as typeof results).filter((r) => !only.has(r.scenario)); } catch { /* first run */ }
