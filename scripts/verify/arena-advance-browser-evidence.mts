@@ -99,7 +99,7 @@ try {
       await waitFor(page, `!document.querySelector('[data-arena-advance-retry]').disabled`, "enabled Retry control after request completion");
       const failedState = await page.eval<{ actions: unknown[]; advances: number; message: string; retry: { width: number; height: number; left: number; right: number } }>(`(() => {
         const d = window.__arenaPreviewDriver; const b = document.querySelector('[data-arena-advance-retry]'); const r = b.getBoundingClientRect();
-        return { actions: d.actions, advances: d.advances, message: document.querySelector('.arena-bar p')?.textContent ?? '', retry: { width: r.width, height: r.height, left: r.left, right: r.right } };
+        return { actions: d.actions, advances: d.advances, message: document.querySelector('.arena-bar')?.textContent ?? '', retry: { width: r.width, height: r.height, left: r.left, right: r.right } };
       })()`);
       if (failedState.actions.length !== 1 || failedState.advances !== 1) throw new Error(`${viewport.name}/${skin}: first failure did not follow one action and one advance (${JSON.stringify(failedState)})`);
       if (!failedState.message.includes("mocked opponent advance failed")) throw new Error(`${viewport.name}/${skin}: advance failure is not visible in the PromptPanel`);

@@ -7,7 +7,7 @@ try {
   for (const [width, height, skin] of [[360,650,'anime'],[360,650,'night'],[768,1024,'anime'],[1024,768,'night'],[1366,1024,'anime']] as const) {
     const page = await browser.page({ name: `scrub-${skin}`, width, height, mobile: true });
     await page.goto(`${base}/arena/preview?fixture=phone-ux-hand-10&skin=${skin}&admin=0`);
-    await page.waitFor('[data-hand-browse-card]'); await page.settle(250);
+    await page.waitFor('[data-hand-browse-card]'); await page.settle(1200);
     const points = await page.eval<{id:string;x:number;y:number}[]>(`[...document.querySelectorAll('[data-hand-browse-card]')].slice(0,3).map(el=>{const r=el.getBoundingClientRect();return {id:el.dataset.handBrowseCard,x:r.x+10,y:r.y+r.height*.5}})`);
     await page.cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: points[0].x, y: points[0].y }] });
     await page.waitFor('[data-hand-peek]');
