@@ -49,8 +49,12 @@ const one = (text: string) => compileSkill(parseSkills(text)[0]!);
 {
   const shared = one("[Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand. Then, if there are no cards in your opponent's Combo Area, draw 1 card.");
   assert.deepEqual(shared.unsupported, []);
-  assert.equal(JSON.stringify(shared.ops).split('"leaderMatches"').length - 1, 2, "BT3-043: blue Leader covers both outer and nested group");
-  assert.equal(JSON.stringify(shared.ops).split('"kind":"life"').length - 1, 2, "BT3-043: life threshold also covers the return and draw");
+  // Official FAQ (BT3-043: "can you resolve the 'Then,' parts ... even if your Leader Card isn't blue and your life
+  // isn't at 4 or less?" -> "Yes, you can."). This supersedes the owner's 4 Oct 2026 #539 ruling that kept them
+  // under the opening condition (owner, 18 Oct 2026: the official FAQ is final).
+  assert.equal(JSON.stringify(shared.ops).split('"leaderMatches"').length - 1, 1, "BT3-043: the blue Leader covers the +10000 only");
+  assert.equal(JSON.stringify(shared.ops).split('"kind":"life"').length - 1, 1, "BT3-043: the life threshold covers the +10000 only");
+  assert.deepEqual(shared.ops.map((op) => op.op), ["if", "choose", "moveTo", "if"], "BT3-043: the return and the draw are top-level follow-ups");
 
   const total = one("[Auto] When this card attacks, draw 1 card, and if there are 10 or more total <Son Goku> or <Vegeta> in your Drop Area, this card gains +5000 power and [Double Strike] for the duration of the turn.");
   assert.deepEqual(total.unsupported, []);
@@ -125,7 +129,10 @@ for (const count of [9, 10]) {
   assertConsistentG(state);
 }
 
-for (const [blue, life, shouldDraw] of [[true, 4, true], [true, 5, false], [false, 4, false]] as const) {
+// Official FAQ reading (see the compile assertion above): only the +10000 needs the blue Leader and life <= 4; the
+// opponent's Combo Area is empty here, so the draw happens in every case.
+for (const [blue, life] of [[true, 4], [true, 5], [false, 4]] as const) {
+  const shouldDraw = true;
   let state = arenaG({ hand: ["C573-SHARED"] });
   if (blue) state.cards[leaderOf(state, "p1")!].cardId = "L-BLUE";
   const lifeArea = zoneOf(state, "p1", "life");
@@ -153,7 +160,7 @@ for (const [blue, life, shouldDraw] of [[true, 4, true], [true, 5, false], [fals
   assert.equal(state.prompt.kind, "main");
   const compared = events.flatMap((e) => e.type === "powerCompare" ? [e.attackPower] : []);
   assert.deepEqual(compared, [blue && life <= 4 ? 25000 : 15000], "current rules apply BT3-043's conditional bonus before comparison");
-  assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(shouldDraw), "BT3-043 draw shares both outer conditions");
+  assert.equal(zoneOf(state, "p1", "hand").length, beforeHand - 1 + Number(shouldDraw), "BT3-043 draw needs only the empty opponent Combo Area (official FAQ)");
   assert.equal(events.filter((e) => e.type === "skill" && e.card === source).length, 1);
   assertConsistentG(state);
 }

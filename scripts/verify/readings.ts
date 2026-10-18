@@ -2291,8 +2291,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 {
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
   const bt3 = JSON.stringify(one("[Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand. Then, if there are no cards in your opponent's Combo Area, draw 1 card.").ops);
-  // The draw sits under the blue-Leader condition: both if-groups name it.
-  assert.equal(bt3.split('"leaderMatches"').length - 1, 2, "BT3-043: the draw is under the blue Leader too");
+  // Official FAQ (BT3-043: the "Then," parts resolve "even if your Leader Card isn't blue and your life isn't at 4 or
+  // less" -> "Yes, you can."). Supersedes the owner's 4 Oct 2026 #539 ruling that kept the return and draw under the
+  // opening condition (owner, 18 Oct 2026: the official FAQ is final). Only the +10000 names the blue Leader.
+  assert.equal(bt3.split('"leaderMatches"').length - 1, 1, "BT3-043: the return and draw are outside the blue Leader condition");
   const bt84 = one("[Auto] When a card evolves into this card, choose all of your opponent's Battle Cards and energy and switch them to Rest Mode.");
   assert.deepEqual(bt84.unsupported, []);
   assert.deepEqual(

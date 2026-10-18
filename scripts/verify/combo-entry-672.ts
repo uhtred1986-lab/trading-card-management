@@ -206,10 +206,10 @@ assert.throws(() => IMPL.apply(CTX, paid.state, payment.action), IllegalAction, 
 assert.equal(JSON.stringify(paid.state), after);
 }
 
-// BT3-043's conditional bonus is present in power comparison, with both
-// printed conditions controlling the later draw. The opponent's Combo Area
+// BT3-043's conditional bonus is present in power comparison; per the official FAQ (supersedes the 4 Oct 2026 owner ruling, #539)
+// only the bonus needs the printed conditions, and the draw needs only an empty opponent Combo Area. The opponent's Combo Area
 // is empty here, so no return choice is offered.
-for (const [blue, life, draws] of [[true, 4, true], [true, 5, false], [false, 4, false]] as const) {
+for (const [blue, life, draws] of [[true, 4, true], [true, 5, true], [false, 4, true]] as const) {
 let state = arenaG();
 if (blue) state.cards[leaderOf(state, "p1")!].cardId = "L-BLUE";
 const lifeArea = zoneOf(state, "p1", "life");

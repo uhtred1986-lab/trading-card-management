@@ -4181,9 +4181,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   // "…if your Leader Card is blue and your life is at 4 or less, this card
   // gains +10000 combo power. Then, choose up to 1 card … Then, **if** there
   // are no cards in your opponent's Combo Area, draw 1 card" (BT3-043, #539):
-  // a clause after "Then," stays under the condition already open — the
-  // return did — and a "Then, if …" is one more condition *within* it rather
-  // than a fresh one that escapes it (owner's ruling, 4 Oct 2026).
+  // "Then" starts a follow-up of its own, outside the condition the sentence
+  // before it opened. The official FAQ (BT3-043) says the "Then," parts resolve
+  // even when the Leader is not blue and life is above 4, and the owner
+  // (18 Oct 2026) made the official FAQ final over his own 4 Oct 2026 ruling
+  // that kept them under the opening condition. A "Then, if …" is a condition
+  // of its own, not one added to the first.
   let afterThen = false;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
@@ -4191,6 +4194,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     pendingMay = null;
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
+    {
+      const here = groups[groups.length - 1];
+      // Two "Then" tails are not follow-ups of their own but the end of what the condition opened: a shuffle
+      // after a search, and a clause that points back at what the first part chose or looked at (BT3-029's "Then,
+      // gain control of it", whose FAQ says it does not resolve when the Leader condition fails; BT3-086's "place
+      // the rest in your Drop Area").
+      const tail = clause.trim().replace(/^then,?\s*/i, "");
+      const tailOfCondition = /^shuffle\b/i.test(tail) || /\b(?:it|them|the rest|that card|those cards)\b/i.test(tail);
+      if (thenHere && !tailOfCondition && here.conds.length && here.ops.length && !here.delay && !here.sink) groups.push({ conds: [], ops: [] });
+    }
     // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
     // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
     // clause was cut off as a condition and the rest read as a play of the Leader (#907 round 6): unread whole.
@@ -4804,7 +4817,6 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // Unison Card in play, you may pay {u}").
       if (open.delay && open.ops.length === 0 && !open.sink) (open.innerConds ??= []).push(cond.cond);
       else if (chaining) open.conds.push(cond.cond);
-      else if (thenHere && open.conds.length && !open.delay) groups.push({ conds: [...open.conds, cond.cond], ops: [] });
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
       continue;
