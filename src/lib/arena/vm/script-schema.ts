@@ -323,7 +323,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "evolveEnergyBases", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "evolveEnergyBases", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "source", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -880,6 +880,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "aegisAltDrop") return `you can pay your [Aegis] skills by sending 1 ${(op.filter?.colors ?? []).join(" card and 1 ").toLowerCase()} card from your Drop to your Warp instead of discarding cards from your hand${forThe(op.until, r)}`;
       if (op.what === "aegisAltOpponentHand") return `${describeRef(op.target)}'s [Aegis] skill can be paid by sending 1 card from your opponent's hand to the bottom of their deck instead of discarding cards from your hand${forThe(op.until, r)}`;
       if (op.what === "attackUnnegatable") return `${describeRef(op.target)}'s attacks can't be negated${forThe(op.until, r)}`;
+      if (op.what === "unionSourceUnder") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Potara] from hand can choose its specified Battle Cards from under your ${op.source ? describeFilter(op.source, { plural: false }) : "Unison"}${forThe(op.until, r)}`;
+      if (op.what === "unionSourceOpponentBattle") return `${describeRef(op.target)}'s [Union-Potara] from hand can choose its specified Battle Cards you own in your opponent's Battle Area`;
+      if (op.what === "playInOpponentBattle") return `${describeRef(op.target)} is played from your hand in your opponent's Battle Area`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },

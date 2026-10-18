@@ -2313,7 +2313,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"source\"?:FILTER}",
       "fields": [
         {
           "name": "what",
@@ -2330,7 +2330,10 @@
             "evolveEnergyBases",
             "aegisAltDrop",
             "aegisAltOpponentHand",
-            "attackUnnegatable"
+            "attackUnnegatable",
+            "unionSourceUnder",
+            "unionSourceOpponentBattle",
+            "playInOpponentBattle"
           ]
         },
         {
@@ -2347,6 +2350,12 @@
         },
         {
           "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "source",
           "required": false,
           "nullable": false,
           "type": "filter"

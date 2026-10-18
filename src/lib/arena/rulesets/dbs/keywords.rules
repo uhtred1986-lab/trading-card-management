@@ -495,9 +495,16 @@ DEFINE KEYWORD Union
       -- the words printed beside its own name, with no equal-power
       -- requirement (`anyPower`: Potara asks for none). The card is played
       -- onto the first chosen and the other goes under it (22-13-5-4, "in any
-      -- order").
-      choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
-      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, using: "Union-Potara", counterWindow: true)
+      -- order"; #927, labelled best guess: the order picked is the stack,
+      -- top to bottom - the first directly beneath the card), in Active Mode
+      -- (the printed reminder "Place this card in Active Mode on top of the 2
+      -- specified cards", and the official keyword page). Power effects of
+      -- both materials and their piles carry over (22-13-5-4-1). A permit
+      -- (BT24-112 back, BT20-125) adds sources under a Unison or in the
+      -- opponent's Battle Area; `playThen` first brings those into the Battle
+      -- Area silently (22-13-5-2-1-1) and then plays normally.
+      choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, mode: active, using: "Union-Potara", counterWindow: true)
     })
   }
 

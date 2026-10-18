@@ -434,15 +434,28 @@ export interface Permission {
    * `aegisAltOpponentHand` (BT22-140): the target's own [Aegis] skill may be
    * paid by sending 1 card from the opponent's hand to the bottom of their deck
    * instead. Both stand beside the hand payment, which stays the player's choice.
+   * `unionSourceUnder` (BT24-112 back, #927): while the card granting it is in
+   * play, its master's [Union-Potara] on a card the `filter` describes may
+   * also choose its specified Battle Cards from under the master's Unison
+   * cards `source` describes (22-13-5-2-1); the chosen cards are first moved
+   * to the Battle Area, silently (22-13-5-2-1-1).
+   * `unionSourceOpponentBattle` (BT20-125, #927): the target hand card's own
+   * [Union-Potara] may also choose Battle Cards its master owns that stand in
+   * the opponent's Battle Area. Read from the hand.
+   * `playInOpponentBattle` (BT20-125, #927): the target card is played from its
+   * master's hand in the opponent's Battle Area - read for the [Union] play;
+   * an ordinary hand play of it is not yet moved (see the glossary). Read from the hand.
    * `attackUnnegatable` (EX03-14, #936): the target card's attacks can't be
    * negated (8-6) — a `negateAttack` aimed at a battle whose attacker holds
    * one fails, and "if you negated" reports that it did. Timed (a resolved
    * skill's effect) or a [Permanent]'s standing one. It stops *negation* only:
    * a prohibition on attacking, and removing the attacker, still work.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
+  /** `unionSourceUnder`: which Unison cards' piles may be searched (BT24-112's "your black Z-Unison"). */
+  source?: CardFilter;
 }
 
 /**
