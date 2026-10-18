@@ -78,7 +78,9 @@ const FLAGS = ["costAtMostEnergy", "costBelowEnergy", "costAtLeastEnergy", "cost
   const villain = parseTarget("up to 1 ≪Villainous≫ card whose energy cost is less than or equal to your energy from your hand");
   assert.deepEqual([villain?.area, villain?.filter?.costAtMostEnergy, villain?.filter?.traits], ["hand", true, ["Villainous"]]);
   // A bare noun names no side (DB1-059, EX08-06): not guessed.
-  assert.equal(parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy"), null, "no side named: unread, not your own Battle Area");
+  // No side named (DB1-059, EX08-06): not your own Battle Area. #1015 reads it as either player's (best guess).
+  assert.equal(parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy")?.side, "both", "no side named: either player's Battle Cards");
+  assert.equal(parseTarget("1 card with an energy cost greater than or equal to your opponent's energy"), null, "no side and no Battle Area: still unread");
   // Two descriptions with one bound are not bound to both.
   assert.equal(parseTarget("1 red <A> card or 1 blue <B> card of your opponent's with an energy cost greater than their current energy"), null);
   // A description that reaches `parseFilter` whole — a forbid, a trigger subject — has nowhere to apply it.
