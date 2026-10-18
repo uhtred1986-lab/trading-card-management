@@ -506,7 +506,8 @@
             "combo",
             "damage",
             "draw",
-            "charge"
+            "charge",
+            "areaExtension"
           ]
         }
       ],
@@ -2313,7 +2314,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\"}",
       "fields": [
         {
           "name": "what",
@@ -2327,6 +2328,8 @@
             "overRealmFromWarp",
             "unionFusionAreas",
             "unionFusionWarp",
+            "unionEnergy",
+            "unionLine",
             "evolveEnergyBases",
             "aegisAltDrop",
             "aegisAltOpponentHand",
@@ -2350,6 +2353,12 @@
           "required": false,
           "nullable": false,
           "type": "filter"
+        },
+        {
+          "name": "line",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
@@ -3244,7 +3253,7 @@
     {
       "kind": "permits",
       "class": "primitive",
-      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"evolveEnergyBases\"|\"aegisAlt\"}",
+      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"unionEnergy\"|…}",
       "fields": [
         {
           "name": "what",
@@ -3254,13 +3263,14 @@
           "enumValues": [
             "unionFusionAreas",
             "unionFusionWarp",
+            "unionEnergy",
             "evolveEnergyBases",
             "aegisAlt"
           ]
         }
       ],
       "sentence": "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from",
-      "doc": "`evolveEnergyBases`: does this exact hand copy have its own energy-base permission? Independent of source-area permissions. `aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. `unionFusionWarp`: the card granting the permission must itself be the card activating Fusion and must be in hand. A `DEFINE KEYWORD` body's word; no card's record says this"
+      "doc": "`evolveEnergyBases`: does this exact hand copy have its own energy-base permission? Independent of source-area permissions. `aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. `unionFusionWarp` / `unionEnergy`: the card granting the permission must itself be the card activating its [Union] and must be in hand (#930: the Warp one serves [Union-Potara] BT10-132 / P-230 as well as Fusion; the energy one BT10-046 / BT10-053 / P-220). A `DEFINE KEYWORD` body's word; no card's record says this"
     },
     {
       "kind": "covers",
@@ -4152,6 +4162,10 @@
     {
       "name": "opponentPlayed",
       "words": "when your opponent plays a card"
+    },
+    {
+      "name": "opponentPlayedBySkill",
+      "words": "when your opponent uses a skill to play a card"
     },
     {
       "name": "placed",

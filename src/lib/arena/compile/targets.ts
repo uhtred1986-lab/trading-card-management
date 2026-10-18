@@ -408,6 +408,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // own, not built.
   if (TWO_NAMED_CARDS.test(phrase)) return null;
   if (SUMMED_COUNT.test(phrase)) return null;
+  // #930, BT4-018: "<Baby> … with the same character name as the card you
+  // placed under this card" names a card by another card's name. There is no
+  // such filter, and "placed under this card" was read as the area the target
+  // is in ("under your cards"): a deck search of the wrong place. Refused whole.
+  if (/\bwith the same (?:character )?names? as the (?:card|cards) you (?:placed|chose)\b/i.test(phrase)) return null;
   // "Up to 1 Battle Card **each** from your deck and/or Drop" (SD19-03), "up
   // to 1 each of ≪Prison Planet≫ cards with energy costs of 3 and 4"
   // (P-664): a count per area or per kind, which one selector's count is not.

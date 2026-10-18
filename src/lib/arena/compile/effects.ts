@@ -2164,6 +2164,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
     const host = refFor(m[1], c);
+    // #930, [Union-Absorb] (22-13-6-3): "Choose up to 1 <Cell> from your deck
+    // and place it on top of this card" (BT2-085, BT2-086, BT2-027, BT2-109,
+    // BT3-020, BT3-022, BT3-048, BT3-050) is the Absorb's own play — the chosen
+    // card, which is in the deck, hand, Drop or Warp, is played on top of this
+    // one. The stack read below moves *this* card under the chosen one, which
+    // only makes sense when the chosen card is in play: under a deck card it
+    // moved the absorber nowhere and played nothing.
+    if (host && "var" in host) {
+      const from = c.choices.find((ch) => ch.var === host.var)?.sel;
+      if (from && !from.areas?.length && from.side === "you" && from.area && ["deck", "hand", "drop", "warp"].includes(from.area)) {
+        const onto = hostOf("this card", c);
+        if (onto) {
+          c.lastPlayed = host.var;
+          return [{ op: "play", target: host, onto }];
+        }
+      }
+    }
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
   // "Place this card under the played card", "place it under the card you
