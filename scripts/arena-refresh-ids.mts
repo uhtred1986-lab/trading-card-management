@@ -29,8 +29,8 @@ if (flag("--ids")) {
   assert(n && /^\d+$/.test(n), "--pr needs a PR number");
   const body = execFileSync("gh", ["pr", "view", n, "--json", "body", "-q", ".body"], { encoding: "utf8" });
   const found = idsFromPrBody(body);
-  console.log(found.section ? `PR #${n} refresh section:\n${found.section}\n` : `PR #${n}: no line mentioning "refresh" in the body.`);
-  console.log(`Found ${found.specs.length} id(s): ${found.specs.map((s) => s.raw).join(", ") || "(none)"}\n`);
+  console.log(found.section ? `PR #${n} refresh section:\n${found.section}\n` : `PR #${n}: no "Refresh:" line in the body.`);
+  console.log(`Found ${found.specs.length} id(s): ${found.specs.map((s) => s.raw + (s.unreadOk ? " (unread-ok)" : "")).join(", ") || "(none)"}\n`);
   specs = found.specs;
 }
 assert(specs.length, "No ids to refresh");

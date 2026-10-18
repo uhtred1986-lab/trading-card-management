@@ -32,6 +32,9 @@ assert.deepEqual(bareBody.specs.map((s) => s.raw), ["EX19-01#10", "BT10-114", "B
 assert.deepEqual(idsFromPrBody("Refresh: BT10-114 BT11-001, P-1\n").specs.map((s) => s.raw), ["BT10-114", "BT11-001", "P-1"]);
 assert.deepEqual(idsFromPrBody("## Stored rows needing\nBT10-114\n").specs.map((s) => s.raw), ["BT10-114"]);
 assert.equal(idsFromPrBody("nothing here BT1-001#0").specs.length, 0);
+// Every Refresh line, anywhere (also in backticks), prose ignored, unread-ok ids marked.
+const multi = idsFromPrBody("## Summary\nMentions refresh of P-616 in prose.\n## Test\n`Refresh: BT1-001#10 BT2-002#0b`\nmore prose BT9-999#0\n- Refresh unread-ok: EX25-16#1, EX25-16#2\n**Refresh:** x\nRefresh: BT1-001#10");
+assert.deepEqual(multi.specs.map((s) => [s.raw, !!s.unreadOk]), [["BT1-001#10", false], ["BT2-002#0b", false], ["EX25-16#1", true], ["EX25-16#2", true]]);
 
 // ── database ─────────────────────────────────────────────────────────────────
 const client = new PGlite();
@@ -45,12 +48,13 @@ await db.insert(schema.cardSets).values([
 ]);
 const DRAW = "[Auto] When this card is played, draw 1 card.";
 const UNREAD = "[Auto] When this card is played, frobnicate the wibble.";
+const APOS = "[Auto] When this card is played, draw 1 card. (It&apos;s a &quot;test&quot;.)";
 const card = (id: string, skill: string, extra: Record<string, unknown> = {}) =>
   ({ id, setCode: id.startsWith("FS") ? "FS01" : "BT1", game: id.startsWith("FS") ? "fusion" : "dbs", name: id, cardType: "BATTLE", rarity: "C", rarityCode: "C", searchText: id.toLowerCase(), skill, ...extra });
 await db.insert(schema.cards).values([
   card("T-CLEAN", DRAW), card("T-UTD", DRAW), card("T-CONF", DRAW), card("T-OWNED", DRAW), card("T-CONFAT", DRAW),
   card("T-PRINTED", DRAW), card("BT2-015", DRAW), card("T-UNREAD", UNREAD), card("T-NOROW", DRAW), card("P-616", DRAW),
-  card("FS-FUSION", DRAW), card("T-BACK", DRAW, { backName: "Back", backPower: 5000, backSkill: DRAW }),
+  card("FS-FUSION", DRAW), card("T-APOS", APOS), card("T-NEWUNREAD", UNREAD), card("T-BACK", DRAW, { backName: "Back", backPower: 5000, backSkill: DRAW }),
 ] as never);
 
 const defs = new Map((await db.select().from(schema.cards)).map((c) => [c.id, cardDefFrom(c)]));
@@ -71,12 +75,13 @@ await put("T-PRINTED", { ...STALE, printed: "an earlier printing" });
 await put("BT2-015", { ...STALE, printed: "pre-erratum text" }); // draft + official erratum
 await put("T-UNREAD", { reads: "an older reading", ops: [], unread: [], status: "draft" });
 await put("P-616", STALE);
+await put("T-APOS", { ...STALE, printed: APOS }); // the raw feed text is what the row kept; the fresh compile decodes it (#1018)
 await put("FS-FUSION", STALE);
 await put("T-BACK", STALE, "back");
 await put("T-BACK", { ...STALE, status: "open" }, "front");
 
 const snapshot = async () => rows<{ record: Record<string, unknown> }>(await db.execute(sql`select to_jsonb(r) as record from card_rules r order by id`)).map((r) => r.record);
-const specs = parseIdList("T-CLEAN#0 T-UTD#0 T-CONF#0 T-OWNED#0 T-CONFAT#0 T-PRINTED#0 BT2-015#0 T-UNREAD#0 T-NOROW#0 P-616#0 FS-FUSION#0 T-BACK#0b T-BACK#0 T-GHOST#0 T-CLEAN#7").specs;
+const specs = parseIdList("T-CLEAN#0 T-UTD#0 T-CONF#0 T-OWNED#0 T-CONFAT#0 T-PRINTED#0 BT2-015#0 T-UNREAD#0 T-NOROW#0 P-616#0 FS-FUSION#0 T-APOS#0 T-NEWUNREAD#0 T-BACK#0b T-BACK#0 T-GHOST#0 T-CLEAN#7").specs;
 const before = await snapshot();
 const byId = (v: Verdict[], raw: string) => v.find((x) => x.spec.raw === raw)!;
 
@@ -92,7 +97,11 @@ assert.match(byId(v, "T-PRINTED#0").reason!, /printed text changed/);
 assert.equal(byId(v, "BT2-015#0").status, "pending", "a draft row changed by an erratum is refreshable");
 assert.match(byId(v, "BT2-015#0").note!, /erratum/);
 assert.match(byId(v, "T-UNREAD#0").reason!, /unread/);
-assert.match(byId(v, "T-NOROW#0").reason!, /no stored/);
+assert.equal(byId(v, "T-NOROW#0").status, "create", "a skill the compile produces but the table lacks is created");
+assert.equal(byId(v, "T-NOROW#0").writer, "clean");
+assert.match(byId(v, "T-NEWUNREAD#0").reason!, /unread/, "an unread new skill needs --unread-ok");
+assert.equal(byId(v, "T-APOS#0").status, "pending", "&apos;/&quot; in the stored printed text is not a printed-text change");
+assert.doesNotMatch(byId(v, "T-APOS#0").reason ?? "", /printed/);
 assert.match(byId(v, "P-616#0").reason!, /907/);
 assert.match(byId(v, "FS-FUSION#0").reason!, /dbs only/);
 assert.equal(byId(v, "T-BACK#0b").status, "pending", "the back face resolves by its suffix");
@@ -123,6 +132,8 @@ assert.match(byId(v, "T-UNREAD#0").new!, /UNREAD/);
 // Apply (clean + unread writers), then the re-check has 0 pending and owned/excluded rows are byte-identical.
 const written = await applyPending(db, v);
 assert.equal(written.unread.length, 1);
+assert.equal(written.created, 2, "T-NOROW and T-NEWUNREAD are created");
+assert.equal(byId(v, "T-NEWUNREAD#0").status, "create", "with --unread-ok the unread new skill is created too");
 assert.ok(written.clean.length >= 3);
 const again = await classifyIds(db, specs, { unreadOk: true });
 assert.equal(summarize(again).pending, 0, "re-run after apply has nothing pending");
@@ -131,6 +142,11 @@ for (const id of ["T-CONF", "T-OWNED", "T-CONFAT", "T-PRINTED", "P-616", "FS-FUS
   const a = after.find((r) => r.card_id === id)!, b = before.find((r) => r.card_id === id)!;
   assert.deepEqual(a, b, `${id} untouched`);
 }
+const made = after.find((r) => r.card_id === "T-NOROW")!;
+assert.deepEqual([made.status, made.source, made.version], ["draft", "compiler", 1]);
+assert.equal(after.find((r) => r.card_id === "T-NEWUNREAD")!.status, "open");
+assert.equal(after.filter((r) => r.card_id === "P-616").length, 1, "P-616 is never created or duplicated");
+assert.equal(after.find((r) => r.card_id === "T-APOS")!.status, "draft");
 const unreadRow = after.find((r) => r.card_id === "T-UNREAD")!;
 assert.equal(unreadRow.status, "open");
 assert.equal((unreadRow.unread as string[]).length, 1);
