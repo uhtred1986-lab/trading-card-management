@@ -21,12 +21,12 @@ Pre-check for the deck-first review: every skill of every card in the eligible d
 
 | Skill | Card (decks) | Why | What the owner has to decide |
 |---|---|---|---|
-| BT3-043#10 | Powers Combined, Kibito Kai (2) | Reading runs the Then-parts (return a card from the opponent's Combo Area, draw 1 if it is empty) under 'Leader is blue and life <= 4'. Official FAQ: the Then-parts resolve even when the Leader is not blue and life is above 4, and the draw needs only an empty opponent Combo Area (it still resolves when no card could be returned). Compiler rule and test pin the opposite (owner ruling 4 Oct 2026, #539). | Owner decides: the 4 Oct ruling (Then-clauses stay under the opening condition) against the official FAQ. Not changed here because the recorded owner ruling and its tests say the opposite. |
+| BT3-043#10 | Powers Combined, Kibito Kai (2) | RESOLVED 18 Oct 2026 (#1052): the official FAQ wins over the 4 Oct ruling; only the +10000 needs a blue Leader and life <= 4, the return and the draw resolve regardless. Row refreshed in production. | Confirm via the connector. |
 | BT3-119#10 | Shun Shun, Protector Majin (2) | Printed 'place UP TO 2 cards from the top of your deck in the Drop Area'; the program mills exactly 2 (mill has no up-to). | Engine: mill with an up-to count. Low impact (milling fewer is rarely wanted). |
 | BT3-120#10 | Haru Haru, Attacker Majin (2) | Printed 'place UP TO 2 cards from the top of your deck in the Drop Area'; the program mills exactly 2 (mill has no up-to). | Engine: mill with an up-to count. Low impact. |
 | BT1-073#20 | Broly, The Rampaging Horror (1) | Printed: 'choose up to 2 cards from your opponent's hand at random'. Program lets the master choose the cards (no random op exists); the FAQ says 'at random' means chosen without player involvement. Also exactly 2 vs up to 2 is not distinguished when the hand is short. | Needs a seeded random pick in the engine (new op); until then the player picks. |
-| BT3-096#10 | Hidden Power Great Ape Tora (1) | Owner row. Printed: at the end of the battle after you combo with this card, choose up to 1 <Tora> in your Battle Area and EVOLVE IT INTO THIS CARD. The stored program stops after 'choose up to 1 <Tora> card in your Battle Area' - no evolve. (A fresh compile has the evolve but reads 'from its Drop Area', which is also wrong: the card comes from the Combo Area.) | Owner row, never overwritten here. Attach the evolve (this card from the Combo Area onto the chosen <Tora>) in the workbench. |
-| BT3-098#10 | Hidden Power Great Ape Fasha (1) | Owner row. Same as BT3-096#10 for <Fasha>: the stored program stops after the choice and never evolves it into this card. | Owner row, never overwritten here. Attach the evolve in the workbench. |
+| BT3-096#10 | Hidden Power Great Ape Tora (1) | RESOLVED 18 Oct 2026: owner agreed to replace his row with the compiler reading, which evolves the chosen <Tora> into this card from the Drop Area. That is right: by manual 8-5-8 the combo card is in the Drop before 'at the end of the battle' skills trigger (8-5-9). (This note first said 'from the Combo Area'; that was wrong.) Written as confirmed. | Done. |
+| BT3-098#10 | Hidden Power Great Ape Fasha (1) | RESOLVED 18 Oct 2026: same as BT3-096#10 for <Fasha>; compiler reading written as confirmed. | Done. |
 | BT30-104#0 | Su Roas, Fighting Maiden (1) | Printed: if your black Maiden Squadron card would be removed from a Battle Area by an opponent's skill, you may remove THIS card in your Warp from the game INSTEAD (the Maiden Squadron card stays; FAQ: one removal of this card from the Warp prevents all of them). Program is a redirect of the leaving card itself to 'removed' (the Maiden Squadron card is the one that leaves the game) and has no cost or Warp-side condition. | Needs a replacement whose substitute removes this card from the Warp and cancels the departure. |
 | SD3-04#10 | Encroaching Threat Masked Saiyan (1) | UNREAD before: 'When you've sent 7 or more cards to your Warp' (open row). Now compiled as a LABELLED BEST GUESS: '7 or more cards are in your Warp' (no manual rule, erratum or FAQ covers it; the engine keeps no count of cards ever sent). The 'in your hand and Warp' half is not modelled (hand only). | Confirm the reading of 'you've sent 7 or more cards to your Warp' (count in the Warp now vs cards ever sent), and whether the Warp copy's cost matters. |
 
@@ -79,7 +79,7 @@ Never refresh (not compiler drafts, and a fresh compile reads them worse): BT7-0
 | BT27-093 SS4 Vegito, Barrage | 2 | #10 OK |
 | BT28-102 Stop Laughing! | 2 | #0 OK; #10 OK; #20 OK |
 | BT3-027 Unending Awakening | 2 | #0 OK |
-| BT3-043 Powers Combined, Kibito Kai | 2 | #0 OK; #10 SUSPECT FLAG |
+| BT3-043 Powers Combined, Kibito Kai | 2 | #0 OK; #10 FAQ (#1052) |
 | BT3-097 Unwavering Solidarity Tora | 2 | #0 OK |
 | BT3-102 Nappa, Vegeta's Attendant | 2 | #0 OK |
 | BT3-104 Flying Nimbus | 2 | #0 OK (was SUSPECT) |
@@ -206,8 +206,8 @@ Never refresh (not compiler drafts, and a fresh compile reads them worse): BT7-0
 | BT3-092 Absolute Defense Great Ape King Vegeta | 1 | #0 OK; #20 OK; #30 OK (was SUSPECT) |
 | BT3-093 Lord of the Great Apes, King Vegeta | 1 | #0 OK |
 | BT3-095 Youthful Bulma | 1 | #0 OK |
-| BT3-096 Hidden Power Great Ape Tora | 1 | #0 OK; #10 SUSPECT FLAG; #20 OK |
-| BT3-098 Hidden Power Great Ape Fasha | 1 | #0 OK; #10 SUSPECT FLAG; #20 OK |
+| BT3-096 Hidden Power Great Ape Tora | 1 | #0 OK; #10 CONFIRMED; #20 OK |
+| BT3-098 Hidden Power Great Ape Fasha | 1 | #0 OK; #10 CONFIRMED; #20 OK |
 | BT3-099 Unwavering Solidarity Fasha | 1 | #0 OK |
 | BT3-100 Unwavering Solidarity Shugesh | 1 | #0 OK; #10 OK |
 | BT3-101 Unwavering Solidarity Borgos | 1 | #0 OK |
