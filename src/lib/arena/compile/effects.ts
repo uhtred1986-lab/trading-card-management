@@ -3380,7 +3380,9 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // this play made. Name them only when the sentence goes on to say so, so the
   // token programs that never refer back stay exactly as they were.
   const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
-  const bound = /^\s*(?:\([^)]*\))?\s*(?:[,.]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|the tokens?)\b/i.test(after);
+  // "play 1 Frieza's Army Token with 10000 power, and it gains…" (BT28-020) and
+  // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:[,.]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|the tokens?|that (?:card|token))\b/i.test(after);
   return [
     {
       op: "token",
