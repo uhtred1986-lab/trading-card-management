@@ -6,7 +6,7 @@
  * ("Rules are records", CLAUDE.md). */
 import { inArray, sql } from "drizzle-orm";
 import type { Db } from "../../src/db/index";
-import { cards } from "../../src/db/schema";
+import { cardRules, cards } from "../../src/db/schema";
 import { rows } from "../../src/db/rows";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import { skillRecords, type SkillRecord } from "../../src/lib/arena/draft";
@@ -15,7 +15,7 @@ import { applyReviewedRefresh, applyReviewedUnreadRefresh } from "./reviewed-rul
 
 export type Side = "front" | "back";
 /** `skill` is null for a bare card id (`BT10-114`, or `BT10-114b` for the back): it expands to every stored skill row of the card. */
-export interface IdSpec { cardId: string; side: Side | null; skill: number | null; raw: string }
+export interface IdSpec { cardId: string; side: Side | null; skill: number | null; raw: string; /** Set by a `Refresh unread-ok:` line: this id alone may take the unread path. */ unreadOk?: boolean }
 type Concrete = IdSpec & { skill: number };
 
 /** Never refreshed by this tool, whatever its row looks like (#907: its total-across-kinds clause stays unread by design). */
@@ -50,19 +50,42 @@ export function parseIdList(text: string): { specs: IdSpec[]; bad: string[] } {
 /** Bare card ids (`BT10-114`, `BT10-114b`): an uppercase set prefix, so ordinary hyphenated words are not read as cards. */
 const BARE_ID = /(?<![\w#\/-])[A-Z]{1,4}\d{0,3}-\d{1,4}b?(?![\w#\/-])/g;
 
-/** Best-effort: the ids written in the PR body's "refresh" section (from the first line mentioning refresh, or "Stored rows needing",
- * to the next heading); with no such line, none. Skill ids (`CARD#N`) and bare card ids (space- or comma-separated) are both read. Returns the section it read so the caller can print what it found. */
+const idsIn = (text: string): IdSpec[] => {
+  const found = text.match(/\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#(?:front#|back#)?\d+(?:b|#front|#back)?|\/(?:front|back)\/\d+)(?![\w#])/g) ?? [];
+  const bare = text.replace(/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#\S*|\/(?:front|back)\/\d+)/g, " ").match(BARE_ID) ?? [];
+  return parseIdList([...found, ...bare].join(" ")).specs;
+};
+
+/** The ids written in a PR body. Every line starting `Refresh:` or `Refresh unread-ok:` (after optional indentation, quote, bullet,
+ * bold or backtick marks, anywhere in the body) is read; `unread-ok` ids carry `unreadOk` and only they may take the unread path.
+ * Prose is ignored. With no such line it falls back to the older best-effort reading: the section from the first line mentioning
+ * "refresh" (or "Stored rows needing") to the next heading. Returns the text it read so the caller can print what it found. */
 export function idsFromPrBody(body: string): { specs: IdSpec[]; section: string } {
   const lines = body.split(/\r?\n/);
+  const lead = /^[\s>*_`-]*refresh(\s+unread-ok)?\s*:/i;
+  const hits = lines.filter((l) => lead.test(l));
+  if (hits.length) {
+    const byKey = new Map<string, IdSpec>();
+    for (const l of hits) {
+      const unreadOk = !!lead.exec(l)![1];
+      for (const sp of idsIn(l.replace(lead, " ").replace(/`/g, " "))) {
+        const k = `${sp.cardId}/${sp.side}/${sp.skill}`, prev = byKey.get(k);
+        byKey.set(k, { ...sp, unreadOk: unreadOk || prev?.unreadOk || undefined });
+      }
+    }
+    return { specs: [...byKey.values()], section: hits.join("\n") };
+  }
   const start = lines.findIndex((l) => /refresh|stored rows needing/i.test(l));
   if (start < 0) return { specs: [], section: "" };
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i++) if (/^#{1,6}\s/.test(lines[i])) { end = i; break; }
   const section = lines.slice(start, end).join("\n");
-  const found = section.match(/\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#(?:front#|back#)?\d+(?:b|#front|#back)?|\/(?:front|back)\/\d+)(?![\w#])/g) ?? [];
-  const bare = section.replace(/[A-Za-z0-9]+(?:-[A-Za-z0-9]+)+(?:#\S*|\/(?:front|back)\/\d+)/g, " ").match(BARE_ID) ?? [];
-  return { specs: parseIdList([...found, ...bare].join(" ")).specs, section };
+  return { specs: idsIn(section), section };
 }
+
+/** The entity decode `skillLines` applies at compile, so a row stored with the raw feed text compares equal to the fresh decoded line. */
+export const normPrinted = (t: string) =>
+  t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&(?:apos|#0?39|#x27);/gi, "'").replace(/&quot;/g, '"').replace(/[‘’]/g, "'");
 
 const FIELDS = ["kind", "trigger", "cost", "cond", "ops", "unread", "pattern", "reads"] as const;
 // New filter fields default to [] / null / false; a stored row without them means the same thing.
@@ -81,7 +104,7 @@ export interface Verdict {
   spec: IdSpec;
   /** The resolved key, `card/side/skill`. */
   key: string;
-  status: "pending" | "up-to-date" | "excluded";
+  status: "pending" | "up-to-date" | "excluded" | "create";
   reason?: string;
   note?: string;
   /** pending only: which writer takes it. */
@@ -120,7 +143,7 @@ export async function classifyIds(db: Db, input: IdSpec[], opts: { unreadOk?: bo
       out.push({ spec: s, key: `${cardId}/${side ?? "front"}/*`, status: "excluded", reason: byCard.has(cardId) ? "no stored card_rules rows for this card" : "no such card in the catalog" });
       continue;
     }
-    for (const r of mine) push({ cardId, side: r.side as Side, skill: Number(r.skill_index), raw: `${s.raw} -> ${cardId}#${r.skill_index}${r.side === "back" ? "b" : ""}` });
+    for (const r of mine) push({ cardId, side: r.side as Side, skill: Number(r.skill_index), unreadOk: s.unreadOk, raw: `${s.raw} -> ${cardId}#${r.skill_index}${r.side === "back" ? "b" : ""}` });
   }
   for (const spec of specs) {
     const card = byCard.get(spec.cardId);
@@ -138,7 +161,14 @@ export async function classifyIds(db: Db, input: IdSpec[], opts: { unreadOk?: bo
     const fresh = records.find((r) => r.side === side && r.skillIndex === spec.skill);
     const old = stored.get(`${spec.cardId}/${side}/${spec.skill}`);
     if (!fresh) { out.push(excl(side, "the current card text has no such skill", { note })); continue; }
-    if (!old) { out.push(excl(side, "no stored card_rules row", { note, new: reading(fresh.unread, fresh.reads) })); continue; }
+    const unreadOk = !!(opts.unreadOk || spec.unreadOk);
+    if (!old) {
+      // The current compile produces a skill the table lacks (new text, a re-scrape): a compiler row, as the sync's drafter inserts it.
+      const nw = reading(fresh.unread, fresh.reads);
+      if (fresh.unread.length && !unreadOk) { out.push(excl(side, "no stored card_rules row, and the fresh compile leaves clauses unread (pass --unread-ok to create it open)", { note, new: nw })); continue; }
+      out.push({ spec, key: `${spec.cardId}/${side}/${spec.skill}`, status: "create", note, new: nw, fresh, writer: fresh.unread.length ? "unread" : "clean" });
+      continue;
+    }
     const key = `${spec.cardId}/${side}/${spec.skill}`;
     const base = { spec, key, note, old: reading(old.unread as string[], old.reads as string), new: reading(fresh.unread, fresh.reads) };
     if (old.source !== "compiler") { out.push({ ...base, status: "excluded", reason: `source is ${old.source}, not compiler` }); continue; }
@@ -146,11 +176,11 @@ export async function classifyIds(db: Db, input: IdSpec[], opts: { unreadOk?: bo
     if (old.confirmed_at) { out.push({ ...base, status: "excluded", reason: "confirmed_at is set" }); continue; }
     if (sem(old) === sem(fresh)) { out.push({ ...base, status: "up-to-date" }); continue; }
     let n = note;
-    if (old.printed !== fresh.printed) {
+    if (normPrinted(String(old.printed)) !== normPrinted(fresh.printed)) {
       if (old.status === "draft" && OFFICIAL_ERRATA.some((e) => e.cardId === spec.cardId)) n = [note, "printed text changed by an official erratum (draft row)"].filter(Boolean).join("; ");
       else { out.push({ ...base, status: "excluded", reason: "printed text changed since the row was stored (not a draft with an erratum)" }); continue; }
     }
-    if (fresh.unread.length && !opts.unreadOk) { out.push({ ...base, note: n, status: "excluded", reason: "fresh compile leaves clauses unread (pass --unread-ok to write the unread path)" }); continue; }
+    if (fresh.unread.length && !unreadOk) { out.push({ ...base, note: n, status: "excluded", reason: "fresh compile leaves clauses unread (pass --unread-ok to write the unread path)" }); continue; }
     out.push({ ...base, note: n, status: "pending", writer: fresh.unread.length ? "unread" : "clean", before: old, fresh });
   }
   return out;
@@ -158,6 +188,7 @@ export async function classifyIds(db: Db, input: IdSpec[], opts: { unreadOk?: bo
 
 export const summarize = (v: Verdict[]) => ({
   pending: v.filter((x) => x.status === "pending").length,
+  create: v.filter((x) => x.status === "create").length,
   upToDate: v.filter((x) => x.status === "up-to-date").length,
   excluded: v.filter((x) => x.status === "excluded").length,
 });
@@ -167,17 +198,22 @@ export function formatVerdict(v: Verdict): string {
   const lines = [head];
   if (v.reason) lines.push(`    why: ${v.reason}`);
   if (v.note) lines.push(`    note: ${v.note}`);
+  if (v.status === "create") lines.push(`    (no row) -> ${v.new}   [CREATE ${v.writer === "unread" ? "open" : "draft"} compiler row]`);
   if (v.status === "pending") lines.push(`    ${v.old}\n    -> ${v.new}${v.writer === "unread" ? "   [unread path, status open]" : ""}`);
   return lines.join("\n");
 }
 
 /** Writes every pending verdict through the existing writers: clean reads as drafts, unread (--unread-ok) as open. Each writer is one atomic statement;
  * a stale row aborts that statement with nothing written. Returns the rule ids written. */
-export async function applyPending(db: Db, verdicts: Verdict[]): Promise<{ clean: number[]; unread: number[] }> {
+export async function applyPending(db: Db, verdicts: Verdict[]): Promise<{ clean: number[]; unread: number[]; created: number }> {
+  const toCreate = verdicts.filter((v) => v.status === "create").map((v) => ({ ...v.fresh!, status: v.fresh!.unread.length ? "open" : "draft", source: "compiler" }));
+  // Same insert and conflict rule as the sync's drafter (draft.ts): an existing row is never overwritten.
+  const created = toCreate.length ? (await db.insert(cardRules).values(toCreate as never).onConflictDoNothing().returning({ id: cardRules.id })).length : 0;
   const pick = (w: "clean" | "unread") => verdicts.filter((v) => v.status === "pending" && v.writer === w).map((v) => ({ before: v.before!, fresh: v.fresh! }));
   const clean = pick("clean"), unread = pick("unread");
   return {
     clean: clean.length ? await applyReviewedRefresh(db, { rules: clean }) : [],
     unread: unread.length ? await applyReviewedUnreadRefresh(db, { rules: unread }) : [],
+    created,
   };
 }

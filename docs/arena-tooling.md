@@ -738,14 +738,13 @@ npm run arena:refresh-ids:verify      # offline PGlite test (~30 s, so not part 
 
 Replaces the throwaway per-PR scripts (`arena-refresh-2026-10-17.mts` and its siblings). Ids are `CARD#SKILL`
 (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back face); `CARD/side/SKILL` also works. With no suffix and no
-front skill of that index, the back is used and the output says so. A bare card id (`BT10-114`, or `BT10-114b` for the back only) expands to every stored skill row of that card. `--pr` reads the PR body from the first
-line mentioning "refresh" (or "Stored rows needing") to the next heading, extracts `card#skill` ids and space- or comma-separated bare card ids (best effort) and prints what it found.
+front skill of that index, the back is used and the output says so. A bare card id (`BT10-114`, or `BT10-114b` for the back only) expands to every stored skill row of that card. `--pr` reads every body line starting `Refresh:` or `Refresh unread-ok:` (also inside backticks or after a bullet; prose is ignored); ids on an `unread-ok` line take the unread path automatically and only those ids do (no `--unread-ok` flag needed). With no such line it falls back to the older best-effort section reading (from the first line mentioning "refresh" to the next heading). It prints what it found.
 
 Each id is recompiled from the current `cards` text and compared with its `card_rules` row, then called
-**pending**, **up-to-date** or **excluded** (with the reason). Never written: a missing card or row, a
+**pending**, **up-to-date**, **excluded** (with the reason) or **create**: a skill the current compile produces that has no `card_rules` row (new card text) is inserted on `--apply` as a draft compiler row (open when it leaves clauses unread, which needs `--unread-ok`), with the sync drafter's insert; never for P-616. Never written: a missing card or row, a
 non-dbs card, `P-616` (#907), a row whose source is not `compiler` or whose status is not `draft`/`open`
 (confirmed, corrected, owner rows), a row with `confirmed_at`, a row whose printed text changed since it
-was stored (unless it is a draft and the card has an official erratum, which is reported), and a fresh
+was stored (compared after the same `&apos;`/`&quot;` decode the compiler applies, so raw feed text is not a change) (unless it is a draft and the card has an official erratum, which is reported), and a fresh
 compile that leaves clauses unread (unless `--unread-ok`, which takes the unread path: status `open`, via
 `applyReviewedUnreadRefresh`). The default is a dry run printing old to new reading per id and a summary.
 `--apply` writes through `applyReviewedRefresh` (and the unread writer), each one atomic statement that
