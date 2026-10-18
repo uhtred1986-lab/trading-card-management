@@ -35,6 +35,22 @@ export async function createIssue(token: string, title: string, body: string, f:
   return { number: j.number, url: j.html_url };
 }
 
+/**
+ * Open `rule-assumption` issues (not pull requests) whose title or body mentions a card id. A read: the card packet
+ * shows them so a decision already filed is not asked for twice.
+ */
+export async function findAssumptionIssues(token: string, cardId: string, f: Fetch = fetch): Promise<{ number: number; title: string; url: string }[]> {
+  const res = await f(`https://api.github.com/repos/${REPO}/issues?labels=${LABEL}&state=open&per_page=100`, { headers: headers(token) });
+  if (!res.ok) return fail(res, "issue listing");
+  const list = (await res.json()) as unknown;
+  if (!Array.isArray(list)) return [];
+  const id = cardId.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(^|[^A-Z0-9])${id}([^0-9]|$)`, "i");
+  return (list as { number: number; title?: string; body?: string | null; html_url: string; pull_request?: unknown }[])
+    .filter((i) => !i.pull_request && re.test(`${i.title ?? ""}\n${i.body ?? ""}`))
+    .map((i) => ({ number: i.number, title: i.title ?? "", url: i.html_url }));
+}
+
 export async function commentOnIssue(token: string, number: number, text: string, f: Fetch = fetch): Promise<{ url: string }> {
   // Only an issue that is not a pull request and carries the label may be commented on.
   const get = await f(`https://api.github.com/repos/${REPO}/issues/${number}`, { headers: headers(token) });

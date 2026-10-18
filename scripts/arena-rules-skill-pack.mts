@@ -9,7 +9,9 @@
  * Writes skills/dbs-rules-review/data/{open-rules.json, open-rules.md,
  * assumptions.md, silent.md, meta.json} and src/lib/rules-review/
  * assumptions.generated.json (the MCP route's `list_assumptions` cannot grep
- * source at runtime, so it reads this committed module).
+ * source at runtime, so it reads this committed module) and src/lib/rules-review/
+ * faq.generated.json (the official card Q&A page, parsed per card id; the one network
+ * call besides deckplanet — if the page cannot be fetched the committed file is kept).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -21,6 +23,7 @@ import { compileSkill } from "../src/lib/arena/compile";
 import { KNOWN_SILENT, readsAsNothingSilently } from "../src/lib/arena/compile/silent";
 import { describeScript } from "../src/lib/arena/vm/script";
 import { familyOf, flat, truncate } from "../src/lib/rules-review/wording";
+import { parseCardFaq } from "../src/lib/rules-review/faq";
 
 const OUT = path.resolve("skills/dbs-rules-review/data");
 const ASSUMPTIONS_MODULE = path.resolve("src/lib/rules-review/assumptions.generated.json");
@@ -184,6 +187,21 @@ for (const a of assumptions) {
 }
 fs.writeFileSync(path.join(OUT, "assumptions.md"), amd);
 
+// ── official card FAQ ─────────────────────────────────────────────────────
+const FAQ_MODULE = path.resolve("src/lib/rules-review/faq.generated.json");
+const FAQ_URL = "https://www.dbs-cardgame.com/us-en/rule/card_faq.php";
+let faqCards = 0;
+try {
+  const res = await fetch(FAQ_URL, { headers: { "user-agent": "Mozilla/5.0 (dbs-card-companion rules pack)" } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const faq = parseCardFaq(await res.text());
+  faqCards = Object.keys(faq).length;
+  if (faqCards < 500) throw new Error(`only ${faqCards} cards parsed; the page layout probably changed`);
+  fs.writeFileSync(FAQ_MODULE, JSON.stringify(Object.fromEntries(Object.entries(faq).sort(([a], [b]) => a.localeCompare(b)))) + "\n");
+} catch (e) {
+  console.warn(`FAQ not refreshed (${(e as Error).message}); keeping ${FAQ_MODULE}`);
+}
+
 // ── meta ───────────────────────────────────────────────────────────────────
 let sha = "unknown";
 try {
@@ -192,7 +210,7 @@ try {
 const meta = {
   generatedAt: new Date().toISOString(),
   gitSha: sha,
-  counts: { skills: skillsTotal, openSkills: open.length, families: sortedFamilies.length, assumptions: assumptions.length, silent: silent.length, silentKnown: silent.filter((s) => s.known).length },
+  counts: { skills: skillsTotal, openSkills: open.length, families: sortedFamilies.length, assumptions: assumptions.length, silent: silent.length, silentKnown: silent.filter((s) => s.known).length, faqCards },
   largestFamilies: sortedFamilies.slice(0, 10).map(([family, r]) => ({ family, count: r.length })),
 };
 fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta, null, 2) + "\n");

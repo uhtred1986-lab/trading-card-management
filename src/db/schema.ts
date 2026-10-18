@@ -1036,6 +1036,13 @@ export const cardRules = pgTable(
     timesSeen: integer("times_seen").notNull().default(0),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    /** Who confirmed it from the claude.ai rules-review connector: the SL's address from the token. Null for every other path. */
+    confirmedBy: text("confirmed_by"),
+    /** The owner's confirmation words, verbatim, as the connector's `confirm_rule` received them. */
+    confirmNote: text("confirm_note"),
+    /** A suspected misread, with the reason (connector `flag_rule`). Null when nobody flagged it; informational, never read by the engine. */
+    reviewFlag: text("review_flag"),
+    reviewFlaggedAt: timestamp("review_flagged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

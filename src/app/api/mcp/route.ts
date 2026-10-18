@@ -19,7 +19,8 @@ import { verifyAccessToken } from "@/lib/oauth/store";
  *    every failure so nothing says which check failed.
  * 4. Only then is anything parsed: `handleMcpPost` serves exactly the tools of the token's granted scopes.
  *
- * Reads rules; the only write is a labelled GitHub issue (`rules-write`). Docs: docs/architecture/auth.md,
+ * Reads rules and the owner's deck cards; writes (`rules-write`) are labelled GitHub issues and the two narrow
+ * `card_rules` writes `confirm_rule` / `flag_rule` (`deck-review.ts`). Docs: docs/architecture/auth.md,
  * "The MCP connector".
  */
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   }
   if (!token) return unauthorized(origin, true);
 
-  return handleMcpPost(request, { db, env: process.env, scopes: token.scopes });
+  return handleMcpPost(request, { db, env: process.env, scopes: token.scopes, email: token.email });
 }
 
 export function GET() {
