@@ -154,7 +154,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
   assert.ok(zoneOf(state, "p1", "battle").includes(combo), `rules: staged card left battle ${JSON.stringify(state.cards[combo])}`);
   assert.equal(state.cards[combo].mode, "active", `rules: staged combo card rested unexpectedly`);
   const joined = take(state, { type: "combo", player: "p1", card: combo });
-  assert.equal(joined.state.battle?.comboOrigins?.[combo], "other");
+  assert.equal(joined.state.battle?.comboOrigins?.[combo], "battle");
   const ended = finish(joined.state);
   assert.equal(skillEvents(ended.events, "C572-BT2", ended.state).length, 0);
   assert.ok(zoneOf(ended.state, "p1", "drop").includes(combo));
