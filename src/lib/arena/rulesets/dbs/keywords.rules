@@ -403,8 +403,14 @@ DEFINE KEYWORD Evolve
   -- BT13-024) is the skill cost too (22-5-3), paid first on the strict
   -- action-price host (`payActionPrice`, `vm/keyword-costs.ts`); the move is
   -- offered only while it can be paid in full, and announced once it is.
+  -- #917: BT19-077/078/081/082 print "This card's [EX-Evolve] can also be
+  -- activated from your Z-Energy" (a `permit` of `evolveFromZEnergy`, official
+  -- card Q&A on BT19-077): the evolving card may be used from the Z-Energy Area
+  -- as well as the hand. The base is still chosen in the Battle Area, the mode
+  -- is the ordinary one, and `keywordActivated(from: ...)` carries the real
+  -- source, so `evolveFromHandActivated` does not fire for a Z-Energy use.
   offer: "activate:main"
-  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, all([permits(what: evolveFromZEnergy), count([self] IN you.zEnergy) >= 1])])
   REFUSE target(reason: "no specified evolution base in an allowed area") UNLESS any([count((type = BATTLE) IN you.battle asPrinted) >= 1, all([permits(what: evolveEnergyBases), count((type = BATTLE) IN you.energy asPrinted) >= 1])])
   label: "{variant} {card} onto a {line}"
   DO {

@@ -524,15 +524,15 @@ function zonePlan(game: GameDefinition) {
  * printed card (#1009). `permanents` runs on every value asked for, and testing the text of every
  * card of the deck, the Drop and the Life Area with a regex each time cost most of a move.
  */
-const printedAreaFlags = new WeakMap<object, { allAreas: boolean; life: boolean }>();
-const NO_AREA_FLAGS = { allAreas: false, life: false };
-function areaFlags(printed: { skill?: string | null; back?: { skill?: string | null } | null } | undefined): { allAreas: boolean; life: boolean } {
+const printedAreaFlags = new WeakMap<object, { allAreas: boolean; life: boolean; zEnergy: boolean }>();
+const NO_AREA_FLAGS = { allAreas: false, life: false, zEnergy: false };
+function areaFlags(printed: { skill?: string | null; back?: { skill?: string | null } | null } | undefined): { allAreas: boolean; life: boolean; zEnergy: boolean } {
   if (!printed) return NO_AREA_FLAGS;
   let flags = printedAreaFlags.get(printed);
   if (!flags) {
     const text = `${printed.skill ?? ""} ${printed.back?.skill ?? ""}`;
     const allAreas = /all areas/i.test(text);
-    flags = { allAreas, life: allAreas || /this card from your life/i.test(text) };
+    flags = { allAreas, life: allAreas || /this card from your life/i.test(text), zEnergy: /can also be activated from your z-energy/i.test(text) };
     printedAreaFlags.set(printed, flags);
   }
   return flags;
@@ -586,7 +586,8 @@ export function permanents(
         if (!card || card.hidden) continue;
         const printed = ctx.defs[card.cardId];
         // The text tests are cached per printed card (#1009), and asked before the negation scan below.
-        if (extra && !areaFlags(printed).allAreas) continue;
+        // BT19-077/078/081/082: a Z-Energy card's one [Permanent], about its own [Evolve] line used from there.
+        if (extra && !areaFlags(printed).allAreas && !(zone === "zEnergy" && areaFlags(printed).zEnergy)) continue;
         // A life card is looked at only when it prints a rule about itself in the Life Area (a life card is read on every statics pass).
         if (zone === "life" && !areaFlags(printed).life) continue;
         if (skillsNegated(state, src)) continue;
@@ -605,7 +606,7 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
-          const ops = extra ? program.ops.filter(identityInAllAreas)
+          const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
             : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
@@ -869,7 +870,7 @@ function collect(
     // `permits` condition additionally enforces that source and exact copy;
     // unionFusionWarp is scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
-      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "unionFusionWarp") continue;
+      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "evolveFromZEnergy" && op.what !== "unionFusionWarp") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
