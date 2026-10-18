@@ -7,7 +7,7 @@
  * blanked, so like wordings sit together. Plus the moments an [Auto] skill can
  * answer to, in words, for the record's WHEN line.
  */
-import { autoTriggerMatches, keywordTriggers } from "./text/triggers";
+import { autoTriggerMatches, keywordTriggers, triggeredPermanent } from "./text/triggers";
 import type { Skill, Trigger } from "./types";
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
@@ -162,7 +162,7 @@ export const TRIGGERS = Object.keys(TRIGGER_IN_WORDS) as Trigger[];
 
 /** The moments an [Auto] skill answers to. Empty for a skill that names a moment the engine does not know — the orphan `arena:gaps` counts. */
 export function triggersOf(sk: Skill): Trigger[] {
-  if (sk.kind !== "auto" && !sk.keyword) return [];
+  if (sk.kind !== "auto" && !sk.keyword && !triggeredPermanent(sk)) return [];
   return TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
 }
 

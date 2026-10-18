@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -50,7 +50,7 @@ export function compileSkill(skill: Skill): Script {
   // program, the inspector and the referee's worked examples all said it.
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
-  return skill.kind === "permanent" ? { ...caused, ops: holdForGame(caused.ops) } : caused;
+  return skill.kind === "permanent" && !triggeredPermanent(skill) ? { ...caused, ops: holdForGame(caused.ops) } : caused;
 }
 
 /** Mark every `play … onto` an [Union-Absorb] effect makes as the keyword's own (22-13-6-3, #929). */
@@ -317,7 +317,7 @@ function compileSkillText(skill: Skill): Script {
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = {
-    permanent: skill.kind === "permanent",
+    permanent: skill.kind === "permanent" && !triggeredPermanent(skill),
     last: null,
     choices: [],
     lastSeen: null,
@@ -498,8 +498,29 @@ function compileSkillText(skill: Skill): Script {
   // "If this card is placed in your Drop Area from your hand by a skill"
   // (SD13-05, behind a condition before the colon) is the trigger said with
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
-  if (skill.kind === "auto" && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
+  // #907: "During your turn, when you Combo with this card, …" (BT1-063, BT1-101,
+  // BT2-044, BT2-079, BT3-072, BT4-107) and "During your turn, when this card
+  // attacks" put the turn before the moment. The turn is a condition on the
+  // skill, not part of the trigger, so it is lifted off the front here and
+  // folded back into the trigger's condition below; the moment is then the head.
+  let turnCond: Cond | null = null;
+  if (skill.kind === "auto" && clauses.length > 2 && /^when\b/i.test(clauses[1] ?? "")) {
+    const turn = /^during (your|your opponent'?s) turn[,.]?$/i.exec(clauses[0].trim());
+    if (turn) {
+      turnCond = turn[1].toLowerCase() === "your" ? { kind: "isTurnPlayer" } : { kind: "isTurnPlayer", who: "opponent" };
+      clauses.shift();
+    }
+  }
+  if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
+    // A [Permanent] that only the placing moment can carry (DB2-166 …) offers
+    // "choose 1 red card **and** 1 green card in your Drop Area and send them to
+    // your Warp": two counted descriptions sharing one place, an optional
+    // all-or-nothing pair that `compileDisjointMove` refuses when it is
+    // optional. Cut at the "and" the first half has no place and reads as cards
+    // in play, which would make the skill wrong the moment it can fire — so the
+    // effect stays an honest gap until the pair can be read.
+    if (triggeredPermanent(skill) && /\bchoose \d+ [^,.]*? cards? and \d+ [^,.]*? cards? in your/i.test(skill.effect)) return { ops: [], unsupported: [trigger, ...clauses] };
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
@@ -643,7 +664,7 @@ function compileSkillText(skill: Skill): Script {
     // card is revealed from the top of your deck and placed in your Drop Area"
     // — the trigger splits on its "and", and the second half is still the
     // trigger rather than the first thing the skill does.
-    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage|(?:is )?placed in|(?:is )?revealed|(?:is )?sent to|(?:is )?returned to|(?:is )?switched to)\b/i.test(clauses[0].trim()))
+    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage|(?:is )?placed in|(?:is )?revealed|(?:is )?sent to|(?:is )?returned to|(?:is )?switched to|or (?:when |if )you combo with this card)\b/i.test(clauses[0].trim()))
       clauses.shift();
     // "When you play this card and your Leader Card is a ≪Universe 6≫ card,
     // …" — a condition riding on the trigger, split off the same way (9-1-3).
@@ -660,6 +681,8 @@ function compileSkillText(skill: Skill): Script {
       }
     }
   }
+
+  if (turnCond) triggerCond = triggerCond ? { kind: "all", conds: [turnCond, triggerCond] } : turnCond;
 
   const unsupportedBeforeHead = unsupported.length;
   // The head's surgery above only ever removes clauses, so what is left is a

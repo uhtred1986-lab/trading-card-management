@@ -104,17 +104,28 @@ export function comboBattleEndOpponentTurn(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   return COMBO_BATTLE_END.test(head) && /\bduring your opponent'?s turn\b/.test(head);
 }
-/** Ordinary self-combo wording belongs to the 5-7 entry checkpoint. */
+/** "During your turn, " (or the opponent's) when a "when …" moment follows it directly: the turn is a condition, not the head (#907). */
+export const TURN_THEN_WHEN = /^during (?:your|your opponent'?s) turn,\s*(?=when\b)/;
+/**
+ * Ordinary self-combo wording belongs to the 5-7 entry checkpoint.
+ * "When a card evolves into this card, **or if you combo with this card**" (SD2-03)
+ * is the same entry as the second moment of one skill.
+ */
 export function comboEntrySelf(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   if (COMBO_BATTLE_END.test(head)) return false;
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
-  return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
+  return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
 }
-/** A self-combo entry Auto whose printed timing explicitly requires hand. */
+/**
+ * A self-combo entry Auto whose printed timing explicitly requires hand — "when
+ * this card in your hand is used in a combo" and "when you combo with this card
+ * **from your hand**" (BT2-079; #907): the card that entered the Combo Area came
+ * from the hand, which the entry moment captured.
+ */
 export function comboEntryFromHand(sk: Skill): boolean {
-  const head = effectHead(maskNames(sk.effect).text).toLowerCase();
-  return /when this card in your hand is (?:played or )?used in a combo\b/.test(head);
+  const head = effectHead(maskNames(sk.effect).text).toLowerCase().replace(TURN_THEN_WHEN, "");
+  return /when this card in your hand is (?:played or )?used in a combo\b|^when you combo with this card from your hand\b/.test(head);
 }
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
@@ -171,6 +182,25 @@ export function discardedBySkillCause(trigger: string): string | null {
  */
 const PLAYED_HAND_THEN_ENERGY = String.raw`when this card in your hand is played(?=\s+or placed in your energy\s*(?:,|:|\.|$))`;
 const PLACED_IN_ENERGY_TAIL = String.raw`(?=\s*(?:,|:|\.|$))`;
+const PLACING_IN_ENERGY = new RegExp(String.raw`^when placing this card (?:in|into) your energy(?: area)?(?: from any area)?${PLACED_IN_ENERGY_TAIL}`);
+/**
+ * A [Permanent] that is really a trigger (#907): "[Permanent] When placing this
+ * card in your energy from any area, you may choose 1 red card and 1 green card
+ * in your Drop Area and send them to your Warp. If you do, negate this card's
+ * [Energy-Exhaust] skill" (DB2-166, -168, -171, -173, -175, -176). It is
+ * printed [Permanent] because it governs how the card enters the Energy Area
+ * (22-31-2: an [Energy-Exhaust] card is placed in Rest Mode), but what it says
+ * is a choice made as the card arrives, which only a moment can carry. LABELLED
+ * BEST GUESS (manual 22-31, 9-6, no FAQ entry): the choice is offered at the
+ * placing like any "when this card is placed in your energy" skill, after the
+ * card has landed; a negated [Energy-Exhaust] then no longer matters for the
+ * placing itself, which is why the card stays in Rest Mode (the manual's Rest
+ * rule is about the placing, not a standing state).
+ */
+export function triggeredPermanent(sk: Skill): boolean {
+  if (sk.kind !== "permanent") return false;
+  return PLACING_IN_ENERGY.test(effectHead(maskNames(sk.effect).text));
+}
 const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})|${PLAYED_HAND_THEN_ENERGY}`);
 /** The coordinated tail of "when you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046, -059, -061, -120, -121, -122): a skill, whoever's, ends the sentence. */
 const PLAYED_OR_DROPPED_FROM_BATTLE = /^when (?:you play this card|this card is played),? or (?:when )?(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill\s*(?:,|:|\.|$)/;
@@ -260,7 +290,13 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
    * there, and the phrase carries no wording the others look for.
    */
   const effect = maskNames(sk.effect);
-  const printed = effectHead(effect.text);
+  // #907: "During your turn, when this card attacks / you Combo with this card"
+  // (BT1-063, BT1-101, BT2-044 …) puts the turn in front of the moment. The turn
+  // is a condition the compiler keeps (`isTurnPlayer`); the moment is the head,
+  // so the anchored readers below must see "when …" first. Only a turn phrase
+  // directly followed by "when" is taken off: the end-of-battle combo wording
+  // keeps its own "during your turn, at the end of …" prefix (`COMBO_BATTLE_END`).
+  const printed = effectHead(effect.text).replace(TURN_THEN_WHEN, "");
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   switch (trigger) {
@@ -441,8 +477,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // #907: entering the Energy Area, by the Charge Phase's placing (7-2-11) or a
     // skill's. "From your hand" is the other declaration; "this card in your hand
     // is played or placed" is that one too (the play half is `playedFromHand`).
+    // "When **placing** this card in your energy from any area" (DB2-166 …, #907)
+    // is the same arrival said as a gerund; "from any area" is no restriction
+    // ("from any area" is every area), so it is the bare moment.
     case "placedInEnergy":
-      return new RegExp(String.raw`^when this card is (?:placed|added|put) (?:in|into|to) (?:your |its owner'?s )?energy(?: area)?${PLACED_IN_ENERGY_TAIL}`).test(head);
+      return new RegExp(String.raw`^when this card is (?:placed|added|put) (?:in|into|to) (?:your |its owner'?s )?energy(?: area)?${PLACED_IN_ENERGY_TAIL}`).test(head)
+        || PLACING_IN_ENERGY.test(head);
     case "placedInEnergyFromHand":
       return new RegExp(String.raw`^when this card is placed in your energy(?: area)? from your hand${PLACED_IN_ENERGY_TAIL}`).test(head)
         || new RegExp(String.raw`^when this card in your hand is (?:played or )?placed in your energy(?: area)?${PLACED_IN_ENERGY_TAIL}`).test(head);
