@@ -299,9 +299,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
-  // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") it
-  // would be read without the part the chain split off.
-  const shaped = allowBare ? undefined : costConditionShape(t);
+  // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
+  // single name would be read without the part the chain split off. A pair of names is whole in itself.
+  const shaped = costConditionShape(t, allowBare);
   if (shaped !== undefined) return shaped;
   // "If your Leader is a green <Broly> card **and** you have 2 or more
   // energy" — two conditions in one price. Every pattern below has a greedy
@@ -713,22 +713,22 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
  *   Energy Area" - the count for each of the two.
  * `undefined` when the text is none of these; `null` when it is but cannot be read.
  */
-function costConditionShape(t: string): { cond: Cond } | null | undefined {
+function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | undefined {
   let m: RegExpExecArray | null;
   const count = (n: string, dir: string) => (/more/.test(dir) ? { atLeast: Number(n) } : { atMost: Number(n) });
-  if ((m = /^the total number of cards in you and your opponent's (warp|drop area|hand|energy area)s? is (\d+) or (more|less|fewer)$/.exec(t))) {
+  if (!bare && (m = /^the total number of cards in you and your opponent's (warp|drop area|hand|energy area)s? is (\d+) or (more|less|fewer)$/.exec(t))) {
     const sel = parseTarget(`cards in each player's ${m[1]}`);
     if (!sel || sel.special) return null;
     delete sel.count;
     delete sel.upTo;
     return { cond: { kind: "count", sel: { ...sel, side: "both" }, ...count(m[2], m[3]) } };
   }
-  if ((m = /^you or your opponent have (.+)$/.exec(t))) {
+  if (!bare && (m = /^you or your opponent have (.+)$/.exec(t))) {
     const own = parseCountCondition(`you have ${m[1].replace(/\bin their\b/g, "in your")}`);
     const theirs = parseCountCondition(`your opponent has ${m[1]}`);
     return own && theirs ? { cond: { kind: "any", conds: [own, theirs] } } : null;
   }
-  if ((m = /^there are (\d+) cards? or (more|less|fewer) in both your (energy area) and your opponent's energy area$/.exec(t))) {
+  if (!bare && (m = /^there are (\d+) cards? or (more|less|fewer) in both your (energy area) and your opponent's energy area$/.exec(t))) {
     const mine = parseCountCondition(`there are ${m[1]} or ${m[2]} cards in your ${m[3]}`);
     const theirs = parseCountCondition(`there are ${m[1]} or ${m[2]} cards in your opponent's ${m[3]}`);
     return mine && theirs ? { cond: { kind: "all", conds: [mine, theirs] } } : null;
@@ -739,6 +739,7 @@ function costConditionShape(t: string): { cond: Cond } | null | undefined {
   const NAME = "(?:[{<≪][^}>≫]+[}>≫])(?: cards?)?";
   if ((m = new RegExp(`^(?:an? )?(${NAME}(?: and ${NAME})?) (is|are) in (play in )?(your (?:drop area|warp|hand|energy area|life area|z-deck|battle area|combo area))$`).exec(t))) {
     const two = / and /.test(m[1]);
+    if (bare && !two) return undefined;
     // "is in play in your Battle Area" with one name is read by the ordinary rule; the pair is not.
     if (m[3] && !two) return undefined;
     const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/cards?$/.test(one) ? `${one} card` : one));

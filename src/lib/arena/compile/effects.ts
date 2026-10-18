@@ -3242,6 +3242,9 @@ function skillScopeOf(raw: string, c: Ctx, anySkill = false): SkillScope | null 
   // reader holds only as "or".
   const target = refFor(who.replace(/\b(hand|z-deck|drop area|battle area|warp) and (hand|z-deck|drop area|battle area|warp)\b/i, "$1 or $2"), c);
   if (!target || (c.stale && target === c.stale)) return null;
+  // "the Extra Card's [Activate: Main] skill" (EX19-11) points back at a card an earlier clause
+  // named, which a description cannot hold: read as one it is every Extra in the hand.
+  if (/^the\s+(?!chosen\b)/i.test(who) && "sel" in target) return null;
   return { target, ...kind };
 }
 
@@ -3285,6 +3288,8 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
   }
   const word = (noun ?? "").toLowerCase();
   if (/\band\/or\b|\bunder\b/i.test(scope)) return null;
+  // "...without using skills" (P-329) limits the play to one made by the rules, which a description cannot say.
+  if (/\bwithout using skills\b/i.test(scope)) return null;
   // Two energy-cost descriptions ("mono-black with an energy cost of 10 or multicolor with an
   // energy cost of 8", EX23-45) are two kinds of card, which one filter cannot say.
   if ((scope.match(/energy costs?/gi) ?? []).length > 1) return null;

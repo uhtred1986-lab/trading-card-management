@@ -4510,11 +4510,19 @@ console.log("verify/vm: ok");
     assert.deepEqual(rWhy, { kind: "other", detail: "[Burst 2] needs that many cards in the deck" }, "a [Burst] the deck cannot pay was not refused with its first requirement");
   }
 
-  // A [Permanent] taking {1} off the card's own line: {r}{1} becomes one orb,
-  // and a board of one blue energy pays it. The generic orb reduction removes
-  // the red orb first, leaving one orb the blue card can satisfy.
+  // A [Permanent] taking {1} off the card's own line: {r}{1} becomes {r}, one
+  // red orb, so one red energy pays it. 5-8-2-4 (#907): a reduction said as {1}
+  // does nothing to a coloured orb, so it takes the colourless half and leaves
+  // the red one - a board of one blue energy is refused for the colour.
   {
-    const b = staged(["C148-CHEAP"], ["C148-BLUE"]);
+    const blue = staged(["C148-CHEAP"], ["C148-BLUE"]);
+    const blueUser = blue.r.sides.p1.zones.battle[0];
+    assert.deepEqual(
+      firstWhy(rulesEngine.rejectedActions(CTX, blue.r, rulesEngine.legalActions(CTX, blue.r)), blueUser, 10),
+      { kind: "energyColour", colour: "Red", need: 1, have: 0 },
+      "{1} took the red orb off: 5-8-2-4 says it reaches the colourless orb only",
+    );
+    const b = staged(["C148-CHEAP"], ["V1"]);
     const user = b.r.sides.p1.zones.battle[0];
     const offer = (list: LegalAction[]) => list.find((a) => a.action.type === "activate" && (a.action as { card: string }).card === user);
     const action: Action = { type: "activate", player: "p1", card: user, skill: 10 };
