@@ -771,6 +771,31 @@ sharpened the other.
 
 ---
 
+## 5c. Rules review with claude.ai
+
+The owner goes through the open rules in the claude.ai chat (in German) with the skill `skills/dbs-rules-review/`
+and records assumptions as GitHub issues labelled `rule-assumption`. Two parts:
+
+- **The connector** (live data, files issues): the MCP server at `/api/mcp` (`src/lib/rules-review/mcp.ts`, OAuth
+  in `docs/architecture/auth.md`, "The MCP connector"). Tools: `list_open_families`, `list_open_rules`, `get_card`,
+  `list_assumptions` (`rules-read`), `record_ruling`, `comment_ruling` (`rules-write`). Read-only on the database;
+  its only write is a GitHub issue. A ruling is stored later with `npm run arena:rule`, as in §5.
+- **The skill** (conversation guide + a static snapshot for when the connector is not attached).
+
+Setup, once: (1) set `GITHUB_ISSUES_TOKEN` in Vercel (fine-grained token, Issues read/write on this repo only);
+(2) after the deploy, in claude.ai Settings -> Connectors add a custom connector with URL
+`https://trading-card-management.vercel.app/api/mcp` and sign in with Google (an SL account); tick *Record rulings on
+GitHub* only if it should file issues; (3) zip `skills/dbs-rules-review` (the folder itself at the zip's root) and
+upload it in Settings -> Capabilities -> Skills.
+
+Refresh after a compiler change: `npm run rules:skill-pack` (offline, no database: the deckplanet feed, the
+compiler, a grep of `src/lib/arena`), commit `skills/dbs-rules-review/data/` and
+`src/lib/rules-review/assumptions.generated.json` (the connector's `list_assumptions` reads that module), re-zip and
+re-upload the skill. The pack writes `open-rules.json/.md`, `assumptions.md`, `silent.md` and `meta.json`.
+Test: `npx tsx scripts/verify/rules-review-mcp.mts` (part of `npm test`).
+
+---
+
 ## 6. Best practices, learned the expensive way
 
 1. **Measure before you edit.** Both instruments, every time. A change whose
