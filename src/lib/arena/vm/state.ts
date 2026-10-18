@@ -210,6 +210,13 @@ export interface VmResolving {
   negated?: boolean;
   /** 9-6: the play was replaced (`replaceResolvingPlay`) — the card has already gone elsewhere, and the frame is dropped unrun. */
   replaced?: boolean;
+  /**
+   * #929: the card has already landed and this is the counter timing after the
+   * play resolved (FAQ BT1-107 Q4/Q5/Q6: a [Counter: Play] may be used "before
+   * … or after"). Nothing is being played any more, so a counter that talks
+   * about "the Battle Card being played" finds none (`resolvingCard`).
+   */
+  landed?: boolean;
 }
 
 /** One player, as the definition describes one: a name, a map of zones, and the attributes a *player* has (1-14). */

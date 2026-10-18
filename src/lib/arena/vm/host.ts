@@ -64,7 +64,7 @@ import type { GameDefinition } from "../rulesets";
 import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, skillNegated } from "./effects";
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
-import { koCard, openKeywordPlayWindow } from "./battle";
+import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken } from "./errors";
 import { savedXKey } from "./script";
 import { emit, fire, log } from "./events";
@@ -355,15 +355,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // when a [Counter: Play] could answer it (#150). Null outside that window,
     // and null again once a counter has replaced the play, the legacy
     // `s.resolving = null` in its own `replaceResolvingPlay`.
-    resolvingCard: () => (state.resolving && !state.resolving.replaced ? state.resolving.card : null),
+    resolvingCard: () => (state.resolving && !state.resolving.replaced && !state.resolving.landed ? state.resolving.card : null),
     // 5-5: the manner of the arrival, read by `playThen` below as the card
     // lands — the legacy `continuations.playRest`/`playNegated`, kept on the
     // one record the window opened.
     setPlayRest: (id) => {
-      if (state.resolving?.card === id) state.resolving.rest = true;
+      if (state.resolving?.card === id && !state.resolving.landed) state.resolving.rest = true;
     },
     setPlayNegated: (id) => {
-      if (state.resolving?.card === id) state.resolving.negated = true;
+      if (state.resolving?.card === id && !state.resolving.landed) state.resolving.negated = true;
     },
     // 9-6: the play happens differently — this program in its place. The
     // legacy reading exactly: the one shape it can put in a play's place is a
@@ -373,7 +373,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // is the legacy engine filtering its `play.resolve` step out of the flow.
     replaceResolvingPlay: (ops) => {
       const r = state.resolving;
-      if (!r || r.replaced) return;
+      if (!r || r.replaced || r.landed) return;
       const only = ops.length === 1 ? ops[0] : null;
       if (!only || only.op !== "moveTo") return;
       const id = r.card;
@@ -519,6 +519,35 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           return;
         }
       }
+      // #929 (22-13-4-5-1, 22-13-5-4-2, 22-13-6-3-2): a [Union] play is checked
+      // the way an [Evolve] base is. The card that activated it (Fusion/Potara:
+      // in hand), its host and its materials are bound when the play is
+      // declared; if the counter window left any of them anywhere else the
+      // play does not happen, and nothing is moved but the card that failed to
+      // enter play — to its owner's Drop Area. The costs are already paid.
+      const union = typeof opts.using === "string" && opts.using.startsWith("Union-") ? opts.using : undefined;
+      if (union && cards.length === 1) {
+        const source = cards[0];
+        const watch = [source, ...(opts.onto ? [opts.onto] : []), ...(opts.under ?? [])];
+        const epoch = (id: string) => state.cards[id]?.zoneEpoch ?? 0;
+        const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
+        const stood = bound.length === watch.length && watch.every((id, i) => bound[i].card === id && bound[i].zoneEpoch === epoch(id));
+        const inBattle = (id: string) => { const at = findCard(state, id); return at?.zone === "battle" && at.owner === opts.player; };
+        const sourceAt = findCard(state, source);
+        const ready = stood
+          && (union === "Union-Absorb" ? true : sourceAt?.zone === "hand" && sourceAt.owner === opts.player)
+          && (union === "Union-Fusion" || (!!opts.onto && inBattle(opts.onto) && (opts.under ?? []).every(inBattle)));
+        if (!ready) {
+          // Fusion/Potara: the card that activated it, if it is still in the hand. Absorb: the chosen card, if it is still where it was chosen from.
+          const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand";
+          const there = findCard(state, source);
+          if (fails && there && there.zone !== "drop") moveTo(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
+          frame.unionBound = undefined;
+          if (state.resolving && state.resolving.card === source) state.resolving = null;
+          state.programs.unshift(frame);
+          return;
+        }
+      }
       // #155, 9-6: a keyword's own play ([Arrival], [Revive], [Successor]) is
       // declared, and the opponent may answer it with a [Counter: Play] before
       // it lands — the window `vm/battle.ts` opens over a declared play. With
@@ -559,8 +588,21 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(opts.using ? { using: opts.using } : {}),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) (frame.did ??= {}).play = true;
+        // 22-13-5-4: [Union-Potara]'s other material goes under the card just
+        // played — as part of this play, so a play that failed moved none of them.
+        if (played && union === "Union-Potara") {
+          for (const under of opts.under ?? []) {
+            if (!moveCard(state, game, under, "drop", { under: id }).ok) continue;
+            clearAutoReveal(state, under);
+            log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
+            emit(ctx, game, state, ev, { event: "placedUnder", card: under, controller: opts.player, args: { to: "under" } }, null);
+          }
+        }
         frame.evolutionBase = undefined;
+        frame.unionBound = undefined;
         if (r) state.resolving = null;
+        // FAQ BT1-107/BT1-110: the second counter timing, once the card is on the table.
+        if (played && union && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) return "wait";
       }
       state.programs.unshift(frame);
     },

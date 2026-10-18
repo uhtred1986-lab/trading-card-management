@@ -449,7 +449,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
-    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
+    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
         name: "counterWindow",
         type: "boolean",
         offCard: "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
@@ -461,7 +461,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       },
       {
         name: "using",
-        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve"] },
+        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb"] },
       },
     ],
     sentence: (raw, r) => {
@@ -478,7 +478,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
       return played + on;
     },
-    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15).',
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
   },
   switchMode: {
     fields: [
