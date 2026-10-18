@@ -312,6 +312,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   costMax: { costMax: 2 },
   originalCostMin: { originalCostMin: 2 },
   originalCostMax: { originalCostMax: 2 },
+  comboCostMin: { comboCostMin: 1 },
+  comboCostMax: { comboCostMax: 1 },
   powerMin: { powerMin: 15000 },
   powerMax: { powerMax: 10000 },
   originalPowerMin: { originalPowerMin: 15000 },

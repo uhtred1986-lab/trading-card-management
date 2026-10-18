@@ -2427,6 +2427,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.costMin != null && f.costMax != null) bits.push(`with an energy cost of between ${f.costMin} and ${f.costMax}`);
   else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
   else if (f.costMin != null) bits.push(`with an energy cost of ${f.costMin} or more`);
+  // 2-9: "a ≪Slug's Army≫ card with a combo cost of 1", in the words `parseFilter` reads back.
+  if (f.comboCostMin != null && f.comboCostMin === f.comboCostMax) bits.push(`with a combo cost of ${f.comboCostMin}`);
+  else if (f.comboCostMin != null && f.comboCostMax != null) bits.push(`with a combo cost of between ${f.comboCostMin} and ${f.comboCostMax}`);
+  else if (f.comboCostMax != null) bits.push(`with a combo cost of ${f.comboCostMax} or less`);
+  else if (f.comboCostMin != null) bits.push(`with a combo cost of ${f.comboCostMin} or more`);
   // "An original energy cost of 3" (20-3-1): the printed total, said with its word.
   if (f.originalCostMin != null && f.originalCostMin === f.originalCostMax) bits.push(`with an original energy cost of ${f.originalCostMin}`);
   else if (f.originalCostMin != null && f.originalCostMax != null) bits.push(`with an original energy cost of between ${f.originalCostMin} and ${f.originalCostMax}`);

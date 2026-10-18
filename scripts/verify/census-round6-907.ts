@@ -79,6 +79,31 @@ type Sel = { area?: string; areas?: string[]; fromVar?: string; filter?: Record<
   assert.equal((find(crew.ops, "choose")[1].sel as Sel).filter?.originalCostMax, 1, "BT26-095: the bound was lost");
 }
 
+// ── the combo cost is a measure (2-9) ───────────────────────────────────────
+{
+  // 28 skills say "a <description> card with a combo cost of 1" and the filter had no combo-cost measure, so the phrase was dropped and
+  // every card of the description was on offer (BT19-102: any yellow ≪Slug's Army≫ card from the Drop in a combo).
+  const f = parseFilter("up to 1 mono-yellow ≪Slug's Army≫ card with a combo cost of 1 in your Drop Area");
+  assert.deepEqual([f.comboCostMin, f.comboCostMax], [1, 1]);
+  assert.deepEqual([parseFilter("both blue and with a combo cost of 1 or less").comboCostMax, parseFilter("original combo cost of 2 or more").comboCostMin], [1, 2], "'original' is the printed one");
+  assert.equal(parseFilter("a <Lord Slug> card with an energy cost of 3 and combo cost of 1").costMax, 3, "beside the energy cost");
+  assert.equal(parseFilter("all <Goku> cards in your hand").comboCostMin, undefined, "the change to a cost is not a bound on one");
+  const combo = compile("[auto] When this card attacks, draw 1 card, and use up to 1 mono-yellow ≪Slug's Army≫ card with a combo cost of 1 from your Drop in a combo with its skills negated for the turn.");
+  assert.deepEqual(combo.unsupported, []);
+  assert.deepEqual([(find(combo.ops, "choose")[0].sel as Sel).filter?.comboCostMin, (find(combo.ops, "choose")[0].sel as Sel).filter?.comboCostMax], [1, 1], "BT19-102: the bound is kept");
+  assert.match(describeScript(combo.ops), /with a combo cost of 1 in your Drop Area/, "and the reading says it");
+  const reducer = compile("[+1][Activate: Main] Until the start of your next turn, reduce the combo cost of all mono-yellow ≪Android≫ cards with an original combo cost of 1 in your hand by 1.");
+  assert.equal((find(reducer.ops, "costReduction")[0].target as { sel: Sel }).sel.filter?.comboCostMin, 1, "BT13-094: it reduced every Android's combo cost");
+  const dbs = rulesetFor("dbs");
+  assert.ok(dbs.ok);
+  const game = dbs.ok ? dbs.definition : (undefined as never);
+  assert.equal(predicateOf({ ...emptyFilter(), comboCostMin: 1, comboCostMax: 1 }, game)({ comboCost: 1 }), true);
+  assert.equal(predicateOf({ ...emptyFilter(), comboCostMin: 1, comboCostMax: 1 }, game)({ comboCost: 2 }), false);
+  assert.equal(predicateOf({ ...emptyFilter(), comboCostMax: 1 }, game)({}), false, "no combo cost at all matches no bound");
+  // "Original combo power" is not the combo power as it stands (EX23-19 raises the very number it selects by): refused.
+  assert.ok(compile("[permanent] ≪Turles Crusher Corps≫ cards with an original combo power of 3000 in your Combo Area get +2000 combo power.").unsupported.length > 0, "EX23-19 stays unread");
+}
+
 // ── the reading of "for each" names what is counted ─────────────────────────
 {
   const s = compile("[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards and it gets -4000 power for the turn for each red ≪Saiyan≫ card and/or ≪Bardock's Crew≫ card in your Battle Area.");

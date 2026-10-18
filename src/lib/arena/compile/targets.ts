@@ -1066,6 +1066,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.costMax != null ||
     f.originalCostMin != null ||
     f.originalCostMax != null ||
+    f.comboCostMin != null ||
+    f.comboCostMax != null ||
     f.powerMin != null ||
     f.powerMax != null ||
     // "An originally skill-less Battle Card", "an original power of 500"

@@ -194,6 +194,14 @@ export interface CardFilter {
    */
   originalCostMin?: number | null;
   originalCostMax?: number | null;
+  /**
+   * "A ≪Slug's Army≫ card **with a combo cost of 1**" (28 skills: BT19-100, BT19-102, BT19-113, BT19-117, BT20-135,
+   * BT13-094, P-367 ...): the printed combo cost (2-9), the same shape as `costMin`/`costMax`. "Original combo cost" (20-3-1)
+   * is this too - a printed value. Until #907 round 6 the filter had no combo-cost measure at all, so the phrase was dropped
+   * and the choice was every card of the description. Optional, written only when read.
+   */
+  comboCostMin?: number | null;
+  comboCostMax?: number | null;
   powerMin: number | null;
   powerMax: number | null;
   /**
@@ -396,6 +404,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   costMax: "number",
   originalCostMin: "number",
   originalCostMax: "number",
+  comboCostMin: "number",
+  comboCostMax: "number",
   powerMin: "number",
   powerMax: "number",
   originalPowerMin: "number",
@@ -1061,6 +1071,20 @@ function parseOneFilter(text: string): CardFilter {
     f.comboPowerMin = f.comboPowerMax = num(m[1]);
     comboSaid = m[0];
   }
+  // "A ≪Slug's Army≫ card with a combo cost of 1" (2-9, #907 round 6): the printed combo cost, "original" or not. The number
+  // has to follow the words - "reduce the combo cost of all cards by 1" is a change to a cost, not a bound on one.
+  if ((m = /\bcombo costs? (?:of )?(?:(\d+) or (less|more)\b|between (\d+) and (\d+)|(\d+)\b)/.exec(lower))) {
+    if (m[2] === "less") f.comboCostMax = Number(m[1]);
+    else if (m[2] === "more") f.comboCostMin = Number(m[1]);
+    else if (m[3]) {
+      f.comboCostMin = Number(m[3]);
+      f.comboCostMax = Number(m[4]);
+    } else f.comboCostMin = f.comboCostMax = Number(m[5]);
+  }
+  // "An original combo power of 3000" (20-3-1) is the printed value; the bound above reads the combo power as it stands (a skill
+  // can change it: EX23-19 gives +2000 to the cards it selects by "original combo power of 3000"), and there is no original
+  // combo power measure, so the phrase is unreadable rather than the plain bound (#907 round 6).
+  if (/\boriginal combo powers?\b/.test(lower)) f.unreadable = true;
   // "A red Unison Card with 2 or more markers" (BT10-008), "Unison Cards with
   // 3 or fewer markers" (BT14-116), "2 markers or less" (EX19-01): a bound on
   // the markers the card carries (#721). Only a bound is read — see the field.
@@ -1245,6 +1269,12 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   // 2-8: the printed combo power — `cardNow` never rewrites it, the same as
   // `d.power` above.
   const combo = typeof d.comboPower === "number" ? d.comboPower : null;
+  if (f.comboCostMin != null || f.comboCostMax != null) {
+    // 2-9: the printed combo cost, the same reading of `d` as the energy cost above.
+    const comboCost = typeof d.comboCost === "number" ? d.comboCost : null;
+    if (f.comboCostMin != null && (comboCost == null || comboCost < f.comboCostMin)) return false;
+    if (f.comboCostMax != null && (comboCost == null || comboCost > f.comboCostMax)) return false;
+  }
   if (f.comboPowerMin != null && (combo == null || combo < f.comboPowerMin)) return false;
   if (f.comboPowerMax != null && (combo == null || combo > f.comboPowerMax)) return false;
   // 1-2-3: the orbs of the specified cost, where it is known (#728) — see the field.

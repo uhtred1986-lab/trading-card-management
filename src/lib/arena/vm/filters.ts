@@ -121,6 +121,9 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // stay two measures: the day a plain "energy cost" reads the price as it stands, "original" must not.
   originalCostMin: { reads: ["energyCost"] },
   originalCostMax: { reads: ["energyCost"] },
+  // "With a combo cost of 1" (2-9, #907 round 6): the printed combo cost, as `costMin` reads the printed energy cost.
+  comboCostMin: { reads: ["comboCost"] },
+  comboCostMax: { reads: ["comboCost"] },
   powerMin: { reads: ["power"] },
   powerMax: { reads: ["power"] },
   // "An original power of 500" (20-3-1) reads an attribute of its own, and
@@ -313,6 +316,11 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const cost = number(attrs.energyCost);
   if (f.costMin != null && (cost == null || cost < f.costMin)) return false;
   if (f.costMax != null && (cost == null || cost > f.costMax)) return false;
+  if (f.comboCostMin != null || f.comboCostMax != null) {
+    const comboCost = number(attrs.comboCost);
+    if (f.comboCostMin != null && (comboCost == null || comboCost < f.comboCostMin)) return false;
+    if (f.comboCostMax != null && (comboCost == null || comboCost > f.comboCostMax)) return false;
+  }
   if (f.originalCostMin != null && (cost == null || cost < f.originalCostMin)) return false;
   if (f.originalCostMax != null && (cost == null || cost > f.originalCostMax)) return false;
   const power = number(attrs.power);
