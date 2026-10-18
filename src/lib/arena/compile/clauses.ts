@@ -229,6 +229,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         !andJoinsTwoSwitched(text, start, i) &&
         !andJoinsTwoCosts(text, start, i) &&
         !andJoinsThisCardAndAnother(text, start, i) &&
+        !andAddsTheRevealedLifeCard(text, start, i) &&
         // "This card gains +5000 power **and** [Critical] during your turn":
         // one subject given two things, and the half after the "and" is a
         // keyword tag with no verb of its own to be read as a clause.
@@ -460,10 +461,45 @@ function andJoinsTwoCosts(text: string, start: number, i: number): boolean {
  * exact shape; `compileClause` reads it as the pair of moves it is.
  */
 function andJoinsThisCardAndAnother(text: string, start: number, i: number): boolean {
+  const before = text.slice(start, i);
+  const after = /^[^.;]*/.exec(text.slice(i))![0];
+  if (
+    /(?:^\s*|[,;:]\s+|\byou\s+)add this card(?: in your hand)?\s*$/i.test(before) &&
+    /^ and (?:\d+|an?|one) [^.;]*? from your hand (?:in|into|to) your z-energy\s*$/i.test(after)
+  )
+    return true;
+  // The same pair with a place for each card (BT4-038, P-201): "choose and send
+  // both this card from your Battle Area and a ≪Tapion≫ in your Drop Area to the
+  // Warp", "choose 1 … card in your Battle Area and this card in your Drop Area and
+  // send them both to their owners' Warps". Kept whole in these exact shapes.
+  const place = "(?:battle area|drop(?: area)?|hand)";
+  const toWarp = "(?:to|in|into) (?:your|the|its owner'?s?|their owners?'?s?) warps?";
+  if (
+    (/(?:^\s*|[,;:]\s+)(?:(?:you )?(?:may|can) )?choose\s*$/i.test(before) && /^ and send both this card from your /i.test(after)) ||
+    (new RegExp(`choose and send both this card from your ${place}\\s*$`, "i").test(before) && new RegExp(`^ and (?:\\d+|an?|one) [^.;:,]*? (?:in|from) your ${place} ${toWarp}\\s*$`, "i").test(after)) ||
+    (new RegExp(`(?:^\\s*|[,;:]\\s+|\\byou )choose (?:\\d+|an?|one) [^.;:]*? in your ${place}\\s*$`, "i").test(before) && new RegExp(`^ and this card in your ${place} and send them both ${toWarp}\\s*$`, "i").test(after)) ||
+    (new RegExp(`\\bchoose (?:\\d+|an?|one) [^.;:]*? in your ${place} and this card in your ${place}\\s*$`, "i").test(before) && new RegExp(`^ and send them both ${toWarp}\\s*$`, "i").test(after))
+  )
+    return true;
+  // "you may **send this card and 1 card from your hand to your Warp**" (BT4-036,
+  // BT4-037), "send this card and 1 ≪Evil Incarnate≫ card from your Drop to
+  // their owner's Warp" (BT31-019): the same pair of moves to one place, the
+  // second card counted and named by its source. `compileClause` reads the pair
+  // as one action, so an offer or a price takes both cards or neither.
   return (
-    /(?:^\s*|[,;:]\s+|\byou\s+)add this card(?: in your hand)?\s*$/i.test(text.slice(start, i)) &&
-    /^ and (?:\d+|an?|one) [^.;]*? from your hand (?:in|into|to) your z-energy\s*$/i.test(text.slice(i).replace(/[.;]$/, ""))
+    /(?:^\s*|[,;:]\s+|\byou\s+)(?:(?:you )?(?:may|can) )?(?:send|place) this card(?: from your (?:battle area|drop(?: area)?|hand))?\s*$/i.test(before) &&
+    /^ and (?:\d+|an?|one) [^.;]*? from your (?:hand|drop(?: area)?) (?:to|in|into) (?:your|its owner'?s?|their owners?'?s?) (?:warp|drop(?: area)?)s?\s*$/i.test(after)
   );
+}
+
+/**
+ * "…if you would reveal this card from your life **and add it to your hand**,
+ * you may play it instead" (P-454, SD18-04): the "and" joins the two halves of
+ * one moment (21-3-2 — a life card revealed and added to the hand), the way
+ * "to add it" does on BT10-036; split there neither half is the moment.
+ */
+function andAddsTheRevealedLifeCard(text: string, start: number, i: number): boolean {
+  return /\bwould reveal this card from your life\s*$/i.test(text.slice(start, i)) && /^ and add it to your hand\b/i.test(text.slice(i));
 }
 
 /**

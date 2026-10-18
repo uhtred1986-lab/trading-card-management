@@ -443,8 +443,18 @@ function parseWouldReturnToHand(clause: string): { subject: string; requestedTo:
  * instance so far; a card naming only one is read narrowed to it, untested
  * by the catalog today.
  */
-function parseWouldMoveFromLife(clause: string): { to?: "hand" | "drop" } | null {
+function parseWouldMoveFromLife(clause: string): { to?: "hand" | "drop"; lifeSelf?: true } | null {
   const t = clean(clause);
+  // "…you would **reveal this card from your life to add it to your hand**,
+  // you may place it in your energy in Rest Mode instead" (BT10-036, BT10-040,
+  // BT10-047, P-235, P-454, SD18-04): the same 9-10 moment as the "if you would
+  // add a card from your life to your hand" above, about **this card** only —
+  // the life card that is being taken is the one printing the rule (9-1-3-3 lets
+  // a [Permanent] name the area it is valid in; "this card … from your life"
+  // does). Damage is the only way a card is revealed from the life to be
+  // added to the hand (21-3-2), so the moment is the life card's move to the
+  // hand. Both spellings: "to add it" and "and add it".
+  if (/^(?:if )?you would reveal this card from your life (?:to|and) add it to your hand$/.test(t)) return { to: "hand", lifeSelf: true };
   if (/^if you would add(?: a| 1)? cards? from your life to your hand or place it in your drop(?: area)?$/.test(t)) return {};
   if (/^if you would add(?: a| 1)? cards? from your life to your hand$/.test(t)) return { to: "hand" };
   if (/^if you would place(?: a| 1)? cards? from your life in your drop(?: area)?$/.test(t)) return { to: "drop" };
@@ -804,7 +814,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .replace(/^(places|puts|sends|returns|adds|switches|removes|discards|kos|plays|draws|reveals)\b/, (v) => THIRD_PERSON[v])
     // #966: "place 1 card in your Drop Area from your life" (BT13-099) → "place
     // 1 card from your life in your Drop Area", the order the move patterns read.
-    .replace(/^place (.+?) in ((?:your|their) drop(?: area)?) (from (?:your|their) (?:life|hand|energy(?: area)?|battle area|combo area))$/, "place $1 $3 in $2");
+    .replace(/^place (.+?) in ((?:your|their) drop(?: area)?) (from (?:your|their) (?:life|hand|energy(?: area)?|battle area|combo area))$/, "place $1 $3 in $2")
+    // The same, for the Warp: "send this card to your Warp **from your Drop Area**" (BT17-131).
+    .replace(/^send (.+?) (to (?:your|their|its owner'?s?) warps?) (from (?:your|their) (?:drop(?: area)?|hand|battle area))$/, "send $1 $3 $2");
   let m: RegExpExecArray | null;
 
   // #970: "send 1 <A> card and 1 <B> card from your Drop to your Warp" — one
@@ -2150,6 +2162,100 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     ];
   }
 
+  // "You may **send this card and 1 card from your hand to your Warp**" (BT4-036,
+  // BT4-037), "send this card and 1 ≪Evil Incarnate≫ card from your Drop to
+  // their owner's Warp" (BT31-019): one action moving two cards to one place —
+  // this one, and one more the player picks from the named source. As with the
+  // Z-Energy pair above, the second card is "another" by the sentence's own count
+  // (`notSelf`), and it is chosen first, before either moves, so an empty source
+  // leaves the whole action impossible: an offer is not made (20-16-1's
+  // `firstStepImpossible` reads the leading choice) and a price cannot be paid.
+  // Best guess, labelled: all of it or none of it (the card text gives no
+  // partial form, and 5-2-5's partial choice applies to "up to", not to "1 card").
+  if (
+    (m =
+      /^(send|place) this card(?: from your (battle area|drop(?: area)?|hand))? and (\d+|an?|one) (.+? from your (?:hand|drop(?: area)?)) (?:to|in|into) (?:your|its owner'?s?|their owners?'?s?) (warp|drop(?: area)?)s?$/.exec(
+        t,
+      ))
+  ) {
+    const dest = m[5] === "warp" ? "warp" : "drop";
+    // "send" goes to the Warp and "place" to the Drop Area; any other pairing is a wording this has not seen.
+    if ((m[1] === "send") !== (dest === "warp")) return null;
+    const chosen = refFor(`${/^\d+$/.test(m[3]) ? m[3] : "1"} ${m[4]}`, c);
+    if (!chosen || !("sel" in chosen) || chosen.sel.special || (chosen.sel.area !== "hand" && chosen.sel.area !== "drop") || chosen.sel.side !== "you" || chosen.sel.count !== 1 || chosen.sel.upTo) return null;
+    // Where this card lies: as printed, or — best guess, labelled — the area the
+    // sentence names for both when it is the Drop Area ("send this card and 1
+    // ≪Evil Incarnate≫ card **from your Drop** to their owner's Warp", BT31-019;
+    // 9-1-3-2's own example of a line used from the Drop is "send this card from
+    // your Drop to your Warp"). A hand source qualifies only the counted card:
+    // BT4-036's Auto answers an attack, so this card is in play.
+    const own = m[2] ? ({ "battle area": "battle", "drop area": "drop", drop: "drop", hand: "hand" } as const)[m[2] as "battle area" | "drop area" | "drop" | "hand"] : chosen.sel.area === "drop" ? "drop" : null;
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { ...chosen.sel, notSelf: "card" }, as: v, reason: clause },
+      { op: "moveTo", target: { sel: { special: "self", ...(own ? { area: own } : {}) } }, to: dest, ...(dest === "drop" ? { reveal: true } : {}) },
+      { op: "moveTo", target: { var: v }, to: dest, ...(dest === "drop" ? { reveal: true } : {}) },
+    ];
+  }
+
+  // The same pair with the two places spelled out, one for each card (BT4-038's
+  // price, P-201's price): "choose and send both **this card from your Battle
+  // Area and a ≪Tapion≫ in your Drop Area** to the Warp", "choose 1 red <Frieza>
+  // card … **in your Battle Area and this card in your Drop Area** and send them
+  // both to their owners' Warps". Both cards or neither, as above; the counted
+  // card is chosen first and is another card than this one.
+  if (
+    (m =
+      /^(?:choose and )?send both this card from your (battle area|drop area|hand) and (\d+|an?|one) (.+? (?:in|from) your (?:hand|drop(?: area)?|battle area)) to (?:your|the|its owner'?s?|their owners?'?s?) warps?$/.exec(t)) ||
+    (m =
+      /^choose (\d+|an?|one) (.+? in your (?:hand|drop(?: area)?|battle area)) and this card in your (battle area|drop area|hand) and send them both to (?:your|the|its owner'?s?|their owners?'?s?) warps?$/.exec(t))
+  ) {
+    // The first form names this card's place first, the second last.
+    const first = /^(?:choose and )?send both/.test(t);
+    const [ownText, count, desc] = first ? [m[1], m[2], m[3]] : [m[3], m[1], m[2]];
+    const chosen = refFor(`${/^\d+$/.test(count) ? count : "1"} ${desc}`, c);
+    if (!chosen || !("sel" in chosen) || chosen.sel.special || !["hand", "drop", "battle"].includes(chosen.sel.area ?? "") || chosen.sel.side !== "you" || chosen.sel.count !== 1 || chosen.sel.upTo) return null;
+    const own = ({ "battle area": "battle", "drop area": "drop", hand: "hand" } as const)[ownText as "battle area" | "drop area" | "hand"];
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { ...chosen.sel, notSelf: "card" }, as: v, reason: clause },
+      { op: "moveTo", target: { sel: { special: "self", area: own } }, to: "warp" },
+      { op: "moveTo", target: { var: v }, to: "warp" },
+    ];
+  }
+
+  // Paying energy in the middle of an effect: "you may **pay {u}{u}**. If you do,
+  // …" (BT12-042, BT13-057, P-459, P-389). 5-5-2-1 and 3-8-2 pay energy by
+  // switching that much of it to Rest Mode, and the coloured part of a price
+  // (`{u}`) can only be met by energy of that colour (1-2-2-2-1, 20-21). The
+  // engine's own payment planner is bound to a declared action and its payCost
+  // prompt, which cannot be asked from inside a resolving skill; what it *can*
+  // ask here is the program an action price is made of (20-14-1, BT8-051's
+  // mid-resolution price: a choice, then a switch), so the payment is that
+  // program — the player picks the Active Mode energy that is rested — wrapped
+  // in the offer by the caller. A price the player cannot meet (too little
+  // active energy of the colour) makes the offer impossible at its first step,
+  // so it is not made and "if you do" has nothing to follow (20-16-1).
+  // Only the price that is one colour or all generic is read: "{u}{1}" would need
+  // the coloured part set aside before the generic one is chosen, which a
+  // plain choice cannot promise; refused rather than half-paid. A payment that
+  // is not an offer ("pay {1}.", "the player must pay") is a different rule
+  // and is left unread.
+  if ((m = /^pay ((?:\{[rugykbw\d]+\})+)$/.exec(t)) && /^(?:you may|you can|the player may)\s/i.test(clause.trim())) {
+    const orbs = orbsIn(m[1]);
+    const kinds = Object.keys(orbs) as (keyof typeof orbs)[];
+    if (kinds.length !== 1) return null;
+    const kind = kinds[0];
+    const n = orbs[kind] ?? 0;
+    if (n < 1 || n > 12) return null;
+    const v = `c${c.n++}`;
+    const sel: Selector = { side: "you", area: "energy", mode: "active", count: n, ...(kind === "any" ? {} : { filter: { ...emptyFilter(), colors: [kind] } }) };
+    return [
+      { op: "choose", sel, as: v, reason: `pay ${m[1]}` },
+      { op: "switchMode", target: { var: v }, mode: "rest" },
+    ];
+  }
+
   // "…you add **this card in your hand** to your Z-Energy" (EX24-03): the card
   // is used from the hand (9-1-3-2; the official Q&A for the sister lines says
   // these only work from the hand), so the move names it. Said with "in" and
@@ -3233,6 +3339,13 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     ops: Op[];
     delay?: { at: DelayTiming; scope: DelayScope; label: string };
     /**
+     * Conditions that come *after* the timing phrase ("At the start of your next
+     * Main Phase, **if you don't have a Unison Card in play**, you may pay {u}"):
+     * they are asked when the delayed part runs, so they wrap its body inside the
+     * delay and not the delay itself (`conds` are checked as the skill resolves).
+     */
+    innerConds?: Cond[];
+    /**
      * Where the next clause is written, when it is not the group's own list:
      * an `if` a clause built for itself that the clauses after it belong
      * inside. `sinkCond` is what that branch asks, for an “otherwise”.
@@ -3554,6 +3667,24 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         host = last.ops;
         last = host[host.length - 1];
       }
+      // "At the start of your next Main Phase, **you may pay {u}{u}. If you
+      // do,** choose up to 1 … and play it" (BT12-042, BT13-057): a group that
+      // is a delayed program makes the offer inside the delay, and the answer
+      // it records (`did`, or the energy it chose) is bound there — the delayed
+      // frame has its own variables — so the follow-up is a branch of the same
+      // program, not a group beside it that would ask a frame that never saw
+      // the offer. A choice the offer itself made is read as the choice, the
+      // finer answer; otherwise it is the offer.
+      if (open.delay && last?.op === "may" && decided) {
+        const askedInside = decided.kind === "chose" && JSON.stringify(last.ops).includes(`"as":"${decided.var}"`);
+        if (decided.kind === "did" || askedInside) {
+          const branch: Op = { op: "if", cond: decided, then: [] };
+          host.push(branch);
+          open.sink = branch.then;
+          open.sinkCond = decided;
+          continue;
+        }
+      }
       if (decided?.kind === "chose" && last?.op === "if" && !last.else && last.cond.kind === "chose" && last.cond.var === decided.var) {
         open.sink = last.then;
         open.sinkCond = last.cond;
@@ -3750,10 +3881,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
     const open = groups[groups.length - 1];
-    const chaining = open.ops.length === 0 && open.conds.length > 0;
+    const chaining = open.ops.length === 0 && (open.conds.length > 0 || !!open.innerConds?.length);
     const cond = parseConditionClause(clause, chaining);
     if (cond) {
-      if (chaining) open.conds.push(cond.cond);
+      // The condition follows a timing phrase with nothing between them: it is
+      // the delayed part's own, asked when that part runs. Read as a group of
+      // its own it left the delay behind, and the effect happened at once
+      // (BT13-057's "At the start of your next Main Phase, if you don't have a
+      // Unison Card in play, you may pay {u}").
+      if (open.delay && open.ops.length === 0 && !open.sink) (open.innerConds ??= []).push(cond.cond);
+      else if (chaining) open.conds.push(cond.cond);
       else if (thenHere && open.conds.length && !open.delay) groups.push({ conds: [...open.conds, cond.cond], ops: [] });
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
@@ -3891,7 +4028,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       c.replacingOffered = false;
       if (held.length) got = [...held, ...got];
       const only = got.length === 1 ? got[0] : null;
-      const { from, by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo } = c.replacing;
+      const { from, by, bySide, subject, subjectSide, requestedTo, until, event: replaceEvent, to: lifeTo, lifeSelf } = c.replacing;
       c.replacing = null;
       // A redirect says where **the card itself** goes. The card is what the
       // opener bound, so the move's target must still be it: "place all the
@@ -3924,7 +4061,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // the other 46 leave it unapplied rather than half-running it.
       const filter = subject ? filterFor(subject, "battle") : undefined;
       if (filter !== null && substitutable(got)) {
-        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : undefined;
+        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : lifeSelf ? { sel: { special: "self" } } : undefined;
         // #272: "reveal it and add it to your hand instead" — the reveal is
         // what makes the arriving card's identity public (20-11-2), carried
         // onto the move as `faceUp` so it stays public once sitting in a
@@ -4035,6 +4172,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     if (!g.ops.length) continue;
     // Nest the conditions outermost-first, so all of them have to hold.
     let body = g.ops;
+    for (const cond of [...(g.innerConds ?? [])].reverse()) body = [{ op: "if", cond, then: body }];
     if (g.delay) body = [{ op: "delay", at: g.delay.at, scope: g.delay.scope, ops: body, label: g.delay.label }];
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);

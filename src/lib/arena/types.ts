@@ -1143,6 +1143,14 @@ export interface Replacement {
   kind?: "life" | "marker";
   /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
   lifeTo?: "hand" | "drop";
+  /**
+   * For `kind: "life"`: the rule is about the life card that *prints it* —
+   * "if you would reveal **this card** from your life to add it to your hand,
+   * you may … instead" (BT10-036, BT10-047) — so it answers only when that
+   * card is the one being taken, and is read while that card lies in the Life
+   * Area (9-1-3-3). Absent, the rule is about whichever life card is taken.
+   */
+  lifeSelf?: true;
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
   mode?: "active" | "rest";
   /** 9-10-3: the affected player may choose not to apply it. */
