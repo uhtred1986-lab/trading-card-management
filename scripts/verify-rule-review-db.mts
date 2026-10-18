@@ -24,7 +24,7 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   const card = (id: string, name: string, skill: string) => ({ id, setCode: "BT18", name, cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: `${id} ${name}`.toLowerCase(), skill });
   const KO = "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and KO it.";
   await db.insert(schema.cards).values([
-    card("BT18-780", "Open A", "[Auto] When this card attacks, you and your opponent compliment each other."),
+    card("BT18-780", "Open A", "[Auto] When this card attacks, you and your opponent shake hands on it."),
     card("BT18-781", "Open B", "[Auto] When you play this card, you and your opponent shake hands warmly."),
     card("BT18-782", "Open C", "[Main] Choose 1 of your opponent's Battle Cards with a cost of 4 or less and switch its position."),
     card("BT18-783", "Draft A", KO),
