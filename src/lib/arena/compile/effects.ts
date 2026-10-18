@@ -9,7 +9,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, SUM_UNREAD, filterFor, parseTarget, selfFrom } from "./targets";
+import { AREA_WORDS, EACH_COUNT, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -618,7 +618,7 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // in whole steps of 2, rounded down — `Amount`'s `per` (2 Oct 2026). The
   // step size is read off the front of the counted phrase in either form;
   // "for each 1 energy you have" is a step of 1, which is no step at all.
-  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?)\s*,\s*(.+)$/.exec(t);
+  const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?|(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+.+?)\s*,\s*(.+)$/.exec(t);
   const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
   const headSrc = lead ? lead[3] : m![1];
@@ -648,7 +648,17 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // card" and not the bare pronoun, and teaching it the pronoun would change
   // every clause that ends in "it"; here the phrase is already known to be
   // what is *counted*, so the reading is safe and stays local.
-  const sel = /^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(what) ?? energyYouHave(what));
+  // "For each card color in your Energy Area" (EX19-26): the colors, not the
+  // cards. Read first, because the noun is one `parseTarget` would not notice.
+  const colors = markersOn ? undefined : colorCountSelector(what);
+  if (colors === null) return null;
+  // The counted phrase has to end in something a count knows: a card, the
+  // energy, a token, a marker, or a name. `parseTarget` hands back the area of
+  // any phrase it can place, so "color", "energy cost" or "keyword skill" in
+  // front of an area read as the number of *cards* there (EX19-26 read "-2000
+  // power for each of your energy" for "each card color in your Energy Area").
+  if (colors === undefined && !markersOn && !countsCards(what)) return null;
+  const sel = colors ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(what) ?? energyYouHave(what)));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), count: 99, upTo: false };
@@ -673,6 +683,19 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
     swapped.target = { sel: { special: "self", area: "hand" } };
   }
   return [swapped, ...rest];
+}
+
+/**
+ * Does the phrase after "for each" count *things*: cards, energy, tokens,
+ * markers, or cards by name? Its head — the words before the first preposition
+ * or relative clause — must end in one of those nouns. "Color", "energy cost",
+ * "keyword skill" and "specified cost" are measures of a card, not cards, and
+ * the area after them is where `parseTarget` would stop reading.
+ */
+function countsCards(counted: string): boolean {
+  const head = counted.split(/\s+(?:in|on|among|under|placed|switched|with|you|they|from|that|by|of)\s/)[0].trim();
+  if (!head || /^(?:of|it)\b/.test(counted)) return true;
+  return /(?:\bcards?|\benergy|\bz-energy|\btokens?|\bextras?|\bunisons?|\bleaders?|\bmarkers?|[≫>])$/.test(head);
 }
 
 /**
@@ -939,7 +962,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // be a marker total glued onto an effect (`PURE_FOREACH_MARKERS_ON_SELF`,
     // reattached above), a failure to compile the effect refuses the whole
     // clause rather than exposing that leftover phrase to anything else.
-    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t) || /^for each of your\b[^,]*\btokens?\b[^,]*,/.test(t)) return null;
+    if (/^for (?:each|every) (?:\d+ )?markers? on this card\s*,/.test(t) || /^for each of your\b[^,]*\btokens?\b[^,]*,/.test(t) || LEADING_COLOR_COUNT.test(t)) return null;
   }
 
   // 20-13 (#278). "You skip your Offense Step" / "your opponent skips their
@@ -3271,6 +3294,9 @@ const PURE_DURATION =
 const PURE_FOREACH_MARKERS_ON_SELF = /^for (?:each|every) (?:\d+ )?markers? on this card[.,]?$/i;
 /** A token count leads the four BT23 hand reducers; never leave a flat discount behind. */
 const PURE_FOREACH_OWN_TOKENS = /^for each of your\b[^,]*\btokens?\b[^,]*[.,]?$/i;
+/** "For each card color in your Battle Area and Energy Area, this card gets +2000 power" (EX19-20, P-373, P-321): a color count leads the effect, comma-joined. */
+const PURE_FOREACH_COLORS = /^for (?:each|every) (?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+[^,]+[.,]?$/i;
+const LEADING_COLOR_COUNT = /^for (?:each|every) (?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+[^,]+,/i;
 /**
  * "…the next time you activate an [Activate] skill of your Leader during this
  * turn, reduce its skill cost by {b}" (BT31-096, BT31-092), "…the next time
@@ -3768,7 +3794,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // turn" — the reverse of a duration: the count leads the effect it
     // multiplies rather than trailing it, so it is reattached in front, not
     // behind, and `compileForEach` reads it out of the merged clause.
-    if ((PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) || PURE_FOREACH_OWN_TOKENS.test(clause.trim())) && i + 1 < clauses.length) {
+    if ((PURE_FOREACH_MARKERS_ON_SELF.test(clause.trim()) || PURE_FOREACH_OWN_TOKENS.test(clause.trim()) || PURE_FOREACH_COLORS.test(clause.trim())) && i + 1 < clauses.length) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }

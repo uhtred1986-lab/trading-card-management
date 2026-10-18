@@ -127,6 +127,51 @@ function saidTheShortWay(phrase: string): string {
     .replace(/\b(?:from )?among all (?:of )?(?:the )?cards (in|from) /gi, (_all, prep: string) => `${prep.toLowerCase()} `);
 }
 /** "…with energy costs that add up to (a total of) 4 or less": a bound on a sum of the chosen cards (see `saidTheShortWay`). */
+
+/**
+ * "…for each **card color in** your Energy Area" (EX19-26, EX19-20, EX19-23,
+ * P-373), "4 or more **colors among cards in** your energy" (BT16-016, P-393,
+ * SD21-01…): what is counted is the *colors* the cards have, not the cards.
+ * `parseTarget` takes any noun it does not know for the area it stands in
+ * ("frobnitz in your energy" is every card in the energy), so these read as
+ * "your energy" and counted cards — a count of 5 energy where the card says 2
+ * colors. A selector carrying `distinctColors` counts the different colors of
+ * the cards it finds (a multicolor card has each of its colors, 1-8-1-1).
+ *
+ * `undefined`: not a color count, read as before. `null`: a color count whose
+ * place or description cannot be read, so the clause is refused. Several
+ * places joined by a plain "and" ("in your Battle Area and Energy Area") are
+ * read here, because `parseTarget` keeps only one of them.
+ */
+const COLOR_WORD = /(?<![-\w])colou?rs?(?![-\w])/;
+const COLOR_COUNT = /^(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+(.+)$/;
+const OWNED_PLACES = /^(your opponent's|your|their)\s+(.+)$/;
+export function colorCountSelector(counted: string): Selector | null | undefined {
+  const t = counted.trim();
+  if (!COLOR_WORD.test(t)) return undefined;
+  const m = COLOR_COUNT.exec(t);
+  if (!m) return null;
+  // What the cards are ("mono-color cards", "≪God≫ cards"), then where.
+  let desc = "cards";
+  let where = m[1];
+  if (!OWNED_PLACES.test(where)) {
+    const split = /^(?:all )?(.+?) in (.+)$/.exec(where);
+    if (!split) return null;
+    desc = split[1];
+    where = split[2];
+  }
+  const tail = OWNED_PLACES.exec(where);
+  if (!tail) return null;
+  // "or" would be a choice of places, not a union; only "and" and a list are read.
+  if (/\bor\b/.test(tail[2])) return null;
+  const names = tail[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map((w) => w.trim()).filter(Boolean);
+  const noun = /\bcards?$/.test(desc) ? desc : `${desc} cards`;
+  const places = names.map((n) => parseTarget(`${noun} in ${tail[1]} ${n}`));
+  if (!places.length || places.some((p) => !p || p.special || p.areas)) return null;
+  const areas = places.map((p) => p!.area as ScriptArea);
+  if (new Set(areas).size !== areas.length) return null;
+  return { ...places[0]!, ...(areas.length > 1 ? { areas } : {}), distinctColors: true };
+}
 /** "Up to 1 (card) each of/from …": a count per area or per kind (see `parseTargetPhrase`). */
 export const EACH_COUNT = /\b\d+ (?:[a-z-]+ )*?(?:cards? )?each (?:of|from|in)\b/i;
 export const SUMMED_COUNT = /\b(?:costs?|power) (?:that |which )?adds? up to\b|\badds? up to (?:a total of )?\d+ or (?:less|more|fewer|greater)\b/i;
