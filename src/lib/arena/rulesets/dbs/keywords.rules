@@ -445,6 +445,15 @@ DEFINE KEYWORD Union
   -- deck into its owner's Drop") is paid where `payActionPrice` says, on the
   -- strict action-price host (#926); the move is offered only while it can
   -- be paid in full, and announced, its moments fired, once it is.
+  -- #929: the play is an activated skill with "play" in it, so the opponent's
+  -- [Counter: Play] is pending (22-10-3-1) at both counter timings the official
+  -- FAQ names (BT1-107 Q4/Q5/Q6, BT1-110 Q3/Q4/Q5): after the costs are paid
+  -- and before the card is placed (`counterWindow: true`), and again once it
+  -- is in play (`vm/host.ts`'s `playThen` opens the second for a `Union-*`
+  -- play). `using:` marks the play as this keyword's: the engine binds the
+  -- card, its host and its materials, and a card that fails to enter play
+  -- is placed in the Drop (22-13-4-5-1, 22-13-5-4-2), unless a counter's
+  -- "returned to its owner's hand instead of being played" took it.
   offer: "activate:main"
   REFUSE zone(area: battle) UNLESS any([NOT oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.battle) >= 1])
   REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
@@ -476,7 +485,7 @@ DEFINE KEYWORD Union
       -- 22-13-4-4-1 (#926): with the materials in the Drop, the rest of the
       -- skill cost — an action printed with the orbs, "draw 2 cards" — is paid.
       payActionPrice()
-      play(target: [self])
+      play(target: [self], using: "Union-Fusion", counterWindow: true)
     })
     if(cond: oneOf(value: $variant, of: ["Absorb"]), then: {
       -- 22-13-6-1 (#930): "cost : effect". The materials the cost places under
@@ -514,8 +523,7 @@ DEFINE KEYWORD Union
       -- Battle Area, and then resolve the keyword skill normally"; the move
       -- causes no area-movement Auto and no counter timing (`areaExtension`).
       moveTo(target: FROM $pair IN you.ANY(energy|warp), to: battle, cause: areaExtension)
-      play(target: [self], onto: $pairFirst)
-      moveTo(target: $pairRest, to: under, under: [self])
+      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, using: "Union-Potara", counterWindow: true)
     })
   }
 

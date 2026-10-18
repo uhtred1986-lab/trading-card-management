@@ -516,7 +516,7 @@
     {
       "name": "play",
       "class": "primitive",
-      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\",\"using\"?:\"Over Realm\"|\"Evolve\"|\"EX-Evolve\"|\"Xeno-Evolve\"}",
+      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\",\"using\"?:\"Over Realm\"|\"Evolve\"|\"EX-Evolve\"|…}",
       "fields": [
         {
           "name": "target",
@@ -538,6 +538,13 @@
           "name": "onto",
           "required": false,
           "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "alsoUnder",
+          "required": false,
+          "nullable": false,
+          "offCard": "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails",
           "type": "ref"
         },
         {
@@ -580,12 +587,15 @@
             "Over Realm",
             "Evolve",
             "EX-Evolve",
-            "Xeno-Evolve"
+            "Xeno-Evolve",
+            "Union-Fusion",
+            "Union-Potara",
+            "Union-Absorb"
           ]
         }
       ],
       "sentence": "play this card",
-      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5). \"using: Evolve/EX-Evolve/Xeno-Evolve\" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. \"using: Over Realm\" is that keyword's own play and marks its arrival (22-15)."
+      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5). \"using: Evolve/EX-Evolve/Xeno-Evolve\" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. \"using: Over Realm\" is that keyword's own play and marks its arrival (22-15). \"using: Union-Fusion/Union-Potara/Union-Absorb\" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; \"alsoUnder\" puts [Union-Potara]'s second material under the card as part of the play."
     },
     {
       "name": "switchMode",

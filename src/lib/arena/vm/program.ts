@@ -1224,7 +1224,7 @@ function specialCard(state: VmState, frame: ScriptFrame, special: NonNullable<Se
     // no rule reads `resolving` outside a [Counter: Play], so this engine
     // does not keep that half.
     case "resolving":
-      return state.resolving && !state.resolving.replaced ? state.resolving.card : null;
+      return state.resolving && !state.resolving.replaced && !state.resolving.landed ? state.resolving.card : null;
   }
 }
 

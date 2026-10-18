@@ -39,7 +39,11 @@ export function compileSkill(skill: Skill): Script {
   // part of that keyword skill. Preserve that cause on mode-switch events so
   // triggers requiring a non-[Awaken] skill cannot mistake it for an ordinary
   // effect (22-2, #571).
-  const caused = skill.keyword?.name === "Awaken" ? markSwitchesByAwaken(sc) : sc;
+  const awakened = skill.keyword?.name === "Awaken" ? markSwitchesByAwaken(sc) : sc;
+  // 22-13-6-3 (#929): a [Union-Absorb] line's "play … on top of this card" is
+  // the keyword's own play — it opens the [Counter: Play] timings and obeys
+  // the failed-entry rule, which a plain `play … onto` does not.
+  const caused = [skill.keyword, ...skill.tags.map(keywordOf)].some((k) => k?.name === "Union" && k.variant === "Absorb") ? markAbsorbPlays(awakened) : awakened;
   // A [Permanent] never resolves, so "for the turn" — the duration every
   // clause gets when it names none — was a lie on every op it emitted. The
   // static layer ignores `until`, so nothing played wrongly; but the stored
@@ -47,6 +51,25 @@ export function compileSkill(skill: Skill): Script {
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
   return skill.kind === "permanent" ? { ...caused, ops: holdForGame(caused.ops) } : caused;
+}
+
+/** Mark every `play … onto` an [Union-Absorb] effect makes as the keyword's own (22-13-6-3, #929). */
+function markAbsorbPlays(script: Script): Script {
+  const mark = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(mark);
+    if (!value || typeof value !== "object") return value;
+    const object = value as Record<string, unknown>;
+    if (object.op === "play" && object.onto && !object.using) return { ...object, using: "Union-Absorb", counterWindow: true };
+    let changed = false;
+    const next: Record<string, unknown> = {};
+    for (const [key, part] of Object.entries(object)) {
+      const mapped = mark(part);
+      next[key] = mapped;
+      changed ||= mapped !== part;
+    }
+    return changed ? next : value;
+  };
+  return { ...script, ops: mark(script.ops) as Op[] };
 }
 
 /** Apply a keyword cause through nested conditionals/choices, retaining any more specific cause already read on a switch. */
