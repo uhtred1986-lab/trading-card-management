@@ -170,7 +170,6 @@ const ops = (text: string): CostOp[] => {
   for (const text of [
     "[Permanent] For each marker on Unison Cards in play, reduce the energy cost of this card in your hand by 1.",
     "[permanent] For every 2 green Extras in your Battle Area and/or Drop, reduce the energy cost of this card in your hand by 1.",
-    "[Permanent] For each color among mono-color cards in your Drop Area and Warp, reduce the energy cost of this card in your hand by 1. (Black is a color.)",
     "[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)",
   ]) {
     const s = one(text);

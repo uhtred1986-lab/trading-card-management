@@ -31,7 +31,7 @@ function firstChoice(ops: Op[], ctx: EngineContext, game: GameDefinition, state:
 
 function safeSelector(sel: Selector): boolean {
   return !sel.special && !sel.fromVar && !sel.underHost && !sel.areas && !sel.sumAtMost
-    && !sel.printed && !sel.take && !sel.differentNames && !sel.notSelf && !sel.notIn
+    && !sel.printed && !sel.take && !sel.differentNames && !sel.distinctColors && !sel.notSelf && !sel.notIn
     && PUBLIC_AREAS.has(sel.area ?? "battle") && (sel.side === "you" || sel.side === "opponent");
 }
 

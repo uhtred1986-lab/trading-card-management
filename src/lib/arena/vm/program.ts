@@ -1393,7 +1393,7 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
 
 /** The cards a selector finds, counted as it says — by name under `differentNames` (BT18-104). */
 export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): number {
-  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id));
+  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id), (id) => list(attrsNow(ctx, game, state, id).colors).map(String));
 }
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
