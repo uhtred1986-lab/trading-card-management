@@ -64,7 +64,8 @@ for (const id of reducerIds) {
   assert.equal(price(), 4, `${id}: opponents, another token kind, and ordinary Earthlings excluded`);
   const own = make(s, "p1", "Earthling Token", 3);
   assert.equal(price(), 1, `${id}: three tokens reduce by three`);
-  assert.deepEqual(cardPrice(ctx, game, s, target), { total: 1, orbs: {} }, "ordinary cost layer applies total and specified reductions");
+  // FAQ Skills Q24: a Permanent reducing the energy cost by a number leaves the specified cost (#907).
+  assert.deepEqual(cardPrice(ctx, game, s, target), { total: 1, orbs: { Green: 1 } }, "ordinary cost layer applies the total reduction; the specified cost stays (FAQ Skills Q24)");
   s.cards[own[0]].mode = "rest";
   assert.equal(price(), 1, `${id}: Rest tokens still count`);
   moveCard(s, game, own[1], "combo");
@@ -78,10 +79,15 @@ for (const id of reducerIds) {
   assert.equal(view.you.battle.find((c) => c.id === own[0])?.mode, "rest");
   assert.equal(view.you.battle.find((c) => c.id === own[0])?.power, 1000);
   make(s, "p1", "Earthling Token", 5);
-  assert.equal(price(), 0, `${id}: standard cost floor`);
+  // 1-2-2-1 and FAQ Skills Q24 (#907): the total never falls under the specified cost that remains, and a number
+  // does not reduce the specified cost - so the floor is the one green orb, not zero.
+  assert.equal(price(), 1, `${id}: floor at the specified cost that remains`);
+  assert.deepEqual(cardPrice(ctx, game, s, target), { total: 1, orbs: { Green: 1 } }, `${id}: the green requirement stays`);
   if (id !== "BT23-096") {
+    DEFS["R919-GREEN"] = card("R919-GREEN", { colors: ["Green"] });
+    moveCard(s, game, stageOnRules(s, "p1", "R919-GREEN", "battle"), "energy");
     const option = RULES.legalActions(ctx, s).find((entry) => entry.action.type === "play" && entry.action.card === target);
-    assert.ok(option, `${id}: legal with zero energy after reduction`);
+    assert.ok(option, `${id}: legal with the one green energy it still demands`);
     const played = RULES.apply(ctx, s, option.action).state as VmState;
     assert.ok(played.sides.p1.zones.battle.includes(target), `${id}: actual play pays reduced cost`);
   }
@@ -176,10 +182,13 @@ for (const id of ["BT23-074", "BT23-087", "BT23-088"]) {
   let s = fresh();
   const extra = stageOnRules(s, "p2", "BT23-096", "hand");
   make(s, "p2", "Earthling Token", 4);
+  // The green specified cost stays (FAQ Skills Q24), so the counter wants one green energy.
+  DEFS["R919-GREEN"] = card("R919-GREEN", { colors: ["Green"] });
+  moveCard(s, game, stageOnRules(s, "p2", "R919-GREEN", "battle"), "energy");
   const attacker = stageOnRules(s, "p1", "V1", "battle");
   s = RULES.apply(ctx, s, { type: "attack", player: "p1", attacker, target: s.sides.p2.zones.leader[0] }).state as VmState;
   const counter = RULES.legalActions(ctx, s).find((entry) => entry.action.type === "counter" && entry.action.card === extra);
-  assert.ok(counter, "Surprise Attack Counter is payable with no energy and four tokens");
+  assert.ok(counter, "Surprise Attack Counter is payable with one green energy and four tokens");
   s = RULES.apply(ctx, s, counter.action).state as VmState;
   assert.ok(s.sides.p2.zones.drop.includes(extra), "Counter paid the reduced cost and activated");
 }

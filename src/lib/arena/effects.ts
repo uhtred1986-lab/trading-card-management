@@ -55,6 +55,8 @@ export interface StaticEffect {
     | { what: SkipWhat; player: PlayerId };
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
+  /** `skillCost`/`evolveCost`: the keyword skill the change is about, lower-case (see `ContinuousEffect.tag`). */
+  tag?: string;
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
   /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */

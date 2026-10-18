@@ -293,11 +293,16 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "During your turn" is a condition too, and reads as one everywhere else in
   // the text. The delay phrases ("during your opponent's *next* turn") are
   // matched before this is reached, so they are not caught here.
-  const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "");
+  // "If your have 2 or more ≪Saiyan≫ cards in your Warp" (BT27-015) is a misprint of "you".
+  const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "").replace(/^your have /, "you have ");
   // "if your Leader Card is yellow and your life is at 4 or less" splits on the
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
+  // single name would be read without the part the chain split off. A pair of names is whole in itself.
+  const shaped = costConditionShape(t, allowBare);
+  if (shaped !== undefined) return shaped;
   // "If your Leader is a green <Broly> card **and** you have 2 or more
   // energy" — two conditions in one price. Every pattern below has a greedy
   // tail that would swallow the second and drop it in silence, which is worse
@@ -692,6 +697,57 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return conds.every((x) => x) ? { cond: { kind: "all", conds: conds as Cond[] } } : null;
   }
   return null;
+}
+
+/**
+ * The condition wordings the cost reducers of the early sets gate on (#907):
+ * - "If a ≪Bardock's Crew≫ card is in your Drop Area", "If {A King's Return to
+ *   Youth} is in your Drop Area", "if <Son Goten> and <Trunks: Youth> cards are in
+ *   play in your Battle Area" - the existence of cards in one place, said with
+ *   "is in" rather than "you have" (and "X and Y" is both, each on its own).
+ * - "If you or your opponent have a skill-less Battle Card in play", "...have 3
+ *   or more cards in their Warp" - either player, each judged on their own.
+ * - "If the total number of cards in you and your opponent's Warps is 7 or
+ *   more" - one count across both players' cards.
+ * - "If there are 6 cards or more in both your Energy Area and your opponent's
+ *   Energy Area" - the count for each of the two.
+ * `undefined` when the text is none of these; `null` when it is but cannot be read.
+ */
+function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | undefined {
+  let m: RegExpExecArray | null;
+  const count = (n: string, dir: string) => (/more/.test(dir) ? { atLeast: Number(n) } : { atMost: Number(n) });
+  if (!bare && (m = /^the total number of cards in you and your opponent's (warp|drop area|hand|energy area)s? is (\d+) or (more|less|fewer)$/.exec(t))) {
+    const sel = parseTarget(`cards in each player's ${m[1]}`);
+    if (!sel || sel.special) return null;
+    delete sel.count;
+    delete sel.upTo;
+    return { cond: { kind: "count", sel: { ...sel, side: "both" }, ...count(m[2], m[3]) } };
+  }
+  if (!bare && (m = /^you or your opponent have (.+)$/.exec(t))) {
+    const own = parseCountCondition(`you have ${m[1].replace(/\bin their\b/g, "in your")}`);
+    const theirs = parseCountCondition(`your opponent has ${m[1]}`);
+    return own && theirs ? { cond: { kind: "any", conds: [own, theirs] } } : null;
+  }
+  if (!bare && (m = /^there are (\d+) cards? or (more|less|fewer) in both your (energy area) and your opponent's energy area$/.exec(t))) {
+    const mine = parseCountCondition(`there are ${m[1]} or ${m[2]} cards in your ${m[3]}`);
+    const theirs = parseCountCondition(`there are ${m[1]} or ${m[2]} cards in your opponent's ${m[3]}`);
+    return mine && theirs ? { cond: { kind: "all", conds: [mine, theirs] } } : null;
+  }
+  // One bracketed name or two joined by "and" (a ≪trait≫, a <character> or a {card name}); anything
+  // wider ("a Battle Card with 20000 power or more is in ...", "X or Y cards are in ...") is the
+  // ordinary conditions' business and is left to them.
+  const NAME = "(?:[{<≪][^}>≫]+[}>≫])(?: cards?)?";
+  if ((m = new RegExp(`^(?:an? )?(${NAME}(?: and ${NAME})?) (is|are) in (play in )?(your (?:drop area|warp|hand|energy area|life area|z-deck|battle area|combo area))$`).exec(t))) {
+    const two = / and /.test(m[1]);
+    if (bare && !two) return undefined;
+    // "is in play in your Battle Area" with one name is read by the ordinary rule; the pair is not.
+    if (m[3] && !two) return undefined;
+    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/cards?$/.test(one) ? `${one} card` : one));
+    const conds = names.map((one) => parseCountCondition(`you have ${/s$/.test(one) ? "" : "a "}${one} in ${m![4]}`));
+    if (conds.some((x) => !x)) return null;
+    return { cond: conds.length === 1 ? conds[0]! : { kind: "all", conds: conds as Cond[] } };
+  }
+  return undefined;
 }
 
 /**

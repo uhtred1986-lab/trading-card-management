@@ -200,11 +200,12 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     addEffect: (e) => {
       if (e.kind === "power" && (!e.target || !poweredPrice(e.target))) unpaid();
       const before = state.effects.length;
-      host.addEffect(e);
+      const made = host.addEffect(e);
       if (e.kind === "forbid" && state.effects.length !== before + 1) unpaid();
       // The power change must be in force on the card afterwards (5-8-2-2).
       if (e.kind === "power" && (state.effects.length !== before + 1
         || !state.effects.some((x) => x.kind === "power" && x.target === e.target && x.value === e.value && x.until === e.until))) unpaid();
+      return made;
     },
     // 3-1-4-3: "with its skills negated" is part of the combo action; the
     // negation must actually stand on the card.
