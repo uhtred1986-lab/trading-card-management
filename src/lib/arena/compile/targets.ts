@@ -615,7 +615,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
 
   // "Your opponent's Battle Cards or Unisons" names two areas at once, which
   // is the one such phrase the game prints often enough to be worth reading.
-  const bothAreas = /\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
+  // "Your opponent's **Leaders or Battle Cards**" (BT24-130, #1005) is the same
+  // thing across the Leader Area and the Battle Area; read as the Battle Area
+  // alone the Leader could never be chosen.
+  const leaderOrBattle = /\bleaders?(?: cards?)?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b|\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bleaders?(?: cards?)?\b/.test(t) && !/\bunisons?\b/.test(t);
+  const bothAreas = leaderOrBattle || /\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
 
   // "…from your deck or Drop Area", "…in your hand or Warp": a second area
   // joined by "or". `AREA_WORDS` is first-match-wins, so the second one was
@@ -819,7 +823,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, ...floor, mode, hidden, notSelf };
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, ...floor, mode, hidden, notSelf };
-  if (bothAreas) return { side, area: "battle", areas: ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  if (bothAreas) return { side, area: leaderOrBattle ? "leader" : "battle", areas: leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };

@@ -1,6 +1,6 @@
 import { keywordOf, orbsIn } from "../text/cards";
 import { playTaxWording } from "../text/play-tax";
-import { emptyFilter, parseFilter } from "../text/filters";
+import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
 import type { DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
@@ -152,6 +152,11 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
   const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
+  // "The card this card attacked" (BT19-035b, #1005): the pronoun is the
+  // subject of a relative clause, and the phrase names the other end of the
+  // battle. The mention test below took it for "this card".
+  if (/^\s*(?:the |that )?(?:battle |leader |unison )?cards? (?:that )?this card (?:attacked|is attacking|has attacked)\s*$/i.test(mentions)) return { sel: { special: "guard" } };
+  if (/^\s*(?:the |that )?(?:battle |leader |unison )?cards? that (?:attacked|is attacking|has attacked) this card\s*$/i.test(mentions)) return { sel: { special: "attacker" } };
   // 9-1-3-2: "play this card from your hand" keeps the area it names (`selfFrom`).
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: selfFrom(mentions) };
   // "…play up to 1 card from under this card, and place this card under the
@@ -529,6 +534,12 @@ function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScop
   if (!best) return null;
   const head = best.m[1].trim();
   if (!head || /\b(?:until|through|for|by)$/.test(head)) return null;
+  // The other end of a battle is only there while the battle is: a card named
+  // by "the card this card attacked" (BT19-035b, #1005) cannot be looked up
+  // when the delay runs at the opponent's next turn, so the sentence stays a
+  // duration (`durationOf` reads the same words as "until the end of your
+  // opponent's turn") bound to the card now.
+  if (/\bthis card (?:attacked|is attacking|has attacked)\b|\battacked this card\b|\bthe (?:guard|attack(?:ing)?) card\b/.test(head)) return null;
   return { at: best.at, scope: best.scope, label: best.m[0].slice(head.length).trim(), head };
 }
 
@@ -2760,9 +2771,93 @@ function compileImmunity(t: string, c: Ctx): Op[] | null {
  * Only actions the engine actually checks are compiled; anything else is left
  * unread, because a prohibition nothing enforces is worse than an honest gap.
  */
+/** A span printed after an attack's object. Not a bare "for": a name can hold it ("{Krillin, Concerned for a God}"). */
+const DURATION_AFTER_OBJECT = /\s+(?:for (?:the|this|that) (?:turn|battle|game|duration)\b|during\b|until\b).*$/;
+const DEFENDER_TYPES =["LEADER", "BATTLE", "UNISON"] as const;
+const TYPE_WORD = /^(?:(?:your|their|the|an?)\s+)?(?:(leader|battle|unison)(?: cards?)?|(leaders|unisons))$/;
+const typeOfWord = (w: string): "LEADER" | "BATTLE" | "UNISON" | null => {
+  const m = TYPE_WORD.exec(w.trim());
+  const word = m ? (m[1] ?? m[2]) : null;
+  return word === "leader" || word === "leaders" ? "LEADER" : word === "battle" ? "BATTLE" : word === "unison" || word === "unisons" ? "UNISON" : null;
+};
+
+/**
+ * Which cards a rule about **attacks** is about, as a filter on a card that
+ * can be the attacker or the defender (#1005). Those are three kinds only — a
+ * Leader, a Battle Card, a Unison (8-1-1) — so a list of them ("Leader Cards
+ * or Unison Cards", "Battle Cards and Unisons") is the third kind turned
+ * round (`notType`), which is exact and needs no union in the filter.
+ *
+ * `null` means the description cannot be said whole and the clause must stay
+ * unread; the rule would otherwise forbid more attacks than the card names.
+ */
+function attackSideFilter(said: string): CardFilter | null {
+  let text = said.trim().replace(DURATION_AFTER_OBJECT, "").replace(/^(?:your opponent'?s|your|their|the|an?)\s+/, "");
+  // "{Krillin, Concerned for a God} card **in a Unison Area**" (BT31-037): the
+  // area says the card is a Unison, which is the only card that stands there.
+  const inUnisonArea = /\s+in an? unison area$/.test(text);
+  if (inUnisonArea) text = text.replace(/\s+in an? unison area$/, "");
+  // A name can hold a comma ("{Krillin, Concerned for a God}"): such a
+  // description is one filter, never a list of kinds.
+  const parts = /[{<≪]/.test(text) ? [text] : text.split(/\s*(?:,\s*|\s+(?:or|and)\s+)\s*/).filter(Boolean);
+  const kinds = parts.map(typeOfWord);
+  if (parts.length > 1 && kinds.every((k) => k)) {
+    const wanted = new Set(kinds as ("LEADER" | "BATTLE" | "UNISON")[]);
+    if (wanted.size === 3) return null;
+    if (wanted.size === 1) return { ...parseFilter(""), type: [...wanted][0] };
+    const left = DEFENDER_TYPES.filter((k) => !wanted.has(k));
+    return { ...parseFilter(""), notType: left[0] };
+  }
+  const filter = filterFor(text, null);
+  if (!filter) return null;
+  // A word the filter did not take would widen the rule ("…Unisons with
+  // exactly 3 colours"): refuse the whole description.
+  if (unreadFilterWords(text, filter).length) return null;
+  const narrowed = inUnisonArea ? { ...filter, type: "UNISON" as const } : filter;
+  const typed = narrowed.type || narrowed.notType || narrowed.names.length || narrowed.traits.length || narrowed.characters.length;
+  return typed ? narrowed : null;
+}
+
+/** The part of "attack <defender> [with <attackers>]" after the verb, split into who is attacked and who attacks. */
+function attackObjects(objectSaid: string): { defender: CardFilter | undefined; attacker: CardFilter | undefined } | null {
+  const object = objectSaid.trim().replace(DURATION_AFTER_OBJECT, "");
+  const withAt = object.search(/\bwith\b/);
+  if (/^with\b/.test(object)) {
+    const attacker = attackSideFilter(object.slice(4));
+    return attacker ? { defender: undefined, attacker } : null;
+  }
+  if (withAt > 0) {
+    const head = object.slice(0, withAt).trim();
+    const tail = object.slice(withAt + 4).trim();
+    // "attack your Leader **with Battle Cards**": the tail names who attacks.
+    // Anything else after "with" — "your Unisons **with specified costs of
+    // 2**" (EX21-11) — describes the defender and stays with it.
+    const tailKinds = tail.split(/\s*(?:,\s*|\s+(?:or|and)\s+)\s*/).map(typeOfWord);
+    if (tailKinds.length && tailKinds.every((k) => k)) {
+      const defender = attackSideFilter(head);
+      const attacker = attackSideFilter(tail);
+      return defender && attacker ? { defender, attacker } : null;
+    }
+  }
+  const defender = attackSideFilter(object);
+  return defender ? { defender, attacker: undefined } : null;
+}
+
 function compileProhibition(t: string, c: Ctx): Op[] | null {
   const until = durationOf(t);
   const q = stripQualifiers(t);
+  // "Your opponent can only attack **this card**" (DB2-068), "your opponent's
+  // Battle Cards can only attack this card" (TB1-035; #1005): every attack of
+  // those attackers is forbidden except against this card. Only this card is
+  // read — "copies of this card" (P-230) is a name the rule would need to
+  // resolve against each defender, and stays unread.
+  const onlyThis = /^(your opponent|your opponent'?s [^,]+?)\s+can only attack this card(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  if (onlyThis) {
+    const self: Ref = { sel: { special: "self" } };
+    if (onlyThis[1] === "your opponent") return [{ op: "forbid", what: "attack", side: "opponent", until, attackOnly: self }];
+    const target = refFor(onlyThis[1], c);
+    return target ? [{ op: "forbid", what: "attack", until, target, attackOnly: self }] : null;
+  }
   const counted = /^(you|your opponent'?s?)\s+can only attack one more time(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
@@ -2777,8 +2872,40 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // it is about in the clause before it. Fifteen clauses.
   const m = /^(.*?)\s*(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
   if (!m) return null;
-  const subject = m[1].trim();
-  const rest0 = m[2].trim();
+  let subject = m[1].trim();
+  let rest0 = m[2].trim();
+  // "Your opponent's Battle Cards and Unisons can't attack for the turn **if
+  // they have 25000 power or more**" (BT22-138, #1005): a description of the
+  // cards the rule is about, said after the verb. Folded back into the subject
+  // — it used to be dropped, which banned every attacker. Any other "if" after
+  // an attack prohibition is a condition this reader does not take, and the
+  // clause stays unread rather than becoming a wider ban.
+  // "This card can't attack **if it has 3 or fewer markers on it**" (BT11-154,
+  // BT12-124, DB3-103, DB3-139, EX15-05, #1005): a condition on this card, which
+  // is the same sentence the other markers cards print up front. The rule is
+  // read without it and put under the condition the leading form reads.
+  const selfIf = /^(this card|it)?\s*$/.test(subject) && /^attack(?:\s+(?:for|during|until)\b.*?)?\s+if (?:it|this card) (?:has|have) (.+)$/.exec(rest0);
+  if (selfIf) {
+    const cond = parseConditionClause(`if this card has ${selfIf[1].trim()}`, true);
+    const rule = cond ? compileProhibition(t.replace(/\s+if (?:it|this card) (?:has|have) .+$/, ""), c) : null;
+    return cond && rule ? [{ op: "if", cond: cond.cond, then: rule }] : null;
+  }
+  if (/^attack\b/.test(rest0) && /\sif\s/.test(rest0)) {
+    // Only "they have": the plural pronoun is the set of cards the subject names.
+    // "…if **it** has 2 or fewer markers" (BT11-154, DB3-103 …) is a condition
+    // on one card — the subject here would drop it — and stays unread.
+    const ifTail = /^(attack\b.*?)\s+if they have (.+)$/.exec(rest0);
+    if (!ifTail || /^you$|^your opponent$/.test(subject) || /\bthis card\b|^it$|^that card$/.test(subject) || /\bif\b/.test(ifTail[1])) return null;
+    subject = `${subject} with ${ifTail[2]}`;
+    rest0 = ifTail[1];
+  }
+  // P-299 (#1005): "Battle Cards with energy costs **greater than or equal to
+  // their current energy** can't attack Leader Cards". The comparison is a
+  // measure the selector cannot say, and "their … energy" is not an area —
+  // read as one it was the Energy Area, so the rule was about no card at all.
+  // (The same words in a *choose* are read that way across the catalog; that
+  // is a separate gap, listed in #1005's PR.)
+  if (/\b(?:greater|more|higher|less|lower|fewer)\s+than(?:\s+or\s+equal\s+to)?\s+(?:your|their)\s+(?:current\s+)?energy\b/.test(subject)) return null;
   const unlessTail = /\s+unless\s+(.+)$/.exec(rest0);
   const unlessPlayBySkill = !!unlessTail && /^(?:it is |it's )?played by (?:card )?skills?$/.test(unlessTail[1].trim());
   // 20-14-1: "…unless your opponent sends 2 cards from their hand to their
@@ -2886,7 +3013,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // the deck it is given, so the clause is read and does nothing.
   if (/^include\b/.test(rest)) return [];
 
-  const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : null;
+  // "Players can't attack with Battle Cards with energy costs of 1" (P-074,
+  // #1005): both of them, which is what an absent `side` has always meant.
+  const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : /^players$/.test(subject) && /^attack\b/.test(rest) ? "both" : null;
 
   // A sentence about a player: what follows names the cards it is about.
   if (side) {
@@ -2907,18 +3036,19 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     if (/^attack\b/.test(rest)) {
       // "attack this card" is about the defender, not the attacker.
       if (/^attack (?:this card|it)\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target: { sel: { special: "self" } }, ...withUnless }];
-      // "Your opponent can't attack **your Unisons with** specified costs of 2"
-      // (EX21-11, #728): the "with" describes the cards attacked, not the
-      // attackers. Read below it forbade the attackers instead — and, while
-      // the measure was unreadable, every attack. Left to the referee.
-      if (/^attack your .+ with (?:an? )?specified costs?\b/.test(rest)) return null;
-      const withWhat = /\bwith (.*)$/.exec(rest)?.[1];
-      const filter = withWhat ? filterFor(withWhat, null) : undefined;
-      // Same again: an unread description would forbid every attack rather
-      // than the ones the card names.
-      if (filter === null) return null;
-      const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
-      return [{ op: "forbid", what: "attack", side, until, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined, ...withUnless }];
+      // A bare "can't attack" bans every attack of the player's.
+      if (/^attack(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "attack", side, until, ...withUnless }];
+      // What follows the verb is the **defender** ("your Leader", "Leader
+      // Cards or Unison Cards", EX21-11's "your Unisons with specified costs
+      // of 2", #728), the **attackers** ("with Battle Cards"), or both ("your
+      // Leader with Battle Cards", BT18-098) — #1005. Read as one description
+      // it forbade the attackers instead of the defenders, and a bare
+      // "can't attack" for every wording it could not place: the cards that
+      // print "can't attack your Leader" banned every attack the player had.
+      // A description the filter cannot say whole stays unread.
+      const objects = attackObjects(rest.replace(/^attack\s+/, ""));
+      if (!objects) return null;
+      return [{ op: "forbid", what: "attack", side, until, ...(objects.attacker ? { filter: objects.attacker } : {}), ...(objects.defender ? { attackTarget: objects.defender } : {}), ...withUnless }];
     }
     if (/^activate\b/.test(rest) && /\[counter/.test(rest)) {
       // #716: "the [Counter: Play] skills of other cards for the turn"
@@ -2998,9 +3128,11 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     if (/^attack(?:$| (?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
     const object = /^attack (.+?)(?= (?:for|during|until)\b|$)/.exec(rest)?.[1];
     if (!object || !/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) return null;
-    const attackTarget = filterFor(object, null);
-    if (!attackTarget) return null;
-    return [{ op: "forbid", what: "attack", until, target, attackTarget, ...withUnless }];
+    // "…can't attack Leader Cards **or Unison Cards**" is two kinds, which
+    // `filterFor` alone reads as the first and a bare "cards" as none (#1005).
+    const objects = attackObjects(object);
+    if (!objects?.defender || objects.attacker) return null;
+    return [{ op: "forbid", what: "attack", until, target, attackTarget: objects.defender, ...withUnless }];
   }
   // "It can't activate skills" (BT29-041): the card's own [Activate] and
   // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that

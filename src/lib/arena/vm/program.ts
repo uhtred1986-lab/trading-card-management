@@ -973,6 +973,10 @@ function ruleApplies(
   // Only declaration callers supply this context; Blocker redirects do not.
   if (f.attackTarget && opts.attackTarget && state.cards[opts.attackTarget] &&
       !predicateOf(f.attackTarget, game)(attrsNow(ctx, game, state, opts.attackTarget))) return false;
+  // "…can only attack this card" (#1005): the named cards are the one defender
+  // this rule lets through. Asked with no defender it applies — nothing proves
+  // the attacker has the one it is allowed.
+  if (f.attackOnly && opts.attackTarget && f.attackOnly.includes(opts.attackTarget)) return false;
   // #677, 12-1-3: "activating an Extra Card" is an [Activate] or [Counter]
   // skill of one used from the hand (BT10-097) — the area it was used from,
   // which the caller names once the card has gone on to the Drop (12-2-2-2).

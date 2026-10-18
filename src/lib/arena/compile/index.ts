@@ -3,6 +3,7 @@ import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, played
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
+import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
@@ -493,9 +494,17 @@ function compileSkillText(skill: Skill): Script {
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
     // is a condition on the card being attacked. Dropped with the trigger, the
     // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
-    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b/i.exec(trigger.trim());
-    if (attacking)
-      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent" }, role: "guard" };
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b(.*)$/i.exec(trigger.trim());
+    if (attacking) {
+      // "…a Battle Card **with an energy cost of 8 or more**" (BT19-035b,
+      // #1005): the tail describes the card attacked. Dropped, the skill fired
+      // on every attack at a Battle Card; a tail the filter cannot read refuses
+      // the skill rather than widening it.
+      const tail = attacking[2].trim().replace(/[.,]$/, "");
+      const guardFilter = tail ? filterFor(`${attacking[1]} card ${tail}`, null) : undefined;
+      if (tail && (!guardFilter || !/^with\b/i.test(tail) || unreadFilterWords(tail, guardFilter).length)) return { ops: [], unsupported: [trigger, ...clauses] };
+      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
+    }
     if (/\bthis card\b/i.test(trigger)) c.lastTarget = { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
