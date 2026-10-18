@@ -491,7 +491,9 @@ function parseWouldLoseMarker(clause: string): boolean {
 const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
   [/at (?:the )?end of your next turn/, "turnEnd", "yourNextTurn"],
   [/at (?:the )?end of your opponent's (?:next )?turn/, "turnEnd", "opponentNextTurn"],
-  [/at (?:the )?end of (?:this |the |your )?turn/, "turnEnd", "thisTurn"],
+  // "At the end of **that** turn" (BT2-036, BT6-121) names the turn the skill
+  // is resolving in, which is this one: the same timing with a pronoun.
+  [/at (?:the )?end of (?:this |that |the |your )?turn/, "turnEnd", "thisTurn"],
   [/at (?:the )?end of (?:this|the) battle/, "battleEnd", "thisTurn"],
   [/at the (?:start|beginning) of your next main phase/, "mainStart", "yourNextTurn"],
   [/at the (?:start|beginning) of your opponent's next main phase/, "mainStart", "opponentNextTurn"],
@@ -4298,7 +4300,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // switching its own [Permanent] off for the turn (`negateOwnSkill`), which
     // is exactly "once per turn" for a standing rule.
     const oncePerTurn = !!c.replacing && /^once per turn,?\s+/i.test(unbounded.trim());
-    const said = oncePerTurn ? unbounded.trim().replace(/^once per turn,?\s+/i, "") : unbounded;
+    const saidWhole = oncePerTurn ? unbounded.trim().replace(/^once per turn,?\s+/i, "") : unbounded;
+    // "Choose 1 of your and your opponent's Battle Cards **ignoring [Barrier]**
+    // . Then …" (TB3-066, TB3-068, BT8-122): printed inside the choosing
+    // clause with no comma to cut it off as its own, which is how the sets
+    // that print it as ", ignoring [Barrier], and KO it" are read above. The
+    // words come off the description (they would otherwise be the end of a
+    // card description no filter reads) and mark the choice they ended.
+    const inlineIgnoresBarrier = /\S\s+ignoring \[barrier\]/i.test(saidWhole);
+    const said = inlineIgnoresBarrier ? saidWhole.replace(/\s+ignoring \[barrier\]/i, "") : saidWhole;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
     // their answer. `compileClause` strips "you may" so every pattern sees a
@@ -4355,6 +4365,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // belt and braces, not reached by any card in the catalog today.
     if (got && i + 1 < clauses.length && /^\(up to \d+\)\.?$/i.test(clauses[i + 1].trim()) && got.some((o) => o.op === "costReduction")) {
       got = null;
+    }
+    if (got && inlineIgnoresBarrier) {
+      const marked = got.filter((o) => o.op === "choose" || (o.op === "may" && o.ops.some((m) => m.op === "choose")));
+      // Words that end no choice in this clause are not dropped silently.
+      if (!marked.length) got = null;
+      for (const o of marked) {
+        if (o.op === "choose") o.sel.ignoreBarrier = true;
+        else if (o.op === "may") for (const m of o.ops) if (m.op === "choose") m.sel.ignoreBarrier = true;
+      }
     }
     if (!got) {
       if (c.replacing) {

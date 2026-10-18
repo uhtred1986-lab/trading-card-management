@@ -7,7 +7,7 @@ import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
-import { aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
+import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -642,7 +642,11 @@ function compileSkillText(skill: Skill): Script {
   if (priceCond) return { ops: [{ op: "if", cond: priceCond.cond, then: effectTriggerCond ? [{ op: "if", cond: effectTriggerCond, then: ops }] : ops }], unsupported };
   // A condition the compiler cannot read fails the skill. An *action* price is
   // not this: the engine charges that separately, so it leaves the program be.
-  if (ops.length && !engineChecks && /^(?:if|when|while|during)\b/i.test(priced)) {
+  // "If you discard 1 card from your hand:" (BT22-054b) is an action price
+  // whose only condition word is the "if" (`readPrice`): it read as an action,
+  // so there is no condition left unread.
+  const ifThenAction = IF_YOU_DISCARD_PRICE.test(priced) &&!priceCond && !!compileCostProgram(skill);
+  if (ops.length && !engineChecks && !ifThenAction && /^(?:if|when|while|during)\b/i.test(priced)) {
     return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }
   if (ops.length && effectTriggerCond) return { ops: [{ op: "if", cond: effectTriggerCond, then: ops }], unsupported };

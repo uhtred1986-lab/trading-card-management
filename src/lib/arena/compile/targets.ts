@@ -1,4 +1,4 @@
-import { ENERGY_BOUND, emptyFilter, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
+import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -899,7 +899,12 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // A trigger whose subject description cannot be read is left unfiltered
   // rather than failed: an over-fire is bad, a filter that stops a skill that
   // should happen is worse (ground rule 6).
-  return filterFor(description.toLowerCase(), null) ?? undefined;
+  // A cost measured against the energy count (BT12-132, BT17-124 …) is a
+  // measure no filter carries; it used to ride through as words `parseFilter`
+  // ignored. It is still left out here, so the subject keeps being the kind of
+  // card it was and the skill still fires — now said, not by accident.
+  const withoutEnergyBound = description.toLowerCase().replace(new RegExp(`\\s*(?:with\\s+)?(?:an?\\s+)?${ENERGY_COST_VS_ENERGY.source}`, "g"), "");
+  return filterFor(withoutEnergyBound, null) ?? undefined;
 }
 
 

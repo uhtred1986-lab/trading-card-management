@@ -344,6 +344,11 @@ const CHOOSE_FIELDS: OpField[] = [
         offCard: "picks one card at a time for the characters the keyword line prints in ‹…› — one card per name, all of one printed power — offering only the cards that still leave a complete set; binds the picks to `as` and those that stood outside the hand to `<as>Outside` — [Union-Fusion] (22-13-4-2)",
       },
       {
+        name: "anyPower",
+        type: "boolean",
+        offCard: "with namedSet: the named cards need not share a power — [Union-Potara] (22-13-5-2), which asks only for one Battle Card of each specified character; left out the set is of one printed power, as [Union-Fusion] needs (22-13-4-2)",
+      },
+      {
         name: "blind",
         type: "boolean",
         offCard: "the candidates are cards the chooser may not read (the opponent's hand), so asking reveals none of them: they are offered by position only — [Aegis]'s alternative payment (BT22-140)",
@@ -2515,7 +2520,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   const host = sel.underHost ? describeUnderHost(sel.underHost) : null;
   const where = sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
   const mode = describeMode(sel);
-  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel);
+  // 22-16-2: a choice that reaches past [Barrier] says so, or the reading of "ignoring [Barrier]" is the same words as a choice that does not.
+  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel) + (sel.ignoreBarrier ? " ignoring [Barrier]" : "");
 }
 
 function describeUnderHost(sel: Selector): string {

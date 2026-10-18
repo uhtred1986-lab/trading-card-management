@@ -308,6 +308,15 @@ function priceText(skill: Skill): string {
  * line is unread, whole. Lines a keyword owns (their price is read by the
  * keyword's own move) and [Permanent]s (no price) are not asked.
  */
+/**
+ * The one "If you …:" price read as the action it names: a discard from the
+ * hand. Narrow on purpose: other "If you place/add/switch …:" prices would
+ * expose effect readings nobody has signed off (BT21-103's "play this card
+ * under a yellow <Whis> Z-Battle Card" reads as a plain play), and each is its
+ * own wording to check.
+ */
+export const IF_YOU_DISCARD_PRICE = /^if you discard (?:\d+|an?|up to \d+) cards? from your hand$/i;
+
 export function priceIsUnread(skill: Skill): boolean {
   if (skill.keyword || !/^(?:activate|auto|counter)/.test(skill.kind)) return false;
   const said = priceText(skill);
@@ -399,7 +408,14 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
     if (program) return { conds, program };
   }
   const only = allConditions(said);
-  return only ? { conds: only, program: null } : NO_PRICE;
+  if (only) return { conds: only, program: null };
+  // "[Activate: Battle] **If you discard 1 card from your hand**: …"
+  // (BT22-054b) states the whole price as an "if" and names no condition at
+  // all — the action is the price, as in the unprefixed "Discard 1 card from
+  // your hand:". Read last, once it has failed to be a condition, for the
+  // reason given above: charging an action is the stronger reading.
+  const bareAction = IF_YOU_DISCARD_PRICE.test(said) ?compileAction(said.replace(/^if\s+/i, ""), skill) : null;
+  return bareAction ? { conds: [], program: bareAction } : NO_PRICE;
 }
 
 /** Every "and"/"," a price could be cut at, outside the bracketed card descriptions. */

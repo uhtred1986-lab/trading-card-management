@@ -522,7 +522,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; blind?: true }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -1960,16 +1960,21 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (op.namedSet) {
           const answer = frame.awaiting === op.as ? h.lastChoice() : null;
           if (answer) h.clearLastChoice();
+          const samePower = !op.anyPower;
           let picked = [...sofar];
           for (const id of answer ?? []) {
-            if (!h.namedCandidates(frame, op.sel, picked).includes(id)) throw new IllegalAction("that card can no longer be chosen");
+            if (!h.namedCandidates(frame, op.sel, picked, samePower).includes(id)) throw new IllegalAction("that card can no longer be chosen");
             picked = [...picked, id];
           }
-          const cands = h.namedCandidates(frame, op.sel, picked);
+          const cands = h.namedCandidates(frame, op.sel, picked, samePower);
           if (picked.length >= want || !cands.length) {
             frame.awaiting = undefined;
             take(picked.length >= want ? picked : []);
             frame.vars[`${op.as}Outside`] = frame.vars[op.as].filter((id) => h.areaOf(id) !== "hand");
+            // The first pick and the rest, in the order chosen: [Union-Potara]
+            // stacks the played card on the first (22-13-5-4, any order).
+            frame.vars[`${op.as}First`] = frame.vars[op.as].slice(0, 1);
+            frame.vars[`${op.as}Rest`] = frame.vars[op.as].slice(1);
             break;
           }
           frame.awaiting = op.as;
