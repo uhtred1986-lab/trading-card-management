@@ -1,0 +1,148 @@
+# Labelled best guesses in the arena code
+
+29 places where the code or glossary says "best guess". Each is an assumption the owner has not (yet) had ruled by a rule source. Card ids are those named in the surrounding comment; the list is not exhaustive.
+
+## A1  src/lib/arena/compile/clauses.ts:148
+- assumption: `splitClauses`, and for each clause whether it was cut from the one before it at an "and" of the *same sentence* ("you may reveal 1 card **and** place it at the bottom of your deck") rather than at a full stop, a comma, a semicolon or a "then". 20-16: an offer ("you may") covers the whole sentence it is printed in, so a clause coordinated with an offer by "and" belongs inside it (best guess, by analogy to a "you may…
+- cards: (none named)
+- source cited: 20-16
+
+## A2  src/lib/arena/compile/conditions.ts:421
+- assumption: "If your life is at 1" (BT6-125#40 and five more): exactly that many. LABELLED BEST GUESS - no ruling prints the bare form; "at N" without "or less" is read as the number it says.
+- cards: BT6-125
+- source cited: #40; no ruling prints the bare form
+
+## A3  src/lib/arena/compile/conditions.ts:864
+- assumption: "a **black** <Vegito> or <Vegito: Xeno> card in play" (BT31-087), "a red <Gamma 1: SH> or <Gamma 2: SH> card" (BT22-025): one colour word in front of two names, and the "or" cut it off the second. Nothing in the manual (2-2, 2-10) or the Q&A says how an adjective carries across "or"; the three cards that print the shape (also BT21-001b's "red <Son Goku> or <Piccolo> Z-Battle Card") all say it once before a pair of n…
+- cards: BT31-087, BT22-025, BT21-001b
+- source cited: 18 Oct 2026; 2-2; 2-10; Q&A says how an adjective carries across "o
+
+## A4  src/lib/arena/compile/effects.ts:869
+- assumption: Read as two notes in the game log, in that order — a compliment shown, then the instruction acknowledged — and nothing else moves. A labelled best guess for "show" and "acknowledge"; a button the player presses is not built.
+- cards: P-514, P-516, P-588, P-592
+- source cited: owner's ruling, recorded with `arena:rule` on all eight records (15 Oct 20; 15 Oct 2026; #970; No rule, errata or Q&A entry covers it (the text asks for; Q&A entry covers it (the text asks for some
+
+## A5  src/lib/arena/compile/effects.ts:2291
+- assumption: As with the Z-Energy pair above, the second card is "another" by the sentence's own count (`notSelf`), and it is chosen first, before either moves, so an empty source leaves the whole action impossible: an offer is not made (20-16-1's `firstStepImpossible` reads the leading choice) and a price cannot be paid. Best guess, labelled: all of it or none of it (the card text gives no partial form, and 5-2-5's partial choi…
+- cards: BT4-036, BT4-037, BT31-019
+- source cited: 20-16-1; 5-2-5
+
+## A6  src/lib/arena/compile/effects.ts:2304
+- assumption: Where this card lies: as printed, or — best guess, labelled — the area the sentence names for both when it is the Drop Area ("send this card and 1 ≪Evil Incarnate≫ card **from your Drop** to their owner's Warp", BT31-019; 9-1-3-2's own example of a line used from the Drop is "send this card from your Drop to your Warp"). A hand source qualifies only the counted card: BT4-036's Auto answers an attack, so this card is…
+- cards: BT31-019, BT4-036
+- source cited: 9-1-3-2
+
+## A7  src/lib/arena/compile/effects.ts:3359
+- assumption: The official card FAQ says of BT11-035 that the opponent "has to choose 1 card from their hand and place it on the bottom of their deck in order to attack" and of P-442 that they cannot declare an attack with no card to pay with; 20-14-1 makes action B the condition of every action A. It is read as paid for every attack — LABELLED BEST GUESS for "every" (no ruling says once or each time for the cards that omit it).
+- cards: BT29-022, BT11-035, P-151, BT11-053, BT24-087, P-442
+- source cited: 20-14-1; #677; #1015; no ruling says once or each time for the cards that omit it
+
+## A8  src/lib/arena/compile/named-set.ts:15
+- assumption: Until 18 Oct 2026 BT20-007 read as one in-play card of the first name, one of the second and *every* red Bollarator, wherever it was; BT20-006 was unread. **Labelled best guess.** "Up to 1" is printed once, before the list. The manual (5-2-4 on "up to") and the card Q&A say nothing about how it carries across a list, and the same words without it ("send 1 <Koitsukai> card, 1 <Panchia> card, and 1 <Bollarator> card",…
+- cards: BT20-007, BT20-006, BT20-002b
+- source cited: 18 Oct 2026; 5-2-4; #907; #970; card Q&A say nothing about how it carries across
+
+## A9  src/lib/arena/compile/targets.ts:332
+- assumption: "Choose 1 Battle Card with an energy cost greater than or equal to your opponent's energy and KO it" (DB1-059, EX08-06) names no owner. #1015, a LABELLED BEST GUESS: no official Q&A covers either card (card FAQ searched 18 Oct 2026), so it reads as a Battle Card in EITHER Battle Area (`side: both`, as a bare counted choice does, 20-1-2). Two things point that way: DB1-059's other option says "of your opponent's" whe…
+- cards: DB1-059, EX08-06
+- source cited: 18 Oct 2026; 20-1-2; #1015; no official Q&A covers either card (card FAQ searched 18 Oct 2026; Q&A covers either card (card FAQ searched 1
+
+## A10  src/lib/arena/glossary.ts:162
+- assumption: t “and” or comma between two names ends the first name's words and opens the second's) and parses each piece on its own, so BT22-136/BT22-137/P-534 “Yellow <Son Goku> with 5000 power and blue <Vegeta> with 5000 power” is a yellow Goku of 5000 and a blue Vegeta of 5000 (never a blue Goku and a yellow Vegeta), BT23-084/085/BT25-094 “Green <Vegeta> Z-Battle Card and green <Son Goku> card” puts the Z-Battle qualifier on…
+- cards: BT22-136, BT22-137, P-534, BT23-084, BT25-094, BT7-121, EX22-06, BT22-121, SD23-07, P-519
+- source cited: owner's guidance of 18 Oct 2026; owner's ruling of 13 Oct 2026; 18 Oct 2026; 13 Oct 2026
+
+## A11  src/lib/arena/glossary.ts:835
+- assumption: (1) An **offer** — “you may reveal 1 ≪Universe 9≫ card from your hand and place it at the bottom of your deck. If you do so, draw 2 cards” (`TB1-042`): the offer covers the whole sentence it is printed in, so the clauses coordinated with it by “and” belong inside it — all of it or none of it, a best guess by analogy to “you may A and B” in other card games — and declining takes none of them. “Then” is sequence and i…
+- cards: TB1-042
+- source cited: 20-16-1
+
+## A12  src/lib/arena/glossary.ts:839
+- assumption: to your Warp”** (`BT4-036`, `BT4-037`), and as a price “send this card and 1 ≪Evil Incarnate≫ card from your Drop to their owner's Warp” (`BT31-019`), “choose and send both this card from your Battle Area and a ≪Tapion≫ in your Drop Area to the Warp” (`BT4-038`), “choose 1 … card in your Battle Area and this card in your Drop Area and send them both to their owners' Warps” (`P-201`), “send this card to your Warp fro…
+- cards: BT4-036, BT4-037, BT31-019, BT4-038, P-201, BT17-131, BT10-036, BT10-040, BT10-047, P-235, P-454, SD18-04
+- source cited: 9-10; 21-3-2
+
+## A13  src/lib/arena/glossary.ts:888
+- assumption: es the total — [Warrior of Universe 7] says it as a keyword (22-19-2), and since 18 Oct 2026 (#907) the Permanents that print the sentence are read by the same `costReduction(what: specified, all: true)` the keyword's body uses: “treat this card in your hand as if it had no specified cost” (BT12-153, P-203, P-321, SD16-05, P-435), “treat ≪Agent of Destruction≫ cards in your hand …” (BT6-047, EX13-29, P-434), “… in y…
+- cards: BT12-153, P-203, P-321, SD16-05, P-435, BT6-047, EX13-29, P-434, P-476b, P-268, P-269, TB2-065, EX03-25, EX16-01
+- source cited: 18 Oct 2026; 22-19-2; #907
+
+## A14  src/lib/arena/glossary.ts:1008
+- assumption: It is the selector flag `differentCharacters`, `differentNames`'s twin (`BT18-119`'s cost reduction, `BT18-107`'s gate and its choose of up to four, and the other “Play up to N … with different character names” lines): a `count` condition or amount counts the distinct character-name sets of the cards it finds (`selectedCount`, `characterKey`), a `choose` stops offering a card whose character names match one already …
+- cards: BT18-119, BT18-107, BT14-123, BT15-152, BT18-106, BT12-125, P-748
+- source cited: 18 Oct 2026; #907; Q&A and errata pages have no entry for thes
+
+## A15  src/lib/arena/glossary.ts:1012
+- assumption: A name that brings its own colour, or a second part that is not a bare name, is left as printed. Labelled best guess (18 Oct 2026); in a search or a choose the same words go through `parseFilter` and are unchanged.",
+- cards: BT31-087, BT22-025, BT12-002b, BT13-011, DB1-006
+- source cited: 18 Oct 2026; 2-2; 2-10; Q&A says how an adjective carries across “o
+
+## A16  src/lib/arena/glossary.ts:1016
+- assumption: It is now one `choose` per name — each “up to 1” red card of that name from the places listed — and each a card of its own (`notIn`, as #970's sends: a catalog card may carry more than one of the names), then every card chosen goes under this card (`compile/named-set.ts`). Labelled best guess: the printed “up to 1” applies to each name, so each may be declined; the same list without it (BT20-002b's send) asks for al…
+- cards: BT20-007, BT20-006, BT20-002b, BT20-015, BT20-012
+- source cited: #970
+
+## A17  src/lib/arena/glossary.ts:1024
+- assumption: Nothing else moves. Labelled best guess for “show” and “acknowledge”: log lines, not a button the player presses.",
+- cards: P-514, P-516, P-588, P-592
+- source cited: owner's ruling (recorded with `arena:rule` on all eight records, 15 Oct 20; 15 Oct 2026; No rule, errata or Q&A entry covers it; Q&A entry covers it
+
+## A18  src/lib/arena/glossary.ts:1144
+- assumption: Before this the four read-clean skills BT13-112, BT24-102, EX19-18 and P-624 named no trigger and never fired. Best guess, no official ruling: only a skill's own switch counts as “by a skill” — Rest Mode paid as a skill cost is not, and [Alliance] keeps its own `restedByAlliance` (now also “by [Alliance]”, BT7-004, EX04-01). Not yet read: a card *other than this one* rested by a skill (BT12-105, BT13-092, BT18-094, …
+- cards: BT18-104, P-492, BT13-112, BT24-102, EX19-18, P-624, BT7-004, EX04-01, BT12-105, BT13-092, BT18-094, BT27-088, DB1-075, EX06-22, EX24-32
+- source cited: no official ruling: only a skill's own switch counts as “by a skill”
+
+## A19  src/lib/arena/glossary.ts:1148
+- assumption: body: "“When this card is **placed in your energy**” (BT18-052, EX17-02, “added to energy” P-617), “… **from your hand**” (BT13-040, -043, -045) and “When this card **in your hand** is played or placed in your energy” (EX19-26, -29, -34, -36, P-353) are `placedInEnergy` and `placedInEnergyFromHand` (`moved(to: energy)`), which a card answers from the Energy Area although its skills are not otherwise valid there (the…
+- cards: BT18-052, EX17-02, P-617, BT13-040, EX19-26, P-353
+- source cited: 9-1-3-1; 7-2-11; no official ruling separates them: the Charge Phase's placing of 1 c
+
+## A20  src/lib/arena/glossary.ts:1172
+- assumption: body: "Four printings are tidied in the effect text before anything reads it (the line as printed stays `raw`, and the stored rule's `printed` text): a missing space after a count — “choose up to **1of** your opponent's Battle Cards” (BT2-036, BT26-037, BT26-059, BT26-093, P-607, P-613), which lost the count (BT26-093 read as *all* of the opponent's Battle Cards, P-613 as *all* of their cards in play); “**Activate t…
+- cards: BT2-036, BT26-037, BT26-059, BT26-093, P-607, P-613, BT4-076, P-090, BT7-004, BT6-121, BT12-041, BT12-140, BT12-092, BT12-059, P-159, P-150
+- source cited: owner's guidance of 18 Oct 2026: 9-6-2 says an [Auto] is activated by its tr; 18 Oct 2026; 9-6-2
+
+## A21  src/lib/arena/glossary.ts:1180
+- assumption: **“They choose 1 card in their hand or 1 of their Battle Cards and place it in its owner's Drop Area”** (BT15-085) is the opponent, from their own hand or their own Battle Area: a `chooseMode` with `chooser: opponent`, and both branches' choices theirs too; it was one Battle Card in the opponent's hand. **A bare “Choose 1 Battle Card with an energy cost greater than or equal to your opponent's energy”** (DB1-059; EX…
+- cards: P-159, BT15-085, DB1-059, EX08-06, P-202, P-337
+- source cited: 18 Oct 2026; #1015; no official Q&A covers either card (card FAQ searched 18 Oct 2026; Q&A covers either card (card FAQ searched 1
+
+## A22  src/lib/arena/glossary.ts:1184
+- assumption: “Chooses **a number of cards … equal to** …” (BT2-046, BT7-052) is a count read off the board, which a `choose` cannot take: the sentence is kept whole and left unread, where it used to read as a choice of the wrong cards (BT7-052 sent the opponent's whole hand to the Warp). “**Your life is at 1**” (BT6-125, BT13-125, BT7-050b, BT24-060) is read as exactly that many (a LABELLED BEST GUESS: no ruling prints the bare …
+- cards: BT7-105, SD7-03, BT9-108, BT6-125, BT2-046, BT7-052, BT13-125, BT7-050b, BT24-060, BT28-020, BT31-134, BT1-110, BT1-107
+- source cited: no ruling prints the bare form
+
+## A23  src/lib/arena/rulesets/dbs/files.ts:13
+- assumption: effect, which runs after this `DO`, then says\n -- which card is played onto this one.\n payActionPrice()\n })\n if(cond: oneOf(value: $variant, of: [\"Potara\"]), then: {\n -- 22-13-5-2 (#926): the skill cost is paid as it is activated.\n payActionPrice()\n -- 22-13-5-2 (#925): both cards are chosen before the card is played,\n -- one distinct Battle Card per specified character, each meeting only\n -- the words pr…
+- cards: BT10-046
+- source cited: 22-13-5-2; 22-13-5-4; 22-13-5-4-1; 22-13-5-2-1; #926; #925; #927; #930
+
+## A24  src/lib/arena/rulesets/dbs/files.ts:16
+- assumption: when a marker is removed from this card\nDEFINE TRIGGER markerRemoved\n ON markerRemoved\n BIND \"self\"\n text: \"when a marker is removed from this card\"\n\n-- §22-43-3 — when you pay a [Spirit Boost] cost from this card\nDEFINE TRIGGER spiritBoostPaid\n ON markerRemoved(by: \"Spirit Boost\", watcher: controller)\n BIND \"subject\"\n text: \"when you pay a [Spirit Boost] cost from this card\"\n\n-- ── areas outsi…
+- cards: BT18-052, EX17-02, P-617, BT13-040
+- source cited: 22-43-3; 3-8; 3-11; 3-13; 7-2-11; 9-1-3-1; #907; no official ruling\n-- separates a charge from a skill's placing: bo
+
+## A25  src/lib/arena/rulesets/dbs/keywords.rules:511
+- assumption: 22-13-5-2 (#925): both cards are chosen before the card is played, one distinct Battle Card per specified character, each meeting only the words printed beside its own name, with no equal-power requirement (`anyPower`: Potara asks for none). The card is played onto the first chosen and the other goes under it (22-13-5-4, "in any order"; #927, labelled best guess: the order picked is the stack, top to bottom - the fi…
+- cards: BT10-046, BT10-053, P-220, BT10-132, P-230, BT24-112, BT20-125
+- source cited: 22-13-5-2; 22-13-5-4; 22-13-5-4-1; 22-13-5-2-1; #925; #927; #930
+
+## A26  src/lib/arena/rulesets/dbs/triggers.rules:625
+- assumption: §3-8, §7-2-11 — when this card is placed in an Energy Area, from anywhere and by anything: the Charge Phase's own placing (7-2-11) and a skill's alike (BT18-052, EX17-02, "added to energy" P-617). Best guess, no official ruling separates a charge from a skill's placing: both put a card in the Energy Area. The card answers from there: the pattern names the place (9-1-3-1's exception).
+- cards: BT18-052, EX17-02, P-617
+- source cited: 3-8; 7-2-11; 9-1-3-1; no official ruling separates a charge from a skill's placing: both p
+
+## A27  src/lib/arena/text/cards.ts:465
+- assumption: A third: BT12-041 and BT12-140 print their trigger with an "If" — "[Auto] **If** your opponent activates a [Counter] skill during a battle with this card, send 1 card …" — where their nine neighbours in the same sets (BT12-092, BT12-059, BT12-100 …) print "When". The skill names no other moment, and an [Auto] with no trigger would never fire, so the "If" is the trigger's word (best guess: the same set, the same sent…
+- cards: BT2-036, BT26-093, P-607, BT4-076, P-090, BT7-004, BT6-121, BT12-041, BT12-140, BT12-092, BT12-059, BT12-100, P-159
+- source cited: 9-6-2
+
+## A28  src/lib/arena/text/triggers.ts:200
+- assumption: The cause a Rest Mode trigger prints (#907), or null when the head is not a "this card is switched to Rest Mode by …" trigger at all. side whose skill: `mine` ("by one of your [yellow card] skills", "your Leader's skill"), `opponent`, `any` ("by a skill", "with {Name}'s skill") or `alliance` (the keyword's own switch, 22-32-3) desc the description of the skill's card as printed ("yellow card", "yellow <turles> card"…
+- cards: (none named)
+- source cited: 22-32-3; #907; no ruling: only a skill's own switch is "by a skill" — payi
+
+## A29  src/lib/arena/text/union.ts:18
+- assumption: This reads the description once, splits it at the name boundaries, and gives each name the filter of its own words. Reading (labelled best guess, owner's ruling guidance of 18 Oct 2026; the manual 22-13-4-1/22-13-5-1 and the card FAQ say nothing more than "the specified character's Battle Card"): - the words around a name up to the joining "and"/comma qualify that name ("yellow <Son Goku> card with 5000 power" ends …
+- cards: BT22-136, BT23-084, BT7-121, BT22-121, P-519, SD23-07
+- source cited: owner's ruling guidance of 18 Oct 2026; 18 Oct 2026; 22-13-4-1; 22-13-5-1; manual 22-13-4-1; #925

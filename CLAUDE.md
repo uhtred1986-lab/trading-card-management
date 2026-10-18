@@ -108,6 +108,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 |---|---|
 | Working one issue as an agent (habits, proof, PR) | `docs/agent-brief.md` |
 | Finding a symbol's definition/references, or inspecting network/offline/workers/storage in a browser (Windows-verified, no Playwright) | `docs/arena-agent-tools.md` |
+| Reviewing open rules / assumptions with the owner in claude.ai (skill `skills/dbs-rules-review/`, MCP connector at `/api/mcp`, `npm run rules:skill-pack`) | `docs/arena-tooling.md` §5c, `docs/architecture/auth.md` "The MCP connector" |
 | Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
 | Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |

@@ -1300,3 +1300,82 @@ export const settings = pgTable("settings", {
   value: jsonb("value"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/*
+ * ──────────────────────────────────────────────────────────────────────────
+ *  OAuth 2.1 server for the rules-review MCP connector (`/api/mcp`),
+ *  ported from gullet-cove-dm (docs/architecture/auth.md, "The MCP
+ *  connector"). Nothing secret is stored in the clear: a code, an access
+ *  token and a refresh token are 256 random bits and only their SHA-256 hex
+ *  lives here. Deleting a client deletes its codes and tokens (cascade).
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
+/** A client registered itself (RFC 7591) — claude.ai does. Public clients only: PKCE instead of a secret. */
+export const oauthClients = pgTable(
+  "oauth_clients",
+  {
+    id: serial("id").primaryKey(),
+    /** The public id handed to the client: 32 random bytes, base64url. */
+    clientId: text("client_id").notNull(),
+    /** What the client called itself, clipped and stripped of control characters at registration. */
+    name: text("name").notNull(),
+    redirectUris: jsonb("redirect_uris").$type<string[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("oauth_clients_client_id_idx").on(t.clientId)],
+);
+
+/** A one-time authorization code, issued only after a signed-in SL pressed Allow; about a minute to live. */
+export const oauthCodes = pgTable(
+  "oauth_codes",
+  {
+    id: serial("id").primaryKey(),
+    clientRef: integer("client_ref")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    email: text("email").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull(),
+    resource: text("resource").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    familyId: text("family_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("oauth_codes_code_hash_idx").on(t.codeHash)],
+);
+
+/** One access token and its refresh token; a refresh rotates, a replay revokes the whole family. */
+export const oauthTokens = pgTable(
+  "oauth_tokens",
+  {
+    id: serial("id").primaryKey(),
+    clientRef: integer("client_ref")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    familyId: text("family_id").notNull(),
+    email: text("email").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull(),
+    resource: text("resource").notNull(),
+    accessHash: text("access_hash").notNull(),
+    refreshHash: text("refresh_hash").notNull(),
+    accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }).notNull(),
+    refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+    refreshUsedAt: timestamp("refresh_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("oauth_tokens_access_hash_idx").on(t.accessHash),
+    uniqueIndex("oauth_tokens_refresh_hash_idx").on(t.refreshHash),
+    index("oauth_tokens_family_idx").on(t.familyId),
+    index("oauth_tokens_client_idx").on(t.clientRef),
+  ],
+);
+
+export type OauthClientRow = typeof oauthClients.$inferSelect;
