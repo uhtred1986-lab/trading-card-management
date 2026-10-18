@@ -3402,7 +3402,7 @@ html:is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) body::bef
 }
 :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-clash-pow {
   color: #fff;
-  -webkit-text-stroke: 3px var(--ink);
+  -webkit-text-stroke: 4px var(--ink);
   text-shadow: 3px 4px 0 var(--ink);
 }
 :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-clash-vs {
