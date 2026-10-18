@@ -47,7 +47,7 @@ import { unionNeeds } from "../text/union";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
-import { emptyFilter, nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
+import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter, powerRelOk, type CardFilter } from "../text/filters";
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
@@ -1306,8 +1306,11 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // what the card costs now against the energy cards its master has now. The
     // master's own count, whoever's cards are on offer (EX03-12 aims at the
     // opponent's). A card with no energy total of its own counts as zero, as in every other cost bound.
-    if (sel.filter?.costAtMostEnergy) {
-      if (measureOf(ctx, game, state, id, "energyCost", movementInfo) > countSelected(ctx, game, state, frame, { side: "you", area: "energy" })) return false;
+    // #1011: the other comparators ("greater than their current energy"), and
+    // the opponent's count when the text says "their" / "your opponent's".
+    if (sel.filter && hasEnergyBound(sel.filter)) {
+      const energy = countSelected(ctx, game, state, frame, { side: sel.filter.energyOfOpponent ? "opponent" : "you", area: "energy" });
+      if (!costEnergyOk(sel.filter, measureOf(ctx, game, state, id, "energyCost", movementInfo), energy)) return false;
     }
     // 2-3-2: "whose card name is in the text of a skill on the chosen card"
     // (BT30-084, #542) — read off the printed skills of the card the price

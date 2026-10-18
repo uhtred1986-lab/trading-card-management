@@ -2398,7 +2398,14 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMax} or less`);
   else if (f.specifiedCostMin != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more`);
   if (f.specifiedCostNone) bits.push("with no specified cost");
-  if (f.costAtMostEnergy) bits.push("with an energy cost less than or equal to your current energy");
+  {
+    // #1011: whose energy the cost is measured against, in the words `parseTarget` reads back.
+    const whose = f.energyOfOpponent ? "your opponent's" : "your";
+    if (f.costAtMostEnergy) bits.push(`with an energy cost less than or equal to ${whose} current energy`);
+    if (f.costBelowEnergy) bits.push(`with an energy cost less than ${whose} current energy`);
+    if (f.costAtLeastEnergy) bits.push(`with an energy cost greater than or equal to ${whose} current energy`);
+    if (f.costAboveEnergy) bits.push(`with an energy cost greater than ${whose} current energy`);
+  }
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
   if (f.noKeywords) bits.push("and no keyword skills");

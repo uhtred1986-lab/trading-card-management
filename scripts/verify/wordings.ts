@@ -1184,12 +1184,14 @@ import type { EngineState, Trigger } from "./harness";
   // read with the comparison DROPPED (the words "their current energy" were
   // taken for the area, and once that was fixed for the area the bound still
   // went missing): "choose 1 Battle Card in your Battle Area, KO it" for DB1-059.
-  // No selector field carries a cost measured against a player's energy count,
-  // so the description is refused (ground rule 5) rather than widened. The area
-  // and the side must still never come out as an Energy Area, so a phrase with
-  // the bound is a refusal, and the same phrase without it still reads.
+  // #1004 refused the description (ground rule 5) rather than widen it; #1011
+  // carries the comparison on the selector (`costAtLeastEnergy` +
+  // `energyOfOpponent`), so a phrase that names the opponent's Battle Cards reads
+  // with its bound and is never an Energy Area. DB1-059 and EX08-06 themselves
+  // print the bare noun "1 Battle Card", which names no side and stays refused.
   for (const number of ["DB1-059", "EX08-06"]) {
-    assert.equal(parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy"), null, `${number}: refused, not widened`);
+    const read = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy");
+    assert.deepEqual([read?.side, read?.area, read?.filter?.costAtLeastEnergy, read?.filter?.energyOfOpponent], ["opponent", "battle", true, true], `${number}: read with its bound`);
     assert.equal(parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy"), null, `${number} printed: refused, not widened`);
     const bare = parseTarget("up to 1 of your opponent's Battle Cards");
     assert.equal(bare?.area, "battle", `${number}: the Battle Cards themselves still read`);

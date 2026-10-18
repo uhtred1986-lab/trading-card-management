@@ -254,6 +254,21 @@ export interface CardFilter {
    */
   costAtMostEnergy: boolean;
   /**
+   * The same measure with the other comparators and the other player's count
+   * (#1011): `costBelowEnergy` is "less than", `costAtLeastEnergy` "greater than
+   * or equal to", `costAboveEnergy` "greater than" — "choose up to 1 of your
+   * opponent's Battle Cards with an energy cost **greater than their current
+   * energy**" (BT19-036, DB2-129, P-658 … about 55 skills). `energyOfOpponent`
+   * says whose energy: set for "their", "your opponent's" and "the opponent's"
+   * (the cards offered are the opponent's, and so is the count), clear for "your".
+   * Applied where the skill runs, like `costAtMostEnergy`; "less than or equal
+   * to their energy" is `costAtMostEnergy` + `energyOfOpponent`.
+   */
+  costBelowEnergy: boolean;
+  costAtLeastEnergy: boolean;
+  costAboveEnergy: boolean;
+  energyOfOpponent: boolean;
+  /**
    * "An originally skill-less Battle Card" (20-3-1, 1-5-9): the card printed
    * with no text at all, whether or not a later effect granted it a skill —
    * narrower than "skill-less" on its own, which would also ask about a skill
@@ -373,6 +388,10 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   specifiedCostMax: "number",
   specifiedCostNone: "boolean",
   costAtMostEnergy: "boolean",
+  costBelowEnergy: "boolean",
+  costAtLeastEnergy: "boolean",
+  costAboveEnergy: "boolean",
+  energyOfOpponent: "boolean",
   originallySkillLess: "boolean",
   skillLess: "boolean",
   powerRel: "powerRel",
@@ -468,6 +487,10 @@ export function emptyFilter(): CardFilter {
     specifiedCostMax: null,
     specifiedCostNone: false,
     costAtMostEnergy: false,
+    costBelowEnergy: false,
+    costAtLeastEnergy: false,
+    costAboveEnergy: false,
+    energyOfOpponent: false,
     originallySkillLess: false,
     skillLess: false,
     powerRel: null,
@@ -478,11 +501,42 @@ export function emptyFilter(): CardFilter {
 
 /**
  * "…with an energy cost **greater than their current energy**": a card's cost
- * measured against a player's energy count, which no field of a filter carries.
- * `parseFilter` flags it `unreadable`; a trigger's subject (`subjectFilterOf`)
- * takes it out first, as it always left such a description's other words alone.
+ * measured against a player's energy count, which no field of a filter carries
+ * apart from the booleans of #1011. `parseFilter` flags every form but "at most
+ * your energy" `unreadable` — a forbid or a trigger subject cannot apply it — and
+ * `parseTarget` takes the phrase off before the areas are read and puts the bound
+ * on the selector, where `resolveSelector` applies it. A trigger's subject
+ * (`subjectFilterOf`) takes it out first, as it always left such a description's
+ * other words alone. Group 1 is the comparator, group 2 whose energy.
  */
-export const ENERGY_COST_VS_ENERGY = /\benergy costs? (?:that is |which is )?(?:greater|more|higher|less|lower|fewer) than (?:or equal to )?(?:their|your opponent'?s|the opponent'?s|your) (?:current )?energy\b/;
+const ENERGY_CMP = "(less than or equal to|equal to or less than|equal or less than|no (?:more|greater) than|greater than or equal to|more than or equal to|equal to or greater than|equal or greater than|equal to or more than|less than|fewer than|lower than|greater than|more than|higher than)";
+export const ENERGY_COST_VS_ENERGY = new RegExp(`\\benergy costs? (?:of |is )?(?:(?:that is|which is) )?${ENERGY_CMP} (?:the (?:amount|number) of )?(their|your opponent'?s|the opponent'?s|your) (?:current )?energy\\b`, "i");
+
+export type EnergyBoundKey = "costAtMostEnergy" | "costBelowEnergy" | "costAtLeastEnergy" | "costAboveEnergy";
+/** Which comparator and whose energy a match of `ENERGY_COST_VS_ENERGY` / `ENERGY_BOUND` said. */
+export function energyBoundOf(m: RegExpExecArray): { key: EnergyBoundKey; opponent: boolean } {
+  const cmp = m[1].toLowerCase();
+  const key: EnergyBoundKey = /greater than or equal|more than or equal|equal (?:to )?or (?:greater|more)/.test(cmp)
+    ? "costAtLeastEnergy"
+    : /less than or equal|equal (?:to )?or less|^no /.test(cmp)
+      ? "costAtMostEnergy"
+      : /greater|more|higher/.test(cmp)
+        ? "costAboveEnergy"
+        : "costBelowEnergy";
+  return { key, opponent: m[2].toLowerCase() !== "your" };
+}
+/** The comparison itself, for the matcher that holds both numbers (`resolveSelector`). */
+export function costEnergyOk(f: CardFilter, cost: number, energy: number): boolean {
+  if (f.costAtMostEnergy && !(cost <= energy)) return false;
+  if (f.costBelowEnergy && !(cost < energy)) return false;
+  if (f.costAtLeastEnergy && !(cost >= energy)) return false;
+  if (f.costAboveEnergy && !(cost > energy)) return false;
+  return true;
+}
+/** Is any cost-versus-energy bound set, whichever comparator? */
+export function hasEnergyBound(f: CardFilter): boolean {
+  return f.costAtMostEnergy || f.costBelowEnergy || f.costAtLeastEnergy || f.costAboveEnergy;
+}
 
 export function parseFilter(text: string): CardFilter {
   return eitherFilter(text) ?? parseOneFilter(text);
@@ -507,7 +561,7 @@ const OR_ABLE: (keyof CardFilter)[] = ["characters", "charactersIncluding", "nam
  * areas are read — "your energy" at the end of it is not the Energy Area — and
  * puts the measure back on the selector's filter.
  */
-export const ENERGY_BOUND = /(?:\b(?:with|and) )?(?:\ban? )?\benergy costs? (?:of )?(?:less than or equal to|no (?:more|greater) than|equal to or less than) (?:the (?:amount|number) of )?your (?:current )?energy\b/i;
+export const ENERGY_BOUND = new RegExp(`(?:\\b(?:with|and|whose) )?(?:\\ban? )?${ENERGY_COST_VS_ENERGY.source}`, "i");
 /** A piece that is only colours and one name token (names masked as "N"): "blue ≪Saiyan≫", "mono-green <Vegeta: GT>". */
 const NAMES_ONLY = /^(?:(?:(?:non-|mono-)?(?:red|blue|green|yellow|black|white)|multicolou?r|an?|1|up to \d+)\s+)*N$/i;
 /** Does a (masked) piece start with a name, after any colour or count words? */
@@ -766,17 +820,23 @@ function parseOneFilter(text: string): CardFilter {
   // the cost is measured against the master's energy count — see `costAtMostEnergy`.
   // The long-standing refusal (#537) held because no field carried it; dropped, the
   // description offered every card the rest of it named.
-  if (ENERGY_BOUND.test(lower)) f.costAtMostEnergy = true;
-  // The same measure the other way round, and the forms #979 does not carry:
-  // "with an energy cost **greater than their current energy**" (about 30
-  // skills: BT19-036, DB2-129, P-159 …). The words "their current energy" were
-  // read as the area to look in, so every one of them chose a card in the
-  // opponent's *Energy Area* — a wrong card, not a missing one — and
-  // DB1-059's "greater than or equal to your opponent's energy" dropped the
-  // bound and chose a Battle Card with no cost test at all. `costAtMostEnergy`
-  // is the one comparison a field carries ("at most your energy"); every other
-  // comparison with an energy count is refused rather than read as a place.
-  if (ENERGY_COST_VS_ENERGY.test(lower) && !ENERGY_BOUND.test(lower)) f.unreadable = true;
+  // The same measure with the other comparators and the other player's count
+  // (#1011): "with an energy cost **greater than their current energy**" (about
+  // 55 skills: BT19-036, DB2-129, P-159 …). The words "their current energy"
+  // were read as the area to look in, so every one of them chose a card in the
+  // opponent's *Energy Area* — a wrong card, not a missing one — and DB1-059's
+  // "greater than or equal to your opponent's energy" dropped the bound and
+  // chose a Battle Card with no cost test at all. `parseTarget` takes the phrase
+  // off first and puts the bound on the selector (`costBelowEnergy` …,
+  // `energyOfOpponent`), where the skill runs. A description that reaches here
+  // with one — a forbid, a condition, a trigger's subject — has nowhere to
+  // apply it, so it is refused rather than read as a place or widened.
+  const energyVs = ENERGY_COST_VS_ENERGY.exec(lower);
+  if (energyVs) {
+    const bound = energyBoundOf(energyVs);
+    if (bound.key === "costAtMostEnergy" && !bound.opponent) f.costAtMostEnergy = true;
+    else f.unreadable = true;
+  }
   // "An originally skill-less Battle Card" (20-3-1): printed with no text at
   // all, which the catalog only ever writes with the adverb — see
   // `originallySkillLess` above for why bare "skill-less" is a separate
