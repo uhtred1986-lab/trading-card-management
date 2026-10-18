@@ -52,6 +52,8 @@
     "arena:vs": "tsx --env-file-if-exists=.env.local scripts/arena-vs-claude.mts",
     "arena:gaps": "tsx --env-file-if-exists=.env.local scripts/arena-gaps.mts",
     "arena:feedback": "tsx --env-file-if-exists=.env.local scripts/arena-feedback.mts",
+    "arena:refresh-ids": "tsx --env-file-if-exists=.env.local scripts/arena-refresh-ids.mts",
+    "arena:refresh-ids:verify": "tsx scripts/verify/refresh-ids.mts",
     "arena:rule": "tsx --env-file-if-exists=.env.local scripts/arena-rule.mts",
     "arena:draft": "tsx scripts/arena-draft.mts",
     "arena:specified": "tsx --env-file-if-exists=.env.local scripts/arena-specified-cost.mts",

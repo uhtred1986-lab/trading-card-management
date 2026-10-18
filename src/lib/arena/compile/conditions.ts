@@ -1,4 +1,4 @@
-import { parseFilter } from "../text/filters";
+import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import type { Cond, Ref, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
 import { filterFor, parseTarget } from "./targets";
@@ -103,7 +103,14 @@ const COLOR_WORD = "(?:red|blue|green|yellow|black|colorless)";
 const COLOR_NAMES_PATTERN = "(?:an?\\s+)?(?:red|blue|green|yellow|black|colorless)";
 const AREA_NAMES_PATTERN = "(?:(?:your|your opponent's|the|an?)\\s+)?(?:hand|deck|drop|warp|life|battle|unison|energy|leader|combo|play|z-deck|z-energy|zdeck|zenergy)(?: area)?";
 
-export function splitDisjunction(text: string): string[] {
+function filterIsBlank(f: CardFilter): boolean {
+  return JSON.stringify(f) === JSON.stringify(emptyFilter());
+}
+
+/** An "or" alternative of a Leader description that names nothing (#990): the part was not read. */
+const hasBlankPart = (parts: string[]): boolean => parts.some((p) => filterIsBlank(parseFilter(p)));
+
+export function splitDisjunction(text: string, opts: { measured?: boolean } = {}): string[] {
   const regex = /(?:,\s+)?\bor\b/gi;
   let match: RegExpExecArray | null;
   const splitIndices: { start: number; end: number }[] = [];
@@ -112,7 +119,14 @@ export function splitDisjunction(text: string): string[] {
     const before = text.slice(0, match.index).trim();
     const after = text.slice(match.index + match[0].length).trim();
 
-    if (/\d+\s*$/i.test(before) && /^(?:more|less|fewer)\b/i.test(after)) {
+    // "10000 power or less" (#990) is as much one bound as "10000 or less": the
+    // number is followed by what it measures, so the digit test alone cut
+    // "≪X≫-only card with 10000 power or less" in two and left "less" as an
+    // alternative of its own, a filter that matches every Leader. No condition
+    // starts with "more"/"less"/"fewer", so the "or" before one ends a
+    // comparison. Asked for by the Leader descriptions only (`measured`), so
+    // no other clause's reading moves with it.
+    if ((opts.measured ? /\d+(?:\s+[a-z-]+){0,2}\s*$/i : /\d+\s*$/i).test(before) && /^(?:more|less|fewer)\b/i.test(after)) {
       continue;
     }
     // "and/or" is one word: it joins the areas of a single description ("in
@@ -364,8 +378,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // both the condition's subject and what "it" then refers to.
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1]);
+    const parts = splitDisjunction(m[1], { measured: true });
     if (parts.length > 1) {
+      if (hasBlankPart(parts)) return null;
       const conds = parts.map((part) => ({
         kind: "leaderMatches" as const,
         filter: parseFilter(part),
@@ -378,8 +393,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If your opponent's Leader Card is red or blue" — the same test, other side.
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1]);
+    const parts = splitDisjunction(m[1], { measured: true });
     if (parts.length > 1) {
+      if (hasBlankPart(parts)) return null;
       const conds = parts.map((part) => ({
         kind: "leaderMatches" as const,
         side: "opponent" as const,
@@ -582,8 +598,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
   if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
-    const parts = splitDisjunction(m[1]);
+    const parts = splitDisjunction(m[1], { measured: true });
     if (parts.length > 1) {
+      if (hasBlankPart(parts)) return null;
       const conds = parts.map((part) => ({
         kind: "leaderMatches" as const,
         filter: parseFilter(part),

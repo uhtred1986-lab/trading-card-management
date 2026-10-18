@@ -96,6 +96,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // Its alternatives' own measures are what it reads; `measuresUsed` walks them.
   anyOf: { reads: [] },
   onlyCharacters: { reads: ["characters"] },
+  onlyTraits: { reads: ["traits"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
@@ -142,6 +143,9 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   // `energyCost` is read to tell a known cost from an unknown one (below).
   specifiedCostMin: { reads: ["specifiedCost", "energyCost"] },
   specifiedCostMax: { reads: ["specifiedCost", "energyCost"] },
+  // "…with no specified cost" (#980): a known, empty list of orbs.
+  specifiedCostNone: { reads: ["specifiedCost"] },
+  costAtMostEnergy: { instance: "a bound read off how many energy cards the player running the skill has when it resolves, so it is applied where the skill runs" },
   faceUp: { instance: "which copy of the card is face up is about the instance in its area (3-9-2-1), not about the card" },
   powerRel: { instance: "a bound read off another card the skill has chosen, so it is applied where that card is known" },
   nameInSkillTextOf: { instance: "a name looked up in the skill text of another card the skill has chosen (2-3-2), so it is applied where that card is known" },
@@ -275,6 +279,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   } else if (!characterOk || !traitOk) return false;
   // "<Son Goku>-only" (BT29-108): nothing but the characters named.
   if (f.onlyCharacters && !characters.every((c) => same(f.characters, c))) return false;
+  // "≪Saiyan≫-only" (#932): every trait the card has is one named.
+  if (f.onlyTraits && !traits.every((t) => same(f.traits, t))) return false;
   if (f.notCharacters.some((c) => same(characters, c))) return false;
   if ((f.notCharactersIncluding ?? []).some((c) => part(characters, c))) return false;
 
@@ -334,6 +340,10 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
     if (f.specifiedCostMin != null && orbs < f.specifiedCostMin) return false;
     if (f.specifiedCostMax != null && orbs > f.specifiedCostMax) return false;
   }
+  // "…with no specified cost" (#980): `attrsNow` seeds the attribute off `specifiedCostOf`
+  // and leaves it unset for an X cost nobody entered, so an empty list is "none" and
+  // an unset one is only unknown.
+  if (f.specifiedCostNone && !(Array.isArray(attrs.specifiedCost) && attrs.specifiedCost.length === 0)) return false;
   return true;
 }
 

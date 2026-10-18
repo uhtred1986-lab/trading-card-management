@@ -2267,7 +2267,13 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 // "with a specified cost of 2" became a measure in #728 (`sd15-readings-728.ts`);
 // any other sentence about a specified cost is still refused.
 {
-  assert.ok(parseFilter("Battle Card with an energy cost less than or equal to your current energy").unreadable, "cost ≤ current energy is refused");
+  // #979: "cost ≤ your current energy" is now a measure (`costAtMostEnergy`), applied
+  // where the skill runs (`vm/program.ts`); "their current energy" is another
+  // player's count and is still refused (BT13-152, BT31-109).
+  const energyBound = parseFilter("Battle Card with an energy cost less than or equal to your current energy");
+  assert.deepEqual([energyBound.unreadable, energyBound.costAtMostEnergy, energyBound.type], [false, true, "BATTLE"], "cost ≤ current energy is a measure");
+  assert.equal(parseFilter("Battle Card with an energy cost equal to or less than your energy").costAtMostEnergy, true, "the 'equal to or less than your energy' wording is the same measure");
+  assert.equal(parseFilter("Battle Card with an energy cost less than or equal to their current energy").costAtMostEnergy, false, "another player's energy is not the master's count");
   const sd15 = parseFilter("red Unison Cards with a specified cost of 2");
   assert.deepEqual([sd15.unreadable, sd15.specifiedCostMin, sd15.specifiedCostMax], [false, 2, 2], "a specified cost of 2 is a measure");
   assert.ok(parseFilter("a card whose specified cost was reduced").unreadable, "another specified-cost sentence is refused");
