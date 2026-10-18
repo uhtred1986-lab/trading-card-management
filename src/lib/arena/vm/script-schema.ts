@@ -344,6 +344,11 @@ const CHOOSE_FIELDS: OpField[] = [
         offCard: "picks one card at a time for the characters the keyword line prints in ‹…› — one card per name, all of one printed power — offering only the cards that still leave a complete set; binds the picks to `as` and those that stood outside the hand to `<as>Outside` — [Union-Fusion] (22-13-4-2)",
       },
       {
+        name: "anyPower",
+        type: "boolean",
+        offCard: "with namedSet: the named cards need not share a power — [Union-Potara] (22-13-5-2), which asks only for one Battle Card of each specified character; left out the set is of one printed power, as [Union-Fusion] needs (22-13-4-2)",
+      },
+      {
         name: "blind",
         type: "boolean",
         offCard: "the candidates are cards the chooser may not read (the opponent's hand), so asking reveals none of them: they are offered by position only — [Aegis]'s alternative payment (BT22-140)",
