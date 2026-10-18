@@ -154,5 +154,41 @@ assert.equal(after.find((r) => r.card_id === "T-CLEAN")!.status, "draft");
 assert.equal(after.find((r) => r.card_id === "T-CLEAN")!.explanation, "keep");
 assert.equal(after.find((r) => r.card_id === "T-CLEAN")!.version, 2);
 
+// ── --describe-only: the reading text from the stored program, any source, no other column ──
+const { classifyDescribeOnly, applyDescribeOnly, summarizeDescribe } = await import("../lib/refresh-ids.ts");
+await db.insert(schema.cards).values([card("T-DOWNER", DRAW), card("T-DCONF", DRAW), card("T-DUTD", DRAW), card("T-DSTALE", DRAW)] as never);
+for (const c of await db.select().from(schema.cards)) defs.set(c.id, cardDefFrom(c));
+await put("T-DOWNER", { reads: "an older owner wording", status: "corrected", source: "user", explanation: "owner words" });
+await put("T-DCONF", { reads: "an older confirmed wording", status: "confirmed", confirmedAt: new Date(), confirmedBy: "owner@example.com", confirmNote: "ok" });
+await put("T-DUTD");
+await put("T-DSTALE", { reads: "wording before the race", status: "corrected", source: "user" });
+const dspecs = parseIdList("T-DOWNER#0 T-DCONF#0 T-DUTD#0 T-DSTALE#0 T-GHOST#0").specs;
+const dbefore = await snapshot();
+const dv = await classifyDescribeOnly(db, dspecs);
+const dby = (raw: string) => dv.find((x) => x.spec.raw === raw)!;
+assert.equal(dby("T-DOWNER#0").status, "pending", "an owner row is eligible for a text-only refresh");
+assert.equal(dby("T-DCONF#0").status, "pending", "so is a confirmed row (its program is untouched)");
+assert.equal(dby("T-DUTD#0").status, "up-to-date");
+assert.equal(dby("T-DOWNER#0").old, "an older owner wording");
+assert.equal(dby("T-DOWNER#0").new, rec("T-DOWNER").reads, "the text comes from the stored program");
+assert.equal(dby("T-GHOST#0").status, "excluded");
+assert.deepEqual(await snapshot(), dbefore, "the describe-only dry run writes nothing");
+// A row that moved after the dry run aborts the whole batch.
+await db.execute(sql`update card_rules set reads = 'moved' where card_id = 'T-DSTALE'`);
+await assert.rejects(() => applyDescribeOnly(db, dv), /changed since the dry run/);
+assert.equal((await snapshot()).find((r) => r.card_id === "T-DOWNER")!.reads, "an older owner wording", "nothing written when one target is stale");
+await db.execute(sql`update card_rules set reads = 'wording before the race' where card_id = 'T-DSTALE'`);
+const wrote = await applyDescribeOnly(db, dv);
+assert.equal(wrote.length, 3);
+assert.equal(summarizeDescribe(await classifyDescribeOnly(db, dspecs)).pending, 0, "re-run: 0 pending");
+const dafter = await snapshot();
+for (const r of dafter) {
+  const b = dbefore.find((x) => x.id === r.id)!;
+  const { reads: ra, ...restA } = r, { reads: rb, ...restB } = b;
+  assert.deepEqual(restA, restB, `${r.card_id}: only the reads column may change (ops, status, source, version, confirmation untouched)`);
+  if (["T-DOWNER", "T-DCONF", "T-DSTALE"].includes(String(r.card_id))) assert.equal(ra, rec(String(r.card_id)).reads, `${r.card_id} reading regenerated`);
+  else assert.equal(ra, rb, `${r.card_id} reading untouched`);
+}
+
 await client.close();
 console.log("refresh-ids: id parsing, classification, every exclusion, apply and the 0-pending re-check passed");

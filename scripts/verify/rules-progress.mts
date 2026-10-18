@@ -72,4 +72,11 @@ assert.equal(hist.length, 1);
 assert.equal(hist[0].confirmedCards, 2);
 assert.equal(hist[0].totalCards, 6);
 assert.equal((await recordAndReadSnapshots(db, all, "2026-10-18")).length, 2);
+// Keyword-owned rows (empty reading on purpose, #1050) count like any other: confirmed only once confirmed.
+const kwCards = [{ deckId: 1, deckName: "D", cardId: "K-1", cardName: "Barrier card", zone: "main", quantity: 1, hasSkill: true }, { deckId: 1, deckName: "D", cardId: "K-2", cardName: "Confirmed barrier", zone: "main", quantity: 1, hasSkill: true }];
+const kwRule = (id: number, cardId: string, o: Partial<Parameters<typeof computeProgress>[1][number]>) => ({ id, cardId, status: "draft", source: "compiler", confirmed: false, unreadCount: 0, reviewFlag: null, ...o });
+const kw = computeProgress(kwCards, [kwRule(1, "K-1", {}), kwRule(2, "K-2", { status: "confirmed", confirmed: true })]);
+assert.deepEqual([kw.total, kw.confirmed], [2, 1], "an unconfirmed keyword row is only read");
+assert.equal(kw.cards.find((c) => c.cardId === "K-1")!.bucket, "read");
+assert.equal(kw.cards.find((c) => c.cardId === "K-2")!.bucket, "confirmed");
 console.log("rules progress OK");

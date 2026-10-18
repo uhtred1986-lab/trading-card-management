@@ -1,17 +1,21 @@
 /** Guarded stored-rule refresh for an explicit id list, so a compiler PR's production refresh needs no throwaway script.
  *
- *   npm run arena:refresh-ids -- [--apply] [--unread-ok] (--ids "BT12-003#10,P-274#0" | --ids-file path | --pr 123)
+ *   npm run arena:refresh-ids -- [--apply] [--unread-ok | --describe-only] (--ids "BT12-003#10,P-274#0" | --ids-file path | --pr 123)
+ *
+ * --describe-only regenerates only the stored reading TEXT (card_rules.reads) from the program the row already holds: no recompile, no
+ * other column, allowed for any source (owner/user and confirmed rows included). The dry run prints old and new text.
  *
  * Ids are `CARD#SKILL` (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back). A bare `CARD` (or `CARDb`, the back) expands to every stored skill row of the card. Default is a dry run. See docs/arena-tooling.md. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { applyPending, classifyIds, formatVerdict, idsFromPrBody, parseIdList, summarize, type IdSpec } from "./lib/refresh-ids.ts";
+import { applyDescribeOnly, applyPending, classifyDescribeOnly, classifyIds, formatDescribeVerdict, formatVerdict, idsFromPrBody, parseIdList, summarize, summarizeDescribe, type IdSpec } from "./lib/refresh-ids.ts";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const value = (n: string) => { const i = args.indexOf(n); return i < 0 ? undefined : args[i + 1]; };
-const apply = flag("--apply"), unreadOk = flag("--unread-ok");
+const apply = flag("--apply"), unreadOk = flag("--unread-ok"), describeOnly = flag("--describe-only");
+assert(!(describeOnly && unreadOk), "--describe-only never compiles, so --unread-ok does not apply");
 const sources = ["--ids", "--ids-file", "--pr"].filter(flag);
 assert(sources.length === 1, 'Usage: arena:refresh-ids -- [--apply] [--unread-ok] (--ids "A#0,B#10b" | --ids-file path | --pr N)');
 
@@ -36,6 +40,20 @@ if (flag("--ids")) {
 assert(specs.length, "No ids to refresh");
 assert(process.env.DATABASE_URL, "DATABASE_URL required (the app's pooled URL; see docs/agent-brief.md)");
 const { db } = await import("../src/db/index.ts");
+
+if (describeOnly) {
+  const dv = await classifyDescribeOnly(db, specs);
+  for (const v of dv) console.log(formatDescribeVerdict(v));
+  console.log("\n" + JSON.stringify({ ...summarizeDescribe(dv), mode: apply ? "apply (describe-only)" : "dry-run (describe-only)" }));
+  if (apply) {
+    const written = await applyDescribeOnly(db, dv);
+    console.log(JSON.stringify({ written }));
+    const after = summarizeDescribe(await classifyDescribeOnly(db, specs));
+    assert.equal(after.pending, 0, `${after.pending} id(s) still pending after apply`);
+    console.log("Re-check: 0 pending.");
+  }
+  process.exit(0);
+}
 
 const verdicts = await classifyIds(db, specs, { unreadOk });
 for (const v of verdicts) console.log(formatVerdict(v));

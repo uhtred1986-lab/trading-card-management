@@ -74,7 +74,7 @@ const TOOLS = [
   {
     name: "confirm_rule",
     description:
-      "Record that the owner CONFIRMED one skill's stored reading. Only for a compiler draft/open row that is fully read (no unread clause) and whose printed text matches the current catalog; refuses anything else. Sets status confirmed with who and the owner's words; never changes the program. Returns the stored reading. Call only after the owner said, in this conversation, that the reading is right.",
+      "Record that the owner CONFIRMED one skill's stored reading. Only for a compiler draft/open row that is fully read (no unread clause) and whose printed text matches the current catalog; refuses anything else. A keyword-owned line (bare keyword such as [Barrier], or a deck-building line) has no program on purpose: its packet shows the glossary's description of what the engine does (keywordOwned) as the reading, and that is what is confirmed. Sets status confirmed with who and the owner's words; never changes the program. Returns the stored reading. Call only after the owner said, in this conversation, that the reading is right.",
     inputSchema: {
       type: "object",
       properties: {

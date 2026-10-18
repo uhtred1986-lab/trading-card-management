@@ -286,6 +286,42 @@ assert.match((await conf("BT1-006", { skillIndex: 1 })).text, /source is claude/
 assert.equal((await tool("confirm_rule", { cardId: "BT1-006", skillIndex: 0, side: "front", confirmation: "x" }, { ...deps, email: undefined })).isError, true);
 assert.equal((await db.select().from(schema.cardRules)).filter((r) => r.status === "confirmed").length, 2, "only the one allowed row (plus the seeded one) is confirmed");
 
+// Keyword-owned lines: an empty reading is confirmable only when the glossary's keyword (or the deck checker) is the rule.
+const kwCard = (id: string, skill: string) => ({ id, setCode: "BT1", game: "dbs", name: id, cardType: "BATTLE", colors: ["Red"], rarity: "C", rarityCode: "C", searchText: id, skill });
+const BARRIER = "[Barrier] (This card can't be attacked while it has an Energy Marker.)";
+const DECKLINE = "[Permanent] (You can include up to 4 copies of this card in your deck.)";
+await db.insert(schema.cards).values([
+  kwCard("KW-1", BARRIER), kwCard("KW-2", DECKLINE), kwCard("KW-3", GOOD), kwCard("KW-4", BARRIER), kwCard("KW-5", BARRIER),
+] as never);
+const printedOf = (skill: string) => currentPrinted({ skill, backSkill: null }, "front", 0)!;
+await db.insert(schema.cardRules).values([
+  mk("KW-1", { kind: "keyword", printed: printedOf(BARRIER), reads: "" }),
+  mk("KW-2", { kind: "permanent", printed: printedOf(DECKLINE), reads: "" }),
+  mk("KW-3", { printed: printedOf(GOOD), reads: "" }), // an ordinary skill that reads as nothing: still refused
+  mk("KW-4", { kind: "keyword", printed: printedOf(BARRIER), reads: "", ops: [{ op: "draw", n: 1 }] }), // a keyword with a program: not "owned"
+  mk("KW-5", { kind: "keyword", printed: printedOf(BARRIER), reads: "", unread: ["something"] }),
+] as never);
+const kwPacket = (await tool("get_card_review", { cardId: "KW-1" })).out.skills[0];
+assert.equal(kwPacket.canConfirm, true, "a bare keyword line is confirmable");
+assert.equal(kwPacket.keywordOwned.type, "keyword");
+assert.equal(kwPacket.keywordOwned.tag, "[Barrier]");
+assert.match(kwPacket.reading, /^\[Barrier\] is a keyword the engine plays itself/);
+assert.match(kwPacket.reading, /What the engine does/, "the glossary's engine description is the reading");
+assert.equal((await tool("get_card_review", { cardId: "KW-2" })).out.skills[0].keywordOwned.type, "deck-building");
+assert.equal((await tool("get_card_review", { cardId: "KW-3" })).out.skills[0].canConfirm, false);
+assert.match((await conf("KW-3")).text, /reads as nothing and is not a keyword line/, "an empty program that is not keyword-owned is refused");
+assert.match((await conf("KW-4")).text, /reads as nothing/, "a keyword row holding a program is not keyword-owned");
+assert.match((await conf("KW-5")).text, /unread clause/);
+const kwBefore = (await db.select().from(schema.cardRules)).find((r) => r.cardId === "KW-1")!;
+const kwOk = await conf("KW-1", { confirmation: "Ja, Barrier stimmt." });
+assert.equal(kwOk.isError, false, kwOk.text);
+assert.equal(kwOk.out.keywordOwned.tag, "[Barrier]");
+assert.match(kwOk.out.reading, /keyword the engine plays itself/);
+const kwAfter = (await db.select().from(schema.cardRules)).find((r) => r.cardId === "KW-1")!;
+assert.equal(kwAfter.status, "confirmed");
+assert.deepEqual([kwAfter.ops, kwAfter.reads, kwAfter.printed, kwAfter.pattern, kwAfter.version], [kwBefore.ops, kwBefore.reads, kwBefore.printed, kwBefore.pattern, kwBefore.version], "the program and reading are untouched");
+assert.equal((await conf("KW-2")).isError, false, "a deck-building line is confirmable too");
+
 // flag_rule: only the flag moves; optional issue
 const fl = await tool("flag_rule", { cardId: "BT1-003", skillIndex: 0, side: "front", reason: "reads the wrong target" });
 assert.equal(fl.isError, false, fl.text);

@@ -4,7 +4,9 @@
  *
  * Hard limits, all enforced here and tested on PGlite (`scripts/verify/rules-review-mcp.mts`):
  * - `confirm_rule` only turns a compiler `draft`/`open` row that is FULLY READ (no unread clause, a non-empty
- *   reading, nothing the engine could not run) and whose printed line is still the catalog's into `confirmed`. It
+ *   reading, nothing the engine could not run) and whose printed line is still the catalog's into `confirmed`.
+ *   A keyword-owned line (bare keyword, deck-building line; `keyword-owned.ts`) has an empty reading on purpose and
+ *   is confirmed against the glossary's description of what the engine does; any other empty reading is refused. It
  *   never edits the program (`ops`, `cost`, `trigger`, `reads`), never touches a row a person already confirmed
  *   or corrected, never a Claude/user-sourced row.
  * - `flag_rule` only writes `review_flag`. It changes no status and no program.
@@ -20,6 +22,7 @@ import faqData from "./faq.generated.json";
 import { faqKey, type FaqByCard } from "./faq";
 import { commentOnIssue, createIssue, findAssumptionIssues } from "./github";
 import { flat } from "./wording";
+import { keywordOwnedOf, keywordReading } from "./keyword-owned";
 
 const FAQ = faqData as FaqByCard;
 const DONE = new Set(["confirmed", "corrected"]);
@@ -38,6 +41,8 @@ interface Row {
   status: string;
   source: string;
   unread: string[];
+  ops: unknown[];
+  cond: unknown;
   confirmedAt: Date | null;
   confirmedBy: string | null;
   confirmNote: string | null;
@@ -62,6 +67,8 @@ const ruleCols = {
   status: cardRules.status,
   source: cardRules.source,
   unread: cardRules.unread,
+  ops: cardRules.ops,
+  cond: cardRules.cond,
   confirmedAt: cardRules.confirmedAt,
   confirmedBy: cardRules.confirmedBy,
   confirmNote: cardRules.confirmNote,
@@ -85,7 +92,11 @@ export function confirmBlocker(row: Row, card: CardInfo): string | null {
   if (row.status !== "draft" && row.status !== "open") return `status ${row.status} cannot be confirmed`;
   if (row.source !== "compiler") return `source is ${row.source}, not the compiler draft; only a compiler reading can be confirmed here`;
   if (row.unread.length > 0) return "it has an unread clause; the engine cannot read it yet, so there is nothing to confirm";
-  if (!row.reads.trim()) return "it reads as nothing; flag it instead";
+  if (!row.reads.trim()) {
+    // Empty on purpose only when the keyword (or the deck checker) is the rule and the row really holds no program.
+    const owned = keywordOwnedOf(card, row.side === "back" ? "back" : "front", row.skillIndex);
+    if (!owned || row.ops.length > 0 || row.cond != null) return "it reads as nothing and is not a keyword line; flag it instead";
+  }
   const now = currentPrinted(card, row.side === "back" ? "back" : "front", row.skillIndex);
   if (now == null || now !== row.printed) return "the stored printed text no longer matches the current catalog; the row is stale";
   return null;
@@ -93,15 +104,23 @@ export function confirmBlocker(row: Row, card: CardInfo): string | null {
 
 const keyOf = (r: Pick<Row, "cardId" | "side" | "skillIndex">) => `${r.cardId}${r.side === "back" ? "b" : ""}#${r.skillIndex}`;
 
+/** The keyword-owned description of a row whose stored reading is empty, or null (a row with a reading shows its own). */
+function ownedOf(r: Row, card: CardInfo) {
+  if (r.reads.trim() || r.unread.length > 0 || r.ops.length > 0 || r.cond != null) return null;
+  return keywordOwnedOf(card, r.side === "back" ? "back" : "front", r.skillIndex);
+}
+
 function skillPacket(r: Row, card: CardInfo) {
   const blocker = confirmBlocker(r, card);
+  const owned = ownedOf(r, card);
   return {
     key: keyOf(r),
     side: r.side,
     skillIndex: r.skillIndex,
     kind: r.kind,
     printed: r.printed,
-    reading: r.reads || "(nothing)",
+    reading: owned ? keywordReading(owned) : r.reads || "(nothing)",
+    ...(owned ? { keywordOwned: owned } : {}),
     status: r.status,
     unread: r.unread.map(flat),
     ...(r.reviewFlag ? { flagged: r.reviewFlag } : {}),
@@ -247,6 +266,7 @@ export async function confirmRule(deps: { db: Db; env: Record<string, string | u
   if (!row) throw new Error(`${info.id} has no stored ${side} skill ${skillIndex}`);
   const blocker = confirmBlocker(row, info);
   if (blocker) throw new Error(`not confirmed: ${blocker}`);
+  const owned = ownedOf(row, info);
   // The same conditions again in the UPDATE, so a row that moved since the read is not confirmed by mistake.
   const done = await deps.db
     .update(cardRules)
@@ -259,6 +279,7 @@ export async function confirmRule(deps: { db: Db; env: Record<string, string | u
         eq(cardRules.printed, row.printed),
         eq(cardRules.reads, row.reads),
         sql`jsonb_array_length(${cardRules.unread}) = 0`,
+        owned ? sql`jsonb_array_length(${cardRules.ops}) = 0` : undefined,
       ),
     )
     .returning({ id: cardRules.id });
@@ -268,7 +289,8 @@ export async function confirmRule(deps: { db: Db; env: Record<string, string | u
     key: keyOf(row),
     name: info.name,
     printed: row.printed,
-    reading: row.reads,
+    reading: owned ? keywordReading(owned) : row.reads,
+    ...(owned ? { keywordOwned: owned } : {}),
     confirmedBy: deps.email.trim().toLowerCase(),
     confirmation,
     ...(row.reviewFlag ? { clearedFlag: row.reviewFlag } : {}),

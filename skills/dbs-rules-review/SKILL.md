@@ -44,6 +44,13 @@ reading is the finish line and is never rewritten by a script. Use this flow unl
      with `canConfirm: true` can be confirmed; if the tool refuses, say why (unread clause, stale text, already
      confirmed) and do not work around it. A skill with an unread clause is never confirmable: tell him it is
      not readable yet and move on, or flag/record a ruling.
+   - **Keyword rows** (a bare keyword such as [Barrier], [Blocker], [Swap 2], [Over Realm], a Union line, or a
+     deck-building line like "you can include up to 4 copies") have no program on purpose: the engine or the deck
+     checker is the rule. The packet then carries `keywordOwned`, and its `reading` is the glossary description
+     (the rule, what the engine does with it, and how much of it the engine plays). Show him that description in
+     plain words and ask whether it matches the card. He confirms by checking the description, not a program; call
+     `confirm_rule` as usual. If the description says the engine only partly plays it, say so before he confirms.
+     A row with an empty reading that is NOT a keyword or deck-building line is refused: flag it instead.
    - **Correct** (he says the reading is wrong, or gives the right meaning): call `record_ruling` with the card
      id, a short title and his exact wording, then `flag_rule` on that skill with a short reason (add
      `issueNumber` of the ruling to link them). Do not confirm it.
