@@ -400,6 +400,8 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   return { ...sel, differentNames: true };
 }
 
+const NAME_TOKEN = "(?:<[^>]+>|\\{[^}]+\\})";
+
 function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Selector | null {
   // "1 <Android 17> card and 1 <Hell Fighter 17> card—both green and with
   // energy costs of 1—from your deck and/or Drop", "choose up to 1 red <Son
@@ -416,12 +418,25 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // than guessed at (ground rule 5); a two-name search is a primitive of its
   // own, not built.
   if (TWO_NAMED_CARDS.test(phrase)) return null;
+  // #907 round 4: "choose 1 <A>, <B>, <C>, <D> and <E> card from your Drop Area and return them to your deck"
+  // (BT8-068, EX06-06): a list of three or more names behind a count of ONE, joined by "and", is one card
+  // of each ("them" says several), and one description would take any single one of the five - a price of
+  // one card for a price of five. Refused whole, like the pair above; a "<A>, <B>, or <C>" list is a choice
+  // and is not matched.
+  if (new RegExp(`\\b1\\s+(?:[a-z-]+\\s+)?${NAME_TOKEN},\\s+(?:${NAME_TOKEN},?\\s+)*and\\s+${NAME_TOKEN}`, "i").test(phrase)) return null;
   if (SUMMED_COUNT.test(phrase)) return null;
+  // #907 round 4, BT13-152: "choose any number of … Unison Cards **equal to or less than their current
+  // energy**" bounds how MANY are chosen by a player's energy, not a measure of each card. No selector says
+  // it, and with the type list read whole (`joinsCardTypes`) the bound fell away and every card was chosen.
+  if (/\b(?:cards?|unisons?|leaders?)\s+equal to or (?:less|more) than (?:their|your opponent'?s|your) (?:current )?energy\b/i.test(phrase)) return null;
   // #930, BT4-018: "<Baby> … with the same character name as the card you
   // placed under this card" names a card by another card's name. There is no
   // such filter, and "placed under this card" was read as the area the target
   // is in ("under your cards"): a deck search of the wrong place. Refused whole.
-  if (/\bwith the same (?:character )?names? as the (?:card|cards) you (?:placed|chose)\b/i.test(phrase)) return null;
+  // #907 round 4: "…with the same name as **the chosen card**" (P-440, BT25-099b) is the same thing - a price's
+  // choice named as the pattern - and was read as the chosen card itself, so the skill moved or played the card
+  // it had only chosen to be compared with.
+  if (/\b(?:with )?the same (?:color and )?(?:character )?names? as (?:the (?:card|cards) you (?:placed|chose)|the chosen cards?)\b/i.test(phrase)) return null;
   // "Up to 1 Battle Card **each** from your deck and/or Drop" (SD19-03), "up
   // to 1 each of ≪Prison Planet≫ cards with energy costs of 3 and 4"
   // (P-664): a count per area or per kind, which one selector's count is not.
@@ -675,7 +690,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // thing across the Leader Area and the Battle Area; read as the Battle Area
   // alone the Leader could never be chosen.
   const leaderOrBattle = /\bleaders?(?: cards?)?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b|\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bleaders?(?: cards?)?\b/.test(t) && !/\bunisons?\b/.test(t);
-  const bothAreas = leaderOrBattle || /\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
+  // "Choose all of your opponent's **Leaders, Battle Cards, and Unisons**" (BT21-147, BT25-110, #907
+  // round 4): all three areas, in that order. Read as the pair it contains it dropped the Leader.
+  const leadersBattlesUnisons = /\bleaders?(?: cards?)?,\s*battle cards?,?\s+(?:and|or|and\/or)\s+unisons?\b/.test(t);
+  const bothAreas = leadersBattlesUnisons || leaderOrBattle || /\bbattle cards?,\s*(?:(?:and\/or|and|or)\s+)?unisons?\b|\bbattle cards?\b[^.]*\b(?:or|and)\b[^.]*\bunisons?\b|\bunisons?\b[^.]*\b(?:or|and)\b[^.]*\bbattle cards?\b/.test(t);
 
   // "…from your deck or Drop Area", "…in your hand or Warp": a second area
   // joined by "or". `AREA_WORDS` is first-match-wins, so the second one was
@@ -887,7 +905,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, ...floor, mode, hidden, notSelf };
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, ...floor, mode, hidden, notSelf };
-  if (bothAreas) return { side, area: leaderOrBattle ? "leader" : "battle", areas: leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  if (bothAreas) return { side, area: leaderOrBattle || leadersBattlesUnisons ? "leader" : "battle", areas: leadersBattlesUnisons ? ["leader", "battle", "unison"] : leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };

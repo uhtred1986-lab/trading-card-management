@@ -125,6 +125,11 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
 }
 
 function refFor(clause: string, c: Ctx): Ref | null {
+  // #907 round 4 (P-440, BT25-099b): "a card with the same name as **the chosen card**" names ANOTHER card by
+  // the chosen one's name. The pronoun test below took the "chosen card" for the target and the skill moved
+  // (P-440) or played (BT25-099b) the card it had chosen only to compare with. No selector says "the same
+  // name as", so it is refused, the same as `parseTarget`'s "as the card you placed".
+  if (/\bsame (?:colou?r and )?(?:character )?names? as (?:the chosen cards?|that card|the card you (?:placed|chose))\b/i.test(clause)) return null;
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
   // meant. Taken as the target it played this card instead (23-2).
@@ -542,6 +547,9 @@ const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
   [/at the (?:start|beginning) of the next turn/, "turnStart", "nextTurn"],
   [/during your opponent's next turn/, "turnStart", "opponentNextTurn"],
   [/during your next turn/, "turnStart", "yourNextTurn"],
+  // "-10000 power **during the next turn**" (P-414, BT15-061b): the turn that follows this one, which is
+  // the opponent's - the same moment "at the start of the next turn" names, not a span from now.
+  [/during the next turn/, "turnStart", "nextTurn"],
 ];
 
 const clean = (clause: string) => clause.toLowerCase().trim().replace(/[.]$/, "");
@@ -1869,6 +1877,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const until = durationOf(t);
     return refs ? refs.map((target) => ({ op: "power", target, amount: Number(m![2]), until }) as Op) : null;
   }
+  // #907 round 4: "This card gets +10000 power for the battle, **and -10000 power during the next turn**"
+  // (P-414, BT15-061b): the "and" leaves a second amount with no subject, for the card the first named.
+  if ((m = /^([+-]\d+) power$/.exec(q)) && c.lastTarget && "sel" in c.lastTarget && c.lastTarget.sel.special === "self") {
+    return [{ op: "power", target: c.lastTarget, amount: Number(m[1]), until: durationOf(t) }];
+  }
 
   // 20-1: what a card counts as, rather than what it does. "This card gains
   // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
@@ -2019,6 +2032,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     const kind = m[2].split(":")[0].trim() as SkillKindPrefix;
     return ref ? [{ op: "negateSkillsOfKind", target: ref, kind, until: durationOf(t) }] : null;
+  }
+  // #907 round 4: "...it gets +5000 power **and has its skills negated for the turn**" (BT13-117, BT15-057,
+  // BT17-109, ...): the "and" cuts the clause, and the half left carries no subject - it is the card the
+  // sentence just chose. All of its skills, for the span named (9-1-5); the pronoun reads like the
+  // "negate it" below.
+  if ((m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) skills negated(?: (?:for|until) .*)?$/.exec(q)) && (m[1] || c.lastTarget)) {
+    const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
+    return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
   }
   // "Negate it for the duration of the turn": a card, so all of its skills (9-1-5).
   if ((m = /^negate (it|them|that card|those cards)$/.exec(q))) {
@@ -2595,6 +2616,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^place (.+?) on (?:the )?top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
     [/^return (.+?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
     [/^return (.+?) to (?:your|their) hands?$/, "hand", {}],
+    // #907 round 4: "choose up to 1 of your opponent's Battle Cards and **add it to its owner's
+    // hand**" (BT22-051, BT22-031b, EX23-10, ...) is "return it to its owner's hand" worded as
+    // an add (3-1); the choice before it read, the move did not.
+    [/^add (it|them|this card|that card|those cards|the chosen cards?) to (?:its|their) owners?'?s? hands?$/, "hand", {}],
+    // "...otherwise **return it to the bottom of your deck**" (EB1-54, BT11-062b, BT11-104) is the
+    // "place it at the bottom of your deck" move said with another verb. A bare "return it to
+    // your opponent's deck" (BT7-017: "then your opponent shuffles") has no place to name.
+    [/^return (.+?) to the bottom of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
+    [/^return (.+?) to the top of (?:its owner'?s?|their owners?'?s?|their|your) decks?(?: in any order)?$/, "deck", { position: "top" }],
+    [/^return (.+?) to (?:its owner'?s?|their owners?'?s?|your opponent'?s|their|your) decks?$/, "deck", {}],
+    // "...choose up to 1 of your opponent's Battle Cards and **place it in its owner's energy in
+    // Rest Mode**" (DB1-025, DB1-091, P-174): the card lands in its own owner's Energy Area
+    // (3-8), which is what a move with no `owner` does.
+    [/^(?:add|place) (.+?) (?:to|in) (?:its owner'?s?|their owners?'?s?) energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true }],
+    [/^(?:add|place) (.+?) (?:to|in) (?:its owner'?s?|their owners?'?s?) energy(?: area)?$/, "energy", { reveal: true }],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
     // The passive said the same as the active line above — "it's sent to its
@@ -3167,14 +3203,19 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const target = refFor(onlyThis[1], c);
     return target ? [{ op: "forbid", what: "attack", until, target, attackOnly: self }] : null;
   }
-  const counted = /^(you|your opponent'?s?)\s+can only attack one more time(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  // #907 round 4: "can only attack **with Battle Cards one more time**" (BT15-119, BT15-140, P-321) puts
+  // the "with" in front of the count, and "can only attack **2 more times**" (BT19-092, BT19-099,
+  // BT24-005) has a number of its own: the same budget, `uses` of them.
+  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
-    const withWhat = counted[2];
+    const withWhat = counted[2] ?? counted[4];
+    const uses = counted[3] === "one" ? 1 : Number(counted[3]);
+    if (!(uses >= 1)) return null;
     const filter = withWhat ? filterFor(withWhat, null) : undefined;
     if (filter === null) return null;
     const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
-    return [{ op: "forbid", what: "attack", side, until, uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
+    return [{ op: "forbid", what: "attack", side, until, uses, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
   // The subject may be missing: "it gets +10000 power **and** can't attack for
   // the turn" splits at the "and", and the second half arrives with the card
@@ -3415,7 +3456,7 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
   if (!target) return null;
   // "can't be KO'd by your opponent's skills" — who is stopped from doing it.
-  const bySide: Side | undefined = /\bby your opponent'?s? skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
+  const bySide: Side | undefined = /\bby your opponent'?s? (?:card'?s )?skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
   // "This card can't be played by skills from any area", "…from any area
   // except by skills" (20-14). Fifteen cards print one of these, and the moment
   // that matters is always a *skill* reaching into the Drop or the deck for
@@ -3468,8 +3509,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     return [{ op: "forbid", what: inCharge ? "switchToActiveInCharge" : "switchToActive", until, target, ...withUnless }];
   }
   if (/^be ko'?d\b/.test(rest)) {
+    // #907 round 4 (P-481, BT8-060): "can't be KO'd in battle **against Battle Cards with energy costs of 3 or
+    // less**" / "…**by Battle Cards with an original power of 15000 or less**" names whose KO is stopped. The
+    // bare rule below is stronger than that (every KO), so a qualifier that is not "by skills" is refused.
+    if (/\b(?:against|by) (?!(?:your opponent'?s |your )?(?:card'?s )?skills?\b)/.test(rest)) return null;
     // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
-    const bySkill = /\bby (?:your opponent's |your )?skills?\b/.test(rest);
+    const bySkill = /\bby (?:your opponent's |your )?(?:card'?s )?skills?\b/.test(rest);
     return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide, ...withUnless }];
   }
   if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide, ...withUnless }];

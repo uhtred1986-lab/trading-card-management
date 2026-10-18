@@ -420,7 +420,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   look: {
     fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
-    sentence: "look at the top {n}",
+    // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
+    // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
+    sentence: (raw, r) => renderTemplate(`look at the ${(raw as OpOf<"look">).from === "bottom" ? "bottom" : "top"} {n}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r),
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
   },
   // `audience` (#137): who sees the cards. "you" is a look — 20-11's same
