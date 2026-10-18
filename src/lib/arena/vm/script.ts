@@ -476,7 +476,7 @@ export type Cond =
    * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
    * the card using the line, not of the card granting it.
    */
-  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "evolveEnergyBases" | "aegisAlt" }
+  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAlt" }
   /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
@@ -1096,7 +1096,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable"; until: Duration; target: Ref; filter?: CardFilter; line?: string }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable"; until: Duration; target: Ref; filter?: CardFilter; line?: string }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -3048,12 +3048,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         }
         const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
-        // left hand is put in Drop. A printed Drop evolution already is there.
+        // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
         // that fails to enter play (Fusion/Potara: the card that activated it,
         // from the hand; Absorb: the chosen Battle Card, wherever it is).
         const failedEvolution = () => {
-          if (evolution || op.using === "Union-Fusion" || op.using === "Union-Potara") { for (const id of candidates) if (h.areaOf(id) === "hand") h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
+          if (evolution || op.using === "Union-Fusion" || op.using === "Union-Potara") { for (const id of candidates) if (h.areaOf(id) === "hand" || (evolution && h.areaOf(id) === "zEnergy")) h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
           else if (op.using === "Union-Absorb") for (const id of candidates) { const at = h.areaOf(id); if (at && at !== "drop") h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
         };
         if (!targets.length) { failedEvolution(); break; }

@@ -444,6 +444,12 @@ export interface Permission {
    * `evolveEnergyBases`: this hand copy's Evolve-family skill may choose a
    * qualifying own Battle Card in energy and enter Active Mode on that path
    * (22-5-3-1); it does not extend the skill's activation-source area.
+   * `evolveFromZEnergy` (BT19-077/-078/-081/-082): this card's own Evolve-family
+   * skill may be activated while the card is in its master's Z-Energy as well as
+   * from the hand (22-5-2, official card Q&A on BT19-077). Read while the card is
+   * in the Z-Energy Area, where the line is then used. It extends the evolving
+   * card's source area only: the base is still chosen in the Battle Area (no
+   * `evolveEnergyBases`) and it grants no Active Mode.
    * `aegisAltDrop` (BT22-035): while the card granting it is in play, its
    * master may pay any of their [Aegis] skills by sending one card of each of
    * `filter.colors` from their Drop to their Warp instead of the hand cards of
@@ -457,7 +463,7 @@ export interface Permission {
    * skill's effect) or a [Permanent]'s standing one. It stops *negation* only:
    * a prohibition on attacking, and removing the attacker, still work.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `unionLine`: the printed text of the line granted. */

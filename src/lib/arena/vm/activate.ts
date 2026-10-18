@@ -224,6 +224,9 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // (BT31-150) — a `permit` of `overRealmFromWarp`, read while the card is
     // in the Warp (`vm/effects.ts`). Every other gate is the keyword's own.
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
+    // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, and only that, when its [Permanent]
+    // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
@@ -238,6 +241,11 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     }
   }
   return out;
+}
+
+/** 22-5-2 widened (BT19-077/078/081/082): does a `permit` of `evolveFromZEnergy` stand for this card, which is in its master's Z-Energy? */
+function evolveFromZEnergy(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  return permissions(ctx, game, state, "evolveFromZEnergy").some((p) => p.target === card);
 }
 
 /** 22-15 widened (BT31-150): does a `permit` of `overRealmFromWarp` stand for this card, which is in the Warp? The legacy `overRealmFromWarp`'s twin. */
