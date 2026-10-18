@@ -1164,6 +1164,28 @@ export function openKeywordPlayWindow(ctx: EngineContext, game: GameDefinition, 
   return true;
 }
 
+/**
+ * #929, 22-10-3-1 (a [Counter: Play] is pending when the opponent activates
+ * *or resolves* a skill that plays) and the official FAQ (BT1-107 Q4/Q5/Q6,
+ * BT1-110): a [Union] play has a second counter timing, after the card is on
+ * the table. The frame is held at the instruction after the `play`; the
+ * counter's program runs first and the runner releases the frame. `landed`
+ * keeps a counter that talks about "the Battle Card being played" from finding
+ * one. False, and nothing changed, when the opponent has no counter to use.
+ */
+export function openLandedPlayWindow(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId, frame: ScriptFrame): boolean {
+  state.resolving = { card, player, landed: true };
+  const responder = other(player);
+  const candidates = counterCandidates(ctx, game, state, responder, "play");
+  if (!candidates.length) {
+    state.resolving = null;
+    return false;
+  }
+  state.resolving.frame = { ...frame };
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  return true;
+}
+
 /** Which window the counter prompt on the table (or the one a `payCost` interrupted) belongs to: a play being resolved, or the battle's. */
 const windowNow = (state: VmState): OpenWindow => (askingMotion(state) ? "counter" : state.resolving?.frame ? "play" : "attack");
 
