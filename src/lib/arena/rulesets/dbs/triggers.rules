@@ -485,6 +485,22 @@ DEFINE TRIGGER restedBySkill
   BIND "self"
   text: "when this card is rested by one of your skills"
 
+-- #907 — when this card is rested by a skill, whoever's: "by a skill"
+-- (BT18-104, P-492). A keyword's own switch ([Alliance]) is its own moment
+-- (`restedByAlliance`), so `by: skill` here, as above.
+DEFINE TRIGGER restedByAnySkill
+  ON modeSwitched(by: skill, mode: rest)
+  BIND "self"
+  text: "when this card is rested by a skill"
+
+-- #907 — when this card is rested by your opponent's skill. The moment carries
+-- the skill's card, which a cause the card prints ("by your opponent's
+-- <Name> card's skill") asks about as the subject.
+DEFINE TRIGGER restedByOpponentSkill
+  ON modeSwitched(by: skill, byOpponent: true, mode: rest)
+  BIND "self"
+  text: "when this card is rested by your opponent's skill"
+
 -- §1-10-1 — when your skill rests an opponent's card. The printed wording
 -- names their Battle Cards and energy, which is where the legacy engine pends
 -- it, and the skill is the other player's (#157).
@@ -594,6 +610,24 @@ DEFINE TRIGGER spiritBoostPaid
   text: "when you pay a [Spirit Boost] cost from this card"
 
 -- ── areas outside play (3-8, 3-11, 3-13) ───────────────────────────────────
+
+-- §3-8, §7-2-11 — when this card is placed in an Energy Area, from anywhere and
+-- by anything: the Charge Phase's own placing (7-2-11) and a skill's alike
+-- (BT18-052, EX17-02, "added to energy" P-617). Best guess, no official ruling
+-- separates a charge from a skill's placing: both put a card in the Energy Area.
+-- The card answers from there: the pattern names the place (9-1-3-1's exception).
+DEFINE TRIGGER placedInEnergy
+  ON moved(to: energy)
+  BIND "self"
+  text: "when this card is placed in your energy"
+
+-- #907 — the same arrival from the hand: "placed in your energy from your hand"
+-- (BT13-040, -043, -045) and "this card in your hand is played or placed in
+-- your energy" (EX19-26 …, P-353).
+DEFINE TRIGGER placedInEnergyFromHand
+  ON moved(from: hand, to: energy)
+  BIND "self"
+  text: "when this card is placed in your energy from your hand"
 
 -- §3-8 — when a card goes from your energy to the Drop
 DEFINE TRIGGER energyToDrop
