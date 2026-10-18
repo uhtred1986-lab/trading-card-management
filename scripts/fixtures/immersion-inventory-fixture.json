@@ -1,0 +1,51 @@
+{
+  "note": "Synthetic and sanitized: invented ids, names and owners. Not a copy of any real deck.",
+  "cards": [
+    { "id": "T1-001", "name": "Hero Alpha", "cardType": "LEADER", "characters": ["Hero Alpha"], "backName": "Hero Alpha, Awakened" },
+    { "id": "T1-002", "name": "Rival Beta", "cardType": "BATTLE", "characters": ["Rival Beta"], "backName": null },
+    { "id": "T2-003", "name": "Rival Beta", "cardType": "BATTLE", "characters": ["Rival Beta"], "backName": null },
+    { "id": "T1-004", "name": "Beta & Gamma", "cardType": "BATTLE", "characters": ["Rival Beta", "Sage Gamma"], "backName": null },
+    { "id": "T1-005", "name": "Lone Delta", "cardType": "BATTLE", "characters": ["Lone Delta"], "backName": null },
+    { "id": "T1-006", "name": "Plain Token", "cardType": "EXTRA", "characters": [], "backName": null },
+    { "id": "T1-007", "name": "Hero Epsilon", "cardType": "LEADER", "characters": ["Hero Epsilon"], "backName": null }
+  ],
+  "mappings": [
+    { "cardId": "T1-001", "face": "front", "name": "Hero Alpha", "characterId": "goku" },
+    { "cardId": "T1-001", "face": "back", "name": "Hero Alpha, Awakened", "characterId": "bardock" },
+    { "cardId": "T1-002", "face": "front", "name": "Rival Beta", "characterId": "vegeta" },
+    { "cardId": "T1-004", "face": "front", "name": "Old Printed Name", "characterId": "vegeta" }
+  ],
+  "fixtures": [
+    { "name": "Planned Recipe One", "source": "fixture-catalog", "leaderId": "T1-007" },
+    { "name": "Planned Recipe Two", "source": "fixture-recipes", "leaderId": "T1-007",
+      "signature": "leader:T1-007*1|main:T1-005*4|z:" }
+  ],
+  "decks": [
+    { "id": 1, "game": "dbs", "isBuilt": true, "isTesting": false, "owner": "owner-a", "name": "Real built", "description": null },
+    { "id": 2, "game": "dbs", "isBuilt": false, "isTesting": false, "owner": "owner-a", "name": "Real virtual", "description": null },
+    { "id": 3, "game": "dbs", "isBuilt": false, "isTesting": true, "owner": "owner-a", "name": "Flagged test", "description": null },
+    { "id": 4, "game": "dbs", "isBuilt": false, "isTesting": false, "owner": "owner-a", "name": "Planned  Recipe Two", "description": null },
+    { "id": 5, "game": "dbs", "isBuilt": false, "isTesting": false, "owner": "owner-a", "name": "Planned Recipe One", "description": null },
+    { "id": 6, "game": "dbs", "isBuilt": false, "isTesting": false, "owner": "owner-a", "name": "Wording only", "description": "Authored public proposal for tests" },
+    { "id": 7, "game": "fusion", "isBuilt": false, "isTesting": false, "owner": "owner-a", "name": "Other game", "description": null },
+    { "id": 8, "game": "dbs", "isBuilt": false, "isTesting": false, "owner": "owner-b", "name": "Someone else", "description": null }
+  ],
+  "deckCards": [
+    { "deckId": 1, "cardId": "T1-001", "zone": "leader", "quantity": 1 },
+    { "deckId": 1, "cardId": "T1-002", "zone": "main", "quantity": 4 },
+    { "deckId": 1, "cardId": "T1-004", "zone": "main", "quantity": 2 },
+    { "deckId": 2, "cardId": "T1-001", "zone": "leader", "quantity": 1 },
+    { "deckId": 2, "cardId": "T2-003", "zone": "main", "quantity": 3 },
+    { "deckId": 2, "cardId": "T1-005", "zone": "main", "quantity": 2 },
+    { "deckId": 2, "cardId": "T1-006", "zone": "main", "quantity": 1 },
+    { "deckId": 2, "cardId": "T1-007", "zone": "side", "quantity": 1 },
+    { "deckId": 3, "cardId": "T1-007", "zone": "leader", "quantity": 1 },
+    { "deckId": 4, "cardId": "T1-007", "zone": "leader", "quantity": 1 },
+    { "deckId": 4, "cardId": "T1-005", "zone": "main", "quantity": 4 },
+    { "deckId": 5, "cardId": "T1-007", "zone": "leader", "quantity": 1 },
+    { "deckId": 5, "cardId": "T1-005", "zone": "main", "quantity": 3 },
+    { "deckId": 6, "cardId": "T1-007", "zone": "leader", "quantity": 1 },
+    { "deckId": 7, "cardId": "T1-007", "zone": "leader", "quantity": 1 },
+    { "deckId": 8, "cardId": "T1-007", "zone": "leader", "quantity": 1 }
+  ]
+}
