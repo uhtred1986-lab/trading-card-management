@@ -56,7 +56,7 @@ import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
-import { attrsNow, forbiddenForCard, forbids, hasKeyword, readingBoard, staticsNow, taxesOn } from "./program";
+import { attrsNow, forbiddenForCard, forbids, hasKeyword, permissions, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK, openCounterCounterWindow, stepCounterCost } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
@@ -170,11 +170,17 @@ const STEP_WORK: Record<string, Work> = {
     section: "6-2-1-10",
     waits: "moveTo() with TOP n and a computed count, and 'each player'",
     run: (ctx, game, state, ev) => {
+      // 6-2-2, 6-2-2-1: a [Permanent] "You start the game with X life" of the
+      // Leader already in the Leader Area (6-2-1-2) replaces the 8. Each player's
+      // own; when more than one says so (a Leader has one such line) the lowest
+      // wins, the safer reading of a conflict the cards never print.
+      const startLife = permissions(ctx, game, state, "startLife");
       // The cards are placed on the pile as they are taken, which is the order
       // damage later takes them back in — and the order the legacy engine
       // deals them, which is what makes both engines' life piles one pile.
       for (const p of PLAYERS) {
-        const n = game.game?.life ?? 0;
+        const own = startLife.filter((s) => s.master === p && s.n !== undefined).map((s) => s.n as number);
+        const n = own.length ? Math.min(...own) : (game.game?.life ?? 0);
         for (let i = 0; i < n; i++) {
           const id = state.sides[p].zones[SETUP_ZONES.deck][0];
           if (!id) break;

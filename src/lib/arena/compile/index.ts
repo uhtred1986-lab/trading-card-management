@@ -463,6 +463,7 @@ function compileSkillText(skill: Skill): Script {
     c.last = o.as;
     c.lastTarget = { var: o.as };
     c.priceChoice = o.as;
+    c.priceDiscarded = priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === o.as && p.to === "drop");
   }
   // "The card that was switched to Hidden Mode by this skill" names the
   // price's card, possibly well after the effect has made choices of its own
@@ -660,7 +661,7 @@ function compileSkillText(skill: Skill): Script {
     // card is revealed from the top of your deck and placed in your Drop Area"
     // — the trigger splits on its "and", and the second half is still the
     // trigger rather than the first thing the skill does.
-    while (clauses.length > 1 && /^(?:kos?|ko's|is ko'?d|deals damage|(?:is )?placed in|(?:is )?revealed|(?:is )?sent to|(?:is )?returned to|(?:is )?switched to|or (?:when |if )you combo with this card)\b/i.test(clauses[0].trim()))
+    while (clauses.length > 1 && /^(?:kos|ko's|is ko'?d|deals damage|(?:is )?placed in|(?:is )?revealed|(?:is )?sent to|(?:is )?returned to|(?:is )?switched to|or (?:when |if )you combo with this card)\b/i.test(clauses[0].trim()))
       clauses.shift();
     // "When you play this card and your Leader Card is a ≪Universe 6≫ card,
     // …" — a condition riding on the trigger, split off the same way (9-1-3).

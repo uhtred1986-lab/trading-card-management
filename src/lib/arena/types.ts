@@ -292,6 +292,14 @@ export type ForbiddenAction =
    */
   | "switchEnergyToActive"
   | "placeEnergy"
+  /**
+   * "You can only place up to 6 energy" (BT3-032, BT9-127, BT19-034): another card
+   * into the Energy Area is refused while the escape holds no more — the rule's
+   * `unless` says the player has fewer than the limit. Unlike `placeEnergy` it
+   * stops the Charge Phase's placement **and** a skill's, as the official card
+   * Q&A on BT3-032 and BT19-034 says ("a result of both the Charge Phase and skills").
+   */
+  | "energyCap"
   /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
   | "beMovedBySkill"
   /** "This card's skills can't be negated in any area" (9-1-5). */
@@ -473,10 +481,15 @@ export interface Permission {
    * one fails, and "if you negated" reports that it did. Timed (a resolved
    * skill's effect) or a [Permanent]'s standing one. It stops *negation* only:
    * a prohibition on attacking, and removing the attacker, still work.
+   * `startLife` (6-2-2, 6-2-2-1; BT12-002, BT16-046, BT16-047, BT19-100): "You start
+   * the game with X life." The Leader in the Leader Area sets how many cards the Life
+   * Area is set up with (6-2-1-10) in place of the 8 of the rule; `n` is X.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
+  /** `startLife`: how many life cards the player starts with. */
+  n?: number;
   /** `unionLine`: the printed text of the line granted. */
   line?: string;
   /** `unionSourceUnder`: which Unison cards' piles may be searched (BT24-112's "your black Z-Unison"). */

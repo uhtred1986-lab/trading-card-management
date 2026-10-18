@@ -53,6 +53,12 @@ export interface Ctx {
    */
   priceChoice?: string;
   /**
+   * The price's choice is a discard: it moves the cards it chose to the Drop
+   * Area. "The cards discarded by this skill" (BT20-090, BT20-107..109) means
+   * those and nothing else, so it is read only when this holds.
+   */
+  priceDiscarded?: boolean;
+  /**
    * The cards this skill's own effect last switched to Hidden or Revealed
    * Mode — "then switch all the cards switched to Hidden Mode by this skill
    * to Revealed Mode" (BT29-139), where the price switched nothing.

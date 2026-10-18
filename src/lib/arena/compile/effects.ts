@@ -872,6 +872,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .replace(/^send (.+?) (to (?:your|their|its owner'?s?) warps?) (from (?:your|their) (?:drop(?: area)?|hand|battle area))$/, "send $1 $3 $2");
   let m: RegExpExecArray | null;
 
+  // "KO that card after the battle" (BT1-015): "after the battle" is a moment of its
+  // own that the delay table has no row for, and read without it the KO would happen
+  // at once, during the attack's trigger (and "that card" would be this card). Unread,
+  // as it was; the skill goes to the referee.
+  if (/^ko\b.*\bafter the battle$/.test(t)) return null;
+
   // #970: "send 1 <A> card and 1 <B> card from your Drop to your Warp" — one
   // choice per slot, each a card of its own.
   // "You and your opponent compliment each other." (P-514–P-516, P-588–P-592):
@@ -1152,7 +1158,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^place (\d+) cards? (?:from|in) your hand in(?:to)? (?:your |the )?drop(?: area)?$/.exec(t))) return [{ op: "discard", n: Number(m[1]) }];
 
   // Damage (5-10).
-  if ((m = /^deal (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
+  // "Inflict 2 damage to your opponent" (BT1-011, BT1-015, BT2-006, EX03-03) is "deal 2 damage":
+  // 1-13 treats the two verbs alike, as the "to your life" line below already does.
+  if ((m = /^(?:deal|inflict) (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
   // "you may inflict 2 damage to your life" (EX03-11, P-015): damage to yourself is
   // the same 5-10 damage, taken from your own Life Area into your own hand.
   if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
@@ -1735,6 +1743,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Energy markers (5-14).
   if ((m = /^place (\d+) energy markers? in your energy(?: area)?$/.exec(t))) return [{ op: "energyMarker", n: Number(m[1]) }];
 
+  // "[Permanent] You start the game with 6 life" (BT12-002, BT16-046, BT16-047,
+  // BT19-100): 6-2-2-1 names exactly this line as a pre-game [Permanent], applied
+  // where the Life Area is set up (6-2-1-10) in place of the 8 cards of the rule.
+  if (c.permanent && (m = /^you start the game with (\d+) life$/.exec(t)) && Number(m[1]) >= 1) {
+    return [{ op: "permit", what: "startLife", n: Number(m[1]), target: { sel: { special: "self" } }, until: "game" }];
+  }
+
+  // "[Permanent] You can only place up to 6 energy (in your Energy Area)" (BT3-032,
+  // BT9-127, BT19-034 and their back faces): a limit on how many cards the Energy
+  // Area holds, counted in cards (energy markers are not energy, 1-14-3). The
+  // official card Q&A (BT3-032 Q1, BT19-034 via P-501 Q1) rules that it stops a
+  // placement made by the Charge Phase and one made by a skill alike, so it is the
+  // `energyCap` prohibition, in force while the Energy Area holds N or more.
+  if (c.permanent && (m = /^only place up to (\d+) energy(?: in your energy area)?$/.exec(t)) && Number(m[1]) >= 1) {
+    return [{ op: "forbid", what: "energyCap", side: "you", until: "game", unless: { kind: "count", sel: { side: "you", area: "energy" }, atMost: Number(m[1]) - 1 } }];
+  }
+
   // "This card gets +10000 power and [Double Strike] for the turn" — one
   // clause doing two things, and by far the commonest such clause in the game.
   // `splitClauses` keeps "and [" together on purpose, so that "gains [A] and
@@ -1750,6 +1775,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const until = durationOf(t);
       return [{ op: "power", target: ref, amount: { sumPower: { var: "rested" } }, until }, ...kws.map((k) => ({ op: "grant", target: ref, keyword: k!, until }) as Op)];
     }
+  }
+
+  // "This card gains power equal to the total combo power of the cards
+  // discarded by this skill for the turn" (BT20-090, BT20-107, BT20-108,
+  // BT20-109): the cards the price discarded (4-3-3, 1-6), their combo powers
+  // (1-2-8) added up as the skill resolves. Only when the price's choice is a
+  // discard; a price that chose and did something else has no "discarded" cards.
+  if ((m = /^(.*?) (?:gets?|gains?) power equal to the total combo power of the cards? (?:that (?:was|were) )?discarded by this skill$/.exec(q)) && c.priceChoice && c.priceDiscarded) {
+    const ref = refFor(m[1], c);
+    if (ref) return [{ op: "power", target: ref, amount: { sumOf: { fromVar: c.priceChoice }, attr: "comboPower" }, until: durationOf(t) }];
   }
 
   // 23-5-2-4: "Increase this card's power by the original power on the front
@@ -2144,6 +2179,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       ...(m[2] ? [{ op: "hidden", target: { var: v }, hidden: true } as Op] : []),
     ];
   }
+  // "Your opponent adds 1 card from their hand to their Z-Energy" (BT21-039,
+  // BT21-058, BT21-059, BT23-067, BT23-068, BT25-128): their choice, out of
+  // their own hand (5-2), arriving in their Z-Energy Area. The same shape as
+  // the Energy Area line above.
+  // After "your opponent draws 1 card **and** adds 1 card from their hand …"
+  // (BT21-039) the split leaves the verb without its subject; "their hand" is
+  // the opponent's, the only third person these cards ever speak of.
+  if ((m = /^(?:your opponent adds|add) (\d+) cards? from their hand to their z-energy$/.exec(t))) {
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { side: "opponent", area: "hand", count: Number(m[1]) }, as: v, chooser: "opponent", reason: clause },
+      { op: "moveTo", target: { var: v }, to: "zEnergy" },
+    ];
+  }
   // 23-5: "switch it to Revealed Mode or Hidden Mode" (BT28-150). A card is
   // in exactly one of the two, and switching it to the one it is in does
   // nothing (0-2-4-1), so the only switch the choice can make is to the other
@@ -2268,6 +2317,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       }
     }
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
+  }
+  // "…choose up to 1 of your red Unison Cards with [Rejuvenate] in its skill
+  // text and place this card under it **from its owner's Drop Area**"
+  // (BT12-007, BT12-037, BT12-067, BT12-107): this card is in the Drop when the
+  // end of the battle comes (it was used in a combo), and the words say so, so
+  // the move takes it from there. No Unison chosen, no host, and the card stays
+  // where it is: the choice is "up to 1".
+  if ((m = /^(?:place|put) this card under (it|that card|the chosen [^,.]+) from (?:its owner'?s?|your) drop(?: area)?$/.exec(t))) {
+    const host = refFor(m[1], c);
+    return host && "var" in host ? [{ op: "moveTo", target: { sel: { special: "self", area: "drop" } }, to: "under", under: host }] : null;
   }
   // "Place this card under the played card", "place it under the card you
   // played with this skill", "…under your Leader", "…under {Wickedest Clan}":
@@ -2488,6 +2547,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the yellow ≪Frieza's Army≫ cards print it both ways round.
     [/^(?:add|place|put) (.+?) (?:in|into|to) your life(?: area)?$/, "life", {}],
     [/^(?:add|place|send) (.+?) (?:in|into|to) your z-energy$/, "zEnergy", {}],
+    // "Choose up to 1 of your opponent's Battle Cards and add it to its owner's
+    // Z-Energy" (BT21-036, BT21-038, BT21-051, BT21-052, BT21-076, BT21-084): the
+    // Z-Energy Area is the owner's, so the card goes where `moveTo` sends a card
+    // by default, to its owner's side. "To your opponent's Z-Energy" names that
+    // side outright (BT23-067). Only a pronoun is read as the subject: "add the
+    // chosen card to your opponent's Z-Energy" (P-504) may point at the price's
+    // choice, which the effect's own choice has since replaced as the last one,
+    // and a card taken from a Life Area (BT23-103) is chosen unseen (3-9-2) -
+    // both stay unread.
+    [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) (?:its owner'?s?|their owners?'?s?) z-energy$/, "zEnergy", {}],
+    [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) your opponent'?s z-energy$/, "zEnergy", { owner: "opponent" }],
     [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
   ];
   for (const [re, to, opts] of MOVES) {
@@ -2567,6 +2637,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const onto = refFor(m[2], c);
     if (!what || !onto || !("var" in what)) return null;
     return [{ op: "play", target: what, onto, ...(m[3] ? { mode: m[3] as "rest" | "active" } : {}), using: "Evolve" }];
+  }
+
+  // "…choose 1 <Frost> with [Evolve] among them and evolve this card into it"
+  // (BT1-017, EX06-04, P-018, P-065): the same explicit evolution the line
+  // above reads, said from the host's side. The card evolved *into* is the one
+  // the skill just chose and goes on top of this card (22-5-2-3, 22-5-5:
+  // "evolve" is playing the card as an [Evolve] play on top of its base), and
+  // no cost is paid unless the text says so (official card Q&A, BT1-017 Q4).
+  if ((m = /^evolve this card into (it|that card|the chosen card)$/.exec(t))) {
+    const what = refFor(m[1], c);
+    const base = refFor("this card", c);
+    if (!what || !base || !("var" in what)) return null;
+    return [{ op: "play", target: what, onto: base, using: "Evolve" }];
   }
 
   // "Play up to 1 <Majin Buu> card from your deck on top of this card"
@@ -3943,6 +4026,35 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const areas = [...new Set(c.choices.flatMap((ch) => ch.sel.areas ?? (ch.sel.area ? [ch.sel.area] : [])).filter((a): a is "deck" | "life" => a === "deck" || a === "life"))];
       if (areas.length) push([{ op: "shuffle", areas, inspectedOnly: true }]);
       continue;
+    }
+    // "Once per turn, if this card would be KO'd by an opponent's skill, you may
+    // place … instead" (BT21-040) and "…, once per turn, this card can't be
+    // removed from a Battle Area by skills" (BT22-117, P-638): `splitClauses` cuts
+    // the limit off at its comma, and alone it reads as nothing. A [Permanent]
+    // replacement spends its own line for the turn (`negateOwnSkill`, as
+    // BT29-141's does), which is exactly "once per turn" for a standing rule, so
+    // the limit is carried to the clause that does the replacing.
+    if (c.permanent && /^once per turn[.,]?$/i.test(clause.trim()) && i + 1 < clauses.length) {
+      const next = clauses[i + 1].trim();
+      // …"would" clause, then its substitute: the limit moves onto the substitute, where `oncePerTurn` reads it.
+      if (i + 2 < clauses.length && (parseWouldLeave(next) || parseWouldReturnToHand(next) || parseWouldMoveFromLife(next) || parseWouldLoseMarker(next))) {
+        clauses[i + 2] = `once per turn, ${clauses[i + 2].trim()}`;
+        clauses.splice(i, 1);
+        joined.splice(i, 1);
+        i--;
+        continue;
+      }
+      // Labelled best guess: "once per turn, this card can't be removed" shields the
+      // card from the first removal by a skill each turn and from no later one. It
+      // is the `leave` replacement with nothing to put in the card's place but the
+      // spending of the line (no card says what else would happen); a KO is a
+      // different event (9-10) and is not touched, as for the plain prohibition.
+      const guard = /^(?:this card|it) can'?t be removed from (?:your|a|the) battle area by (your opponent'?s |an opponent'?s )?skills?$/i.exec(next);
+      if (guard) {
+        push([{ op: "replace", event: "leave", by: "skill", ...(guard[1] ? { bySide: "opponent" as const } : {}), with: [{ op: "negateOwnSkill", until: "turn" }] }]);
+        i++;
+        continue;
+      }
     }
     // 12-2-4 (SD7-01): this is an activation of the chosen Extra's named
     // skill, not a play. `splitClauses` separates the target and the verb at

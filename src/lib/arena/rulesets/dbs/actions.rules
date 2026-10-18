@@ -73,6 +73,11 @@ DEFINE ACTION charge                                                      -- §7
   -- filled in by the interpreter, because a declaration cannot name a rule that
   -- is not in the file.
   REFUSE forbidden() UNLESS NOT forbidden(what: placeEnergy)
+  -- "You can only place up to 6 energy" (BT3-032): the official card Q&A says the
+  -- limit holds for the Charge Phase as well as for skills, so an Energy Area
+  -- already at the limit takes no further card (`energyCap`, a skill's placement
+  -- is stopped in `moveTo`).
+  REFUSE forbidden() UNLESS NOT forbidden(what: energyCap)
   label: "Charge"
   text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
 
