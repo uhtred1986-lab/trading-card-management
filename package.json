@@ -46,6 +46,7 @@
     "arena:offline-shell-browser": "tsx scripts/arena-offline-shell-browser.mts",
     "arena:local-ownership-browser": "tsx scripts/arena-local-ownership-browser.mts",
     "arena:local-browser": "tsx scripts/arena-local-browser.mts",
+    "arena:computer-match-browser": "tsx scripts/arena-computer-match-browser.mts",
     "arena:offline-release": "tsx scripts/arena-offline-release-browser.mts",
     "arena:offline-decks-browser": "tsx scripts/arena-offline-decks-browser.mts",
     "arena:phone": "tsx scripts/arena-phone-run.mts",
