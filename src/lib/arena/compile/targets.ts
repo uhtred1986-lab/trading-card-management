@@ -1,4 +1,4 @@
-import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
+import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, energyBoundOf, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
@@ -314,7 +314,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(energyBound[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     // An "or" between two descriptions would put the bound on both; one card is the only reading kept.
     if (!sel || sel.special || sel.filter?.anyOf?.length) return null;
-    return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), costAtMostEnergy: true } };
+    // #1011: any comparator, and the opponent's count too ("greater than their
+    // current energy", BT19-036; "greater than or equal to your opponent's energy", DB1-059).
+    const { key, opponent } = energyBoundOf(energyBound);
+    // "Choose 1 Battle Card with an energy cost greater than or equal to your opponent's
+    // energy and KO it" (DB1-059, EX08-06) names no side: the bare noun reads as your own
+    // Battle Area here, which would put your cards on offer under an opponent's-energy
+    // bound. Whose cards the text means is not settled, so it is refused, not guessed.
+    if (!(key === "costAtMostEnergy" && !opponent) && !/\b(?:your|their|opponent'?s|each player|all players|both players|this)\b|\bfrom\b/i.test(phrase.replace(energyBound[0], " "))) return null;
+    return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), [key]: true, energyOfOpponent: opponent } };
   }
   const summed = SUM_BOUND.exec(phrase);
   if (summed) {
@@ -903,7 +911,7 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
   // measure no filter carries; it used to ride through as words `parseFilter`
   // ignored. It is still left out here, so the subject keeps being the kind of
   // card it was and the skill still fires — now said, not by accident.
-  const withoutEnergyBound = description.toLowerCase().replace(new RegExp(`\\s*(?:with\\s+)?(?:an?\\s+)?${ENERGY_COST_VS_ENERGY.source}`, "g"), "");
+  const withoutEnergyBound = description.toLowerCase().replace(new RegExp(`\\s*(?:(?:with|whose)\\s+)?(?:an?\\s+)?${ENERGY_COST_VS_ENERGY.source}`, "gi"), "");
   return filterFor(withoutEnergyBound, null) ?? undefined;
 }
 
@@ -974,6 +982,9 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.specifiedCostMax != null ||
     f.specifiedCostNone ||
     f.costAtMostEnergy ||
+    f.costBelowEnergy ||
+    f.costAtLeastEnergy ||
+    f.costAboveEnergy ||
     f.powerRel != null ||
     f.monoColor ||
     // A colour narrows an energy area as much as any other: "your blue energy"

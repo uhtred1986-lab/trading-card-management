@@ -433,6 +433,10 @@ function tidyEffect(effect: string): string {
   return effect
     .replace(/(\d)of\b/g, "$1 of")
     .replace(/\bit's owner/gi, "its owner")
+    // BT31-109 prints "an energy cost less **then** or equal to their current energy" (#1011):
+    // the "then" was read as the word that starts the next step, which cut the clause in two
+    // and left the first half choosing a Battle Card with no cost test at all.
+    .replace(/\bless then or equal to\b/gi, "less than or equal to")
     .replace(/^activate this skill (when\b.*?)\.\s+(?=[A-Z])/i, "$1, ")
     .replace(/^if (your opponent activates an? \[counter[^\]]*\] skill(?: during a battle (?:with|in which) this card)?,)/i, (all: string, rest: string) => (/\bwhen\b/i.test(effect) ? all : `when ${rest}`));
 }
