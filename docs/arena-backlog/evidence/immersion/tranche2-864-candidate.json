@@ -1,0 +1,773 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "kind": "generated-character-sprite-sheets",
+      "repositoryPath": "public/arena/characters (broly-z, broly-z-lss, broly-z-ss, broly-br, broly-br-fpss, broly-br-ss, bulma-youthful, bulma-seeker, bulma-br, burter, cabba, cabba-ss, caulifla, caulifla-ss, brianne, cell-imperfect, cell-semi-perfect, cell-jr)",
+      "provenance": "Generated for this project (issue #864) with Google Gemini gemini-3-pro-image on a flat key-colour background, from a written character description plus references: the project's own goku.png sheet for style and layout and, where a fitting one existed, one Dragon Ball wiki picture for likeness. No card art was uploaded. Background keyed out locally; the three poses laid out in equal 724 px thirds.",
+      "license": "Original artwork generated for this project; no third-party image is included in the sheets."
+    }
+  ],
+  "characters": [
+    {
+      "id": "broly-z",
+      "name": "Broly",
+      "sheet": "/arena/characters/broly-z.png",
+      "sha256": "10f3add7222a4146cf0f47921115c0645848f6462d7dba0177cd5ab333cf8a48",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "broly-z-lss",
+      "name": "Legendary Super Saiyan Broly",
+      "sheet": "/arena/characters/broly-z-lss.png",
+      "sha256": "94bfd9fa10627f0a6f5481137d2b5d4bcb78d3e0ca98634baf73f74b98c837a4",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "broly-z-ss",
+      "name": "Super Saiyan Broly",
+      "sheet": "/arena/characters/broly-z-ss.png",
+      "sha256": "56073423fdf0f771917cea5ca19563563d708fb114617bb179ce0ecc3aa1f2d4",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "broly-br",
+      "name": "Broly: Br",
+      "sheet": "/arena/characters/broly-br.png",
+      "sha256": "79e9747b02273af0a6d5b5367260e0097f8613e093896d20b1acbd7177900418",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "broly-br-fpss",
+      "name": "Full Power Super Saiyan Broly: Br",
+      "sheet": "/arena/characters/broly-br-fpss.png",
+      "sha256": "f912a63fa831e9b69328c95be393478d85ad3d827109a9a1c6953a05d93de0a9",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "broly-br-ss",
+      "name": "Super Saiyan Broly: Br",
+      "sheet": "/arena/characters/broly-br-ss.png",
+      "sha256": "f8010de10e4b8e913e1a1d84be779ea35c0209e6ade6490d1a1f8c1e8f30530d",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bulma-youthful",
+      "name": "Youthful Bulma",
+      "sheet": "/arena/characters/bulma-youthful.png",
+      "sha256": "c27eba537975a2493a3ca3f25a0ea29c79361ea7d81a306b0943ad45b8309816",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bulma-seeker",
+      "name": "Dragon Ball Seeker Bulma",
+      "sheet": "/arena/characters/bulma-seeker.png",
+      "sha256": "5b49fe7e4647c4977ecd368f3365ca0b7507895c419729f4eeba89fdfe166b5c",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "bulma-br",
+      "name": "Bulma: Br",
+      "sheet": "/arena/characters/bulma-br.png",
+      "sha256": "9eb19fe2f975e2b13f06f018f83e77eee7867104ba394cf2d8aa1887033b6f5e",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "burter",
+      "name": "Burter",
+      "sheet": "/arena/characters/burter.png",
+      "sha256": "2fef71a5f02d19f7c786147a25be08fbfe7c760697a73bc812b7240f4373802f",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cabba",
+      "name": "Cabba",
+      "sheet": "/arena/characters/cabba.png",
+      "sha256": "370ecda66e6ee29c1d142628902c7061771301bee7a08cb8a3f84e02ca211f4f",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cabba-ss",
+      "name": "Super Saiyan Cabba",
+      "sheet": "/arena/characters/cabba-ss.png",
+      "sha256": "fc3d9dc92825953d7267d7dc9abfb5fcbaefab445aba7a906b285ae595fe1142",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "caulifla",
+      "name": "Caulifla",
+      "sheet": "/arena/characters/caulifla.png",
+      "sha256": "669876352517e73296f591aabd16d027d3f59c4529e6576f638c27ad3c6698e9",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "caulifla-ss",
+      "name": "Super Saiyan Caulifla",
+      "sheet": "/arena/characters/caulifla-ss.png",
+      "sha256": "37e06dd1f660cc91efe9f9b2b859a03a4f418f8389b093421737cd8d1def4133",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "brianne",
+      "name": "Brianne de Chateau",
+      "sheet": "/arena/characters/brianne.png",
+      "sha256": "7c06f3dcfe5d0269a7932d83d2771c486edc014d727ecf6e9ef0361221d50362",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cell-imperfect",
+      "name": "Imperfect Cell",
+      "sheet": "/arena/characters/cell-imperfect.png",
+      "sha256": "02d5576b1b895d2df290a6c7b32eb6445fd7423a319ff790ffa44290440a12b3",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cell-semi-perfect",
+      "name": "Semi-Perfect Cell",
+      "sheet": "/arena/characters/cell-semi-perfect.png",
+      "sha256": "718321ca37948d41240d3254de8b80a8b6e25dca485705224b006a5c182a8191",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    },
+    {
+      "id": "cell-jr",
+      "name": "Cell Jr.",
+      "sheet": "/arena/characters/cell-jr.png",
+      "sha256": "7796cda2c3cfc9179839e860b54e44730ee50b5840602a4895d2f7b1c166ac9a",
+      "width": 2172,
+      "height": 724,
+      "frames": [
+        "attack",
+        "guard",
+        "hit"
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "cardId": "BT1-057",
+      "face": "front",
+      "name": "Broly",
+      "characterId": "broly-z",
+      "evidence": {
+        "catalogCardName": "Broly",
+        "catalogCharacter": [
+          "Broly"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-057.png",
+        "reviewedCardArtSha256": "135bcc1623e9b84295ef00a5f579930261a467baa72a34decd811ffa9ca447ce",
+        "visualReview": "Base Broly (Z films): black hair, gold headband, gold neck ring and cuffs, red sash over white trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT1-076",
+      "face": "front",
+      "name": "Broly, Dawn of the Rampage",
+      "characterId": "broly-z",
+      "evidence": {
+        "catalogCardName": "Broly, Dawn of the Rampage",
+        "catalogCharacter": [
+          "Broly"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-076.png",
+        "reviewedCardArtSha256": "1d3ff1715716f94e609a5e108614d5eb5baf34455fc98537b390aa7daa487288",
+        "visualReview": "Base Broly (Z films) with black hair, gold ornaments and red sash; same costume as the sheet."
+      }
+    },
+    {
+      "cardId": "BT1-057",
+      "face": "back",
+      "name": "Broly, The Legendary Super Saiyan",
+      "characterId": "broly-z-lss",
+      "evidence": {
+        "catalogCardName": "Broly",
+        "catalogCharacter": [
+          "Broly"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Broly, The Legendary Super Saiyan",
+        "catalogBackCharacter": [
+          "Broly"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-057_b.png",
+        "reviewedCardArtSha256": "48d5feeafb6316310fff819af3f924a3bc55d87f62cd6b544ef4666f71400047",
+        "visualReview": "Awakened back shows Legendary Super Saiyan Broly: green hair, white eyes, hulking, gold neck ring, red sash; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT1-073",
+      "face": "front",
+      "name": "Broly, The Rampaging Horror",
+      "characterId": "broly-z-lss",
+      "evidence": {
+        "catalogCardName": "Broly, The Rampaging Horror",
+        "catalogCharacter": [
+          "Broly"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-073.png",
+        "reviewedCardArtSha256": "4495deef750bf676b95d5e16345554c48a7b6cf82ac8ebe5a11a3673af1860b1",
+        "visualReview": "Legendary Super Saiyan Broly with green hair, gold ornaments and red sash over white trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "EX03-16",
+      "face": "front",
+      "name": "Deathless Warrior Broly",
+      "characterId": "broly-z-ss",
+      "evidence": {
+        "catalogCardName": "Deathless Warrior Broly",
+        "catalogCharacter": [
+          "Broly"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/EX03-16.png",
+        "reviewedCardArtSha256": "efab41a14f25c92560692d66f855e6c6ff3877d4588102cb83d76c0133a845e0",
+        "visualReview": "Broly (Z films) with golden Super Saiyan hair and his gold neck ring, not the green Legendary form; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT6-062",
+      "face": "front",
+      "name": "Broly, Berserker Origins",
+      "characterId": "broly-br",
+      "evidence": {
+        "catalogCardName": "Broly, Berserker Origins",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-062.png",
+        "reviewedCardArtSha256": "53631fa237eef8cf06ad998ead284ba1022c09fec75f82f7513bae6893276f39",
+        "visualReview": "Base Broly from the 2018 film: wild black hair, bare chest, green tattered trousers, arm wraps; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT6-063",
+      "face": "front",
+      "name": "Broly, Unrealized Ambition",
+      "characterId": "broly-br",
+      "evidence": {
+        "catalogCardName": "Broly, Unrealized Ambition",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-063.png",
+        "reviewedCardArtSha256": "4896c95572877f7e7258d7ba0ff29ac790d60642ceb00e87b71b9008ec7424c4",
+        "visualReview": "Base Broly (2018 film) with black hair, green cloth trousers and arm wraps; matches the sheet."
+      }
+    },
+    {
+      "cardId": "SD8-01",
+      "face": "front",
+      "name": "Broly",
+      "characterId": "broly-br",
+      "evidence": {
+        "catalogCardName": "Broly",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-01.png",
+        "reviewedCardArtSha256": "725400c35e230cadfdedea2fed30b40eba752a1f1b9f882d8da8b5dad0e434eb",
+        "visualReview": "Base Broly (2018 film), shirtless with green cloth trousers and blue arm wraps; matches the sheet."
+      }
+    },
+    {
+      "cardId": "SD8-01",
+      "face": "back",
+      "name": "Broly, Evil Unleashed",
+      "characterId": "broly-br-fpss",
+      "evidence": {
+        "catalogCardName": "Broly",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Broly, Evil Unleashed",
+        "catalogBackCharacter": [
+          "Broly: Br"
+        ],
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-01_b.png",
+        "reviewedCardArtSha256": "c5ecd7471ad9bf69fe1241eeda1d54ad943016b74ca2e240a5a120d7084b0efa",
+        "visualReview": "Awakened back shows Full Power Super Saiyan Broly (2018 film) with green hair, white eyes and green cloth trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "SD8-02",
+      "face": "front",
+      "name": "Broly, the Ravager",
+      "characterId": "broly-br-fpss",
+      "evidence": {
+        "catalogCardName": "Broly, the Ravager",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-02.png",
+        "reviewedCardArtSha256": "673da85d83a43fd5cb3ee14fcc3f2838e15067258db3787c63602999c98f8b48",
+        "visualReview": "Full Power Super Saiyan Broly (2018 film) with bright green hair and green cloth; matches the sheet."
+      }
+    },
+    {
+      "cardId": "SD8-03",
+      "face": "front",
+      "name": "Broly, Rushing Forth",
+      "characterId": "broly-br-ss",
+      "evidence": {
+        "catalogCardName": "Broly, Rushing Forth",
+        "catalogCharacter": [
+          "Broly: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/SD8-03.png",
+        "reviewedCardArtSha256": "8bb62fc9b9160146b2750d232958b00d5f05fc9c575d6d0aff8a67b0ca974f59",
+        "visualReview": "Broly (2018 film) as a golden-haired Super Saiyan in a dark top with green cloth; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT3-095",
+      "face": "front",
+      "name": "Youthful Bulma",
+      "characterId": "bulma-youthful",
+      "evidence": {
+        "catalogCardName": "Youthful Bulma",
+        "catalogCharacter": [
+          "Bulma"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT3-095.png",
+        "reviewedCardArtSha256": "08f9df2d929eff4b9542b6a9fe6e7ad07a46ecbd5db1d8de9e8e5b3a66af56f8",
+        "visualReview": "Teenage Bulma with blue-teal hair and a pink outfit (riding her capsule bike); the sheet shows the same girl and pink dress."
+      }
+    },
+    {
+      "cardId": "BT5-107",
+      "face": "front",
+      "name": "Dragon Ball Seeker Bulma",
+      "characterId": "bulma-seeker",
+      "evidence": {
+        "catalogCardName": "Dragon Ball Seeker Bulma",
+        "catalogCharacter": [
+          "Bulma"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT5-107.png",
+        "reviewedCardArtSha256": "e164d857933c6b22fd3ab3efdb901499fd7fdf635fa961a9df7adb01c66b8fc9",
+        "visualReview": "Teenage Bulma on the Dragon Ball hunt: red bandana, blue vest, white trousers, red sash; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT6-011",
+      "face": "front",
+      "name": "Bulma, from the Sidelines",
+      "characterId": "bulma-br",
+      "evidence": {
+        "catalogCardName": "Bulma, from the Sidelines",
+        "catalogCharacter": [
+          "Bulma: Br"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-011.png",
+        "reviewedCardArtSha256": "e49afdb849eea706a8eaf154f2d302dda647ddf6aeffccb7d94a836588e42956",
+        "visualReview": "Bulma in the 2018 film's cold-weather gear: yellow hood, brown parka; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT10-080",
+      "face": "front",
+      "name": "Burter, Fastest in the Universe",
+      "characterId": "burter",
+      "evidence": {
+        "catalogCardName": "Burter, Fastest in the Universe",
+        "catalogCharacter": [
+          "Burter"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT10-080.png",
+        "reviewedCardArtSha256": "d09c5b30bb86957354c357a8165514d16c47314ad4841b780dc24df675554746",
+        "visualReview": "Burter: tall blue alien in Ginyu Force armour; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT1-014",
+      "face": "front",
+      "name": "Saiyan Cabba",
+      "characterId": "cabba",
+      "evidence": {
+        "catalogCardName": "Saiyan Cabba",
+        "catalogCharacter": [
+          "Cabba"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT1-014.png",
+        "reviewedCardArtSha256": "9aedd59a153114b1149df8decd470d7dd4214643b18aa3eb520dee1ded3e3ccd",
+        "visualReview": "Base Cabba: black spiky hair, blue top with silver chest plate and purple tabard; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT7-082",
+      "face": "front",
+      "name": "Cabba, Brimming with Spirit",
+      "characterId": "cabba",
+      "evidence": {
+        "catalogCardName": "Cabba, Brimming with Spirit",
+        "catalogCharacter": [
+          "Cabba"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-082.png",
+        "reviewedCardArtSha256": "8efe4b7fec0ea23e3e286c88f37e095d43b46926ad2b4aa16b7e9d4c7e6a42e2",
+        "visualReview": "Base Cabba with black hair charging ki, same Universe 6 outfit as the sheet."
+      }
+    },
+    {
+      "cardId": "XD1-01",
+      "face": "front",
+      "name": "Cabba",
+      "characterId": "cabba",
+      "evidence": {
+        "catalogCardName": "Cabba",
+        "catalogCharacter": [
+          "Cabba"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD1-01.png",
+        "reviewedCardArtSha256": "fea6ec23099adc3b535d4495d80614bd9d8be31c4a996dff2bef6f56cb3413ef",
+        "visualReview": "Base Cabba (leader front), black hair and blue/silver/purple outfit; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT7-081",
+      "face": "front",
+      "name": "Cabba, Undisguised Rage",
+      "characterId": "cabba-ss",
+      "evidence": {
+        "catalogCardName": "Cabba, Undisguised Rage",
+        "catalogCharacter": [
+          "Cabba"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-081.png",
+        "reviewedCardArtSha256": "6ceb8d13987e506024482cafdd274f3fd95e2eba0a850a599e39164de5cc62c3",
+        "visualReview": "Super Saiyan Cabba with golden hair in his Universe 6 outfit; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "XD1-06",
+      "face": "front",
+      "name": "Cabba, Saiyan of Universe 6",
+      "characterId": "cabba-ss",
+      "evidence": {
+        "catalogCardName": "Cabba, Saiyan of Universe 6",
+        "catalogCharacter": [
+          "Cabba"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD1-06.png",
+        "reviewedCardArtSha256": "75805bdd4749bb4788634d447cf8a25459f33dfc0c935bcd7dcb621e21c241d3",
+        "visualReview": "Super Saiyan Cabba, golden hair, blue/silver outfit; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT7-085",
+      "face": "front",
+      "name": "Caulifla, the Bold Sister",
+      "characterId": "caulifla",
+      "evidence": {
+        "catalogCardName": "Caulifla, the Bold Sister",
+        "catalogCharacter": [
+          "Caulifla"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/BT7-085.png",
+        "reviewedCardArtSha256": "62a63566aaacee30186375ccaf6a2daf62637d9f22959e07bcebf9fa590ecd38",
+        "visualReview": "Base Caulifla: wild black hair, pink crop top, purple trousers; matches the sheet."
+      }
+    },
+    {
+      "cardId": "XD1-07",
+      "face": "front",
+      "name": "Caulifla, Troublemaker of Universe 6",
+      "characterId": "caulifla-ss",
+      "evidence": {
+        "catalogCardName": "Caulifla, Troublemaker of Universe 6",
+        "catalogCharacter": [
+          "Caulifla"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://storage.googleapis.com/deckplanet_card_images/XD1-07.png",
+        "reviewedCardArtSha256": "1d4bcd4f9a23f06786cf5dac8f24f0503f835b71c78a534a7569af1c39c32222",
+        "visualReview": "Super Saiyan Caulifla with golden hair and pink top; matches the SS sheet."
+      }
+    },
+    {
+      "cardId": "BT30-097",
+      "face": "front",
+      "name": "Formation!! Brianne De Chateau",
+      "characterId": "brianne",
+      "evidence": {
+        "catalogCardName": "Formation!! Brianne De Chateau",
+        "catalogCharacter": [
+          "Brianne De Chateau"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT30-097.png",
+        "reviewedCardArtSha256": "dd843cf6ab7f38ec23ef514dc729c5b4cc7b6203df9604515a778438484d5db9",
+        "visualReview": "Untransformed Brianne de Chateau: long light-green hair with orange headband, pink dress with white collar; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT30-098",
+      "face": "front",
+      "name": "Brianne De Chateau, Hope of the Multiverse",
+      "characterId": "brianne",
+      "evidence": {
+        "catalogCardName": "Brianne De Chateau, Hope of the Multiverse",
+        "catalogCharacter": [
+          "Brianne De Chateau"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT30-098.png",
+        "reviewedCardArtSha256": "e96ffb618f1f8b7ad1a303b215bce08f2a41af21d51d222ec4a996830dad2d28",
+        "visualReview": "Untransformed Brianne de Chateau in her pink dress and green hair; same costume as the sheet."
+      }
+    },
+    {
+      "cardId": "BT31-116",
+      "face": "front",
+      "name": "Cell",
+      "characterId": "cell-imperfect",
+      "evidence": {
+        "catalogCardName": "Cell",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "LEADER",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-116.png",
+        "reviewedCardArtSha256": "e15469347ec9f65ab7e72dc985b9e045564d326bd609e163a9aa3e11a6ad10a9",
+        "visualReview": "Imperfect (first-form) Cell with crest, wings and stinger tail; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT31-119",
+      "face": "front",
+      "name": "Cell, Creeping Terror",
+      "characterId": "cell-imperfect",
+      "evidence": {
+        "catalogCardName": "Cell, Creeping Terror",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "Z-BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-119.png",
+        "reviewedCardArtSha256": "390046086b205380301a72d1b06e367271e7e99c36e1d431b8565c68cf7c49c0",
+        "visualReview": "Imperfect Cell, front view with crest and wing shells; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT31-131",
+      "face": "front",
+      "name": "Cell, Ominous Android",
+      "characterId": "cell-imperfect",
+      "evidence": {
+        "catalogCardName": "Cell, Ominous Android",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-131.png",
+        "reviewedCardArtSha256": "d572f54193c6b247a8f7a5d29c2e380a0341b25a8fc487cc6c81e578d6dfa3dc",
+        "visualReview": "Imperfect Cell with crest, wings and tail; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT31-130",
+      "face": "front",
+      "name": "Cell, Absorbed Form",
+      "characterId": "cell-semi-perfect",
+      "evidence": {
+        "catalogCardName": "Cell, Absorbed Form",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-130.png",
+        "reviewedCardArtSha256": "bc266c5dcef304ee79fdd488cebaa81d30bea5f4d7978a32523cbd0c27718300",
+        "visualReview": "Semi-Perfect Cell (after absorbing 17): bulky, pale face, tail; matches the sheet."
+      }
+    },
+    {
+      "cardId": "BT31-133",
+      "face": "front",
+      "name": "Cell Jr., the Fiendish",
+      "characterId": "cell-jr",
+      "evidence": {
+        "catalogCardName": "Cell Jr., the Fiendish",
+        "catalogCharacter": [
+          "Cell Jr."
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-133.png",
+        "reviewedCardArtSha256": "9b9a18a40881e5a59c985362e1a1f97d556f87253cbce80758dbd25f6a599d02",
+        "visualReview": "Blue Cell Jr. (several identical ones shown); the sheet shows one Cell Jr. in the same design."
+      }
+    },
+    {
+      "cardId": "BT31-129",
+      "face": "front",
+      "name": "Cell, Perfect Form",
+      "characterId": "cell",
+      "evidence": {
+        "catalogCardName": "Cell, Perfect Form",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-129.png",
+        "reviewedCardArtSha256": "faf57a390f8da7008c4af269a67c167f058b2cd7da62eb420ef25c6df0fcc49c",
+        "visualReview": "Perfect Cell in green and black with wing shells; reuses the reviewed Perfect Cell sheet."
+      }
+    },
+    {
+      "cardId": "BT31-128",
+      "face": "front",
+      "name": "Cell, Ultimate Form",
+      "characterId": "cell",
+      "evidence": {
+        "catalogCardName": "Cell, Ultimate Form",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "BATTLE",
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-128.png",
+        "reviewedCardArtSha256": "25b26601210db582f15a95cddc1a6413c2c0e7c5022220b505597077eb2aee20",
+        "visualReview": "Super Perfect Cell (same design as Perfect Cell) attacking a Super Saiyan Vegeta in the foreground; Cell is the card's character, reuses the Perfect Cell sheet."
+      }
+    },
+    {
+      "cardId": "BT31-116",
+      "face": "back",
+      "name": "Cell, Perfect Power",
+      "characterId": "cell",
+      "evidence": {
+        "catalogCardName": "Cell",
+        "catalogCharacter": [
+          "Cell"
+        ],
+        "cardType": "LEADER",
+        "catalogBackName": "Cell, Perfect Power",
+        "catalogBackCharacter": [
+          "Cell"
+        ],
+        "reviewedCardArtUrl": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT31-116_b.png",
+        "reviewedCardArtSha256": "bd68b7bd663962392261ad59ae9ef8bf7a601891d61279a2cef888464270f145",
+        "visualReview": "Awakened back shows Perfect Cell centred with Androids 17 and 18 behind him; Cell is the card's character, reuses the Perfect Cell sheet."
+      }
+    }
+  ]
+}

@@ -11,3 +11,18 @@ Owner's direction (18 Oct 2026) for building it into the arena:
 
 Evaluation notes to carry over: keep the zoomed card at or below ~300 px wide; the app's power number covers the
 printed power (no double power); preload/decode art so a re-render never flashes black.
+
+## Background blur (`focus-blur`, added to the prototype 18 Oct 2026)
+
+Rule: blur what is not the point. Turn changes, a zoomed card, a skill spotlight, Claude's reveal and the review sheet
+appear over a blurred, dimmed board; nothing is blurred while the player picks a target on the board. The prototype uses
+one full-stage scrim (`backdrop-filter: blur(7px) saturate(.75)`, 220 ms fade). Blur strength is fixed; only the dim
+varies: turn banner .3, clash .35, reveal/review .4, spotlight .5, card zoom .62 (halved in `scrim()`).
+
+Open points from the review (19 Oct 2026) to settle when building it into the app:
+- The clash takeover also blurs the board (with the hand lifted above the scrim so counters stay playable), but the
+  catalogue row's trigger list omits it. Name the clash and the hand-above-blur exception in the rule.
+- Reduced motion: the catalogue says static blur, no fade; the prototype still fades the scrim in 140 ms.
+- Phones: board animations under the scrim (legal-card ki glow, energy blink) make the browser recompute the blur every
+  frame. Pause board animations while the scrim is up.
+- The app has no board blur yet; `backdrop-blur` appears only on panels (notices, bug report, rule builder).
