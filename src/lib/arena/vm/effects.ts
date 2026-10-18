@@ -163,6 +163,8 @@ export interface VmStatic {
   value: number | KeywordSkill | KeywordSkill["name"] | CardIdentityGain | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
+  /** `skillCost`: the keyword skill the change is about (`ContinuousEffect.tag`). */
+  tag?: string;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
   colors?: (Color | "any")[];
   /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
@@ -485,6 +487,25 @@ function identityInAllAreas(op: Op): boolean {
 }
 
 /**
+ * What of a [Permanent] holds while its card lies face down in the Life Area:
+ * a `life` replacement about the card itself (it names its `target`), however
+ * deep under conditions ("during your opponent's turn, if all of your energy
+ * is mono-blue …"), and an identity printed "in all areas". The conditions
+ * are kept around it, so they are asked afresh on every reading (9-5-1-1).
+ */
+function lifeSelfOps(ops: Op[]): Op[] {
+  return ops.flatMap((op): Op[] => {
+    if (op.op === "replace") return op.event === "life" && op.target ? [op] : [];
+    if (op.op === "if") {
+      const then = lifeSelfOps(op.then);
+      const other = op.else ? lifeSelfOps(op.else) : [];
+      return then.length || other.length ? [{ ...op, then, ...(other.length ? { else: other } : {}) }] : [];
+    }
+    return identityInAllAreas(op) ? [op] : [];
+  });
+}
+
+/**
  * Every standing change a [Permanent] makes right now.
  *
  * Read, never stored: a [Permanent] is never activated and never resolves
@@ -513,7 +534,11 @@ export function permanents(
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
   // holds from the Warp, the same as the legacy `staticEffects`; and, in the
   // Warp and everywhere else, the identity a card "gains ... in all areas".
-  const zones = [...inPlay, "hand", "zDeck", "warp", "combo"].filter((zone) => game.zones[zone]?.place !== false);
+  // The Life Area likewise, for the one [Permanent] a life card prints about
+  // itself: "if you would reveal this card from your life to add it to your hand,
+  // you may … instead" (BT10-036, BT10-047; 9-1-3-3 — the text names the area it
+  // is valid in). Nothing else a life card says holds there.
+  const zones = [...inPlay, "hand", "zDeck", "warp", "combo", "life"].filter((zone) => game.zones[zone]?.place !== false);
   // "This card gains ≪Universe 7≫ in all areas" (TB1-095, #936) holds in
   // every area a card can be in, the Drop included — which is where "9 or more
   // ≪Universe 7≫ in your Drop Area" counts it. Looked for in these areas only
@@ -528,6 +553,8 @@ export function permanents(
         if (!card || card.hidden || skillsNegated(state, src)) continue;
         const printed = ctx.defs[card.cardId];
         if (extra && !/all areas/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
+        // A life card is looked at only when it prints a rule about itself in the Life Area (cheap text test: a life card is read on every statics pass).
+        if (zone === "life" && !/all areas|this card from your life/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
         const showing = skillsShowing(ctx, state, src);
         const overRealm = showing.skills.some((sk) => sk.keyword?.name === "Over Realm");
         if (zone === "warp" && !overRealm && !showing.skills.some((sk) => sk.kind === "permanent")) continue;
@@ -544,6 +571,7 @@ export function permanents(
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           const ops = extra ? program.ops.filter(identityInAllAreas)
+            : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
             : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
           if (!ops.length) continue;
@@ -727,7 +755,7 @@ function collect(
         // EX03-16: an [Evolve] price changed only when it is played onto these.
         const onto = kind === "evolveCost" && op.onto ? { onto: targets(frame, { ...op, target: op.onto }) } : {};
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.tag ? { tag: op.tag } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
@@ -736,7 +764,9 @@ function collect(
       // that ever bound a variable, so only a count over the board can be read.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
       if (value == null) continue;
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value });
+      // 20-21-2: an energy cost reduced "by {r}" keeps the orbs it was said in.
+      const named = kind === "cost" && op.colors?.length ? { colors: op.colors } : {};
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...named });
       continue;
     }
     // 5-3: another price for the card itself — "you can play this card from
@@ -772,18 +802,23 @@ function collect(
     }
     if (op.op === "replace") {
       const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
-      if (op.event === "play" || (op.from ? !explicitSource : !inPlayNow)) continue;
+      // A `life` replacement that names a `target` (the card itself) is about
+      // the life card that prints it: "if you would reveal this card from your
+      // life to add it to your hand…" (BT10-036, 9-1-3-3). It is valid while
+      // that card lies in the Life Area, and only there.
+      const lifeSelf = op.event === "life" && !!op.target;
+      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.
       const isMarker = op.event === "marker";
       const redirect = isMarker ? null : redirectOf(op.with);
       const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
-      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
+      for (const id of op.target && !lifeSelf ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
     // 8-1-1 / 5-7 lifted as a standing rule: "this card can attack Battle
@@ -831,9 +866,15 @@ function collect(
 // ── the layers a value is read through (9-9-1, 20-21) ───────────────────────
 
 /** What a layer is handed: the value so far, the standing changes of its kind, the timed ones, and the card's printed bag for the one fallback that needs it. */
-type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs) => AttrValue | undefined;
+type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs, name: string) => AttrValue | undefined;
 
 type EffectValue = VmStatic["value"];
+
+/** A cost change that names orbs ("reduce the energy cost by {r}"): the amount and the colours it was said in (20-21-2). */
+export interface CostChange {
+  by: number;
+  colors: (Color | "any")[];
+}
 
 /**
  * Numbers added to a number — every change 9-9-1 makes to `power` and
@@ -885,13 +926,43 @@ const LAYERS: Record<string, Layer> = {
    * choice, and the same choice, because `specifiedCost` is one entry per orb
    * in the order `specifiedCostOf` filled them.
    */
-  reduction: (value, statics, timed) => {
+  reduction: (value, statics, timed, attrs, name) => {
+    // FAQ (Skills Q24, dbs-cardgame.com game_faq): an energy cost reduced by a
+    // [Permanent] "doesn't" reduce its specified cost with it, so a plain
+    // number comes off the total alone. Only a reduction *by a coloured orb*
+    // ("reduce the energy cost by {r}") moves both halves (20-21-2), and only
+    // by the orbs of that colour the card really demands (20-21-2-1: the total
+    // comes down "by the amount that was possible for X"). 1-2-2-1 keeps the
+    // total from falling under the number of coloured orbs still demanded.
+    // Only an energy price has a coloured half: a combo or Z-Energy cost is a bare number.
+    const energy = name === "costOf" || name === "specifiedCost";
+    const orbs: string[] = !energy ? [] : Array.isArray(value) ? [...(value as readonly string[])] : Array.isArray(attrs.specifiedCost) ? [...(attrs.specifiedCost as readonly string[])] : [];
     let by = 0;
-    for (const n of [...statics, ...timed]) if (typeof n === "number") by += n;
-    if (!by) return value;
-    if (Array.isArray(value)) return by > 0 ? (value as readonly string[]).slice(by) : value;
+    for (const n of [...statics, ...timed]) {
+      if (typeof n === "number") by += n;
+      else if (n && typeof n === "object" && "by" in n && "colors" in n) {
+        const change = n as unknown as CostChange;
+        if (change.by < 0) {
+          by += change.by;
+          continue;
+        }
+        for (const orb of change.colors) {
+          if (orb === "any") {
+            by += 1;
+            continue;
+          }
+          const at = orbs.indexOf(orb);
+          if (at >= 0) {
+            orbs.splice(at, 1);
+            by += 1;
+          }
+        }
+      }
+    }
+    if (Array.isArray(value)) return orbs;
     if (typeof value !== "number") return value;
-    return Math.max(0, value - by);
+    if (!by) return value;
+    return Math.max(energy ? Math.min(value, orbs.length) : 0, value - by);
   },
   /**
    * The coloured half said on its own (owner's ruling on BT19-039, 9 Sep 2026,
@@ -942,6 +1013,12 @@ const LAYERS: Record<string, Layer> = {
  * default is the attribute's own name, which is the whole of the rule for
  * everything but a price.
  */
+/** An energy-cost change's value, with the orbs it was said in when it named any. */
+function costValue(e: { kind: string; value: unknown; colors?: (Color | "any")[] }): EffectValue {
+  if (e.kind === "cost" && typeof e.value === "number" && e.colors?.length) return { by: e.value, colors: e.colors } as unknown as EffectValue;
+  return e.value as EffectValue;
+}
+
 export function valueOf(game: GameDefinition, attrs: Attrs, name: string, statics: VmStatic[], timed: ContinuousEffect[]): AttrValue | undefined {
   const declared = game.attributes[name];
   const printed = attrs[name];
@@ -954,9 +1031,10 @@ export function valueOf(game: GameDefinition, attrs: Attrs, name: string, static
     const kind = LAYER_KINDS[name]?.[layer] ?? name;
     value = read(
       value,
-      statics.filter((e) => e.kind === kind).map((e) => e.value),
-      timed.filter((e) => e.kind === kind).map((e) => e.value as EffectValue),
+      statics.filter((e) => e.kind === kind).map(costValue),
+      timed.filter((e) => e.kind === kind).map(costValue),
       attrs,
+      name,
     );
   }
   if (name === "keywords" && Array.isArray(value)) {

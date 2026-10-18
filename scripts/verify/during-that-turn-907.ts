@@ -100,10 +100,9 @@ for (const [id, text] of Object.entries(PRINTED)) assert.deepEqual(read(text).un
   const cut = read(PRINTED["BT22-054b"]).ops[0] as unknown as AnyOp & { target: { sel: { area: string; count: number; filter: { colors: string[]; costMin: number } } } };
   assert.deepEqual([cut.op, cut.skillKind, cut.amount, cut.uses, cut.until], ["costReduction", "activate", 1, 1, "turn"]);
   assert.deepEqual([cut.target.sel.area, cut.target.sel.count, cut.target.sel.filter.colors, cut.target.sel.filter.costMin], ["hand", 99, ["Green"], 6]);
-  // Not guessed past: two descriptions after a number, the same words on cards in play, and the [union] keyword line.
+  // Not guessed past: two descriptions after a number, and the same words on cards in play.
   assert.ok(read("[activate: main][limit 1] If your leader is a <Bardock: Xeno> card: During that turn, the next time you activate [activate: main] on a <Gogeta: Xeno> card that is mono-black with an energy cost of 10 or multicolor with an energy cost of 8 in your hand, reduce the skill cost by {3}.").unsupported.length > 0, "EX23-45 stays unread");
   assert.ok(read("[activate: main/battle] Place 1 of your Z-Energy in your Drop: During this turn, the next time you activate [activate] on a red <Son Gohan: Future> or <Trunks: Future> card in your Battle Area and/or Combo Area, reduce the skill cost of that skill by {1}.").unsupported.length > 0, "BT23-003 stays unread");
-  assert.ok(read("[activate: main][limit 1] If your Leader is a yellow <Gotenks: Adolescence> card: During that turn, the next time you activate the [union] skill on a yellow <Gotenks: Adolescence> card with an energy cost of 7 or less from your hand, reduce the skill cost by {y}{y}.").unsupported.length > 0, "EX23-29 stays unread");
   // Only the discard price: another "If you place …:" price keeps being refused whole.
   assert.ok(read("[Activate: Main] If you place 1 card from your hand in your drop: draw 1 card.").unsupported.length > 0);
 }

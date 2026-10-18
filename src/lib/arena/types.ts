@@ -563,6 +563,19 @@ export interface ContinuousEffect {
    * bounded by `until`. Absent is every activation for the whole duration.
    */
   uses?: number;
+  /**
+   * `skillCost` only: the change reaches only the keyword skill of this name -
+   * "reduce the [Z-Awaken] skill cost of ...", "the next time you activate
+   * [Arrival Red/Yellow] on ..." - lower-case, with the [Evolve] family spelled
+   * "ex-evolve"/"xeno-evolve" (22-5-2-2: a bare "[Evolve]" is all three, so it
+   * needs none). Absent reaches every line `skillKind` allows.
+   */
+  tag?: string;
+  /**
+   * Effects put in force together by one "the next time ..." share their use:
+   * spending any of them ends the lot. The id of the first one made.
+   */
+  group?: number;
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
   /**
@@ -1151,6 +1164,14 @@ export interface Replacement {
   kind?: "life" | "marker";
   /** For `kind: "life"`: narrows to the one destination named, or answers to either when absent — both cards print "to your hand or … your Drop Area". */
   lifeTo?: "hand" | "drop";
+  /**
+   * For `kind: "life"`: the rule is about the life card that *prints it* —
+   * "if you would reveal **this card** from your life to add it to your hand,
+   * you may … instead" (BT10-036, BT10-047) — so it answers only when that
+   * card is the one being taken, and is read while that card lies in the Life
+   * Area (9-1-3-3). Absent, the rule is about whichever life card is taken.
+   */
+  lifeSelf?: true;
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
   mode?: "active" | "rest";
   /** 9-10-3: the affected player may choose not to apply it. */

@@ -230,6 +230,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "amount", type: "amount", required: true },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
   { name: "uses", type: "number" },
@@ -253,6 +254,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "amount", type: "amount" },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "pay", type: { enum: ["none", "life", "program", "energy"] } },
   { name: "n", type: "number" },
@@ -621,13 +623,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
         if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
+          const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
           const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + orbs;
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + orbs + once;
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
         const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
@@ -635,13 +638,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
       }
       if (op.all) return `${describeRef(op.target)} has no specified cost`;
+      const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
       const amt = typeof op.amount === "number" ? op.amount : 0;
-      return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}`;
+      return `${describeRef(op.target)}'s specified cost is ${amt < 0 ? `${-amt} more` : `${amt} less`}${orbs ? ` (${orbs})` : ""}${once}`;
     },
-    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused.',
+    doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused. "tag" (with "skill"/"evolve") narrows the change to one keyword\'s line, lower-case — "z-awaken", "arrival", "swap", "union", "successor", "ex-evolve", "xeno-evolve" (a bare [Evolve] is all three variants, 22-5-2-2, and needs none); "skillKind" does the same for [Activate]/[Auto]/[Counter]. A skill-cost change said in a colour does nothing to a {1} orb and one said as {1} does nothing to a coloured orb (5-8-2-4). "uses" is also read on an energy cost ("what" absent) and on "specified": "the next time you play X, reduce its energy cost by {r}" is spent by the play or Extra activation that pays the card\'s price. The effects one op puts in force share its uses (a "group"): paying any one ends them all. An energy cost reduced by a plain number comes off the total alone, floored at the specified orbs that remain (FAQ Skills Q24, 1-2-2-1); one reduced "by {r}" takes that colour off the specified cost as well, as many as the card demands (20-21-2, 20-21-2-1).',
   },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF], sentence: "negate the [{keyword}] skill of {target}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker"' },
   gains: {
@@ -707,7 +711,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
                   : `${who} would leave ${op.from ? `the ${op.from.join(" or ")} area` : "the Battle Area"}`;
       return `if ${moment}, ${instead}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "from" optionally names the Battle/Combo departure areas for a leave redirect; "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area), "marker" (this Unison would lose a marker, only with "by":"attack" — 13-5-2\'s removal by an opponent\'s attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and "with" runs), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to. "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life"/"marker" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "from" optionally names the Battle/Combo departure areas for a leave redirect; "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area; with a "target" it is the rule of the life card that prints it — "if you would reveal this card from your life to add it to your hand" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), "marker" (this Unison would lose a marker, only with "by":"attack" — 13-5-2\'s removal by an opponent\'s attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and "with" runs), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to. "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life"/"marker" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
   },
   altCost: {
     fields: [
@@ -1058,6 +1062,7 @@ export function costModifierAs(op: Op): Op {
     amount: op.amount,
     ...(op.what !== undefined ? { what: op.what } : {}),
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+    ...(op.tag ? { tag: op.tag } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
     ...(op.onto ? { onto: op.onto } : {}),

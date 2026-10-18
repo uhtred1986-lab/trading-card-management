@@ -206,7 +206,7 @@ export interface ScriptHost {
   /** 9-1-5: switch one skill of a card off for the rest of the game. */
   negateSkillIndex(id: string, index: number): void;
   /** 9-1-4: put a continuous effect in force. */
-  addEffect(e: EffectSpec): void;
+  addEffect(e: EffectSpec): ContinuousEffect | undefined;
   /** 20-15: schedule a program for a later moment. */
   schedule(d: DelaySpec): void;
   /** 20-13: skip a step, this time round or the next. */
