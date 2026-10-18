@@ -418,6 +418,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (/^your life is (?:greater than or equal to|at or above|no less than) your opponent's life$/.test(t)) return { cond: { kind: "lifeVsOpponent", atLeast: true } };
   const lifeBound = (n: string, dir: string) => (/less|fewer/.test(dir) ? { atMost: Number(n) } : { atLeast: Number(n) });
   if ((m = /^your life is (?:at )?(\d+) or (less|fewer|more)$/.exec(t))) return { cond: { kind: "life", side: "you", ...lifeBound(m[1], m[2]) } };
+  // "If your life is at 1" (BT6-125#40 and five more): exactly that many. LABELLED BEST GUESS - no
+  // ruling prints the bare form; "at N" without "or less" is read as the number it says.
+  if ((m = /^your life is at (\d+)$/.exec(t))) return { cond: { kind: "life", side: "you", atLeast: Number(m[1]), atMost: Number(m[1]) } };
   if ((m = /^your opponent's life is (?:at )?(\d+) or (less|fewer|more)$/.exec(t))) return { cond: { kind: "life", side: "opponent", ...lifeBound(m[1], m[2]) } };
   // "If you have 2 or less life" — the same sentence with the subject moved.
   if ((m = /^you have (\d+) or (less|fewer|more) life$/.exec(t))) return { cond: { kind: "life", side: "you", ...lifeBound(m[1], m[2]) } };
@@ -778,7 +781,9 @@ function parseCountCondition(t: string): Cond | null {
   // the description — which then failed and left `atLeast: 1`, turning a gate
   // that asks for a nearly empty hand into one that holds almost always
   // (BT2-032, BT2-006).
-  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t);
+  // "If your opponent has 11 or more cards **in hand**" (SD7-03): the hand is theirs, as "in their
+  // hand" says; the bare "in hand" was read as a description of cards "in play".
+  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand"));
   if (!m) return null;
   const [, none, num, dir, said] = m;
   // "There are 4 or more **colors among** cards in your energy" (BT16-016,

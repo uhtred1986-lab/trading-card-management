@@ -11,6 +11,7 @@ import { parseTarget } from "./targets";
 const DESTS: [RegExp, ScriptArea, { position?: "top" | "bottom"; reveal?: boolean }][] = [
   [/^(?:in|into|to) (?:their|its owner'?s?|their owners?'?s?|the) drops?(?: area)?s?$/, "drop", { reveal: true }],
   [/^(?:to|in|into) (?:their|its owner'?s?|their owners?'?s?) warps?$/, "warp", {}],
+  [/^(?:to|in|into) (?:their|its owner'?s?|their owners?'?s?) z-?energy(?: area)?$/, "zEnergy", {}],
   [/^(?:at|on) the bottom of (?:their|its owner'?s?|their owners?'?s?) decks?(?: in any order)?$/, "deck", { position: "bottom" }],
   [/^on (?:the )?top of (?:their|its owner'?s?|their owners?'?s?) decks?(?: in any order)?$/, "deck", { position: "top" }],
 ];
@@ -32,11 +33,47 @@ const DESTS: [RegExp, ScriptArea, { position?: "top" | "bottom"; reveal?: boolea
 export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => void): Op[] | null | undefined {
   const words = opponentChoiceWords(clause);
   if (!words) return undefined;
-  const dest = DESTS.map(([re, to, opts]) => (re.test(words.dest) ? { to, opts } : null)).find(Boolean);
+  // A count that is a board reading ("a number of cards … equal to …", BT2-046): no `choose` takes it.
+  if (words.unread) return null;
+  // "…and places them in their Drop Area" is said "discards the rest" with no place at all.
+  const dest = DESTS.map(([re, to, opts]) => (re.test(words.rest && !words.dest ? "in their drop area" : words.dest) ? { to, opts } : null)).find(Boolean);
   if (!dest) return null;
+  // "…places them in their Drop Area until they have 12 cards in hand" (BT7-105): the excess over
+  // 12, which is nothing when the hand is not over it. Only the Drop and the Warp are a discard;
+  // "shuffle them into their deck" (BT9-108) would need a count a `choose` cannot take.
+  if (words.until !== undefined) {
+    if (dest.to !== "drop" && dest.to !== "warp") return null;
+    const hand: Selector = { side: "opponent", area: "hand" };
+    return [
+      {
+        op: "if",
+        cond: { kind: "count", sel: hand, atLeast: words.until + 1 },
+        then: [{ op: "discard", n: { plus: [{ count: hand }, -words.until] }, side: "opponent", ...(dest.to === "warp" ? { to: "warp" as const } : {}) }],
+      },
+    ];
+  }
+  // "…chooses 5 cards in their hand and adds the rest to their Z-Energy" (BT20-148), "…chooses 6
+  // cards in their hand, discards the rest" (BT12-059): the opponent chooses what they keep, and
+  // everything else in the hand goes. Two choices, the second the rest of the hand, one move.
+  if (words.rest) {
+    const m = /^(\d+) cards? (?:in|from) their hand$/.exec(words.items[0]);
+    if (!m) return null;
+    const keep = `c${c.n++}`;
+    const gone = `c${c.n++}`;
+    const choose: Op[] = [
+      { op: "choose", sel: { side: "opponent", area: "hand", count: Number(m[1]) }, as: keep, chooser: "opponent", reason: `keep ${words.items[0]}` },
+      { op: "choose", sel: { side: "opponent", area: "hand", count: 99, upTo: true, notIn: [keep] }, as: gone, reason: "the rest of their hand" },
+    ];
+    for (const o of choose) track(o);
+    return [...choose, { op: "moveTo", target: { var: gone }, to: dest.to, ...dest.opts }];
+  }
   const selectors: Selector[] = [];
   for (const item of words.items) {
-    const m = /^(up to )?(\d+) (?:cards? (?:in|from) their (.+)|of their (.+))$/.exec(item);
+    if (item === "all of the cards in their hand") {
+      selectors.push({ side: "opponent", area: "hand", count: 99, upTo: true });
+      continue;
+    }
+    const m =/^(up to )?(\d+) (?:cards? (?:in|from) their (.+)|of their (.+))$/.exec(item);
     if (!m) return null;
     // Cards of the hand: no description to read, so the selector is the plain one.
     if (m[3] !== undefined && m[3] === "hand") {

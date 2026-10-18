@@ -1835,10 +1835,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // "The Battle Card being played is played in Rest Mode" (BT10-105).
-    if (/^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) played in rest mode$/.test(t)) return [{ op: "resolvingPlay", mode: "rest" }];
+    // "The Battle Card **played** is played in Rest Mode" (BT1-110) says the same
+    // as "being played"; both name the card whose play is resolving (9-6).
+    const THE_PLAY = String.raw`(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|played|(?:that )?your opponent is playing) is)`;
+    const SKILLS_OFF = String.raw`(?:its|their) skills? negated(?: for the (?:duration of the )?turn)?`;
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode$`).test(t)) return [{ op: "resolvingPlay", mode: "rest" }];
     // "It's played with its skills negated for the turn" (BT11-099).
-    if (/^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) played with (?:its|their) skills negated(?: for the turn)?$/.test(t))
-      return [{ op: "resolvingPlay", negated: true }];
+    if (new RegExp(String.raw`^${THE_PLAY} played with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", negated: true }];
+    // Both said at once: "played in Rest Mode with its skills negated for the
+    // turn" (EB1-46, DB2-128).
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", mode: "rest", negated: true }];
+    // "The Battle Card played **has its skill negated** for the duration of the
+    // turn" (BT1-107): the play goes ahead and the card arrives negated.
+    if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
   }
 
   // Negation (9-1).
@@ -3436,12 +3445,16 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // token programs that never refer back stay exactly as they were.
   const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
   const bound = /^\s*(?:\([^)]*\))?\s*(?:[,.]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|the tokens?)\b/i.test(after);
+  // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
+  // skill prints the token's power itself and that figure, not the 5000 default
+  // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
+  const printed = /^\s*with ([\d,]+) power\b/i.exec(after);
   return [
     {
       op: "token",
       ...(bound ? { as: `t${c.n++}` } : {}),
       name: `${m[2].trim()} Token`,
-      power: power ? num(power[1]) : 5000,
+      power: printed ? num(printed[1]) : power ? num(power[1]) : 5000,
       comboCost: combo ? num(combo[1]) : 0,
       comboPower: combo ? num(combo[2]) : 5000,
       colors: [],
