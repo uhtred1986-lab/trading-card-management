@@ -393,7 +393,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
     .insert(schema.cards)
     .values([
       skilled("BT18-030", "Reader", "[Auto] When you play this card, draw 1 card."),
-      skilled("BT18-031", "Puzzle", "[Auto] When you play this card, you and your opponent compliment each other."),
+      skilled("BT18-031", "Puzzle", "[Auto] When you play this card, you and your opponent shake hands on it."),
     ]);
   const rows = await db.select().from(schema.cards).where(eq(schema.cards.setCode, "BT18"));
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -412,7 +412,7 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
 
   const [puzzle] = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "BT18-031"));
   assert.deepEqual([puzzle.brief, puzzle.timesSeen], [null, 0], "a fresh rule has nothing written about its wording yet");
-  await setBrief(db, puzzle.id, { brief: "## Wording\ncompliment each other", explanation: "the owner's ruling, which must survive" });
+  await setBrief(db, puzzle.id, { brief: "## Wording\nshake hands on it", explanation: "the owner's ruling, which must survive" });
   await markRuleSeen(db, "BT18-031", "front", 0);
   await markRuleSeen(db, "BT18-031", "front", 0);
 
