@@ -58,6 +58,16 @@ const unread = (skill: string) => skillRecords(card("T907", { skill }))[0].unrea
   assert.deepEqual(ex.unread, []);
   assert.ok(JSON.stringify(ex.ops).includes('"distinctColors":true'), "EX19-26 counts colors");
 }
+{
+  // P-321: a cost reduction per color among mono-color cards in two places.
+  const [row] = skillRecords(card("P-321", { skill: "[Permanent] For each color among mono-color cards in your Drop Area and Warp, reduce the energy cost of this card in your hand by 1. (Black is a color.)" }));
+  assert.deepEqual(row.unread, []);
+  const op = row.ops[0] as { op: string; amount: { count: { areas: string[]; distinctColors?: boolean; filter?: { monoColor?: boolean } } } };
+  assert.equal(op.op, "costReduction");
+  assert.deepEqual(op.amount.count.areas, ["drop", "warp"]);
+  assert.equal(op.amount.count.distinctColors, true);
+  assert.equal(op.amount.count.filter?.monoColor, true, "only mono-color cards");
+}
 // Measures that are not cards are refused, not read as the area they stand in.
 assert.ok(unread("[Permanent] This card gets +1000 power for each frobnitz in your Energy Area."), "an unknown noun is refused");
 assert.ok(unread("[Permanent] This card gets +1000 power for each energy cost in your Drop Area."), "'energy cost' is not a card");
