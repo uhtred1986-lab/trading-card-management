@@ -592,8 +592,13 @@ export type Op =
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
    * read. Without it the card is played beside the host instead of onto it.
    */
+  /**
+   * `alsoUnder` (#929): more cards that go under the played card as part of
+   * the same play — [Union-Potara]'s second material (22-13-5-4, "in any
+   * order"). Part of the play, so a play that fails moves none of them.
+   */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -1328,6 +1333,8 @@ export interface ScriptFrame {
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
    * through the Counter: Play window, including a leave-and-return. */
   evolutionBase?: { card: string; zoneEpoch: number };
+  /** #929: the [Union] play's source, host and materials as they stood when the play was declared (card, area-change count) — what the counter window must leave where it was. */
+  unionBound?: { card: string; zoneEpoch: number }[];
   /** #920: explicit Drop activation action price, additive for newly queued frames only. */
   dropCost?: import("./drop-costs").DropCost;
   /** #624: optional Revive hand payment before determining additional costs.
@@ -3038,11 +3045,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand is put in Drop. A printed Drop evolution already is there.
+        // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
+        // that fails to enter play (Fusion/Potara: the card that activated it,
+        // from the hand; Absorb: the chosen Battle Card, wherever it is).
         const failedEvolution = () => {
-          if (evolution) for (const id of candidates) if (h.areaOf(id) === "hand") h.move(id, "drop", h.ownerOf(id), { reason: "rule" });
+          if (evolution || op.using === "Union-Fusion" || op.using === "Union-Potara") { for (const id of candidates) if (h.areaOf(id) === "hand") h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
+          else if (op.using === "Union-Absorb") for (const id of candidates) { const at = h.areaOf(id); if (at && at !== "drop") h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
         };
         if (!targets.length) { failedEvolution(); break; }
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
+        const under = op.alsoUnder ? h.resolveRef(frame, op.alsoUnder) : undefined;
+        // #929: a Potara/Absorb whose host is not in the Battle Area any more is no play at all, not one beside it.
+        if ((op.using === "Union-Potara" || op.using === "Union-Absorb") && (!onto || h.areaOf(onto) !== "battle" || h.masterOf(onto) !== master)) { failedEvolution(); break; }
         // 22-5-5-1: an explicit evolution cannot degrade into an ordinary
         // play if the chosen base left/changed or the optional choice was none.
         const energyBase = evolution && onto && h.areaOf(onto) === "energy" && h.condHolds(frame, { kind: "permits", what: "evolveEnergyBases" });
@@ -3050,7 +3064,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

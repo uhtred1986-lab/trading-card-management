@@ -602,8 +602,8 @@ function releaseResolvingPlay(state: VmState): boolean {
   }
   const frame = r.frame;
   delete r.frame;
-  if (r.replaced) state.resolving = null;
-  else state.programs.push(frame);
+  if (r.replaced || r.landed) state.resolving = null;
+  if (!r.replaced) state.programs.push(frame);
   return true;
 }
 
