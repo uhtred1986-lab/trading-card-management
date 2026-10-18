@@ -1096,7 +1096,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable"; until: Duration; target: Ref; filter?: CardFilter; line?: string }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle"; until: Duration; target: Ref; filter?: CardFilter; line?: string; source?: CardFilter }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -3060,7 +3060,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
         const under = op.alsoUnder ? h.resolveRef(frame, op.alsoUnder) : undefined;
         // #929: a Potara/Absorb whose host is not in the Battle Area any more is no play at all, not one beside it.
-        if ((op.using === "Union-Potara" || op.using === "Union-Absorb") && (!onto || h.areaOf(onto) !== "battle" || h.masterOf(onto) !== master)) { failedEvolution(); break; }
+        // #927: a Potara's materials may also stand under a Unison or in the opponent's
+        // Battle Area (22-13-5-2-1); `playThen` checks where each came from.
+        if (op.using === "Union-Potara" && !onto) { failedEvolution(); break; }
+        if (op.using === "Union-Absorb" && (!onto || h.areaOf(onto) !== "battle" || h.masterOf(onto) !== master)) { failedEvolution(); break; }
         // 22-5-5-1: an explicit evolution cannot degrade into an ordinary
         // play if the chosen base left/changed or the optional choice was none.
         const energyBase = evolution && onto && h.areaOf(onto) === "energy" && h.condHolds(frame, { kind: "permits", what: "evolveEnergyBases" });
