@@ -37,6 +37,7 @@
     "arena:replay": "tsx scripts/arena-replay.mts",
     "arena:scenario": "tsx scripts/arena-scenario.mts",
     "arena:worker-bench": "tsx scripts/arena-worker-bench.mts",
+    "arena:worker-micro": "tsx scripts/arena-worker-micro-bench.mts",
     "arena:policy-eval": "tsx scripts/arena-policy-eval.mts",
     "arena:policy-browser": "tsx scripts/arena-policy-browser.mts",
     "arena:local-worker-browser": "tsx scripts/arena-local-worker-browser.mts",
