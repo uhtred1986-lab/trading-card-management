@@ -190,3 +190,7 @@
  .handCards { padding-bottom: 36px; }
  .board :global(.arena-slot:not(.arena-slot-lifted):not(.arena-slot-land)) { display: none; }
 }
+
+/* In the fan only the top card shows its whole face; on the slivers under it the big power plate would be
+   clipped to a stray fragment beside the fan power chip, so the slivers keep just the chip. */
+.fanViewport .handCard:not(:last-child) [data-power-plate] { display: none; }
