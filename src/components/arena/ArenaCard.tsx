@@ -283,7 +283,7 @@ export function ArenaCard({
               </>
             )}
             {chrome && card.power != null && width >= 30 && (
-              <span className={styles.powerPlate}>
+              <span className={styles.powerPlate} data-power-plate>
                 <span
                   className={`arena-power ${styles.power} ${delta > 0 ? `arena-power-up ${styles.powerUp}` : delta < 0 ? `arena-power-down ${styles.powerDown}` : ""}`}
                   title={delta ? `${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")} in force` : undefined}
