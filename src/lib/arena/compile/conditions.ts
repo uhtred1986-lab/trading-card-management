@@ -346,6 +346,12 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // "When you've sent 7 or more cards to your Warp, reduce the energy cost of this card in your hand and Warp by 1" (SD3-04, deck
+  // audit 18 Oct 2026): LABELLED BEST GUESS. No manual rule, errata or official Q&A covers it (card FAQ searched 18 Oct 2026); the
+  // cards the game puts in the Warp stay there, so "have sent N or more to your Warp" is read as "N or more cards are in your Warp".
+  // The one card printing it is the only user; the engine keeps no count of cards ever sent.
+  const sentToWarp = /^you(?:'ve| have) sent (\d+) or more cards to your warp$/.exec(t.replace(/’/g, "'"));
+  if (sentToWarp) return parseConditionClause(`if there are ${sentToWarp[1]} or more cards in your warp`, true);
   // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
   const shaped = costConditionShape(t, allowBare);
