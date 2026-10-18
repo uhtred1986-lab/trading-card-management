@@ -216,6 +216,38 @@ function unionFusionAreasPermit(text: string): Op | null {
 }
 
 /**
+ * 22-13-5-2-1 (#927): the two standing permissions that widen where a
+ * [Union-Potara]'s materials may be chosen from.
+ *  - BT24-112 (back): "You can choose Battle Cards from under your black
+ *    Z-Unison when choosing cards to use with a black card's [Union-Potara]
+ *    skill from your hand." -> `unionSourceUnder`, `filter` the card using the
+ *    skill (black), `source` the Unison whose pile is searched.
+ *  - BT20-125: "This card is played from your hand in your opponent's Battle
+ *    Area, and when choosing cards to use with this card's [Union] skill from
+ *    your hand, you can choose Battle Cards you own in your opponent's Battle
+ *    Area." -> `playInOpponentBattle` and `unionSourceOpponentBattle`, both
+ *    this card's own, read from the hand.
+ * Null for any other sentence, and for a description the filter grammar cannot read.
+ */
+function unionPotaraSourcePermit(text: string): Op[] | null {
+  const t = text.trim();
+  const own = /^this card is played from your hand in your opponent'?s battle area,? and when choosing cards to use with this card'?s \[union(?:-potara)?\] skill from your hand,? you (?:can|may) choose battle cards you own in your opponent'?s battle area\.?$/i;
+  if (own.test(t)) {
+    const self = { sel: { special: "self" as const } };
+    return [
+      { op: "permit", what: "playInOpponentBattle", target: self, until: "game" },
+      { op: "permit", what: "unionSourceOpponentBattle", target: self, until: "game" },
+    ];
+  }
+  const m = /^you (?:can|may) choose battle cards from under your (.+?) when choosing cards to use with an? (.+?) card'?s \[union-potara\] skill from your hand\.?$/i.exec(t);
+  if (!m) return null;
+  const source = filterFor(m[1], null);
+  const filter = filterFor(`${m[2]} card`, null);
+  if (!source || !filter) return null;
+  return [{ op: "permit", what: "unionSourceUnder", target: { sel: { special: "self" } }, until: "game", filter, source }];
+}
+
+/**
  * 22-5-2 widened (BT19-077/078/081/082): "This card's [EX-Evolve] can also be
  * activated from your Z-Energy." One standing permission about the card's own
  * Evolve line's source area. The official card Q&A (BT19-077 Q1) reads it as
@@ -327,6 +359,8 @@ function compileSkillText(skill: Skill): Script {
   if (scoped) return { ops: [scoped], unsupported: [] };
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
+  const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;
+  if (potaraSources) return { ops: potaraSources, unsupported: [] };
   const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
   if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;

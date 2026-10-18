@@ -508,28 +508,39 @@ DEFINE KEYWORD Union
       -- the words printed beside its own name, with no equal-power
       -- requirement (`anyPower`: Potara asks for none). The card is played
       -- onto the first chosen and the other goes under it (22-13-5-4, "in any
-      -- order").
+      -- order"; #927, labelled best guess: the order picked is the stack,
+      -- top to bottom - the first directly beneath the card), in Active Mode
+      -- (the printed reminder "Place this card in Active Mode on top of the 2
+      -- specified cards", and the official keyword page). Power effects of
+      -- both materials and their piles carry over (22-13-5-4-1).
       -- 22-13-5-2-1 (#930): a [Permanent] on this card widens where they are
-      -- chosen from — the energy (BT10-046 with 4 or more energy, BT10-053 with
-      -- 3 or more, P-220) or the Warp (BT10-132, P-230).
+      -- chosen from - the energy (BT10-046 with 4 or more energy, BT10-053 with
+      -- 3 or more, P-220) or the Warp (BT10-132, P-230). Two more are read by
+      -- `namedCandidates` itself (#927): the pile under the master's black
+      -- Z-Unison (BT24-112 back) and Battle Cards the master owns in the
+      -- opponent's Battle Area (BT20-125).
       if(cond: all([permits(what: unionEnergy), permits(what: unionFusionWarp)]), then: {
-        choose(sel: 2 IN you.ANY(battle|energy|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
+        choose(sel: 2 IN you.ANY(battle|energy|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
       }, else: {
         if(cond: permits(what: unionEnergy), then: {
-          choose(sel: 2 IN you.ANY(battle|energy), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
+          choose(sel: 2 IN you.ANY(battle|energy), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
         }, else: {
           if(cond: permits(what: unionFusionWarp), then: {
-            choose(sel: 2 IN you.ANY(battle|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
+            choose(sel: 2 IN you.ANY(battle|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
           }, else: {
-            choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
+            choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
           })
         })
       })
       -- 22-13-5-2-1-1 (#930): "first move any Battle Cards in that area to the
       -- Battle Area, and then resolve the keyword skill normally"; the move
       -- causes no area-movement Auto and no counter timing (`areaExtension`).
+      -- The cards from under a Unison and from the opponent's Battle Area (#927)
+      -- are brought the same way by `playThen`, as the play is declared; for
+      -- BT20-125, which is played in the opponent's Battle Area, every material
+      -- is brought there.
       moveTo(target: FROM $pair IN you.ANY(energy|warp), to: battle, cause: areaExtension)
-      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, using: "Union-Potara", counterWindow: true)
+      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, mode: active, using: "Union-Potara", counterWindow: true)
     })
   }
 

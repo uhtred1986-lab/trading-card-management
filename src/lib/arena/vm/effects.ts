@@ -870,8 +870,8 @@ function collect(
     // `permits` condition additionally enforces that source and exact copy;
     // unionFusionWarp is scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
-      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "evolveFromZEnergy" && op.what !== "unionFusionWarp" && op.what !== "unionEnergy") continue;
-      const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}), ...(op.line ? { line: op.line } : {}) };
+      if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "evolveFromZEnergy" && op.what !== "unionFusionWarp" && op.what !== "unionEnergy" && op.what !== "unionSourceOpponentBattle" && op.what !== "playInOpponentBattle") continue;
+      const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}), ...(op.line ? { line: op.line } : {}), ...(op.source ? { source: op.source } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });
       continue;
     }

@@ -610,15 +610,15 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
  * card granting it for `comboRest`), whose rule it is, and which cards it
  * lets in.
  */
-export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string }[] {
-  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string }[] = [];
+export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string; source?: CardFilter }[] {
+  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string; source?: CardFilter }[] = [];
   for (const e of state.effects) {
     const p = e.kind === "permit" ? e.permit : undefined;
-    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}) });
+    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.source ? { source: p.source } : {}) });
   }
   for (const e of staticsNow(ctx, game, state)) {
     const p = e.value as Permission;
-    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}) });
+    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.source ? { source: p.source } : {}) });
   }
   return out;
 }
@@ -640,6 +640,36 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
     out.push({ ...sk, index: grantedLineIndex(out.length) });
   }
   return out;
+}
+
+/**
+ * #927, 22-13-5-2-1: the Battle Cards outside the master's own Battle Area that
+ * a [Permanent] lets this hand card's [Union-Potara] choose - cards under the
+ * master's Unison cards `unionSourceUnder` describes (BT24-112, back), and
+ * Battle Cards the master owns that stand in the opponent's Battle Area
+ * (BT20-125, this card's own). Empty unless the card is in the master's hand:
+ * [Union-Potara] is only activated from there (22-13-5-3). Not asked of the
+ * cards themselves - they are no Battle Card until `namedCandidates` tests them.
+ */
+export function unionPotaraExtras(ctx: EngineContext, game: GameDefinition, state: VmState, master: PlayerId, card: string): string[] {
+  const at = findCard(state, card);
+  if (at?.zone !== "hand" || at.owner !== master) return [];
+  const out = new Set<string>();
+  for (const p of permissions(ctx, game, state, "unionSourceUnder")) {
+    if (p.master !== master || !permitted(ctx, game, state, p.filter, card)) continue;
+    const test = p.source ? predicateOf(p.source, game) : () => true;
+    for (const host of state.sides[master].zones.unison ?? []) if (test(attrsNow(ctx, game, state, host))) for (const id of state.cards[host].under) out.add(id);
+  }
+  if (permissions(ctx, game, state, "unionSourceOpponentBattle").some((p) => p.master === master && p.target === card)) {
+    for (const id of state.sides[other(master)].zones.battle ?? []) if (state.cards[id].owner === master) out.add(id);
+  }
+  return [...out];
+}
+
+/** #927, BT20-125: is this hand card played in the opponent's Battle Area (its own [Permanent])? */
+export function playsInOpponentBattle(ctx: EngineContext, game: GameDefinition, state: VmState, master: PlayerId, card: string): boolean {
+  const at = findCard(state, card);
+  return at?.zone === "hand" && at.owner === master && permissions(ctx, game, state, "playInOpponentBattle").some((p) => p.master === master && p.target === card);
 }
 
 /** Does this card answer a permission's description? None means any card. A Hidden Mode card answers none (23-5-2). */
@@ -1600,7 +1630,10 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
   // #925: each printed name carries only its own qualifiers (colour, type,
   // cost, power), so the combined description (`asPrinted`) must not narrow
   // the pool first — it would pool the union of every name's words.
-  const pool = resolveSelector(ctx, game, state, frame, { ...sel, printed: undefined }).map((id) => {
+  // #927: a [Union-Potara] also takes the cards a [Permanent] adds as sources.
+  const extras = sk.keyword?.name === "Union" && sk.keyword.variant === "Potara" && frame.card ? unionPotaraExtras(ctx, game, state, frame.master, frame.card) : [];
+  const ids = resolveSelector(ctx, game, state, frame, { ...sel, printed: undefined });
+  const pool = [...ids, ...extras.filter((id) => !ids.includes(id))].map((id) => {
     const def = ctx.defs[state.cards[id].cardId];
     // 22-13-4-2 / owner's ruling of 13 Oct 2026: printed power, so a buffed
     // material still qualifies for "with 5000 power" as it does for equal power.
