@@ -224,6 +224,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
         !andJoinsTwoAreas(text, start, i) &&
+        !andSharesTheAreaAfter(text, start, i) &&
         !andJoinsChoiceList(text, start, i) &&
         !andJoinsBothSides(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
@@ -358,6 +359,20 @@ function andJoinsTwoAreas(text: string, start: number, i: number): boolean {
     .split(/[,.;]/)[0]
     .trim();
   return AREA_WORD.test((after.match(/^(?:(?:your|their|its owner'?s|the)\s+)?[a-z-]+(?: area)?/i)?.[0] ?? "").trim());
+}
+
+/**
+ * "Negate the [Energy-Exhaust] skill of multicolor <Pan> cards **and**
+ * multicolor Battle Cards with <GT> in their character names in all of your
+ * areas" (BT25-098): two descriptions of cards sharing the area said at the end
+ * of the list. The half after the "and" has no verb of its own and ends in the
+ * shared area, which the half before it lacks; `refsFor` reads the pair.
+ */
+function andSharesTheAreaAfter(text: string, start: number, i: number): boolean {
+  const before = text.slice(start, i);
+  if (!/\bcards?$/i.test(before.trim()) || /\bin (?:all of )?your\b/i.test(before)) return false;
+  const after = /^ and (.+?\bin all of your areas)\b/i.exec(text.slice(i));
+  return !!after && !/\b(?:negate|reduce|increase|gets?|gains?|draw|play|add|choose|and)\b/i.test(after[1]);
 }
 
 /**
@@ -614,6 +629,12 @@ export function anaphora(text: string): string {
       // (BT10-121): one play changed two ways. Cut at the "and" the second half
       // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
       .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")
+      // "**Reduce the combo cost by 1 and negate the [Energy-Exhaust] skill of** multicolor
+      // <Pan> cards …" (BT25-098, BT25-103, BT29-085b, EX19-20): a bare "the combo cost"
+      // names no card (the reducer refuses it, deliberately), but the one subject the
+      // sentence has is the cards the second half acts on, so it is said of them:
+      // both halves reach the same cards (#907).
+      .replace(/\b(reduce the combo costs?) by (\d+) and negate the (\[[^\]]+\]) skills? (of|on) ([^.]+?)(?=\.|$)/gi, (_all, reduce: string, n: string, kw: string, prep: string, who: string) => `${reduce} of ${who} by ${n} and negate the ${kw} skill ${prep} ${who}`)
       .replace(/\b([Tt])hat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "$1hat card")
       // "those Battle Cards" is the plural pronoun said with its noun, as "that
       // Battle Card" is the singular (BT7-025b has no antecedent to bind and is

@@ -521,6 +521,18 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
   }
+  // "If a {Dr.Uiro's Lab} in your Battle Area has 17 or more cards under it"
+  // (BT8-045b): the pile under another card, counted. Best guess where two
+  // such hosts stand: their piles are added (the card is not Unique-limited
+  // in the text, but no deck has been seen with two).
+  if ((m = /^(an? .+? in your battle area) has (\d+) or more cards? under (?:it|them)$/.exec(t))) {
+    const host = parseTarget(m[1]);
+    if (host && !host.special) {
+      delete host.count;
+      delete host.upTo;
+      return { cond: { kind: "count", sel: { side: "you", area: "under", underHost: host }, atLeast: Number(m[2]) }, subject: { sel: host } };
+    }
+  }
   // "If this card has [Indestructible]" (BT21-005, -006, -007, -023, BT23-008,
   // BT26-054 "[Servant]", P-491; #907): the card has that keyword skill *now* —
   // printed or granted, since a keyword gained is a skill like any other
@@ -772,7 +784,7 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
     if (bare && !two) return undefined;
     // "is in play in your Battle Area" with one name is read by the ordinary rule; the pair is not.
     if (m[3] && !two) return undefined;
-    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/cards?$/.test(one) ? `${one} card` : one));
+    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/\bcards?$/.test(one) ? `${one} card` : one));
     const conds = names.map((one) => parseCountCondition(`you have ${/s$/.test(one) ? "" : "a "}${one} in ${m![4]}`));
     if (conds.some((x) => !x)) return null;
     return { cond: conds.length === 1 ? conds[0]! : { kind: "all", conds: conds as Cond[] } };

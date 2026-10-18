@@ -1539,6 +1539,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return (frame.vars[c.var] ?? []).length >= (c.atLeast ?? 1);
     case "varMatches":
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
+    // "If the revealed card's energy cost is the same as the declared number" (BT22-090).
+    case "varAttrIsX":
+      return frame.x !== undefined && (frame.vars[c.var] ?? []).some((id) => state.cards[id] && measureOf(ctx, game, state, id, c.attr) === frame.x);
     case "isTurnPlayer":
       return c.who === "opponent" ? state.turnPlayer !== frame.master : state.turnPlayer === frame.master;
     // The question on the table, read off the one place this engine keeps it.

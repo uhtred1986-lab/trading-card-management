@@ -11,6 +11,10 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"addLife","n":AMOUNT,"side"?:"you"|"opponent"}
   {"op":"lifeDownTo","n":N,"side"?:"you"|"opponent"}
     add cards from life to hand until that many life remain (21-3-2)
+  {"op":"declare","max":N,"min"?:N}
+    the master names a whole number, which the rest of the program reads as X ("the declared number"); asked as a "choose one" among the numbers
+  {"op":"win","side"?:"you"|"opponent"}
+    a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played
   {"op":"shuffle","side"?:"you"|"opponent","areas"?:["deck"|"life"],"inspectedOnly"?:true|false}
   {"op":"invokeSkill","trait"?:"…","sel"?:SELECTOR,"skillKind":"activate:main"|"activate:main/battle","from":"hand","maxCost"?:"currentEnergy"}
     12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.
@@ -144,6 +148,8 @@ COND is one of these (a field marked ? may be left out):
   {"kind":"not","cond":COND}
   {"kind":"chose","var":"…","atLeast"?:N}
     "If you do so" (20-16): whether an earlier choice was answered, and with how many
+  {"kind":"varAttrIsX","var":"…","attr":"power"|"comboPower"|"energyCost"|…}
+    "if the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound
   {"kind":"varMatches","var":"…","filter":FILTER}
   {"kind":"isTurnPlayer","who"?:"you"|"opponent"}
     whose turn it is (7-1) — "during your opponent's turn" is this, not a duration

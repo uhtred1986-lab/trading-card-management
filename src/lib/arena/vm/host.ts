@@ -68,6 +68,7 @@ import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken } from "./errors";
 import { savedXKey } from "./script";
+import { endGame } from "./flow";
 import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
@@ -292,6 +293,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     // 21-3: script.ts calls this only when it emits a damage event. A saved
     // game from before the counter existed stays unknown, even after a hit.
+    winGame: (p, reason) => endGame(ctx, game, state, ev, p, reason),
     addDamageTaken: (p, n) => {
       if (state.damageTotals) state.damageTotals[p] += n;
     },

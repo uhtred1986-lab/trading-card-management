@@ -383,6 +383,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
+  declare: {
+    fields: [{ name: "max", type: "number", required: true }, { name: "min", type: "number" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"declare">;
+      return `declare a number from ${op.min ?? 0} to ${op.max}`;
+    },
+    doc: 'the master names a whole number, which the rest of the program reads as X ("the declared number"); asked as a "choose one" among the numbers',
+  },
+  win: { fields: [SIDE], sentence: "{side:your opponent wins|you win} the game", doc: "a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played" },
   shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
   invokeSkill: {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
@@ -997,6 +1006,8 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   addLife:            "macro over `move`",
   lifeDownTo:         "macro over `move`",
   shuffle:            "primitive",
+  win:                "primitive",
+  declare:            "primitive",
   invokeSkill:        "primitive",
   energyMarker:       "macro over `modifyAttr`",
   choose:             "primitive",
@@ -1313,6 +1324,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: '"If you do so" (20-16): whether an earlier choice was answered, and with how many',
   },
+  varAttrIsX: {
+    fields: [{ name: "var", type: "string", required: true }, { name: "attr", type: { enum: ["power", "comboPower", "energyCost", "comboCost", "originalPower", "specifiedCost"] }, required: true }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"varAttrIsX">;
+      return `that card's ${c.attr === "energyCost" ? "energy cost" : c.attr} is the declared number`;
+    },
+    doc: '"if the revealed card\'s energy cost is the same as the declared number" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound',
+  },
   varMatches: {
     fields: [
       { name: "var", type: "string", required: true },
@@ -1461,6 +1480,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   not:            "primitive",
   chose:          "macro over `count`",
   varMatches:     "macro over `count`",
+  varAttrIsX:     "primitive",
   isTurnPlayer:   "primitive",
   asking:         "primitive",
   forbidden:      "primitive",
@@ -1817,6 +1837,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "forbid" && o.attackTarget !== undefined && o.what !== "attack") return `${step}: "attackTarget" only qualifies an attack declaration`;
     if (o.op === "forbid" && o.attackOnly !== undefined && (o.what !== "attack" || o.attackTarget !== undefined)) return `${step}: "attackOnly" only qualifies an attack declaration, and not beside "attackTarget"`;
     if (o.op === "choose" && o.bindX === true) bound = true;
+    if (o.op === "declare") bound = true;
     // #970: "not these cards" names choices already made, in this program.
     if (o.op === "choose") {
       const barred = isRecord(o.sel) && Array.isArray(o.sel.notIn) ? o.sel.notIn : [];

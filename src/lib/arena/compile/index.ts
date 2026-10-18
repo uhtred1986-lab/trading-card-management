@@ -7,7 +7,7 @@ import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
-import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
+import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -34,7 +34,11 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
-  const sc = narrowHiddenChoices(compileSkillText(skill));
+  const read = narrowHiddenChoices(compileSkillText(skill));
+  // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
+  // first, whichever way the rest of the effect reads.
+  const declared = declaredNumber(skill);
+  const sc = declared && read.ops.length ? { ...read, ops: [{ op: "declare", min: declared.min, max: declared.max } as Op, ...read.ops] } : read;
   // The printed effect after an [Awaken] or [Awaken: Surge] colon remains
   // part of that keyword skill. Preserve that cause on mode-switch events so
   // triggers requiring a non-[Awaken] skill cannot mistake it for an ordinary
@@ -513,14 +517,6 @@ function compileSkillText(skill: Skill): Script {
   }
   if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
-    // A [Permanent] that only the placing moment can carry (DB2-166 …) offers
-    // "choose 1 red card **and** 1 green card in your Drop Area and send them to
-    // your Warp": two counted descriptions sharing one place, an optional
-    // all-or-nothing pair that `compileDisjointMove` refuses when it is
-    // optional. Cut at the "and" the first half has no place and reads as cards
-    // in play, which would make the skill wrong the moment it can fire — so the
-    // effect stays an honest gap until the pair can be read.
-    if (triggeredPermanent(skill) && /\bchoose \d+ [^,.]*? cards? and \d+ [^,.]*? cards? in your/i.test(skill.effect)) return { ops: [], unsupported: [trigger, ...clauses] };
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.

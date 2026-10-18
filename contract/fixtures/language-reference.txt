@@ -148,6 +148,43 @@
       "doc": "add cards from life to hand until that many life remain (21-3-2)"
     },
     {
+      "name": "declare",
+      "class": "primitive",
+      "signature": "{\"op\":\"declare\",\"max\":N,\"min\"?:N}",
+      "fields": [
+        {
+          "name": "max",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "min",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "declare a number from 0 to 1",
+      "doc": "the master names a whole number, which the rest of the program reads as X (\"the declared number\"); asked as a \"choose one\" among the numbers"
+    },
+    {
+      "name": "win",
+      "class": "primitive",
+      "signature": "{\"op\":\"win\",\"side\"?:\"you\"|\"opponent\"}",
+      "fields": [
+        {
+          "name": "side",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"you\"",
+          "type": "side"
+        }
+      ],
+      "sentence": "you win the game",
+      "doc": "a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played"
+    },
+    {
       "name": "shuffle",
       "class": "primitive",
       "signature": "{\"op\":\"shuffle\",\"side\"?:\"you\"|\"opponent\",\"areas\"?:[\"deck\"|\"life\"],\"inspectedOnly\"?:true|false}",
@@ -3035,6 +3072,35 @@
       ],
       "sentence": "you took that choice",
       "doc": "\"If you do so\" (20-16): whether an earlier choice was answered, and with how many"
+    },
+    {
+      "kind": "varAttrIsX",
+      "class": "primitive",
+      "signature": "{\"kind\":\"varAttrIsX\",\"var\":\"…\",\"attr\":\"power\"|\"comboPower\"|\"energyCost\"|…}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "attr",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "power",
+            "comboPower",
+            "energyCost",
+            "comboCost",
+            "originalPower",
+            "specifiedCost"
+          ]
+        }
+      ],
+      "sentence": "that card's power is the declared number",
+      "doc": "\"if the revealed card's energy cost is the same as the declared number\" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound"
     },
     {
       "kind": "varMatches",
