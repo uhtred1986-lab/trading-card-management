@@ -896,8 +896,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const opponentMove = compileOpponentChoice(t, c, (o) => track(o, c));
   if (opponentMove !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : opponentMove;
   const disjoint = compileDisjointMove(t, c);
-  // An optional one ("you may place 1 <A> card and 1 <B> card …") is a choice to do all of it: not read.
-  if (disjoint !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : disjoint;
+  // An optional one ("you may choose 1 red card and 1 green card in your Drop Area
+  // and send them to your Warp", DB2-166) is both or neither: the `may` declines
+  // for you when the slots cannot all be had, each with a card of its own
+  // (`vm/script.ts`, #907), so the offer is read like any other.
+  // Only the "choose … and send them" wording: "you may place 1 <A> card and 1 <B>
+  // card from your Warp … and pay {1}" (BT27-007) is an alternative price, not an offer.
+  if (disjoint !== undefined) {
+    const optional = /^(?:you may|you can|the player may)\s/i.test(clause.trim());
+    const offerOfAPair = /^(?:you may|you can|the player may)\s+choose\b/i.test(clause.trim());
+    if (optional && !offerOfAPair) return null;
+    return disjoint;
+  }
 
   // An omitted subject at this particular conjunction is unambiguously self
   // (#910). Reuse both readers, accepting only an identity gain: no guessing

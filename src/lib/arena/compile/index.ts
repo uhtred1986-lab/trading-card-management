@@ -517,14 +517,6 @@ function compileSkillText(skill: Skill): Script {
   }
   if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? ""))) {
     const trigger = clauses.shift()!;
-    // A [Permanent] that only the placing moment can carry (DB2-166 …) offers
-    // "choose 1 red card **and** 1 green card in your Drop Area and send them to
-    // your Warp": two counted descriptions sharing one place, an optional
-    // all-or-nothing pair that `compileDisjointMove` refuses when it is
-    // optional. Cut at the "and" the first half has no place and reads as cards
-    // in play, which would make the skill wrong the moment it can fire — so the
-    // effect stays an honest gap until the pair can be read.
-    if (triggeredPermanent(skill) && /\bchoose \d+ [^,.]*? cards? and \d+ [^,.]*? cards? in your/i.test(skill.effect)) return { ops: [], unsupported: [trigger, ...clauses] };
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.

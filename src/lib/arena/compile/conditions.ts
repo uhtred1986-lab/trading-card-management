@@ -784,7 +784,7 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
     if (bare && !two) return undefined;
     // "is in play in your Battle Area" with one name is read by the ordinary rule; the pair is not.
     if (m[3] && !two) return undefined;
-    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/cards?$/.test(one) ? `${one} card` : one));
+    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/\bcards?$/.test(one) ? `${one} card` : one));
     const conds = names.map((one) => parseCountCondition(`you have ${/s$/.test(one) ? "" : "a "}${one} in ${m![4]}`));
     if (conds.some((x) => !x)) return null;
     return { cond: conds.length === 1 ? conds[0]! : { kind: "all", conds: conds as Cond[] } };

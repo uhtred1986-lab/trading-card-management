@@ -56,7 +56,11 @@ export interface DisjointWords {
 
 /** The words of a clause of this shape, or `null`. */
 export function disjointWords(clause: string): DisjointWords | null {
-  const said = clause.trim().replace(/[.]$/, "");
+  // "choose 1 red card and 1 green card in your Drop Area and send them to your
+  // Warp" (DB2-166 and five more) is "send 1 red card and 1 green card from your
+  // Drop Area to your Warp" said as a choice and a move: the same slots, source
+  // and place, so it is read as that.
+  const said = clause.trim().replace(/[.]$/, "").replace(/^choose (.+?) (?:in|from) ((?:your|the|their|its owner'?s?) [^,;:.]+?) and (send|place) them (to|in|into) (.+)$/i, (_all, list: string, src: string, verb: string, prep: string, dest: string) => `${verb} ${list} from ${src} ${prep} ${dest}`);
   for (const shape of SHAPES) {
     const m = shape.exec(said);
     if (!m) continue;
@@ -83,7 +87,7 @@ export function disjointWords(clause: string): DisjointWords | null {
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function disjointMoveSpans(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const start = /\b(?:send|place) (?=[1-9]\d?\s)/gi;
+  const start = /\b(?:send|place|choose) (?=[1-9]\d?\s)/gi;
   for (let m = start.exec(text); m; m = start.exec(text)) {
     for (let end = m.index + 1; end <= text.length; end++) {
       const stops = end === text.length || ",:;.".includes(text[end]) || text.startsWith(" then ", end) || text.startsWith(" and ", end);

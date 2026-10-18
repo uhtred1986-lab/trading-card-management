@@ -20,7 +20,7 @@
  * 18 Oct 2026, with the trigger shortened where it is not the point.
  */
 import assert from "node:assert/strict";
-import { DBS_DEFINITION, DEFS, actsG, assertConsistentG, card, comboCostOfG, compileSkill, findG, parseSkills, playCostG, playG, stagedG, zoneOf } from "./harness";
+import { DBS_DEFINITION, DEFS, actsG, assertConsistentG, card, comboCostOfG, compileSkill, findG, moveG, parseSkills, playCostG, playG, stagedG, zoneOf } from "./harness";
 import type { Action, EngineState } from "./harness";
 import { validateProgram, type Op } from "../../src/lib/arena/vm/script";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -264,6 +264,42 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
     assert.deepEqual(sc.unsupported, [], text.slice(0, 50));
     assert.equal(find(sc.ops, "draw").length, 1);
   }
+}
+
+// ── "you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp" ──
+{
+  const db2 = compile("[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.");
+  assert.deepEqual(db2.unsupported, [], "DB2-166 and its five siblings read");
+  const [offer] = find(db2.ops, "may");
+  assert.deepEqual(find(offer.ops, "choose").map((x) => [x.sel.area, x.sel.count, !!x.sel.notIn]), [["drop", 1, false], ["drop", 1, true]], "each from the Drop, a card of its own");
+  assert.equal(find(db2.ops, "negateKeyword").length, 1, "'if you do' follows the offer");
+  assert.equal(validateProgram(db2.ops), true);
+
+  def("C907-RED", { colors: ["Red"] });
+  def("C907-GREEN", { colors: ["Green"] });
+  def("C907-RG", { colors: ["Red", "Green"] });
+  def("C907-OFFER", { energyCost: 0, skill: "[Auto] When this card is played, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, draw 1 card." });
+  const attempt = (inDrop: string[]) => {
+    let s = stagedG({ hand: ["C907-OFFER", ...inDrop] });
+    for (const id of inDrop) moveG(s, findG(s, "p1", "hand", id), "drop", "p1");
+    const hand = zoneOf(s, "p1", "hand").length;
+    s = playCard(s, "C907-OFFER");
+    let asked = 0;
+    for (let i = 0; i < 8 && (s.prompt.kind === "chooseMode" || s.prompt.kind === "chooseCards"); i++) {
+      asked++;
+      s = s.prompt.kind === "chooseMode" ? playG(s, { type: "chooseMode", player: "p1", index: 0 }) : playG(s, { type: "choose", player: "p1", cards: [s.prompt.choice.candidates[0]] });
+    }
+    assertConsistentG(s);
+    return { warp: zoneOf(s, "p1", "warp").length, drawn: zoneOf(s, "p1", "hand").length - (hand - 1), asked };
+  };
+  const both = attempt(["C907-RED", "C907-GREEN"]);
+  assert.deepEqual([both.warp, both.drawn], [2, 1], "a red and a green card: both go to the Warp, and 'if you do' draws");
+  const one = attempt(["C907-RED"]);
+  assert.deepEqual([one.warp, one.drawn, one.asked], [0, 0, 0], "only a red card: the pair is both or neither, and the offer is not even made");
+  const shared = attempt(["C907-RG"]);
+  assert.deepEqual([shared.warp, shared.drawn], [0, 0], "one red-and-green card cannot be both halves of the pair");
+  const shared2 = attempt(["C907-RG", "C907-GREEN"]);
+  assert.deepEqual([shared2.warp, shared2.drawn], [2, 1], "a red-green card and a green one can: each half has a card of its own");
 }
 
 console.log("census-effects-907: remainders, win the game, declare, combo cost, 'you draw' passed");

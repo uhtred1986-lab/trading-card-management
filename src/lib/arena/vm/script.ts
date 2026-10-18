@@ -13,7 +13,7 @@ import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
-import { completablePicks, laterSlots } from "./disjoint";
+import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
 
@@ -3168,6 +3168,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             frame.ip++;
             continue;
           }
+        }
+        // "You may choose 1 red card and 1 green card in your Drop Area and send
+        // them to your Warp" (DB2-166 and the five like it): a pair is both or
+        // neither, so an offer whose slots cannot all be had, each with a card of
+        // its own (#970), is declined for you like the single choice above.
+        if (disjointGroups(op.ops).length && !disjointPayable(op.ops, (slot) => h.resolveSelector(frame, { ...slot.sel, notIn: undefined }))) {
+          (frame.did ??= {}).may = false;
+          for (const o of op.ops) if (o.op === "choose") frame.vars[o.as] = [];
+          frame.ip++;
+          continue;
         }
         // 20-16-1: "if you do" needs the action itself to have been taken, so an
         // offer whose first step cannot be carried out at all is not one that

@@ -57,7 +57,7 @@ const rowOf = (id: string) => skillRecords(DEFS[id]).find((r) => r.kind === "aut
 {
   const DB2 = "[Permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [Energy-Exhaust] skill.";
   const s = compile(DB2);
-  assert.ok(s.unsupported.length > 0 && !s.ops.length, "DB2's pair of coloured cards is not read yet, and nothing half-reads");
+  assert.deepEqual(s.unsupported, [], "DB2's optional pair of coloured cards is read (census-effects-907): both from the Drop, or neither");
   DEFS.PERM907 = card("PERM907", { energyCost: 0, skill: "[Permanent] When placing this card in your energy from any area, draw 1 card." });
   DEFS.PERM907B = card("PERM907B", { energyCost: 0, skill: "[Auto] When this card is placed in your energy, draw 1 card." });
   DEFS.NEUTRAL907 = card("NEUTRAL907", { energyCost: 0, skill: null });
