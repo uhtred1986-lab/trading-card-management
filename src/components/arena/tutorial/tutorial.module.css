@@ -1,4 +1,5 @@
 .tutorial { width: 100%; }
+.guidance:focus { outline: none; }
 :is(.intro, .toolbar, .coach, .notice, .lessonList) { color: #eef2ff; background-color: #141a2b; }
 .intro { min-height: 100dvh; display: grid; align-content: center; gap: .75rem; padding: max(.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: radial-gradient(ellipse at 25% 25%, #673320 0, #151829 55%, #090b16 100%); border: 1px solid #9c6535; border-radius: 1rem; }
 .introArt { display: flex; justify-content: center; }
@@ -19,9 +20,12 @@
 .lessonList { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
 .tutorial[data-tutorial-focus="hand"] :global(.arena-hand) { outline: 3px solid #f7c865; outline-offset: -3px; }
 .tutorial[data-tutorial-focus="attack"] :global([data-arena-zone$=":leader"]), .tutorial[data-tutorial-focus="attack"] :global([data-arena-zone$=":battle"]) { outline: 3px solid #f7c865; outline-offset: -3px; }
-.tutorial[data-tutorial-focus="decision"] :global([data-hand-toolbar]) { outline: 3px solid #f7c865; outline-offset: -3px; }
+.tutorial[data-tutorial-focus="decision"] :global([data-hand-toolbar]), .tutorial[data-tutorial-focus="decision"] :global([data-prompt-kind]), .tutorial[data-tutorial-focus="decision"] :global([data-arena-dock]) { outline: 3px solid #f7c865; outline-offset: -3px; }
 @media (min-width: 820px) { .intro { grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); } }
-@media (max-height: 550px) { .intro { align-content: start; } .introArt { display: none; } }
+/* Short landscape: the art column goes, so the dialogue takes the whole width rather than a narrow first column. */
+@media (max-height: 550px) { .intro { align-content: start; grid-template-columns: minmax(0, 1fr); } .introArt { display: none; } .dialogue { max-width: none; } }
+/* The heading is only a focus target (the screen changed); the controls keep their ring. */
+.dialogue h1:focus { outline: none; }
 @media (prefers-reduced-motion: no-preference) { .introArt { animation: arrive .35s ease-out; } @keyframes arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } } }
 
 .evidence { margin-bottom: .75rem; }

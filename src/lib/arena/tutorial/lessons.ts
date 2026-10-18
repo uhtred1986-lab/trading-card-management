@@ -307,12 +307,28 @@ export function handoffReady(progress: LearningProgress): boolean {
 
 /** Small phone coach: current legal choices take priority over curriculum history. */
 export const BADGE_GLOSSARY = "BLK = Blocker: redirects an attack to that Battle Card. RVG = Revenge: when attacked, KO the attacking Battle Card after battle. STR marks a Strike ability; read its exact card text. These are skills, not colors. Phase markers show progress; they are not navigation buttons.";
-export function compactCoach(lessonId: string, snapshot: Snapshot): { instruction: string; concept: string } {
-  const say = (instruction: string, concept: string) => ({ instruction, concept });
+/** How the player is operating the board right now. Detected in the browser, never inferred from width. */
+export type InputMode = "touch" | "mouse" | "keyboard";
+export const INPUT_MODES: InputMode[] = ["touch", "mouse", "keyboard"];
+/** The ways of picking a hand card, per input mode. Without a detected mode the coach keeps the touch wording. */
+const PICK: Record<InputMode, { charge: string; play: string; any: string }> = {
+  touch: { charge: "Tap a hand card, then Charge it.", play: "Tap a playable hand card, review it, then choose Play and confirm its payment.", any: "Tap a card to inspect it." },
+  mouse: { charge: "Click a hand card, then choose Charge in the card panel (or drag the card onto Energy).", play: "Click a playable hand card (or drag it onto the Battle Area), review it, then choose Play and confirm its payment.", any: "Click a card to inspect it." },
+  keyboard: { charge: "Press Tab to reach a hand card, Enter to select it, then choose its Charge button.", play: "Press Tab to reach a playable hand card and Enter to select it, review it, then choose Play and confirm its payment.", any: "Tab to a card and press Enter to inspect it." },
+};
+/** One line on how this input mode operates the board; the other two stay in "Need another way?". */
+export const INPUT_HELP: Record<InputMode, string> = {
+  touch: "Touch: tap a card to inspect it. Nothing is spent until you tap the confirm button in its review. Long-press a card for its actions.",
+  mouse: "Mouse: click a card to inspect it and use the buttons in its panel, or drag a hand card onto the Battle Area or Energy. Right-click opens a card’s actions.",
+  keyboard: "Keyboard: Tab moves between cards and controls, Enter selects or confirms, and Escape closes a review. Legal choices stay on the board.",
+};
+export function compactCoach(lessonId: string, snapshot: Snapshot, mode: InputMode = "touch"): { instruction: string; concept: string; input: string } {
+  const pick = PICK[mode];
+  const say = (instruction: string, concept: string) => ({ instruction, concept, input: INPUT_HELP[mode] });
   const prompt = snapshot.view.prompt.kind;
   if (snapshot.view.over) return say("The match has ended. Review a lesson or start again.", "Life, deck and card effects determine the result. Your accepted moves are recorded in Lessons.");
   if (snapshot.waiting === "you") {
-    if (prompt === "charge") return say("Tap a hand card, then Charge it. Pass means no charge this turn.", "That card leaves your hand and stays in Energy. Rest energy to pay costs; it readies again next turn.");
+    if (prompt === "charge") return say(`${pick.charge} Pass means no charge this turn.`, "That card leaves your hand and stays in Energy. Rest energy to pay costs; it readies again next turn.");
     if (["chooseCards", "chooseMode", "payCost", "optionalCost", "orderPending", "replaceMove"].includes(prompt)) return say("Follow the current card prompt and confirm your choice.", "Read the card’s ability and the number of selections required. Only the choices offered here are legal; reviewing a card does not commit it.");
     if (prompt === "counter") return say("Choose a legal Counter response, or the offered decline option.", "A Counter interrupts at its printed timing; read whether it negates the attack. Declining this window lets the battle continue.");
     if (prompt === "blocker") return say("Choose an offered Blocker to redirect the attack, or the offered decline option.", "Blocker rests your eligible Battle Card and makes it the defender. It does not negate the attack; a Counter may do that instead.");
@@ -331,14 +347,14 @@ export function compactCoach(lessonId: string, snapshot: Snapshot): { instructio
         if (leaderAttack) return say("Choose your Leader, then an offered attack target. A normal Leader attack costs no energy.", `${energy === 0 ? "You have no energy after declining charge. " : "No hand card can be played now. "}The attacker wins ties. Combos are separate choices during battle.`);
         const attack = snapshot.legal.some(l => l.action.type === "attack");
         if (attack) return say("Choose an offered attacker and legal target, or End turn.", "No hand card can be played now. Playing and Combo are separate actions; combo power applies only during battle. The attacker wins ties.");
-        return say("Choose End turn. On your next Charge Phase, tap a hand card, then Charge it.", `${energy === 0 ? "You have no energy to pay for cards. " : "No play or attack is legal now. "}${snapshot.view.turn === 1 ? "The first player cannot attack on their first turn. " : ""}Pass only declines a prompt; it does not end your turn.`);
+        return say(`Choose End turn. On your next Charge Phase: ${pick.charge.charAt(0).toLowerCase()}${pick.charge.slice(1)}`, `${energy === 0 ? "You have no energy to pay for cards. " : "No play or attack is legal now. "}${snapshot.view.turn === 1 ? "The first player cannot attack on their first turn. " : ""}Pass only declines a prompt; it does not end your turn.`);
       }
       if (["t2.attack-target", "changed-board.predict"].includes(lessonId) && snapshot.legal.some(l => l.action.type === "attack")) return say("Choose an Active attacker, then an offered target. Confirm the attack when prompted.", "You can attack a Leader or a rested Battle Card when legal. A normal Leader attack costs no energy. Combo power is added separately during battle; the attacker wins ties.");
-      return say("Tap a playable hand card, review it, then choose Play and confirm its payment.", "Rest energy to pay; it stays in Energy. Playing a Battle Card uses its battle power, not its combo power. Combo is a separate battle action that spends a card.");
+      return say(pick.play, "Rest energy to pay; it stays in Energy. Playing a Battle Card uses its battle power, not its combo power. Combo is a separate battle action that spends a card.");
     }
   }
   if (snapshot.view.battle) return say("Watch the current battle resolve and follow the next response prompt.", "Compare final power after combos: the attacker wins ties. A successful Leader hit takes Life; a defeated Battle Card goes to Drop. Combo boosts last only this battle.");
   if (snapshot.view.turnPlayer !== snapshot.view.you.player) return say("Watch the opponent’s turn; respond when the board offers you a choice.", "They ready their rested cards, draw, and may charge. Energy stays in its area when rested to pay. Phase markers show progress, not navigation.");
   const lesson = LESSONS.find(l => l.id === lessonId);
-  return say(lesson?.copy ?? "Read the current board prompt and choose an offered legal action.", "Tap a card to inspect it. Phase markers show progress; use the board’s action controls to make a move.");
+  return say(lesson?.copy ?? "Read the current board prompt and choose an offered legal action.", `${pick.any} Phase markers show progress; use the board’s action controls to make a move.`);
 }

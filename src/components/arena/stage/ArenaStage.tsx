@@ -1593,7 +1593,7 @@ export function ArenaStage({
           {/* This single decision panel stays with the hand on phones and moves
               beside it on desktop, while inspection stays in the right column. */}
           <div className="arena-context xl:min-h-0 xl:[grid-area:side]">
-          <div className={`${phoneStyles.dock} sticky bottom-0 z-30 xl:static xl:z-auto xl:shrink-0`}>
+          <div data-arena-dock className={`${phoneStyles.dock} sticky bottom-0 z-30 xl:static xl:z-auto xl:shrink-0`}>
             <PromptPanel
               view={view}
               decision={live.decision}
