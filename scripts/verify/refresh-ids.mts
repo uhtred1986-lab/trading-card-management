@@ -25,6 +25,12 @@ assert.deepEqual(list.specs.map((s) => s.raw), ["BT12-003#10", "P-274#0"]);
 assert.deepEqual(list.bad, ["x#"]);
 const pr = idsFromPrBody("## Summary\nBT1-001#0 is in the summary, not the list.\n## Production refresh\n- BT12-003#10\n- P-274#0b and EX19-01#10\n## Test plan\nBT2-002#0");
 assert.deepEqual(pr.specs.map((s) => s.raw), ["BT12-003#10", "P-274#0b", "EX19-01#10"]);
+assert.deepEqual(parseSpec("BT10-114"), { cardId: "BT10-114", side: null, skill: null, raw: "BT10-114" });
+assert.equal(parseSpec("BT10-114b")?.skill, null);
+const bareBody = idsFromPrBody("## Summary\nBT1-001 is in the summary.\n## Stored rows needing a refresh\nBT10-114, BT10-114b P-274 EX19-01#10 and the non-card re-run.\n## Test plan\nBT2-002");
+assert.deepEqual(bareBody.specs.map((s) => s.raw), ["EX19-01#10", "BT10-114", "BT10-114b", "P-274"]);
+assert.deepEqual(idsFromPrBody("Refresh: BT10-114 BT11-001, P-1\n").specs.map((s) => s.raw), ["BT10-114", "BT11-001", "P-1"]);
+assert.deepEqual(idsFromPrBody("## Stored rows needing\nBT10-114\n").specs.map((s) => s.raw), ["BT10-114"]);
 assert.equal(idsFromPrBody("nothing here BT1-001#0").specs.length, 0);
 
 // ── database ─────────────────────────────────────────────────────────────────
@@ -95,6 +101,18 @@ assert.equal(byId(v, "T-BACK#0").key, "T-BACK/front/0");
 assert.match(byId(v, "T-GHOST#0").reason!, /no such card/);
 assert.match(byId(v, "T-CLEAN#7").reason!, /no such skill/);
 assert.deepEqual(await snapshot(), before, "classification writes nothing");
+
+// Bare card ids expand to every stored skill row; a trailing b selects the back face only.
+v = await classifyIds(db, parseIdList("T-BACK T-BACKb T-CLEAN T-NOROW T-GHOST").specs);
+assert.deepEqual(v.filter((x) => x.spec.raw === "T-BACK" || x.spec.raw.startsWith("T-BACK ->")).map((x) => x.key), ["T-BACK/front/0", "T-BACK/back/0"], "bare id: front and back rows");
+assert.deepEqual(v.filter((x) => x.spec.raw === "T-BACKb" || x.spec.raw.startsWith("T-BACKb ->")).map((x) => x.key), [], "back rows already listed by the bare id are not repeated");
+v = await classifyIds(db, parseIdList("T-BACKb").specs);
+assert.deepEqual(v.map((x) => [x.key, x.status]), [["T-BACK/back/0", "pending"]], "bare id with b: the back only");
+v = await classifyIds(db, parseIdList("T-CLEAN T-NOROW T-GHOST").specs);
+assert.deepEqual(v.map((x) => x.key).sort(), ["T-CLEAN/front/0", "T-GHOST/front/*", "T-NOROW/front/*"]);
+assert.match(v.find((x) => x.key === "T-NOROW/front/*")!.reason!, /no stored card_rules rows/);
+assert.match(v.find((x) => x.key === "T-GHOST/front/*")!.reason!, /no such card/);
+assert.deepEqual(await snapshot(), before, "bare-id classification writes nothing");
 
 // --unread-ok: the unread card is pending on the unread writer only when the row differs. Its fresh compile leaves text unread.
 v = await classifyIds(db, specs, { unreadOk: true });
