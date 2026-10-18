@@ -719,6 +719,32 @@ the summary and writes the full artifact. It does not read the database or netwo
 
 ---
 
+## 4b. Refreshing stored rules after a compiler PR
+
+```
+npm run arena:refresh-ids -- [--apply] [--unread-ok] (--ids "BT12-003#10,P-274#0b" | --ids-file path | --pr 123)
+npm run arena:refresh-ids:verify      # offline PGlite test (~30 s, so not part of npm test)
+```
+
+Replaces the throwaway per-PR scripts (`arena-refresh-2026-10-17.mts` and its siblings). Ids are `CARD#SKILL`
+(front) or `CARD#SKILLb` / `CARD#SKILL#back` (back face); `CARD/side/SKILL` also works. With no suffix and no
+front skill of that index, the back is used and the output says so. `--pr` reads the PR body from the first
+line mentioning "refresh" to the next heading, extracts `card#skill` ids (best effort) and prints what it found.
+
+Each id is recompiled from the current `cards` text and compared with its `card_rules` row, then called
+**pending**, **up-to-date** or **excluded** (with the reason). Never written: a missing card or row, a
+non-dbs card, `P-616` (#907), a row whose source is not `compiler` or whose status is not `draft`/`open`
+(confirmed, corrected, owner rows), a row with `confirmed_at`, a row whose printed text changed since it
+was stored (unless it is a draft and the card has an official erratum, which is reported), and a fresh
+compile that leaves clauses unread (unless `--unread-ok`, which takes the unread path: status `open`, via
+`applyReviewedUnreadRefresh`). The default is a dry run printing old to new reading per id and a summary.
+`--apply` writes through `applyReviewedRefresh` (and the unread writer), each one atomic statement that
+locks, compares the whole row and swaps, so a stale row aborts that batch with nothing written, then re-runs
+the classification and asserts 0 pending. Needs `DATABASE_URL` (an agent session does not run it; the
+coordinator or owner does).
+
+---
+
 ## 5. Recording a ruling
 
 ```
