@@ -90,9 +90,9 @@ const playCard = (s: EngineState, id: string) => settle(pay(playG(s, { type: "pl
     assert.deepEqual(got.unsupported, [], text);
     assert.equal(find(got.ops, "damage")[0]?.side, "opponent", text);
   }
-  // BT1-015 still goes to the referee: "KO that card after the battle" has no moment to be read at.
-  assert.ok(compile("[auto] When this card attacks a Battle Card, KO that card after the battle. Then, if your opponent's Leader Card has 10000 or less power, inflict 1 damage to your opponent.").unsupported.length > 0,
-    "BT1-015: the KO's timing is not read, so the skill is not either");
+  // BT1-015 reads since "after the battle" is the Battle End Step (#907, battle-end-followups-907.ts).
+  assert.deepEqual(compile("[auto] When this card attacks a Battle Card, KO that card after the battle. Then, if your opponent's Leader Card has 10000 or less power, inflict 1 damage to your opponent.").unsupported, [],
+    "BT1-015: \"after the battle\" is a battleEnd delay");
   // What the exposure showed: an imperative "KO ..." first after the trigger was cut as the trigger's "and KOs ...".
   const ko = compile("[auto] When this card attacks, choose 1 of your opponent's Battle Cards and KO it. Then, draw 1 card.");
   assert.deepEqual(find(ko.ops, "ko").length, 1, "the KO is still there");

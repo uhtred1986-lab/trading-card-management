@@ -532,6 +532,9 @@ const DELAY_PATTERNS: [RegExp, DelayTiming, DelayScope][] = [
   // is resolving in, which is this one: the same timing with a pronoun.
   [/at (?:the )?end of (?:this |that |the |your )?turn/, "turnEnd", "thisTurn"],
   [/at (?:the )?end of (?:this|the) battle/, "battleEnd", "thisTurn"],
+  // "KO that card **after the battle**" (BT1-015), "switch this card to Active Mode **after the battle**"
+  // (BT1-087 and its [Blocker] family): the Battle End Step (8-5-9), the same moment as "at the end of the battle".
+  [/after the battle/, "battleEnd", "thisTurn"],
   [/at the (?:start|beginning) of your next main phase/, "mainStart", "yourNextTurn"],
   [/at the (?:start|beginning) of your opponent's next main phase/, "mainStart", "opponentNextTurn"],
   [/at the (?:start|beginning) of your opponent's next turn/, "turnStart", "opponentNextTurn"],
@@ -2277,8 +2280,39 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     /\bcombo\b/.test(t)
   ) {
     const from = m[2] ?? m[3];
-    const ref = refFor(from ? `${m[1]} in your ${from}` : m[1], c);
     const negated = !!m[4];
+    // "Use this card **under a {Universal Tuffleization Plan} in a Battle Area** in a combo" (BT21-049),
+    // "from under a {Destroyed West City} in your Battle Area" (BT23-018, BT23-019, #907): the card is used from
+    // the pile under the named card - the same test as "if this card is under {X}" (`onTop`), asked before the combo.
+    // "…from under a yellow ≪Great Ape≫ card with an energy cost of 4 **that's in a battle**" (BT24-091, BT24-092): the
+    // host is also in the battle (`inBattle` over the card on top). A host described any further is a reading the
+    // filter cannot make: refused.
+    const under = /^this card(?: in a combo)? (?:from )?under (.+?)(?: in (?:a|your) battle area)?$/.exec(m[1]);
+    if (under) {
+      if (from) return null;
+      const inBattleHost = /\s+(?:that'?s|that is|which is) in a battle$/.exec(under[1]);
+      const hostText = inBattleHost ? under[1].slice(0, inBattleHost.index) : under[1];
+      const host = /\b(?:that'?s|that is|which is) in a battle\b/.test(hostText) ? null : filterFor(hostText, null);
+      if (!host) return null;
+      const hostSel: Selector = { special: "onTop", filter: host };
+      const cond: Cond = inBattleHost ? { kind: "inBattle", sel: hostSel } : { kind: "count", sel: hostSel, atLeast: 1 };
+      return [{ op: "if", cond, then: [{ op: "comboFrom", target: { sel: { special: "self" } }, ...(negated ? { negated } : {}) }] }];
+    }
+    // "Use this card in a combo **from your Drop**" (BT18-082 and its family): the area is where the card is
+    // used from (9-1-3-2), which `selfFrom` reads off "this card from …" - not "this card in your Drop".
+    const selfFromArea = /^use this card(?: in a combo)?(?: from (your|its owner's|their|our) (hand|drop(?: area)?|warp|energy(?: area)?|deck))(?: in a combo)?( with (?:its|their) skills negated)?$/.exec(q);
+    if (selfFromArea) {
+      return [{ op: "comboFrom", target: { sel: selfFrom(`this card from ${selfFromArea[1]} ${selfFromArea[2]}`) }, ...(selfFromArea[3] ? { negated: true } : {}) }];
+    }
+    let ref = refFor(from ? `${m[1]} in your ${from}` : m[1], c);
+    // "Look at up to 5 cards from the top of your deck, **use up to 1 mono-green ≪Demon Clan≫ card in a combo** …"
+    // (P-703, #907): after a look, a description that names no area of its own is read from the cards looked at
+    // (20-12), as the `play` and `add … to your hand` clauses already do. Read as an unqualified card it was
+    // one already in play.
+    if (c.lastSeen && !from && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+      const sel = parseTarget(m[1], c.lastSeen);
+      if (sel && !sel.special) ref = { sel };
+    }
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "comboFrom", target, ...(negated ? { negated } : {}) })) : null;
   }
   // "Switch the target of the attack to it / to this card" (8-1, as a [Blocker] does).
@@ -4520,6 +4554,24 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     const trailing = parseTrailingDelay(clause);
     if (trailing) {
       if (connective(trailing.head) === "skip") continue;
+      // A [Permanent] that is not a trigger never resolves, so a battle-end effect in one is a misread, not a rule.
+      // P-087 is the only one: the feed breaks its [Dual Attack] reminder at a <br> and the tail would read as a skill.
+      if (c.permanent && trailing.at === "battleEnd") {
+        refuse(clause);
+        continue;
+      }
+      // "When this card attacks a Battle Card, **KO that card after the battle**" (BT1-015): "that card" is the card
+      // this card attacked, taken when the attack is declared. FAQ (BT1-015 Q1/Q2): a [Blocker] does not change which
+      // card is KO'd ("KO the original target of the attack"), and a negated attack still pays it ("KO the card
+      // attacked"). So the target is chosen now (the `guard`, before any block) and KO'd at the Battle End Step.
+      if (trailing.at === "battleEnd" && /^ko (?:that|the attacked) card$/.test(trailing.head) && /\bwhen this card attacks (?:an?|1) [a-z' ]*card\b/i.test(c.raw)) {
+        const v = `c${c.n++}`;
+        push([
+          { op: "choose", sel: { special: "guard" }, as: v, reason: "the card this card attacked" },
+          { op: "delay", at: trailing.at, scope: trailing.scope, ops: [{ op: "ko", target: { var: v } }], label: trailing.label },
+        ]);
+        continue;
+      }
       const got = compileClause(trailing.head, c);
       if (got) {
         for (const o of got) track(o, c);

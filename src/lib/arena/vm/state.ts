@@ -88,6 +88,8 @@ export interface VmBattle {
   counters: { card: string; by: PlayerId; after: number }[];
   /** Each combo card's actual entry area in this battle, retained through save/reload and 8-5 cleanup. */
   comboOrigins?: Record<string, ComboOrigin>;
+  /** The card whose skill put a combo card into the Combo Area, when a skill did (BT7-030: "using {Meteoric Energy SSB Vegito}'s skill"). Kept and forgotten with `comboOrigins`. */
+  comboVia?: Record<string, string>;
   /**
    * 8-4-6-1's life cards, part way through (#272): set only while the Damage
    * Step is waiting on 9-10-3's question over one life card's own `life`

@@ -54,7 +54,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, triggeredPermanent, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryFromHand, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { autoTriggerMatches, triggeredPermanent, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryOrigins, comboEntryQualifier, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -296,6 +296,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   // 8-5's cleanup departure. A later entry of this same copy replaces it.
   if (state.battle && moment.event === "moved" && moment.card && moment.args.to === "combo" && moment.args.from !== "combo") {
     (state.battle.comboOrigins ??= {})[moment.card] = typeof moment.args.from === "string" ? moment.args.from : "other";
+    // The card whose skill did it, when one did (#907): a later entry of this copy replaces it, a declared combo clears it.
+    if (typeof moment.args.viaCard === "string") (state.battle.comboVia ??= {})[moment.card] = moment.args.viaCard;
+    else if (state.battle.comboVia) delete state.battle.comboVia[moment.card];
   }
   for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;
@@ -372,10 +375,19 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // A printed "in your hand ... used in a combo" requires this entry's
       // captured source. The preceding moved(to: combo) moment replaces the
       // record for this copy; an old/missing record cannot prove hand origin.
-      if (match.trigger === "comboUsed" && comboEntryFromHand(sk)) {
+      // The same for the wordings that name another source or the skill that made the combo
+      // (`comboEntryQualifier`, #907): "used in a combo from your hand", "in your deck or hand",
+      // "from an Energy Area using {X}'s skill". The plain hand wording keeps its own reader.
+      const wanted = match.trigger === "comboUsed" ? comboEntryOrigins(sk) : null;
+      if (wanted) {
         const origin = state.battle?.comboOrigins?.[match.card];
         if (origin === undefined) throw new NotYet("infer the source of a hand-qualified combo entry", "#672");
-        if (origin !== "hand") continue;
+        if (!wanted.includes(origin)) continue;
+        const via = comboEntryQualifier(sk)?.viaSkillOf;
+        if (via !== undefined) {
+          const by = state.battle?.comboVia?.[match.card];
+          if (!by || ctx.defs[state.cards[by]?.cardId ?? ""]?.name?.toLowerCase() !== via.toLowerCase()) continue;
+        }
       }
       // Older pinned rulesets have no entry declaration, so their `comboed`
       // records keep their historical cleanup timing. Current DBS games use
@@ -425,6 +437,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   if (state.battle && moment.event === "moved" && moment.card && moment.args.from === "combo" && moment.args.to !== "combo"
       && !cleanupOccurrence && moment.args.cleanupSpecial !== true) {
     delete state.battle.comboOrigins?.[moment.card];
+    delete state.battle.comboVia?.[moment.card];
   }
   return pended;
 }

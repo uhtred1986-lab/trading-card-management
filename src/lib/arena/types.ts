@@ -1380,4 +1380,6 @@ export interface MoveOptions {
   reason?: MoveReason;
   /** A caller-decided replacement, or null to suppress replacement lookup entirely. */
   replaced?: ReplacementResult | null;
+  /** The card whose skill made the move (#907: "combo … using {X}'s skill"), carried on the `moved` moment as `viaCard`. */
+  source?: string;
 }

@@ -1,5 +1,5 @@
 import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
+import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -62,7 +62,7 @@ export function compileSkill(skill: Skill): Script {
  * #1042: a combo-entry Auto whose delayed half is "at the end of the battle"
  * (BT7-030, BT8-030, BT22-052, BT24-116, BT24-120, P-578) is refused when its
  * printed moment says more than the trigger can ask. The trigger (`comboUsed`)
- * is "this card entered a Combo Area", and only the hand is a captured origin
+ * is "this card entered a Combo Area", and only the hand was a captured origin
  * (`comboEntryFromHand`, which reads "when this card **in your hand** is used in
  * a combo" and "when you combo with this card from your hand", nothing wider).
  * "…used in a combo **from your hand**", "…from an Energy Area using {X}'s
@@ -70,7 +70,13 @@ export function compileSkill(skill: Skill): Script {
  * answer to every combo, and before the engine ran `battleEnd` delays that cost
  * nothing, because the delayed half never ran. Now it would play the card (or
  * send it to the Z-Energy) after battles it does not belong to, so the skill
- * is unread until the trigger can ask the origin and the company.
+ * was unread until the trigger could ask the origin and the company.
+ *
+ * #907 follow-up: it can. `comboEntryQualifier` (`text/triggers.ts`) reads those
+ * moments and `pendAutos` asks the origin and the skill's card at the entry itself;
+ * the company ("an <Android 18> card in battle") is a question about the board, so
+ * it is a condition on the program. A wording the qualifier does not read whole is
+ * still refused.
  */
 const UNMATCHED_COMBO_ENTRY = /when this card is used in a combo from your hand|when you combo with this card from (?:your hand with|an? [a-z-]+ area)/i;
 
@@ -78,8 +84,17 @@ function refuseUnmatchedComboEntry(skill: Skill, script: Script): Script {
   if (skill.kind !== "auto" || script.unsupported.length) return script;
   const text = (skill.cost + " " + skill.effect).replace(/\s+/g, " ");
   const said = UNMATCHED_COMBO_ENTRY.exec(text);
+  const qualifier = comboEntryQualifier(skill);
+  // "with an <Android 18> card in battle" (BT8-030): one of your cards of that description is in the battle.
+  // LABELLED BEST GUESS - the card text does not say whose side; the companion of a combo you make is on yours.
+  if (qualifier?.company) {
+    const got = parseConditionClause(`your ${qualifier.company} is in a battle`, true);
+    if (!got) return { ...script, ops: [], unsupported: [said?.[0] ?? qualifier.company] };
+    return { ...script, ops: [{ op: "if", cond: got.cond, then: script.ops }] };
+  }
   if (!said || !hasBattleEndDelay(script.ops)) return script;
-  return { ...script, ops: [], unsupported: [said[0]] };
+  if (!qualifier) return { ...script, ops: [], unsupported: [said[0]] };
+  return script;
 }
 
 function hasBattleEndDelay(value: unknown): boolean {
