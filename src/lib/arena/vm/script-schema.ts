@@ -648,7 +648,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
           const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + orbs + once;
+          // The combo cost and the Z-Energy cost are other prices than the energy cost (20-21): the reading said
+          // "costs 1 less" for "-1 combo cost" (BT22-055b), the same words as an energy reduction (#907 round 6).
+          const price = op.what === "combo" ? " (combo cost)" : op.what === "zEnergy" ? " (Z-Energy cost)" : "";
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + once;
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
         const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
@@ -2360,7 +2363,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // "<Son Goku>-only" (BT29-108), on the last character named, as printed.
   bits.push(...anyOfNames(f.characters.map((x, i) => `<${x}>${f.onlyCharacters && i === f.characters.length - 1 ? "-only" : ""}`)));
   bits.push(...f.notCharacters.map((x) => `non-<${x}>`));
-  bits.push(...f.names.map((x) => `{${x}}`));
+  bits.push(...anyOfNames(f.names.map((x) => `{${x}}`)));
   // In a sentence a token and a Z-card are the noun itself — "a {Majin}
   // token", "Z-cards" — rather than a word in front of "card".
   const ownNoun = noun && !f.type && !f.notType ? (f.token ? "token" : f.z ? "Z-card" : null) : null;
@@ -2424,6 +2427,16 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.costMin != null && f.costMax != null) bits.push(`with an energy cost of between ${f.costMin} and ${f.costMax}`);
   else if (f.costMax != null) bits.push(`with an energy cost of ${f.costMax} or less`);
   else if (f.costMin != null) bits.push(`with an energy cost of ${f.costMin} or more`);
+  // 2-9: "a ≪Slug's Army≫ card with a combo cost of 1", in the words `parseFilter` reads back.
+  if (f.comboCostMin != null && f.comboCostMin === f.comboCostMax) bits.push(`with a combo cost of ${f.comboCostMin}`);
+  else if (f.comboCostMin != null && f.comboCostMax != null) bits.push(`with a combo cost of between ${f.comboCostMin} and ${f.comboCostMax}`);
+  else if (f.comboCostMax != null) bits.push(`with a combo cost of ${f.comboCostMax} or less`);
+  else if (f.comboCostMin != null) bits.push(`with a combo cost of ${f.comboCostMin} or more`);
+  // "An original energy cost of 3" (20-3-1): the printed total, said with its word.
+  if (f.originalCostMin != null && f.originalCostMin === f.originalCostMax) bits.push(`with an original energy cost of ${f.originalCostMin}`);
+  else if (f.originalCostMin != null && f.originalCostMax != null) bits.push(`with an original energy cost of between ${f.originalCostMin} and ${f.originalCostMax}`);
+  else if (f.originalCostMax != null) bits.push(`with an original energy cost of ${f.originalCostMax} or less`);
+  else if (f.originalCostMin != null) bits.push(`with an original energy cost of ${f.originalCostMin} or more`);
   if (f.powerMin != null && f.powerMin === f.powerMax) bits.push(`with ${f.powerMin} power`);
   else if (f.powerMin != null && f.powerMax != null) bits.push(`with power between ${f.powerMin} and ${f.powerMax}`);
   else if (f.powerMax != null) bits.push(`with ${f.powerMax} power or less`);
@@ -2658,6 +2671,9 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.printed ? " matching the description printed on this line" : "");
 
 function describeRef(ref: Ref): string {
+  // `minus` is "the rest" (script.ts): "place the rest at the bottom of your deck" read "move the chosen
+  // cards to deck" for twenty skills whose program was right, which hid a real one beside them (#907 round 6).
+  if ("var" in ref && ref.minus !== undefined) return "the rest of the cards looked at";
   return "var" in ref ? "the chosen cards" : describeSelector(ref.sel);
 }
 
@@ -2735,6 +2751,10 @@ function describeEach(sel: Selector): string {
     const where = areas.length === 1 && areas[0] !== "play" ? ` in ${who}${ZONE_NOUNS[areas[0] as keyof typeof ZONE_NOUNS] ?? areas[0]}` : "";
     return `${who}Hidden Mode cards${where}${describeNotSelf(sel)}`;
   }
+  // "For each red ≪Saiyan≫ card and/or ≪Bardock's Crew≫ card" (P-293) is a count of those cards, not of
+  // "your Battle Cards": the filter is named, or a readings diff cannot show a change to it (#907 round 6;
+  // the reading left it out until then). A selector with no filter keeps the area noun below.
+  if (sel.filter && !sel.take) return describeSelector({ ...sel, count: undefined, minCount: undefined, upTo: undefined }, "");
   const mode = describeMode(sel);
   const nouns = (sel.areas?.length ? sel.areas : [sel.area ?? "play"]).map((a) => AREA_NOUNS[a] ?? "cards");
   return `${who}${nouns.join(" or ")}${mode}${describeNotSelf(sel)}`;

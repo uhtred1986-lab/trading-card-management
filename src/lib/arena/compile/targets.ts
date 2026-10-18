@@ -90,7 +90,27 @@ const AREA_NAMED: Record<string, ScriptArea> = {
   "battle area": "battle",
   "z-deck": "zDeck",
   "z-energy": "zEnergy",
+  "combo area": "combo",
 };
+
+/**
+ * "...for each green Extra Card in your Battle Area **and** Drop Area" (BT13-073, BT13-076, BT13-077,
+ * BT14-084, P-331, P-561, TB1-033, BT15-096): a count over two or more areas joined by a plain "and" is
+ * the union of them, which the reader only takes when it is said "or" / "and/or" - so the count kept the
+ * LAST area it met and the cards in the others never counted (#907 round 6). Said the way the pair and
+ * list readers take it, but only when every word is an area, and only where a count asks for it: in a
+ * choice, "in your hand and ..." can be two sentences.
+ */
+export function countAreasSaidWithAnd(phrase: string): string {
+  return phrase.replace(
+    /\b((?:in|from|of|into) (?:your|their)(?: opponent'?s)? )((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)*),? and (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/,
+    (all, pre: string, first: string, last: string) => {
+      const words = [...first.split(/,\s*/), last].map((w) => w.trim());
+      if (!words.every((w) => AREA_NAMED[w])) return all;
+      return first.includes(",") ? `${pre}${first}, or ${last}` : `${pre}${first} or ${last}`;
+    },
+  );
+}
 // "In **your opponent's** Battle Area or Drop": the possessive sits where the
 // first area word was expected, so the pair went unread and the phrase fell
 // through to whichever single area matched first.
@@ -953,9 +973,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // "When you activate a blue Extra from your hand" — the Extra being used
     // (12-1-3, `extraActivated`). The hand is where every such Extra comes
     // from, so it says nothing about which card. Not with a bracketed skill
-    // or an "original" measure, which `parseFilter` reads short, nor "by
+    // (an "original" cost is read since #907 round 6), nor "by
     // paying the cost" — the trigger refuses those too (`text/triggers.ts`).
-    /^you activate (?:an?|1) ((?![^[]*\[)(?!.*\b(?:original|by)\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
+    /^you activate (?:an?|1) ((?![^[]*\[)(?!.*\bby\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
     // "When a {Scouter} is placed in your Battle Area", "when one of your blue
     // Z-Extras is placed in a Battle Area" — the card arriving (5-5-4,
     // `yourCardPlaced`). The trigger refuses a description with a place or a
@@ -1044,6 +1064,10 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     f.names.length > 0 ||
     f.costMin != null ||
     f.costMax != null ||
+    f.originalCostMin != null ||
+    f.originalCostMax != null ||
+    f.comboCostMin != null ||
+    f.comboCostMax != null ||
     f.powerMin != null ||
     f.powerMax != null ||
     // "An originally skill-less Battle Card", "an original power of 500"

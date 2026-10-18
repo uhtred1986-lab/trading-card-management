@@ -74,8 +74,10 @@ const one = (text: string) => parseSkills(text)[0]!;
   // A Leader description never swallows what follows it.
   assert.ok(!unread("[Activate: Main]{r}{r}{r}, send 1 <Pilaf> card, 1 <Mai> card, and 1 <Shu> card from your Drop Area to your Warp: Play this card from your hand."), "BT10-025's three-card send price reads since #970 (disjoint choices)");
   assert.ok(unread("[Activate: Main]{r}, if your Leader Card is a black ≪Saiyan≫ card and you send this card and 1 <Goku Black> card from your Combo Area to their owners' Warps: Play this card from your hand."), "a Leader condition does not hide an unread send price");
-  // "and/or" across places counts the places together, which one count cannot say.
-  assert.ok(unread("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."), "BT16-087's two places are unread");
+  // "and/or" across places counts the places together: one count over both, since #907 round 6 made the Combo Area an area word.
+  const places = compileSkill(one("[Activate: Battle]{2}, if you have 2 or more blue and/or yellow cards in your Battle Area and/or Combo Area: Play this card from your hand or Warp."));
+  assert.deepEqual(places.unsupported, [], "BT16-087's two places read");
+  assert.ok(JSON.stringify(places.ops).includes('"areas":["battle","combo"]'), "as one count over the Battle Area and the Combo Area");
   // "A total of N" is N, not the article's one; across a list of places it is unread, never one place's count.
   const total = compileSkill(one("[Activate: Main]{1}, if you have a total of 2 or more green cards in your Combo Area: Play this card from your hand."));
   assert.deepEqual(total.unsupported, []);

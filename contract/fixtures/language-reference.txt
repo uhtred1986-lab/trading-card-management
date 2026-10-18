@@ -3963,6 +3963,38 @@
       ]
     },
     {
+      "field": "originalCostMin",
+      "type": "number",
+      "printed": "card with an original energy cost of 3 or more",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "originalCostMax",
+      "type": "number",
+      "printed": "card with an original energy cost of 3 or less",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "comboCostMin",
+      "type": "number",
+      "printed": "card with a combo cost of 3 or more",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
+      "field": "comboCostMax",
+      "type": "number",
+      "printed": "card with a combo cost of 3 or less",
+      "openTo": [
+        "number"
+      ]
+    },
+    {
       "field": "powerMin",
       "type": "number",
       "printed": "card with 3 power or more",
