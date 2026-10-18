@@ -58,6 +58,8 @@ const PERM_P308 = "[permanent] You can choose Battle Cards in your Warp when cho
 const FUSION_WARP_EX25_32 = "[Union-Fusion]{u}: <Son Goku: Xeno> card and <Vegeta: Xeno> card.\n" + PERM_EX25_32;
 const FUSION_WARP_P308 = "[union-fusion]{u}: <Son Goku: Xeno> and <Vegeta: Xeno>.\n" + PERM_P308;
 
+const BT14_079 = "[union absorb][once per turn] Choose 1 card under your ≪Majin≫ Leader Card and place it under this card: Play up to 1 mono-green <Majin Buu> card with an energy cost of 4 and 15000 power from your deck or Drop Area on top of this card, then shuffle your deck if you looked through it.";
+
 const mat = (id: string, colors: Color[], characters: string[], o: Partial<CardDef> = {}) => card(id, { colors, characters, power: 10000, energyCost: 1, skill: null, ...o });
 
 const defs: Record<string, CardDef> = { ...DEFS,
@@ -89,6 +91,9 @@ const defs: Record<string, CardDef> = { ...DEFS,
   "GOGXENO": card("GOGXENO", { colors: ["Red"], characters: ["Gogeta: Xeno"], energyCost: 6, power: 30000, skill: null }),
   "SGKB": mat("SGKB", ["Red"], ["Son Goku: Br"], { power: 10000 }), "VGB": mat("VGB", ["Red"], ["Vegeta: Br"], { power: 10000 }), "VGB2": mat("VGB2", ["Red"], ["Vegeta: Br"], { power: 15000 }),
   "FILR": mat("FILR", ["Red"], ["Filler"]),
+  "BT14079": card("BT14079", { colors: ["Green"], characters: ["Majin Buu"], energyCost: 3, power: 10000, skill: BT14_079 }),
+  "BUUG4": mat("BUUG4", ["Green"], ["Majin Buu"], { energyCost: 4, power: 15000 }),
+  "L-MAJIN": card("L-MAJIN", { type: "LEADER", colors: ["Green"], characters: ["Majin Buu"], traits: ["Majin"], power: 0, energyCost: 0, skill: null }),
   "L-NAM": card("L-NAM", { type: "LEADER", colors: ["Yellow"], characters: ["Piccolo"], traits: ["Namekian"], power: 0, energyCost: 0, skill: null }),
 };
 
@@ -263,6 +268,28 @@ for (const seat of ["p1", "p2"] as const) {
     const abs2 = alone.abs; void abs2;
     assert.equal(offer(alone.s, alone.abs), undefined, "the absorbing Namekian cannot place itself under itself");
   }
+}
+
+// ── BT14-079: the cost is a card from under the Leader, placed under this card ──
+for (const seat of ["p1", "p2"] as const) {
+  const board = (o: { leader?: string; under?: boolean } = {}) => {
+    const s = fresh(seat, 9307, o.leader ?? "L-MAJIN");
+    const abs = stage(s, seat, "BT14079", "battle");
+    const leader = s.sides[seat].zones.leader[0];
+    const pile = o.under === false ? null : stage(s, seat, "FIL", "hand");
+    if (pile) assert.ok(moveCard(s, game, pile, "x", { owner: seat, under: leader }).ok, "a card goes under the Leader");
+    const target = stage(s, seat, "BUUG4", "deck");
+    return { s, abs, leader, pile, target };
+  };
+  const ok = board();
+  assert.deepEqual(ok.s.cards[ok.leader].under, [ok.pile], "staged: one card under the Leader");
+  assert.ok(offer(ok.s, ok.abs), `${seat}: BT14-079 is offered with a card under a Majin Leader`);
+  assert.equal(offer(board({ under: false }).s, ok.abs), undefined, "nothing under the Leader: the cost cannot be paid");
+  const done = run(ok.s, seat, ok.abs);
+  const top = done.sides[seat].zones.battle.find((c) => done.cards[c].cardId === "BUUG4");
+  assert.ok(top, "the Majin Buu is played on top");
+  assert.deepEqual(done.cards[ok.leader].under, [], "the Leader's pile gave the card");
+  assert.deepEqual(new Set(done.cards[top!].under), new Set([ok.abs, ok.pile!]), "…and it went under the absorber, which is now under the new card");
 }
 
 // ── the permissions' readings ────────────────────────────────────────────────
