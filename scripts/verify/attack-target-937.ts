@@ -101,7 +101,18 @@ for (const d of printed) for (const row of skillRecords(d).filter(r => r.printed
   assert.deepEqual(row.unread, []); assert.ok(row.reads.includes("can't attack"));
   const op = row.ops[0]; assert.equal(op.op, "forbid"); if (op.op === "forbid") assert.ok(op.attackTarget);
 }
-assert.ok(skillRecords(defs.CONDITIONAL937)[0].unread.length, "an attacker condition is not a defender filter");
+{
+  // An attacker condition is not a defender filter. #937 left it unread; #1005
+  // reads it as what it is — a condition on this card, over a ban with no
+  // defender at all.
+  const cond = skillRecords(defs.CONDITIONAL937)[0];
+  assert.deepEqual(cond.unread, []);
+  // The record stores the condition beside the program, so `ops` is the ban.
+  const op = cond.ops[0];
+  assert.equal(op.op, "forbid");
+  if (op.op === "forbid") assert.equal(op.attackTarget, undefined);
+  assert.match(cond.reads, /^if this card has 2 or fewer markers: this card can't attack$/);
+}
 assert.ok(skillRecords(defs.BAD937)[0].unread.length, "unknown defenders stay unread");
 assert.deepEqual(skillRecords(defs.TIMED937)[0].unread, [], "timed blanket attack bans remain supported");
 assert.equal(validateProgram([{ op: "forbid", what: "play", until: "turn", attackTarget: {} }]), false);

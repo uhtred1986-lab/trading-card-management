@@ -11,12 +11,19 @@
  *
  * No database and no network beyond the deckplanet feed the tally already uses.
  *
- * `npm run arena:readings [-- --grep "leader" --unread]  > after.txt`
+ * `npm run arena:readings [-- --grep "leader" --unread --silent]  > after.txt`
+ *
+ * `--silent` prints only the skills that read as an EMPTY program with NO
+ * unread clause (`readsAsNothingSilently`): printed text that plays as blank
+ * and is counted by nothing, the worst way to fail (#1005). Every run ends
+ * with their count on stderr, and `--silent` exits 1 when there are any that
+ * are not in `KNOWN_SILENT`, so a new one cannot hide.
  */
 import { fetchDeckplanet, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { parseSkills } from "../src/lib/arena/text/cards";
 import { compileSkill } from "../src/lib/arena/compile";
+import { readsAsNothingSilently } from "../src/lib/arena/compile/silent";
 import { describeScript } from "../src/lib/arena/vm/script";
 
 const args = process.argv.slice(2);
@@ -28,6 +35,9 @@ const value = (name: string) => {
 const grep = value("grep")?.toLowerCase();
 /** Also print the clauses the compiler could not read, under each skill. */
 const withUnread = args.includes("--unread");
+/** Only the skills that read as nothing without saying so. */
+const onlySilent = args.includes("--silent");
+const silent: string[] = [];
 
 const raw = await fetchDeckplanet("dbs");
 const shaped = shapeCatalog(raw, "dbs");
@@ -49,6 +59,9 @@ for (const d of defs) {
       if (!sk.effect.trim()) continue;
       if (grep && !sk.raw.toLowerCase().includes(grep)) continue;
       const s = compileSkill(sk);
+      const isSilent = readsAsNothingSilently(sk, s);
+      if (isSilent) silent.push(`${d.id}${face}#${sk.index}`);
+      if (onlySilent && !isSilent) continue;
       // A [Permanent] never resolves, so its ops carry `game` and printing the
       // duration would say something the card does not — the same reason
       // `describeScript` takes the flag rather than guessing.
@@ -63,4 +76,18 @@ for (const d of defs) {
 }
 
 console.error(`${lines} skills printed${grep ? ` matching "${grep}"` : ""}`);
-process.exit(0);
+console.error(`${silent.length} skills read as an empty program with no unread clause${silent.length ? `: ${silent.join(" ")}` : ""}`);
+// Known gaps found while closing #1005: each is a clause whose reading says
+// nothing at all and is not yet fixed. Shrink this list; never grow it.
+const KNOWN_SILENT = new Set<string>([
+  // "When you activate this card, you can't activate {X} for the turn": a
+  // reminder `connective()` skips on purpose (the Extra's own once-per-name rule).
+  "BT6-051#0", "BT7-024#20", "BT7-048#20", "BT7-073#20", "BT7-098#20", "BT8-063#0", "BT8-087#0",
+  // "This card can't be played from any area if/unless …": `connective()` skips the
+  // bare "this card can't be played", and with it the condition — a real hole.
+  "BT9-078#10", "BT9-079#10", "P-281#10", "BT22-077#0",
+  // Wordings no reader takes and none reports: found by this check, not yet fixed.
+  "BT13-084#20", "BT14-074#10", "BT18-003#20", "BT20-017#0", "BT20-019#0", "BT25-133#20", "BT4-003#40",
+]);
+const fresh = silent.filter((id) => !KNOWN_SILENT.has(id));
+process.exit(onlySilent && fresh.length ? 1 : 0);

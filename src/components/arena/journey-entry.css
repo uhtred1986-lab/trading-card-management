@@ -1,15 +1,21 @@
 .journey-eyebrow { color: var(--color-space-400); font-size: .65rem; font-weight: 700; letter-spacing: .16em; }
 .journey-deck-hero { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: center; gap: 20px; padding: 22px; border: 1px solid var(--color-space-600); border-radius: 20px; background: linear-gradient(135deg, var(--color-space-800), var(--color-space-950)); }
 .journey-hero-art { width: 104px; transform: rotate(-4deg); filter: drop-shadow(0 8px 12px #0003); }
-.journey-status { display: inline-block; font-size: .7rem; font-weight: 600; }
+.journey-status { display: inline-block; max-width: 100%; font-size: .7rem; font-weight: 600; overflow-wrap: anywhere; }
 .journey-play { grid-column: 1 / -1; width: 100%; padding: 14px 18px; border-radius: 12px; background: var(--color-ki-500); color: var(--color-space-950); font-weight: 700; }
 .journey-play:disabled, .journey-deck:disabled { opacity: .45; }
 .journey-play:focus-visible, .journey-deck:focus-visible { outline: 2px solid var(--color-ki-500); outline-offset: 4px; }
-.journey-decks { display: grid; gap: 10px; }
-.journey-deck { display: flex; width: 100%; align-items: center; gap: 14px; border: 1px solid var(--color-space-700); border-radius: 14px; background: var(--color-space-900); padding: 12px; text-align: left; }
+.journey-decks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.journey-decks > li { min-width: 0; }
+.journey-deck { display: flex; width: 100%; align-items: center; gap: 14px; border: 1px solid var(--color-space-700); border-radius: 14px; background: var(--color-space-900); padding: 12px; text-align: left; overflow-wrap: anywhere; }
 .journey-deck[aria-pressed="true"] { border-color: var(--color-ki-500); box-shadow: inset 3px 0 var(--color-ki-500); }
 .journey-tile-art { width: 54px; flex-shrink: 0; }
 .journey-setup { scroll-margin-top: 24px; }
+/* 200% text on a phone leaves ~195 px: stack the hero instead of squeezing the text beside the art. */
+@media (max-width: 359px) {
+  .journey-deck-hero { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .journey-hero-art { width: 84px; }
+}
 @media (min-width: 640px) {
   .journey-decks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .journey-deck-hero { grid-template-columns: 120px minmax(0, 1fr) minmax(160px, 240px); padding: 28px; }

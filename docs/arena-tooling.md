@@ -31,6 +31,15 @@ BT7-110#0 counter:play
 `-- --grep "<wording>"` narrows to one wording; `--unread` adds the clauses that
 did not read at all.
 
+`-- --silent` prints only the skills that read as an **empty program with no
+unread clause** (`readsAsNothingSilently`, `src/lib/arena/compile/silent.ts`):
+text that plays as blank and that no count (tally, referee queue, rule review)
+includes, the worst way to fail (#1005 — about two dozen `[Permanent]`s of the
+"can't attack Leaders" family were exactly this). Keyword lines, bracketed reminders and
+deck-building rules are empty on purpose and are not listed. Every run ends with
+the count on stderr; with `--silent` it exits 1 on any skill not in
+`KNOWN_SILENT` (in the script), so a new one cannot hide. Shrink that list.
+
 **This is the only check on a clause that compiles and reads wrongly**, which is
 the failure mode that matters (see §3 of the next-session document). Coverage
 numbers cannot see it: a clause that reads the wrong thing is still a clause

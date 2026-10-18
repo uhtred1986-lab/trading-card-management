@@ -37,3 +37,52 @@ export function useBoardFit(ref: RefObject<HTMLElement | null>) {
     return () => ro.disconnect();
   }, [ref]);
 }
+
+/** How far a phone board's field rows may shrink (`data-squeeze` 1..SQUEEZE_STEPS, see phone-board.module.css). */
+export const SQUEEZE_STEPS = 4;
+
+/**
+ * A phone board must not scroll the page, whatever the prompt under the field needs: a defence brief, a
+ * choice with a tall hand. The takeover staging gets this for free (its rows are 0 px high, the fight is
+ * drawn over them); the compact board (settings: "Use compact phone board") and a fight staged as a band
+ * show the whole field, so this steps the field's card scale down (`data-squeeze`, 1 to 4) until the board is no taller
+ * than the screen, and back up when the prompt shrinks. It looks at the board's own height against the
+ * window, like `useBoardFit`, and watches the board, the prompt and the hand, so a longer or shorter
+ * prompt re-fits. A no-op where the board already fits (the takeover), and off (no attribute) on tablets
+ * and desktop, which fit by their own rules.
+ */
+export function useCompactSqueeze(ref: RefObject<HTMLElement | null>, enabled: boolean) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const phone = window.matchMedia("(max-width: 767px)");
+    if (!enabled || !phone.matches) {
+      delete el.dataset.squeeze;
+      return;
+    }
+    let fitting = false;
+    const fit = () => {
+      if (fitting) return;
+      fitting = true;
+      // The board is `min-height: 100dvh - 1rem`: taller than that means its content does not fit.
+      const room = () => window.innerHeight - 16 + 1;
+      let step = 0;
+      delete el.dataset.squeeze;
+      while (step < SQUEEZE_STEPS && el.getBoundingClientRect().height > room()) {
+        step += 1;
+        el.dataset.squeeze = String(step);
+      }
+      fitting = false;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    for (const part of el.querySelectorAll(".arena-bar, .arena-hand")) ro.observe(part);
+    window.addEventListener("resize", fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", fit);
+      delete el.dataset.squeeze;
+    };
+  }, [ref, enabled]);
+}

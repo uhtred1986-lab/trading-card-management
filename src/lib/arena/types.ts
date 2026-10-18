@@ -328,6 +328,13 @@ export interface Prohibition {
   filter?: CardFilter;
   /** Attack declarations only: the prospective defender, not the attacker. */
   attackTarget?: CardFilter;
+  /**
+   * Attack declarations only (#1005): "…can only attack this card" — the cards
+   * (resolved when the rule is read) an attack may still be declared against;
+   * any other defender is forbidden to the attackers the rule is about. A
+   * Blocker's redirection is not a declaration, so it is not asked.
+   */
+  attackOnly?: string[];
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
   /**
