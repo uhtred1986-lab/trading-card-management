@@ -732,9 +732,11 @@ the summary and writes the full artifact. It does not read the database or netwo
 ## 4b. Refreshing stored rules after a compiler PR
 
 ```
-npm run arena:refresh-ids -- [--apply] [--unread-ok] (--ids "BT12-003#10,P-274#0b" | --ids-file path | --pr 123)
+npm run arena:refresh-ids -- [--apply] [--unread-ok | --describe-only] (--ids "BT12-003#10,P-274#0b" | --ids-file path | --pr 123)
 npm run arena:refresh-ids:verify      # offline PGlite test (~30 s, so not part of npm test)
 ```
+
+`--describe-only` is a text-only refresh: it regenerates `card_rules.reads` from the program the row already stores (`describeScript`, never a recompile) and writes no other column, so it is allowed for any source and status, owner (`user`/`corrected`) and confirmed rows included. The dry run shows old and new text for each id; `--apply` writes in one locked statement that aborts if a row's reading or program moved since the read.
 
 Replaces the throwaway per-PR scripts (`arena-refresh-2026-10-17.mts` and its siblings). Ids are `CARD#SKILL`
 (front) or `CARD#SKILLb` / `CARD#SKILL#back` (back face); `CARD/side/SKILL` also works. With no suffix and no

@@ -125,6 +125,10 @@ OAuth 2.1 dance itself; the user signs in with Google. What it can do is the rul
 issues. Deck-first review (18 Oct 2026) adds `deck_review_queue`, `get_card_review`, `confirm_rule`, `flag_rule`
 (`src/lib/rules-review/deck-review.ts`). **It never writes a program**: its only `card_rules` writes are marking a fully
 read compiler draft `confirmed` (with `confirmed_by`, `confirm_note`; clears `review_flag`) and setting `review_flag`.
+A keyword-owned line (bare keyword or deck-building line; `src/lib/rules-review/keyword-owned.ts`, detected from the
+current catalog text with `parseSkills`) has an empty reading on purpose: its packet shows the glossary's description of
+what the engine does (`keywordOwned`, and as `reading`) and `confirm_rule` confirms against that. Any other empty
+reading is still refused.
 
 - **Doors** (`OAUTH_PUBLIC_PATHS` in `src/lib/auth/core.ts`, public to the proxy because an MCP client has no
   cookie): `/api/mcp` (POST only), `/api/oauth/register` (RFC 7591, rate-limited with the join-attempt counter,

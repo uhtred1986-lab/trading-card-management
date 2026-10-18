@@ -11,6 +11,7 @@ import { rows } from "../../src/db/rows";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import { skillRecords, type SkillRecord } from "../../src/lib/arena/draft";
 import { OFFICIAL_ERRATA } from "../../src/lib/catalog/errata";
+import { describeScript, type Op } from "../../src/lib/arena/vm/script";
 import { applyReviewedRefresh, applyReviewedUnreadRefresh } from "./reviewed-rule-refresh";
 
 export type Side = "front" | "back";
@@ -216,4 +217,103 @@ export async function applyPending(db: Db, verdicts: Verdict[]): Promise<{ clean
     unread: unread.length ? await applyReviewedUnreadRefresh(db, { rules: unread }) : [],
     created,
   };
+}
+
+// ── --describe-only: regenerate the stored reading TEXT from the stored program ─────────────────────────
+// Never recompiles and never touches ops/cond/cost/trigger/unread/pattern/printed/status/source/version or any
+// confirmation field: the only column written is `reads`, from `describeScript` over the program the row already
+// holds (the same call the rule store makes on every write). So it is safe for ANY row, owner-corrected and
+// confirmed rows included: their program is the record, the text is only how it is said.
+
+export interface DescribeVerdict {
+  spec: IdSpec;
+  key: string;
+  status: "pending" | "up-to-date" | "excluded";
+  reason?: string;
+  note?: string;
+  old?: string;
+  new?: string;
+  /** pending only: what the write is compared against. */
+  target?: { id: number; reads: string; fresh: string; ops: unknown; cond: unknown };
+}
+
+/** The program the engine runs: the hoisted condition wrapped back around the steps (same as rules-store `programOf`). */
+const programFrom = (ops: unknown, cond: unknown): Op[] => {
+  const o = (ops as Op[]) ?? [];
+  return cond ? [{ op: "if", cond, then: o } as unknown as Op] : o;
+};
+
+export async function classifyDescribeOnly(db: Db, input: IdSpec[]): Promise<DescribeVerdict[]> {
+  const ids = [...new Set(input.flatMap((s) => (s.skill == null && /b$/i.test(s.cardId) ? [s.cardId, s.cardId.slice(0, -1)] : [s.cardId])))];
+  const raw = ids.length
+    ? rows<{ record: Record<string, unknown> }>(await db.execute(
+        sql`select to_jsonb(r) as record from card_rules r where r.card_id in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`,
+      )).map((r) => r.record)
+    : [];
+  const out: DescribeVerdict[] = [];
+  const seen = new Set<string>();
+  for (const spec of input) {
+    let cardId = spec.cardId, side: Side | null = spec.side;
+    const targets: { side: Side; skill: number; note?: string }[] = [];
+    if (spec.skill != null) {
+      const has = (sd: Side) => raw.some((r) => r.card_id === cardId && r.side === sd && Number(r.skill_index) === spec.skill);
+      if (side) targets.push({ side, skill: spec.skill });
+      else if (has("front")) targets.push({ side: "front", skill: spec.skill });
+      else if (has("back")) targets.push({ side: "back", skill: spec.skill, note: "no front skill with that index; read as the back face" });
+      else targets.push({ side: "front", skill: spec.skill });
+    } else {
+      if (!raw.some((r) => r.card_id === cardId) && /b$/i.test(cardId) && raw.some((r) => r.card_id === cardId.slice(0, -1))) { cardId = cardId.slice(0, -1); side = "back"; }
+      const mine = raw.filter((r) => r.card_id === cardId && (!side || r.side === side))
+        .sort((a, b) => (a.side === b.side ? 0 : a.side === "front" ? -1 : 1) || Number(a.skill_index) - Number(b.skill_index));
+      if (!mine.length) { out.push({ spec, key: `${cardId}/${side ?? "front"}/*`, status: "excluded", reason: "no stored card_rules rows for this card" }); continue; }
+      for (const r of mine) targets.push({ side: r.side as Side, skill: Number(r.skill_index) });
+    }
+    for (const t of targets) {
+      const key = `${cardId}/${t.side}/${t.skill}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const row = raw.find((r) => r.card_id === cardId && r.side === t.side && Number(r.skill_index) === t.skill);
+      if (!row) { out.push({ spec, key, status: "excluded", reason: "no stored card_rules row", note: t.note }); continue; }
+      const old = String(row.reads ?? "");
+      const fresh = describeScript(programFrom(row.ops, row.cond), { permanent: String(row.kind).toLowerCase() === "permanent" });
+      const base = { spec, key, note: t.note, old: old || "(nothing)", new: fresh || "(nothing)" };
+      if (fresh === old) { out.push({ ...base, status: "up-to-date" }); continue; }
+      out.push({ ...base, status: "pending", target: { id: Number(row.id), reads: old, fresh, ops: row.ops, cond: row.cond ?? null } });
+    }
+  }
+  return out;
+}
+
+export const summarizeDescribe = (v: DescribeVerdict[]) => ({
+  pending: v.filter((x) => x.status === "pending").length,
+  upToDate: v.filter((x) => x.status === "up-to-date").length,
+  excluded: v.filter((x) => x.status === "excluded").length,
+});
+
+export function formatDescribeVerdict(v: DescribeVerdict): string {
+  const lines = [`${v.status.toUpperCase().padEnd(10)} ${v.spec.raw} (${v.key})`];
+  if (v.reason) lines.push(`    why: ${v.reason}`);
+  if (v.note) lines.push(`    note: ${v.note}`);
+  if (v.status === "pending") lines.push(`    old text: ${v.old}\n    new text: ${v.new}   [text only: the program is not touched]`);
+  return lines.join("\n");
+}
+
+/** One atomic statement: locks the rows, checks each still has the reading and the program the text was generated from, then writes
+ * `reads` and nothing else. A row that moved since the dry run aborts the whole batch with nothing written. */
+export async function applyDescribeOnly(db: Db, verdicts: DescribeVerdict[]): Promise<number[]> {
+  const targets = verdicts.filter((v) => v.status === "pending").map((v) => v.target!);
+  if (!targets.length) return [];
+  const payload = JSON.stringify(targets);
+  const result = rows<{ id: number }>(await db.execute(sql`
+    with input as (select (value->>'id')::int as id, value->>'reads' as old, value->>'fresh' as fresh, value->'ops' as ops, value->'cond' as cond
+      from jsonb_array_elements(${payload}::jsonb)),
+    locked as materialized (select r.* from card_rules r join input i on r.id = i.id order by r.id for update of r),
+    valid as materialized (select 1 where
+      (select count(*) from locked r join input i on r.id = i.id
+        where r.reads = i.old and r.ops = i.ops and r.cond is not distinct from nullif(i.cond, 'null'::jsonb)) = ${targets.length}),
+    write as (update card_rules r set reads = i.fresh from input i where r.id = i.id and exists(select 1 from valid) returning r.id)
+    select id from write order by id
+  `));
+  if (result.length !== targets.length) throw new Error("Describe-only refused: a row changed since the dry run (reading or program); no rows written");
+  return result.map((r) => r.id);
 }
