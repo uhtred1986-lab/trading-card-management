@@ -1681,8 +1681,8 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
   // 20-16: "if you do" hangs on a decision. When the clause that would have
   // made it went unread, dropping the hinge alone makes what follows happen
-  // every time — BT12-042 played a 5-cost <Gogeta> without paying the {u}{u}.
-  const hinge = one("[Auto] When this card is played, you may pay {u}{u}. If you do, draw 2 cards.");
+  // every time — BT12-042 played a 5-cost <Gogeta> without paying the {u}{u}. (#907 now reads that payment; a price of two kinds, {u}{1}, is still the unread one.)
+  const hinge = one("[Auto] When this card is played, you may pay {u}{1}. If you do, draw 2 cards.");
   assert.deepEqual(hinge.ops, [], "the price is unread, so what it buys is not free");
   assert.ok(
     hinge.unsupported.some((u) => /draw 2 cards/i.test(u)),

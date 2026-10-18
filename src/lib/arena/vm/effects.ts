@@ -487,6 +487,25 @@ function identityInAllAreas(op: Op): boolean {
 }
 
 /**
+ * What of a [Permanent] holds while its card lies face down in the Life Area:
+ * a `life` replacement about the card itself (it names its `target`), however
+ * deep under conditions ("during your opponent's turn, if all of your energy
+ * is mono-blue …"), and an identity printed "in all areas". The conditions
+ * are kept around it, so they are asked afresh on every reading (9-5-1-1).
+ */
+function lifeSelfOps(ops: Op[]): Op[] {
+  return ops.flatMap((op): Op[] => {
+    if (op.op === "replace") return op.event === "life" && op.target ? [op] : [];
+    if (op.op === "if") {
+      const then = lifeSelfOps(op.then);
+      const other = op.else ? lifeSelfOps(op.else) : [];
+      return then.length || other.length ? [{ ...op, then, ...(other.length ? { else: other } : {}) }] : [];
+    }
+    return identityInAllAreas(op) ? [op] : [];
+  });
+}
+
+/**
  * Every standing change a [Permanent] makes right now.
  *
  * Read, never stored: a [Permanent] is never activated and never resolves
@@ -515,7 +534,11 @@ export function permanents(
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
   // holds from the Warp, the same as the legacy `staticEffects`; and, in the
   // Warp and everywhere else, the identity a card "gains ... in all areas".
-  const zones = [...inPlay, "hand", "zDeck", "warp", "combo"].filter((zone) => game.zones[zone]?.place !== false);
+  // The Life Area likewise, for the one [Permanent] a life card prints about
+  // itself: "if you would reveal this card from your life to add it to your hand,
+  // you may … instead" (BT10-036, BT10-047; 9-1-3-3 — the text names the area it
+  // is valid in). Nothing else a life card says holds there.
+  const zones = [...inPlay, "hand", "zDeck", "warp", "combo", "life"].filter((zone) => game.zones[zone]?.place !== false);
   // "This card gains ≪Universe 7≫ in all areas" (TB1-095, #936) holds in
   // every area a card can be in, the Drop included — which is where "9 or more
   // ≪Universe 7≫ in your Drop Area" counts it. Looked for in these areas only
@@ -530,6 +553,8 @@ export function permanents(
         if (!card || card.hidden || skillsNegated(state, src)) continue;
         const printed = ctx.defs[card.cardId];
         if (extra && !/all areas/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
+        // A life card is looked at only when it prints a rule about itself in the Life Area (cheap text test: a life card is read on every statics pass).
+        if (zone === "life" && !/all areas|this card from your life/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
         const showing = skillsShowing(ctx, state, src);
         const overRealm = showing.skills.some((sk) => sk.keyword?.name === "Over Realm");
         if (zone === "warp" && !overRealm && !showing.skills.some((sk) => sk.kind === "permanent")) continue;
@@ -546,6 +571,7 @@ export function permanents(
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           const ops = extra ? program.ops.filter(identityInAllAreas)
+            : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
             : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
           if (!ops.length) continue;
@@ -776,18 +802,23 @@ function collect(
     }
     if (op.op === "replace") {
       const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
-      if (op.event === "play" || (op.from ? !explicitSource : !inPlayNow)) continue;
+      // A `life` replacement that names a `target` (the card itself) is about
+      // the life card that prints it: "if you would reveal this card from your
+      // life to add it to your hand…" (BT10-036, 9-1-3-3). It is valid while
+      // that card lies in the Life Area, and only there.
+      const lifeSelf = op.event === "life" && !!op.target;
+      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.
       const isMarker = op.event === "marker";
       const redirect = isMarker ? null : redirectOf(op.with);
       const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}) } : isMarker ? { kind: "marker" as const } : {};
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
-      for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
+      for (const id of op.target && !lifeSelf ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value } });
       continue;
     }
     // 8-1-1 / 5-7 lifted as a standing rule: "this card can attack Battle

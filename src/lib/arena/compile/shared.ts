@@ -91,7 +91,7 @@ export interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; subjectSide?: Side; event?: "life" | "marker"; to?: "hand" | "drop"; requestedTo?: "hand"; until?: Duration } | null;
+  replacing: { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; subjectSide?: Side; event?: "life" | "marker"; to?: "hand" | "drop"; lifeSelf?: true; requestedTo?: "hand"; until?: Duration } | null;
   /**
    * The steps of a replacement's body read so far, when the sentence runs past
    * one clause and the word "instead" has not arrived yet (9-10, #107). Held
