@@ -268,7 +268,7 @@ interface Scored {
 }
 
 /** One option of a mode, replacement, price or [Offering] question, scored for the seat. */
-function scoreOption(o: PolicyObservation, window: string, question: string, d: MenuDecision, label: string, skill: { owner: PlayerId } | null): Scored {
+function scoreOption(o: PolicyObservation, window: string, question: string, d: MenuDecision, label: string, skill: { owner: PlayerId; text?: string } | null): Scored {
   const l = label.trim();
   // Kinds the deleted legacy engine asked; the rules engine never does.
   if (d.type === "offering") {
@@ -310,6 +310,14 @@ function scoreOption(o: PolicyObservation, window: string, question: string, d: 
     const price = priceOf(l, o) ?? 0;
     const mine = !skill || skill.owner === o.seat;
     return { d, score: (mine ? 1 : 0.5) - price, how: `does it (${l.slice(0, 50)})` };
+  }
+  // #899: "Leader Cards" / "Battle Cards" for a power figure given in a battle the seat's own card guards:
+  // the kind the guard is, which the printed order alone (Leader first) would not pick.
+  const kindOf = /^(leader|battle) cards?$/i.exec(l)?.[1].toLowerCase();
+  if (kindOf && o.battle && o.turnPlayer !== o.seat && /\+\d+ power/i.test(clauseAfter(skill?.text ?? "", question).slice(0, 120))) {
+    const guardIsLeader = o.you.leader?.id === o.battle.guard;
+    const guardIsMine = guardIsLeader || o.you.battle.some((c) => c.id === o.battle!.guard);
+    if (guardIsMine) return { d, score: effectWorth(l) + (kindOf === "leader" === guardIsLeader ? 2 : 0), how: `mode: ${l} (${kindOf === "leader" === guardIsLeader ? "the guard's kind" : "not the guard's kind"})` };
   }
   // A printed mode (20-2).
   return { d, score: effectWorth(l) - (priceOf(l, o) ?? 0), how: `mode: ${l.slice(0, 60)}` };
