@@ -125,6 +125,7 @@ the legacy engine's).
 | `scripts/verify/arena-pack-store.mts` | nothing | offline packs installed, verified and updated atomically (#658, `src/lib/arena/local/pack-store.ts`; about 3 s), on the fake IndexedDB with a scripted `fetch` and a real PNG decoder: a cut-off, truncated, altered, wrong-version or unplayable pack is stored nowhere; art cut off part-way stays `staged` and unloadable, and the retry fetches only the missing images; 404, opaque, non-image, undecodable, empty and short art and a persistent 503 never become ready (a transient 503 is retried); an image altered or deleted on the device before readiness is caught by the verify pass; with a saved match pinning v1, a corrupt update, failed art and a full device keep v1 active and loadable, a good update activates v2 with no art download and keeps v1 (not removable) until the match is gone; unreadable saves prune nothing; offline reads make no fetch; `public/sw.js` activation deletes only its own old `dbs-card-art-*` caches. The Chrome half is `npm run arena:pack-store-browser` (not in `npm test`, about 15 s): real IndexedDB, CORS fetch, Web Crypto and `createImageBitmap`; a non-PNG refused by Chrome's decoder; a real opaque response refused although `Cache.put` accepts it; after a reload with the art server closed and `fetch` refused, every image read, re-checksummed and decoded, one shown as an `<img>` from a `blob:` URL |
 | `npm run arena:offline-release` (`scripts/arena-offline-release-browser.mts`) | Chrome and a production build built with `GITHUB_SHA` set; no database, no network | the desktop half of the airplane-mode release matrix (#661, about 6 min; not in `npm test`; results and the owner's phone steps in `docs/arena-offline-release.md`): prepares the SD15/SD5 pack online in one Chrome, stops the server, then launches a NEW Chrome per case with `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost` (service worker included) and the tab offline; the 8 cases (deck A/B on each side x human first/second) each cold-start `/arena` on the cached shell, are played to the end through the board's own `act`/`advance` and compared with the same match in Node (replay hash, journal decision for decision); a recovery case relaunches the browser at a human choice and continues, terminates the Worker, fails every IndexedDB write (quota, abort) and plays on, equal to the Node reference. Every board image must load (a missing one fails). Measures launch, Worker start, start-to-board, move round trips, long tasks, frames and heap, and judges them against the board budgets (#782: `BOARD_BUDGETS` in `scripts/lib/worker-budgets.ts`, derived in `docs/arena-worker-budgets.md` "Board budgets"; `longTaskMaxMs` 150 ms): `OVER` or `NOT MEASURED` fails unless `--record`; `userAgentMemoryBytes` is printed `NOT MEASURABLE` with its reason. `--trace DIR` writes a CDP trace, a CPU profile and a breakdown of every task of 50 ms or more per case (`scripts/lib/long-task-trace.mts`; source-mapped with a `PROFILE_SOURCEMAPS=1` build). `--phone-emulated` is a 390 px touch viewport with the page throttled 4x: **emulation, not a phone** |
 | `npm run arena:phone` (`scripts/arena-phone-run.mts`) | an Android phone on USB with `adb`, and a production build built with `GITHUB_SHA` set; no database | the phone half of the release matrix and the evidence for a UX review (`docs/arena-phone-ux-review.md`; not in `npm test`; hours, meant for overnight): prepares the pack online over `adb reverse`, then stops the server and switches the phone to airplane mode; each case force-stops Chrome and cold-launches `/arena` and plays to the end **by touch** over the DevTools protocol (`adb forward` to `chrome_devtools_remote`, `Browser.connect` in `scripts/lib/cdp.mts`); a move no tap reaches is reported `unreachable` and made through `act`. Screenshots every decision, every beat of the computer's turn, card reviews and recovery screens, each with the screen facts and objective checks of `scripts/lib/ux-probe.mts` (overview on the first screen, 44 px targets, small or cut-off text) and the engine's truth; writes `findings.md`, `review.html`, `run.json` under `arena-phone-runs/`. Recovery: reload, force-close at a choice and during the computer's turn, a full device. Restores airplane mode and the pace setting on exit. `--emulated` runs it in headless Chrome at 390 px: **emulation, not a phone** |
+| `npm run arena:tutorial-browser` (`scripts/arena-tutorial-browser.mts`, helpers `scripts/lib/tutorial-page.mts`) | `npx next dev -p 3121` (no database, no auth setup: `/arena/tutorial` is DB-free); Chrome | #843/#844/#845 acceptance evidence for the practice match, in real headless Chrome: intro at 390/820/1440, keyboard-only walk, 200 % zoom, short landscape, safe areas, reload/back; the coach worded for the detected input mode; motion and reduced motion; board vs coach layout; and one match played to its end **through the real controls** (the session is only read, never driven) with anchors measured at each checkpoint, resize with a review open, reloads in the intro / a review / the opponent's turn / after hand-off, and hints off and restored. `--only intro,input,motion,boards,guided,unguided` (a partial run keeps the other scenarios' last results); screenshots (jpg) and `results.json` go to `docs/arena-backlog/evidence/tutorial/`. About 20 minutes for everything (`guided` and `unguided` play two whole matches, ~6 min each). Not in `npm test` |
 
 `verify-arena.ts` imports fourteen suites from `scripts/verify/`, each on its
 own, and reports **pass / skipped / failed per suite** rather than stopping at
@@ -716,6 +717,32 @@ of the full state, events and legal actions. `--output <path>` writes that full 
 file and prints a small JSON record containing the file path; combined with `--summary`, it prints
 the summary and writes the full artifact. It does not read the database or network. The synthetic CLI check is
 `npx tsx scripts/verify/arena-replay-cli.mts` and is part of `npm test`.
+
+---
+
+## 4b. Refreshing stored rules after a compiler PR
+
+```
+npm run arena:refresh-ids -- [--apply] [--unread-ok] (--ids "BT12-003#10,P-274#0b" | --ids-file path | --pr 123)
+npm run arena:refresh-ids:verify      # offline PGlite test (~30 s, so not part of npm test)
+```
+
+Replaces the throwaway per-PR scripts (`arena-refresh-2026-10-17.mts` and its siblings). Ids are `CARD#SKILL`
+(front) or `CARD#SKILLb` / `CARD#SKILL#back` (back face); `CARD/side/SKILL` also works. With no suffix and no
+front skill of that index, the back is used and the output says so. `--pr` reads the PR body from the first
+line mentioning "refresh" to the next heading, extracts `card#skill` ids (best effort) and prints what it found.
+
+Each id is recompiled from the current `cards` text and compared with its `card_rules` row, then called
+**pending**, **up-to-date** or **excluded** (with the reason). Never written: a missing card or row, a
+non-dbs card, `P-616` (#907), a row whose source is not `compiler` or whose status is not `draft`/`open`
+(confirmed, corrected, owner rows), a row with `confirmed_at`, a row whose printed text changed since it
+was stored (unless it is a draft and the card has an official erratum, which is reported), and a fresh
+compile that leaves clauses unread (unless `--unread-ok`, which takes the unread path: status `open`, via
+`applyReviewedUnreadRefresh`). The default is a dry run printing old to new reading per id and a summary.
+`--apply` writes through `applyReviewedRefresh` (and the unread writer), each one atomic statement that
+locks, compares the whole row and swaps, so a stale row aborts that batch with nothing written, then re-runs
+the classification and asserts 0 pending. Needs `DATABASE_URL` (an agent session does not run it; the
+coordinator or owner does).
 
 ---
 

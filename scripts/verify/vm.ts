@@ -321,6 +321,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   markersMax: { markersMax: 2 },
   specifiedCostMin: { specifiedCostMin: 2 },
   specifiedCostMax: { specifiedCostMax: 1 },
+  specifiedCostNone: { specifiedCostNone: true },
+  costAtMostEnergy: { costAtMostEnergy: true },
   faceUp: { faceUp: true },
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   nameInSkillTextOf: { nameInSkillTextOf: "c0" },

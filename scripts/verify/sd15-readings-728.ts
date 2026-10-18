@@ -77,7 +77,12 @@ async function main(): Promise<void> {
       assert.equal(parseFilter("green Z-Unisons with a specified costof 1").specifiedCostMin, 1, "BT25-127's typo reads as the measure");
       // An "or" the either-split could not take refuses the description (BT14-040).
       assert.ok(parseFilter("blue ≪Saiyan≫ or ≪Earthling≫ card with an energy cost of 3 or less or 1 blue Unison Card with a specified cost of 3").anyOf?.length || parseFilter("blue ≪Saiyan≫ or ≪Earthling≫ card with an energy cost of 3 or less or 1 blue Unison Card with a specified cost of 3").unreadable);
-      assert.ok(parseFilter("<Son Goku: Childhood> or <Bulma> card?both yellow?or 1 yellow Unison with a specified cost of 1").unreadable, "an unsplit or beside the measure is refused");
+      // #980: the alternation is cut where the "or" between descriptions is, and the names' own "or" stays inside the first.
+      const sd20 = parseFilter("<Son Goku: Childhood> or <Bulma> card?both yellow?or 1 yellow Unison with a specified cost of 1");
+      assert.equal(sd20.unreadable, false);
+      assert.equal(sd20.anyOf?.length, 2, "SD20-05: either the two named yellow cards or the yellow Unison");
+      // An "or" still standing beside the measure with nothing to split it against is refused.
+      assert.ok(parseFilter("<Son Goku: Childhood> or <Bulma> Unison with a specified cost of 1").unreadable, "an unsplit or beside the measure is refused");
       // Any other sentence about a specified cost is still no measure.
       assert.ok(parseFilter("card whose specified cost is reduced").unreadable);
     }

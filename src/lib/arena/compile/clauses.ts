@@ -40,6 +40,7 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 // "…with 5000 combo power **and different card names**" (BT29-030) is the same
 // shape: a second measure of the set being chosen, not a second clause. So is
 // "…with 1000 power **and 2 markers or less**" (EX19-01, #721).
+const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /**
@@ -133,16 +134,36 @@ export const BOTH_SIDES = /\b(?:your|you)\s+(?:and\/or|and|or)\s+your opponent'?
 const ASIDE_DASH = /[―—–]|--/y;
 
 export function splitClauses(text: string): string[] {
+  return splitClausesJoined(text).clauses;
+}
+
+/**
+ * `splitClauses`, and for each clause whether it was cut from the one before it
+ * at an "and" of the *same sentence* ("you may reveal 1 card **and** place it
+ * at the bottom of your deck") rather than at a full stop, a comma, a
+ * semicolon or a "then". 20-16: an offer ("you may") covers the whole
+ * sentence it is printed in, so a clause coordinated with an offer by "and"
+ * belongs inside it (best guess, by analogy to a "you may A and B" in other
+ * card games: all of it or none of it). "Then" is sequence, which the existing
+ * readings of 40-odd [Awaken] lines already treat as outside the offer.
+ */
+export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
   const out: string[] = [];
+  const joins: boolean[] = [];
+  let nextJoined = false;
   let depth = 0;
   let start = 0;
   // Only when they come in pairs: a lone dash is ordinary punctuation, and
   // treating it as an opener would swallow the rest of the sentence.
   const dashes = text.match(/[―—–]|--/g)?.length ?? 0;
   let inAside = false;
-  const push = (end: number, skip: number) => {
+  const push = (end: number, skip: number, joinsNext = false) => {
     const piece = text.slice(start, end).trim();
-    if (piece) out.push(piece);
+    if (piece) {
+      out.push(piece);
+      joins.push(nextJoined);
+    }
+    nextJoined = joinsNext;
     start = end + skip;
   };
   // #970: "send 1 <A> card, 1 <B> card, and 1 <C> card from your Drop to your
@@ -191,6 +212,10 @@ export function splitClauses(text: string): string[] {
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
+        // "Play up to 1 mono-blue Unison with a specified cost of 2 **and 1
+        // marker on it** from your deck or hand" (BT28-039, #980): what the card
+        // arrives with, said as a second measure of the card played.
+        !(MARKERS_ON_IT_AFTER_AND.test(text.slice(i + 5)) && /^play\b/i.test(text.slice(start, i).trim())) &&
         !(AREA_AFTER_AND.test(text.slice(i + 5)) && /\bbattle cards?\b/i.test(text.slice(start, i))) &&
         !TARGET_BEFORE_AND.test(text.slice(start, i)) &&
         !andEndsAList(text, start, i) &&
@@ -212,7 +237,7 @@ export function splitClauses(text: string): string[] {
         // "gains [Double Strike] and [Barrier]" is one clause, not two; nor is
         // "a Battle Card with both <Son Goku> and <Piccolo>", nor "with an
         // energy cost of 3 and 5000 power".
-        push(i, 5);
+        push(i, 5, true);
         i += 4;
       } else if (text.startsWith(" then ", i)) {
         push(i, 6);
@@ -221,18 +246,27 @@ export function splitClauses(text: string): string[] {
     }
   }
   push(text.length, 0);
-  return out
-    .map((c) =>
-      c
-        // "If you do so" is "if you do" with a word on the end. The strip
-        // below would take the phrase and leave the "so", which reads as a
-        // bare connective — so the condition was thrown away and everything
-        // the sentence made conditional happened anyway (20-16).
-        .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
-        .replace(/^(?:then|and|if you do|if so)\s+/i, "")
-        .trim(),
-    )
-    .filter(Boolean);
+  const clauses: string[] = [];
+  const joined: boolean[] = [];
+  out.forEach((raw, k) => {
+    const c = raw
+      // "If you do so" is "if you do" with a word on the end. The strip
+      // below would take the phrase and leave the "so", which reads as a
+      // bare connective — so the condition was thrown away and everything
+      // the sentence made conditional happened anyway (20-16).
+      .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
+      .replace(/^(?:then|and|if you do|if so)\s+/i, "")
+      .trim();
+    if (!c) return;
+    clauses.push(c);
+    // ", and draw 1 card" is the same sentence going on. ", then draw 1 card" is
+    // sequence rather than coordination — it might or might not be inside an
+    // offer printed before it, and the readings that stand (the [Awaken]
+    // lines' "you may draw 1 card, then switch up to 1 of your energy …") are
+    // left as they are.
+    joined.push(joins[k] || /^and\s+/i.test(raw));
+  });
+  return { clauses, joined };
 }
 
 /**

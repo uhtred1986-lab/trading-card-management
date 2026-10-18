@@ -369,7 +369,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   // The runtime default is "opponent" (`stepScript`'s `case "damage"`), not
   // `SIDE`'s "you" — damage is dealt to *someone*, and nearly every card that
   // omits `side` means the other player's life, never its own.
-  damage: { fields: [n(), { name: "side", type: "side", default: "opponent" }], sentence: "deal {n} damage", doc: "life to hand" },
+  // "inflict 2 damage to your life" (EX03-11) is `side: "you"`, and says so.
+  damage: {
+    fields: [n(), { name: "side", type: "side", default: "opponent" }],
+    sentence: (raw, r) => renderTemplate(`${(raw as OpOf<"damage">).side === "you" ? "take" : "deal"} {n} damage`, raw as unknown as Record<string, unknown>, OP_SCHEMA.damage.fields, r),
+    doc: "life to hand",
+  },
   mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
@@ -380,7 +385,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"invokeSkill">;
       return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
     },
-    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
+    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
   },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
@@ -463,7 +468,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
         return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
       }
-      return renderTemplate("play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}", raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
+      const played = renderTemplate("play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}", raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
+      // "…with a marker on it" (13-2-3, #980): what the card arrives with.
+      const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
+      return played + on;
     },
     doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15).',
   },
@@ -1762,9 +1770,14 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     // readings. Mixing their fields would silently change the old cost gate.
     if (o.op === "invokeSkill") {
       const desire = typeof o.trait === "string" && o.maxCost === "currentEnergy" && o.sel === undefined && o.skillKind === "activate:main";
-      const selected = o.trait === undefined && o.maxCost === undefined && o.skillKind === "activate:main/battle" && isRecord(o.sel)
-        && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1 && o.sel.upTo === true;
-      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line or an optional one-card hand selector for a Main/Battle line`;
+      // #979: the Desire cards that name colours say it as a one-card hand
+      // selector with the energy bound, for the Main line alone.
+      const selected = o.trait === undefined && o.maxCost === undefined && isRecord(o.sel)
+        && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1
+        && (o.skillKind === "activate:main/battle"
+          ? o.sel.upTo === true
+          : o.skillKind === "activate:main" && isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true);
+      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main/Battle line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it
@@ -2363,6 +2376,8 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   else if (f.specifiedCostMin != null && f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more and a specified cost of ${f.specifiedCostMax} or less`);
   else if (f.specifiedCostMax != null) bits.push(`with a specified cost of ${f.specifiedCostMax} or less`);
   else if (f.specifiedCostMin != null) bits.push(`with a specified cost of ${f.specifiedCostMin} or more`);
+  if (f.specifiedCostNone) bits.push("with no specified cost");
+  if (f.costAtMostEnergy) bits.push("with an energy cost less than or equal to your current energy");
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
   if (f.noKeywords) bits.push("and no keyword skills");

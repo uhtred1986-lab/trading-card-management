@@ -1297,6 +1297,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const against = sel.filter.powerRel.of === "chosen" ? (sel.filter.powerRel.var ? (frame.vars[sel.filter.powerRel.var]?.[0] ?? null) : null) : frame.card;
       if (!against || !powerRelOk(sel.filter, measureOf(ctx, game, state, id, "power", movementInfo), measureOf(ctx, game, state, against, "power"))) return false;
     }
+    // "…with an energy cost less than or equal to your current energy" (#979):
+    // what the card costs now against the energy cards its master has now. The
+    // master's own count, whoever's cards are on offer (EX03-12 aims at the
+    // opponent's). A card with no energy total of its own counts as zero, as in every other cost bound.
+    if (sel.filter?.costAtMostEnergy) {
+      if (measureOf(ctx, game, state, id, "energyCost", movementInfo) > countSelected(ctx, game, state, frame, { side: "you", area: "energy" })) return false;
+    }
     // 2-3-2: "whose card name is in the text of a skill on the chosen card"
     // (BT30-084, #542) — read off the printed skills of the card the price
     // chose (`$cN`, #550). Nothing bound is nothing to match (ground rule 5).

@@ -44,8 +44,8 @@ try {
   await click(p,`${other} input[type=checkbox]`);
   await input(p,`${other} input[type=search]`,'patient');
   await input(p,`${other} select:nth-of-type(1)`,'Blue');
-  // Select the labelled deck-type field (each select is nested in its own label).
-  await input(p,`${other} label:nth-child(3) select`,'Virtual');
+  // Deck type is the second control in the "More filters" disclosure.
+  await input(p,`${other} .ds-more-filters label:nth-child(2) select`,'Virtual');
   assert.equal(await p.eval(`document.querySelectorAll(${JSON.stringify(other+' [data-deck-choice]')}).length`),4);
   await click(p,`${other} [data-deck-choice="12"]`);
   assert.equal(await p.eval(`document.querySelector(${JSON.stringify(own+' input[type=search]')}).value`),'red strategy','opponent filter does not modify own filter');
@@ -59,7 +59,7 @@ try {
   }
   const overflow=await p.eval<{w:number;s:number;modal:number}>(`({w:innerWidth,s:document.documentElement.scrollWidth,modal:document.querySelector('dialog[open]')?.scrollWidth??0})`);
   assert.ok(overflow.s<=overflow.w && overflow.modal<=overflow.w,JSON.stringify(overflow));
-  await textButton(p,scope,'Play');
+  await textButton(p,scope,'Start match');
   await until(p,`document.querySelector('[data-setup-submitted]').textContent.includes('claudeDeck')`);
   assert.deepEqual(await p.eval(`JSON.parse(document.querySelector('[data-setup-submitted]').textContent)`),{deck:'7',opponent:'sparring',claudeDeck:'12'});
   if(vp.mobile){await p.cdp('Input.dispatchKeyEvent',{type:'rawKeyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});await p.cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await until(p,`!document.querySelector('dialog[open]')`);assert.equal(await p.eval(`document.activeElement.textContent`),'Set up a match');}
