@@ -76,7 +76,7 @@
  */
 import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../types";
 import type { AltCost } from "../types";
-import type { Color, PlayerId, Requirement, Skill } from "../types";
+import type { Color, ContinuousEffect, PlayerId, Requirement, Skill } from "../types";
 import type { Op, Selector } from "./script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
@@ -1105,7 +1105,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   const either = sk.energyEither.map((one) => [...one]);
   total += either.length;
   const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
-  const applies = (kind: string | undefined) => !kind || sk.kind.startsWith(kind);
+  const applies = (kind: string | undefined, tag?: string) => (!kind || sk.kind.startsWith(kind)) && skillTagMatches(sk, tag);
   // 22-5: an [Evolve] line's orbs are changed on a channel of their own — the
   // legacy `orbTotals(…, "evolve")` — and a skill-cost change does not reach them.
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
@@ -1113,8 +1113,8 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   // that base is the one the activation names — the legacy `orbTotals`' `onto`.
   const reaches = (e: { onto?: string[] }) => !e.onto || (onto !== undefined && e.onto.includes(onto));
   const changes = [
-    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind) && reaches(e)),
-    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind) && reaches(e) && (e.uses ?? 1) > 0),
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag) && reaches(e)),
+    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag) && reaches(e) && (e.uses ?? 1) > 0),
   ];
   for (const e of changes) {
     const by = e.value as number;
@@ -1123,7 +1123,10 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
     if (by > 0) {
       for (let i = 0; i < by; i++) {
         const want = colours?.[i % colours.length];
-        const cut = !want || want === "any" ? takeAnyOrb(orbs, either, generic) : takeColourOrb(orbs, either, want);
+        // 5-8-2-4: a reduction said in a colour does nothing to a colourless
+        // {1} orb, and one said as {1} does nothing to a coloured orb. A bare
+        // number ("by 1") is not a symbol, so it keeps the legacy greedy order.
+        const cut = !colours ? takeAnyOrb(orbs, either, generic) : want === "any" ? takeGenericOrb(generic) : takeColourOrb(orbs, either, want!);
         if (cut) total = Math.max(0, total - 1);
       }
       continue;
@@ -1149,13 +1152,55 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 export function spendSkillCostUses(state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
-  const spent = state.effects.filter((e) => e.kind === channel && e.target === card && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)));
+  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.target === card && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && skillTagMatches(sk, e.tag)));
+}
+
+/**
+ * Take one use off each of these one-use changes. One "the next time …" is one
+ * use however many cards its words reached, so a change with a `group` ends
+ * together with every other change of its group.
+ */
+function spendUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
   if (!spent.length) return;
   for (const e of spent) e.uses = e.uses! - 1;
-  const ended = spent.filter((e) => e.uses === 0);
+  const groups = new Set(spent.filter((e) => e.uses === 0 && e.group !== undefined).map((e) => e.group));
+  const ended = state.effects.filter((e) => (spent.includes(e) && e.uses === 0) || (e.group !== undefined && groups.has(e.group)));
   if (!ended.length) return;
   state.effects = state.effects.filter((e) => !ended.includes(e));
   for (const e of ended) log(ev, { type: "effectEnded", effect: e });
+}
+
+/**
+ * "The next time you play / activate it, reduce its energy cost by …": the
+ * card's price has just been settled for a play or an Extra's activation, so
+ * every one-use change to its energy price (and to its specified cost) is spent.
+ * Called where a move's price is charged (`vm/actions.ts`), never while a menu
+ * is built.
+ */
+export function spendPriceUses(state: VmState, ev: GameEvent[], card: string): void {
+  spendUses(state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && e.target === card && e.uses != null && e.uses > 0));
+}
+
+/**
+ * Does this skill line carry the keyword a change was said about
+ * ("[Arrival Red/Yellow]", "[Z-Awaken]", "[EX-Evolve]")? `tag` is lower-case; a
+ * bare `[Evolve]` has none, because 22-5-2-2 makes it all three variants.
+ */
+export function skillTagMatches(sk: Skill, tag: string | undefined): boolean {
+  if (!tag) return true;
+  const kw = sk.keyword;
+  if (!kw) return false;
+  if (tag === "ex-evolve" || tag === "xeno-evolve") return kw.name === "Evolve" && kw.variant.toLowerCase() === tag;
+  // [Dark Over Realm] is the dark variant of [Over Realm]; a bare "[Over Realm]" is either.
+  if (tag === "dark over realm") return kw.name === "Over Realm" && kw.dark;
+  return kw.name.toLowerCase() === tag;
+}
+
+/** A colourless {1} orb off a line's price (5-8-2-4: only a reduction said as {1} reaches it). */
+function takeGenericOrb(generic: { n: number }): boolean {
+  if (generic.n <= 0) return false;
+  generic.n--;
+  return true;
 }
 
 /** One orb of no named colour off a line's price: the first coloured one, then an either-orb, then a colourless one. The legacy `reduceAnyOrb`. */

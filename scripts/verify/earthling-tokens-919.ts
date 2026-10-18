@@ -64,7 +64,8 @@ for (const id of reducerIds) {
   assert.equal(price(), 4, `${id}: opponents, another token kind, and ordinary Earthlings excluded`);
   const own = make(s, "p1", "Earthling Token", 3);
   assert.equal(price(), 1, `${id}: three tokens reduce by three`);
-  assert.deepEqual(cardPrice(ctx, game, s, target), { total: 1, orbs: {} }, "ordinary cost layer applies total and specified reductions");
+  // FAQ Skills Q24: a Permanent reducing the energy cost by a number leaves the specified cost (#907).
+  assert.deepEqual(cardPrice(ctx, game, s, target), { total: 1, orbs: { Green: 1 } }, "ordinary cost layer applies the total reduction; the specified cost stays (FAQ Skills Q24)");
   s.cards[own[0]].mode = "rest";
   assert.equal(price(), 1, `${id}: Rest tokens still count`);
   moveCard(s, game, own[1], "combo");

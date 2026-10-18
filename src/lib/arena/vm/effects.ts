@@ -163,6 +163,8 @@ export interface VmStatic {
   value: number | KeywordSkill | KeywordSkill["name"] | CardIdentityGain | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
+  /** `skillCost`: the keyword skill the change is about (`ContinuousEffect.tag`). */
+  tag?: string;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
   colors?: (Color | "any")[];
   /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */
@@ -727,7 +729,7 @@ function collect(
         // EX03-16: an [Evolve] price changed only when it is played onto these.
         const onto = kind === "evolveCost" && op.onto ? { onto: targets(frame, { ...op, target: op.onto }) } : {};
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.tag ? { tag: op.tag } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";
@@ -736,7 +738,9 @@ function collect(
       // that ever bound a variable, so only a count over the board can be read.
       const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
       if (value == null) continue;
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value });
+      // 20-21-2: an energy cost reduced "by {r}" keeps the orbs it was said in.
+      const named = kind === "cost" && op.colors?.length ? { colors: op.colors } : {};
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...named });
       continue;
     }
     // 5-3: another price for the card itself — "you can play this card from
@@ -831,9 +835,15 @@ function collect(
 // ── the layers a value is read through (9-9-1, 20-21) ───────────────────────
 
 /** What a layer is handed: the value so far, the standing changes of its kind, the timed ones, and the card's printed bag for the one fallback that needs it. */
-type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs) => AttrValue | undefined;
+type Layer = (value: AttrValue | undefined, statics: EffectValue[], timed: EffectValue[], attrs: Attrs, name: string) => AttrValue | undefined;
 
 type EffectValue = VmStatic["value"];
+
+/** A cost change that names orbs ("reduce the energy cost by {r}"): the amount and the colours it was said in (20-21-2). */
+export interface CostChange {
+  by: number;
+  colors: (Color | "any")[];
+}
 
 /**
  * Numbers added to a number — every change 9-9-1 makes to `power` and
@@ -885,13 +895,43 @@ const LAYERS: Record<string, Layer> = {
    * choice, and the same choice, because `specifiedCost` is one entry per orb
    * in the order `specifiedCostOf` filled them.
    */
-  reduction: (value, statics, timed) => {
+  reduction: (value, statics, timed, attrs, name) => {
+    // FAQ (Skills Q24, dbs-cardgame.com game_faq): an energy cost reduced by a
+    // [Permanent] "doesn't" reduce its specified cost with it, so a plain
+    // number comes off the total alone. Only a reduction *by a coloured orb*
+    // ("reduce the energy cost by {r}") moves both halves (20-21-2), and only
+    // by the orbs of that colour the card really demands (20-21-2-1: the total
+    // comes down "by the amount that was possible for X"). 1-2-2-1 keeps the
+    // total from falling under the number of coloured orbs still demanded.
+    // Only an energy price has a coloured half: a combo or Z-Energy cost is a bare number.
+    const energy = name === "costOf" || name === "specifiedCost";
+    const orbs: string[] = !energy ? [] : Array.isArray(value) ? [...(value as readonly string[])] : Array.isArray(attrs.specifiedCost) ? [...(attrs.specifiedCost as readonly string[])] : [];
     let by = 0;
-    for (const n of [...statics, ...timed]) if (typeof n === "number") by += n;
-    if (!by) return value;
-    if (Array.isArray(value)) return by > 0 ? (value as readonly string[]).slice(by) : value;
+    for (const n of [...statics, ...timed]) {
+      if (typeof n === "number") by += n;
+      else if (n && typeof n === "object" && "by" in n && "colors" in n) {
+        const change = n as unknown as CostChange;
+        if (change.by < 0) {
+          by += change.by;
+          continue;
+        }
+        for (const orb of change.colors) {
+          if (orb === "any") {
+            by += 1;
+            continue;
+          }
+          const at = orbs.indexOf(orb);
+          if (at >= 0) {
+            orbs.splice(at, 1);
+            by += 1;
+          }
+        }
+      }
+    }
+    if (Array.isArray(value)) return orbs;
     if (typeof value !== "number") return value;
-    return Math.max(0, value - by);
+    if (!by) return value;
+    return Math.max(energy ? Math.min(value, orbs.length) : 0, value - by);
   },
   /**
    * The coloured half said on its own (owner's ruling on BT19-039, 9 Sep 2026,
@@ -942,6 +982,12 @@ const LAYERS: Record<string, Layer> = {
  * default is the attribute's own name, which is the whole of the rule for
  * everything but a price.
  */
+/** An energy-cost change's value, with the orbs it was said in when it named any. */
+function costValue(e: { kind: string; value: unknown; colors?: (Color | "any")[] }): EffectValue {
+  if (e.kind === "cost" && typeof e.value === "number" && e.colors?.length) return { by: e.value, colors: e.colors } as unknown as EffectValue;
+  return e.value as EffectValue;
+}
+
 export function valueOf(game: GameDefinition, attrs: Attrs, name: string, statics: VmStatic[], timed: ContinuousEffect[]): AttrValue | undefined {
   const declared = game.attributes[name];
   const printed = attrs[name];
@@ -954,9 +1000,10 @@ export function valueOf(game: GameDefinition, attrs: Attrs, name: string, static
     const kind = LAYER_KINDS[name]?.[layer] ?? name;
     value = read(
       value,
-      statics.filter((e) => e.kind === kind).map((e) => e.value),
-      timed.filter((e) => e.kind === kind).map((e) => e.value as EffectValue),
+      statics.filter((e) => e.kind === kind).map(costValue),
+      timed.filter((e) => e.kind === kind).map(costValue),
       attrs,
+      name,
     );
   }
   if (name === "keywords" && Array.isArray(value)) {

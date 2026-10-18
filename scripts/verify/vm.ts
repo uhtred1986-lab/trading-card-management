@@ -3021,6 +3021,10 @@ console.log("verify/vm: ok");
 
   // The cards this block stages with, added here as §16–§19's are.
   DEFS["R-CUT"] = card("R-CUT", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of your red cards in your hand by 1." });
+  // 20-21-2 says a reduction *by a coloured orb* lowers both halves; the official FAQ
+  // (Skills Q24) says a Permanent's plain-number reduction does not lower the
+  // specified cost (#907). R-CUT is the number, R-CUT-RED the orb.
+  DEFS["R-CUT-RED"] = card("R-CUT-RED", { energyCost: 3, skill: "[Permanent] Reduce the energy cost of your red cards in your hand by {r}." });
   DEFS["R-CUT-COLOUR"] = card("R-CUT-COLOUR", { energyCost: 3, skill: "[Permanent] Reduce the specified cost of your red cards in your hand by {r}." });
   DEFS["R-BYSTANDER"] = card("R-BYSTANDER", { energyCost: 3 });
   DEFS["R-TWO"] = card("R-TWO", { energyCost: 2 });
@@ -3102,13 +3106,23 @@ console.log("verify/vm: ok");
     );
   }
 
-  // 20-21-1 and 20-21-2 together, which is claim 1 and claim 2: the reducer
-  // takes the total to 1 **and** the one red orb with it, so a board that could
-  // not pay the printed price can pay this one.
+  // The FAQ's half (Skills Q24): "reduce the energy cost by 1" takes the total
+  // to 1 and leaves the one red orb demanded, so one blue energy still cannot
+  // pay for it - it is refused for the colour, not for the shortfall.
   {
     const board = withReducer("R-TWO", "R-CUT", ["R-E-BLUE"]);
     assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 1, "a [Permanent] cost reducer in play did not reach the card it is about (20-21)");
-    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, [], "a flat reduction did not take the coloured requirement down with the total (20-21-2)");
+    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, ["Red"], "a plain-number reduction took the coloured requirement down (FAQ Skills Q24)");
+    assert.deepEqual(priced(board).why, { kind: "energyColour", colour: "Red", need: 1, have: 0 }, "the red orb is still demanded");
+  }
+
+  // 20-21-1 and 20-21-2 together, which is claim 1 and claim 2: the reducer
+  // named in a coloured orb takes the total to 1 **and** the one red orb with
+  // it, so a board that could not pay the printed price can pay this one.
+  {
+    const board = withReducer("R-TWO", "R-CUT-RED", ["R-E-BLUE"]);
+    assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 1, "a [Permanent] cost reducer in play did not reach the card it is about (20-21)");
+    assert.deepEqual(attrsNow(CTX, DBS, board.r, board.card).specifiedCost, [], "a reduction by {r} did not take the coloured requirement down with the total (20-21-2)");
     const both = priced(board);
     assert.deepEqual(both.cost, { energy: 1, describe: "1 energy" }, "the row does not wear the reduced price");
     assert.equal(both.why, undefined, "a play the reducer made affordable is still refused");
@@ -3128,7 +3142,7 @@ console.log("verify/vm: ok");
   // 20-21-2's floor: a reduction bigger than the price is 0 and never less, and
   // a free play is a play — so the card is offered with no price at all.
   {
-    const board = withReducer("V1", "R-CUT", []);
+    const board = withReducer("V1", "R-CUT-RED", []);
     assert.equal(attrsNow(CTX, DBS, board.r, board.card).costOf, 0, "a reduction bigger than the printed cost did not floor at zero (20-21-2)");
     const both = priced(board);
     assert.equal(both.cost, undefined, "a play reduced to nothing wears a price");

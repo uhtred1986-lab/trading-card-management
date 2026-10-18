@@ -48,7 +48,7 @@ import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDro
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
 import { assertKeywordPricePayable, keywordPriceRefusals } from "./keyword-costs";
 import { readableAutomaticPrice } from "./auto-costs";
-import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, xValues, type BoundAmounts, type Price } from "./costs";
+import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, spendPriceUses, xValues, type BoundAmounts, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire } from "./events";
 import { answered } from "./flow";
@@ -56,7 +56,7 @@ import { predicateOf } from "./filters";
 import { vmHost } from "./host";
 import { keywordRefusalCond, keywordWords } from "./keyword-do";
 import { attrsNow, forbiddenBy, readingBoard, taxesOn, type TaxInForce } from "./program";
-import { SETUP_ZONES } from "./zones";
+import { SETUP_ZONES, findCard } from "./zones";
 import type { VmState } from "./state";
 
 /**
@@ -988,6 +988,13 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       for (const m of keywordMoments) fire(ctx, game, state, m);
     }
   } else {
+    // "The next time you play it, reduce its energy cost by ..." (BT29-018):
+    // the price is settled, so a one-use change to this card's energy price is
+    // spent - whether it was paid in energy or bought at an alternative.
+    if (card !== null && def.cost?.includes("energy")) {
+      const at = findCard(state, card)?.zone;
+      if (at === "hand" || at === "zDeck") spendPriceUses(state, ev, card);
+    }
     runProgram(state, def, player, chosen);
     if (card !== null) chargeTaxes(ctx, game, state, def, player, card, action);
   }
