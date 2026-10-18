@@ -381,7 +381,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => renderTemplate(`${(raw as OpOf<"damage">).side === "you" ? "take" : "deal"} {n} damage`, raw as unknown as Record<string, unknown>, OP_SCHEMA.damage.fields, r),
     doc: "life to hand",
   },
-  mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of the deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
+  mill: { fields: [n(), SIDE, { name: "as", type: "string" }], sentence: "{n} from the top of {side:your opponent's|the} deck to the Drop", doc: 'deck to Drop; "as" names the cards for a later clause ("if that card is red")' },
   addLife: { fields: [n(), SIDE], sentence: "add {n} to life" },
   lifeDownTo: { fields: [{ name: "n", type: "number", required: true }, SIDE], sentence: "life down to {n}, the cards going to hand", doc: "add cards from life to hand until that many life remain (21-3-2)" },
   declare: {
@@ -2669,14 +2669,17 @@ function describeRef(ref: Ref): string {
 /** The measures `attr` and `sumOf` read, as a person names them. */
 const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost", specifiedCost: "specified cost" };
 
+/** "+2" / "-2": the sign a per-count change is printed with (EX19-26's "-2000 power for each" read "+-2000"). */
+const signedTimes = (times: number | undefined): string => ((times ?? 1) >= 0 ? `+${times ?? 1}` : `${times}`);
+
 function describeAmount(a: Amount, noun?: string): string {
   if (noun) {
     if (typeof a === "number") return `${a >= 0 ? "+" : ""}${a} ${noun}`;
     if ("plus" in a) return `${describeAmount(a.plus[0], noun)} and ${a.plus[1] < 0 ? `${-a.plus[1]} less` : `${a.plus[1]} more`}`;
-    if ("count" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
-    if ("markers" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
+    if ("count" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per)} of ${describeEach(a.count)}`;
+    if ("markers" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per, "marker")} on ${describeEach(a.markers)}`;
     if ("x" in a) return a.times === undefined ? `+X ${noun}` : `+${a.times} ${noun} for each X`;
-    if ("life" in a) return `+${a.times ?? 1} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
+    if ("life" in a) return `${signedTimes(a.times)} ${noun} ${forEvery(a.per, "life", "life")} ${a.life === "opponent" ? "your opponent has" : a.life === "both" ? "either player has" : "you have"}`;
     if ("sumOf" in a) return `${noun} equal to the total ${ATTR_NOUNS[a.attr]} of ${describeEach(a.sumOf)}${a.times === undefined ? "" : ` × ${a.times}`}`;
     if ("attr" in a) return `${noun} equal to ${describeRef(a.attr)}'s ${ATTR_NOUNS[a.name]}${a.times === undefined ? "" : ` × ${a.times}`}`;
     return `+that many ${noun}`;

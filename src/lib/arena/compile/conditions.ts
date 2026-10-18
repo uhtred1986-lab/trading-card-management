@@ -383,6 +383,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   const unhold = (s: string) => s.replaceAll("\u0001", " and ");
   const andParts = holdNames(t).split(/ and /).map(unhold);
   if (andParts.length > 1 && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
+    // "…card, **this card** and {X} are in your Warp" (BT20-078, #907 round 5): the "and" joins this card to the name
+    // after it, so cut there the first half ends in a bare "this card" that the Leader description before it swallows
+    // whole, and the second half is a single name - the card's own half of the requirement is gone without a word.
+    if (andParts.slice(0, -1).some((p) => /(?:^|,)\s*(?:this card|it)$/.test(p.trim()))) return null;
     const conds: Cond[] = [];
     const raw = holdNames(clause.trim()).split(/ and /i).map(unhold);
     let charged = false;
@@ -710,6 +714,18 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "inBattle", sel, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
     }
   }
+  // "If your Battle Card in battle is red" (DB1-003, DB1-036, DB1-042, DB1-072, #907 round 5): the colour is said
+  // after the position. The battle holds one card of yours (8-1), so it is the question "is your red Battle Card in
+  // a battle" just above, asked the other way round.
+  // Only "is": no card prints "isn't", and "not in a battle" is not "in a battle, of another colour".
+  if ((m = /^your battle card in (?:a |the )?battle is (red|blue|green|yellow|black|white)$/.exec(t))) {
+    const sel = parseTarget(`your ${m[1]} Battle Card`);
+    if (sel && !sel.special) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "inBattle", sel }, subject: { sel } };
+    }
+  }
   // "If you have a blue <Baby> **in a battle**" (BT21-049, BT21-038's <Uub>), #907: the same question as "if your blue
   // <Baby> card is in a battle" just above - one of your cards of that description is in the battle (8-1), not merely
   // somewhere in play. Read as a count it was every such card you have on the table.
@@ -792,6 +808,17 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       delete sel.count;
       delete sel.upTo;
       const counted: Selector = { ...sel, area: "energy", side: "you" };
+      return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
+    }
+  }
+  // "…and **a green <Son Goku: GT> card is in your Warp**" (BT20-065, BT20-066, BT20-069, #907 round 5): the Warp
+  // takes the Energy Area's wording just above - the card first, then the place, no "Area" after it.
+  if ((m = /^(.+?) (is|isn't|is not|are|aren't|are not) in your warp$/.exec(t)) && !/\b(?:the|that|those|these|this)\b/.test(m[1])) {
+    const sel = parseTarget(`${m[1]} in your warp`);
+    if (sel && sel.area === "warp" && (sel.side ?? "you") === "you") {
+      delete sel.count;
+      delete sel.upTo;
+      const counted: Selector = { ...sel, area: "warp", side: "you" };
       return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
     }
   }

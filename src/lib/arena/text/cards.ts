@@ -304,7 +304,7 @@ function splitTags(line: string): { tags: string[]; body: string } {
  * "cost : effect" — the first colon outside brackets/braces/angle brackets.
  * Explanatory notes in parentheses are not costs (1-5-8).
  */
-function splitCost(body: string): { cost: string; effect: string } {
+function splitCost(body: string, typed = false): { cost: string; effect: string } {
   let depth = 0;
   for (let i = 0; i < body.length; i++) {
     const ch = body[i];
@@ -316,6 +316,15 @@ function splitCost(body: string): { cost: string; effect: string } {
   // "[Arrival red/green] {r}", "[Successor]{g}{y}". Read as an effect those
   // orbs say nothing, and the engine never learns what the keyword costs.
   if (isOnlyOrbs(body)) return { cost: body.trim(), effect: "" };
+  // An [Activate] or [Auto] whose price is closed with a comma where the card should print a colon (#907
+  // round 5): "[Activate: Main][Once per turn]{g}, choose one-", "[Auto][Limit 1]{b}, when this card is played
+  // using [Over Realm], play up to 1 <Aeos> card ..." (BT11-061b, BT12-154, BT14-115, BT21-037, BT21-131,
+  // BT31-097 and two more). The orbs are the price and the rest is the skill; read whole they were an unread
+  // clause in front of an effect that therefore played for nothing.
+  if (typed) {
+    const price = /^((?:\{[rugykbw\d]\}\s*)+),\s*(?=\S)/i.exec(body);
+    if (price) return { cost: price[1].trim(), effect: body.slice(price[0].length).trim() };
+  }
   return { cost: "", effect: body };
 }
 
@@ -407,7 +416,7 @@ function parseSkillsUncached(text: string): Skill[] {
     // [Spirit Boost X] is a cost written as a tag (22-43), like [Burst X]: it
     // never names the skill it sits on, which keeps its own [Activate] type.
     const primary = keywords.find((k) => k.name !== "Spirit Boost") ?? null;
-    const { cost, effect } = splitCost(body);
+    const { cost, effect } = splitCost(body, !keywords.length && tags.some((t) => /^(?:activate|auto)\b/i.test(t)));
     out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
   }
   return out;

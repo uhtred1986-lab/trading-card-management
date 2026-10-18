@@ -888,6 +888,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .toLowerCase()
     .trim()
     .replace(/^(?:you may|you can|the player may)\s+/, "")
+    // "…, then **you choose** up to 1 of your opponent's Battle Cards" (BT10-149, BT18-143, P-279, #907 round 5): the
+    // subject is said after a sentence about the opponent, to say it is the master choosing again.
+    .replace(/^you (?=choose (?:up to )?(?:\d+|an?|one|all|any number)\b)/, "")
     // A trailing "instead" marks a replacement (9-10) and says nothing about
     // the action itself; the clause before it has already recorded that.
     .replace(/\s+instead$/, "")
@@ -930,6 +933,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // #1015: "your opponent chooses 2 cards in their hand and places them at the
   // bottom of their deck" — the opponent's own choice and the move it ends in,
   // one sentence (see `opponent-choice.ts`). Not an offer; "you may" is refused.
+  // "…your opponent places 2 cards from the top of their deck in their Drop Area" (BT9-024, BT9-035, BT9-101, BT6-121,
+  // BT10-149, #907 round 5): the top of the deck is milled, nobody chooses. Read below as the opponent choosing N cards
+  // of their whole deck, it let them pick which went to the Drop - and a "-5000 power" after it landed on the milled cards.
+  if ((m = /^your opponent places (\d+) cards? from the top of their deck (?:in|into) their drop(?: area)?$/.exec(t))) {
+    return [{ op: "mill", n: Number(m[1]), side: "opponent", as: `m${c.mills++}` }];
+  }
   const opponentMove = compileOpponentChoice(t, c, (o) => track(o, c));
   if (opponentMove !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : opponentMove;
   const disjoint = compileDisjointMove(t, c);
@@ -1118,6 +1127,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const fromHand = t.startsWith("discard") || t.endsWith("from your hand");
     return [{ op: "moveTo", target: { sel: fromHand ? { special: "self", area: "hand" } : { special: "self" } }, to: "drop", reveal: true }];
   }
+  // "Add this card to your hand from your Warp" (BT16-089, EX19-28, EX19-35, #907 round 5): the card is named, so
+  // nobody chooses. The area is the one the line is used from (9-1-3-2), which is what keeps the move from finding
+  // a copy in another place.
+  if ((m = /^add this card to your hand from (?:your|its owner'?s) (warp|drop(?: area)?)$/.exec(t))) {
+    return [{ op: "moveTo", target: { sel: { special: "self", area: m[1] === "warp" ? "warp" : "drop" } }, to: "hand" }];
+  }
   // "Discard 1 mono-green card from your hand", "discard 1 ≪Saiyan≫ or
   // ≪Earthling≫ card from your hand": the owner still chooses (20-7), but only
   // among the cards the text describes, which the `discard` op cannot say. It
@@ -1260,6 +1275,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "You win the game" (BT16-017, BT16-068, BT8-045b): the skill ends the game.
   // Its condition is read in front of it like any other, so this is the bare sentence.
   if (/^you win the game$/.test(t)) return [{ op: "win" }];
+  // "...Then, at the end of the turn, you lose the game" (BT2-069b, #907 round 5): the other player wins. Not in a
+  // [Permanent] (BT12-086, "if all of your life is face up, you lose the game"): a [Permanent] never resolves, so an
+  // op there would be a rule that reads and never runs - that one stays unread.
+  if (!c.permanent && /^you lose the game$/.test(t)) return [{ op: "win", side: "opponent" }];
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
   if (/^(?:your opponent|they) shuffles? (?:their|his|her) deck$/.test(t)) return [{ op: "shuffle", side: "opponent" }];
   // Revealing (20-11-2). Unlike looking, both players see the cards, and they
@@ -2028,7 +2047,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Negate that card's [Auto] skill for the turn" — one kind, not the card.
   // Read *before* the two below: their subject is `(.*?)`, which would happily
   // swallow the tag and silence every skill the card has.
-  if ((m = /^negate (.*?)(?:'s)? \[(auto|activate[^\]]*|counter[^\]]*|permanent)\] skills?$/.exec(q))) {
+  // Not the bare "the": "Negate **the** [Counter] skill" (BT11-042, BT30-150, P-418, #907 round 5) names no card, it is
+  // the [Counter] this one answers (9-7), read further down. It used to be caught here, find no card, and stay unread.
+  if ((m = /^negate (.*?)(?:'s)? \[(auto|activate[^\]]*|counter[^\]]*|permanent)\] skills?$/.exec(q)) && m[1] !== "the") {
     const ref = refFor(m[1], c);
     const kind = m[2].split(":")[0].trim() as SkillKindPrefix;
     return ref ? [{ op: "negateSkillsOfKind", target: ref, kind, until: durationOf(t) }] : null;
@@ -2102,7 +2123,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // 9-7: answering a counter with a counter. "The [Counter]" is always the one
   // being answered, so nothing has to be named.
-  if (/^negate the \[counter[^\]]*\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
+  // Only the bare "[Counter]" (#907 round 5): "Negate the [Counter: Attack] skill" (EX09-06) names the kind of counter
+  // it answers, which `negateCounter` does not ask, so that one stays unread rather than answer a Counter: Play too.
+  if (/^negate the \[counter\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
 
   // 8-1-1 lifted: "This card can attack Battle Cards in Active Mode", "your
   // red cards can attack your opponent's Battle Cards without [Barrier] in
