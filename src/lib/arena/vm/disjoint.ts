@@ -89,7 +89,7 @@ export function disjointGroups(ops: readonly Op[]): number[][] {
 
 /** Whether a slot of a disjoint set is one this file can match: an exact count, no set-level bound on the choice. */
 export function plainSlot(op: Choose): boolean {
-  return !op.sel.upTo && op.atMost === undefined && op.sumTo === undefined && op.namedSet === undefined && !op.sel.differentNames && !op.sel.distinctColors && !op.sel.sumAtMost && op.sel.minCount === undefined && !op.sel.take && !op.sel.special && !op.sel.fromVar && typeof op.sel.count !== "object";
+  return !op.sel.upTo && op.atMost === undefined && op.sumTo === undefined && op.namedSet === undefined && !op.sel.differentNames && !op.sel.differentCharacters && !op.sel.distinctColors && !op.sel.sumAtMost && op.sel.minCount === undefined && !op.sel.take && !op.sel.special && !op.sel.fromVar && typeof op.sel.count !== "object";
 }
 
 /**

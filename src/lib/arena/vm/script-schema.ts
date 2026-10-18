@@ -450,6 +450,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   play: {
     fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
+        name: "activating",
+        type: "boolean",
+        offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; any other card is played as before",
+      }, {
         name: "counterWindow",
         type: "boolean",
         offCard: "opens the [Counter: Play] window a declared play opens (9-6, 22-10) before the card lands — the play a keyword's own move makes ([Arrival], [Revive], [Successor]), where a play a card's skill makes opens none (5-5-3)",
@@ -473,7 +477,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
         return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
       }
-      const played = renderTemplate("play {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}", raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r);
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
       return played + on;
@@ -897,7 +901,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "{label:later}: {ops}",
     doc: 'the inner operations happen later (1-7-2-1-1): "At the end of the turn, KO it" is a choose, then a delay at "turnEnd" whose ops KO {"var":"t"}. A delayed program keeps the variables bound before it',
   },
-  note: { fields: [{ name: "text", type: "string", required: true }], sentence: "", doc: "a remark in the log; does nothing" },
+  note: {
+    fields: [{ name: "text", type: "string", required: true }, { name: "shown", type: "boolean", offCard: "the remark is the card's whole effect (\"You and your opponent compliment each other\", #907): the reading says it, where an engine remark says nothing" }],
+    sentence: (raw) => ((raw as OpOf<"note">).shown ? `say in the log: “${(raw as OpOf<"note">).text}”` : ""),
+    doc: "a remark in the log; does nothing",
+  },
   setPlayerAttr: {
     fields: [
       { name: "name", type: "string", required: true },
@@ -1915,6 +1923,7 @@ const SELECTOR_KEYS = {
   ownedByOpponent: 1,
   notSelf: 1,
   differentNames: 1,
+  differentCharacters: 1,
   distinctColors: 1,
   notIn: 1,
   sumAtMost: 1,
@@ -1962,7 +1971,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
   }
-  for (const k of ["differentNames", "distinctColors", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  for (const k of ["differentNames", "differentCharacters", "distinctColors", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
   // #970: the variables of earlier choices this one never repeats. Where they
   // must be bound, and that only a choose may carry them, is `programProblem`'s.
   if (v.notIn !== undefined && !(Array.isArray(v.notIn) && v.notIn.length > 0 && v.notIn.every((n) => typeof n === "string" && n !== ""))) return wrong("notIn", "a list of bound names");
@@ -2574,6 +2583,7 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notSelf === "card" ? " other than this card" : sel.notSelf === "copies" ? " other than copies of this card" : sel.notSelf === "name" ? " with a different card name from this card" : "") +
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
+  (sel.differentCharacters ? " with different character names" : "") +
   // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
