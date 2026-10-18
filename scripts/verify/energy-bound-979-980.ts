@@ -134,6 +134,15 @@ const opsOf = (text: string): Op[] => compile(text).ops;
   // BT31-051 prints "a specified of 2", with no "cost": a bound that cannot be read is refused, not dropped.
   assert.equal(parseFilter("mono-green <Son Goku: GT> or <Gogeta: GT> card or Unison with a specified of 2").unreadable, true);
   assert.equal(compile("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Saiyan≫ or ≪Earthling≫ card with an energy cost of 3 or less or 1 blue Unison Card with a specified cost of 3 among them to your hand, then shuffle your deck.").unsupported.length, 0, "BT14-040 reads whole");
+  {
+    // BT14-007 and a dozen more print a comma before the "or" ("…cost of 4 or less, or 1 red Unison Card …"):
+    // the clause used to be cut there, and neither half could be read.
+    const r = compile("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Universe 7≫ card with an energy cost of 4 or less, or 1 red Unison Card with a specified cost of 2 among them to your hand, then shuffle your deck.");
+    assert.equal(r.unsupported.length, 0, "BT14-007: the comma before the second description does not cut the search");
+    assert.equal(/"anyOf"/.test(JSON.stringify(r.ops)), true, "…and it reads as two descriptions");
+    // A named card after the comma is not a description eitherFilter can split: it stays unread rather than being ANDed in (BT17-054).
+    assert.equal(compile("[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue ≪Red Ribbon Army≫ card with an energy cost of 5 or less, or 1 {Android 17 & Android 18, Teaming Up} among them to your hand, then shuffle your deck.").unsupported.length > 0, true, "BT17-054 stays unread");
+  }
 
   // The null specified cost.
   const none = parseFilter("black Unison Card with no specified cost and 15000 power");

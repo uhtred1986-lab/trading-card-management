@@ -199,7 +199,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
+        !(ch === "," && (inList(text, i) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
@@ -521,6 +521,26 @@ const SWITCH_TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:you (?:may|can)\s+)?switch
 function andJoinsTwoSwitched(text: string, start: number, i: number): boolean {
   if (!SWITCH_TARGET_BEFORE_AND.test(text.slice(start, i))) return false;
   return /^[^.;]*\bto (?:active|rest)(?: mode)?\b/i.test(text.slice(i + 5));
+}
+
+/**
+ * The comma in front of the "or" of two **descriptions**: "look at up to 5
+ * cards from the top of your deck, add up to 1 red ≪Universe 7≫ card with an
+ * energy cost of 4 or less**, or** 1 red Unison Card with a specified cost of 2
+ * among them to your hand" (BT14-007, BT14-099, BT15-011 and about ten more).
+ * The same sentence without the comma has read as an `anyOf` since #980; with
+ * it the clause was cut in two, and neither half can be read — "or 1 red Unison
+ * Card …" has no verb. A *named* card after the "or" (BT17-054's "or 1
+ * {Android 17 & Android 18, Teaming Up}") is left cut: `eitherFilter` does not
+ * split it, and joined it read as one description with both. The cut is kept off only
+ * when what came before is a pick (add, choose, play …) that already has a card
+ * description in it and what follows is another counted description ("or 1 …",
+ * "or up to 1 …"): "draw 1 card, or …" is still two sentences.
+ */
+function commaJoinsAlternative(text: string, start: number, comma: number): boolean {
+  const before = text.slice(start, comma).trim();
+  if (!/^(?:then\s+)?(?:add|choose|play|search for|place|return|put)\b/i.test(before) || !/\bcards?\b|[>}≫]$/i.test(before)) return false;
+  return /^,\s+or\s+(?:up to\s+)?\d+\s+(?:(?:red|blue|green|yellow|black|white|mono-[a-z]+)\s+)?(?:unison|extra|battle|leader|cards?\b)/i.test(text.slice(comma));
 }
 
 function inList(text: string, comma: number): boolean {
