@@ -209,6 +209,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   switchToActiveInCharge: "switch to Active Mode in the Charge Phase",
   switchEnergyToActive: "switch energy to Active Mode",
   placeEnergy: "place cards in the Energy Area",
+  energyCap: "place another card in the Energy Area",
   beMovedBySkill: "be removed from a Battle Area by skills",
   beNegated: "have their skills negated",
 };
@@ -323,7 +324,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "source", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -895,6 +896,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "unionSourceUnder") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Potara] from hand can choose its specified Battle Cards from under your ${op.source ? describeFilter(op.source, { plural: false }) : "Unison"}${forThe(op.until, r)}`;
       if (op.what === "unionSourceOpponentBattle") return `${describeRef(op.target)}'s [Union-Potara] from hand can choose its specified Battle Cards you own in your opponent's Battle Area`;
       if (op.what === "playInOpponentBattle") return `${describeRef(op.target)} is played from your hand in your opponent's Battle Area`;
+      if (op.what === "startLife") return `you start the game with ${op.n ?? 8} life`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
@@ -2692,6 +2694,8 @@ const AREA_NOUNS: Partial<Record<ScriptArea, string>> = {
 
 function describeEach(sel: Selector): string {
   if (sel.special) return describeSelector(sel);
+  // The cards a name is bound to ("the cards discarded by this skill", BT20-090): said as that, or the reading names the area it falls back on (your cards in play).
+  if (sel.fromVar) return `the cards bound to ${sel.fromVar}`;
   const who = sel.side === "opponent" ? "their " : sel.side === "both" ? "" : "your ";
   // A Hidden Mode card has no card type (23-5-2), so it is not a "Battle
   // Card" or a "Unison Card" to count: "your Hidden Mode cards", and the area

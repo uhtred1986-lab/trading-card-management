@@ -1107,7 +1107,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle"; until: Duration; target: Ref; filter?: CardFilter; line?: string; source?: CardFilter }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -2308,6 +2308,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           const owner = op.owner ? sideOf(master, op.owner)[0] : op.to === "battle" || op.to === "unison" ? master : h.ownerOf(id);
           const dest = op.to === "play" ? "battle" : op.to;
+          // "You can only place up to 6 energy" (BT3-032, BT19-034, official card Q&A): a
+          // skill's placement stops at the limit too. One card at a time, each asked
+          // with the Energy Area as it stands, so the first cards of a larger batch
+          // that fit are placed and the rest are not.
+          if (dest === "energy" && h.areaOf(id) !== "energy" && h.forbids("energyCap", { player: owner, card: id })) {
+            frame.moveLoop.index++;
+            continue;
+          }
           let replaced: ReplacementResult | null | undefined;
           const leftBattle = frame.moveLoop.leftBattle ?? (h.areaOf(id) === "battle");
           // 20-7: a card this skill takes out of its owner's hand — a discard
