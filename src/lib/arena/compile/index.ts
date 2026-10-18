@@ -198,7 +198,14 @@ function scopedPayWith(text: string): Op | null {
 function unionFusionAreasPermit(text: string): Op | null {
   // 22-13-4-2-1: this card's own Fusion may pay its named materials
   // from Warp as well as hand. Both sentences are one standing permission.
-  if (/^you (?:can|may) choose battle cards in your warp when choosing cards to use with this card's \[union\] skill from your hand\.?\s*if you do,? place the chosen cards in your drop area from your warp\.?$/i.test(text.trim())) {
+  // #930: the printed spellings are BT12-136 / BT12-137 / P-286 ("place the
+  // chosen cards in your Drop Area from your Warp"), P-308 ("…from your Warp in
+  // your Drop Area"), EX25-32 ("…from your Warp into their owner's Drop") and
+  // the one-sentence form of the [Union-Potara] cards BT10-132 / P-230, which
+  // names no destination (the Potara moves the chosen card to the Battle Area,
+  // 22-13-5-2-1-1; a Fusion's go to the Drop as its cost, 22-13-4-4).
+  const warp = "you (?:can|may) choose battle cards in your warp when choosing cards to use with this card's \\[union\\] skill from your hand\\.?";
+  if (new RegExp(`^${warp}(?:\\s*if you do,? place the chosen cards (?:in your drop area from your warp|from your warp (?:in your drop area|into their owner'?s drop(?: area)?))\\.?)?$`, "i").test(text.trim())) {
     return { op: "permit", what: "unionFusionWarp", target: { sel: { special: "self" } }, until: "game" };
   }
   const m = /^you (?:can|may) choose the specified battle cards in your battle area or your drop when choosing cards to use with the \[union\] skill of an? (.+?) cards? from your hand\.?\s*if you do,? send the chosen cards to their owner'?s warp\.?$/i.exec(text.trim());
@@ -310,6 +317,33 @@ function compileSkillText(skill: Skill): Script {
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
   if (evolveAreas) return { ops: [evolveAreas], unsupported: [] };
+  // #930, P-360: "[Permanent] Red <Gogeta: Br> cards in your hand gain the
+  // following skill: ・[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>."
+  // A granted [Union-Fusion] / [Union-Potara] line is a move of the card in hand
+  // and needs no program (the keyword's \`DO\` is its effect), so the standing
+  // permission carries the printed line and \`activationsOf\` offers it. Any
+  // other granted line stays unread.
+  // The colon that ends "…the following skill:" is the one `splitCost` cuts the
+  // line at, so the sentence arrives as a cost and an effect and is read whole.
+  const grantedSentence = c.permanent && /\bfollowing skill\s*$/i.test(skill.cost.trim()) ? `${skill.cost.trim()}: ${text.trim()}` : text.trim();
+  const granted = c.permanent ? /^(.+?) cards? in your hand gains? the following skill:\s*[・•·]?\s*(\[union[- ](?:fusion|potara)\][^\n]*?)\s*$/i.exec(grantedSentence) : null;
+  if (granted) {
+    const who = parseTarget(`${granted[1]} cards in your hand`);
+    if (who && !who.special && !who.fromVar && !who.upTo && who.side === "you" && who.area === "hand" && !who.filter?.unreadable) {
+      return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2] }], unsupported: [] };
+    }
+  }
+  // #930, 22-13-5-2-1: "[Permanent] If you have 4 or more energy, you can choose
+  // Battle Cards in your energy when choosing cards to use with this card's
+  // [Union] skill from your hand" (BT10-046; BT10-053 at 3, P-220 with none).
+  const energyOpener = c.permanent ? /^(?:if (.+?),\s*)?you (?:can|may) choose battle cards in your energy when choosing cards to use with this card's \[union\] skill from your hand\.?$/i.exec(text.trim()) : null;
+  if (energyOpener) {
+    const conds = energyOpener[1] ? allConditions(energyOpener[1]) : [];
+    // A condition that cannot be read refuses the permission (ground rule 5).
+    if (!conds) return { ops: [], unsupported: [energyOpener[1]] };
+    const permit: Op = { op: "permit", what: "unionEnergy", target: { sel: { special: "self" } }, until: "game" };
+    return { ops: conds.reduceRight<Op[]>((then, { cond }) => [{ op: "if", cond, then }], [permit]), unsupported: [] };
+  }
   const aegisAlt = c.permanent ? aegisAltPermit(text) : null;
   if (aegisAlt) {
     const rest = aegisAlt.head ? compileSkillText({ ...skill, effect: aegisAlt.head }) : { ops: [], unsupported: [] as string[] };
