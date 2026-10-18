@@ -505,6 +505,39 @@ function lifeSelfOps(ops: Op[]): Op[] {
   });
 }
 
+/** The zones `permanents` walks for a game, worked out once (#1009): they are the game definition's, not the board's. */
+const zonePlans = new WeakMap<GameDefinition, { inPlay: Set<string>; zones: string[]; walked: string[] }>();
+function zonePlan(game: GameDefinition) {
+  let plan = zonePlans.get(game);
+  if (!plan) {
+    const inPlay = new Set(inPlayZones(game));
+    const zones = [...inPlay, "hand", "zDeck", "warp", "combo", "life"].filter((zone) => game.zones[zone]?.place !== false);
+    const everywhere = Object.keys(game.zones).filter((zone) => !zones.includes(zone) && game.zones[zone]?.place !== false);
+    plan = { inPlay, zones, walked: everywhere.length ? [...zones, ...everywhere] : zones };
+    zonePlans.set(game, plan);
+  }
+  return plan;
+}
+
+/**
+ * Which printed texts can matter outside the zones a [Permanent] normally holds in, read once per
+ * printed card (#1009). `permanents` runs on every value asked for, and testing the text of every
+ * card of the deck, the Drop and the Life Area with a regex each time cost most of a move.
+ */
+const printedAreaFlags = new WeakMap<object, { allAreas: boolean; life: boolean }>();
+const NO_AREA_FLAGS = { allAreas: false, life: false };
+function areaFlags(printed: { skill?: string | null; back?: { skill?: string | null } | null } | undefined): { allAreas: boolean; life: boolean } {
+  if (!printed) return NO_AREA_FLAGS;
+  let flags = printedAreaFlags.get(printed);
+  if (!flags) {
+    const text = `${printed.skill ?? ""} ${printed.back?.skill ?? ""}`;
+    const allAreas = /all areas/i.test(text);
+    flags = { allAreas, life: allAreas || /this card from your life/i.test(text) };
+    printedAreaFlags.set(printed, flags);
+  }
+  return flags;
+}
+
 /**
  * Every standing change a [Permanent] makes right now.
  *
@@ -529,7 +562,7 @@ export function permanents(
   only?: (ops: Op[]) => boolean,
 ): VmStatic[] {
   const out: VmStatic[] = [];
-  const inPlay = new Set(inPlayZones(game));
+  const { inPlay, zones, walked } = zonePlan(game);
   // The Warp only for the one permission about the card's own line used from
   // there (`overRealmFromWarp`, BT31-150) — nothing else a [Permanent] says
   // holds from the Warp, the same as the legacy `staticEffects`; and, in the
@@ -538,23 +571,25 @@ export function permanents(
   // itself: "if you would reveal this card from your life to add it to your hand,
   // you may … instead" (BT10-036, BT10-047; 9-1-3-3 — the text names the area it
   // is valid in). Nothing else a life card says holds there.
-  const zones = [...inPlay, "hand", "zDeck", "warp", "combo", "life"].filter((zone) => game.zones[zone]?.place !== false);
   // "This card gains ≪Universe 7≫ in all areas" (TB1-095, #936) holds in
   // every area a card can be in, the Drop included — which is where "9 or more
   // ≪Universe 7≫ in your Drop Area" counts it. Looked for in these areas only
   // on a card whose printed text says "all areas", so the Drop's cards cost a
   // string test each.
-  const everywhere = Object.keys(game.zones).filter((zone) => !zones.includes(zone) && game.zones[zone]?.place !== false);
+  const firstExtra = zones.length;
   for (const p of Object.keys(state.sides) as PlayerId[]) {
-    for (const zone of [...zones, ...everywhere]) {
-      const extra = everywhere.includes(zone);
+    for (let zi = 0; zi < walked.length; zi++) {
+      const zone = walked[zi];
+      const extra = zi >= firstExtra;
       for (const src of state.sides[p].zones[zone] ?? []) {
         const card = state.cards[src];
-        if (!card || card.hidden || skillsNegated(state, src)) continue;
+        if (!card || card.hidden) continue;
         const printed = ctx.defs[card.cardId];
-        if (extra && !/all areas/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
-        // A life card is looked at only when it prints a rule about itself in the Life Area (cheap text test: a life card is read on every statics pass).
-        if (zone === "life" && !/all areas|this card from your life/i.test(`${printed?.skill ?? ""} ${printed?.back?.skill ?? ""}`)) continue;
+        // The text tests are cached per printed card (#1009), and asked before the negation scan below.
+        if (extra && !areaFlags(printed).allAreas) continue;
+        // A life card is looked at only when it prints a rule about itself in the Life Area (a life card is read on every statics pass).
+        if (zone === "life" && !areaFlags(printed).life) continue;
+        if (skillsNegated(state, src)) continue;
         const showing = skillsShowing(ctx, state, src);
         const overRealm = showing.skills.some((sk) => sk.keyword?.name === "Over Realm");
         if (zone === "warp" && !overRealm && !showing.skills.some((sk) => sk.kind === "permanent")) continue;
