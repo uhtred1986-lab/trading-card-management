@@ -382,6 +382,18 @@ function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
 
+/**
+ * An [Auto] that prints its replacement as its "trigger" (BT12-071: "…: When
+ * this card would be placed in its owner's Drop Area from a Combo Area, you may
+ * play it instead"). Nothing happens at a moment for it to be a trigger of: the
+ * clause is the 9-10 `would`, and it has to stay in the program for the
+ * replacement that follows it to be read.
+ */
+export function isComboDropReplacement(clause: string): boolean {
+  const from = parseWouldLeave(clause)?.from;
+  return from?.length === 1 && from[0] === "combo";
+}
+
 function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string } | null {
   const t = clean(clause);
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
@@ -433,6 +445,14 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // than broadening every existing Battle-Area replacement to Combo.
   if (/^when this card is removed from a battle area or combo area$/.test(t))
     return { from: ["battle", "combo"] };
+  // "When this card would be placed in its owner's Drop Area from a Combo Area"
+  // (BT12-071, -072, -074, -075): the 8-5-8 departure of a combo card to its
+  // owner's Drop, which is the only way a card leaves a Combo Area for the Drop
+  // once the battle is over. The redirect names the area it answers to (`from`),
+  // as the DB2 errata above does, so it is not offered to a departure from the
+  // Battle Area; what the card does instead is the next clause.
+  if (/^when this card would be placed in (?:its owner'?s?|your) drop(?: area)? from (?:a|your|the) combo area$/.test(t))
+    return { from: ["combo"] };
   // The obsolete Drop-only wording deliberately remains unread. Catalog
   // ingestion corrects the four errata cards before drafting new records.
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
@@ -1092,6 +1112,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // among the cards the text describes, which the `discard` op cannot say. It
   // is the same choose-then-move that op splices for the unqualified case, so
   // this reads the description as a target phrase and lets `withChoice` ask.
+  // "Discard 1 or more yellow ≪Majin≫ cards from your hand" (BT20-090, -107,
+  // -108, -109): a floor with no ceiling but the hand. The owner picks at
+  // least N and as many more as they like (5-2-4's "up to" has no floor, a
+  // plain "N" no slack). The ceiling is the language's 99, "all", and the
+  // choice stops when the cards run out.
+  if ((m = /^discard (\d+) or more (.+?)(?: from your hand)?$/.exec(t))) {
+    const ref = refFor(`1 ${m[2]} in your hand`, c);
+    if (!ref || !("sel" in ref) || ref.sel.special || ref.sel.take != null) return null;
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: { ...ref.sel, count: 99, upTo: false, minCount: Number(m[1]) }, as: v, reason: clause }, { op: "moveTo", target: { var: v }, to: "drop", reveal: true }];
+  }
   if ((m = /^discard (\d+ .+?)(?: from your hand)?$/.exec(t))) {
     const ref = refFor(`${m[1]} in your hand`, c);
     if (ref) return withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "drop", reveal: true }));
@@ -4818,6 +4849,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
             event: replaceEvent === "life" ? "life" : by === "ko" ? "ko" : "leave",
             ...(replaceEvent === "life" ? (lifeTo ? { to: lifeTo } : {}) : by && by !== "ko" ? { by } : {}),
             ...(replaceEvent !== "life" && bySide ? { bySide } : {}),
+            ...(replaceEvent !== "life" && from ? { from } : {}),
             with: withOps,
             ...(offered || heldOffer ? { optional: true } : {}),
             ...(target ? { target } : {}),

@@ -505,6 +505,22 @@ function lifeSelfOps(ops: Op[]): Op[] {
   });
 }
 
+/**
+ * What a card in a Combo Area can answer: its replacements of a departure from the Combo Area, kept
+ * inside the conditions they are printed under ("If your Leader Card is …"), and nothing else of the program.
+ */
+function comboDepartures(ops: readonly Op[]): Op[] {
+  const out: Op[] = [];
+  for (const op of ops) {
+    if (op.op === "if") {
+      const then = comboDepartures(op.then);
+      const other = op.else ? comboDepartures(op.else) : [];
+      if (then.length || other.length) out.push({ ...op, then, ...(other.length ? { else: other } : {}) });
+    } else if ((op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) out.push(op);
+  }
+  return out;
+}
+
 /** The zones `permanents` walks for a game, worked out once (#1009): they are the game definition's, not the board's. */
 const zonePlans = new WeakMap<GameDefinition, { inPlay: Set<string>; zones: string[]; walked: string[] }>();
 function zonePlan(game: GameDefinition) {
@@ -595,7 +611,8 @@ export function permanents(
         const overRealm = showing.skills.some((sk) => sk.keyword?.name === "Over Realm");
         if (zone === "warp" && !overRealm && !showing.skills.some((sk) => sk.kind === "permanent")) continue;
         for (const sk of showing.skills) {
-          if (sk.kind !== "permanent") continue;
+          // An [Auto] that prints a replacement of its card's own departure from the Combo Area (BT12-071, "…: When this card would be placed in its owner's Drop Area from a Combo Area, you may play it instead") never fires, and stands in the Combo Area like a [Permanent]: only that replacement of it is read, below.
+          if (sk.kind !== "permanent" && !(sk.kind === "auto" && zone === "combo")) continue;
           if (skillNegated(state, src, sk.index, sk.kind)) continue;
           // 22-26 / 22-21: a [Sparking X] or [Bond X] [Permanent] is valid only
           // while its master has the count — BT5-023's "[Permanent][Sparking 5]
@@ -609,7 +626,7 @@ export function permanents(
           const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
-            : zone === "combo" ? program.ops.filter((op) => (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && op.from?.includes("combo")) : program.ops;
+            : zone === "combo" ? comboDepartures(program.ops) : program.ops;
           if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }

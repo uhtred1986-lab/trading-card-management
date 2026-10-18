@@ -54,6 +54,9 @@ import type { AttrValue } from "./cards";
 import type { VmCard, Zones } from "./zones";
 import type { StoredOutcome } from "../outcome";
 
+/** Where a combo card came from when it entered the Combo Area: the area it left ("hand", "deck", "drop", "battle", "energy", "warp", "zEnergy", "life"), or "other" in a battle saved before the area was kept (it then means only "not the hand"). */
+export type ComboOrigin = string;
+
 /**
  * The battle in progress (8-1), or its absence.
  *
@@ -84,7 +87,7 @@ export interface VmBattle {
    */
   counters: { card: string; by: PlayerId; after: number }[];
   /** Each combo card's actual entry area in this battle, retained through save/reload and 8-5 cleanup. */
-  comboOrigins?: Record<string, "hand" | "other">;
+  comboOrigins?: Record<string, ComboOrigin>;
   /**
    * 8-4-6-1's life cards, part way through (#272): set only while the Damage
    * Step is waiting on 9-10-3's question over one life card's own `life`
@@ -129,9 +132,9 @@ export interface VmBattle {
     /** One 8-5-8 replacement offer, frozen through the affected player's answer/reload. */
     awaitingDeparture?: { card: string; choices: ReplacementChoice[]; allowNone: boolean };
     /** A substitute frame replacing this native departure; its own actual Combo-to-Drop move is captured for 8-5-9. */
-    substituteDeparture?: { card: string; origin?: "hand" | "other"; hidden?: true; active?: true; actualDrop?: { controller: PlayerId } };
+    substituteDeparture?: { card: string; origin?: ComboOrigin; hidden?: true; active?: true; actualDrop?: { controller: PlayerId } };
     /** 8-5-10-1: actual Combo departures whose special battle-end Auto is announced at 8-5-9. */
-    specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: "hand" | "other"; hidden?: true }[];
+    specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: ComboOrigin; hidden?: true }[];
     specialCursor?: number;
   };
 }

@@ -494,7 +494,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // "cards under {King Kai's Planet}" — the pile under *another* card.
   // "under this card" is the existing self-hosted area and is read below.
   let underHostSel: Selector | undefined;
-  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it)\b/.test(t)) {
+  if (/\bunder\b/.test(t) && !/\bunder (?:this card|it|them)\b/.test(t)) {
     const underHost = /\b(?:from\s+)?under\s+(.+?)\s*$/i.exec(phrase.trim());
     if (!underHost) return null;
     // Ground rule 5: if the host phrase itself is unreadable, refuse rather
@@ -512,7 +512,17 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // The rest of the phrase is then read as usual: "**each** card under this
   // card" and "**up to 1** card from under this card" are the same area and
   // different counts, and hard-coding "all" here played every card in the pile.
-  const underSelf = /\bunder (?:this card|it)\b/.test(t) && !/^this card\b/.test(t.trim());
+  // "Under it" / "under them" is a pronoun for a card the sentence chose or spoke of before (BT29-002b's
+  // chosen <Broly>, SD21-01b's chosen Z-Battle Card, P-096's, P-667's, BT20-043's Leader), which a
+  // phrase read on its own cannot see. It used to be taken for "under this card", the pile of the card
+  // printing the skill, which is a different pile whenever the pronoun is not this card: refused
+  // (ground rule 5).
+  // The one reading that stays is the bare singular pile of a card's own amount, "+5000 power for
+  // each card placed under it" / "for each card under it" (BT6-030, BT9-072, BT15-121b, TB2-017,
+  // P-312): the card whose power it is, which is the card printing the skill.
+  const bareOwnPile = /^(?:each |every )?card(?: that (?:is|are))?(?: placed)? under it$/.test(t.trim());
+  if (/\bunder (?:it|them)\b/.test(t) && !bareOwnPile) return null;
+  const underSelf = (/\bunder this card\b/.test(t) || bareOwnPile) && !/^this card\b/.test(t.trim());
   if (underSelf) {
     phrase = phrase.replace(/\b(?:from )?under (?:this card|it)\b/gi, " ");
     t = phrase.toLowerCase();

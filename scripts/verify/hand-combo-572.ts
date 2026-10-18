@@ -114,7 +114,7 @@ function skillEvents(events: GameEvent[], cardId: string, state: EngineState): G
   const attacker = stage("p1", "V1", "battle", state);
   state = take(state, { type: "attack", player: "p1", attacker, target: leaderOf(state, "p2") }).state;
   const second = take(state, { type: "combo", player: "p1", card: combo });
-  assert.equal(second.state.battle?.comboOrigins?.[combo], "other");
+  assert.equal(second.state.battle?.comboOrigins?.[combo], "battle");
   const later = finish(second.state);
   assert.equal(skillEvents(later.events, "C572-BT2", later.state).length, 0, "old hand source cannot leak into the next battle");
   assert.ok(zoneOf(later.state, "p1", "drop").includes(combo));

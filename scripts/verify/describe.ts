@@ -73,7 +73,7 @@ import type { Selector } from "../../src/lib/arena/vm/script";
   // The routes a board never shows a card sitting in.
   assert.equal(at({ area: "play", count: 1, filter: parseFilter("<Majin Buu>") }), "1 <Majin Buu> card you have in play");
   assert.equal(at({ side: "opponent", area: "play", count: 1 }), "1 card your opponent has in play");
-  assert.equal(at({ area: "under" }), "all cards under your cards");
+  assert.equal(at({ area: "under" }), "all cards under this card");
   // A condition over two selectors, each with its own noun.
   assert.equal(
     describeCond({ kind: "every", sel: { side: "opponent", area: "energy" }, matching: { side: "opponent", area: "energy", mode: "rest" } }),
