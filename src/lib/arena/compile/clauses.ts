@@ -43,7 +43,13 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 // shape: a second measure of the set being chosen, not a second clause. So is
 // "…with 1000 power **and 2 markers or less**" (EX19-01, #721).
 const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
-const MEASURE_AFTER_AND = /^(?:an? energy cost of \d+|\d+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+// #907 round 4: the plural "energy costs of 3 or less" and the measure said before its number
+// ("power of 35000 or less", BT7-017's "an energy cost of 3 or more **and power of 35000 or
+// less** in your Drop Area") are the same second measure.
+const MEASURE_AFTER_AND = /^(?:(?:an? )?energy costs? of \d+|powers? of [\d,]+|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+
+/** A comma (and its "and") in front of a measure of the same description: see `commaJoinsMeasure`. */
+const MEASURE_COMMA = new RegExp(`,\\s+(?:and\\s+)?(?=${MEASURE_AFTER_AND.source.slice(1)})`, "gi");
 
 /**
  * "Choose all of your opponent's skill-less Battle Cards **and** Battle Cards
@@ -199,7 +205,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
+        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
@@ -226,6 +232,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         !andJoinsTwoAreas(text, start, i) &&
         !andSharesTheAreaAfter(text, start, i) &&
         !andJoinsChoiceList(text, start, i) &&
+        !joinsCardTypes(text, start, i, 5) &&
         !andJoinsBothSides(text, start, i) &&
         !andJoinsTwoCountedAreas(text, start, i) &&
         !andJoinsTwoNamedCards(text, start, i) &&
@@ -264,7 +271,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       .replace(/^(?:then|and|if you do|if so)\s+/i, "")
       .trim();
     if (!c) return;
-    clauses.push(c);
+    // A comma list of measures kept whole by `commaJoinsMeasure` is said the way the filter reader knows:
+    // with "and" ("energy cost of 3, an [ex-evolve] skill" lost the keyword when read with its comma).
+    const measured = /^(?:add|choose|play|search for|place|return|put|send)\b/i.test(c) && /\bwith\b/i.test(c) ? c.replace(MEASURE_COMMA, " and ") : c;
+    clauses.push(measured);
     // ", and draw 1 card" is the same sentence going on. ", then draw 1 card" is
     // sequence rather than coordination — it might or might not be inside an
     // offer printed before it, and the readings that stand (the [Awaken]
@@ -556,6 +566,32 @@ function commaJoinsAlternative(text: string, start: number, comma: number): bool
   const before = text.slice(start, comma).trim();
   if (!/^(?:then\s+)?(?:add|choose|play|search for|place|return|put)\b/i.test(before) || !/\bcards?\b|[>}≫]$/i.test(before)) return false;
   return /^,\s+or\s+(?:up to\s+)?\d+\s+(?:(?:red|blue|green|yellow|black|white|mono-[a-z]+)\s+)?(?:unison|extra|battle|leader|cards?\b)/i.test(text.slice(comma));
+}
+
+/**
+ * The comma between two measures of one description: "choose up to 2 mono-red Battle Cards
+ * with different card names**,** energy costs of 3 or less**, and** 19000 power or less in your
+ * deck or hand" (DB3-133, #907 round 4). Cut here, the first half read as a bare choice in the
+ * default area and the tail as a lone "choose 1 card with 19000 power" - a different selection
+ * in a different area. Kept off only inside a pick that already opened a "with" list.
+ */
+function commaJoinsMeasure(text: string, start: number, comma: number): boolean {
+  const before = text.slice(start, comma).trim();
+  if (!/^(?:then\s+)?(?:add|choose|play|search for|place|return|put|send)\b/i.test(before) || !/\bwith\b/i.test(before)) return false;
+  return MEASURE_AFTER_AND.test(text.slice(comma + 1).trimStart().replace(/^(?:and|or)\s+/i, ""));
+}
+
+/**
+ * "Choose your opponent's Leader Card **and all of their Battle Cards**" (BT25-125, BT8-115, TB3-017,
+ * BT21-147, BT25-110, EX13-07, ...): the "and" - or the comma of "Leaders**,** Battle Cards**, and**
+ * Unisons" - joins the card types of one choice. Cut there, the choice kept only its first type
+ * and the rest was a bare "Battle Cards" fragment (#907 round 4). Only inside a "choose" that has
+ * named a Leader or Battle Cards and stops exactly there, with another card type after it.
+ */
+function joinsCardTypes(text: string, start: number, i: number, skip: number): boolean {
+  const before = text.slice(start, i).trim();
+  if (!/^(?:then\s+)?choose\b.*\b(?:leaders?(?: cards?)?|battle cards?)$/i.test(before)) return false;
+  return /^(?:(?:and\/or|and|or)\s+)?(?:all of (?:their|your opponent'?s|your|its owner'?s)\s+)?(?=(battle cards?|unisons?(?:\s+cards?)?))\1(?![a-z])(?!\s+(?:with|in|from|equal|that|which|whose|other|of)\b)/i.test(text.slice(i + skip).trimStart());
 }
 
 function inList(text: string, comma: number): boolean {

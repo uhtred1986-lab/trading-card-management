@@ -510,7 +510,7 @@ export function emptyFilter(): CardFilter {
  * other words alone. Group 1 is the comparator, group 2 whose energy.
  */
 const ENERGY_CMP = "(less than or equal to|equal to or less than|equal or less than|no (?:more|greater) than|greater than or equal to|more than or equal to|equal to or greater than|equal or greater than|equal to or more than|less than|fewer than|lower than|greater than|more than|higher than)";
-export const ENERGY_COST_VS_ENERGY = new RegExp(`\\benergy costs? (?:of |is )?(?:(?:that is|which is) )?${ENERGY_CMP} (?:the (?:amount|number) of )?(their|your opponent'?s|the opponent'?s|your) (?:current )?energy\\b`, "i");
+export const ENERGY_COST_VS_ENERGY = new RegExp(`\\benergy costs? (?:of |is )?(?:(?:that is|which is) )?${ENERGY_CMP} (?:the (?:amount|number) of )?(their|your opponent'?s|the opponent'?s|your) (?:current |total )?energy\\b`, "i");
 
 export type EnergyBoundKey = "costAtMostEnergy" | "costBelowEnergy" | "costAtLeastEnergy" | "costAboveEnergy";
 /** Which comparator and whose energy a match of `ENERGY_COST_VS_ENERGY` / `ENERGY_BOUND` said. */
@@ -1018,6 +1018,13 @@ function parseOneFilter(text: string): CardFilter {
   // KO'd every Battle Card on both boards instead of the small ones.
   else if ((m = /([\d,]+) or less power\b/.exec(pw))) f.powerMax = Number(m[1].replace(/,/g, ""));
   else if ((m = /([\d,]+) or more power\b/.exec(pw))) f.powerMin = Number(m[1].replace(/,/g, ""));
+  // "...with an energy cost of 3 or more and **power of 35000 or less** in your Drop Area" (BT7-017, #907
+  // round 4): the measure said before its number. Unread, the bound vanished and the selector offered
+  // every card in the area. Never "original power of" (read above) or "combo power" (taken out of `pw`).
+  else if ((m = /(?<!original )\bpowers? of ([\d,]+) or (less|more)\b/.exec(pw))) {
+    if (m[2] === "less") f.powerMax = num(m[1]);
+    else f.powerMin = num(m[1]);
+  }
   // An exact power, which searches print alongside the cost: "a yellow
   // <Son Goku> card with an energy cost of 3 and 5000 power". Only after
   // "with"/"and", so that "it gets +5000 power for the turn" is not read as a

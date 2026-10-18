@@ -120,6 +120,8 @@ function readsAsAction(said: string): boolean {
 }
 
 const COLOR_WORD = "(?:red|blue|green|yellow|black|colorless)";
+/** One whole card name or character name in the text: `{Card Name}` or `<Character>`. */
+const NAMED_CARD = "(?:<[^>]+>|\\{[^}]+\\})";
 const COLOR_NAMES_PATTERN = "(?:an?\\s+)?(?:red|blue|green|yellow|black|colorless)";
 const AREA_NAMES_PATTERN = "(?:(?:your|your opponent's|the|an?)\\s+)?(?:hand|deck|drop|warp|life|battle|unison|energy|leader|combo|play|z-deck|z-energy|zdeck|zenergy)(?: area)?";
 
@@ -348,6 +350,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
   const shaped = costConditionShape(t, allowBare);
   if (shaped !== undefined) return shaped;
+  // #907 round 4: "if there is at least 1 <Son Goten>, <Trunks: Youth>, and <Videl> card in your Drop Area"
+  // (BT7-054), "if you have at least 1 <Recoome>, <Jeice>, <Burter>, and <Guldo> card in play" (BT10-076),
+  // "if you have 1 or more <Shroom> and <Salsa> card in your Combo Area" (EX23-42): one card of EACH name,
+  // as the pair "<A> and <B> are in your Drop Area" already is - not one card that is any of them, which
+  // is what the single description below made of it (the cost reduction of BT7-054 came on with any one
+  // of the three there). The names are counted one by one and all must hold.
+  const eachName = new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:at least\\s+)?(\\d+)\\s*(?:or more\\s+)?((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t);
+  if (eachName && !/\b(?:both|each|all)\b/.test(eachName[3])) {
+    const names = [...eachName[2].matchAll(new RegExp(NAMED_CARD, "g"))].map((x) => x[0]);
+    const conds: Cond[] = [];
+    for (const name of names) {
+      const one = parseConditionClause(`if there are ${eachName[1]} or more ${name} cards ${eachName[3]}`, true);
+      if (!one) return null;
+      conds.push(one.cond);
+    }
+    return { cond: { kind: "all", conds } };
+  }
   // "If your Leader is a green <Broly> card **and** you have 2 or more
   // energy" — two conditions in one price. Every pattern below has a greedy
   // tail that would swallow the second and drop it in silence, which is worse
@@ -358,11 +377,16 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // with "or" is cut there first: "your life is at 4 or less, **or** you have
   // 2 or more energy and you have …" (BT31-001) is life, or the rest — never
   // (life or energy) and the rest (#728).
-  if (/ and /.test(t) && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
+  // #907 round 4: the "and" between two names of one count ("1 or more <A> and <B> cards in your
+  // Combo Area", BT19-035b) is the list's own, read whole by the each-name reading above.
+  const holdNames = (s: string) => s.replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2");
+  const unhold = (s: string) => s.replaceAll("\u0001", " and ");
+  const andParts = holdNames(t).split(/ and /).map(unhold);
+  if (andParts.length > 1 && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
     const conds: Cond[] = [];
-    const raw = clause.trim().split(/ and /i);
+    const raw = holdNames(clause.trim()).split(/ and /i).map(unhold);
     let charged = false;
-    const parts = t.split(/ and /);
+    const parts = andParts;
     for (const [i, part] of parts.entries()) {
       // "You have 2 or more energy **and a yellow Z-Unison with a specified
       // cost of 1 in play**" (BT25-099, BT26-001 and ten more [Awaken]s, #728):
