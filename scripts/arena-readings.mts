@@ -25,6 +25,7 @@ import { parseSkills } from "../src/lib/arena/text/cards";
 import { compileSkill } from "../src/lib/arena/compile";
 import { KNOWN_SILENT, readsAsNothingSilently } from "../src/lib/arena/compile/silent";
 import { describeScript } from "../src/lib/arena/vm/script";
+import { isGameRuleReminder } from "../src/lib/arena/rule-scope";
 
 const args = process.argv.slice(2);
 const value = (name: string) => {
@@ -50,6 +51,10 @@ const flat = (s: string) => s.replace(/\s+/g, " ").trim();
 let lines = 0;
 
 for (const d of defs) {
+  // Energy Marker reminders are game rules (1-14, 6-2-1-11), not card skills: the
+  // drafter and the review queue already leave them out (`skillRecords`), so their
+  // 59 unread "clauses" were a census artefact, the biggest family in it.
+  if (isGameRuleReminder(d.type)) continue;
   for (const [face, text] of [
     ["", d.skill],
     ["b", d.back?.skill],
