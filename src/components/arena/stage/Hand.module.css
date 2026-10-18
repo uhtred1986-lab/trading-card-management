@@ -1,0 +1,18 @@
+/* A crowded hand shows only a sliver of each card: the app's power number rides on that sliver,
+   in impact type with an ink outline, so every card reads its cost (top) and power (bottom). */
+.fanPower {
+  position: absolute;
+  bottom: 26px;
+  left: 1px;
+  z-index: 4;
+  font-family: var(--font-impact), "Kanit", "Arial Black", sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 3px #12161f;
+  paint-order: stroke fill;
+  white-space: nowrap;
+  pointer-events: none;
+}

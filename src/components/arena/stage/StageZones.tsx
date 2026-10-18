@@ -1,11 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { untilWords } from "@/lib/arena/effects";
 import type { Action, PlayerId } from "@/lib/arena/types";
 import type { MissingEnergyChip } from "@/lib/arena/wording";
 import type { BoardView, CardView, SideView } from "@/lib/arena/view";
-import type { CardState } from "../ArenaCard";
+import { preloadCardArt, type CardState } from "../ArenaCard";
 import { Counter } from "../shared";
 import { Count } from "./BattleParts";
 import { ZoneAnchor } from "./anchors";
@@ -163,6 +163,7 @@ export function BattleRow({
   const leader = side.leader;
   const unison = side.unison && !lifted?.has(side.unison.id) ? side.unison : null;
   const filled = cards.length + (unison ? 1 : 0);
+  useEffect(() => { preloadCardArt(leader ? [leader, ...cards] : cards, UNIT_W); }, [leader, cards]);
   const compact = compactLifted && !!leader && !!lifted?.has(leader.id) && filled === 0 && !drop;
   const placeholderSize = (width: number) => ({ ...sized(width), ...(compact ? { height: "calc(80px * var(--arena, 1))" } : {}) });
   const empty = Math.max(0, SLOTS - filled);

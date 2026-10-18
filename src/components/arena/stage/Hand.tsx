@@ -2,10 +2,12 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
+import { preloadCardArt } from "../ArenaCard";
 import { ZoneAnchor } from "./anchors";
 import { HandPeek } from "./HandPeek";
 import { StageCard } from "./StageCard";
 import styles from "./phone-board.module.css";
+import handStyles from "./Hand.module.css";
 
 /** A hand card at phone scale (`--arena` multiplies it from `sm` up): the redesign's 84 × 117. */
 export const HAND_W = 84;
@@ -51,6 +53,8 @@ export function Hand({
   const [room, setRoom] = useState<{ width: number; card: number; desktop: boolean } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const n = cards.length;
+  // Fetch and decode the hand's art ahead of drawing it, so a re-render never shows empty boxes.
+  useEffect(() => { preloadCardArt(cards, defending ? 66 : HAND_W); }, [cards, defending]);
   const cardWidth = defending ? 66 : HAND_W;
   const wide = room?.desktop ?? false;
   const fanMode = !wide && n > 6;
@@ -222,6 +226,7 @@ export function Hand({
             const status = handStatus?.(c.id) ?? null;
             const left = 10 + i * step;
             return <div key={c.id} className={styles.handFanOverlay} style={{ left }}>
+              {c.power != null && !c.hidden && <span className={handStyles.fanPower}>{c.power >= 1000 ? `${+(c.power / 1000).toFixed(1)}k` : c.power}</span>}
               {c.cost != null && <span className={`${styles.fanCost} ${status === "unaffordable" ? styles.status_unaffordable : ""}`}>{c.cost}</span>}
               {status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} />}
               {/* The fan is a dense overview: full action words belong in the card review. */}
