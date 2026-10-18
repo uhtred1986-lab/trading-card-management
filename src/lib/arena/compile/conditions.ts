@@ -514,6 +514,18 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
   }
+  // "If a {Dr.Uiro's Lab} in your Battle Area has 17 or more cards under it"
+  // (BT8-045b): the pile under another card, counted. Best guess where two
+  // such hosts stand: their piles are added (the card is not Unique-limited
+  // in the text, but no deck has been seen with two).
+  if ((m = /^(an? .+? in your battle area) has (\d+) or more cards? under (?:it|them)$/.exec(t))) {
+    const host = parseTarget(m[1]);
+    if (host && !host.special) {
+      delete host.count;
+      delete host.upTo;
+      return { cond: { kind: "count", sel: { side: "you", area: "under", underHost: host }, atLeast: Number(m[2]) }, subject: { sel: host } };
+    }
+  }
   // "If you **only** have blue ≪Power Wish≫ <Son Goku> cards in play in your
   // Battle Area" (EX24-05, BT7-004, P-210; owner's ruling of 17 Oct 2026): every
   // Battle Card you have fits the description, AND there is at least one. An

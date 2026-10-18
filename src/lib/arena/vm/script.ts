@@ -415,6 +415,8 @@ export type Cond =
   | { kind: "chose"; var: string; atLeast?: number }
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
   | { kind: "varMatches"; var: string; filter: CardFilter }
+  /** "If the revealed card's energy cost is the same as the declared number" (BT22-090): a card a reveal or a look bound has this measure equal to the X a `declare` bound. */
+  | { kind: "varAttrIsX"; var: string; attr: AmountAttr }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" }
   /**
@@ -548,6 +550,15 @@ export type Op =
   /** "Add cards from your life to your hand until you have N life" (21-3-2 wording, without damage). */
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
+  /**
+   * "Declare 1 number" (BT22-090 and the Fortuneteller Baba cards): the master
+   * names a whole number from `min` to `max`, and the program reads it back as
+   * X ("the declared number", `{x:true}`; `varAttrIsX` compares a revealed
+   * card against it). A prompt of its own, answered like a "choose one".
+   */
+  | { op: "declare"; max: number; min?: number }
+  /** "You win the game" (BT16-017, BT16-068, BT8-045b, BT30-017b): the game ends now with this side the winner (a skill that says it is a way a game ends, 0-1-3). */
+  | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
   | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:main/battle"; from: "hand" }
@@ -1826,6 +1837,32 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           while (h.zone(p, "life").length > op.n) h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
         }
         break;
+
+      case "declare": {
+        // The answer comes back as the index of the option asked, which is the number less `min`.
+        if (frame.awaiting === "declare" && h.lastMode() != null) {
+          frame.x = (op.min ?? 0) + h.lastMode()!;
+          h.clearLastMode();
+          frame.awaiting = undefined;
+          h.note(`${h.playerName(master)} declares ${frame.x}`);
+          break;
+        }
+        frame.awaiting = "declare";
+        h.resume(frame);
+        const options: string[] = [];
+        for (let n = op.min ?? 0; n <= op.max; n++) options.push(String(n));
+        h.ask({ kind: "chooseMode", player: master, reason: `${h.nameOf(frame.card)}: declare a number`, options });
+        return "wait";
+      }
+
+      case "win": {
+        // The game is over the moment the skill says so: nothing after it in
+        // this program, or waiting behind it, is played.
+        const [winner] = sideOf(master, op.side);
+        h.winGame(winner, `${h.playerName(winner)} won: ${h.nameOf(frame.card)} says "you win the game"`);
+        frame.ip = frame.ops.length;
+        return "done";
+      }
 
       case "shuffle":
         // 5-11-2: each closed area actually searched is shuffled. A plain

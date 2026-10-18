@@ -7,7 +7,7 @@ import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, splitModal, taxWordings } from "./effects";
-import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, priceCondition, priceIsUnread, priceX } from "./prices";
+import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -34,7 +34,11 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
-  const sc = narrowHiddenChoices(compileSkillText(skill));
+  const read = narrowHiddenChoices(compileSkillText(skill));
+  // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
+  // first, whichever way the rest of the effect reads.
+  const declared = declaredNumber(skill);
+  const sc = declared && read.ops.length ? { ...read, ops: [{ op: "declare", min: declared.min, max: declared.max } as Op, ...read.ops] } : read;
   // The printed effect after an [Awaken] or [Awaken: Surge] colon remains
   // part of that keyword skill. Preserve that cause on mode-switch events so
   // triggers requiring a non-[Awaken] skill cannot mistake it for an ordinary

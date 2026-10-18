@@ -281,6 +281,20 @@ function refsFor(phrase: string, c: Ctx): Ref[] | null {
     .split(/\s+and\s+/i)
     .map((p) => p.trim())
     .filter(Boolean);
+  // "multicolor <Pan> cards **and** multicolor Battle Cards with <GT> in their
+  // character names **in all of your areas**" (BT25-098): the area at the end
+  // belongs to every description in the list, and each description keeps its
+  // own filter. Two selectors, one per description (#907).
+  const sharedTail = parts.length > 1 ? /\s+(in all of your areas)$/i.exec(parts[parts.length - 1]) : null;
+  if (sharedTail && parts.slice(0, -1).every((p) => /\bcards?$/i.test(p) && !/\b(?:in|from) (?:all of )?(?:your|their)\b/i.test(p))) {
+    const out: Ref[] = [];
+    for (const part of parts) {
+      const r = refFor(/\bin all of your areas$/i.test(part) ? part : `${part} ${sharedTail[1]}`, c);
+      if (!r) return null;
+      out.push(r);
+    }
+    return out;
+  }
   if (parts.length > 1 && BARE_TARGET.test(parts[0])) {
     const out: Ref[] = [];
     for (const part of parts) {
@@ -1022,7 +1036,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (t === "skip all phases until the charge phase in your next turn") return [{ op: "skip", what: "span" }];
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
-  if ((m = /^draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
+  // "…, and **you draw** 1 card" (BT8-089b, TB2-033, BT19-022): the same draw with its subject said.
+  if ((m = /^(?:you )?draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
   // 20-5: "Draw X cards" — the X the price was paid at, read off the frame the
   // activation bound it on. Only when the price charges one: a program that
   // says `X` with nothing to bind it throws where it resolves, and the honest
@@ -1152,15 +1167,39 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // in between has taken its own — so it is the look's variable minus the
   // choice's, not the whole look (20-11).
   {
-    const REST = "the (?:remaining cards|rest of the cards|rest|other cards)";
+    const REST = "(?:the|any) (?:remaining cards?|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) the (top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
-    if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
+    // "…on the top or bottom of your deck in any order" / "…on the top and/or
+    // bottom": the player says which end. Best guess (no ruling prints it): one
+    // answer for the whole remainder, not one per card, since the order is
+    // theirs anyway and the engine keeps no order for a pile moved at once.
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (?:or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).exec(t)))
+      return [{
+        op: "chooseMode", chooser: "you", reason: "Put the remaining cards on the top or the bottom of the deck",
+        modes: [
+          { label: "Top of the deck", ops: [{ op: "moveTo", target: rest, to: "deck", position: "top" }] },
+          { label: "Bottom of the deck", ops: [{ op: "moveTo", target: rest, to: "deck", position: "bottom" }] },
+        ],
+      }];
+    if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their owners?'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
     // "…then send the rest to their owner's Warp" (BT30-106, 3-10).
     if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
   }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
+  // "Declare a number from 0 to 3" (EX Android card), said in the effect itself.
+  if ((m = /^declare (?:1|a|one) numbers?(?: (?:that'?s (\d+) or (?:less|fewer)|from (\d+) to (\d+)))?$/.exec(t))) {
+    return [{ op: "declare", min: m[3] ? Number(m[2]) : 0, max: m[3] ? Number(m[3]) : m[1] ? Number(m[1]) : 10 }];
+  }
+  // "Reveal the top card of your opponent's deck, then **flip the revealed card
+  // over and place it at the top of their deck**" (BT22-090 and the Fortuneteller
+  // Baba cards): the reveal already left the card where it was, face down again
+  // is the state it started in, so there is nothing more to do (20-11-2).
+  if (c.lastNamed && c.lastSeen && /^(?:flip the revealed card over|place it (?:at|on) the top of (?:their|your opponent'?s) deck)$/.test(t)) return [{ op: "note", text: "the revealed card goes back on top of the deck" }];
+  // "You win the game" (BT16-017, BT16-068, BT8-045b): the skill ends the game.
+  // Its condition is read in front of it like any other, so this is the bare sentence.
+  if (/^you win the game$/.test(t)) return [{ op: "win" }];
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
   if (/^(?:your opponent|they) shuffles? (?:their|his|her) deck$/.test(t)) return [{ op: "shuffle", side: "opponent" }];
   // Revealing (20-11-2). Unlike looking, both players see the cards, and they
@@ -1343,6 +1382,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // has ruled on what it means (BT19-039, 9 Sep 2026): unlike this generic
   // reducer, it changes only which colours are demanded, never the total.
   let qq = q;
+  // "Increase this card's energy cost by the declared number for the turn"
+  // (BT22-xxx Fortuneteller Baba's Palace cards, EX Android cards), "choose up
+  // to 1 of your opponent's … Battle Cards and increase its energy cost by the
+  // declared number": the amount is the X a `declare` bound earlier in the
+  // program (20-21 reads a raise as a reduction turned round, as above).
+  {
+    const declaredCost =
+      /^(increase|reduce|decrease)s? (this card|that card|its|their|the chosen cards?)'?s? energy costs? by the declared number$/.exec(qq) ??
+      /^(this card|that card|its|their)'?s? energy costs? (increases?|reduces?|decreases?) by the declared number$/.exec(qq);
+    if (declaredCost) {
+      const verb = (declaredCost[1].startsWith("increase") || declaredCost[1].startsWith("reduce") || declaredCost[1].startsWith("decrease") ? declaredCost[1] : declaredCost[2]).replace(/s$/, "");
+      const subject = (declaredCost[1].startsWith("increase") || declaredCost[1].startsWith("reduce") || declaredCost[1].startsWith("decrease") ? declaredCost[2] : declaredCost[1]).replace(/^its$/, "it").replace(/^their$/, "them");
+      const target = refFor(subject, c);
+      if (!target || (c.stale && target === c.stale)) return null;
+      return [{ op: "costReduction", target, amount: { x: true, ...(verb === "increase" ? { times: -1 } : {}) }, until: durationOf(clause) }];
+    }
+  }
   let possessive: RegExpExecArray | null;
   if ((possessive = /^(reduce|increase|decrease) (this card|that card|its|their)'?s? ((?:energy|skill|evolve|combo|z-energy) )?costs?(?: in (?:your|their) (?:hand|z-deck))? by (.+)$/.exec(qq))) {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
@@ -1512,6 +1568,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // which is what stripping it here used to produce.
     let ref = refFor(targetText, c);
     const kindWordTrim = kindWord?.trim();
+    // "…the combo cost of A cards and B cards in all of your areas by 1": the
+    // list is two descriptions with a shared area, one reduction each (#907).
+    const listed = kindWordTrim !== "skill" && kindWordTrim !== "evolve" && /\sand\s/.test(targetText) && /\bin all of your areas$/i.test(targetText) ? refsFor(targetText, c) : null;
     let skillKind: SkillKindPrefix | undefined;
     let scopeTag: string | undefined;
     let scopeEvolve = false;
@@ -1574,7 +1633,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return [{ op: "costReduction", target: ref, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }];
+    return (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -1610,8 +1669,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^negate the \[([a-z0-9\- ]+)\] skills? (?:on|of) (.+)$/.exec(q))) {
     const kw = keywordOf(m[1]);
     if (kw) {
-      const ref = refFor(m[2], c);
-      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+      const refs = refsFor(m[2], c);
+      return refs ? refs.map((target) => ({ op: "negateKeyword", keyword: kw.name, target }) as Op) : null;
     }
     if (!/^(?:auto|activate|counter|permanent)\b/.test(m[1])) return null;
   }
@@ -4375,6 +4434,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         }
         continue;
       }
+    }
+
+    // "If the revealed card's energy cost is the same as the declared number"
+    // (BT22-090 and the Fortuneteller Baba cards): the card the reveal turned up
+    // against the number the `declare` before it named.
+    if (c.lastNamed && /^(?:if|when) the (?:revealed|chosen) card'?s energy cost is (?:the same as|equal to) the declared number$/i.test(clause.trim().replace(/[.,]$/, ""))) {
+      groups.push({ conds: [{ kind: "varAttrIsX", var: c.lastNamed, attr: "energyCost" }], ops: [] });
+      continue;
     }
 
     // "If you use this skill to play a Battle Card with [Over Realm]"

@@ -376,6 +376,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special || sel.side === "opponent") return null;
     return { ...sel, ownedByOpponent: true };
   }
+  // "…5 cards **owned by your opponent** under this card" (BT16-068): the same
+  // test said the other way round. Dropped, the pile under the card counted
+  // as the player's own, and the card that wins the game on it won it early.
+  const ownedBy = /\s*,?\s*(?:that are|that is|which are|which is)?\s*owned by your opponent\b/i.exec(phrase);
+  if (ownedBy) {
+    const sel = parseTarget(phrase.replace(ownedBy[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special || sel.side === "opponent") return null;
+    return { ...sel, ownedByOpponent: true };
+  }
   const characters = DIFFERENT_CHARACTERS.exec(phrase);
   if (characters) {
     const sel = parseTarget(phrase.replace(characters[0], " ").replace(/\s+/g, " ").trim(), looked, pool);

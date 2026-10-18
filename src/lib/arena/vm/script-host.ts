@@ -189,6 +189,8 @@ export interface ScriptHost {
   setPlayerAttr(p: PlayerId, name: string, value: boolean | { add: number }): void;
   /** 21-3: record damage taken, for the cards that count it. */
   addDamageTaken(p: PlayerId, n: number): void;
+  /** A skill says "you win the game": the game ends now with this player the winner. */
+  winGame(p: PlayerId, reason: string): void;
   /** 5-11: shuffle these players' decks with the game's own RNG, so a replay reproduces the order. */
   shuffleDecks(players: PlayerId[]): void;
   /** 5-11-2: shuffle life after it was searched, using the same persisted RNG. */

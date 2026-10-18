@@ -237,6 +237,27 @@ export function priceX(skill: Skill): XCost | null {
 }
 
 /**
+ * "[Auto] **Declare 1 number**: When this card attacks, reveal the top card of
+ * your opponent's deck …" (BT22-090, BT22-101 and the Fortuneteller Baba cards),
+ * "{y}, declare 1 number: …", "Declare 1 number that's 3 or less: …": the
+ * printed price is naming a number, which the effect then reads back ("the
+ * declared number"). Best guess (no ruling prints it; the manual has no
+ * declaration step): naming a number costs nothing, so it is the first thing the
+ * effect does, once the skill resolves, and the only thing lost against a real
+ * price is the option of declining the whole skill. An unconstrained number
+ * offers 0 to 10 (the highest energy cost the revealed card could have is
+ * well inside it).
+ */
+const DECLARE_TAIL = /(?:^|[,\s])(?:you )?declare (?:1|a|one) numbers?(?: (?:that'?s (\d+) or (?:less|fewer)|from (\d+) to (\d+)))?$/i;
+
+export function declaredNumber(skill: Pick<Skill, "cost">): { min: number; max: number } | null {
+  const m = DECLARE_TAIL.exec(costText(skill.cost));
+  if (!m) return null;
+  if (m[3]) return { min: Number(m[2]), max: Number(m[3]) };
+  return { min: 0, max: m[1] ? Number(m[1]) : 10 };
+}
+
+/**
  * True when the price is nothing but orbs (and the reminder text beside them).
  * The slash of "{r}/{u}" is part of the orb notation, not leftover text.
  */
@@ -244,6 +265,9 @@ export function costIsOnlyOrbs(cost: string): boolean {
   return (
     stripNotes(cost)
       .replace(/\{[^}]*\}/g, "")
+      // "Declare 1 number" is read as the effect's first step (`declaredNumber`):
+      // it leaves nothing to pay, so a price that is only orbs and a declaration is orbs.
+      .replace(/(?:^|[,\s])declare (?:1|a|one) numbers?(?: (?:that'?s \d+ or (?:less|fewer)|from \d+ to \d+))?\s*$/i, "")
       .replace(/[\s,:/]/g, "").length === 0
   );
 }
@@ -295,6 +319,10 @@ export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | nu
  */
 function priceText(skill: Skill): string {
   const said = costText(skill.cost);
+  // "Declare 1 number" costs nothing to pay: it is read as the first step of
+  // the effect (`declaredNumber`), so the price has nothing else to say.
+  const declared = DECLARE_TAIL.exec(said);
+  if (declared && declaredNumber(skill)) return said.slice(0, declared.index).replace(/[\s,]*(?:and)?[\s,]*$/i, "");
   if (skill.bond != null) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
   if (skill.spiritBoost != null) return said.replace(/^(?:[a-z-]+ )?(?:z-)?unison cards?\b[^,]*(?:,\s*|$)/i, "");
   return said;

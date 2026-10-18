@@ -146,6 +146,8 @@ disagree or if a row is missing from either.
 | `addLife` | macro over `move` | Top of deck to the Life Area. |
 | `lifeDownTo` | macro over `move` | "Until you have *n* life" is `life(you) - n` cards from life to hand: `moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)`, declared in `ops.rules` since #137 once an amount could subtract (`- n` is `+ -n`). `moveAs` reads the move back as `lifeDownTo`, whose case takes "both players" one pile at a time. |
 | `shuffle` | primitive | An order nobody chose. No sequence of moves reproduces it, and the RNG is the interpreter's (§7). |
+| `win` | primitive | "You win the game" (BT16-017, BT16-068, BT8-045b, BT30-017b): a skill ends the game with its master the winner. No move of cards says it; `checkWins` only ends a game from a `DEFINE WIN` condition that someone has *lost*, and the skill states the win itself. The program stops where it stands. |
+| `declare` | primitive | "Declare 1 number" (BT22-090 and the Fortuneteller Baba cards): the master names a whole number, which the program reads back as X ("the declared number"). A prompt of its own, answered as a "choose one" among the numbers; nothing else in the language invents a number. Printed as a price, read as the effect's first step (labelled best guess, #907). |
 | `energyMarker` | macro over `modifyAttr` | A counter on the **player**, not on a card — the first of the three widenings §2.5 asks for. |
 | `choose` | primitive | The only op that binds cards a player picked to a name; every "the chosen cards" downstream reads that binding. |
 | `look` | macro over `reveal` | The same act with a narrower audience (20-11): the cards stay where they are and are bound to a name. "The top *n*" is the selector's `TOP n` (`BOTTOM n` by `from`), "your opponent's hand" its area. Declared since #137 as `reveal(…, audience: you)` under `GIVEN`/`UNLESS` guards; `revealAs` reads each shape back as `look`. |
@@ -228,6 +230,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `not` | primitive | Negation. |
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
 | `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
+| `varAttrIsX` | primitive | "If the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal bound, measured against the X a `declare` bound. A comparison between a card's measure and a number the program holds, which `count` (a bound written into the program) cannot say. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
 | `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
 | `forbidden` | primitive | A search over the rules in force rather than over the board — a prohibition carries a budget, an escape clause and a chair to read it from (20-14), none of which is a count of cards. |
