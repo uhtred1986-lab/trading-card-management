@@ -47,7 +47,7 @@ export function PlaySpotlight({ beat, art, viewer, ms }: { beat: NumberedBeat | 
   return (
     <div key={beat.n} className="arena-focus pointer-events-none fixed inset-0 z-[38] grid place-items-center" style={{ "--focus-ms": `${clampMs(ms)}ms` } as React.CSSProperties} data-play-spotlight={beat.n} aria-hidden>
       <div className="flex flex-col items-center gap-3">
-        <Face art={art} id={beat.card} width={Math.min(240, Math.round(innerWidthHint() * 0.58))} />
+        <Face art={art} id={beat.card} width={Math.min(240, Math.round(innerWidthHint() * 0.58))} className="ring-4 ring-violet-400 shadow-[0_0_28px_rgba(167,139,250,0.7)]" />
         <p className="arena-impact max-w-[80vw] truncate rounded-full bg-black/75 px-4 py-1.5 text-lg font-black text-white">{a.name}</p>
       </div>
     </div>

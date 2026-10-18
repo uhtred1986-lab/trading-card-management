@@ -58,10 +58,12 @@ export function TurnPill({ view, className = "" }: { view: BoardView; className?
   const yours = view.turnPlayer === view.you.player;
   const name = (yours ? view.you : view.them).name;
   return (
-    <div role="status" className={`arena-turnpill inline-flex min-w-0 max-w-[min(100%,26rem)] items-center gap-1.5 rounded-full py-1.5 pl-2 pr-2.5 sm:gap-2 sm:pl-2.5 sm:pr-3 ${className}`} data-turn={yours ? "you" : "them"}>
+    <div role="status" className={`arena-turnpill inline-flex shrink-0 max-w-[min(100%,26rem)] items-center gap-1.5 rounded-full py-1.5 pl-2 pr-2.5 sm:gap-2 sm:pl-2.5 sm:pr-3 ${className}`} data-turn={yours ? "you" : "them"}>
       <span className="arena-turnpill-dot h-2.5 w-2.5 shrink-0 rounded-full" aria-hidden />
-      <span className="arena-turnpill-who truncate px-px text-[15px] uppercase leading-none sm:text-base lg:text-xl">{turnWords(yours, name)}</span>
-      <span className="arena-turnpill-num shrink-0 whitespace-nowrap text-[13px] leading-none tabular-nums">Turn {view.turn}</span>
+      <span className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+        <span className="arena-turnpill-who whitespace-nowrap px-px text-[13px] uppercase leading-none sm:text-base lg:text-xl">{turnWords(yours, name)}</span>
+        <span className="arena-turnpill-num shrink-0 whitespace-nowrap text-[11px] leading-none tabular-nums sm:text-[13px]">Turn {view.turn}</span>
+      </span>
     </div>
   );
 }

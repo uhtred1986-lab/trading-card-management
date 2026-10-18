@@ -39,7 +39,9 @@
   position: absolute;
   height: 112%;
   aspect-ratio: 1;
-  left: 2%;
+  /* Framed on the centre of the banner (the hero sheet and its frames are unchanged). */
+  left: 50%;
+  translate: -50% 0;
   bottom: -6%;
   background-repeat: no-repeat;
   background-size: 300% 100%;
