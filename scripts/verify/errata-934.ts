@@ -5,10 +5,10 @@
  * round trip -> the real VM, with the exact official before/after strings
  * (page re-read 17 Oct 2026, https://www.dbs-cardgame.com/us-en/rule/errata-cards.php).
  *
- * Not claimed here (still #926/#930): the [Union-Absorb] cost of BT3-070 has no
- * program the engine pays, so the corrected "choose 1 each" is stored text and
- * a record cost.text only; P-360's *granted* Fusion skill is a Union permission
- * the compiler leaves unread. Colour orbs ({u}{y}, {r}{1}, {g}) are untouched by
+ * #930 reads what this file used to leave open: the [Union-Absorb] cost of BT3-070
+ * ("choose 1 each", required) is a program the engine pays, and P-360's *granted*
+ * Fusion skill is a standing permission (both in scripts/verify/union-sources-930.ts).
+ * Colour orbs ({u}{y}, {r}{1}, {g}) are untouched by
  * these errata and were not re-derived from the extracted monochrome text.
  */
 import assert from "node:assert/strict";
@@ -71,10 +71,15 @@ for (const skill of [snap("BT22-137"), fixed("BT22-137")]) {
   assert.deepEqual(roundtrip(c.condition), { kind: "count", sel: { side: "opponent", area: "energy" }, atLeast: 3 });
 }
 assert.match(rec("BT22137", fixed("BT22-137")).cost!.text, /and you draw 2 cards$/);
-// BT3-070: the cost text is the corrected one; the engine reads no program for it (#926/#930).
+// BT3-070: the cost text is the corrected one, and since #930 the engine reads a program for it
+// (one required Android 14, one required Android 15, each placed under this card) and pays it
+// (scripts/verify/union-sources-930.ts).
 assert.match(rec("BT3070", fixed("BT3-070")).cost!.text, /^choose 1 each of <Android 14> and <Android 15>/);
 assert.doesNotMatch(rec("BT3070", fixed("BT3-070")).cost!.text, /up to/);
-assert.equal(rec("BT3070", fixed("BT3-070")).cost!.program, null, "unsupported absorb cost stays under #926/#930");
+assert.deepEqual(rec("BT3070", fixed("BT3-070")).cost!.program!.map((o) => o.op), ["choose", "moveTo", "choose", "moveTo"], "the absorb cost is two required picks, each placed under this card (#930)");
+assert.ok(rec("BT3070", fixed("BT3-070")).cost!.program!.filter((o) => o.op === "choose").every((o) => !(o as { sel: { upTo?: boolean } }).sel.upTo), "'choose 1 each' (post-errata) is required, never 'up to'");
+// Before the errata ('choose up to 1 each') the clause is a different, optional wording and stays unread.
+assert.equal(rec("BT3070", snap("BT3-070")).cost!.program, null, "the pre-errata 'up to 1 each' wording is not read");
 // P-360: the discard is a required choice after the errata, optional before.
 const discardChoice = (skill: string) => (rec("P360", skill).cost!.program![0] as { op: string; sel: { upTo: boolean; count: number } });
 assert.equal(discardChoice(snap("P-360")).sel.upTo, true, "snapshot: 'up to 1' (could be paid with nothing, 5-2-4)");

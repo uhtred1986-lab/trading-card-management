@@ -459,7 +459,7 @@ DEFINE KEYWORD Union
   REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
   REFUSE target(reason: "needs {names} in hand") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf)])])
   REFUSE target(reason: "the two cards must have equal power") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf, samePower: true)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf, samePower: true)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf, samePower: true)])])
-  REFUSE target(reason: "needs {names} in your Battle Area") UNLESS any([NOT oneOf(value: $variant, of: ["Potara"]), eachNamed(sel: IN you.battle)])
+  REFUSE target(reason: "needs {names} in your Battle Area") UNLESS any([NOT oneOf(value: $variant, of: ["Potara"]), eachNamed(sel: IN you.battle), all([permits(what: unionEnergy), NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy))]), all([permits(what: unionFusionWarp), NOT permits(what: unionEnergy), eachNamed(sel: IN you.ANY(battle|warp))]), all([permits(what: unionEnergy), permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy|warp))])])
   label: "Union-{variant} {card}"
   DO {
     if(cond: oneOf(value: $variant, of: ["Fusion"]), then: {
@@ -487,6 +487,13 @@ DEFINE KEYWORD Union
       payActionPrice()
       play(target: [self], using: "Union-Fusion", counterWindow: true)
     })
+    if(cond: oneOf(value: $variant, of: ["Absorb"]), then: {
+      -- 22-13-6-1 (#930): "cost : effect". The materials the cost places under
+      -- this card (BT3-070, BT17-052, ...) are paid in full, or the skill is not
+      -- activated; the printed effect, which runs after this `DO`, then says
+      -- which card is played onto this one.
+      payActionPrice()
+    })
     if(cond: oneOf(value: $variant, of: ["Potara"]), then: {
       -- 22-13-5-2 (#926): the skill cost is paid as it is activated.
       payActionPrice()
@@ -499,11 +506,34 @@ DEFINE KEYWORD Union
       -- top to bottom - the first directly beneath the card), in Active Mode
       -- (the printed reminder "Place this card in Active Mode on top of the 2
       -- specified cards", and the official keyword page). Power effects of
-      -- both materials and their piles carry over (22-13-5-4-1). A permit
-      -- (BT24-112 back, BT20-125) adds sources under a Unison or in the
-      -- opponent's Battle Area; `playThen` first brings those into the Battle
-      -- Area silently (22-13-5-2-1-1) and then plays normally.
-      choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+      -- both materials and their piles carry over (22-13-5-4-1).
+      -- 22-13-5-2-1 (#930): a [Permanent] on this card widens where they are
+      -- chosen from - the energy (BT10-046 with 4 or more energy, BT10-053 with
+      -- 3 or more, P-220) or the Warp (BT10-132, P-230). Two more are read by
+      -- `namedCandidates` itself (#927): the pile under the master's black
+      -- Z-Unison (BT24-112 back) and Battle Cards the master owns in the
+      -- opponent's Battle Area (BT20-125).
+      if(cond: all([permits(what: unionEnergy), permits(what: unionFusionWarp)]), then: {
+        choose(sel: 2 IN you.ANY(battle|energy|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+      }, else: {
+        if(cond: permits(what: unionEnergy), then: {
+          choose(sel: 2 IN you.ANY(battle|energy), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+        }, else: {
+          if(cond: permits(what: unionFusionWarp), then: {
+            choose(sel: 2 IN you.ANY(battle|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+          }, else: {
+            choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+          })
+        })
+      })
+      -- 22-13-5-2-1-1 (#930): "first move any Battle Cards in that area to the
+      -- Battle Area, and then resolve the keyword skill normally"; the move
+      -- causes no area-movement Auto and no counter timing (`areaExtension`).
+      -- The cards from under a Unison and from the opponent's Battle Area (#927)
+      -- are brought the same way by `playThen`, as the play is declared; for
+      -- BT20-125, which is played in the opponent's Battle Area, every material
+      -- is brought there.
+      moveTo(target: FROM $pair IN you.ANY(energy|warp), to: battle, cause: areaExtension)
       play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, mode: active, using: "Union-Potara", counterWindow: true)
     })
   }

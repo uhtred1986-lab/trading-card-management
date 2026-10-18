@@ -2157,6 +2157,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
     const host = refFor(m[1], c);
+    // #930, [Union-Absorb] (22-13-6-3): "Choose up to 1 <Cell> from your deck
+    // and place it on top of this card" (BT2-085, BT2-086, BT2-027, BT2-109,
+    // BT3-020, BT3-022, BT3-048, BT3-050) is the Absorb's own play — the chosen
+    // card, which is in the deck, hand, Drop or Warp, is played on top of this
+    // one. The stack read below moves *this* card under the chosen one, which
+    // only makes sense when the chosen card is in play: under a deck card it
+    // moved the absorber nowhere and played nothing.
+    if (host && "var" in host) {
+      const from = c.choices.find((ch) => ch.var === host.var)?.sel;
+      if (from && !from.areas?.length && from.side === "you" && from.area && ["deck", "hand", "drop", "warp"].includes(from.area)) {
+        const onto = hostOf("this card", c);
+        if (onto) {
+          c.lastPlayed = host.var;
+          return [{ op: "play", target: host, onto }];
+        }
+      }
+    }
     return host ? [{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: host }] : null;
   }
   // "Place this card under the played card", "place it under the card you
@@ -2587,6 +2604,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   //
   // The plain hand discard is read above as a `discard`, which splices the
   // same choose with the same chooser; this is every other area.
+  // "They choose 1 card in their hand or 1 of their Battle Cards and place it in
+  // its owner's Drop Area" (BT15-085, #1015): two places, one pick, and *they*
+  // are the opponent whose play set the trigger off, so both the choice of
+  // place and the pick are theirs. The "or" used to be swallowed by the first
+  // half, leaving "1 Battle Card in your opponent's hand" — a card that does
+  // not exist in a hand — chosen by the opponent from a list they could not
+  // fill. Both branches bind one name, as for any two-kind choice above.
+  if ((m = /^(?:your opponent|they) chooses? (up to )?(\d+) cards? (?:in|from) their hand or (up to )?(\d+) of their (.+)$/.exec(t))) {
+    const second = parseTarget(`${m[3] ?? ""}${m[4]} of your opponent's ${m[5]}`);
+    if (!second || second.side !== "opponent" || second.fromVar || second.special || second.take != null || second.area === "hand") return null;
+    const v = `c${c.n++}`;
+    const hand: Selector = { side: "opponent", area: "hand", count: Number(m[2]), upTo: !!m[1] };
+    const a: Op = { op: "choose", sel: hand, as: v, chooser: "opponent", reason: clause };
+    const b: Op = { op: "choose", sel: second, as: v, chooser: "opponent", reason: clause };
+    track(a, c);
+    return [{ op: "chooseMode", modes: [{ label: "1 card in their hand", ops: [a] }, { label: `1 of their ${m[5]}`, ops: [b] }], chooser: "opponent", reason: clause }];
+  }
   if ((m = /^(?:your opponent|they) chooses? (.+)$/.exec(t))) {
     const sel = parseTarget(m[1]);
     if (sel && sel.side === "opponent") {

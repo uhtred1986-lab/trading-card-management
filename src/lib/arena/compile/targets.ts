@@ -329,10 +329,17 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     // current energy", BT19-036; "greater than or equal to your opponent's energy", DB1-059).
     const { key, opponent } = energyBoundOf(energyBound);
     // "Choose 1 Battle Card with an energy cost greater than or equal to your opponent's
-    // energy and KO it" (DB1-059, EX08-06) names no side: the bare noun reads as your own
-    // Battle Area here, which would put your cards on offer under an opponent's-energy
-    // bound. Whose cards the text means is not settled, so it is refused, not guessed.
-    if (!(key === "costAtMostEnergy" && !opponent) && !/\b(?:your|their|opponent'?s|each player|all players|both players|this)\b|\bfrom\b/i.test(phrase.replace(energyBound[0], " "))) return null;
+    // energy and KO it" (DB1-059, EX08-06) names no owner. #1015, a LABELLED BEST GUESS:
+    // no official Q&A covers either card (card FAQ searched 18 Oct 2026), so it reads as a
+    // Battle Card in EITHER Battle Area (`side: both`, as a bare counted choice does,
+    // 20-1-2). Two things point that way: DB1-059's other option says "of your opponent's"
+    // where this one does not, and a bound set by the opponent's energy would be an odd
+    // way to offer only your own cards. Other areas with no side named stay refused.
+    const sideNamed = /\b(?:your|their|opponent'?s|each player|all players|both players|this)\b|\bfrom\b/i.test(phrase.replace(energyBound[0], " "));
+    if (!(key === "costAtMostEnergy" && !opponent) && !sideNamed) {
+      if (sel.area !== "battle" || sel.fromVar) return null;
+      return { ...sel, side: "both", filter: { ...(sel.filter ?? emptyFilter()), [key]: true, energyOfOpponent: opponent } };
+    }
     return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), [key]: true, energyOfOpponent: opponent } };
   }
   const summed = SUM_BOUND.exec(phrase);
@@ -401,6 +408,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // own, not built.
   if (TWO_NAMED_CARDS.test(phrase)) return null;
   if (SUMMED_COUNT.test(phrase)) return null;
+  // #930, BT4-018: "<Baby> … with the same character name as the card you
+  // placed under this card" names a card by another card's name. There is no
+  // such filter, and "placed under this card" was read as the area the target
+  // is in ("under your cards"): a deck search of the wrong place. Refused whole.
+  if (/\bwith the same (?:character )?names? as the (?:card|cards) you (?:placed|chose)\b/i.test(phrase)) return null;
   // "Up to 1 Battle Card **each** from your deck and/or Drop" (SD19-03), "up
   // to 1 each of ≪Prison Planet≫ cards with energy costs of 3 and 4"
   // (P-664): a count per area or per kind, which one selector's count is not.

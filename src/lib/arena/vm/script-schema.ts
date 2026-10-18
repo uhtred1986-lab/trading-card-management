@@ -119,7 +119,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
 export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
-export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge"] as const satisfies readonly MoveReason[];
+export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
 const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
 export const KEYWORD_NAMES = [
@@ -323,7 +323,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "evolveEnergyBases", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "source", type: "filter" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "source", type: "filter" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -874,7 +874,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "overRealmFromWarp") {
         return renderTemplate("{target}'s [Over Realm] skill can be activated from its owner's Warp under the same conditions as from the hand", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
       }
-      if (op.what === "unionFusionWarp") return `this card’s [Union-Fusion] from hand may choose each named equal-power material from hand or Warp, sending them to Drop`;
+      if (op.what === "unionFusionWarp") return `this card’s [Union] skill from hand may choose its specified Battle Cards in your Warp as well (a Fusion’s go to the Drop, a Potara’s to the Battle Area)`;
+      if (op.what === "unionLine") return `${describeRef(op.target)} gain the skill: ${op.line ?? ""}`;
+      if (op.what === "unionEnergy") return `this card’s [Union] skill from hand may choose Battle Cards in your energy`;
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "evolveEnergyBases") return `${describeRef(op.target)}'s [Evolve] skill used from hand may choose its specified Battle Card from your energy; that energy-base evolution plays this card in Active Mode`;
       if (op.what === "aegisAltDrop") return `you can pay your [Aegis] skills by sending 1 ${(op.filter?.colors ?? []).join(" card and 1 ").toLowerCase()} card from your Drop to your Warp instead of discarding cards from your hand${forThe(op.until, r)}`;
@@ -1391,9 +1393,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "does every character the keyword line prints in ‹…› stand on a different card among these — and, with samePower, are they of one power? [Union]'s check before it is offered (22-13-4, 22-13-5). No card's record says this; it is read off the line a keyword's own program belongs to, like the `asPrinted` selector flag",
   },
   permits: {
-    fields: [{ name: "what", type: { enum: ["unionFusionAreas", "unionFusionWarp", "evolveEnergyBases", "aegisAlt"] }, required: true }],
-    sentence: (raw) => ((raw as { what?: string }).what === "aegisAlt" ? "a [Permanent] of yours lets this card's [Aegis] be paid another way, and that payment can be made now" : (raw as { what?: string }).what === "evolveEnergyBases" ? "this hand copy's [Permanent] permits energy-area evolution bases and Active Mode on that path" : (raw as { what?: string }).what === "unionFusionWarp" ? "this card's own [Permanent] lets its [Union-Fusion] from hand choose its specified materials from hand or Warp" : "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from"),
-    doc: "`evolveEnergyBases`: does this exact hand copy have its own energy-base permission? Independent of source-area permissions. `aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. `unionFusionWarp`: the card granting the permission must itself be the card activating Fusion and must be in hand. A `DEFINE KEYWORD` body's word; no card's record says this",
+    fields: [{ name: "what", type: { enum: ["unionFusionAreas", "unionFusionWarp", "unionEnergy", "evolveEnergyBases", "aegisAlt"] }, required: true }],
+    sentence: (raw) => ((raw as { what?: string }).what === "aegisAlt" ? "a [Permanent] of yours lets this card's [Aegis] be paid another way, and that payment can be made now" : (raw as { what?: string }).what === "evolveEnergyBases" ? "this hand copy's [Permanent] permits energy-area evolution bases and Active Mode on that path" : (raw as { what?: string }).what === "unionFusionWarp" ? "this card's own [Permanent] lets its [Union] skill from hand choose its specified materials from the Warp as well" : (raw as { what?: string }).what === "unionEnergy" ? "this card's own [Permanent] lets its [Union] skill from hand choose its specified Battle Cards in your energy as well" : "a [Permanent] of yours widens where this card's [Union-Fusion] may choose its cards from"),
+    doc: "`evolveEnergyBases`: does this exact hand copy have its own energy-base permission? Independent of source-area permissions. `aegisAlt`: does a `permit` of `aegisAltDrop` or `aegisAltOpponentHand` stand for this [Aegis] card, with the alternative payment it names payable on the board now (BT22-035, BT22-140; 22-30-3 \"instead of\")? `unionFusionAreas`: does a `permit` of this kind stand for the card whose line this program is? [Union-Fusion]'s widened areas (22-13-4-2-1, BT31-001's `unionFusionAreas`): the permission's filter is asked of the card using the skill, not of the leader that grants it. `unionFusionWarp` / `unionEnergy`: the card granting the permission must itself be the card activating its [Union] and must be in hand (#930: the Warp one serves [Union-Potara] BT10-132 / P-230 as well as Fusion; the energy one BT10-046 / BT10-053 / P-220). A `DEFINE KEYWORD` body's word; no card's record says this",
   },
   covers: {
     fields: [

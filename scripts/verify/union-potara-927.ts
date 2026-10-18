@@ -270,7 +270,10 @@ for (const seat of ["p1", "p2"] as const) {
     const fail = set(9279, "UNIBLK", "POTB"); stage(fail.s, foe, "CDROP", "hand");
     const rf = finish(begin(fail.s, fail.p), [fail.g, fail.v], (st, landed) => (landed ? null : zone(st, foe, "hand")[0]));
     assert.ok(zone(rf.s, seat, "drop").includes(fail.p));
-    assert.deepEqual(rf.s.cards[fail.u].under, fail.s.cards[fail.u].under, tag("a failed play leaves the pile under the Unison exactly as it was (nothing was brought out early)"));
+    // The move comes first and stays (22-13-5-2-1-1, as for the energy and Warp of #930): "first move ... then resolve normally".
+    assert.deepEqual(rf.s.cards[fail.u].under, [fail.x], tag("the Goku was brought out from under the Unison before the play; the rest of the pile stays"));
+    assert.ok(zone(rf.s, seat, "battle").includes(fail.g) && zone(rf.s, seat, "battle").includes(fail.v), tag("both materials stand in the Battle Area, as 22-13-5-2-1-1 left them"));
+    assert.deepEqual([rf.s.cards[fail.g].under, rf.s.cards[fail.v].under, rf.s.cards[fail.p].under], [[], [], []], tag("but nothing went under anything: the second material is not moved under a card that never entered play"));
   }
 
   // 5. BT20-125: Battle Cards you own in the opponent's Battle Area; the card is played there ─────
