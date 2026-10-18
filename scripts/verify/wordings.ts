@@ -1188,11 +1188,13 @@ import type { EngineState, Trigger } from "./harness";
   // carries the comparison on the selector (`costAtLeastEnergy` +
   // `energyOfOpponent`), so a phrase that names the opponent's Battle Cards reads
   // with its bound and is never an Energy Area. DB1-059 and EX08-06 themselves
-  // print the bare noun "1 Battle Card", which names no side and stays refused.
+  // print the bare noun "1 Battle Card", which names no side: #1015 reads it as either player's
+  // Battle Cards (best guess, `side: both`; no official Q&A covers either card).
   for (const number of ["DB1-059", "EX08-06"]) {
     const read = parseTarget("up to 1 of your opponent's Battle Cards with an energy cost greater than or equal to your opponent's energy");
     assert.deepEqual([read?.side, read?.area, read?.filter?.costAtLeastEnergy, read?.filter?.energyOfOpponent], ["opponent", "battle", true, true], `${number}: read with its bound`);
-    assert.equal(parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy"), null, `${number} printed: refused, not widened`);
+    const printed = parseTarget("1 Battle Card with an energy cost greater than or equal to your opponent's energy");
+    assert.deepEqual([printed?.side, printed?.area, printed?.filter?.costAtLeastEnergy, printed?.filter?.energyOfOpponent], ["both", "battle", true, true], `${number} printed: either player's Battle Cards (#1015, best guess)`);
     const bare = parseTarget("up to 1 of your opponent's Battle Cards");
     assert.equal(bare?.area, "battle", `${number}: the Battle Cards themselves still read`);
     assert.equal(bare?.side, "opponent", `${number}: and belong to the opponent`);
