@@ -4,6 +4,7 @@ import type { Cond, Op, Ref, Script, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, foldBothQualifier } from "./conditions";
 import { disjointMoveSpans } from "./disjoint-shape";
+import { namedSetSpans } from "./named-set-shape";
 import { compileClauseList } from "./effects";
 import type { Ctx } from "./shared";
 import { countWord } from "./shared";
@@ -387,7 +388,12 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // to 40000 or more", BT12-017) or one of each kind is a choice no selector
   // states (`parseTarget`). Refused whole: cut at its "and", the choice half
   // was read into the Leader condition before it.
-  if (SUMMED_COUNT.test(said) || EACH_COUNT.test(said)) return NO_PRICE;
+  // #930: "choose 1 each of <A> and <B> from your Drop Area and place them
+  // under this card" (BT3-070, BT3-020, BT3-022) is the one "each" the
+  // compiler reads — a named list, one slot per name (`named-set.ts`) — so the
+  // words of such a clause are not asked.
+  const withoutNamedSets = namedSetSpans(said).reduceRight((rest, [from, to]) => rest.slice(0, from) + rest.slice(to), said);
+  if (SUMMED_COUNT.test(said) || EACH_COUNT.test(withoutNamedSets)) return NO_PRICE;
   // #970: a multi-slot send/place beside an aside the readers above did not fold
   // ("a <Gogeta> or <Veku> card―both with the [aegis] skill―in play", BT22-033)
   // would keep the condition half-read: left unread whole.

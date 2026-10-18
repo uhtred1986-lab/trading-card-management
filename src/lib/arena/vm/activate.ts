@@ -94,7 +94,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, hasKeyword, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -228,6 +228,17 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
+  }
+  // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
+  // cards in your hand gain the following skill: [Union-Fusion]…") is a move of
+  // the keyword like a printed one. It has no record of its own — the keyword's
+  // `DO` is all its effect — and its energy is the orbs it prints.
+  if (game) {
+    for (const skill of grantedLines(ctx, game, state, card)) {
+      const keyword = keywordMoveOf(game, skill);
+      if (!keyword || !families.has(familyOf(keyword.offer as string))) continue;
+      out.push({ card, skillIndex: skill.index, skill, script: undefined, kind: keyword.offer as string, keyword });
+    }
   }
   return out;
 }
@@ -962,13 +973,15 @@ export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">
  * the record, or null for a move whose price is orbs and conditions alone, and
  * for every other line. Paid by the strict frame the keyword's `DO` puts in
  * front of itself where it says `payActionPrice` (`vm/keyword-costs.ts`).
- * [Union-Absorb] is not one: its line is "cost : effect" (22-13-6-1).
+ * #930: [Union-Absorb] is one too: its line is "cost : effect" (22-13-6-1) and
+ * its `DO` pays the cost (BT3-070's "choose 1 each of <Android 14> and
+ * <Android 15> from your Drop Area and place them under this card") first.
  */
 export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "script" | "skill">): Op[] | null {
   const name = line.keyword?.name;
   const printed = line.skill.keyword;
   const variant = printed && printed.name === name && "variant" in printed ? printed.variant : undefined;
-  if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara"))) return null;
+  if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara" || variant === "Absorb"))) return null;
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
 }

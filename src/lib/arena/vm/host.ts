@@ -724,7 +724,7 @@ function moveTo(
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
-  if (!opts.evolutionBase) emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
+  if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —

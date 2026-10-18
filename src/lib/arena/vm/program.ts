@@ -51,7 +51,7 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { mirrorSides } from "./common";
+import { grantedLineIndex, isGrantedLine, mirrorSides } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -610,15 +610,34 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
  * card granting it for `comboRest`), whose rule it is, and which cards it
  * lets in.
  */
-export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter }[] {
-  const out: { target: string; master: PlayerId; filter?: CardFilter }[] = [];
+export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string }[] {
+  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string }[] = [];
   for (const e of state.effects) {
     const p = e.kind === "permit" ? e.permit : undefined;
-    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}) });
+    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}) });
   }
   for (const e of staticsNow(ctx, game, state)) {
     const p = e.value as Permission;
-    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}) });
+    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}) });
+  }
+  return out;
+}
+
+/**
+ * #930, P-360: the printed lines a card has been granted right now, numbered
+ * from `GRANTED_LINE_BASE` in the order the permissions stand. A line that
+ * does not parse as exactly one [Union-Fusion] / [Union-Potara] skill is not a
+ * line (the compiler only writes such, so this is a guard on a stored record).
+ */
+export function grantedLines(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): Skill[] {
+  if (findCard(state, card)?.zone !== "hand") return [];
+  const out: Skill[] = [];
+  for (const p of permissions(ctx, game, state, "unionLine")) {
+    if (p.target !== card || !p.line || !permitted(ctx, game, state, p.filter, card)) continue;
+    const parsed = parseSkills(p.line);
+    const sk = parsed[0];
+    if (parsed.length !== 1 || sk.kind !== "keyword" || sk.keyword?.name !== "Union" || sk.keyword.variant === "Absorb") continue;
+    out.push({ ...sk, index: grantedLineIndex(out.length) });
   }
   return out;
 }
@@ -1256,7 +1275,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   // `sk.effect || sk.cost`. A frame with no line finds nothing.
   let matchesPrinted: ((id: string) => boolean) | null = null;
   if (sel.printed) {
-    const sk = lineOf(ctx, state, frame);
+    const sk = lineOf(ctx, state, frame, game);
     if (!sk) return [];
     const printed = predicateOf(parseFilter(printedDescription(sk)), game);
     matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
@@ -1538,7 +1557,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (p.master !== frame.master) return false;
         // A hand Permanent about “this card's” Fusion never widens another
         // card's skill, nor the granting card's skill from another area.
-        if (c.what === "unionFusionWarp" && (p.target !== card || findCard(state, card)?.zone !== "hand")) return false;
+        if ((c.what === "unionFusionWarp" || c.what === "unionEnergy") && (p.target !== card || findCard(state, card)?.zone !== "hand")) return false;
         return permitted(ctx, game, state, p.filter, card);
       });
     }
@@ -1576,7 +1595,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
  * line cannot be paid.
  */
 export function namedCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, picked: string[], samePower = true): string[] {
-  const sk = lineOf(ctx, state, frame);
+  const sk = lineOf(ctx, state, frame, game);
   if (!sk) return [];
   // #925: each printed name carries only its own qualifiers (colour, type,
   // cost, power), so the combined description (`asPrinted`) must not narrow
@@ -1627,8 +1646,10 @@ export function aegisAlternatives(ctx: EngineContext, game: GameDefinition, stat
 const ONE_CARD = "__one";
 
 /** The skill line a frame belongs to — the one `asPrinted` and `eachNamed` read their description off. Undefined for a frame that carries no line (a hook body, an action's `DO`). */
-function lineOf(ctx: EngineContext, state: VmState, frame: ScriptFrame): Skill | undefined {
+function lineOf(ctx: EngineContext, state: VmState, frame: ScriptFrame, game?: GameDefinition): Skill | undefined {
   if (frame.skillIndex === undefined || !frame.card) return undefined;
+  // #930: a line the card was granted (P-360) is found where `activationsOf` put it.
+  if (game && isGrantedLine(frame.skillIndex)) return grantedLines(ctx, game, state, frame.card).find((k) => k.index === frame.skillIndex);
   return skillsShowing(ctx, state, frame.card).skills.find((k) => k.index === frame.skillIndex);
 }
 

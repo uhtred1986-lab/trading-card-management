@@ -27,6 +27,17 @@ export const COPIED_SKILL_BASE = 100000;
 
 export const copiedSkillIndex = (effectId: number, sourceIndex: number): number => COPIED_SKILL_BASE + effectId * 1000 + sourceIndex;
 
+/**
+ * Where a granted line's index starts (#930, P-360: "Red <Gogeta: Br> cards in
+ * your hand gain the following skill: [Union-Fusion]…"). A granted line is
+ * nothing a card prints and no effect copies, so it is numbered by its place
+ * among the lines granted to that card right now (`activationsOf`), above every
+ * printed (line number x 10) and copied (`COPIED_SKILL_BASE`) index.
+ */
+export const GRANTED_LINE_BASE = 50000000;
+export const grantedLineIndex = (k: number): number => GRANTED_LINE_BASE + k;
+export const isGrantedLine = (index: number): boolean => index >= GRANTED_LINE_BASE;
+
 /** Whether a skill index names a copy rather than something the card prints. */
 export const isCopiedSkill = (index: number): boolean => index >= COPIED_SKILL_BASE;
 

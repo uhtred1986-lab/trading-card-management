@@ -36,13 +36,24 @@ export function compileNamedSet(clause: string, c: Ctx): Op[] | null | undefined
   const selectors: Selector[] = [];
   for (const slot of words.slots) {
     const sel = parseTarget(`${slot} from ${words.source}`);
-    if (!sel || sel.special || sel.fromVar || sel.take != null || sel.filter?.unreadable || sel.count !== 1 || !sel.upTo || (!sel.area && !sel.areas?.length)) return null;
+    if (!sel || sel.special || sel.fromVar || sel.take != null || sel.filter?.unreadable || sel.count !== 1 || !!sel.upTo === words.required || (!sel.area && !sel.areas?.length)) return null;
     selectors.push(sel);
   }
   const first = selectors[0];
   const same = (a: Selector) => a.side === first.side && JSON.stringify(a.areas ?? a.area) === JSON.stringify(first.areas ?? first.area);
   if (!selectors.every(same)) return null;
   const vars = selectors.map(() => `c${c.n++}`);
+  // #930: "1 each of <A> and <B>" is a required card per name. Each is chosen
+  // and placed under this card before the next is asked, so the next one can
+  // never be the same physical card (it has left the source), and a price made
+  // of it is proven slot by slot on the strict price host (`notIn` links
+  // choices across slots, which a keyword move's price may not carry).
+  if (words.required) {
+    return selectors.flatMap((sel, i): Op[] => [
+      { op: "choose", sel, as: vars[i], reason: `${words.slots[i]} from ${words.source}, to place under this card` },
+      { op: "moveTo", target: { var: vars[i] }, to: "under" },
+    ]);
+  }
   const chooses: Op[] = selectors.map((sel, i) => ({
     op: "choose",
     sel: { ...sel, ...(i ? { notIn: vars.slice(0, i) } : {}) },

@@ -176,7 +176,14 @@ export type KeywordSkill =
 export type Area = "deck" | "hand" | "drop" | "leader" | "battle" | "combo" | "energy" | "life" | "warp" | "unison" | "zDeck" | "zEnergy" | "removed";
 
 export type Mode = "active" | "rest";
-export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge";
+/**
+ * Why a card moved. `areaExtension` (#930, 22-13-5-2-1-1) is the move an
+ * area-expanding [Union-Potara] permission makes first: a Battle Card chosen
+ * from the energy or Warp is moved to the Battle Area, and "area movement
+ * triggers resulting from the chosen Battle Card moving to a different area are
+ * not made pending, nor does counter timing occur", so it announces no `moved`.
+ */
+export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge" | "areaExtension";
 
 /**
  * A replacement effect that may change what happens when a card is about to
@@ -416,6 +423,16 @@ export interface Permission {
    * `unionFusionWarp`: this target card may activate its own Fusion from hand,
    * choosing its specified materials from hand or Warp and sending both to Drop.
    * This is self-scoped and does not grant any other card an area permission.
+   * `unionLine` (#930, P-360): the target card in hand has the printed skill
+   * line `line` as well — "Red <Gogeta: Br> cards in your hand gain the
+   * following skill: [Union-Fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>."
+   * Only a [Union-Fusion] / [Union-Potara] line, which is a move of the card in
+   * hand and needs no program of its own (the keyword's `DO` is the effect).
+   * `unionEnergy` (#930, BT10-046 / BT10-053 / P-220): this hand copy's [Union]
+   * skill may choose its specified Battle Cards in the player's energy as well
+   * (22-13-5-2-1, "choose Battle Cards in one of your areas"). Self-scoped to the
+   * card in hand, like `unionFusionWarp`, which is the same permission for the
+   * Warp and serves [Union-Potara] (BT10-132, P-230) as well as Fusion.
    * `unionFusionAreas`: while the card granting it (the target) is in play, its
    * master's [Union-Fusion] may choose its specified Battle Cards from the
    * Battle Area and the Drop as well as the hand (22-13-4-2-1), those two
@@ -446,9 +463,11 @@ export interface Permission {
    * skill's effect) or a [Permanent]'s standing one. It stops *negation* only:
    * a prohibition on attacking, and removing the attacker, still work.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
+  /** `unionLine`: the printed text of the line granted. */
+  line?: string;
 }
 
 /**
