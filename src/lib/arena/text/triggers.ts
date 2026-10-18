@@ -115,7 +115,7 @@ export function comboEntrySelf(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   if (COMBO_BATTLE_END.test(head)) return false;
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
-  return /when you use this card in a combo|when this card(?: in your hand)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
+  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck))? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
 }
 /**
  * A self-combo entry Auto whose printed timing explicitly requires hand — "when
@@ -126,6 +126,49 @@ export function comboEntrySelf(sk: Skill): boolean {
 export function comboEntryFromHand(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text).toLowerCase().replace(TURN_THEN_WHEN, "");
   return /when this card in your hand is (?:played or )?used in a combo\b|^when you combo with this card from your hand\b/.test(head);
+}
+/**
+ * A self-combo entry moment that says more than "this card was used in a combo"
+ * and that `comboEntryFromHand` (the plain hand wording, left exactly as it was
+ * for the cards that already use it) does not ask (#907, follow-up to #1042):
+ *
+ *  - "when this card **is used in a combo from your hand**" (BT22-052, BT24-116, BT24-120, P-578):
+ *    the hand, the same origin as "in your hand", said after the verb;
+ *  - "when this card **in your deck or hand** is used in a combo" (EX23-23): either of two areas;
+ *  - "when you combo with this card **from an Energy Area using {X}'s skill**" (BT7-030): the Energy
+ *    Area, and only a combo that the named card's skill made (`viaSkillOf`, the card whose skill
+ *    moved it, kept beside the origin on the battle);
+ *  - "when you combo with this card from your hand **with an <Android 18> card in battle**"
+ *    (BT8-030): the hand is `comboEntryFromHand`'s too; the company (`company`) is a condition the
+ *    compiler puts on the program (a card of yours in the battle), because it is about the board when
+ *    the Auto resolves, not about where the card came from.
+ *
+ * `origins` are the area names a combo card is remembered to have left (`VmBattle.comboOrigins`).
+ */
+export interface ComboEntryQualifier {
+  origins: readonly string[];
+  /** The printed name (without braces) of the card whose skill must have made the combo. */
+  viaSkillOf?: string;
+  /** The description of the card that must be in the battle with it, as printed (<names> card). */
+  company?: string;
+}
+export function comboEntryQualifier(sk: Skill): ComboEntryQualifier | null {
+  if (sk.kind !== "auto") return null;
+  const masked = maskNames(sk.effect);
+  const head = effectHead(masked.text).replace(TURN_THEN_WHEN, "");
+  if (/^when this card is used in a combo from your hand\b/.test(head)) return { origins: ["hand"] };
+  if (/^when this card in your (?:deck or hand|hand or deck) is used in a combo\b/.test(head)) return { origins: ["deck", "hand"] };
+  const via = /^when you combo with this card from an? energy area using (\{\d+\})['’]s skill\s*(?:,|$)/.exec(head);
+  if (via) return { origins: ["energy"], viaSkillOf: masked.unmask(via[1]).replace(/^\{|\}$/g, "") };
+  const company = /^when you combo with this card from your hand with (?:an?|1) (<[^>]+> card) in battle\s*(?:,|$)/.exec(head);
+  if (company) return { origins: ["hand"], company: company[1] };
+  return null;
+}
+/** The areas a self-combo entry Auto asks the card to have come from, or `null` when it asks none (any combo). */
+export function comboEntryOrigins(sk: Skill): readonly string[] | null {
+  const q = comboEntryQualifier(sk);
+  if (q) return q.origins;
+  return comboEntryFromHand(sk) ? ["hand"] : null;
 }
 const EVERY_TURN_END = /^at the end of (?:(?:you|your) (?:and|or) your opponent'?s turns?|each player'?s turn)\b/;
 /**
@@ -307,7 +350,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // combo entry trigger (`comboUsed`; `comboed` is its stored alias).
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
-      return /when (?:you play this card|this card is played)|when you activate this card|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
+      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[blocker\])|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
         t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, ""),
       );
     case "playedFromHand":
@@ -429,7 +472,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentMainStart":
       return /^at the (?:beginning|start) of your opponent'?s main phase\b/.test(head) || EVERY_MAIN_START.test(head);
     case "blockerUsed":
-      return /when this card activates (?:its )?\[blocker\]/.test(t);
+      // "When this card **attacks or activates [Blocker]**" (BT22-027 and its fourteen siblings, #907):
+      // the second half of one skill is this moment, as "played or attacks" is `played` and `attacks`
+      // (`attacks` reads the first half), so the skill answers to both and an attack is not a block.
+      return /when this card activates (?:its )?\[blocker\]|when you activate this card['’]s \[blocker\](?: skill)?|when this card attacks,? or activates (?:its |the |an? )?\[blocker\](?: skill)?/.test(t);
     // Both wordings are the same moment: "when **this card** in your life is
     // flipped face up" is the card that was flipped, "when **a** card…" is
     // watched by that player's cards in play. The colour qualifier some of

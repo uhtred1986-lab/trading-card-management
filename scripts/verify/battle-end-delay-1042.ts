@@ -43,10 +43,11 @@ for (const id of ["DROP1042", "BACK1042"]) {
 }
 
 // ── the refusals ─────────────────────────────────────────────────────────────
+// #907 follow-up: the six combo-entry moments are read now (qualified-combo-entry-907.ts); what is still refused is
+// a wider origin the qualifier does not read.
 const unread = (text: string) => compileSkill(parseSkills(text)[0]).unsupported;
-assert.ok(unread("[Auto] When you combo with this card from an Energy Area using {Meteoric Energy SSB Vegito}'s skill, play this card at the end of the battle.").length, "BT7-030: the origin and the skill are not asked");
-assert.ok(unread("[auto]{u}, during your turn: When you combo with this card from your hand with an <Android 18> card in battle, play this card at the end of the battle.").length, "BT8-030: the company is not asked");
-assert.ok(unread("[Auto][Limit 1] If your Leader's back side is a black <Vegito: Xeno> card, you have 2 or more energy, and you have a <Vegeta: Xeno> card in your Combo Area: When this card is used in a combo from your hand, add this card from your Drop to your Z-Energy at the end of the battle.").length, "BT24-116: 'used in a combo from your hand' is not asked");
+assert.ok(unread("[Auto] When you combo with this card from a Drop Area, play this card at the end of the battle.").length, "an origin nobody reads is refused");
+assert.ok(unread("[Auto] When you combo with this card from an Energy Area, play this card at the end of the battle.").length, "an Energy Area without the skill that made the combo is refused");
 // What the trigger does ask stays read: "this card in your hand", and a plain combo entry.
 assert.deepEqual(unread("[auto][limit 1]{g}, if your Leader is a <Zamasu> or <Goku Black> card: When this card in your hand is used in a combo, play this card from your Drop at the end of the battle."), [], "BT23-134's wording asks the hand origin");
 assert.deepEqual(unread("[Auto] If your Leader Card is red and you have a red Unison Card in play: When this card is used in a combo, draw 1 card, then at the end of the battle, place this card in its owner's Drop Area."), [], "BT12-007's wording is any combo");

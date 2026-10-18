@@ -2553,8 +2553,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) break;
         for (const id of h.resolveRef(frame, op.target)) {
           if (h.areaOf(id) === "combo") continue;
-          h.move(id, "combo", master, { reason: "combo", reveal: true });
+          h.move(id, "combo", master, { reason: "combo", reveal: true, ...(frame.card ? { source: frame.card } : {}) });
           if (op.negated) h.negateAll(id);
+          // 5-7-5-3: a card placed in a Combo Area is a combo entry for its own [Auto]s, whoever placed it (BT7-030 asks
+          // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
+          h.pend("comboUsed", id);
           // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
           // same as one the player declared.
           for (const w of h.cardsInPlay(master)) h.pend("youCombo", w, id);

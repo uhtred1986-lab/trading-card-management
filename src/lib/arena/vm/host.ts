@@ -198,7 +198,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       return drawn;
     },
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -680,7 +680,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId;
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -747,7 +747,7 @@ function moveTo(
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
   if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
-    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
@@ -889,6 +889,8 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.
   markerRemoved: { event: "markerRemoved", args: {} },
+  // 5-7-5-3: the card's own combo entry, pended by `comboFrom` after a skill puts it in the Combo Area (a declared combo fires it itself).
+  comboUsed: { event: "comboUsed", args: { to: "combo" } },
 };
 
 /** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */

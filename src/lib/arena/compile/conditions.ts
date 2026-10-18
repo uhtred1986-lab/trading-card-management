@@ -127,6 +127,31 @@ function filterIsBlank(f: CardFilter): boolean {
   return JSON.stringify(f) === JSON.stringify(emptyFilter());
 }
 
+/**
+ * "…is a green <King Piccolo> or <Piccolo Jr.> card with an original power of
+ * 15000" (BT18-082, BT18-085, P-704 …): the colour in front of the first name and
+ * the measure after the noun belong to **both** names - one description with two
+ * names that either will do (the rule `parseFilter` already has for "<A> or <B>
+ * card"). Cut at the "or" the colour stayed on the first name and the power on the
+ * second, a Leader of the wrong colour or power passing for either. Only when every
+ * part but the last is a bare name (optionally behind a colour), the last starts with
+ * a name and no later part brings a colour of its own, and the qualifier is really
+ * shared - a colour in front, or a measure after the noun; "<A> or <B> card" alone
+ * keeps its two-alternative reading.
+ */
+function namesShareQualifiers(parts: string[]): boolean {
+  const mask = (p: string) => p.trim().toLowerCase().replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "N");
+  const masked = parts.map(mask);
+  const colour = `(?:${COLOR_WORD}|mono-?${COLOR_WORD}|multi-?colou?r)`;
+  const bare = new RegExp(`^(?:an?\\s+)?(?:${colour}\\s+)?N$`);
+  const last = masked[masked.length - 1];
+  if (!masked.slice(0, -1).every((p) => bare.test(p))) return false;
+  if (!/^N\b/.test(last) || new RegExp(`\\b${colour}\\b`).test(last.replace(/\bcolou?rless\b/, ""))) return false;
+  const colourInFront = new RegExp(`^(?:an?\\s+)?${colour}\\s`).test(masked[0]);
+  const measureAfter = /\bcards?\s+(?:with|that|whose)\b/.test(last);
+  return colourInFront || measureAfter;
+}
+
 /** An "or" alternative of a Leader description that names nothing (#990): the part was not read. */
 const hasBlankPart = (parts: string[]): boolean => parts.some((p) => filterIsBlank(parseFilter(p)));
 
@@ -404,6 +429,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1], { measured: true });
+    if (parts.length > 1 && namesShareQualifiers(parts)) {
+      return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]) }, subject: { sel: { special: "leader" } } };
+    }
     if (parts.length > 1) {
       if (hasBlankPart(parts)) return null;
       const conds = parts.map((part) => ({
@@ -419,6 +447,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1], { measured: true });
+    if (parts.length > 1 && namesShareQualifiers(parts)) {
+      return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
+    }
     if (parts.length > 1) {
       if (hasBlankPart(parts)) return null;
       const conds = parts.map((part) => ({
@@ -653,6 +684,17 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       delete sel.count;
       delete sel.upTo;
       return { cond: { kind: "inBattle", sel, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
+    }
+  }
+  // "If you have a blue <Baby> **in a battle**" (BT21-049, BT21-038's <Uub>), #907: the same question as "if your blue
+  // <Baby> card is in a battle" just above - one of your cards of that description is in the battle (8-1), not merely
+  // somewhere in play. Read as a count it was every such card you have on the table.
+  if ((m = /^you have (?:an?|1) (.+?) in (?:a|the) battle$/.exec(t)) && !/\b(?:or|and)\b/.test(m[1].replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "N"))) {
+    const sel = parseTarget(`your ${m[1]}`);
+    if (sel && !sel.special) {
+      delete sel.count;
+      delete sel.upTo;
+      return { cond: { kind: "inBattle", sel }, subject: { sel } };
     }
   }
   // "If this card participated in a battle during your opponent's turn"

@@ -262,10 +262,9 @@ const TURLES = "[Auto] If your Leader Card is a ≪Turles Crusher Corps≫ card 
 }
 // ── what stays unread, and why ─────────────────────────────────────────────
 {
-  // BT1-015: a `delay` at the end of the battle compiles (37 skills carry one) but nothing on the rules VM
-  // ever runs a `battleEnd` delay (`dueDelays` is asked for turnStart, mainStart, turnEnd and turnCleanup
-  // only), so reading "KO that card after the battle" would be a skill that reads and never KOs.
-  assert.ok(compile("[auto] When this card attacks a Battle Card, KO that card after the battle. Then, if your opponent's Leader Card has 10000 or less power, inflict 1 damage to your opponent.").unsupported.length > 0, "BT1-015");
+  // BT1-015 (`battleEnd` delays run since #1042, "after the battle" is read since the #907 battle-end follow-ups):
+  // see battle-end-followups-907.ts. It is no longer unread.
+  assert.deepEqual(compile("[auto] When this card attacks a Battle Card, KO that card after the battle. Then, if your opponent's Leader Card has 10000 or less power, inflict 1 damage to your opponent.").unsupported, [], "BT1-015");
   // BT17-139: a battle's KO is taken by the Damage Step (`koCard`), which cannot stop to ask the owner of an optional replacement.
   assert.ok(compile("[Permanent] Once per turn, if this card would be KO'd in battle, you may place 1 card from under this card in its owner's Drop Area instead.").unsupported.length > 0, "BT17-139");
 }
