@@ -379,6 +379,22 @@ function parseSkillsUncached(text: string): Skill[] {
       for (const [j, kw] of keywords.entries()) out.push(makeSkill(index * 10 + j, [tagFor(kw)], kw, "", "", line));
       continue;
     }
+    // "[Barrier][Blocker] [Union-Potara]{u}{u}{u}, draw 2 cards: <A> and <B>"
+    // (EX25-16) and "[Energy-Exhaust] [Union-Potara]{u}, …" (EX25-40) print the
+    // [Union] activation (22-13) on the same line as bare keywords. Everything
+    // after the tags is the Union's price and materials, so the Union owns the
+    // line (it is the skill that keeps the line's index and text), and each
+    // bare keyword in front of it is its own keyword skill, as on a line that
+    // is only keyword tags. Only the one shape: a Union tag LAST, preceded by
+    // nothing but bare keywords that print no cost or text of their own. A
+    // line led by anything else (an [Evolve] or [Arrival] with a cost) is not
+    // decided here, and the last tag is never chosen in general.
+    const union = unionAfterBareKeywords(tags, keywords, body);
+    if (union) {
+      out.push(makeSkill(index * 10, [tags[tags.length - 1]], union, ...splitCostPair(body), line));
+      for (const [j, kw] of keywords.slice(0, -1).entries()) out.push(makeSkill(index * 10 + 1 + j, [tags[j]], kw, "", "", line));
+      continue;
+    }
     // [Spirit Boost X] is a cost written as a tag (22-43), like [Burst X]: it
     // never names the skill it sits on, which keeps its own [Activate] type.
     const primary = keywords.find((k) => k.name !== "Spirit Boost") ?? null;
@@ -386,6 +402,22 @@ function parseSkillsUncached(text: string): Skill[] {
     out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
   }
   return out;
+}
+
+/** Keywords that print no cost and no text after their tag, so a [Union] on the same line cannot be mistaken for theirs. */
+const BARE_BESIDE_UNION = new Set<KeywordSkill["name"]>(["Barrier", "Blocker", "Energy-Exhaust", "Deflect", "Critical", "Strike", "Attack", "Indestructible", "Revenge", "Victory Strike"]);
+
+/** The line's Union keyword when it is the last tag after only bare keywords, with the Union's own price/materials as the body. */
+function unionAfterBareKeywords(tags: string[], keywords: KeywordSkill[], body: string): KeywordSkill | null {
+  if (!body || tags.length < 2 || keywords.length !== tags.length) return null;
+  const last = keywords[keywords.length - 1];
+  if (last.name !== "Union") return null;
+  return keywords.slice(0, -1).every((k) => BARE_BESIDE_UNION.has(k.name)) ? last : null;
+}
+
+function splitCostPair(body: string): [string, string] {
+  const { cost, effect } = splitCost(body);
+  return [cost, effect];
 }
 
 /**
