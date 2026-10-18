@@ -943,6 +943,7 @@ export function SearchSheet({
       {none != null && (
         <button
           type="button"
+          data-search-none
           onClick={() => onPick(none)}
           className="tap w-full rounded-lg border border-dashed border-space-500 bg-space-950 px-3 py-3 text-left text-sm font-semibold text-space-100 hover:border-ki-500/60"
         >
