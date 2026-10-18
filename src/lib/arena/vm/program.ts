@@ -42,7 +42,8 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../types";
-import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsInSkills, parseSkills, printedDescription, printedNames, sumReachable } from "../text/cards";
+import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsInSkills, parseSkills, printedDescription, sumReachable } from "../text/cards";
+import { unionNeeds } from "../text/union";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
 import { counterKindOf, other } from "../types";
@@ -1567,11 +1568,24 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
 export function namedCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, picked: string[], samePower = true): string[] {
   const sk = lineOf(ctx, state, frame);
   if (!sk) return [];
-  const pool = resolveSelector(ctx, game, state, frame, sel).map((id) => {
+  // #925: each printed name carries only its own qualifiers (colour, type,
+  // cost, power), so the combined description (`asPrinted`) must not narrow
+  // the pool first — it would pool the union of every name's words.
+  const pool = resolveSelector(ctx, game, state, frame, { ...sel, printed: undefined }).map((id) => {
     const def = ctx.defs[state.cards[id].cardId];
-    return { id, characters: def?.characters ?? [], power: def?.power ?? 0 };
+    // 22-13-4-2 / owner's ruling of 13 Oct 2026: printed power, so a buffed
+    // material still qualifies for "with 5000 power" as it does for equal power.
+    const now = attrsNow(ctx, game, state, id);
+    const attrs: Attrs = def && def.power != null ? { ...now, power: def.power } : now;
+    // 22-13-4-2, 22-13-5-2: "the specified character's Battle Cards" - an Extra, Leader or token that prints the name is no material.
+    const battle = !!def && ["BATTLE", "Z-BATTLE", "UNISON", "Z-UNISON"].includes(def.type);
+    return { id, characters: def?.characters ?? [], power: def?.power ?? 0, attrs, battle };
   });
-  return namedSetCandidates(printedNames(sk), pool, picked, samePower);
+  const needs = unionNeeds(sk).map((n) => {
+    const test = predicateOf(n.filter, game);
+    return { name: n.name, accepts: (c: { attrs: Attrs; battle: boolean }) => c.battle && test(c.attrs) };
+  });
+  return namedSetCandidates(needs, pool, picked, samePower);
 }
 
 /** An alternative way to pay an [Aegis] skill instead of its hand cards (22-30-3), already known to be payable. */

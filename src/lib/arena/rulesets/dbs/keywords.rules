@@ -461,15 +461,15 @@ DEFINE KEYWORD Union
       -- This card's own permission (BT12-136/137, P-286) adds Warp;
       -- each chosen card still goes to Drop, including hand/Warp mixes.
       if(cond: permits(what: unionFusionWarp), then: {
-        choose(sel: 2 "Battle Card" IN you.ANY(hand|warp) otherThanSelf asPrinted, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards from hand or Warp")
+        choose(sel: 2 "Battle Card" IN you.ANY(hand|warp) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards from hand or Warp")
         moveTo(target: $pair, to: drop, cause: cost)
       }, else: {
         if(cond: permits(what: unionFusionAreas), then: {
-          choose(sel: 2 IN you.ANY(hand|battle|drop) otherThanSelf asPrinted, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards")
+          choose(sel: 2 IN you.ANY(hand|battle|drop) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards")
           moveTo(target: $pair MINUS $pairOutside, to: drop, cause: cost)
           moveTo(target: $pairOutside, to: warp, cause: cost)
         }, else: {
-          choose(sel: 2 IN you.hand otherThanSelf asPrinted, as: "pair", reason: "[Union-Fusion]: choose the named cards to drop")
+          choose(sel: 2 IN you.hand otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards to drop")
           moveTo(target: $pair, to: drop, cause: cost)
         })
       })
@@ -481,10 +481,15 @@ DEFINE KEYWORD Union
     if(cond: oneOf(value: $variant, of: ["Potara"]), then: {
       -- 22-13-5-2 (#926): the skill cost is paid as it is activated.
       payActionPrice()
-      choose(sel: 1 IN you.battle asPrinted, as: "first", reason: "[Union-Potara]: choose the card to play this one onto")
-      play(target: [self], onto: $first)
-      choose(sel: 1 IN you.battle otherThanSelf asPrinted, as: "second", reason: "[Union-Potara]: choose the card to put under it")
-      moveTo(target: $second, to: under, under: [self])
+      -- 22-13-5-2 (#925): both cards are chosen before the card is played,
+      -- one distinct Battle Card per specified character, each meeting only
+      -- the words printed beside its own name, with no equal-power
+      -- requirement (`anyPower`: Potara asks for none). The card is played
+      -- onto the first chosen and the other goes under it (22-13-5-4, "in any
+      -- order").
+      choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards, the one to play this card onto first")
+      play(target: [self], onto: $pairFirst)
+      moveTo(target: $pairRest, to: under, under: [self])
     })
   }
 
