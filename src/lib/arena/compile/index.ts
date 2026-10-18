@@ -54,7 +54,40 @@ export function compileSkill(skill: Skill): Script {
   // program, the inspector and the referee's worked examples all said it.
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
-  return skill.kind === "permanent" && !triggeredPermanent(skill) ? { ...caused, ops: holdForGame(caused.ops) } : caused;
+  const held = skill.kind === "permanent" && !triggeredPermanent(skill) ? { ...caused, ops: holdForGame(caused.ops) } : caused;
+  return refuseUnmatchedComboEntry(skill, held);
+}
+
+/**
+ * #1042: a combo-entry Auto whose delayed half is "at the end of the battle"
+ * (BT7-030, BT8-030, BT22-052, BT24-116, BT24-120, P-578) is refused when its
+ * printed moment says more than the trigger can ask. The trigger (`comboUsed`)
+ * is "this card entered a Combo Area", and only the hand is a captured origin
+ * (`comboEntryFromHand`, which reads "when this card **in your hand** is used in
+ * a combo" and "when you combo with this card from your hand", nothing wider).
+ * "…used in a combo **from your hand**", "…from an Energy Area using {X}'s
+ * skill" and "…from your hand **with an <Android 18> card in battle**" would
+ * answer to every combo, and before the engine ran `battleEnd` delays that cost
+ * nothing, because the delayed half never ran. Now it would play the card (or
+ * send it to the Z-Energy) after battles it does not belong to, so the skill
+ * is unread until the trigger can ask the origin and the company.
+ */
+const UNMATCHED_COMBO_ENTRY = /when this card is used in a combo from your hand|when you combo with this card from (?:your hand with|an? [a-z-]+ area)/i;
+
+function refuseUnmatchedComboEntry(skill: Skill, script: Script): Script {
+  if (skill.kind !== "auto" || script.unsupported.length) return script;
+  const text = (skill.cost + " " + skill.effect).replace(/\s+/g, " ");
+  const said = UNMATCHED_COMBO_ENTRY.exec(text);
+  if (!said || !hasBattleEndDelay(script.ops)) return script;
+  return { ...script, ops: [], unsupported: [said[0]] };
+}
+
+function hasBattleEndDelay(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasBattleEndDelay);
+  if (!value || typeof value !== "object") return false;
+  const o = value as Record<string, unknown>;
+  if (o.op === "delay" && o.at === "battleEnd") return true;
+  return Object.values(o).some(hasBattleEndDelay);
 }
 
 /** Mark every `play … onto` an [Union-Absorb] effect makes as the keyword's own (22-13-6-3, #929). */
