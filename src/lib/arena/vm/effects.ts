@@ -1,3 +1,4 @@
+import { sparkingIsValid } from "./validity";
 /**
  * What is in force, and for how long.
  *
@@ -88,16 +89,16 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
   for (const sk of showing.skills) {
     if (sk.kind !== "permanent" || skillNegated(state, id, sk.index, sk.kind)) continue;
     const program = showing.scripts.bySkill[sk.index];
-    if (!program || program.unsupported.length) continue;
+    if (!program || program.unsupported.length || !sparkingIsValid(state, master, sk.validity)) continue;
     for (const op of program.ops) {
-      if (op.op !== "forbid" || op.until !== "game" || op.bySkill === undefined) continue;
+      if (op.op !== "forbid" || op.until !== "game" || (op.bySkill === undefined && op.what !== "play")) continue;
       if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
       const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: id, master };
       out.push({
         what: op.what,
         ...(op.uses != null ? { uses: measure(frame, op.uses) } : {}),
         ...(op.unless ? { unless: op.unless, master } : {}),
-        bySkill: op.bySkill,
+        ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
         ...(op.exceptEvolve ? { exceptEvolve: true } : {}),
       });
     }
@@ -619,10 +620,10 @@ export function permanents(
           // …adding a card from your life to your hand instead of paying its
           // energy cost" offered nothing before #716 let its [Counter] be
           // offered at all. The same zones `vm/activate.ts` counts.
-          if (sk.sparking != null && (state.sides[p].zones.drop ?? []).length < sk.sparking) continue;
-          if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+          if (!sparkingIsValid(state, p, sk.validity)) continue;
+          if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))

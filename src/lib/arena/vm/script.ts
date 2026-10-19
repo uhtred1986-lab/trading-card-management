@@ -1234,6 +1234,7 @@ export interface PayWith {
 export interface SkillPrice {
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
+  evolution?: EvolutionBase;
   /** Executable resource cost. Missing/unknown contracts require regeneration. */
   payment: SkillPayment;
   condition: Cond | null;
@@ -1271,6 +1272,7 @@ export interface XCost {
  */
 export interface CostRecord {
   fusion?: FusionMaterials;
+  evolution?: EvolutionBase;
   version: 1;
   /** Whether the compiler/editor accounted for the whole price. Text is display only. */
   readable: boolean;
@@ -1302,6 +1304,13 @@ export interface SkillPayment {
 
 /** The supported §22-13-4 procedure. Extensions are typed standing permissions,
  * scoped by their own records; their presence here never grants permission. */
+export interface EvolutionBase {
+  version: 1;
+  variant: "EX-Evolve";
+  activation: "hand";
+  base: { area: "battle"; side: "you"; filter: CardFilter };
+}
+
 export interface FusionMaterials {
   version: 1;
   needs: { name: string; filter: CardFilter }[];
@@ -1338,6 +1347,10 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Existing card_rules.kind, persisted into executable contexts; required for typed Fusion. */
+  kind?: Skill["kind"];
+  usage?: import("./usage").UsageRecord;
+  validity?: import("./validity").ValidityRecord;
   combo?: import("./combo-qualification").ComboQualification;
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
@@ -1385,6 +1398,9 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** Captured at activation; a resolving effect remains independent of later source/copy changes. */
+  usage?: import("./usage").UsageRecord;
+  validity?: import("./validity").ValidityRecord;
   /** #933: this frame is a player's declared play (`DEFINE ACTION play`/`playUnison`/`playZ`, 5-5-2), not a skill's (5-5-3): its `play` op is asked of 20-14 as `bySkill: false`. Additive: an older suspended frame was a declared play only by its `ops`, and a skill play is the default. */
   declaredPlay?: true;
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
@@ -1411,6 +1427,10 @@ export interface ScriptFrame {
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
   /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
+  /** Captured identity survives successful Fusion payment and source changes. */
+  fusionIdentity?: Pick<Script, "kind" | "price">;
+  evolutionIdentity?: Pick<Script, "kind" | "price">;
+  evolutionSourceEpoch?: number;
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */
@@ -1823,7 +1843,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const life = h.zone(p, "life")[0];
             if (!life) break;
             h.move(life, "hand", p, { reason: "damage" });
-            taken.push(life);
+            if (h.areaOf(life) !== "life") taken.push(life);
           }
           if (taken.length) {
             h.addDamageTaken(p, taken.length);
@@ -1876,7 +1896,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "lifeDownTo":
         // Losing life this way is not damage (1-13-2), so nothing triggers on it.
         for (const p of sideOf(master, op.side)) {
-          while (h.zone(p, "life").length > op.n) h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
+          while (h.zone(p, "life").length > op.n) {
+            const before = h.zone(p, "life").length;
+            h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
+            if (h.zone(p, "life").length >= before) break;
+          }
         }
         break;
 

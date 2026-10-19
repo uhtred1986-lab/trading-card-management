@@ -5,6 +5,7 @@
  * (`npm run arena:policy-eval`) share. Nothing is invented: a match that does not finish within
  * `maxMoves`, or stops on an interruption, is reported unfinished rather than scored.
  */
+import { resolveOutcome } from "../../src/lib/arena/outcome";
 import type { PlayerId } from "../../src/lib/arena/types";
 import type { ReplayBundleRecord } from "../../src/lib/arena/replay-core";
 import { createPinnedMatch, type PinnedMatch } from "../../src/lib/arena/browser";
@@ -89,7 +90,12 @@ export async function playDuel(input: DuelInput): Promise<DuelResult> {
     if (step.guard) guards[role]++;
     match = step.match;
   }
-  const over = match.state.phase === "over";
+  // Referee interruptions also close the engine's phase, but are not results.
+  // Keep privateContext on the local state; public corpus receipts need only
+  // the safe outcome reason and an explicit interrupted stop classification.
+  const outcome = resolveOutcome(match.state);
+  const interrupted = outcome?.kind === "interrupted";
+  const over = match.state.phase === "over" && !interrupted;
   const last = [...(match.beats?.list ?? [])].reverse().find((b) => b.t === "over") as { winner: PlayerId | null; reason: string } | undefined;
   const winnerSeat = over ? (last?.winner ?? null) : null;
   const lifeNow = (p: PlayerId) => match.state.sides[p].zones.life?.length ?? 0;
@@ -103,8 +109,8 @@ export async function playDuel(input: DuelInput): Promise<DuelResult> {
     damageDealt: Math.max(0, dealt[other(input.testSeat)] - lifeNow(other(input.testSeat))),
     damageTaken: Math.max(0, dealt[input.testSeat] - lifeNow(input.testSeat)),
     guards,
-    stopped: over ? null : (stopped ?? `not over after ${input.maxMoves} moves`),
-    stopKind: over ? null : (stopKind ?? "limit"),
+    stopped: interrupted ? outcome.reason : over ? null : (stopped ?? `not over after ${input.maxMoves} moves`),
+    stopKind: interrupted ? "interrupted" : over ? null : (stopKind ?? "limit"),
     stepMs,
     steps,
     trace: hash.toString(16).padStart(8, "0"),

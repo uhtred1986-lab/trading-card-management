@@ -1,3 +1,5 @@
+import { describeValidity } from "./vm/validity";
+import { describeUsage } from "./vm/usage";
 import { describeComboQualification } from "./vm/combo-qualification";
 import { describeTrigger } from "./gaps";
 import { costSentence, describeCond, describeScript } from "./vm/script";
@@ -13,7 +15,7 @@ export function ruleReading(rule: Rule): string[][] {
   const cost = rule.cost;
   const price = [costSentence(cost), x ? `Choose X energy (${x.min ?? 0} minimum${x.max === undefined ? "; no upper bound specified" : `; ${x.max} maximum`})` : null].filter(Boolean).join("; ");
   return [
-    ["WHEN", timing + (rule.combo ? `; ${describeComboQualification(rule.combo)}` : "")],
+    ["WHEN", timing + (rule.validity ? `; ${describeValidity(rule.validity)}` : "") + (rule.usage ? `; ${describeUsage(rule.usage)}` : "") + (rule.combo ? `; ${describeComboQualification(rule.combo)}` : "")],
     ["COST", price || "No additional skill cost"],
     ["IF", rule.cond ? describeCond(rule.cond) : "No additional condition"],
     ["THEN", describeScript(rule.ops, { permanent: rule.kind === "permanent" }) || "No effect steps"],

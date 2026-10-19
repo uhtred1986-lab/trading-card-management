@@ -1,3 +1,4 @@
+import { evolutionBaseProblem } from "./evolution-base";
 import type { Skill } from "../types";
 import type { CostRecord, SkillPayment, SkillPrice } from "./script";
 import { IllegalAction } from "./common";
@@ -40,7 +41,7 @@ export function priceFromCostRecord(cost: CostRecord | null): SkillPrice {
   const payment = cost && { version: cost.version, readable: cost.readable, orbs: cost.orbs, either: cost.either, marker: cost.marker, burst: cost.burst, spiritBoost: cost.spiritBoost };
   const problem = costRecordProblem(cost);
   if (problem) throw new IllegalAction(problem);
-  return { payment: payment as SkillPayment, condition: cost!.condition, ops: cost!.program, ...(cost!.fusion !== undefined ? { fusion: cost!.fusion } : {}), ...(cost!.x ? { x: cost!.x } : {}), ...(cost!.payWith?.length ? { payWith: cost!.payWith } : {}) };
+  return { payment: payment as SkillPayment, condition: cost!.condition, ops: cost!.program, ...(cost!.fusion !== undefined ? { fusion: cost!.fusion } : {}), ...(cost!.evolution !== undefined ? { evolution: cost!.evolution } : {}), ...(cost!.x ? { x: cost!.x } : {}), ...(cost!.payWith?.length ? { payWith: cost!.payWith } : {}) };
 }
 
 export function skillPriceProblem(value: unknown, depth = 0, path = "price"): string | null {
@@ -48,8 +49,10 @@ export function skillPriceProblem(value: unknown, depth = 0, path = "price"): st
   const resource = skillPaymentProblem(p?.payment);
   if (resource) return resource;
   if (depth > 20) return "skill price is nested too deeply";
-  if (Object.keys(p!).some((key) => !["payment", "condition", "ops", "x", "payWith", "fusion"].includes(key))) return "unknown typed skill price field; regenerate rules and rebuild saved matches/exports";
+  if (Object.keys(p!).some((key) => !["payment", "condition", "ops", "x", "payWith", "fusion", "evolution"].includes(key))) return "unknown typed skill price field; regenerate rules and rebuild saved matches/exports";
   if (Object.keys(p!.payment).some((key) => !["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost"].includes(key))) return "unknown typed skill payment field; regenerate rules and rebuild saved matches/exports";
+  if (p!.fusion !== undefined && p!.evolution !== undefined) return "contradictory typed keyword identity";
+  if (p!.evolution !== undefined) { const bad = evolutionBaseProblem(p!.evolution); if (bad) return bad; }
   if (p!.fusion !== undefined) {
     const problem = fusionMaterialsProblem(p!.fusion);
     if (problem) return problem;
@@ -84,7 +87,7 @@ export function costRecordProblem(value: unknown): string | null {
   const c = value as CostRecord | null;
   const resources = skillPaymentProblem(c);
   if (resources) return resources;
-  if (Object.keys(c!).some((key) => !["version", "readable", "text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith", "fusion"].includes(key))) return "unknown typed cost record field; regenerate rules and rebuild saved matches/exports";
+  if (Object.keys(c!).some((key) => !["version", "readable", "text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith", "fusion", "evolution"].includes(key))) return "unknown typed cost record field; regenerate rules and rebuild saved matches/exports";
   if (typeof c!.text !== "string") return "the price needs display text";
-  return skillPriceProblem({ payment: { version: c!.version, readable: c!.readable, orbs: c!.orbs, either: c!.either, marker: c!.marker, burst: c!.burst, spiritBoost: c!.spiritBoost }, condition: c!.condition, ops: c!.program, ...(c!.fusion !== undefined ? { fusion: c!.fusion } : {}), ...(c!.x !== undefined ? { x: c!.x } : {}), ...(c!.payWith !== undefined ? { payWith: c!.payWith } : {}) }, 0, "cost");
+  return skillPriceProblem({ payment: { version: c!.version, readable: c!.readable, orbs: c!.orbs, either: c!.either, marker: c!.marker, burst: c!.burst, spiritBoost: c!.spiritBoost }, condition: c!.condition, ops: c!.program, ...(c!.fusion !== undefined ? { fusion: c!.fusion } : {}), ...(c!.evolution !== undefined ? { evolution: c!.evolution } : {}), ...(c!.x !== undefined ? { x: c!.x } : {}), ...(c!.payWith !== undefined ? { payWith: c!.payWith } : {}) }, 0, "cost");
 }

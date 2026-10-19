@@ -1,0 +1,15 @@
+{
+  "recordMode": "offline-rebuilt-fixture",
+  "actualExportHash": null,
+  "targets": [
+    "BT6-059/front/20"
+  ],
+  "checks": [
+    "p1 exact Barrier target pick=true",
+    "p1 exact Barrier target pick=false",
+    "p2 exact Barrier target pick=true",
+    "p2 exact Barrier target pick=false"
+  ],
+  "qualified": false,
+  "pairGames": 0
+}

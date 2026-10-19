@@ -63,6 +63,8 @@ export interface RecordProps {
   printed: string;
   trigger: Trigger[];
   combo?: Rule["combo"];
+  usage?: Rule["usage"];
+  validity?: Rule["validity"];
   cost: CostRecord | null;
   cond: Cond | null;
   ops: Op[];
@@ -187,6 +189,8 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const [ops, setOps] = useState<Op[]>(r.ops);
   const [cond, setCond] = useState<Cond | null>(r.cond);
   const [trigger, setTrigger] = useState<Trigger[]>(r.trigger);
+  const [validity, setValidity] = useState<Rule["validity"]>(r.validity);
+  const [usage, setUsage] = useState<Rule["usage"]>(r.usage);
   const [combo, setCombo] = useState<Rule["combo"]>(r.combo);
   const [cost, setCost] = useState<CostRecord | null>(r.cost);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -217,6 +221,8 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
     setCond(r.cond);
     setTrigger(r.trigger);
     setCombo(r.combo);
+    setUsage(r.usage);
+    setValidity(r.validity);
     setCost(r.cost);
     setJsonText(JSON.stringify(programOf(r.cond, r.ops), null, 2));
     setJsonError(null);
@@ -225,11 +231,13 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
     setEditing(false);
   }
 
-  const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, ...(combo != null ? { combo } : {}), cost, cond, ops }), [r.tag, combo, trigger, cost, cond, ops]);
+  const rule: Rule = useMemo(() => ({ kind: r.tag, trigger, ...(validity !== undefined ? { validity } : {}), ...(usage !== undefined ? { usage } : {}), ...(combo != null ? { combo } : {}), cost, cond, ops }), [r.tag, validity, usage, combo, trigger, cost, cond, ops]);
   /** The block editor hands back a whole rule; the record keeps its four clauses apart. */
   const setRule = (next: Rule) => {
     setTrigger(next.trigger);
     setCombo(next.combo);
+    setUsage(next.usage);
+    setValidity(next.validity);
     setCost(next.cost);
     setCond(next.cond);
     setOps(next.ops);
@@ -245,7 +253,7 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   // that came back from the text view differing only in a `false` the printer
   // leaves out is the same rule, and offering to save it would churn the
   // version for nothing.
-  const dirty = printRule(rule) !== printRule({ kind: r.tag, trigger: r.trigger, combo: r.combo, cost: r.cost, cond: r.cond, ops: r.ops });
+  const dirty = printRule(rule) !== printRule({ kind: r.tag, trigger: r.trigger, combo: r.combo, usage: r.usage, validity: r.validity, cost: r.cost, cond: r.cond, ops: r.ops });
 
   /** `advance`: on success go on to the next rule in the queue (keeping the scroll) rather than stay on this one. */
   const run = (label: string, fn: () => Promise<{ error: string | null }>, advance = false) => {
@@ -334,6 +342,8 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
     setTextError(null);
     setTrigger(parsed.value.trigger);
     setCombo(parsed.value.combo);
+    setUsage(parsed.value.usage);
+    setValidity(parsed.value.validity);
     setCost(parsed.value.cost);
     setCond(parsed.value.cond);
     setOps(parsed.value.ops);
@@ -588,8 +598,10 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                       setCond(r.cond);
                       setTrigger(r.trigger);
                       setCombo(r.combo);
+                      setUsage(r.usage);
+                      setValidity(r.validity);
                       setCost(r.cost);
-                      setText(printRule({ kind: r.tag, trigger: r.trigger, combo: r.combo, cost: r.cost, cond: r.cond, ops: r.ops }));
+                      setText(printRule({ kind: r.tag, trigger: r.trigger, combo: r.combo, usage: r.usage, validity: r.validity, cost: r.cost, cond: r.cond, ops: r.ops }));
                       setJsonError(null);
                       setTextError(null);
                     }}

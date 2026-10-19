@@ -16,6 +16,8 @@ export interface RuleFields {
   kind: string;
   trigger: unknown;
   combo?: unknown;
+  usage?: unknown;
+  validity?: unknown;
   cost: unknown;
   cond: unknown;
   ops: unknown;
@@ -26,6 +28,8 @@ export function ruleOfRow(row: RuleFields): Rule {
   return {
     kind: row.kind,
     trigger: ((row.trigger as Trigger[] | null) ?? []) as Trigger[],
+    ...(row.validity !== undefined ? { validity: row.validity as Rule["validity"] } : {}),
+    ...(row.usage !== undefined ? { usage: row.usage as Rule["usage"] } : {}),
     ...(row.combo != null ? { combo: row.combo as import("../lang/ast").Rule["combo"] } : {}),
     cost: (row.cost as CostRecord | null) ?? null,
     cond: (row.cond as Cond | null) ?? null,

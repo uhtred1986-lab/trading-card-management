@@ -393,6 +393,7 @@ export function printCost(cost: CostRecord): string {
   if (cost.marker !== null) items.push(`${cost.marker >= 0 ? "+" : ""}${cost.marker} marker`);
   if (cost.burst !== null) items.push(`burst ${cost.burst}`);
   if (cost.spiritBoost !== null) items.push(`spiritBoost ${cost.spiritBoost}`);
+  if (cost.evolution !== undefined) items.push(`EVOLUTION ${JSON.stringify(JSON.stringify(cost.evolution))}`);
   if (cost.fusion !== undefined) items.push(`FUSION ${JSON.stringify(JSON.stringify(cost.fusion))}`);
   // "{X}" (20-5). Printed bare when it is payable at anything, with its bounds
   // when the card sets one; `min` always before `max`, so there is one form.
@@ -417,6 +418,8 @@ export function printCost(cost: CostRecord): string {
  */
 export function printRule(rule: Rule): string {
   const lines = [`WHEN [${rule.kind}]${rule.trigger.length ? ` ${rule.trigger.join(" | ")}` : ""}`];
+  if (rule.usage !== undefined) lines.push(`USAGE ${JSON.stringify(JSON.stringify(rule.usage))}`);
+  if (rule.validity !== undefined) lines.push(`VALIDITY ${JSON.stringify(JSON.stringify(rule.validity))}`);
   if (rule.combo != null) lines.push(`COMBO ${JSON.stringify(JSON.stringify(rule.combo))}`);
   if (rule.cost) lines.push(`COST ${printCost(rule.cost)}`.trimEnd());
   if (rule.cond) lines.push(`IF ${printCond(rule.cond)}`);

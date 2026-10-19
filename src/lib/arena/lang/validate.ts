@@ -1,3 +1,5 @@
+import { validityProblem } from "../vm/validity";
+import { usageProblem } from "../vm/usage";
 import { comboQualificationProblem } from "../vm/combo-qualification";
 import { costRecordProblem } from "../vm/skill-payment";
 /**
@@ -25,7 +27,7 @@ import type { Rule } from "./ast";
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
-export type Invalid = { field: "rule" | "kind" | "trigger" | "combo" | "cost" | "cond" | "ops"; message: string };
+export type Invalid = { field: "rule" | "kind" | "trigger" | "combo" | "usage" | "validity" | "cost" | "cond" | "ops"; message: string };
 
 /**
  * `kind` is what the row already says; a rule that names another one is
@@ -43,6 +45,14 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   const unknown = (rule.trigger as string[]).filter((t) => !moments.includes(t));
   if (unknown.length) return { field: "trigger", message: `the engine knows no moment called ${unknown.map((t) => JSON.stringify(t)).join(", ")} — a trigger it never fires is a skill that never happens` };
   if (new Set(rule.trigger as string[]).size !== rule.trigger.length) return { field: "trigger", message: "the same moment is named twice" };
+  if (rule.validity !== undefined) {
+    const gap = validityProblem(rule.validity);
+    if (gap) return { field: "validity", message: gap };
+  }
+  if (rule.usage !== undefined) {
+    const gap = usageProblem(rule.usage);
+    if (gap) return { field: "usage", message: gap };
+  }
   if (rule.combo != null) {
     const bad = comboQualificationProblem(rule.combo);
     if (bad) return { field: "combo", message: bad };
@@ -54,6 +64,10 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
     const bad = condProblem(rule.cond, 0, false, "cond");
     if (bad) return { field: "cond", message: `that condition is not one the engine can ask — ${bad}` };
   }
+  if (isObject(rule.cost) && rule.cost.evolution !== undefined && kind !== "keyword")
+    return { field: "kind", message: "a typed EX-Evolve price requires recorded keyword kind (#907)" };
+  if (isObject(rule.cost) && rule.cost.fusion !== undefined && kind !== "keyword")
+    return { field: "kind", message: "a typed Fusion price requires recorded keyword kind (#907)" };
   if (rule.cost != null) {
     const bad = costProblem(rule.cost);
     if (bad) return { field: "cost", message: bad };

@@ -1,3 +1,7 @@
+import { fusionIdentityProblem, evolutionIdentityProblem } from "./skill-identity";
+import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
+import { lifeToHandForbidden } from "./life-movement";
+import { requireUsage, usageProblem } from "./usage";
 import { comboScriptProblem } from "./combo-qualification";
 /**
  * The turn, run as a program.
@@ -786,6 +790,17 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.
   if (state.programs.length) return true;
+  // An old pending queue cannot bypass the executable-record migration.
+  for (const item of state.pending) {
+    if (item.kind === "hook") continue;
+    const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+    const gap = usageProblem(sk?.usage) ?? validityProblem(sk?.validity);
+    if (gap) {
+      interruptGame(ctx, game, state, ev, { sourceCard: item.card, skillIndex: item.skillIndex,
+        trigger: item.trigger, issue: "#907", detail: gap });
+      return true;
+    }
+  }
   // 22-11-4/5 and 22-44-4/5 (#741): a pending [Auto] whose line has no use
   // left this turn fails to activate — dropped before the order is asked, so
   // it is never offered or paid for. Not while an order question is open: that
@@ -837,6 +852,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s [Bond ${skill.bond}] condition does not hold, so its skill does not activate` });
     return true;
   }
+  if (skill?.kind === "auto" && !sparkingIsValid(state, next.master, skill.validity)) {
+    if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s Sparking validity no longer holds, so its skill does not activate` });
+    return true;
+  }
   // #741: the queue was swept before the order was asked; this is the same
   // rule for the one taken off it, in case a use was spent in between.
   if (skill && usesLeft(state, next.master, next.card, skill) === 0) {
@@ -853,6 +872,8 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     subject: next.subject,
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     skillIndex: next.skillIndex,
+    usage: skill?.usage as import("./usage").UsageRecord,
+    validity: skill?.validity as import("./validity").ValidityRecord,
   };
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
@@ -1200,7 +1221,24 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    const sourceScript = frame.skillIndex !== undefined ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
+      const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+    }
+    if (frame.evolutionIdentity || sourceScript?.price?.evolution !== undefined) {
+      const gap = evolutionIdentityProblem(frame.evolutionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+      if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
+    }
+    // Activated effects carry the executable usage they began with (9-6-11).
+    // Do not rediscover a copied skill after its granting effect has gone.
+    if (frame.skillIndex !== undefined && !frame.replacing && !frame.standingGrantId && !frame.taxGate) {
+      requireUsage(frame.usage);
+      requireValidity(frame.validity);
+    }
+    for (const captured of [frame.autoCost?.skill, frame.counterCost?.skill, frame.reviveCost?.skill,
+      frame.keywordPrice?.line.skill, frame.keywordCost?.line.skill, frame.swapCost?.line.skill]) {
+      if (captured) { requireUsage(captured.usage); requireValidity(captured.validity); }
+    }
     if (sourceScript?.combo !== undefined || frame.trigger && ["comboUsed", "comboed"].includes(frame.trigger)) {
       const gap = comboScriptProblem(sourceScript)
         ?? (!frame.trigger || !sourceScript?.trigger?.includes(frame.trigger) ? "saved combo continuation has no matching occurrence; rebuild the match (#907)" : null);
@@ -1211,7 +1249,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
-    if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice);
+    if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice, !!frame.evolutionIdentity);
     if (frame.keywordCost) return stepKeywordCost(ctx, game, state, ev, frame);
     if (frame.keywordPrice?.fusion && !frame.keywordPrice.queued) return stepFusionMaterials(ctx, game, state, ev, frame);
     if (frame.dropCost) return stepDropCost(ctx, game, state, ev, frame);
@@ -1477,6 +1515,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   });
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) return;
+  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to)) return;
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));

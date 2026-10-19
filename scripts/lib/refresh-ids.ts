@@ -88,7 +88,7 @@ export function idsFromPrBody(body: string): { specs: IdSpec[]; section: string 
 export const normPrinted = (t: string) =>
   t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&(?:apos|#0?39|#x27);/gi, "'").replace(/&quot;/g, '"').replace(/[‘’]/g, "'");
 
-const FIELDS = ["kind", "trigger", "combo", "cost", "cond", "ops", "unread", "pattern", "reads"] as const;
+const FIELDS = ["kind", "trigger", "combo", "usage", "validity", "cost", "cond", "ops", "unread", "pattern", "reads"] as const;
 // New filter fields default to [] / null / false; a stored row without them means the same thing.
 const isEmpty = (v: unknown) =>
   v == null || v === false || (Array.isArray(v) && !v.length) || (typeof v === "object" && !Array.isArray(v) && !Object.keys(v as object).length);

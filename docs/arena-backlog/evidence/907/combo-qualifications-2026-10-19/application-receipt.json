@@ -1,0 +1,72 @@
+{
+  "deployedEngine": "3bb6f0e2c4099ae49f36450154b1d8378b593b19",
+  "deployment": {
+    "provider": "Vercel",
+    "status": "success",
+    "at": "2026-10-19T12:04:32Z"
+  },
+  "beforeReadAt": "2026-10-19T12:12:33.094Z",
+  "afterReadAt": "2026-10-19T12:13:14.017Z",
+  "authorization": "Owner: continue on through the backlog; four-target guarded application authorized in handover",
+  "command": "NODE_USE_ENV_PROXY=1 DB_DRIVER=neon-http npm run arena:refresh-ids -- --apply --ids 'BT6-006#10,BT6-010#0,BT6-066#0,BT6-070#0'",
+  "catalogEngineSourcesUnchanged": true,
+  "catalogDefsHash": "34cc39691649c47fd362a49a69c56b2b653bd2e040cdfe80cd84f514cb456929",
+  "written": 4,
+  "created": 0,
+  "unreadWrites": 0,
+  "pendingAfter": 0,
+  "untouchedRows": 63,
+  "protectedRowsUnchanged": [
+    "BT6-001/back/10",
+    "BT6-012/front/30",
+    "BT6-013/front/20",
+    "BT6-015/front/20"
+  ],
+  "humanConfirmed": 0,
+  "beforeFullRawHash": "7b9b0131df7af8f36adf0228ed0d14eb0eeba7e970951253a19a317629a2999c",
+  "afterFullRawHash": "6406763a9732a378fadb62f6d15df407bcef1dc5c77e15694bab8a8283e2acf2",
+  "afterExportHash": "3d968aff31edf69f809ac958ba99f378f8415d7eb900f275e1f83a60be3ec144",
+  "rows": [
+    {
+      "key": "BT6-006/front/10",
+      "id": 7053,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "beforeRawHash": "a19224968f1866a1cac05ba88a693308d5c9b722964d7d793c713321a5e54495",
+      "afterRawHash": "afa0ce4a14e5a4194f86246b531a5b7426f27c807d4fffcfa756c8868be62ebd",
+      "sourceCurrent": true,
+      "humanConfirmed": false
+    },
+    {
+      "key": "BT6-010/front/0",
+      "id": 2994,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "beforeRawHash": "635ad305da9408d9a11165eec0fe495333b9dbbfa1e2eb2dcb51f82e60f82c7d",
+      "afterRawHash": "eb45e0aa472b8fde8d510b9eb2c80ea09550baa7ee88db4612528dba05a1d833",
+      "sourceCurrent": true,
+      "humanConfirmed": false
+    },
+    {
+      "key": "BT6-066/front/0",
+      "id": 11581,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "beforeRawHash": "d850ac84d7c4b02e5e60fb1cdd3e1298fb160ca54ebd777f606566d6225a17be",
+      "afterRawHash": "cfb1cdf863bcbec98729173ac74ed2360e3d7fc83c7f79f90bb94ac64821011a",
+      "sourceCurrent": true,
+      "humanConfirmed": false
+    },
+    {
+      "key": "BT6-070/front/0",
+      "id": 6899,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "beforeRawHash": "58e86b1e3b7cdb09829261c807628bff325997a642132784c102e0065dd709bb",
+      "afterRawHash": "4b946e74b26b13dd44d4c160d4b8df53308f77f59a586ac257d8fe44f96bde2a",
+      "sourceCurrent": true,
+      "humanConfirmed": false
+    }
+  ],
+  "note": "Actual application under deployed combo engine; no usage-schema deployment/application is implied. Original frozen inputs remain unchanged."
+}

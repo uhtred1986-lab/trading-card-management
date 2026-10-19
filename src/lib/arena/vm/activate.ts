@@ -1,3 +1,4 @@
+import { sparkingIsValid } from "./validity";
 import { requireSkillPayment } from "./skill-payment";
 /**
  * A skill being used, and the refusal one line is owed (§9-1-2, §4-3).
@@ -103,6 +104,7 @@ import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
+import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
 
@@ -226,7 +228,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
     // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, and only that, when its [Permanent]
     // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card))) continue;
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && (showing.scripts.bySkill[skill.index]?.price?.evolution || !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card)))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
@@ -237,7 +239,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     for (const skill of grantedLines(ctx, game, state, card)) {
       const keyword = keywordMoveOf(game, skill);
       if (!keyword || !families.has(familyOf(keyword.offer as string))) continue;
-      out.push({ card, skillIndex: skill.index, skill, script: { ops: [], unsupported: [], price: skill.price }, kind: keyword.offer as string, keyword });
+      out.push({ card, skillIndex: skill.index, skill, script: { kind: skill.kind, ops: [], unsupported: [], price: skill.price, usage: skill.usage as import("./usage").UsageRecord, validity: skill.validity as import("./validity").ValidityRecord }, kind: keyword.offer as string, keyword });
     }
   }
   return out;
@@ -329,7 +331,7 @@ export function evolveOntoBases(ctx: EngineContext, game: GameDefinition, state:
   const scoped = (e: { kind: string; target?: string; onto?: string[] }) => e.kind === "evolveCost" && e.target === line.card && !!e.onto?.length;
   const bases = new Set([...staticsNow(ctx, game, state).filter(scoped), ...state.effects.filter(scoped)].flatMap((e) => e.onto ?? []));
   if (!bases.size) return [];
-  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord };
   return resolveSelector(ctx, game, state, frame, { area: "battle", side: "you", printed: true }).filter((id) => bases.has(id));
 }
 
@@ -495,6 +497,7 @@ export function activationRefusals(
   const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
   const at = findCard(state, card)?.zone ?? null;
+  if (line.script?.price?.evolution && at !== line.script.price.evolution.activation) before.push({ kind: "zone", card, area: "hand" });
 
   // 9-1-5 in both its shapes: one line switched off by index, and the whole
   // card at once. The one reading of that rule is `vm/effects.ts` and every
@@ -519,7 +522,7 @@ export function activationRefusals(
   if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) {
     before.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
   }
-  if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) {
+  if (!sparkingIsValid(state, player, sk.validity)) {
     before.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
   }
   // 22-27-3: [Burst X] cannot be paid with fewer than X cards in the deck.
@@ -691,7 +694,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
     if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
-    if (usesLeft(state, player, card, skill) === 0) return "blocked";
+    if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";
     return line;
   }
   return null;
@@ -722,7 +725,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
     if (usesLeft(state, player, card, sk) === 0) return false;
     if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
-    if (sk.sparking != null && zone(state, player, ACTIVATION_ZONES.sparking).length < sk.sparking) return false;
+    if (!sparkingIsValid(state, player, sk.validity)) return false;
     const condition = line.script.price?.condition;
     return !condition || vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition);
   });
@@ -923,7 +926,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -931,7 +934,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     // frame is queued even when it does nothing, because it is what is
     // announced when the price is paid.
     const key = costVarsKey(card, sk.index);
-    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
@@ -1015,7 +1018,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const inHand = hand.includes(card) ? 1 : 0;
   // #970: choices that must pick different cards are paid or not as a set — a
   // matching over their candidates, never each slot against the whole pool.
-  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel))) return false;
+  const movementPayable = (id: string, variable: string): boolean => {
+    const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
+    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
+  };
+  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as)))) return false;
   const linked = new Set(disjointGroups(ops).flat());
   for (const [at, op] of ops.entries()) {
     switch (op.op) {
@@ -1029,7 +1036,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as));
         if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
@@ -1058,7 +1065,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         // "Under" needs a host and "play" is not an area (3-1).
         if (op.to === "under" || op.to === "play") return false;
         if ("var" in op.target) break;
-        if (!resolveRef(ctx, game, state, frame, op.target).length) return false;
+        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
         break;
       case "removeMarker": {
         if (typeof op.n !== "number") return false;

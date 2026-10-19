@@ -2,6 +2,17 @@
 
 Combined [draft PR #1070](https://github.com/uhtred1986-lab/trading-card-management/pull/1070).
 
+**Subsequent deployment/application:** #1070 merged as `3bb6f0e2` and deployed
+successfully at `2026-10-19T12:04:32Z`. The guarded [actual application receipt](application-receipt.json)
+updates exactly four compiler drafts: BT6-006/front/10 and BT6-010/front/0,
+version 5 → 6; BT6-066/front/0 and BT6-070/front/0, version 6 → 7. All 63
+non-target rows, including the four protected corrections, are unchanged.
+The [actual exported records](stored-rules-after-combo.json) pass the same
+[36-case stored-record proof](actual-record-scenario-receipt.json), with zero
+human confirmations. This is application of the combo contract, not later usage
+metadata or qualification of the selected pair. Earlier pending statements below
+describe the original draft checkpoint.
+
 Scope: BT6-006 front #10, BT6-010 front #0, BT6-066 front #0 and BT6-070
 front #0, from the existing selected public BT6 pair. Starting main is
 `1aa8e3c60a13a763d7282be91dcb6bfe45303060` (#1069).

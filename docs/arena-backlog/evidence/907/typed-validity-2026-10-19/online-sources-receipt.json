@@ -1,0 +1,158 @@
+{
+  "scope": "BT6-003/front/0, BT6-004/front/0, BT6-007/front/0, BT6-008/front/0 Sparking validity; Bond FAQ is explicitly analogous authority, not a Sparking-specific card ruling.",
+  "retrievalMethod": "Python urllib.request through configured session network. SHA-256 hashes identify exact raw response bytes. Raw responses held in session /tmp/usage-online. No tests, database or private user sources.",
+  "sources": [
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedAt": "2026-10-19T12:11:12.061550+00:00"
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedAt": "2026-10-19T12:11:20.498901+00:00"
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedAt": "2026-10-19T12:11:09.786289+00:00"
+    },
+    {
+      "key": "BT6-003",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-003",
+      "status": 200,
+      "bytes": 131610,
+      "sha256": "b261f4456735114a6ade19960e0944bd334daa10e2c9df1f81fcdfa28f67d1ab",
+      "retrievedAt": "2026-10-19T12:11:07.453349+00:00"
+    },
+    {
+      "key": "BT6-004",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-004",
+      "status": 200,
+      "bytes": 138106,
+      "sha256": "df481623ce57ba7dcd81e01a28d20108e3c9434b36538685affb5e4382d82b9b",
+      "retrievedAt": "2026-10-19T12:11:08.623051+00:00"
+    },
+    {
+      "key": "BT6-007",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-007",
+      "status": 200,
+      "bytes": 134971,
+      "sha256": "a8fb998329fed3b151be5d07fe29b3aa8fc8a3bbc0885e0f0be28b0d4b40a564",
+      "retrievedAt": "2026-10-19T12:11:07.397361+00:00"
+    },
+    {
+      "key": "BT6-008",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-008",
+      "status": 200,
+      "bytes": 138514,
+      "sha256": "9f7ae6cc6d3b218516f385157c639cda9e89f3d6290e1231edcfb6b92e0fb582",
+      "retrievedAt": "2026-10-19T12:11:09.066023+00:00"
+    },
+    {
+      "key": "game-faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/game_faq.php",
+      "status": 200,
+      "bytes": 153481,
+      "sha256": "2e86832a709f58c352e1ac8035bb0f1c363134a1847df41e84d40af21f3a04d4",
+      "retrievedAt": "2026-10-19T12:11:59.177164+00:00"
+    },
+    {
+      "key": "keywords",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php",
+      "status": 200,
+      "bytes": 40218,
+      "sha256": "d9dcfbb271b32867e4f8ebc0ed5b04ab6b9dd98bd56de72df8c451e7e9e0bedf",
+      "retrievedAt": "2026-10-19T12:16:47.801582+00:00"
+    },
+    {
+      "key": "sparking-search-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20Sparking%20auto%20trigger%20condition%20pending%20activation",
+      "status": 200,
+      "bytes": 34711,
+      "sha256": "2f17aa1e1432127c873b4d9bd8e49a74eb5cbd647d8ce66bdf5f6a9a9053ce6e",
+      "retrievedAt": "2026-10-19T12:15:03.933800+00:00"
+    },
+    {
+      "key": "sparking-search-1",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20sparking%20trigger%20auto%20drop",
+      "status": 200,
+      "bytes": 35308,
+      "sha256": "d0dcc0fce475539426b9c246f4fef88e35643eec09e2be693c177a16891fd226",
+      "retrievedAt": "2026-10-19T12:15:03.733254+00:00"
+    },
+    {
+      "key": "sparking-search-2",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Adbs-cardgame.com%20sparking%20%22pending%22",
+      "status": 200,
+      "bytes": 14194,
+      "sha256": "cab05ce0fdeaa94b2c1a05e2544bba20a5ab70a0cb4dbac0444d13d198f407b8",
+      "retrievedAt": "2026-10-19T12:15:03.680430+00:00"
+    },
+    {
+      "key": "sparking-timing-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22pending%22%20%22condition%22",
+      "status": 200,
+      "bytes": 9425,
+      "sha256": "ae86600a0abba63a3c4e1a4c1716878faf00031dcdd6e611776a6f287ca98598",
+      "retrievedAt": "2026-10-19T12:15:30.797599+00:00"
+    },
+    {
+      "key": "sparking-timing-1",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22resolve%22%20%22Auto%22%20%22five%22",
+      "status": 200,
+      "bytes": 9461,
+      "sha256": "a4a6e2e7ee3ea58d1266012c1fcb323666844f19cdc0e2e6e170b67747760e16",
+      "retrievedAt": "2026-10-19T12:15:30.791497+00:00"
+    },
+    {
+      "key": "sparking-timing-2",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22trigger%22%20%22before%22",
+      "status": 200,
+      "bytes": 11720,
+      "sha256": "4b0a89e3d6dc3113918fe55a50908df1682781023a094d639eb49b1e8f1c62de",
+      "retrievedAt": "2026-10-19T12:15:30.791010+00:00"
+    },
+    {
+      "key": "sparking-deep-0",
+      "url": "https://html.duckduckgo.com/html/?q=%22sparking%22%20%22pending%22%20DBS%20card%20game%20ruling",
+      "status": 200,
+      "bytes": 9410,
+      "sha256": "b68d0ac4c12d9d202ce2c1c42569e1ae851b2370d0657be8d7e9360a8d9f80ae",
+      "retrievedAt": "2026-10-19T12:17:00.826907+00:00"
+    },
+    {
+      "key": "sparking-deep-1",
+      "url": "https://html.duckduckgo.com/html/?q=%22sparking%22%20%22valid%22%20%22auto%22%20dbs",
+      "status": 202,
+      "bytes": 14307,
+      "sha256": "1abeeac94559ee29da4c5f90b3bbf8d7442dfa3cb4d7408fc0210a2e63568bf6",
+      "retrievedAt": "2026-10-19T12:17:00.296973+00:00"
+    },
+    {
+      "key": "sparking-deep-2",
+      "url": "https://html.duckduckgo.com/html/?q=%22sparking%22%20%22counter%22%20%22condition%22%20DBS",
+      "status": 200,
+      "bytes": 9425,
+      "sha256": "850354b94e828e55030770301d6aa49a382c5d2dd3bca6b2ade95a5bc2e27cb2",
+      "retrievedAt": "2026-10-19T12:17:00.860832+00:00"
+    },
+    {
+      "key": "sparking-deep-3",
+      "url": "https://html.duckduckgo.com/html/?q=%22bond%22%20%22sparking%22%20%22trigger%22%20DBS",
+      "status": 202,
+      "bytes": 14293,
+      "sha256": "c1f7ee89977cb60f0ef5f29e5c4b73c3fa938ae09eaa2928ba8480f5c0d7d41a",
+      "retrievedAt": "2026-10-19T12:17:00.313806+00:00"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "digest": "0a46676c2d9d7149968ab3fdc0d6e8b517e77b2121a6d2af97c075b937e192cf",
+  "referencePath": "docs/arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/stored-rules.json",
+  "targets": [
+    {
+      "key": "BT6-001/back/10",
+      "id": 10742,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "programHash": "7a8b22dcfdacf602f9ebfaf9fbdf0abf64ee4d44c47247a1522c923e81430564",
+      "pending": true,
+      "effectsConditionsTriggersReadingsAndReviewPreserved": true,
+      "before": {
+        "usage": null,
+        "validity": null,
+        "costVersion": null,
+        "costReadable": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "costVersion": 1,
+        "costReadable": true
+      }
+    },
+    {
+      "key": "BT6-012/front/30",
+      "id": 11891,
+      "version": 4,
+      "status": "corrected",
+      "source": "user",
+      "programHash": "c00204521d74fd698f866f4b32cdaaa1d9f091a989d759212859a981fa87344b",
+      "pending": true,
+      "effectsConditionsTriggersReadingsAndReviewPreserved": true,
+      "before": {
+        "usage": null,
+        "validity": null,
+        "costVersion": null,
+        "costReadable": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "costVersion": 1,
+        "costReadable": true
+      }
+    },
+    {
+      "key": "BT6-013/front/20",
+      "id": 13408,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "programHash": "eda350ffea7238fb43bee70c9468162267cc84169dc01339390dd7756f8b69eb",
+      "pending": true,
+      "effectsConditionsTriggersReadingsAndReviewPreserved": true,
+      "before": {
+        "usage": null,
+        "validity": null,
+        "costVersion": null,
+        "costReadable": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "costVersion": 1,
+        "costReadable": true
+      }
+    },
+    {
+      "key": "BT6-015/front/20",
+      "id": 7853,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "programHash": "97a937b3039ecbe1b43c97bc488aeba583180f779f352d755618b3c50ca801a7",
+      "pending": true,
+      "effectsConditionsTriggersReadingsAndReviewPreserved": true,
+      "before": {
+        "usage": null,
+        "validity": null,
+        "costVersion": null,
+        "costReadable": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "costVersion": 1,
+        "costReadable": true
+      }
+    }
+  ],
+  "note": "Metadata-only proposal; no database write, program replacement or new human confirmation",
+  "mode": "dry-run",
+  "pending": 4
+}

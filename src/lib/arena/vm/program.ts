@@ -1,3 +1,7 @@
+import { requireUsage } from "./usage";
+import { requireValidity } from "./validity";
+import { recordedSkillIdentity } from "./skill-identity";
+import { NotYet } from "./errors";
 import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
 /**
  * What a program *means*, read against a `VmState`.
@@ -52,7 +56,7 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides } from "./common";
+import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides, programsOf } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -426,7 +430,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = skillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
+  if (game.attributes.keywords) base.keywords = skillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"));
   // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
   if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, game, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
@@ -528,8 +532,10 @@ function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] }
  */
 const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
-function printedKeywordNames(text: string | null): readonly string[] {
+function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
   if (!text) return NO_KEYWORDS;
+  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined))
+    return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
   if (!names) {
     if (KEYWORD_NAMES.size >= 20_000) KEYWORD_NAMES.clear();
@@ -635,6 +641,10 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
   const out: (Skill & { price?: import("./script").SkillPrice })[] = [];
   for (const p of permissions(ctx, game, state, "unionLine")) {
     if (p.target !== card || !permitted(ctx, game, state, p.filter, card)) continue;
+    // This native grant operation currently declares only an unlimited Union
+    // line. Limited old/manual grants are unsupported, never read as unlimited.
+    if (typeof p.line === "string" && parseSkills(p.line).some((sk) => sk.oncePerTurn || sk.limit !== null || sk.sparking !== null))
+      throw new NotYet("execute a granted Union use ceiling without a typed grant contract; rebuild the grant", "#907");
     if (typeof p.line !== "string" || !p.line) throw new IllegalAction("malformed typed Union grant display source; regenerate rules and rebuild saved matches/exports");
     if (p.unionVariant !== "Fusion" && p.unionVariant !== "Potara") throw new IllegalAction("missing typed Union grant identity; regenerate rules and rebuild saved matches/exports");
     if (p.unionVariant === "Fusion") requireFusionMaterials(p.price);
@@ -643,7 +653,7 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
     const parsed = parseSkills(p.unionVariant === "Fusion" ? "[union-fusion]" : p.line);
     const sk = parsed[0];
     if (parsed.length !== 1 || sk.keyword?.name !== "Union" || sk.keyword.variant !== p.unionVariant) throw new IllegalAction("malformed typed Union grant identity; regenerate rules and rebuild saved matches/exports");
-    out.push({ ...sk, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
+    out.push({ ...sk, usage: { version: 1, oncePerTurn: false, limit: null }, validity: { version: 1, sparking: null }, sparking: null, oncePerTurn: false, limit: null, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
   }
   return out;
 }
@@ -832,8 +842,9 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
 }
 
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
-export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
+export function hookFrame(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
+  const skill = skillIndex === undefined ? undefined : skillsShowing(ctx, state, subject).skills.find(s => s.index === skillIndex);
+  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
 }
 
 export type QueryFact =
@@ -866,7 +877,7 @@ export function queryHookStatics(ctx: EngineContext, game: GameDefinition, state
   if (spec.answer !== "query") throw new Error(`vm/program.ts: "${point}" is an effect hook — use fireHook, not queryHookStatics`);
   const out: QueryFact[] = [];
   for (const body of hookBodiesFor(ctx, game, state, subject, point)) {
-    const frame = hookFrame(game, state, subject, body.ops, {});
+    const frame = hookFrame(ctx, game, state, subject, body.ops, {});
     readHookLeaf(ctx, game, state, frame, body.ops, body.keyword, out);
   }
   return out;
@@ -1065,7 +1076,17 @@ function ruleApplies(
   if (f.turnPlayer && opts.player !== state.turnPlayer) return false;
   if (f.filter || f.name) {
     if (!opts.card || !state.cards[opts.card]) return false;
-    if (f.filter && !predicateOf(f.filter, game)(attrsNow(ctx, game, state, opts.card))) return false;
+    if (f.filter) {
+      const attrs = attrsNow(ctx, game, state, opts.card);
+      if (what === "activateCounter" && (f.filter.costMin != null || f.filter.costMax != null)) {
+        // 1-2-4/5: Counter restrictions ask current card energy information,
+        // independently of its additional skill price or waived payment.
+        if (typeof attrs.costOf !== "number" || !Number.isFinite(attrs.costOf)) return false;
+        const current = Math.max(attrs.costOf, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
+        if (!predicateOf({ ...emptyFilter(), costMin: f.filter.costMin, costMax: f.filter.costMax }, game)({ ...attrs, energyCost: current })) return false;
+        if (!predicateOf({ ...f.filter, costMin: null, costMax: null }, game)(attrs)) return false;
+      } else if (!predicateOf(f.filter, game)(attrs)) return false;
+    }
     if (f.name && nameShowing(ctx, state, opts.card) !== f.name) return false;
   }
   return !escapeHolds(ctx, game, state, f, opts, rule.source);
@@ -1311,10 +1332,22 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   // `sk.effect || sk.cost`. A frame with no line finds nothing.
   let matchesPrinted: ((id: string) => boolean) | null = null;
   if (sel.printed) {
-    const sk = lineOf(ctx, state, frame, game);
-    if (!sk) return [];
-    const printed = predicateOf(parseFilter(printedDescription(sk)), game);
-    matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+    const evolution = frame.evolutionIdentity?.price?.evolution ?? frame.keywordPrice?.line.script?.price?.evolution ?? frame.keywordCost?.line.script?.price?.evolution
+      ?? (frame.skillIndex === undefined ? undefined : skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex]?.price?.evolution);
+    if (evolution) {
+      const predicate = predicateOf(evolution.base.filter, game);
+      matchesPrinted = id => {
+        const at = findCard(state, id), attrs = attrsNow(ctx, game, state, id);
+        if (at?.owner !== frame.master || at.zone !== evolution.base.area || typeof attrs.costOf !== "number") return false;
+        const current = Math.max(attrs.costOf, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
+        return predicate({ ...attrs, energyCost: current });
+      };
+    } else {
+      const sk = lineOf(ctx, state, frame, game);
+      if (!sk) return [];
+      const printed = predicateOf(parseFilter(printedDescription(sk)), game);
+      matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+    }
   }
   // #970: cards an earlier choice of this program bound are not on offer again.
   const chosenBefore = sel.notIn?.length ? new Set(sel.notIn.flatMap((v) => frame.vars[v] ?? [])) : null;

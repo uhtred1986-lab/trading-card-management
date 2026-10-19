@@ -66,7 +66,7 @@ import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, 
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
-import { RulesetBroken } from "./errors";
+import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey } from "./script";
 import { endGame } from "./flow";
 import { emit, fire, log } from "./events";
@@ -74,6 +74,7 @@ import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -524,6 +525,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
       const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
+      if (frame.evolutionIdentity) {
+        if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
+        if (cards.some(id => findCard(state, id)?.zone !== "hand" || (state.cards[id]?.zoneEpoch ?? 0) !== frame.evolutionSourceEpoch)) {
+          // A card paid from hand is a new card after moving (3-1-4). The
+          // activated hand-only EX-Evolve cannot play it from its new area.
+          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          state.programs.unshift(frame);
+          return;
+        }
+      }
       if (evolution && opts.onto) {
         const base = state.cards[opts.onto];
         const bound = frame.evolutionBase ??= { card: opts.onto, zoneEpoch: base?.zoneEpoch ?? 0 };
@@ -695,6 +706,7 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) return;
   to = route.to;
+  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to)) return;
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile

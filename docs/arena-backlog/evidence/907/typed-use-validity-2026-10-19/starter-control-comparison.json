@@ -1,0 +1,160 @@
+{
+  "baseline": "docs/arena-backlog/evidence/907/combo-qualifications-2026-10-19/starter-compiler-pack.json",
+  "baselineSHA256": "9deb920fcc4362f7c7ae8b589c844834d6783dc1042fb8aea1d4e775fbb65ed1",
+  "actualSHA256": "592b9d6da5ebf25ed81ea6ec2d5b70dc28db8c77f42b9791733215c93fce0a80",
+  "equal": [
+    "all 16 complete game records and trace hashes",
+    "catalog/source/defs",
+    "decks/admission",
+    "seeds/move limits/protocol",
+    "all policy ranking/search sources",
+    "ruleset/errata",
+    "summary/measures",
+    "all existing executable fields"
+  ],
+  "migratedPrograms": [
+    "BT1-014/front/0",
+    "BT1-027/front/0",
+    "BT10-008/front/0",
+    "BT10-008/front/10",
+    "BT11-008/front/0",
+    "BT11-008/front/10",
+    "BT11-011/front/0",
+    "BT14-010/front/0",
+    "BT14-010/front/10",
+    "BT3-027/front/0",
+    "BT4-012/front/0",
+    "BT4-077/front/0",
+    "BT4-077/front/10",
+    "BT4-078/front/0",
+    "BT4-079/front/0",
+    "BT4-081/front/0",
+    "BT4-081/front/10",
+    "BT4-081/front/20",
+    "BT4-084/front/0",
+    "BT4-084/front/10",
+    "BT4-085/front/0",
+    "BT4-085/front/10",
+    "BT4-086/front/0",
+    "BT4-086/front/10",
+    "BT4-086/front/20",
+    "BT4-089/front/0",
+    "BT4-091/front/0",
+    "BT4-091/front/10",
+    "BT4-096/front/0",
+    "BT4-097/front/0",
+    "BT4-097/front/10",
+    "BT5-023/front/0",
+    "BT5-023/front/10",
+    "BT6-010/front/0",
+    "BT6-010/front/10",
+    "BT6-011/front/0",
+    "BT6-025/front/0",
+    "BT6-026/front/0",
+    "BT9-031/front/0",
+    "DB1-019/front/0",
+    "DB2-004/front/0",
+    "DB3-001/front/0",
+    "DB3-001/front/10",
+    "DB3-001/front/20",
+    "SD15-01/front/0",
+    "SD15-01/front/10",
+    "SD15-01/back/0",
+    "SD15-01/back/10",
+    "SD15-02/front/0",
+    "SD15-02/front/10",
+    "SD15-02/front/20",
+    "SD15-03/front/0",
+    "SD15-03/front/1",
+    "SD15-03/front/2",
+    "SD15-03/front/10",
+    "SD15-03/front/20",
+    "SD15-04/front/0",
+    "SD15-05/front/0",
+    "SD15-05/front/1",
+    "SD15-05/front/10",
+    "SD5-01/front/0",
+    "SD5-01/front/10",
+    "SD5-01/back/0",
+    "SD5-01/back/10",
+    "SD5-02/front/0",
+    "SD5-03/front/0",
+    "SD5-03/front/10",
+    "SD5-03/front/20",
+    "SD5-03/front/30",
+    "SD5-04/front/0",
+    "SD5-04/front/10",
+    "SD5-05/front/0",
+    "SD5-05/front/10",
+    "TB1-023/front/0",
+    "TB1-055/front/0"
+  ],
+  "limitedPrograms": {
+    "SD15-01/back/10": [
+      true,
+      null
+    ],
+    "SD15-02/front/0": [
+      false,
+      1
+    ],
+    "SD15-03/front/20": [
+      false,
+      1
+    ],
+    "SD5-04/front/10": [
+      true,
+      null
+    ]
+  },
+  "sparkingPrograms": {
+    "BT5-023/front/10": 5
+  },
+  "versionChanges": {
+    "engine": {
+      "before": "4b0ce6cb48c695d8240a3fed24b900f965fc26bb",
+      "after": "b4a3c16a20ea06cb21fefc79ef76cb781a477b77"
+    },
+    "engineSourceHash": {
+      "before": "1b2802c5beb03c14b4098ac5fb558457c9e8a217253412a06db141d52bbb13e1",
+      "after": "1109bd6d9b1ba92b15613c87cd224166746e864b2bb7983ebef2ee62433f6e2b"
+    },
+    "loader": {
+      "before": "4ae647c8f6501d353a95a9683b1389382bcfa8623fd06fee6d5faecc2573a796",
+      "after": "dd332e375c94150d849d6ccdc2a3b0a7661b447fd42b3f0a4c6b8e2de8e0473c"
+    },
+    "policy": {
+      "before": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+      "after": "e5c4f3aafd3e6b83f0190ba76c49a172a3d6c0d7469ed1e5eb2c445a652a5920"
+    },
+    "runner": {
+      "before": "1aae815e1e0112500d68243393a3441ba3c2534d0396fdb6e6d4675d8c11235f",
+      "after": "79928192493ef0215e3999de7e8b1b9aec574f3c4302c2d7e9ba330af2f84834"
+    },
+    "sourceHead": {
+      "before": "4b0ce6cb48c695d8240a3fed24b900f965fc26bb",
+      "after": "b4a3c16a20ea06cb21fefc79ef76cb781a477b77"
+    }
+  },
+  "outcomes": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "gameplayExpectationChanges": [],
+  "policyChange": "Only the exact reviewed namedSet legality projection: ask for one fresh offer per dependent pick. No ranking/search change or strength promotion.",
+  "note": "Persisted kind plus explicit usage/validity v1 metadata added; dependent-choice boundary separately pinned. Compiler controls do not certify actual production records or per-skill exercise."
+}

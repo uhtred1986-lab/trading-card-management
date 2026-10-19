@@ -42,6 +42,9 @@ export interface ReviewItem {
   tag: string;
   printed: string;
   trigger: string[];
+  usage?: import("./lang/ast").Rule["usage"];
+  validity?: import("./lang/ast").Rule["validity"];
+  combo?: import("./lang/ast").Rule["combo"];
   cost: CostRecord | null;
   cond: Cond | null;
   ops: Op[];
@@ -79,6 +82,8 @@ function itemOf(rule: RuleRow, card: CardBits, extra: { decks: string[]; firedIn
     tag: rule.kind,
     printed: rule.printed,
     trigger: (rule.trigger as string[] | null) ?? [],
+    ...(rule.validity !== undefined ? { validity: rule.validity as import("./lang/ast").Rule["validity"] } : {}),
+    ...(rule.usage !== undefined ? { usage: rule.usage as import("./lang/ast").Rule["usage"] } : {}),
     ...(rule.combo != null ? { combo: rule.combo as import("./lang/ast").Rule["combo"] } : {}),
     cost: (rule.cost as CostRecord | null) ?? null,
     cond: (rule.cond as Cond | null) ?? null,

@@ -81,7 +81,9 @@ function cardQuestion(match: PinnedMatch): NonNullable<Parameters<typeof buildDe
   if (pr.kind !== "chooseCards") return null;
   const frame = match.state.programs[0];
   const op = frame && frame.awaiting === pr.choice.continuation ? frame.ops[frame.ip] : undefined;
-  const plain = op && op.op === "choose" && op.as === pr.choice.continuation && op.atMost === undefined && op.sumTo === undefined;
+  // Named sets narrow the legal pool after each pick (slot and power), so
+  // their dependent count must be answered one fresh engine offer at a time.
+  const plain = op && op.op === "choose" && op.as === pr.choice.continuation && !op.namedSet && op.atMost === undefined && op.sumTo === undefined;
   const remaining = plain ? Math.max(0, (op.sel.count ?? 1) - (frame.vars[op.as]?.length ?? 0)) : null;
   return {
     reason: pr.choice.reason,

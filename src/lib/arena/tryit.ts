@@ -43,6 +43,8 @@ export function probeRuleOf(rule: Rule, def: CardDef, side: "front" | "back", sk
     skillIndex,
     kind: rule.kind,
     trigger: rule.trigger,
+    ...(rule.validity !== undefined ? { validity: rule.validity } : {}),
+    ...(rule.usage !== undefined ? { usage: rule.usage } : {}),
     ...(rule.combo ? { combo: rule.combo } : {}),
     ops: rule.cond ? [{ op: "if", cond: rule.cond, then: rule.ops }] : rule.ops,
     open: false,
