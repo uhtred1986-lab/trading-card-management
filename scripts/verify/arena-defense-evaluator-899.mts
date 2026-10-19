@@ -28,8 +28,12 @@ try {
     const [a, b] = freeze.jobs.slice(i, i + 2); assert.equal(a.seed, b.seed); assert.equal(a.candidateSeat, "p1"); assert.equal(b.candidateSeat, "p2");
     assert.deepEqual(a.initialPolicyRng, b.initialPolicyRng, "physical-seat RNG stays fixed across candidate assignment");
   }
-  const shards = [0, 1, 2].flatMap(index => shardJobs(freeze.jobs, { index, count: 3 }));
-  assert.equal(shards.length, 320); assert.equal(new Set(shards.map(j => j.index)).size, 320);
+  for (const count of [3, 4]) {
+    const partition = Array.from({ length: count }, (_, index) => shardJobs(freeze.jobs, { index, count }));
+    const shards = partition.flat();
+    assert.equal(shards.length, 320); assert.equal(new Set(shards.map(j => j.index)).size, 320);
+    if (count === 4) assert.ok(partition.every(jobs => jobs.length === 80));
+  }
   const collision = copy(protocol); collision.corpora[1].seedBase = collision.corpora[0].seedBase;
   const collisionFixtures = fixtures.map(f => f.corpus === "bt6" ? { ...f, seedBase: collision.corpora[0].seedBase } : f);
   assert.throws(() => defenseSchedule(collision, collisionFixtures), /seed collision/);
