@@ -1,4 +1,5 @@
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
+import { lifeToHandForbidden } from "./life-movement";
 import { requireUsage, usageProblem } from "./usage";
 import { comboScriptProblem } from "./combo-qualification";
 /**
@@ -1506,6 +1507,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   });
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) return;
+  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to)) return;
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));

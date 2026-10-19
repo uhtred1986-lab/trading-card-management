@@ -1729,7 +1729,7 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // deferred: neither printed card's substitute (reveal, then to the hand)
     // asks anything of its own, so `leaveRoute` runs it inline.
     moved(ctx, game, state, ev, id, dest, { owner: defender, reveal: d.critical, ...(replaced === undefined ? {} : { replaced }) });
-    d.taken.push(id);
+    if (!state.sides[defender].zones.life.includes(id)) d.taken.push(id);
     d.remaining--;
   }
   delete b.damage;

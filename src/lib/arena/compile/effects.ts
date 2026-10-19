@@ -3446,6 +3446,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // A sentence about a player: what follows names the cards it is about.
   if (side) {
     let mm: RegExpExecArray | null;
+    // BT6-053: a player prohibition, not damage prevention or an optional payment.
+    if (side === "you" && /^add cards from your life to your hand(?: for the duration of the turn)?$/.test(rest))
+      return [{ op: "forbid", what: "addLifeToHand", side, until }];
     if ((mm = /^play\s+(.*)$/.exec(rest))) {
       const what = mm[1];
       if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true, ...withUnless }];

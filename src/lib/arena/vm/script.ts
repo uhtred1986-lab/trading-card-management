@@ -1828,7 +1828,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const life = h.zone(p, "life")[0];
             if (!life) break;
             h.move(life, "hand", p, { reason: "damage" });
-            taken.push(life);
+            if (h.areaOf(life) !== "life") taken.push(life);
           }
           if (taken.length) {
             h.addDamageTaken(p, taken.length);
@@ -1881,7 +1881,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "lifeDownTo":
         // Losing life this way is not damage (1-13-2), so nothing triggers on it.
         for (const p of sideOf(master, op.side)) {
-          while (h.zone(p, "life").length > op.n) h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
+          while (h.zone(p, "life").length > op.n) {
+            const before = h.zone(p, "life").length;
+            h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
+            if (h.zone(p, "life").length >= before) break;
+          }
         }
         break;
 

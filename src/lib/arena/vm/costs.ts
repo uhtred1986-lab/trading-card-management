@@ -82,6 +82,7 @@ import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
 import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, staticsNow } from "./program";
+import { lifeToHandForbidden } from "./life-movement";
 import { NotYet, RulesetBroken } from "./errors";
 import { SETUP_ZONES, moved, type MoveCause } from "./flow";
 import { fire, log } from "./events";
@@ -684,6 +685,7 @@ function whyNot(ctx: EngineContext, game: GameDefinition, state: VmState, player
     if (on + off.n < 0) why.push({ kind: "other", detail: off.by ? `[${off.by}] needs the markers` : `needs ${-off.n} markers (${on} on it)` });
   }
   if (price.life > 0) {
+    if (lifeToHandForbidden(ctx, game, state, player, "life", "hand")) why.push({ kind: "other", detail: "cards cannot be added from your life to your hand" });
     const on = (state.sides[player].zones[SETUP_ZONES.life] ?? []).length;
     if (on < price.life) why.push({ kind: "other", detail: `needs ${price.life} life (${on} left)` });
   }
@@ -1262,7 +1264,7 @@ export function altCostFor(ctx: EngineContext, game: GameDefinition, state: VmSt
   for (const e of staticsNow(ctx, game, state)) if (e.kind === "altCost" && e.target === card) candidates.push(e.value as VmAltCost);
   for (const alt of candidates) {
     if ((alt.for ?? "counter") !== which) continue;
-    if (alt.pay === "life" && (state.sides[player].zones[SETUP_ZONES.life] ?? []).length < alt.n) continue;
+    if (alt.pay === "life" && ((state.sides[player].zones[SETUP_ZONES.life] ?? []).length < alt.n || lifeToHandForbidden(ctx, game, state, player, "life", "hand"))) continue;
     if (alt.pay === "energy" && alt.rest && alt.rest.length < restCount(alt)) continue;
     if (alt.pay === "energy" && !alt.rest && !planCost(ctx, game, state, player, altEnergy(alt), null).ok) continue;
     if (alt.pay === "program" || alt.pay === "invoker") continue;
@@ -1328,6 +1330,7 @@ export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmSt
     return;
   }
   if (alt.pay === "life") {
+    if (lifeToHandForbidden(ctx, game, state, player, "life", "hand")) throw new RulesetBroken(state.game, "the alternative Life-to-hand payment is prohibited");
     for (let i = 0; i < alt.n; i++) {
       const top = (state.sides[player].zones[SETUP_ZONES.life] ?? [])[0];
       if (!top) throw new RulesetBroken(state.game, "an alternative price in life that was offered can no longer be paid");

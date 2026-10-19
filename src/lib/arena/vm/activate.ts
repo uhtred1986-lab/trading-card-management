@@ -104,6 +104,7 @@ import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { skillsShowing } from "./triggers";
 import { findCard } from "./zones";
+import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
 
@@ -1016,7 +1017,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const inHand = hand.includes(card) ? 1 : 0;
   // #970: choices that must pick different cards are paid or not as a set — a
   // matching over their candidates, never each slot against the whole pool.
-  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel))) return false;
+  const movementPayable = (id: string, variable: string): boolean => {
+    const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
+    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
+  };
+  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as)))) return false;
   const linked = new Set(disjointGroups(ops).flat());
   for (const [at, op] of ops.entries()) {
     switch (op.op) {
@@ -1030,7 +1035,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches);
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as));
         if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
@@ -1059,7 +1064,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         // "Under" needs a host and "play" is not an area (3-1).
         if (op.to === "under" || op.to === "play") return false;
         if ("var" in op.target) break;
-        if (!resolveRef(ctx, game, state, frame, op.target).length) return false;
+        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
         break;
       case "removeMarker": {
         if (typeof op.n !== "number") return false;

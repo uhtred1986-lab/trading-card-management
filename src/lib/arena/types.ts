@@ -304,6 +304,8 @@ export type ForbiddenAction =
    * Q&A on BT3-032 and BT19-034 says ("a result of both the Charge Phase and skills").
    */
   | "energyCap"
+  /** Life-to-hand movement, including costs, skill effects and damage processing. */
+  | "addLifeToHand"
   /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
   | "beMovedBySkill"
   /** "This card's skills can't be negated in any area" (9-1-5). */

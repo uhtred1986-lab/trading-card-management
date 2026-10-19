@@ -213,6 +213,7 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   switchEnergyToActive: "switch energy to Active Mode",
   placeEnergy: "place cards in the Energy Area",
   energyCap: "place another card in the Energy Area",
+  addLifeToHand: "add cards from life to hand",
   beMovedBySkill: "be removed from a Battle Area by skills",
   beNegated: "have their skills negated",
 };
