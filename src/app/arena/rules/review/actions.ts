@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import { expireRulesHealth } from "@/lib/cache/rules-health";
 import { currentUser, isArenaAdmin, requireSl } from "@/lib/auth";
 import { parsePath } from "@/lib/arena/lang/path";
 import { WRONG_REASONS, type ClauseTag, type WrongReason } from "@/lib/arena/rule-review";
@@ -19,6 +20,7 @@ const NOT_ADMIN = "only an arena admin can record a verdict";
 const TAGS: (ClauseTag | "UNREAD")[] = ["WHEN", "COST", "IF", "DO", "UNREAD"];
 
 function revalidate() {
+  expireRulesHealth();
   revalidatePath("/arena/rules");
   revalidatePath("/arena/rules/card/[cardId]", "page");
   revalidatePath("/arena/feedback");

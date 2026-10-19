@@ -43,7 +43,7 @@ export async function loadReview(db: Db, gameId: number, turn: number | undefine
   const ids = [...new Set([...a.cardIds, ...b.cardIds])];
   const defs = await defsForCards(db, ids);
   // The referee is off: a replay asks Claude nothing; every ruling is already an action in the log.
-  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: false };
+  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs) };
   const art = ids.length ? await db.select({ id: cardsTable.id, imageUrl: cardsTable.imageUrl, backImageUrl: cardsTable.backImageUrl }).from(cardsTable).where(inArray(cardsTable.id, ids)) : [];
   const images: Record<string, CardArt> = {};
   for (const r of art) images[r.id] = { front: r.imageUrl, back: r.backImageUrl };

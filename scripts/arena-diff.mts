@@ -80,7 +80,7 @@ async function replay(id: number): Promise<Report | null> {
   const defs = await defsForCards(db, [...new Set([...a.cardIds, ...b.cardIds])]);
   // The referee is off: a replay must not ask Claude anything, and every
   // ruling a game needed is already in its action log as `refereeRuling`.
-  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: false };
+  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs) };
   let state = engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input }).state;
   const countOf = (p: "p1" | "p2") => [...state.sides[p].zones.deck, ...state.sides[p].zones.hand, ...state.sides[p].zones.life].length;
   const deckChanged = countOf("p1") !== a.cardIds.length - 1 || countOf("p2") !== b.cardIds.length - 1;

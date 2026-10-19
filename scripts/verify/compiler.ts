@@ -209,7 +209,7 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
 
 // …and put to the referee when one is, whose ruling is a program in this same language.
 {
-  const refCtx = { ...CTX, referee: true };
+  const refCtx = { ...CTX };
   let s = stagedG({ hand: ["MYSTERY"], energy: ["V1"] });
   const before = zoneOf(s, "p1", "hand").length;
   s = IMPL.apply(refCtx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "MYSTERY") }).state;

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import { expireRulesHealth } from "@/lib/cache/rules-health";
 import { requireSl, isArenaAdmin, currentUser } from "@/lib/auth";
 import { approveRuleExplanation, requestRuleExplanation, retryExplanationIssue } from "@/lib/arena/rule-explanation-store";
 import type { ExplanationResult } from "@/lib/arena/rule-explanation";
@@ -13,6 +14,7 @@ export async function reopenReviewedRuleAction(id: number, context: { decks: str
   if (!Number.isInteger(id) || !context || !Array.isArray(context.decks) || !context.decks.every((name) => typeof name === "string") || (context.firedIn !== null && !Number.isInteger(context.firedIn))) return { error: "Invalid review context.", item: null };
   try {
     const item = await reopenReviewedRule(db, id, context);
+    expireRulesHealth();
     revalidatePath("/arena/rules");
     revalidatePath("/arena/rules/card/[cardId]", "page");
     return { error: null, item };
@@ -35,6 +37,7 @@ export async function approveExplanationAction(id: number, proposalId: number, t
   if (!Number.isInteger(id) || !Number.isInteger(proposalId) || typeof token !== "string") return { error: "No valid proposal was selected." };
   try {
     await approveRuleExplanation(db, id, proposalId, token);
+    expireRulesHealth();
     revalidatePath("/arena/rules");
     revalidatePath("/arena/rules/card/[cardId]", "page");
     return { error: null };

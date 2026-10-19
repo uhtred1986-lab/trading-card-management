@@ -28,7 +28,7 @@ import { arenaModel, arenaSlotFor } from "@/lib/ai/arena-models";
 import { generateJson } from "@/lib/ai/core";
 import { getSettings } from "@/lib/ai/settings";
 import { other, type EngineContext, type LegalAction, type PlayerId } from "../types";
-import { validateProgram, type Op } from "../vm/script";
+import type { Op } from "../vm/script";
 import { COND_SCHEMA, CONDITIONS_OFF_A_CARD, OP_SCHEMA, condSignature, opSignature, type Cond } from "../vm/script";
 import { words, type Words } from "../rulesets/words";
 import { loadDbs } from "../rulesets";
@@ -286,12 +286,7 @@ function promptQuestion(ctx: EngineContext, s: EngineState, p: PlayerId): string
   }
 }
 
-// ── the referee (proposal §6.4) ────────────────────────────────────────────
-
-const RulingSchema = z.object({
-  program: z.string().describe("A JSON array of operations, as described. Use [] when nothing should happen."),
-  why: z.string().max(200).describe("One sentence on how you read the card"),
-});
+// ── the effect language Claude is given (rule drafting: clarify.ts, explain-rule.ts) ──
 
 /**
  * The operation list is read off `OP_SCHEMA`, so an op the interpreter learns
@@ -364,45 +359,3 @@ Rules of thumb: "up to N" means "upTo":true; "choose 1 ... and KO it" is a choos
 
 /** The prompt as it is sent, built from the game the arena plays. */
 export const EFFECT_LANGUAGE = effectLanguage();
-
-export async function ruleOnCard(
-  db: Db,
-  request: { cardId: string; cardName: string; text: string; unsupported: string[] },
-  situation: string,
-  attribution?: AiCallAttribution,
-  beforeProviderCall?: () => Promise<void>,
-): Promise<{ ops: Op[]; why: string; valid: boolean; spend: { model: string; provider?: string; billed?: boolean; input: number; output: number; cached: number; cacheWrite?: number; costMicros?: number } | null }> {
-  if (!hasAnthropic()) return { ops: [], why: "no API key, so the skill did nothing", valid: false, spend: null };
-  await beforeProviderCall?.();
-  const res = await generateJson({
-    task: "arena_referee",
-    tier: "best",
-    maxTokens: 4000,
-    thinking: "adaptive",
-    effort: "medium",
-    schema: RulingSchema,
-    system: [{ text: EFFECT_LANGUAGE, cache: "long" }],
-    messages: [
-      {
-        role: "user",
-        parts: [
-          {
-            type: "text",
-            text: `CARD: ${request.cardName} (${request.cardId})\nFULL SKILL LINE: ${request.text}\nThe parts the engine could not read: ${request.unsupported.join(" | ")}\n\nSITUATION:\n${situation}\n\nGive the operations for this skill, now.`,
-          },
-        ],
-      },
-    ],
-  });
-  const { output } = await recordRun<z.infer<typeof RulingSchema>>(db, "arena_referee", { cardId: request.cardId, unsupported: request.unsupported, ...(attribution ? { arena: attribution } : {}) }, res);
-  let ops: unknown;
-  try {
-    ops = JSON.parse(output.program);
-  } catch {
-    ops = [];
-  }
-  const spend = { model: res.model, provider: res.provider, billed: res.billed, input: res.usage.input, output: res.usage.output, cached: res.usage.cacheRead, cacheWrite: res.usage.cacheWrite, ...(res.costMicros !== undefined ? { costMicros: res.costMicros } : {}) };
-  // A malformed ruling is treated as "nothing happens" rather than trusted.
-  if (!validateProgram(ops)) return { ops: [], why: `${output.why} (the ruling was not a valid program, so nothing happened)`, valid: false, spend };
-  return { ops: ops as Op[], why: output.why, valid: true, spend };
-}
