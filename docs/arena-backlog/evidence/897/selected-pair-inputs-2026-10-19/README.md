@@ -36,5 +36,17 @@ Other use-limit, sparking, evolution, source/prohibition and migration blockers
 remain explicit. This follows the delivery plan's trigger-qualification stage;
 it does not broaden the queue to every Union support card.
 
-Admission evidence and its tested revision will be added after integration.
-No qualification matches have been run for this pair. #897 remains open.
+[Stored admission](stored-admission.json), evaluated on integrated code
+`c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24`, refuses both decks: 0 admitted,
+0 qualified, 0 games. All 67 required skills have blockers; six native entries
+remain separately identified. Seventeen obsolete exports fail normalization;
+the physical expected manifest still matches exactly. Both lists pass the
+captured application's legality check, which is not an independent certification
+against the current official restricted list. No pair match was attempted and
+no result was imported into Testing & stats. #897 remains open.
+
+Reproduce the admission-only report (no database/network):
+
+```sh
+env -u DATABASE_URL npx tsx scripts/arena-corpus-freeze.mts --mode stored --catalog docs/arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/catalog.json --stored-rules docs/arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/stored-rules.json --decks docs/arena-backlog/evidence/897/baseline-2026-10-19/additional-pair.json --starters=false --pairs 0 --max-moves 3000 --seed-base 897000 --out /tmp/bt6-stored-admission.json
+```
