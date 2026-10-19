@@ -199,7 +199,7 @@ function qualify(c: Candidate, catalog: CatalogCard[], mode: ProgramMode, proven
 
 interface Game { pair: string; seed: number; p1: string; p2: string; policySeed: number; over: boolean; winnerSeat: PlayerId | "draw" | null; reason: string | null; moves: number; turn: number; stopKind: DuelResult["stopKind"] | "crashed"; stopped: string | null; trace: string }
 type Class = "completed" | "illegal" | "interrupted" | "limited" | "crashed" | "other";
-const classOf = (g: Game): Class => (g.over ? "completed" : g.stopKind === "illegal" ? "illegal" : g.stopKind === "interrupted" ? "interrupted" : g.stopKind === "limit" ? "limited" : g.stopKind === "crashed" ? "crashed" : "other");
+export const classOf = (g: Game): Class => (g.stopKind === "interrupted" ? "interrupted" : g.over ? "completed" : g.stopKind === "illegal" ? "illegal" : g.stopKind === "limit" ? "limited" : g.stopKind === "crashed" ? "crashed" : "other");
 
 export async function bundleFor(defs: Record<string, CardDef>, catalog: CatalogCard[], runtime: string, scripts: ReturnType<typeof programProvenance>["scripts"]): Promise<ReplayBundleRecord> {
   const art: Record<string, { front: string | null; back: string | null }> = {};
