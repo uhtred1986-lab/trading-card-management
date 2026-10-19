@@ -27,7 +27,7 @@ import { approvalProblem } from "@/lib/arena/rule-review";
 import { blankRule, clearReviewFlag, confirmMatching, confirmRule, ruleHealth, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
 import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-cost";
-import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
+import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeScenario } from "@/lib/arena/probe";
 import { SKIN_COOKIE, type ArenaSkin } from "@/lib/arena/skin";
 import { STAGING_COOKIE, type ArenaStaging } from "@/lib/arena/staging";
 import { syncFeedbackItem, syncAllFeedbackItems, type FeedbackItem } from "@/lib/github";
@@ -721,30 +721,4 @@ export async function probeRuleFor(id: number): Promise<{ rule: ProbeRule; scena
   if (!def) return null;
   const rule = ruleFrom(row, def, programOf(row));
   return { rule, scenarios: scenariosFor(rule) };
-}
-
-/** Run one rule on one board. Pure once the row is read, so it costs a query and nothing else. */
-export async function probeRuleAction(id: number, scenarioKey?: string): Promise<{ error: string | null; run: ProbeRun | null }> {
-  await requireSl();
-  const found = await probeRuleFor(id);
-  if (!found) return { error: "no such rule", run: null };
-  const scenario = found.scenarios.find((s) => s.key === scenarioKey) ?? found.scenarios[0];
-  return { error: null, run: probe(found.rule, scenario) };
-}
-
-/**
- * Every board this rule can be tried on, run. Each is a staged game in the
- * pure engine, so the whole set costs the one query the rule was read with.
- */
-export async function probeAllAction(id: number): Promise<{ error: string | null; runs: { key: string; title: string; outcome: ProbeRun["outcome"]; headline: string }[] }> {
-  await requireSl();
-  const found = await probeRuleFor(id);
-  if (!found) return { error: "no such rule", runs: [] };
-  return {
-    error: null,
-    runs: found.scenarios.map((scenario) => {
-      const run = probe(found.rule, scenario);
-      return { key: scenario.key, title: scenario.title, outcome: run.outcome, headline: run.result[0] ?? "nothing to report" };
-    }),
-  };
 }
