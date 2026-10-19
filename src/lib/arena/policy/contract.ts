@@ -29,7 +29,7 @@
  * Policy layer: value imports only from `src/lib/arena/policy/` (checked by
  * `scripts/verify/arena-policy-contract.mts`).
  */
-import type { Action, ActionCost, LegalAction, PlayerId, Prompt } from "../types";
+import type { Action, ActionCost, BattleActivationSummary, CounterResponseSummary, LegalAction, PlayerId, Prompt } from "../types";
 import { aliasIds, type AliasTable, type PolicyObservation } from "./observation";
 import { nextInt, type PolicyRng } from "./rng";
 
@@ -73,6 +73,8 @@ export interface MenuDecision {
   label: string;
   action: Record<string, unknown>;
   cost?: ActionCost;
+  battleActivation?: BattleActivationSummary;
+  counterResponse?: CounterResponseSummary;
 }
 
 /**
@@ -222,6 +224,8 @@ export function buildDecisions(input: DecisionInput): { decisions: PolicyDecisio
         label: masked ? `${type} ${Object.values(shown).filter((v) => typeof v === "string" && v.startsWith("?")).join(", ")}`.trim() : legal.label,
         action: shown,
         ...(legal.cost ? { cost: legal.cost } : {}),
+        ...(legal.battleActivation ? { battleActivation: { ...legal.battleActivation, power: { ...legal.battleActivation.power } } } : {}),
+        ...(legal.counterResponse ? { counterResponse: { ...legal.counterResponse } } : {}),
       });
     }
     listed.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
