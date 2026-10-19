@@ -1,0 +1,214 @@
+{
+  "scope": "Selected frozen BT6 pair: eleven Once per turn skill rows; general Limit and identity boundaries are semantic references, not evidence of selected-pair Limit coverage.",
+  "retrievalMethod": "Python urllib.request through session network configuration. Hashes identify raw response bytes, including access-denial pages. Raw pages held only in session /tmp/usage-online. No database, credentials or private owner data accessed.",
+  "sources": [
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedAt": "2026-10-19T12:11:12.061550+00:00"
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedAt": "2026-10-19T12:11:20.498901+00:00"
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedAt": "2026-10-19T12:11:09.786289+00:00"
+    },
+    {
+      "key": "BT6-001",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-001",
+      "status": 200,
+      "bytes": 133795,
+      "sha256": "cd0a1473debe5c34b079098f7986b40413f9ddc575469b1d96d5f1957ef9a2c6",
+      "retrievedAt": "2026-10-19T12:11:07.891781+00:00"
+    },
+    {
+      "key": "BT6-003",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-003",
+      "status": 200,
+      "bytes": 131610,
+      "sha256": "b261f4456735114a6ade19960e0944bd334daa10e2c9df1f81fcdfa28f67d1ab",
+      "retrievedAt": "2026-10-19T12:11:07.453349+00:00"
+    },
+    {
+      "key": "BT6-004",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-004",
+      "status": 200,
+      "bytes": 138106,
+      "sha256": "df481623ce57ba7dcd81e01a28d20108e3c9434b36538685affb5e4382d82b9b",
+      "retrievedAt": "2026-10-19T12:11:08.623051+00:00"
+    },
+    {
+      "key": "BT6-007",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-007",
+      "status": 200,
+      "bytes": 134971,
+      "sha256": "a8fb998329fed3b151be5d07fe29b3aa8fc8a3bbc0885e0f0be28b0d4b40a564",
+      "retrievedAt": "2026-10-19T12:11:07.397361+00:00"
+    },
+    {
+      "key": "BT6-008",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-008",
+      "status": 200,
+      "bytes": 138514,
+      "sha256": "9f7ae6cc6d3b218516f385157c639cda9e89f3d6290e1231edcfb6b92e0fb582",
+      "retrievedAt": "2026-10-19T12:11:09.066023+00:00"
+    },
+    {
+      "key": "BT6-015",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-015",
+      "status": 200,
+      "bytes": 132117,
+      "sha256": "fe74c39fe4cfe905bd7d52a49e990183707de5ebda0b615da9cc9e70a856cd86",
+      "retrievedAt": "2026-10-19T12:11:07.186682+00:00"
+    },
+    {
+      "key": "BT6-053",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-053",
+      "status": 200,
+      "bytes": 133590,
+      "sha256": "33ac1b4c14467a9debbdb1dabd26663150f4287918d7f8f3cc0f3f7dd3b622c1",
+      "retrievedAt": "2026-10-19T12:11:13.757235+00:00"
+    },
+    {
+      "key": "BT6-060",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-060",
+      "status": 200,
+      "bytes": 138085,
+      "sha256": "507fcd680b4be3d7cba31a357b0d5bb9eff59d14b446e1ecfe784eacfcb0ef40",
+      "retrievedAt": "2026-10-19T12:11:09.552933+00:00"
+    },
+    {
+      "key": "BT6-061",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-061",
+      "status": 200,
+      "bytes": 131843,
+      "sha256": "0ec96357a67d85262a2e88aa22f132ab1f8f440485c1b32dfea7e30f65724469",
+      "retrievedAt": "2026-10-19T12:11:07.934633+00:00"
+    },
+    {
+      "key": "BT6-062",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-062",
+      "status": 200,
+      "bytes": 134628,
+      "sha256": "601f3591e7e1d29c274a8aa8b86bb648dbda807b32edf9d7cd67589f07676c67",
+      "retrievedAt": "2026-10-19T12:11:09.180425+00:00"
+    },
+    {
+      "key": "game-faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/game_faq.php",
+      "status": 200,
+      "bytes": 153481,
+      "sha256": "2e86832a709f58c352e1ac8035bb0f1c363134a1847df41e84d40af21f3a04d4",
+      "retrievedAt": "2026-10-19T12:11:59.177164+00:00"
+    },
+    {
+      "key": "search-0",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20%22once%20per%20turn%22%20%22cost%22",
+      "status": 200,
+      "bytes": 9446,
+      "sha256": "182a6e07937246cb652c3bbfb39f76dce1e251f30d2700ee6c2aba0357466fe0",
+      "retrievedAt": "2026-10-19T12:11:59.150136+00:00"
+    },
+    {
+      "key": "search-1",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20%22once%20per%20turn%22%20%22hand%22",
+      "status": 200,
+      "bytes": 9446,
+      "sha256": "fa844a17712cef28a22a13106c6ea45022edb47765ce746a1a9eca1fd6f0bf39",
+      "retrievedAt": "2026-10-19T12:11:59.174481+00:00"
+    },
+    {
+      "key": "search-2",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20%22Limit%22%20%22same%20card%20number%22",
+      "status": 200,
+      "bytes": 17568,
+      "sha256": "2fc7eb0787f7c1d07e7de4a800931c97467365247536329af32e916589546da8",
+      "retrievedAt": "2026-10-19T12:11:59.149725+00:00"
+    },
+    {
+      "key": "search-3",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Adbs-cardgame.com%20%22once%20per%20turn%22%20%22condition%22",
+      "status": 200,
+      "bytes": 9434,
+      "sha256": "80e9f8ff234cd894eb330823a4ea31929d520203b66e742d7cb3ae4abe658533",
+      "retrievedAt": "2026-10-19T12:11:59.206641+00:00"
+    },
+    {
+      "key": "forum-android",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/1chyp3o/android_17_defending_friends/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "a0f6dbe3a09b87ab5ea58b238efb2db04248cf0efe88f5007734753d1dcdb2b2",
+      "retrievedAt": "2026-10-19T12:12:31.171705+00:00"
+    },
+    {
+      "key": "forum-keywords",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/v88ju9/skill_keyword_explanations/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "9215a95f5e8ee7ee2477147cc3b2f92f452122f987aef2e9e2f52956f01cbf46",
+      "retrievedAt": "2026-10-19T12:12:31.185842+00:00"
+    },
+    {
+      "key": "search-more-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20CardGame%20once%20per%20turn%20bounce%20replay%20reddit",
+      "status": 200,
+      "bytes": 35166,
+      "sha256": "8dc67183f011040fdaf330e526d187c791e0efafb2818a83d34196f2fc5fd466",
+      "retrievedAt": "2026-10-19T12:12:31.895729+00:00"
+    },
+    {
+      "key": "search-more-1",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20CardGame%20once%20per%20turn%20skill%20cost%20not%20paid%20reddit",
+      "status": 200,
+      "bytes": 35351,
+      "sha256": "90670e1fdae67f98eccfa8b8e7fe123abde7ead40fe590e6d4dba9635a7e4a02",
+      "retrievedAt": "2026-10-19T12:12:31.849098+00:00"
+    },
+    {
+      "key": "search-more-2",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20CardGame%20once%20per%20turn%20condition%20false%20skill%20reddit",
+      "status": 200,
+      "bytes": 36014,
+      "sha256": "30113b3f1f9a1c7ebd1e7cdfece4daa174ef5fd3b9fecab481ee68506f23f00a",
+      "retrievedAt": "2026-10-19T12:12:31.802521+00:00"
+    },
+    {
+      "key": "forum-once",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/qjc3od/once_per_turn/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "6ec1fe32e4896595a44109408453c6da222d98cd6e65a26bb2bde5fcb5528040",
+      "retrievedAt": "2026-10-19T12:12:51.923218+00:00"
+    },
+    {
+      "key": "forum-copies",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/x3xf45/is_once_per_turn_across_all_cards_like_limit_1_or/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "c96ab9c416c78260024933a7d515259478a7566ab14cadcb909e9a0b79f53dc2",
+      "retrievedAt": "2026-10-19T12:12:51.888566+00:00"
+    },
+    {
+      "key": "forum-cost",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/14w5izi/spirit_boost_cost/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "42d178bf26c37ab343a6afa99831d0dfb326543e020418da67ee1aa04c67812a",
+      "retrievedAt": "2026-10-19T12:12:51.887387+00:00"
+    }
+  ]
+}
