@@ -39,7 +39,7 @@ References: [#925](../../../../scripts/verify/union-exact-sets-925.ts),
 | Official FAQ/errata/source mapping | The original official index maps 54 matching FAQ headings and six errata IDs. #934 corrected five outdated catalog texts; BT5-120 was already correct. Fresh #1068 official checks establish EX23-36/P-519 Drop-to-bottom wording, with no located power waiver, and BT17-082's Absorb-only scope. | No new ruling is supplied for the unproved modifier combinations. An absent card-specific FAQ is recorded as absence, not permission. Preserve labelled existing owner guidance in #925/#927/#929. |
 | Source/material/payment/stack/trigger/Counter/reload/privacy | Bounded family proofs above cover these concerns individually. #929's suite covers both seats, JSON answers, paid costs, first/second windows, returned/dropped replacements, missing hosts/materials and one-place invariants. | Full printed-card/stored-row cases across all three families, source-extension combinations, Union-specific Counter chains and all indexed triggers are not established by the synthetic suite. Separate Counter-chain proof does not automatically certify its Union composition. |
 | Ordinary energy-cost play remains separate | #924 proves P-286 ordinary play costs six without Fusion materials, alongside the three-energy Fusion route; printed prohibitions remain respected. | Do not generalize this to all restrictions. P-069/P-226's full printed restrictions still need exact supported/unread/proven classification. |
-| Application independent of code | Dated applications are listed below, with #1071's actual BT6 exports separated from older reference records. | Earlier refresh success is not proof of current typed usage/validity/native admission. No blanket repeat refresh follows from missing current readback evidence. |
+| Application independent of code | Dated applications are listed below, with #1071's actual BT6 exports separated from older reference records. | Fresh read-only assessment below separates absent usage/validity from unchanged costs/programs and the remaining native Absorb authority gap. No blanket repeat refresh follows. |
 
 ## #929 residual Counter/failed-entry acceptance
 
@@ -64,7 +64,7 @@ because the 15 October matrix still says unsupported.
 
 | Indexed card / face / skill | Current evidence classification |
 |---|---|
-| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Historical applied row v4; current usage/validity/readback remains unverified here. |
+| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Current readback preserves applied row v4 exactly; missing usage/validity is the only loader-admission gap. The offline metadata-only projection admits its unchanged typed Fusion grant; no new gameplay proof is claimed. |
 | BT17-082 back#0 | **Unread/unproved support family:** substitution from under the Leader for Namekian Absorb payments; not Fusion and not identical to BT14-079's existing cost. |
 | EX23-36 front#20; P-519 front#20 | **Unsupported indexed permission:** conditioned specified Drop materials go to deck bottom. Fresh official text does not print an equal-power waiver. Existing Warp/Drop-to-Warp contracts do not establish this destination. |
 | BT28-079 back#0; BT31-042 front#0; BT31-043 front#20; EX23-11 front#10; EX23-29 front#10; EX25-11 front#10; SD19-04 front#20 | **Unverified exact indexed reductions:** standing/next-use conditions, payer, expiry and qualifying variant must be mapped to existing typed cost primitives and specific proof. The dated unread labels alone do not establish that current code is still wrong. |
@@ -90,22 +90,57 @@ cannot close unrelated full-card acceptance.
 | [18 October #907 application](https://github.com/uhtred1986-lab/trading-card-management/issues/907#issuecomment-6247494085) | #1017:52 Absorb lines applied, two unread held. #1019:eight refreshed,16 already current, BT4-018 unread, BT28-012 source corrected. #1022:BT20-125 front#20 and BT24-112 back#0 applied. | Dated application counts, not today's complete typed admission or all-Union coverage. |
 | [#934 official errata application](https://github.com/uhtred1986-lab/trading-card-management/issues/934#issuecomment-6242586467) | Corrected BT2-015, BT22-137, BT3-070, BT4-108 and P-360 source text read back; compiler-owned changed rows redrafted; protected rules preserved. | #934 is closed despite the old local issue file still saying open. Do not repeat the errata implementation/sync. |
 | [#1067 reference application](../907/fusion-checkpoint-2026-10-19/application-receipt.json) | Eleven actual draft rows: BT11-013 front#10/#20/#30; BT3-070 front#0/#10; P-360 front/back#0/#10/#20. | No human confirmation added. This predates the new usage/validity contract. |
-| [#1068/#1069 material application](../907/fusion-materials-2026-10-19/application-receipt.json) | Exactly BT11-013 front#10 and P-360 back#0 refreshed v3→v4; actual exports pass material/payment replay. Other nine reference rows unchanged. | Current reference usage/validity/native admission is unverified. Migrations0059/0060 add nullable columns; they do not by themselves establish migrated records. |
+| [#1068/#1069 material application](../907/fusion-materials-2026-10-19/application-receipt.json) | Exactly BT11-013 front#10 and P-360 back#0 refreshed v3→v4; actual exports pass material/payment replay. Other nine reference rows unchanged. | Fresh readback below finds all eleven usage/validity fields null; the historical effect/cost/reading bodies remain exact. Migrations0059/0060 added nullable columns without migrating these records. |
 | [#1071 actual application/qualification](../907/typed-use-validity-2026-10-19/README.md) |63 compiler rows plus four approved protected metadata migrations for the frozen BT6 pair; actual 67-row export,316 named cases and16 completed stored games with replay. Actual Fusion identity proof covers BT6-012#0, BT6-013#0, BT6-015#10. | These67 rows do not include BT11-013, BT3-070 or P-360. They cannot certify the older11reference rows or other Potara/Absorb/support cards. |
+
+## Current eleven-reference readback — 19 October
+
+The coordinator obtained the current three catalog definitions and eleven raw
+reference rows at 15:16:19 UTC. The [public assessment receipt](reference-readback-2026-10-19.json)
+contains only allowed identifiers, versions, metadata, blocker labels and hashes;
+private review payloads and raw rows are excluded. This offline assessment did
+not contact the database or execute games/tests.
+
+All eleven rows exist, match current printed sources, remain unflagged compiler
+drafts and retain valid CostRecords. Their public program/cost/trigger/condition/
+reading/status bodies exactly match the historical reference export and their
+persisted executable fields match current `skillRecords` output. Comparing the
+persisted representation avoids false drift from compiler condition hoisting.
+BT11-013 front#10 already has canonical recorded Fusion identity/materials;
+P-360 back#0 already has the current typed Fusion grant.
+
+Actual `programProvenance` normalization rejects all eleven for missing typed
+validity. Direct real `rulesFromRows` inspection independently reports both
+missing validity and missing usage on every target. These are physically present
+obsolete records, not missing cards or evidence of changed effect semantics.
+
+An **offline projection changing only usage and validity** admits all eleven
+through normalization and the real loader, preserving costs, kinds, operations,
+triggers, readings, statuses, versions and all other raw fields. Validity is
+`{version:1,sparking:null}` throughout. Usage is version1 with no Limit; only
+P-360 front#10 and back#20 have `oncePerTurn:true`. This is a proposal assessment,
+not an application or fresh semantic execution proof.
+
+Strict authoritative provenance accepts ten of the eleven projected target
+records. BT3-070 front#0 still derives its Union Absorb activation/material
+contract from printed text at runtime; metadata admission does not close that
+separate authority gap. Potara is outside these eleven rows. The additional
+native Deflect manifest line is not a twelfth stored target.
 
 ## Next single action
 
-Obtain a **read-only current snapshot/admission receipt for the same eleven
-reference rows**, including exact source/versions, cost, kind, usage, validity,
-trigger and material/grant metadata. Compare it to the prior application receipts
-and current loader, without substituting fresh compilation for a rejected row.
-This distinguishes missing record migration from an actual semantic/runtime gap
-before proposing another implementation or refresh. No live write or new owner
-ruling is authorized by this matrix. Select any subsequent repair under #907's
-bounded priority; keep #923/#929/#930 open until their full indexed acceptance is
-actually met.
+Prepare an **exact eleven-row guarded usage/validity-only migration proposal**,
+with full raw-row/catalog identity guards, stale/replay refusal and a public
+approval digest. Preserve all existing valid costs, Fusion/grant metadata and
+effect/review bodies; no blanket refresh/recompile is justified. Retain
+BT3-070 front#0's native Absorb authority residual independently under #907.
+No database write is authorized by this document, and the separate eight-row
+#825 proposal/approval is unchanged. Keep #923/#929/#930 open until their full
+indexed acceptance is actually met.
 
 Audit method: read current merged source, existing committed verifiers/receipts,
 and public GitHub bodies/comments for #923/#929/#930/#934 on19October. The first
-three have no comments and no blocked/owner-ruling labels. No code was changed,
-no tests/games/database query or ongoing holdout result was used for this audit.
+three have no comments and no blocked/owner-ruling labels. The followup uses the
+coordinator's read-only snapshot and pure offline compiler/loader inspection.
+No code was changed, no tests/games/database query or ongoing holdout result was
+used by this audit.
