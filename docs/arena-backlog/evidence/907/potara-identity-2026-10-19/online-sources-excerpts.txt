@@ -1,0 +1,39 @@
+Official BT2-012 FAQ (Q2 concerns the separate attack Auto, outside primary scope)
+BT2-012Repeated Force Vegito Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. What does “each ＜Son Goku＞ and ＜Vegeta＞ in your Drop Area” mean? A2. It means the total number of ＜Son Goku＞ and ＜Vegeta＞ in your Drop Area.
+
+Official manual Potara
+22-13-5. [Union-Potara]
+
+   22-13-5-1. [Union-Potara] is described as follows: “[Union-Potara] skill cost : <Character Name A> and <Character Name B>.” Here, “<Character
+
+             Name A> and <Character Name B>” are the conditions for the [Union-Potara] skill.
+
+   22-13-5-2. [Union-Potara] can be activated by paying the skill cost and choosing one of each specified character’s Battle Card in your Battle Area.
+
+             If the player can’t choose all of the specified Battle Cards, they can’t activate [Union-Potara].
+
+     22-13-5-2-1. Some card text reads “you can choose Battle Cards in one of your areas when choosing cards to use with this card's [Union-
+
+               Potara] skill.” These skills expand the conditions that can be fulfilled when choosing cards for a given keyword skill.
+
+       22-13-5-2-1-1. When using such a skill to choose Battle Cards from an expanded range of areas, if the skill resolution would cause the card
+
+                   that activated [Union-Potara] to be played, first move any Battle Cards in that area to the Battle Area, and then resolve the keyword
+
+                   skill normally. Furthermore, any area movement triggers resulting from the chosen Battle Card moving to a different area are not
+
+                   made pending, nor does counter timing occur.
+
+   22-13-5-3. [Union-Potara] can only be activated from a player’s hand.
+
+   22-13-5-4. To resolve the effects of [Union-Potara], the card that activated the skill is played by placing it on top of the two Battle Cards chosen
+
+             in 22-13-5-2, which can be in any order.
+
+     22-13-5-4-1. All continuous effects affecting the power of the played Battle Cards carry over.
+
+     22-13-5-4-2. If a card that activated [Union-Potara] fails to enter play, it is placed in its owner’s Drop Area.
+
+       22-13-5-4-2-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
+
+                   returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
