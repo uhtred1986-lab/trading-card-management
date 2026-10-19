@@ -25,6 +25,28 @@ assert.equal(missingBack.freshness, "missing", "front record cannot cover back s
 assert.equal(missingBack.executable, false);
 assert.ok(missingBack.blockers.includes("stored record missing"));
 assert.ok(programProvenance(defs, "stored", [rows[0], ...rows]).manifest[0].blockers.includes("stored record duplicate"));
+
+// Combo qualifications now cross the same real match-loader boundary as prices.
+// A stale export is still physical evidence, but cannot become an executable
+// self-combo Auto by deriving its qualification from the printed wording.
+const comboDef = card("PROVENANCE-COMBO", { skill: "[Auto] When this card is used in a combo during your turn, draw 1 card." });
+const comboRows = skillRecords(comboDef).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as ExportedRule[];
+const comboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", comboRows);
+assert.equal(comboReport.manifest[0].executable, true);
+assert.ok(!comboReport.manifest[0].blockers.some((s) => s.includes("derived from printed text")));
+assert.equal(comboReport.scripts[comboDef.id].bySkill[0].combo?.turn, "controller");
+const changedCombo = structuredClone(comboRows);
+(changedCombo[0].combo as Record<string, unknown>).turn = "opponent";
+const changedComboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", changedCombo);
+assert.equal(changedComboReport.manifest[0].executable, true);
+assert.equal(changedComboReport.manifest[0].differsFromCompiler, true);
+assert.equal(changedComboReport.scripts[comboDef.id].bySkill[0].combo?.turn, "opponent");
+const obsoleteCombo = structuredClone(comboRows);
+delete obsoleteCombo[0].combo;
+const obsoleteComboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", obsoleteCombo);
+assert.equal(obsoleteComboReport.manifest[0].executable, false);
+assert.ok([...obsoleteComboReport.malformed, ...obsoleteComboReport.manifest[0].blockers].some((s) => /combo.*regenerate/.test(s)));
+assert.ok(normalizeRows([{ ...comboRows[0], combo: { version: 1, timing: "entry", subject: "self", origins: [], turn: "any" } }]).malformed.length);
 assert.ok(normalizeRows([{ ...rows[0], card_id: "CONFLICT" }]).malformed.length);
 assert.ok(normalizeRows([{ ...rows[0], ops: [null] }]).malformed.length, "nested malformed executable rejected explicitly");
 const partial = { ...rows[0] }; delete partial.cost;

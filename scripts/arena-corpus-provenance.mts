@@ -7,7 +7,7 @@ import { canonicalJson } from "../src/lib/arena/replay-core";
 import { compileCard } from "../src/lib/arena/compile";
 import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../src/lib/arena/rules-store";
 import { parseSkills, skillLines } from "../src/lib/arena/text/cards";
-import { comboBattleEndSelf, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboBattleEndFromHand, comboEntryOrigins, comboEntryQualifier, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../src/lib/arena/text/triggers";
+import { whiteCellPlayedSubjectFilter } from "../src/lib/arena/text/triggers";
 import { needsPaymentRecord } from "../src/lib/arena/vm/skill-payment";
 import type { CardDef, Skill } from "../src/lib/arena/types";
 
@@ -51,6 +51,10 @@ export function normalizeRows(exports: ExportedRule[]): { rows: RuleRow[]; malfo
       || !(row.cost === null || typeof row.cost === "object" && !Array.isArray(row.cost))) {
       malformed.push(`row ${i}: invalid executable record fields`); continue;
     }
+    // Historical exports predate the nullable combo column. Retain their absent
+    // contract as null; the real loader explicitly refuses combo Autos that need
+    // rebuilding rather than manufacturing a qualification from printed text.
+    if (!("combo" in row)) row.combo = null;
     if (!invalid) {
       const bad = validateRule({ ...row, trigger: row.trigger ?? [] }, String(row.kind));
       if (bad) malformed.push(`row ${i}: invalid ${bad.field}: ${bad.message}`);
@@ -75,7 +79,6 @@ function textDependencies(sk: Skill): string[] {
     if (value !== null) fields.push(key);
   }
   if (sk.kind === "auto") {
-    if (comboBattleEndSelf(sk) || comboBattleEndOpponentTurn(sk) || comboBattleEndYourTurn(sk) || comboBattleEndFromHand(sk) || comboEntryOrigins(sk) || comboEntryQualifier(sk) || comboEntrySelf(sk)) fields.push("trigger.combo qualification/bindings");
     if (whiteCellPlayedSubjectFilter(sk)) fields.push("trigger.played subject qualification");
   }
   return fields;

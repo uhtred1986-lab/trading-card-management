@@ -42,11 +42,15 @@ Actual exported material/payment replay proofs pass; all eleven remain unconfirm
 The [selected BT6 pair now has frozen current inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/README.md):
 28 public catalog cards and 67 stored rows; no pair writes and four protected
 corrected rows. Its remaining blockers still prevent qualification.
-Next single task under #907: typed combo-trigger qualification/binding for
-BT6-006 front #10, BT6-010 front #0, BT6-066 front #0 and BT6-070 front #0,
-with preserved behavior and replay on the frozen inputs. Other use limits,
+The [combo qualification draft](arena-backlog/evidence/907/combo-qualifications-2026-10-19/README.md)
+carries typed qualifications/bindings for BT6-006 front #10, BT6-010 front #0,
+BT6-066 front #0 and BT6-070 front #0 through the executable record and saved
+continuations. It is one draft PR, with deployment, its additive schema migration
+and live record application pending. Next single action: review/deploy that
+increment, then reconcile current rows and apply only the four compiler-draft
+targets through guarded tooling with actual-export verification. Other use limits,
 Union variant authority, unread clauses and protected-record migration remain
-explicit; AI-strength changes remain deferred.
+explicit; the pair is unqualified and AI-strength changes remain deferred.
 
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
 (#898 is closed). #906 owns the separate API campaign, still gated on a qualified
