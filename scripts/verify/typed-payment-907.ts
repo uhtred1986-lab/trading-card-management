@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
-import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
+import { rulesFromRows, saveRule, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -238,4 +238,15 @@ const grantDone = finish(grantBoard, grantOffer.action).saved;
 assert.equal(rested(grantDone, "p1"), 1);
 assert.ok(grantDone.state.sides.p1.zones.battle.includes(gog));
 
-console.log("typed-payment-907: stored Union resource/action costs, display independence, rejected bad contracts, either/marker/Burst/Spirit Boost, typed P-360 grant and context+state replay passed");
+// A new authored row cannot silently acquire the obsolete database null default.
+// The mock supplies only the read: reaching any write fails this proof.
+async function verifyNewRecordAdmission() {
+  const db = { query: { cardRules: { findFirst: async () => undefined } }, insert: () => { throw new Error("unexpected database write"); } };
+  await assert.rejects(saveRule(db as unknown as Parameters<typeof saveRule>[0], {
+    cardId: "NEW907", side: "front", skillIndex: 0, source: "user", status: "draft",
+    printed: "[Activate: Main] Draw 1 card.", kind: "activate:main", ops: [{ op: "draw", n: 1 }],
+  }), /new rule requires explicit typed payment/);
+}
+verifyNewRecordAdmission().then(() => {
+  console.log("typed-payment-907: stored Union resource/action costs, display independence, rejected bad contracts, either/marker/Burst/Spirit Boost, typed P-360 grant and context+state replay passed");
+}).catch((error: unknown) => { console.error(error); process.exitCode = 1; });

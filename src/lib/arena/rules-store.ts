@@ -284,6 +284,9 @@ export interface RuleWrite {
  */
 export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   const existing = await db.query.cardRules.findFirst({ where: and(eq(cardRules.cardId, given.cardId), eq(cardRules.side, given.side), eq(cardRules.skillIndex, given.skillIndex)) });
+  if (!existing && given.cost === undefined) {
+    throw new Error(`${given.cardId} [${given.skillIndex}]: a new rule requires explicit typed payment; provide payment v1 or cost:null for intentional zero`);
+  }
   const kind = existing?.kind ?? given.kind ?? "";
   // Every writer of a person's or Claude's program comes through here — the
   // workbench (after `readRule`), Explain to Claude (`clarify`) and the
