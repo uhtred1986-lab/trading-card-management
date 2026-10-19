@@ -8,7 +8,7 @@ status: closed
 closed_at: 2026-09-30
 touches: src/components/arena/rules/RuleRecord.tsx, src/components/arena/rules/Workbench.tsx, src/components/arena/rules/ProbePane.tsx
 ---
-**Source:** `src/components/arena/rules/RuleRecord.tsx`; `docs/arena-fixing-a-card.md` (the buttons it names); canvas frame `RulesDesktop`.
+**Source:** [historical RuleRecord.tsx](https://github.com/uhtred1986-lab/trading-card-management/blob/8ac0004cd0c7865f111969bdcc53a6a7f877ca7b/src/components/arena/rules/RuleRecord.tsx); `docs/arena-fixing-a-card.md` (the buttons it names); canvas frame `RulesDesktop`.
 
 **Problem.** The record offers seven buttons of equal weight:
 - Confirm — plays exactly like this
