@@ -10,6 +10,7 @@ import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
 import { Sheet, isGhostAction, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
+import { CenterPrompt } from "./CenterPrompt";
 
 export function PromptPanel({
   view,
@@ -170,7 +171,7 @@ export function PromptPanel({
       {battleDetails}
     </Sheet>}
   </div>;
-  return (
+  const panel = (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
         <div className={`w-full space-y-1 text-xs leading-snug text-space-100 ${detailOpen ? "" : "max-lg:hidden"}`} data-decision-summary id="arena-decision-detail">
@@ -204,7 +205,7 @@ export function PromptPanel({
       ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
           {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
-          <span className={phaseLevel && !bad ? undefined : "line-clamp-3"}>{defenceBrief ? null : line}</span>
+          <span className={(phaseLevel && !bad) || view.prompt.kind === "payCost" ? undefined : "line-clamp-3"}>{defenceBrief ? null : line}</span>
         </p>
       )}
 
@@ -306,6 +307,8 @@ export function PromptPanel({
       )}
     </section>
   );
+  // Which energy pays for a move is asked in the middle of the screen (owner, 19 Oct 2026).
+  return view.prompt.kind === "payCost" && view.prompt.player === view.you.player && !playing ? <CenterPrompt label="Pay for the move">{panel}</CenterPrompt> : panel;
 }
 
 /** The step the defender is on, as three dots with the current one lit; the words are for screen readers. */

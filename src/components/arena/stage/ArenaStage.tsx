@@ -11,7 +11,7 @@ import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import type { ArenaSession } from "../session/contract";
 
-import type { Action, PlayerId, Requirement } from "@/lib/arena/types";
+import type { Action, LegalAction, PlayerId, Requirement } from "@/lib/arena/types";
 import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
@@ -74,6 +74,7 @@ import { GameEnd } from "./GameEnd";
 import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
+import { CenterPrompt } from "./CenterPrompt";
 import { PromptPanel } from "./PromptPanel";
 import { stakesSummary } from "./stakes-model";
 import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
@@ -110,6 +111,9 @@ import { quietSkills } from "./quiet-skills";
  * mismatch on hydration. False on the server, which has no pointer to hover.
  */
 const WIDE = "(min-width: 1024px)";
+/** Moves whose price the player settles before sending them (`settlePayment`). */
+const PAYABLE = new Set<Action["type"]>(["play", "playUnison", "playZ", "activate", "combo", "counter"]);
+type PaymentOption = NonNullable<LegalAction["paymentPreview"]>["options"][number];
 
 type ArenaDecklist = {
   name: string;
@@ -184,6 +188,8 @@ export function ArenaStage({
   const [abandonPending, startAbandon] = useTransition();
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** A price only an energy marker can complete, waiting for the player's yes (`settlePayment`). */
+  const [markerAsk, setMarkerAsk] = useState<{ action: Action; card: string | null; options: PaymentOption[] } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The hand card whose browse preview is open on a phone; in the Charge phase the dock offers to charge it. */
   const [peekedId, setPeekedId] = useState<string | null>(null);
@@ -539,8 +545,30 @@ export function ArenaStage({
     setRefusal(null);
   };
 
-  const send = (action: Action) => {
+  /**
+   * Energy markers are a one-off (owner, 19 Oct 2026): a price the energy cards can pay is paid with them,
+   * without a question, and one that needs a marker is asked first. The engine asks whenever the ways to pay
+   * differ (3-8-2), so the answer goes with the move as its `pay` (the cards to rest; markers make up the rest).
+   */
+  const settlePayment = (action: Action): Action | "ask" => {
+    if (!PAYABLE.has(action.type) || (action as { pay?: string[] }).pay !== undefined) return action;
+    const key = JSON.stringify(action);
+    const options = (legal.find((l) => l.action === action) ?? legal.find((l) => JSON.stringify(l.action) === key))?.paymentPreview?.options ?? [];
+    if (!options.length) return action;
+    const energyOnly = options.filter((o) => o.markers === 0);
+    if (energyOnly.length) return options.length === 1 ? action : ({ ...action, pay: energyOnly[0].energyRest } as Action);
+    setMarkerAsk({ action, card: cardIdOf(action), options });
+    return "ask";
+  };
+
+  const send = (action: Action, settled = false) => {
     if (notice && admin) return;
+    if (!settled) {
+      const paid = settlePayment(action);
+      if (paid === "ask") return;
+      action = paid;
+    }
+    setMarkerAsk(null);
     setSheet(null);
     setPinned(null);
     setSelected(null);
@@ -1177,6 +1205,27 @@ export function ArenaStage({
     if (failed.some((r) => r.action.type === "activate")) return "skill";
     return null;
   };
+  /** The player's yes to an energy marker: the move goes with that payment, already settled. */
+  const payWithMarker = (option: number) => {
+    if (markerAsk) send({ ...markerAsk.action, pay: markerAsk.options[option].energyRest } as Action, true);
+  };
+  /** What a hand chip does when tapped: the move its words name, or the card's review when it needs a closer look. */
+  const runHandAction = (id: string) => {
+    if (busy) return;
+    const indices = taps.byCard[id] ?? [];
+    const of = (type: Action["type"]) => indices.find((i) => legal[i].action.type === type);
+    const combo = view.prompt.kind === "combo" ? of("combo") : undefined;
+    if (combo != null) return send(legal[combo].action);
+    const play = of("play");
+    if (play != null) return choicePreviewOf(play)?.state === "empty" ? reviewCard(id) : send(legal[play].action);
+    const charge = of("charge");
+    if (charge != null) return send(legal[charge].action);
+    reviewCard(id);
+  };
+  const reviewCard = (id: string) => {
+    const card = cardOf(id);
+    if (card) inspect(card);
+  };
   const handAction = (id: string): string | null => {
     const indices = taps.byCard[id] ?? [];
     if (view.prompt.kind === "combo") {
@@ -1611,7 +1660,7 @@ export function ArenaStage({
           )}
 
           {!wide && defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker") && <p className="arena-hand-folded px-3 py-1 text-xs text-space-200">Your hand · not needed for this answer</p>}
-          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand sendingId={incoming?.id ?? null} onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
+          {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand sendingId={incoming?.id ?? null} onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} onHandAction={runHandAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
           {/* On a phone this is only the decision, sticky under the hand. From 1024 px it is the status
@@ -1628,6 +1677,22 @@ export function ArenaStage({
               </section>
               <div className="p-2">{youStrip}</div>
             </div>
+          )}
+          {markerAsk && (
+            <CenterPrompt label="Use an energy marker?">
+              <div className="arena-bar space-y-2 p-4" data-marker-ask>
+                <p className="text-base font-bold text-space-50">Use your energy marker?</p>
+                <p className="text-sm text-space-200">Your ready energy can’t pay for {markerAsk.card ? cardOf(markerAsk.card)?.name ?? "this card" : "this move"} on its own. An energy marker is spent once and doesn’t come back.</p>
+                {markerAsk.options.map((o, i) => {
+                  const rest = o.energyRest.map((id) => cardOf(id)?.name ?? "energy");
+                  const markers = `${o.markers} energy marker${o.markers === 1 ? "" : "s"}`;
+                  return <button key={i} type="button" disabled={busy} onClick={() => payWithMarker(i)} className="arena-btn tap block min-h-12 w-full rounded-xl bg-ki-500 px-4 py-2 text-left text-base font-bold text-space-950 hover:bg-ki-400 disabled:opacity-50" data-marker-option={i}>
+                    {rest.length ? `Rest ${rest.join(", ")} + ${markers}` : `Spend ${markers}`}
+                  </button>;
+                })}
+                <button type="button" onClick={() => setMarkerAsk(null)} className="arena-btn tap block min-h-11 w-full rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50" data-marker-cancel>Keep the marker</button>
+              </div>
+            </CenterPrompt>
           )}
           <div data-arena-dock className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:z-auto lg:shrink-0`}>
             <PromptPanel

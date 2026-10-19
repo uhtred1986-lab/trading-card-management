@@ -23,6 +23,7 @@ export function Hand({
   onZones,
   handStatus,
   handAction,
+  onHandAction,
   defending = false,
   browseEnabled = true,
   onPeek,
@@ -41,6 +42,8 @@ export function Hand({
   onZones?: () => void;
   handStatus?: (id: string) => "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge" | null;
   handAction?: (id: string) => string | null;
+  /** The chip (and, in the fan, the dot) does what it says: play, charge, combo, or open the card when it needs a closer look. */
+  onHandAction?: (id: string) => void;
   defending?: boolean;
   browseEnabled?: boolean;
   /** The card whose preview is open (null when none), so the board can offer its action — a charge — for it. */
@@ -219,18 +222,22 @@ export function Hand({
               <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
               {/* Under the card, wherever its fan dip has put it: anchored to the slot, it would sit on the power. */}
-              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} style={dip ? { bottom: -17 - dip } : undefined} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
+              {!fanMode && handAction?.(c.id) && (onHandAction
+                ? <button type="button" data-hand-action className={`${styles.handAction} ${styles.handActionButton} ${styles[`action_${status ?? "playable"}`]}`} style={dip ? { bottom: -17 - dip } : undefined} title={handAction(c.id) ?? undefined} aria-label={`${handAction(c.id)}: ${c.name}`} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onHandAction(c.id); }}>{handAction(c.id)}</button>
+                : <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} style={dip ? { bottom: -17 - dip } : undefined} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>)}
             </div>
           );
         })}
-        {fanMode && <div className={styles.handFanOverlays} aria-hidden>
+        {fanMode && <div className={styles.handFanOverlays}>
           {cards.map((c, i) => {
             const status = handStatus?.(c.id) ?? null;
             const left = 10 + i * step;
             return <div key={c.id} className={styles.handFanOverlay} style={{ left }}>
-              {c.power != null && !c.hidden && <span className={handStyles.fanPower}>{c.power >= 1000 ? `${+(c.power / 1000).toFixed(1)}k` : c.power}</span>}
-              {c.cost != null && <span className={`${styles.fanCost} ${status === "unaffordable" ? styles.status_unaffordable : ""}`}>{c.cost}</span>}
-              {status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} />}
+              {c.power != null && !c.hidden && <span aria-hidden className={handStyles.fanPower}>{c.power >= 1000 ? `${+(c.power / 1000).toFixed(1)}k` : c.power}</span>}
+              {c.cost != null && <span aria-hidden className={`${styles.fanCost} ${status === "unaffordable" ? styles.status_unaffordable : ""}`}>{c.cost}</span>}
+              {status && (onHandAction && handAction?.(c.id)
+                ? <button type="button" className={`${styles.handStatus} ${styles.handStatusButton} ${styles[`status_${status}`]}`} aria-label={`${handAction(c.id)}: ${c.name}`} title={handAction(c.id) ?? undefined} data-hand-action={c.id} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onHandAction(c.id); }} />
+                : <span aria-hidden className={`${styles.handStatus} ${styles[`status_${status}`]}`} />)}
               {/* The fan is a dense overview: full action words belong in the card review. */}
             </div>;
           })}

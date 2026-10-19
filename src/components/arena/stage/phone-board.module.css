@@ -2,6 +2,10 @@
 .handCards { position: relative; width: max-content; min-width: 100%; }
 .handControl { min-height: 44px; min-width: 44px; }
 .handStatus { position: absolute; z-index: 80; right: -3px; top: 5px; width: 11px; height: 11px; border: 2px solid var(--color-space-950); border-radius: 999px; pointer-events: none; }
+/* The chip and the fan's dot are buttons (owner, 19 Oct 2026): a hit area wider than the drawing. */
+.handAction.handActionButton, .handStatus.handStatusButton { pointer-events: auto; cursor: pointer; border: 0; }
+.handActionButton::before, .handStatusButton::before { content: ""; position: absolute; inset: -10px -6px; }
+.handStatus.handStatusButton { border: 2px solid var(--color-space-950); padding: 0; }
 .status_playable { background: var(--color-gain); }
 .status_skill { background: var(--color-dbs-yellow); }
 .status_unaffordable { background: var(--color-loss); }
