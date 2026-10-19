@@ -1,258 +1,216 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { db } from "@/db";
-import { ConfirmAll } from "@/components/arena/rules/ConfirmAll";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
+import { chipClass, HealthLegend, HealthTabs, QueueRow, SummaryBar } from "@/components/arena/rules/CardQueue";
 import { Groups, type GroupView } from "@/components/arena/rules/Groups";
+import { RebuildBanner } from "@/components/arena/rules/RebuildBanner";
 import { SelectLink } from "@/components/arena/rules/SelectLink";
-import { FIND_ID } from "@/components/arena/rules/WorkbenchKeys";
-import { Choice, StateSegments, Workbench, chipClass, type QueueRow } from "@/components/arena/rules/Workbench";
-import { PHRASING_ONLY } from "@/lib/arena/gaps";
-import { firedInGame } from "@/lib/arena/fired";
-import { deckCardSets } from "@/lib/arena/readiness";
-import { defaultState, neighbours, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
-import { draftPatterns, healthCounts, openPatterns, reasonGroups, ruleById, ruleIdsFor, setGroups, setsWithRules, statusCounts, worklistPage, type PatternGroup, type QueueGroup, type RuleFilter, type RuleStatus } from "@/lib/arena/rules-store";
-import { listDecks } from "@/lib/decks/queries";
-import { lastSyncRuns } from "@/lib/sync";
-import { recentBatches } from "../actions";
-import { buildRecord, historyOf, probeScenarios } from "./record";
-import { requireSlPage } from "@/lib/auth";
+import { Sparkline } from "@/components/arena/rules/Sparkline";
+import { FIND_ID, QueueKeys } from "@/components/arena/rules/WorkbenchKeys";
 import { PageHeader, Panel } from "@/components/ui";
+import { currentScope, isArenaAdmin, requireSlPage } from "@/lib/auth";
+import { groupCards, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
+import { loadQueue, planRebuild, REBUILD_BATCH } from "@/lib/arena/queue-cards";
+import { loadProgress, readSnapshots, recordSnapshot, type SnapshotRow } from "@/lib/arena/rules-progress";
+import { ruleById, setsWithRules, type RuleFilter } from "@/lib/arena/rules-store";
+import { recentBatches } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The one queue of the Rules Workbench (issue #360, docs/arena-home-spec.md §2):
- * *Cards in* (all decks, one deck, the whole catalog, or what a game fired),
- * a state, *Group by*, and a find box. `/arena/rules/all` and `/patterns` are
- * redirects into it.
+ * The Rules queue: CARDS, in four tabs by how the engine plays them (Text only · Incomplete ·
+ * Read, not checked · Done), over the owner's decks by default. Design: "Rules queue — desktop"
+ * and "— phone". A card opens `/arena/rules/card/<id>?q=<this queue>`; `queue.ts` documents the
+ * contract. `?rule=<id>` (old links) goes to that rule's card.
  *
- * Decks are read without a `viewer` on purpose (owner's ruling on #364,
- * 30 Sep 2026): a rule belongs to its card, so Rules covers every deck the
- * arena can play, whoever owns it. Play (`/arena`) lists the viewer's own.
+ * Reading is `loadQueue` (queue-cards.ts): the scope's cards are classified in JS by `ruleHealth`,
+ * then narrowed and paged here. The daily snapshot is written after the response is sent
+ * (`after`), never by the GET.
  */
-const PAGE = 200;
+const PAGE = 100;
 
-const GROUP_LABELS: { key: GroupBy; label: string }[] = [
-  { key: "none", label: "Nothing" },
-  { key: "wording", label: "Same wording" },
-  { key: "reason", label: "Reason" },
-  { key: "set", label: "Set" },
-];
-
-/** A group's link into the ungrouped list, as a change to the queue. */
-function patchOf(patch: Record<string, string>): Partial<Queue> {
-  const out: Partial<Queue> = { group: "none" };
-  if (patch.set) out.set = patch.set;
-  if (patch.source === "claude") out.source = "claude";
-  if (patch.reason === "diff" || patch.reason === "cost") out.reason = patch.reason;
-  if (patch.mech) out.mech = patch.mech;
-  if (patch.pattern) out.pattern = patch.pattern;
-  if (patch.state) out.state = patch.state as RuleStatus;
-  return out;
-}
+const GROUP_LABELS: Record<GroupBy, string> = { none: "None", reason: "By reason", wording: "Same wording", set: "By set" };
 
 export default async function RulesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireSlPage();
   const qu = parseQueue(await searchParams);
 
-  // Every deck the arena can play, whoever owns it (see the note above).
-  const decks = (await listDecks(db, { game: "dbs" })).filter((d) => d.leader && d.mainCount >= 50);
-  // One query for every deck's cards (readiness.ts), not one per deck.
-  const deckCards = await deckCardSets(db, decks.map((d) => d.id));
-  const decksOf = new Map<string, string[]>();
-  for (const d of decks) {
-    for (const id of deckCards.get(d.id) ?? []) decksOf.set(id, [...(decksOf.get(id) ?? []), d.name]);
+  if (qu.rule) {
+    const r = await ruleById(db, qu.rule);
+    redirect(r ? `/arena/rules/card/${encodeURIComponent(r.cardId)}?skill=${r.id}` : "/arena/rules");
   }
-  const allDeckCards = [...decksOf.keys()];
 
-  // Cards in: a deck that is gone falls back to all decks.
-  const scope = qu.scope.kind === "deck" && !deckCards.has(qu.scope.id) ? ({ kind: "decks" } as const) : qu.scope;
-  const fired = scope.kind === "game" ? await firedInGame(db, scope.id) : [];
-  const firedIds = scope.kind === "game" ? await ruleIdsFor(db, fired) : [];
-  const firstFired = new Map(fired.map((f, i) => [`${f.cardId}\u0000${f.skillIndex}`, i]));
-
-  const base: RuleFilter = {
-    cardIds: scope.kind === "decks" ? allDeckCards : scope.kind === "deck" ? [...deckCards.get(scope.id)!] : undefined,
-    ruleIds: scope.kind === "game" ? firedIds : undefined,
-    setCode: qu.set || undefined,
-    source: qu.source || undefined,
-    pattern: qu.pattern || undefined,
-    mechanism: qu.mech || undefined,
-    q: qu.q || undefined,
-    compilerDiff: qu.reason === "diff" || undefined,
-    costUnknown: qu.reason === "cost" || undefined,
-  };
-
-  const counts = await statusCounts(db, base);
-  // A mechanism is a property of an open rule, so asking for one asks for the open state.
-  const state: RuleStatus = qu.mech ? "open" : (qu.state ?? defaultState(counts));
-  const here: Queue = { ...qu, scope };
+  const owner = await currentScope();
+  const [loaded, admin, sets, batches, history] = await Promise.all([
+    loadQueue(db, qu, owner),
+    isArenaAdmin(),
+    setsWithRules(db),
+    recentBatches().catch(() => []),
+    readSnapshots(db).catch(() => [] as SnapshotRow[]),
+  ]);
+  const { resolved, health, group, counts, scopeCards, matched } = loaded;
+  const scope = resolved.scope;
+  const here: Queue = { ...qu, scope, health, group: qu.group };
   const link = (patch: Partial<Queue>) => queueLink(here, patch);
-  const filter: RuleFilter = { ...base, status: state };
+  const decksOf = (id: string) => resolved.decksOf.get(id)?.length ?? 0;
 
-  const [inDecks, catalog, syncs, batches, sets] = await Promise.all([healthCounts(db, allDeckCards), healthCounts(db), lastSyncRuns(db), recentBatches(), setsWithRules(db)]);
-  const lastSync = syncs.latest.get("catalog")?.summary as { stillOpen?: number; cardsNew?: number; cardsChanged?: number } | null | undefined;
-
-  // ── the list, or its groups ───────────────────────────────────────────────
-  let rows: QueueRow[] = [];
-  let total = 0;
-  let views: GroupView[] | null = null;
-  let groupNote: string | undefined;
-
-  if (qu.group === "none") {
-    let page;
-    if (scope.kind === "catalog") {
-      page = await worklistPage(db, filter, { limit: PAGE, offset: qu.page * PAGE });
-      rows = page.rows.map((r) => ({ ...r, decks: decksOf.get(r.cardId) ?? [] }));
-    } else {
-      // A scope of decks or of one game is small enough to sort here: a card in more decks first,
-      // and what a game fired in the order it fired it.
-      page = await worklistPage(db, filter, { limit: 100000, offset: 0 });
-      const withDecks = page.rows.map((r) => ({ ...r, decks: decksOf.get(r.cardId) ?? [] }));
-      const order = (r: QueueRow) => firstFired.get(`${r.cardId}\u0000${r.skillIndex}`) ?? Infinity;
-      withDecks.sort((a, b) => (scope.kind === "game" ? order(a) - order(b) : 0) || b.decks.length - a.decks.length || a.name.localeCompare(b.name) || a.skillIndex - b.skillIndex);
-      rows = withDecks.slice(qu.page * PAGE, (qu.page + 1) * PAGE);
-    }
-    total = page.total;
-  } else {
-    const confirmable = state === "draft";
-    const draftFilter: RuleFilter = { ...filter, status: "draft" };
-    if (qu.group === "wording") {
-      const groups: PatternGroup[] = state === "open" ? await openPatterns(db, base) : await draftPatterns(db, 60, filter);
-      if (groups.length === 60 && state !== "open") groupNote = "the 60 with most rules";
-      views = groups.map((g) => ({
-        g,
-        confirm: confirmable && g.kind === "draft" ? { ...draftFilter, pattern: g.key } : null,
-        all: link(g.kind === "open" ? { group: "none", mech: g.key, state: "open" } : { group: "none", pattern: g.key }),
-      }));
-    } else {
-      const groups: QueueGroup[] = qu.group === "reason" ? await reasonGroups(db, filter) : await setGroups(db, filter);
-      views = groups.map((g) => ({
-        g,
-        confirm: confirmable && g.confirm ? { ...draftFilter, ...g.confirm } : null,
-        all: link(patchOf(g.patch)),
-      }));
-    }
+  // One snapshot a day, after the page has gone out; a pure redirect or a failed write costs nothing.
+  const today = new Date().toISOString().slice(0, 10);
+  if (history[history.length - 1]?.date !== today) {
+    after(async () => {
+      try {
+        await recordSnapshot(db, await loadProgress(db, owner), today);
+      } catch {
+        /* the strip's trend is a convenience */
+      }
+    });
   }
 
-  // ── the record ────────────────────────────────────────────────────────────
-  // A rule opened from a group, or one past the page, is not among `rows`; it is read by id.
-  const picked = qu.group === "none" ? (rows.find((r) => r.id === qu.rule) ?? (qu.rule ? await ruleById(db, qu.rule) : null) ?? rows[0] ?? null) : null;
-  const selected = picked ? { ...picked, decks: decksOf.get(picked.cardId) ?? [] } : null;
-  // Where the keys, Skip and Confirm go from here: along the rows as the queue lists them.
-  const around = neighbours(rows.map((r) => r.id), selected?.id ?? null);
-  const hrefOf = (id: number | null) => (id == null ? null : link({ rule: id }));
-  const nav = { prev: hrefOf(around.prev), next: hrefOf(around.next), skip: hrefOf(around.skip), after: hrefOf(around.after) ?? link({ rule: null }) };
-  const record = selected ? await buildRecord(db, selected, selected.decks) : null;
-  const probe = selected ? await probeScenarios(db, selected) : null;
+  const plan = planRebuild(scopeCards);
+  const filtered = !!(qu.q || qu.set);
+  const pages = Math.ceil(matched.length / PAGE);
+  const rows = matched.slice(qu.page * PAGE, (qu.page + 1) * PAGE);
+
+  // ── grouped view ──────────────────────────────────────────────────────────
+  let views: GroupView[] | null = null;
+  if (group !== "none") {
+    views = groupCards(matched, group, health).map((g) => ({
+      g,
+      all: link({ ...g.patch, health }),
+      confirm: health === "unchecked" && group === "wording" && g.key ? ({ cardIds: g.cards.map((c) => c.cardId), status: "draft", pattern: g.key } satisfies RuleFilter) : null,
+    }));
+  }
 
   // ── controls ──────────────────────────────────────────────────────────────
   const scopeValue = scope.kind === "deck" ? `deck:${scope.id}` : scope.kind;
-  const scopeOptions = [
-    { value: "decks", label: `All decks (${decks.length})`, href: link({ scope: { kind: "decks" } }) },
-    ...decks.map((d) => ({ value: `deck:${d.id}`, label: d.name, href: link({ scope: { kind: "deck", id: d.id } }) })),
+  const deckOptions = [
+    { value: "decks", label: `My decks · ${resolved.decks.length}`, href: link({ scope: { kind: "decks" } }) },
+    ...resolved.decks.map((d) => ({ value: `deck:${d.id}`, label: d.name, href: link({ scope: { kind: "deck", id: d.id } }) })),
     { value: "catalog", label: "Whole catalog", href: link({ scope: { kind: "catalog" } }) },
     ...(scope.kind === "game" ? [{ value: "game", label: `Fired in game ${scope.id}`, href: link({ scope }) }] : []),
   ];
   const setOptions = [{ value: "", label: "Every set", href: link({ set: "" }) }, ...sets.map((s) => ({ value: s.setCode, label: `${s.setCode} (${s.n})`, href: link({ set: s.setCode }) }))];
   if (qu.set && !sets.some((s) => s.setCode === qu.set)) setOptions.push({ value: qu.set, label: qu.set, href: link({ set: qu.set }) });
+  const groupOptions = (Object.keys(GROUP_LABELS) as GroupBy[]).map((k) => ({ value: k, label: GROUP_LABELS[k], href: link({ group: k }) }));
 
   const active: { label: string; off: string }[] = [
+    ...(qu.family ? [{ label: `reason: ${qu.family}`, off: link({ family: "" }) }] : []),
     ...(qu.source ? [{ label: qu.source === "compiler" ? "compiled" : qu.source === "claude" ? "Claude's" : "yours", off: link({ source: "" }) }] : []),
-    ...(qu.mech ? [{ label: qu.mech === PHRASING_ONLY ? "phrasing only" : `unread: ${qu.mech}`, off: link({ mech: "", state: null }) }] : []),
-    ...(qu.reason ? [{ label: qu.reason === "diff" ? "compiler reads it differently" : "specified cost unknown", off: link({ reason: "" }) }] : []),
-    ...(qu.pattern ? [{ label: `wording ${qu.pattern}`, off: link({ pattern: "" }) }] : []),
+    ...(qu.mech ? [{ label: `unread: ${qu.mech}`, off: link({ mech: "" }) }] : []),
+    ...(qu.reason === "diff" ? [{ label: "compiler reads it differently", off: link({ reason: "" }) }] : []),
+    ...(qu.pattern ? [{ label: `wording ${qu.pattern.slice(0, 40)}`, off: link({ pattern: "" }) }] : []),
   ];
-
   // The find box is a form; everything else the queue says rides along as hidden fields.
   const carried = queueParams({ ...here, q: "", page: 0, rule: null });
+  const scopeCounts = { "text-only": 0, incomplete: 0, unchecked: 0, done: 0 };
+  for (const c of scopeCards) scopeCounts[c.health]++;
+  const summaryLabel = filtered ? "cards in view" : scope.kind === "decks" ? "deck cards" : scope.kind === "deck" ? "cards in this deck" : scope.kind === "game" ? "cards the game fired" : "catalog cards";
 
-  const drafts = state === "draft" ? counts.draft : 0;
-  const pages = Math.ceil(total / PAGE);
-
-  const head = (
-    <>
-      <div className="flex items-center gap-1.5">
-        <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-space-500">Cards in</span>
-        <SelectLink label="Cards in" value={scopeValue} options={scopeOptions} />
-      </div>
-      <StateSegments state={state} counts={counts} href={(s) => link({ state: s })} />
-      <details open={qu.group !== "none" || !!qu.set || active.length > 0}><summary className="tap cursor-pointer text-xs text-space-300">More filters</summary>
-      <Choice label="Group by" value={qu.group} options={GROUP_LABELS} href={(key) => link({ group: key })} />
-      <div className="flex items-center gap-1.5">
-        <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-space-500">Set</span>
-        <SelectLink label="Set" value={qu.set} options={setOptions} />
-      </div>
-      {active.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {active.map((a) => (
-            <Link key={a.label} href={a.off} className={chipClass(true)} aria-label={`remove filter ${a.label}`}>
-              {a.label} ×
-            </Link>
-          ))}
-        </div>
-      )}
-      </details>
-      <form action="/arena/rules" className="flex gap-1">
-        {[...carried.entries()].map(([k, v]) => (
-          <input key={k} type="hidden" name={k} value={v} />
-        ))}
-        <input id={FIND_ID} name="q" defaultValue={qu.q} placeholder="find a card…" aria-label="Find a card" className="tap min-w-0 flex-1 rounded-md border border-space-600 bg-space-950 px-2 py-1 text-xs text-space-100" />
-        <button type="submit" className="tap rounded-md border border-space-600 px-2 py-1 text-xs text-space-100 hover:border-space-300">
-          go
-        </button>
-      </form>
-      <details><summary className="tap cursor-pointer text-xs text-space-300">Advanced: bulk approval</summary>
-        <p className="my-2 text-xs text-space-400">Applies to every matching draft in {scopeOptions.find((o) => o.value === scopeValue)?.label}, across all pages. Review each interpretation before approving. Reported or unread drafts are excluded.</p>
-        <ConfirmAll filter={{ ...filter, status: "draft" }} drafts={drafts} batches={batches} />
-      </details>
-    </>
-  );
-
-  const footer =
-    pages > 1 ? (
-      <div className="flex items-center justify-between gap-2 border-t border-space-700/70 p-2 text-[11px] text-space-400">
-        <Link href={link({ page: qu.page > 1 ? qu.page - 1 : 0 })} className={`tap rounded px-2 py-1 ${qu.page === 0 ? "pointer-events-none opacity-30" : "hover:text-ki-300"}`}>
-          ← previous
-        </Link>
-        <span>
-          {qu.page * PAGE + 1}–{Math.min(total, (qu.page + 1) * PAGE)} of {total}
-        </span>
-        <Link href={link({ page: qu.page + 1 })} className={`tap rounded px-2 py-1 ${qu.page + 1 >= pages ? "pointer-events-none opacity-30" : "hover:text-ki-300"}`}>
-          next →
-        </Link>
-      </div>
-    ) : (
-      <p className="border-t border-space-700/70 p-2 text-center text-[11px] text-space-500">
-        {total} rule{total === 1 ? "" : "s"}
-      </p>
-    );
-
-  const nothingToPlay = scope.kind === "decks" && decks.length === 0;
+  const empty =
+    scope.kind === "decks" && resolved.decks.length === 0
+      ? "No deck of yours yet, so there are no deck cards. Choose Whole catalog to work through the catalog."
+      : scope.kind === "game" && scopeCards.length === 0
+        ? "That game fired no skill that could be read back."
+        : "No card here.";
 
   return (
-    <div className="space-y-3">
-      <ArenaHeader side="rules" kpis={{ inDecks, catalog, openSinceSync: lastSync && (lastSync.cardsNew || lastSync.cardsChanged) ? (lastSync.stillOpen ?? 0) : null }} />
+    <div className="space-y-4">
+      <ArenaHeader side="rules" />
+      <QueueKeys />
+      <PageHeader eyebrow="Arena · Rules" title="Rules" description="Every card in your decks, sorted by how the engine plays it. Open a card to read, fix and play-test its rules." />
 
-      <Panel aria-label="Review procedure">
-        <PageHeader title="Review card interpretations" eyebrow="Rules workbench" description="Choose cards → describe or review the interpretation → approve." />
-        <p className="mt-2 text-xs text-space-400">Rules are shared across all owners’ playable Masters decks. Approval is a review decision; engine support and test evidence are separate.</p>
-        {qu.scope.kind === "deck" && scope.kind !== "deck" ? <p role="status" className="mt-2 text-sm text-loss">That deck is unavailable. Showing all decks; choose a scope below before starting.</p> : null}
-        {!(qu.scope.kind === "deck" && scope.kind !== "deck") && (state === "draft" || state === "open") ? <Link href={`/arena/rules/review${queueLink({ ...here, state }, { page: 0 }).slice("/arena/rules".length)}`} className="tap mt-3 inline-flex rounded-xl bg-ki-500 px-4 py-2 font-semibold text-space-950">Start guided review</Link> : <p className="mt-2 text-sm text-space-300">Choose an available deck and To review or Unread below to start. Approved and corrected skills can be reopened from their detail.</p>}
+      {resolved.deckUnavailable && (
+        <p role="status" className="text-sm text-loss">
+          That deck is not one of yours, so the queue shows all your decks.
+        </p>
+      )}
+
+      {plan.cards > 0 && <RebuildBanner scope={scope} plan={plan} batch={REBUILD_BATCH} admin={admin} />}
+
+      <Panel className="space-y-3 !p-4 sm:!px-5">
+        <SummaryBar counts={scopeCounts} label={summaryLabel} />
+        {scope.kind === "decks" && !filtered && <Sparkline points={history} />}
       </Panel>
-      <Workbench
-        rows={rows}
-        record={record}
-        history={selected ? historyOf(selected) : []}
-        mechanism={record?.mechanism ?? null}
-        probe={probe}
-        href={(id) => link({ rule: id })}
-        empty={nothingToPlay ? "No deck the arena can play yet — a deck needs a leader and 50 cards." : scope.kind === "game" && fired.length === 0 ? "That game fired no skill that could be read back." : "Nothing here."}
-        footer={footer}
-        head={head}
-        nav={nav ? { ...nav, here: link({ rule: selected?.id ?? null }) } : undefined}
-        grouped={views ? <Groups views={views} open={(id) => link({ group: "none", rule: id })} batches={[]} note={groupNote} /> : undefined}
-      />
+
+      <Panel className="overflow-hidden !p-0">
+        <div className="space-y-2 border-b border-space-700/70 p-3 sm:px-5 sm:py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-space-400">Cards in</span>
+            <Link href={link({ scope: { kind: "decks" } })} className={chipClass(scope.kind === "decks")}>
+              My decks · {resolved.decks.length}
+            </Link>
+            <div className="min-w-0 flex-1 basis-44 sm:max-w-64 sm:flex-none">
+              <SelectLink label="One deck" value={scopeValue} options={deckOptions} />
+            </div>
+            <Link href={link({ scope: { kind: "catalog" } })} className={chipClass(scope.kind === "catalog")}>
+              Whole catalog
+            </Link>
+            {scope.kind === "game" && <span className={chipClass(true)}>Fired in game {scope.id}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <form action="/arena/rules" className="flex min-w-0 flex-1 basis-56 items-center gap-2">
+              {[...carried.entries()].map(([k, v]) => (
+                <input key={k} type="hidden" name={k} value={v} />
+              ))}
+              <label htmlFor={FIND_ID} className="text-[11px] font-bold uppercase tracking-wider text-space-400">
+                Find
+              </label>
+              <input id={FIND_ID} type="search" name="q" defaultValue={qu.q} placeholder="Card, id or wording" className="tap min-w-0 flex-1 rounded-lg border border-space-600 bg-space-950 px-3 text-sm text-space-100" />
+              <button type="submit" className="ds-button-secondary tap">
+                Go
+              </button>
+            </form>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-space-400">Group</span>
+              <SelectLink label="Group by" value={group} options={groupOptions} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-space-400">Set</span>
+              <SelectLink label="Set" value={qu.set} options={setOptions} />
+            </div>
+          </div>
+          {active.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {active.map((a) => (
+                <Link key={a.label} href={a.off} className={chipClass(true)} aria-label={`remove filter ${a.label}`}>
+                  {a.label} ×
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <HealthTabs health={health} counts={counts} href={(h) => link({ health: h, group: null, family: "", page: 0 })} />
+        <HealthLegend />
+
+        {views ? (
+          <Groups views={views} queue={here} decksOf={decksOf} batches={batches} />
+        ) : rows.length === 0 ? (
+          <p className="p-6 text-center text-sm text-space-300">{empty}</p>
+        ) : (
+          <ol>
+            {rows.map((c) => (
+              <QueueRow key={c.cardId} card={c} queue={here} decks={decksOf(c.cardId)} />
+            ))}
+          </ol>
+        )}
+
+        {!views && (
+          <div className="flex items-center justify-between gap-2 border-t border-space-700/70 p-2 text-xs text-space-400">
+            <Link href={link({ page: qu.page > 1 ? qu.page - 1 : 0 })} className={`tap flex items-center rounded px-3 ${qu.page === 0 ? "pointer-events-none opacity-30" : "hover:text-ki-300"}`}>
+              ← previous
+            </Link>
+            <span>
+              {matched.length === 0 ? "0 cards" : `${qu.page * PAGE + 1}–${Math.min(matched.length, (qu.page + 1) * PAGE)} of ${matched.length} card${matched.length === 1 ? "" : "s"}`}
+            </span>
+            <Link href={link({ page: qu.page + 1 })} className={`tap flex items-center rounded px-3 ${qu.page + 1 >= pages ? "pointer-events-none opacity-30" : "hover:text-ki-300"}`}>
+              next →
+            </Link>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

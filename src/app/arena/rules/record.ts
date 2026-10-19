@@ -7,17 +7,11 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards } from "@/db/schema";
-import type { RecordProps } from "@/components/arena/rules/RuleRecord";
-import { SKILL_LABELS } from "@/lib/arena/beats";
-import { describeScript, type Op } from "@/lib/arena/vm/script";
-import type { Cond, CostRecord } from "@/lib/arena/vm/script";
-import type { Trigger } from "@/lib/arena/types";
-import { mechanismNeeds, mechanismOf } from "@/lib/arena/gaps";
 import { specifiedCostUnknown } from "@/lib/arena/text/cards";
 import { defsForCards } from "@/lib/arena/load";
 import { parseSpecifiedCost, specifiedCostWords } from "@/lib/arena/specified-cost";
-import { ruleFrom, scenariosFor } from "@/lib/arena/probe";
-import { programOf, siblingsOf, type CompilerDiff, type RuleStatus, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
+import { describeScript } from "@/lib/arena/vm/script";
+import { type CompilerDiff, type StoredProbe, type WorklistRow } from "@/lib/arena/rules-store";
 
 /** The right pane's History, read off the row rather than a log table. */
 export function historyOf(r: WorklistRow): { when: string; what: string }[] {
@@ -34,18 +28,8 @@ export function historyOf(r: WorklistRow): { when: string; what: string }[] {
   return out;
 }
 
-/**
- * The boards this rule can be tried on, for the probe pane. Reading the card
- * is what it costs: `scenariosFor` is pure, and the run itself happens in the
- * action when the button is pressed.
- */
-export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId: number; scenarios: { key: string; title: string }[] } | null> {
-  const defs = await defsForCards(db, [row.cardId]);
-  const def = defs[row.cardId];
-  if (!def) return null;
-  const scenarios = scenariosFor(ruleFrom(row, def, programOf(row)));
-  return { ruleId: row.id, scenarios: scenarios.map((s) => ({ key: s.key, title: s.title })) };
-}
+/** The specified-cost entry as the card page shows it. */
+export type SpecifiedCostView = { entered: string | null; words: string | null; unknown: boolean } | null;
 
 /**
  * The card's specified-cost baseline as the record shows it (issue #255):
@@ -54,57 +38,11 @@ export async function probeScenarios(db: Db, row: WorklistRow): Promise<{ ruleId
  * the engine plays, not a second list of cards. `entered` is the column as
  * written, so a value that did not parse is shown rather than hidden.
  */
-export async function specifiedCostOf(db: Db, cardId: string): Promise<RecordProps["specifiedCost"]> {
+export async function specifiedCostOf(db: Db, cardId: string): Promise<SpecifiedCostView> {
   const [row] = await db.select({ energyCost: cards.energyCost, specifiedCost: cards.specifiedCost }).from(cards).where(eq(cards.id, cardId));
   const defs = await defsForCards(db, [cardId]);
   const def = defs[cardId];
   if (!row || !def || def.energyCost !== "X") return null;
   const parsed = parseSpecifiedCost(row.specifiedCost);
   return { entered: row.specifiedCost, words: parsed ? specifiedCostWords(parsed) : null, unknown: specifiedCostUnknown(def) };
-}
-
-export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]): Promise<RecordProps> {
-  const siblings = await siblingsOf(db, selected);
-  const specifiedCost = await specifiedCostOf(db, selected.cardId);
-  const key = selected.status === "open" ? mechanismOf(selected.unread[0] ?? "") : null;
-  const mechanism = key ? { key, needs: mechanismNeeds(key) } : null;
-  const diff = selected.compilerDiff as CompilerDiff | null;
-  return {
-    id: selected.id,
-    cardId: selected.cardId,
-    name: selected.name,
-    setCode: selected.setCode,
-    side: selected.side === "back" ? "back" : "front",
-    skillIndex: selected.skillIndex,
-    kind: SKILL_LABELS[selected.kind] ?? selected.kind,
-    // The printed tag as the row stores it, which is what the rules language
-    // writes in WHEN and refuses to let anyone change.
-    tag: selected.kind,
-    permanent: selected.kind === "permanent",
-    printed: selected.printed,
-    // WHEN and COST arrive as the record holds them, not as sentences: both
-    // are editable now, so the sentences are made in the browser from whatever
-    // is in the box at the time.
-    trigger: (selected.trigger ?? []) as Trigger[],
-    validity: selected.validity as import("@/lib/arena/lang/ast").Rule["validity"],
-    usage: selected.usage as import("@/lib/arena/lang/ast").Rule["usage"],
-    combo: selected.combo as import("@/lib/arena/lang/ast").Rule["combo"],
-    cost: (selected.cost as CostRecord | null) ?? null,
-    cond: (selected.cond as Cond | null) ?? null,
-    ops: (selected.ops as Op[]) ?? [],
-    unread: selected.unread,
-    status: selected.status as RuleStatus,
-    source: selected.source as "compiler" | "claude" | "user",
-    version: selected.version,
-    explanation: selected.explanation,
-    brief: selected.brief,
-    timesSeen: selected.timesSeen,
-    pattern: selected.pattern,
-    reads: selected.reads,
-    decks,
-    siblings,
-    compilerDiff: diff ? { reads: describeScript(diff.ops, { permanent: selected.kind === "permanent" }) || "nothing", unread: diff.unread, at: diff.at.slice(0, 10) } : null,
-    mechanism,
-    specifiedCost,
-  };
 }

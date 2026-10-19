@@ -161,15 +161,24 @@ export async function loadProgress(db: Db, scope: OwnerScope): Promise<Progress>
  */
 export type SnapshotRow = { date: string; confirmedCards: number; totalCards: number; readSkills: number; unreadSkills: number; flagged: number };
 
-/** Writes today's snapshot unless one exists (at most one a day), then returns the history oldest first. */
-export async function recordAndReadSnapshots(db: Db, p: Progress, today = new Date().toISOString().slice(0, 10)): Promise<SnapshotRow[]> {
+/** The history oldest first. A pure read: the Rules page renders it and writes nothing. */
+export async function readSnapshots(db: Db): Promise<SnapshotRow[]> {
+  return rows<SnapshotRow>(await db.execute(sql`
+    select snapshot_date::text as date, confirmed_cards as "confirmedCards", total_cards as "totalCards",
+           read_skills as "readSkills", unread_skills as "unreadSkills", flagged
+    from rules_progress_snapshots order by snapshot_date`));
+}
+
+/** Writes today's snapshot unless one exists (at most one a day). */
+export async function recordSnapshot(db: Db, p: Progress, today = new Date().toISOString().slice(0, 10)): Promise<void> {
   await db
     .insert(rulesProgressSnapshots)
     .values({ snapshotDate: today, confirmedCards: p.done, totalCards: p.total, readSkills: p.skills.unchecked, unreadSkills: p.skills["text-only"], flagged: p.skills.incomplete })
     .onConflictDoNothing();
-  const out = rows<SnapshotRow>(await db.execute(sql`
-    select snapshot_date::text as date, confirmed_cards as "confirmedCards", total_cards as "totalCards",
-           read_skills as "readSkills", unread_skills as "unreadSkills", flagged
-    from rules_progress_snapshots order by snapshot_date`));
-  return out;
+}
+
+/** Writes today's snapshot unless one exists (at most one a day), then returns the history oldest first. */
+export async function recordAndReadSnapshots(db: Db, p: Progress, today = new Date().toISOString().slice(0, 10)): Promise<SnapshotRow[]> {
+  await recordSnapshot(db, p, today);
+  return readSnapshots(db);
 }
