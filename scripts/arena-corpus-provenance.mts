@@ -9,7 +9,7 @@ import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../src/lib/are
 import { parseSkills, skillLines } from "../src/lib/arena/text/cards";
 import { whiteCellPlayedSubjectFilter } from "../src/lib/arena/text/triggers";
 import { needsPaymentRecord } from "../src/lib/arena/vm/skill-payment";
-import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem } from "../src/lib/arena/vm/skill-identity";
+import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, potaraIdentityProblem } from "../src/lib/arena/vm/skill-identity";
 import type { Script } from "../src/lib/arena/vm/script";
 import type { CardDef, Skill } from "../src/lib/arena/types";
 
@@ -73,7 +73,9 @@ function textDependencies(sk: Skill, script: Script | undefined): string[] {
     && script?.kind === "keyword" && !!script.price?.evolution && evolutionIdentityProblem(script) === null;
   const typedAbsorb = sk.keyword?.name === "Union" && sk.keyword.variant === "Absorb"
     && script?.kind === "keyword" && !!script.price?.absorb && absorbIdentityProblem(script) === null;
-  if (sk.keyword && !typedEvolution && !typedAbsorb && !(sk.keyword.name === "Union" && sk.keyword.variant === "Fusion") && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
+  const typedPotara = sk.keyword?.name === "Union" && sk.keyword.variant === "Potara"
+    && script?.kind === "keyword" && !!script.price?.potara && potaraIdentityProblem(script) === null;
+  if (sk.keyword && !typedEvolution && !typedAbsorb && !typedPotara && !(sk.keyword.name === "Union" && sk.keyword.variant === "Fusion") && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
   if (sk.keyword?.name === "Union" && sk.keyword.variant === "Fusion"
     && !(script?.kind === "keyword" && script.price?.fusion && fusionIdentityProblem(script) === null)) fields.push("keyword.Union activation identity/timing");
   const activated = sk.kind.startsWith("activate:") || needsPaymentRecord(sk);
@@ -126,7 +128,7 @@ export function programProvenance(defs: Record<string, CardDef>, mode: ProgramMo
           if (sk.cost.trim() && row.cost === null) blockers.push("missing stored activation cost/condition metadata");
           const cost = row.cost as Record<string, unknown> | null;
           if (cost) for (const field of Object.keys(cost)) {
-            if (["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith", "fusion", "evolution", "absorb"].includes(field)) continue;
+            if (["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith", "fusion", "evolution", "absorb", "potara"].includes(field)) continue;
             const value = cost[field];
             const meaningful = value != null && value !== "" && (!Array.isArray(value) || value.length > 0) && (typeof value !== "object" || Object.keys(value).length > 0);
             // `text` is display/source only; chargeability comes from the versioned typed contract.
