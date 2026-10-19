@@ -20,14 +20,16 @@ and [selected inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19
 remain dated evidence of the blockers and sources used before application.
 
 #1073's [typed defensive decision facts](arena-backlog/evidence/899/typed-decisions-2026-10-19/README.md)
-are deployed. #899 is now measuring the current policy against the exact
-pre-fix defensive policy on a fresh, fixed 320-game paired schedule. Its
-[protocol and source freeze](arena-backlog/evidence/899/fresh-holdouts-2026-10-19/README.md)
-are committed; execution is in progress and aggregate results remain pending.
-Do not change the candidate or inspect partial outcomes to tune it. Tactical
-checks and the qualified BT6 pair do not establish a White/Cell or general
-strength gain. #929/#930 have implementations and #932 is closed after final
-integrated validation; their issue bodies retain their separate scope.
+are deployed. #899's fresh, fixed comparison is complete: **162 wins / 158 losses**
+over 320 completed games. Its 14 won-both / 12 lost-both decisive pairs give a
+95% interval of **35.5–71.2%**, so the strength gate is not passed.
+[Full paired results](arena-backlog/evidence/899/fresh-holdouts-2026-10-19/RESULTS.md)
+retain the original source pins, all consumed seeds and zero integrity failures.
+All eight cells remain underpowered. No new difficulty/default promotion is made;
+Worker performance remains unmeasured and known unaffordable-defense combo waste
+is unchanged. #899 closes as an inconclusive completed experiment.
+#929/#930 have implementations and #932 is closed after final integrated validation;
+their issue bodies retain their separate scope.
 
 The owner separately approved and applied 19 metadata-only updates: eight #825
 records and eleven #923 reference records. Actual readbacks preserve their
@@ -35,7 +37,7 @@ programs, prices, statuses and review fields, including the two confirmed Ape
 records. The [#825 application receipt](arena-backlog/evidence/825/metadata-2026-10-19/application-receipt.json)
 and [#923 application receipt](arena-backlog/evidence/923/metadata-2026-10-19/application-receipt.json)
 record the distinct approvals and exact snapshots. #825's bounded reconciliation
-is complete, with its final evidence updated separately. #923 remains open:
+is complete, with its final actual-record evidence recorded. #923 remains open:
 BT3-070 front #0 still needs typed Union-Absorb identity/material authority;
 the eleven applied metadata updates do not remove that residual or authorize
 another refresh. Its [actual admission](arena-backlog/evidence/923/metadata-2026-10-19/actual-admission.json)

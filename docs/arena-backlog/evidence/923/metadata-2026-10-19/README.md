@@ -1,5 +1,13 @@
 # Exact eleven-row metadata proposal
 
+**Applied after separate owner approval.** The [application receipt](application-receipt.json)
+records all eleven exact writes, unchanged programs/costs/statuses/private fields
+and both actual-reference material/payment proof passes. [Actual admission](actual-admission.json)
+is 11 loaded scripts / 10 authoritative records; BT3-070/front/0 retains its
+separate native Absorb authority residual. The paragraphs below preserve the
+original preparation-stage description; its reviewed digest is unchanged.
+
+
 Preparation only. No live database connection or write was performed. Applying this proposal requires separate explicit owner approval of its exact digest; approval of the separate #825 proposal does not authorize it.
 
 The public `cards.json` and `programs.json` pin three catalog identities and eleven existing compiler-owned draft records. The proposal adds only versioned usage and validity metadata. Existing costs, combo contracts, effects, conditions, triggers, printed source, readings, statuses, review fields and private fields are preserved. A successful write increments each changed row version once and updates its timestamp. No effect recompilation or confirmation occurs.

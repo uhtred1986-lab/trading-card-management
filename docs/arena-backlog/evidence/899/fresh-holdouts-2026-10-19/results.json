@@ -1,0 +1,718 @@
+{
+  "format": "arena-defense-public-results-v1",
+  "requestId": "09f83d25-b4c4-4f1b-9620-6e67c7112400",
+  "runner": {
+    "id": "arena-policy-eval",
+    "version": "defense-899-v1",
+    "gitCommit": "a6cbd383c2c89e408a02e6018a604ac6b6d4f078",
+    "dirtyTreeSha256": null
+  },
+  "freezeSha256": "38831361ad90d52b368861f10768b81d3daa8ed38f56b62db949f5daddc25755",
+  "summary": {
+    "plannedGames": 320,
+    "plannedPairs": 160,
+    "attempted": 320,
+    "completed": 320,
+    "draws": 0,
+    "wins": 162,
+    "losses": 158,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "crashed": 0,
+    "other": 0,
+    "privacyFailures": 0,
+    "guardTrips": 0,
+    "unknownPrivacyChecksAttempts": 0,
+    "unknownGuardMetricsAttempts": 0,
+    "candidateSamples": 528,
+    "baselineSamples": 525,
+    "nontrivial": 1053,
+    "candidateNontrivial": 528,
+    "baselineNontrivial": 525,
+    "purityFailures": 0,
+    "decided": 320,
+    "winCi95": [
+      0.45172230505177496,
+      0.5606294125780786
+    ],
+    "completionCi95": [
+      0.9881374103882884,
+      0.9999999999999998
+    ],
+    "pairs": {
+      "planned": 160,
+      "wonBoth": 14,
+      "lostBoth": 12,
+      "split": 134,
+      "draw": 0,
+      "incomplete": 0,
+      "decisive": 26,
+      "insufficientPower": false,
+      "winCi95": [
+        0.35457636204430115,
+        0.712444173047651
+      ]
+    },
+    "fixtures": [
+      {
+        "key": "starters-0v0",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 21,
+        "losses": 19,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 65,
+        "baselineSamples": 66,
+        "nontrivial": 131,
+        "candidateNontrivial": 65,
+        "baselineNontrivial": 66,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.37497106853929735,
+          0.6706477044981831
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 2,
+          "lostBoth": 1,
+          "split": 17,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 3,
+          "insufficientPower": true,
+          "winCi95": [
+            0.20765495512648788,
+            0.9385096847238393
+          ]
+        }
+      },
+      {
+        "key": "starters-0v1",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 18,
+        "losses": 22,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 68,
+        "baselineSamples": 66,
+        "nontrivial": 134,
+        "candidateNontrivial": 68,
+        "baselineNontrivial": 66,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.30705075280944705,
+          0.6017117011155924
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 1,
+          "lostBoth": 3,
+          "split": 16,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 4,
+          "insufficientPower": true,
+          "winCi95": [
+            0.045586062644636216,
+            0.6993639475573634
+          ]
+        }
+      },
+      {
+        "key": "starters-1v0",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 20,
+        "losses": 20,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 66,
+        "baselineSamples": 66,
+        "nontrivial": 132,
+        "candidateNontrivial": 66,
+        "baselineNontrivial": 66,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.35199278797099753,
+          0.6480072120290025
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 2,
+          "lostBoth": 2,
+          "split": 16,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 4,
+          "insufficientPower": true,
+          "winCi95": [
+            0.15003570882017145,
+            0.8499642911798285
+          ]
+        }
+      },
+      {
+        "key": "starters-1v1",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 18,
+        "losses": 22,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 62,
+        "baselineSamples": 60,
+        "nontrivial": 122,
+        "candidateNontrivial": 62,
+        "baselineNontrivial": 60,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.30705075280944705,
+          0.6017117011155924
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 0,
+          "lostBoth": 2,
+          "split": 18,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 2,
+          "insufficientPower": true,
+          "winCi95": [
+            0,
+            0.6576280471103807
+          ]
+        }
+      },
+      {
+        "key": "bt6-0v0",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 24,
+        "losses": 16,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 86,
+        "baselineSamples": 89,
+        "nontrivial": 175,
+        "candidateNontrivial": 86,
+        "baselineNontrivial": 89,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.44595619827393507,
+          0.7365188938759865
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 6,
+          "lostBoth": 2,
+          "split": 12,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 8,
+          "insufficientPower": true,
+          "winCi95": [
+            0.40926987910258916,
+            0.9285223111419724
+          ]
+        }
+      },
+      {
+        "key": "bt6-0v1",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 21,
+        "losses": 19,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 65,
+        "baselineSamples": 64,
+        "nontrivial": 129,
+        "candidateNontrivial": 65,
+        "baselineNontrivial": 64,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.37497106853929735,
+          0.6706477044981831
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 2,
+          "lostBoth": 1,
+          "split": 17,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 3,
+          "insufficientPower": true,
+          "winCi95": [
+            0.20765495512648788,
+            0.9385096847238393
+          ]
+        }
+      },
+      {
+        "key": "bt6-1v0",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 21,
+        "losses": 19,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 63,
+        "baselineSamples": 63,
+        "nontrivial": 126,
+        "candidateNontrivial": 63,
+        "baselineNontrivial": 63,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.37497106853929735,
+          0.6706477044981831
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 1,
+          "lostBoth": 0,
+          "split": 19,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 1,
+          "insufficientPower": true,
+          "winCi95": [
+            0.20654329147389294,
+            1
+          ]
+        }
+      },
+      {
+        "key": "bt6-1v1",
+        "attempted": 40,
+        "completed": 40,
+        "draws": 0,
+        "wins": 19,
+        "losses": 21,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 53,
+        "baselineSamples": 51,
+        "nontrivial": 104,
+        "candidateNontrivial": 53,
+        "baselineNontrivial": 51,
+        "purityFailures": 0,
+        "decided": 40,
+        "winCi95": [
+          0.32935229550181694,
+          0.6250289314607026
+        ],
+        "completionCi95": [
+          0.9123754607496077,
+          1
+        ],
+        "pairs": {
+          "planned": 20,
+          "wonBoth": 0,
+          "lostBoth": 1,
+          "split": 19,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 1,
+          "insufficientPower": true,
+          "winCi95": [
+            0,
+            0.7934567085261071
+          ]
+        }
+      }
+    ],
+    "archetypes": [
+      {
+        "recipe": "A",
+        "attempted": 80,
+        "completed": 80,
+        "draws": 0,
+        "wins": 34,
+        "losses": 46,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 130,
+        "baselineSamples": 128,
+        "nontrivial": 258,
+        "candidateNontrivial": 130,
+        "baselineNontrivial": 128,
+        "purityFailures": 0,
+        "decided": 80,
+        "winCi95": [
+          0.3225638801480733,
+          0.534309080291613
+        ],
+        "completionCi95": [
+          0.954180263735425,
+          1.0000000000000002
+        ],
+        "matchupPairsInvolvingRecipe": {
+          "planned": 60,
+          "wonBoth": 5,
+          "lostBoth": 6,
+          "split": 49,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 11,
+          "insufficientPower": true,
+          "winCi95": [
+            0.21270957543988048,
+            0.7199122443100118
+          ]
+        },
+        "inference": "Game-wise interval is descriptive. Paired interval covers matchups involving this recipe, not an isolated deck causal effect."
+      },
+      {
+        "recipe": "B",
+        "attempted": 80,
+        "completed": 80,
+        "draws": 0,
+        "wins": 43,
+        "losses": 37,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 131,
+        "baselineSamples": 130,
+        "nontrivial": 261,
+        "candidateNontrivial": 131,
+        "baselineNontrivial": 130,
+        "purityFailures": 0,
+        "decided": 80,
+        "winCi95": [
+          0.4290416436680269,
+          0.64252187611213
+        ],
+        "completionCi95": [
+          0.954180263735425,
+          1.0000000000000002
+        ],
+        "matchupPairsInvolvingRecipe": {
+          "planned": 60,
+          "wonBoth": 3,
+          "lostBoth": 7,
+          "split": 50,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 10,
+          "insufficientPower": true,
+          "winCi95": [
+            0.10778928748621182,
+            0.6032267800204347
+          ]
+        },
+        "inference": "Game-wise interval is descriptive. Paired interval covers matchups involving this recipe, not an isolated deck causal effect."
+      },
+      {
+        "recipe": "bt6-gogeta-br-fusion",
+        "attempted": 80,
+        "completed": 80,
+        "draws": 0,
+        "wins": 56,
+        "losses": 24,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 148,
+        "baselineSamples": 154,
+        "nontrivial": 302,
+        "candidateNontrivial": 148,
+        "baselineNontrivial": 154,
+        "purityFailures": 0,
+        "decided": 80,
+        "winCi95": [
+          0.5923163971203269,
+          0.789355708373843
+        ],
+        "completionCi95": [
+          0.954180263735425,
+          1.0000000000000002
+        ],
+        "matchupPairsInvolvingRecipe": {
+          "planned": 60,
+          "wonBoth": 9,
+          "lostBoth": 3,
+          "split": 48,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 12,
+          "insufficientPower": true,
+          "winCi95": [
+            0.4676896608793401,
+            0.9110599603710388
+          ]
+        },
+        "inference": "Game-wise interval is descriptive. Paired interval covers matchups involving this recipe, not an isolated deck causal effect."
+      },
+      {
+        "recipe": "bt6-paragus-broly-recovery",
+        "attempted": 80,
+        "completed": 80,
+        "draws": 0,
+        "wins": 29,
+        "losses": 51,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 119,
+        "baselineSamples": 113,
+        "nontrivial": 232,
+        "candidateNontrivial": 119,
+        "baselineNontrivial": 113,
+        "purityFailures": 0,
+        "decided": 80,
+        "winCi95": [
+          0.26570633724259446,
+          0.47189409023016365
+        ],
+        "completionCi95": [
+          0.954180263735425,
+          1.0000000000000002
+        ],
+        "matchupPairsInvolvingRecipe": {
+          "planned": 60,
+          "wonBoth": 3,
+          "lostBoth": 2,
+          "split": 55,
+          "draw": 0,
+          "incomplete": 0,
+          "decisive": 5,
+          "insufficientPower": true,
+          "winCi95": [
+            0.23071993220883702,
+            0.8823817688407467
+          ]
+        },
+        "inference": "Game-wise interval is descriptive. Paired interval covers matchups involving this recipe, not an isolated deck causal effect."
+      }
+    ],
+    "seats": [
+      {
+        "seat": "p1",
+        "attempted": 160,
+        "completed": 160,
+        "draws": 0,
+        "wins": 75,
+        "losses": 85,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 260,
+        "baselineSamples": 261,
+        "nontrivial": 521,
+        "candidateNontrivial": 260,
+        "baselineNontrivial": 261,
+        "purityFailures": 0,
+        "decided": 160,
+        "winCi95": [
+          0.39306676250273337,
+          0.5458986772878937
+        ],
+        "completionCi95": [
+          0.9765529633499672,
+          1
+        ]
+      },
+      {
+        "seat": "p2",
+        "attempted": 160,
+        "completed": 160,
+        "draws": 0,
+        "wins": 87,
+        "losses": 73,
+        "illegal": 0,
+        "interrupted": 0,
+        "limited": 0,
+        "crashed": 0,
+        "other": 0,
+        "privacyFailures": 0,
+        "guardTrips": 0,
+        "unknownPrivacyChecksAttempts": 0,
+        "unknownGuardMetricsAttempts": 0,
+        "candidateSamples": 268,
+        "baselineSamples": 264,
+        "nontrivial": 532,
+        "candidateNontrivial": 268,
+        "baselineNontrivial": 264,
+        "purityFailures": 0,
+        "decided": 160,
+        "winCi95": [
+          0.466448820297763,
+          0.618999563995359
+        ],
+        "completionCi95": [
+          0.9765529633499672,
+          1
+        ]
+      }
+    ],
+    "nodeWholeStepMs": {
+      "n": 71971,
+      "p95": 789.1484570000321,
+      "max": 25581.70790199982
+    },
+    "observedStatisticalGate": false,
+    "workerEvidence": "required separately; no Node measurement establishes Worker latency/memory gates",
+    "difficultyEnabled": false,
+    "promotion": false,
+    "limits": "Paired game observations are dependent. Game-wise Wilson intervals are descriptive; paired decisive intervals are the strength criterion. Life-depletion fields include skill costs and are not formal damage-event counts."
+  },
+  "artifacts": {
+    "privateReportSha256": "ba6c5cb933e9ad8b43bc7b232f2fe19b6d4c2ed778ad573e201f3e81ac736b20",
+    "allowlistedManifestSha256": "dc50fa433af1668d737897d310289e6925557df5b7b54e03335a2784e7933136",
+    "journals": [
+      {
+        "shard": 0,
+        "sha256": "f07d6f054dbaaa62231d272319a1deff48e97e2eb881baf3e5f6ead9adb7d324"
+      },
+      {
+        "shard": 1,
+        "sha256": "bdbd4054b56790b38df7106a4af2f4cf69b3043538d16e487aa5d5262e86d870"
+      },
+      {
+        "shard": 2,
+        "sha256": "c6390caab51c4cc4a6b36ec4cd56bd8f9faeb7240850622029071c6697c43252"
+      },
+      {
+        "shard": 3,
+        "sha256": "1280fb756c0e62d65123f9414c5cc9f24c75459591b9da5ac8290d76c3454839"
+      }
+    ]
+  },
+  "importedToDatabase": false,
+  "paidCalls": 0
+}

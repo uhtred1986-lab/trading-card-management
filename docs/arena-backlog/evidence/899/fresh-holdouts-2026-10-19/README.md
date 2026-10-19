@@ -65,7 +65,7 @@ through both attacks. This experiment does not repair it. New card/mechanic
 failures get a reproducer and owner rather than silent policy/rule changes.
 
 Preparation/source review, seed-disjointness evidence and immutable freeze are
-recorded before execution; results and the decision follow after all attempts.
+recorded before execution. [Final results](RESULTS.md) now record every attempt and the inconclusive decision.
 
 
 Historical-control verification passes: import-only reconstruction matches the
@@ -98,3 +98,14 @@ The no-game proof covers exact pack/admission refusal, paired physical-seat RNG,
 three/four disjoint shard partitions, duplicate campaign/path/reset rejection,
 and durable BEGIN recovery as an unknown-metric crash without replay. Code,
 protocol and this freeze are committed before any fresh attempt starts.
+
+
+## Completed outcome
+
+All 320 attempts completed with zero integrity failures. The current policy
+records 162 wins / 158 losses; 14 won-both / 12 lost-both among 26 decisive pairs
+yield a 95% interval of 35.5–71.2%. The strength gate is not passed. No difficulty
+or default promotion is made; all eight cells remain underpowered and Worker
+performance remains unmeasured. See [the full results](RESULTS.md), [public receipt](results.json)
+and [allowlisted 320-result manifest](manifest.json). The experiment retains its
+original runner/interpreter pins after integration. Known combo waste is unchanged.
