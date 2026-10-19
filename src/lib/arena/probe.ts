@@ -768,6 +768,18 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false): Staged 
 }
 
 /**
+ * The board a probe starts from, handed out for the play-test sandbox (Rules
+ * PR 5): the context (the rule's program installed as the card's script), the
+ * position, the instance the rule is on and the lines saying how the board was
+ * built. `stage` is the same function `probe()` runs, so the sandbox opens on
+ * exactly the position a Try it row was judged on.
+ */
+export function stagePosition(rule: ProbeRule, scenario: ProbeScenario): { ctx: EngineContext; state: EngineState; card: string; input: string[]; waitsFor: string[] } {
+  const staged = stage(rule, scenario);
+  return { ctx: staged.ctx, state: staged.state, card: staged.card, input: staged.input, waitsFor: staged.goals.map((g) => g.what) };
+}
+
+/**
  * Turn the knobs a board was built with (#470): exactly `n` cards the
  * condition counts in the zone it reads, a life total. Done last, once
  * everything else the board needs is on it, so the count is the count the
