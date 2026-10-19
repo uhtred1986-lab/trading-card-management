@@ -1,0 +1,67 @@
+{
+  "key": "heuristic-before-defense-1026",
+  "version": "combat1-choices1-fdd66953",
+  "originalCommit": "fdd6695385cebe422a50e3ed76f2a3c6cda8526a",
+  "scope": "Evaluation-only exact historical combat and choices; shared current contract/engine. Combined delivered-policy comparison, not duration-only causal ablation. Historical English interpretation is never a production fallback.",
+  "sources": [
+    {
+      "path": "scripts/fixtures/policy-before-1026/combat.ts",
+      "originalPath": "src/lib/arena/policy/combat.ts",
+      "gitBlob": "f029f38c0a59837b96d82dda1df3f07eecfb1356",
+      "originalSha256": "c6b1e44468565b4c3ed74265e7c32e9e02a2d221630dbe356fe90dad151d5788",
+      "sha256": "eedefc696d6fc9ec472f06671e0eaa15bf56ba56f2f1b2aa033d0320828ed07c",
+      "rewrites": {
+        "\"./contract\"": "\"../../../src/lib/arena/policy/contract\"",
+        "\"./main\"": "\"../../../src/lib/arena/policy/main\"",
+        "\"./observation\"": "\"../../../src/lib/arena/policy/observation\"",
+        "\"./shortcuts\"": "\"../../../src/lib/arena/policy/shortcuts\""
+      }
+    },
+    {
+      "path": "scripts/fixtures/policy-before-1026/choices.ts",
+      "originalPath": "src/lib/arena/policy/choices.ts",
+      "gitBlob": "506e1e79805be50014efdcacd76f82e1487f9d09",
+      "originalSha256": "b51c9590337e1e48a5368f40eda80b4115e7c2e0aac39d8032449cb325958328",
+      "sha256": "fbf80c4c4808669d314fac9e287c22d36fa8fb76344b1c1f1bfd00aeb64bc825",
+      "rewrites": {
+        "\"./contract\"": "\"../../../src/lib/arena/policy/contract\"",
+        "\"./main\"": "\"../../../src/lib/arena/policy/main\"",
+        "\"./observation\"": "\"../../../src/lib/arena/policy/observation\"",
+        "\"./shortcuts\"": "\"../../../src/lib/arena/policy/shortcuts\"",
+        "\"../types\"": "\"../../../src/lib/arena/types\""
+      }
+    }
+  ],
+  "sharedDependencies": [
+    {
+      "path": "src/lib/arena/policy/main.ts",
+      "originalSha256": "2fe50e2ae75a9c18bd108e6a83d530d19eaa635d2f27f791b2d90ab66534dcd1",
+      "sha256": "2fe50e2ae75a9c18bd108e6a83d530d19eaa635d2f27f791b2d90ab66534dcd1",
+      "reviewedChange": null
+    },
+    {
+      "path": "src/lib/arena/policy/shortcuts.ts",
+      "originalSha256": "cc05a95cbe68b3bad69bf0f7e45de1bf6d0f4acaf88bdef535ed224d930f59a6",
+      "sha256": "cc05a95cbe68b3bad69bf0f7e45de1bf6d0f4acaf88bdef535ed224d930f59a6",
+      "reviewedChange": null
+    },
+    {
+      "path": "src/lib/arena/policy/observation.ts",
+      "originalSha256": "8b1b1bc4b71eb19a1ae4ab01e4cbbee7f7073ecef589cdafd045d49a5872947f",
+      "sha256": "8b1b1bc4b71eb19a1ae4ab01e4cbbee7f7073ecef589cdafd045d49a5872947f",
+      "reviewedChange": null
+    },
+    {
+      "path": "src/lib/arena/policy/rng.ts",
+      "originalSha256": "e7c21abacb5f1e0eb6b2cf6d4e469167e86fdfcaa272f160f0c291d81114077e",
+      "sha256": "e7c21abacb5f1e0eb6b2cf6d4e469167e86fdfcaa272f160f0c291d81114077e",
+      "reviewedChange": null
+    },
+    {
+      "path": "src/lib/arena/policy/contract.ts",
+      "originalSha256": "11dc9f5e6c062d32e65673d18ed61921daf81a4b9c1e94466d53383156bc9f9d",
+      "sha256": "61972f5a56d9358a8623d1fd9f916048d0ac88cf96177848ca4a567f37a492a2",
+      "reviewedChange": "additive optional typed decision metadata and forwarding only; historical policy does not inspect these fields"
+    }
+  ]
+}

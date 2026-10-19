@@ -1,9 +1,13 @@
 # Continuing the arena rules programme
 
 **Current queue — 19 Oct 2026:** read `docs/arena-CURRENT.md`, then
-`docs/arena-rules-delivery.md` and [#907](https://github.com/uhtred1986-lab/trading-card-management/issues/907)
-for rules/AI priorities and bounded exits. #581 is complete. Union is the first
-reference family; reuse its delivered implementations and audit remaining evidence.
+`docs/arena-rules-delivery.md` and [#907](https://github.com/uhtred1986-lab/trading-card-management/issues/907).
+#897's bounded BT6 pair qualification is complete. #1073 typed defensive policy
+is deployed; #899's frozen 320-game comparison completed inconclusively (162–158),
+with no new difficulty/default promotion. The separately approved eight #825 and eleven #923 metadata writes are
+applied and read back. #825's bounded reconciliation is complete; #923's next
+boundary is typed BT3-070 Union-Absorb authority, not another metadata refresh.
+#581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its
 two-engine descriptions and dated open/blocked lists; it does not override current
 code or the reconciled queue. Other UI work retains its own current tracker.

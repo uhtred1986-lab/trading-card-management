@@ -1,0 +1,1819 @@
+{
+  "source": {
+    "mode": "actual stored records after owner-approved usage/validity-only migration",
+    "readAt": "2026-10-19T15:33:45.167Z",
+    "catalog": "minimal engine-facing projection exactly checked against actual CardDefs"
+  },
+  "catalog": [
+    {
+      "id": "BT11-013",
+      "name": "Gogeta, Fusion of the Gods",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "5",
+      "zEnergyCost": null,
+      "power": 20000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[deflect]<br>[union-fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[permanent] This card can't be KO'd.<br>[auto] If your Leader Card is red: When this card is played, choose up to 1 of your red Unison Cards, add a marker to it, then choose all of your opponent's Battle Cards and they get -15000 power for the turn.",
+      "characters": [
+        "Gogeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "backName": null,
+      "backPower": null,
+      "backSkill": null,
+      "specifiedCost": null
+    },
+    {
+      "id": "BT3-070",
+      "name": "Dawn of Terror, Android 13",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "4",
+      "zEnergyCost": null,
+      "power": 20000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.<br>[auto] When you play this card, your opponent chooses 1 of their Battle Cards and KO-s it.",
+      "characters": [
+        "Android 13"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "backName": null,
+      "backPower": null,
+      "backSkill": null,
+      "specifiedCost": null
+    },
+    {
+      "id": "P-360",
+      "name": "Vegeta",
+      "cardType": "LEADER",
+      "colors": [
+        "Blue"
+      ],
+      "energyCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": null,
+      "comboPower": null,
+      "skill": "[Auto] When this card attacks, draw 1 card.\r\n[Activate: Battle][Once per turn] Choose 1 red or blue ≪Saiyan≫ card in your hand and discard it: Look at up to 3 cards from the top of your deck, add up to 1 &lt;Son Goku: Br&gt;, &lt;Vegeta: Br&gt;, or &lt;Gogeta: Br&gt; card among them to your hand, then place the remaining cards on top of your deck in any order.\r\n[Awaken] When your life is at 4 or less or you have 4 or more energy: You may draw 1 card, switch up to 1 of your energy to Active Mode, and flip this card over.",
+      "characters": [
+        "Vegeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "backName": "SSG Vegeta, Crimson Warrior",
+      "backPower": 15000,
+      "backSkill": "[permanent] Red <Gogeta: Br> cards in your hand gain the following skill:\r ・[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.\r [auto] When this card attacks, draw 1 card.\r [auto][once per turn] When you play a <Gogeta: Br> card, draw 1 card, then switch up to 1 of your Red/Blue multicolor energy to Active Mode at the end of the turn.",
+      "specifiedCost": null
+    }
+  ],
+  "after": [
+    {
+      "id": 6545,
+      "card_id": "BT11-013",
+      "side": "front",
+      "skill_index": 10,
+      "printed": "[union-fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and red <Vegeta: Br>.",
+      "kind": "keyword",
+      "trigger": [],
+      "cost": {
+        "orbs": {
+          "Red": 3
+        },
+        "text": "draw 2 cards",
+        "burst": null,
+        "either": [],
+        "fusion": {
+          "base": "hand",
+          "needs": [
+            {
+              "name": "Son Goku: Br",
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Red"
+                ],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            {
+              "name": "Vegeta: Br",
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Red"
+                ],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            }
+          ],
+          "version": 1,
+          "samePower": true,
+          "activation": "hand",
+          "extensions": [
+            "unionFusionAreas",
+            "unionFusionWarp"
+          ]
+        },
+        "marker": null,
+        "program": [
+          {
+            "n": 2,
+            "op": "draw"
+          }
+        ],
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [],
+      "reads": "",
+      "pattern": "keyword:Union",
+      "source": "compiler",
+      "status": "draft",
+      "version": 5,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 6546,
+      "card_id": "BT11-013",
+      "side": "front",
+      "skill_index": 20,
+      "printed": "[permanent] This card can't be KO'd.",
+      "kind": "permanent",
+      "trigger": [],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beKOd",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "reads": "this card can't be KO'd",
+      "pattern": "forbid:beKOd",
+      "source": "compiler",
+      "status": "draft",
+      "version": 4,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 6547,
+      "card_id": "BT11-013",
+      "side": "front",
+      "skill_index": 30,
+      "printed": "[auto] If your Leader Card is red: When this card is played, choose up to 1 of your red Unison Cards, add a marker to it, then choose all of your opponent's Battle Cards and they get -15000 power for the turn.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "cost": {
+        "orbs": {},
+        "text": "If your Leader Card is red",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": {
+          "kind": "leaderMatches",
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Red"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "spiritBoost": null
+      },
+      "cond": {
+        "kind": "leaderMatches",
+        "filter": {
+          "z": null,
+          "type": null,
+          "names": [],
+          "token": false,
+          "colors": [
+            "Red"
+          ],
+          "faceUp": false,
+          "traits": [],
+          "costMax": null,
+          "costMin": null,
+          "notType": null,
+          "keywords": [],
+          "namesAll": [],
+          "notNames": [],
+          "notToken": false,
+          "powerMax": null,
+          "powerMin": null,
+          "powerRel": null,
+          "monoColor": false,
+          "notColors": [],
+          "notTraits": [],
+          "skillKind": null,
+          "skillLess": false,
+          "characters": [],
+          "markersMax": null,
+          "markersMin": null,
+          "multiColor": false,
+          "noKeywords": false,
+          "unreadable": false,
+          "notKeywords": [],
+          "charactersAll": [],
+          "comboPowerMax": null,
+          "comboPowerMin": null,
+          "notCharacters": [],
+          "namesIncluding": [],
+          "onlyCharacters": false,
+          "costAboveEnergy": false,
+          "costBelowEnergy": false,
+          "characterOrTrait": false,
+          "costAtMostEnergy": false,
+          "energyOfOpponent": false,
+          "originalPowerMax": null,
+          "originalPowerMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostMin": null,
+          "costAtLeastEnergy": false,
+          "nameInSkillTextOf": null,
+          "notNamesIncluding": [],
+          "specifiedCostNone": false,
+          "charactersIncluding": [],
+          "originallySkillLess": false,
+          "notCharactersIncluding": []
+        }
+      },
+      "ops": [
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "area": "unison",
+            "side": "you",
+            "upTo": true,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": "UNISON",
+              "names": [],
+              "token": false,
+              "colors": [
+                "Red"
+              ],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "choose up to 1 of your red Unison Cards"
+        },
+        {
+          "n": 1,
+          "op": "addMarker",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "as": "c1",
+          "op": "choose",
+          "sel": {
+            "area": "battle",
+            "side": "opponent",
+            "upTo": false,
+            "count": 99,
+            "filter": {
+              "z": null,
+              "type": "BATTLE",
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "choose all of your opponent's Battle Cards"
+        },
+        {
+          "op": "power",
+          "until": "turn",
+          "amount": -15000,
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "unread": [],
+      "reads": "if your leader is Red: choose up to 1 red Unison Card in your Unison Area, add 1 marker, choose all Battle Cards in your opponent's Battle Area, the chosen cards -15000 power for the turn",
+      "pattern": "if:leaderMatches[choose→addMarker→choose→power]",
+      "source": "compiler",
+      "status": "draft",
+      "version": 7,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 6416,
+      "card_id": "BT3-070",
+      "side": "front",
+      "skill_index": 0,
+      "printed": "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.",
+      "kind": "keyword",
+      "trigger": [],
+      "cost": {
+        "orbs": {
+          "Green": 1
+        },
+        "text": "choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "drop",
+              "side": "you",
+              "upTo": false,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "android 14"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "1 <android 14> card from your drop area, to place under this card"
+          },
+          {
+            "op": "moveTo",
+            "to": "under",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "as": "c1",
+            "op": "choose",
+            "sel": {
+              "area": "drop",
+              "side": "you",
+              "upTo": false,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "android 15"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "1 <android 15> card from your drop area, to place under this card"
+          },
+          {
+            "op": "moveTo",
+            "to": "under",
+            "target": {
+              "var": "c1"
+            }
+          }
+        ],
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "area": "deck",
+            "side": "you",
+            "upTo": true,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": 7,
+              "costMin": 7,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "Android 13"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "Choose up to 1 <Android 13> with an energy cost of 7 from your deck"
+        },
+        {
+          "op": "play",
+          "onto": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "using": "Union-Absorb",
+          "target": {
+            "var": "c0"
+          },
+          "counterWindow": true
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "unread": [],
+      "reads": "choose up to 1 <Android 13> card with an energy cost of 7 in your deck, play the chosen cards through a [Counter: Play] window on top of this card, shuffle",
+      "pattern": "choose→play→shuffle",
+      "source": "compiler",
+      "status": "draft",
+      "version": 9,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 6417,
+      "card_id": "BT3-070",
+      "side": "front",
+      "skill_index": 10,
+      "printed": "[auto] When you play this card, your opponent chooses 1 of their Battle Cards and KOs it.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "area": "battle",
+            "side": "opponent",
+            "upTo": false,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": "BATTLE",
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "your opponent chooses 1 of their Battle Cards",
+          "chooser": "opponent"
+        },
+        {
+          "op": "ko",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "unread": [],
+      "reads": "choose 1 Battle Card in your opponent's Battle Area, KO the chosen cards",
+      "pattern": "choose→ko",
+      "source": "compiler",
+      "status": "draft",
+      "version": 8,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12065,
+      "card_id": "P-360",
+      "side": "back",
+      "skill_index": 0,
+      "printed": "[permanent] Red <Gogeta: Br> cards in your hand gain the following skill: ・[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.",
+      "kind": "permanent",
+      "trigger": [],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "permit",
+          "line": "[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.",
+          "what": "unionLine",
+          "price": {
+            "ops": null,
+            "fusion": {
+              "base": "hand",
+              "needs": [
+                {
+                  "name": "Son Goku: Br",
+                  "filter": {
+                    "z": null,
+                    "type": null,
+                    "names": [],
+                    "token": false,
+                    "colors": [],
+                    "faceUp": false,
+                    "traits": [],
+                    "costMax": null,
+                    "costMin": null,
+                    "notType": null,
+                    "keywords": [],
+                    "namesAll": [],
+                    "notNames": [],
+                    "notToken": false,
+                    "powerMax": null,
+                    "powerMin": null,
+                    "powerRel": null,
+                    "monoColor": false,
+                    "notColors": [],
+                    "notTraits": [],
+                    "skillKind": null,
+                    "skillLess": false,
+                    "characters": [],
+                    "markersMax": null,
+                    "markersMin": null,
+                    "multiColor": false,
+                    "noKeywords": false,
+                    "unreadable": false,
+                    "notKeywords": [],
+                    "charactersAll": [],
+                    "comboPowerMax": null,
+                    "comboPowerMin": null,
+                    "notCharacters": [],
+                    "namesIncluding": [],
+                    "onlyCharacters": false,
+                    "costAboveEnergy": false,
+                    "costBelowEnergy": false,
+                    "characterOrTrait": false,
+                    "costAtMostEnergy": false,
+                    "energyOfOpponent": false,
+                    "originalPowerMax": null,
+                    "originalPowerMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostMin": null,
+                    "costAtLeastEnergy": false,
+                    "nameInSkillTextOf": null,
+                    "notNamesIncluding": [],
+                    "specifiedCostNone": false,
+                    "charactersIncluding": [],
+                    "originallySkillLess": false,
+                    "notCharactersIncluding": []
+                  }
+                },
+                {
+                  "name": "Vegeta: Br",
+                  "filter": {
+                    "z": null,
+                    "type": null,
+                    "names": [],
+                    "token": false,
+                    "colors": [],
+                    "faceUp": false,
+                    "traits": [],
+                    "costMax": null,
+                    "costMin": null,
+                    "notType": null,
+                    "keywords": [],
+                    "namesAll": [],
+                    "notNames": [],
+                    "notToken": false,
+                    "powerMax": null,
+                    "powerMin": null,
+                    "powerRel": null,
+                    "monoColor": false,
+                    "notColors": [],
+                    "notTraits": [],
+                    "skillKind": null,
+                    "skillLess": false,
+                    "characters": [],
+                    "markersMax": null,
+                    "markersMin": null,
+                    "multiColor": false,
+                    "noKeywords": false,
+                    "unreadable": false,
+                    "notKeywords": [],
+                    "charactersAll": [],
+                    "comboPowerMax": null,
+                    "comboPowerMin": null,
+                    "notCharacters": [],
+                    "namesIncluding": [],
+                    "onlyCharacters": false,
+                    "costAboveEnergy": false,
+                    "costBelowEnergy": false,
+                    "characterOrTrait": false,
+                    "costAtMostEnergy": false,
+                    "energyOfOpponent": false,
+                    "originalPowerMax": null,
+                    "originalPowerMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostMin": null,
+                    "costAtLeastEnergy": false,
+                    "nameInSkillTextOf": null,
+                    "notNamesIncluding": [],
+                    "specifiedCostNone": false,
+                    "charactersIncluding": [],
+                    "originallySkillLess": false,
+                    "notCharactersIncluding": []
+                  }
+                }
+              ],
+              "version": 1,
+              "samePower": true,
+              "activation": "hand",
+              "extensions": [
+                "unionFusionAreas",
+                "unionFusionWarp"
+              ]
+            },
+            "payment": {
+              "orbs": {
+                "Red": 1,
+                "any": 2,
+                "Blue": 1
+              },
+              "burst": null,
+              "either": [],
+              "marker": null,
+              "version": 1,
+              "readable": true,
+              "spiritBoost": null
+            },
+            "condition": null
+          },
+          "until": "game",
+          "target": {
+            "sel": {
+              "area": "hand",
+              "side": "you",
+              "upTo": false,
+              "count": 99,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Red"
+                ],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "Gogeta: Br"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            }
+          },
+          "unionVariant": "Fusion"
+        }
+      ],
+      "unread": [],
+      "reads": "all red <Gogeta: Br> cards in your hand gain the skill: [union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.",
+      "pattern": "permit",
+      "source": "compiler",
+      "status": "draft",
+      "version": 5,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12066,
+      "card_id": "P-360",
+      "side": "back",
+      "skill_index": 10,
+      "printed": "[auto] When this card attacks, draw 1 card.",
+      "kind": "auto",
+      "trigger": [
+        "attacks"
+      ],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "n": 1,
+          "op": "draw"
+        }
+      ],
+      "unread": [],
+      "reads": "draw 1",
+      "pattern": "draw",
+      "source": "compiler",
+      "status": "draft",
+      "version": 3,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12067,
+      "card_id": "P-360",
+      "side": "back",
+      "skill_index": 20,
+      "printed": "[auto][once per turn] When you play a <Gogeta: Br> card, draw 1 card, then switch up to 1 of your Red/Blue multicolor energy to Active Mode at the end of the turn.",
+      "kind": "auto",
+      "trigger": [
+        "youPlayed"
+      ],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": {
+        "sel": {
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "gogeta: br"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          },
+          "special": "subject"
+        },
+        "kind": "count",
+        "atLeast": 1
+      },
+      "ops": [
+        {
+          "n": 1,
+          "op": "draw"
+        },
+        {
+          "at": "turnEnd",
+          "op": "delay",
+          "ops": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "energy",
+                "side": "you",
+                "upTo": true,
+                "count": 1,
+                "filter": {
+                  "z": null,
+                  "type": null,
+                  "names": [],
+                  "token": false,
+                  "colors": [
+                    "Red",
+                    "Blue"
+                  ],
+                  "faceUp": false,
+                  "traits": [],
+                  "costMax": null,
+                  "costMin": null,
+                  "notType": null,
+                  "keywords": [],
+                  "namesAll": [],
+                  "notNames": [],
+                  "notToken": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "monoColor": false,
+                  "notColors": [],
+                  "notTraits": [],
+                  "skillKind": null,
+                  "skillLess": false,
+                  "characters": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "multiColor": true,
+                  "noKeywords": false,
+                  "unreadable": false,
+                  "notKeywords": [],
+                  "charactersAll": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "notCharacters": [],
+                  "namesIncluding": [],
+                  "onlyCharacters": false,
+                  "costAboveEnergy": false,
+                  "costBelowEnergy": false,
+                  "characterOrTrait": false,
+                  "costAtMostEnergy": false,
+                  "energyOfOpponent": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "costAtLeastEnergy": false,
+                  "nameInSkillTextOf": null,
+                  "notNamesIncluding": [],
+                  "specifiedCostNone": false,
+                  "charactersIncluding": [],
+                  "originallySkillLess": false,
+                  "notCharactersIncluding": []
+                }
+              },
+              "reason": "switch up to 1 of your red/blue multicolor energy to active mode"
+            },
+            {
+              "op": "switchMode",
+              "mode": "active",
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "label": "at the end of the turn",
+          "scope": "thisTurn"
+        }
+      ],
+      "unread": [],
+      "reads": "if that card is a <gogeta: br> card: draw 1, at the end of the turn: choose up to 1 multicolour red blue card in your Energy Area, switch the chosen cards to active mode",
+      "pattern": "if:count[draw→delay:turnEnd[choose→switchMode]]",
+      "source": "compiler",
+      "status": "draft",
+      "version": 8,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": true
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12062,
+      "card_id": "P-360",
+      "side": "front",
+      "skill_index": 0,
+      "printed": "[Auto] When this card attacks, draw 1 card.",
+      "kind": "auto",
+      "trigger": [
+        "attacks"
+      ],
+      "cost": {
+        "orbs": {},
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "n": 1,
+          "op": "draw"
+        }
+      ],
+      "unread": [],
+      "reads": "draw 1",
+      "pattern": "draw",
+      "source": "compiler",
+      "status": "draft",
+      "version": 3,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12063,
+      "card_id": "P-360",
+      "side": "front",
+      "skill_index": 10,
+      "printed": "[Activate: Battle][Once per turn] Choose 1 red or blue ≪Saiyan≫ card in your hand and discard it: Look at up to 3 cards from the top of your deck, add up to 1 <Son Goku: Br>, <Vegeta: Br>, or <Gogeta: Br> card among them to your hand, then place the remaining cards on top of your deck in any order.",
+      "kind": "activate:battle",
+      "trigger": [],
+      "cost": {
+        "orbs": {},
+        "text": "Choose 1 red or blue ≪Saiyan≫ card in your hand and discard it",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "hand",
+              "side": "you",
+              "upTo": false,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Red",
+                  "Blue"
+                ],
+                "faceUp": false,
+                "traits": [
+                  "Saiyan"
+                ],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "Choose 1 red or blue ≪Saiyan≫ card in your hand"
+          },
+          {
+            "op": "moveTo",
+            "to": "drop",
+            "reveal": true,
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "version": 1,
+        "readable": true,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "n": 3,
+          "as": "looked",
+          "op": "look"
+        },
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "upTo": true,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "son goku: br",
+                "vegeta: br",
+                "gogeta: br"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            },
+            "fromVar": "looked"
+          },
+          "reason": "add up to 1 <Son Goku: Br>, <Vegeta: Br>, or <Gogeta: Br> card among them to your hand"
+        },
+        {
+          "op": "moveTo",
+          "to": "hand",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "moveTo",
+          "to": "deck",
+          "target": {
+            "var": "looked",
+            "minus": "c0"
+          },
+          "position": "top"
+        }
+      ],
+      "unread": [],
+      "reads": "look at the top 3, choose up to 1 <son goku: br> or <vegeta: br> or <gogeta: br> card of the cards looked at, move the chosen cards to hand, move the rest of the cards looked at to deck",
+      "pattern": "look→choose→moveTo→moveTo",
+      "source": "compiler",
+      "status": "draft",
+      "version": 9,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": true
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    },
+    {
+      "id": 12064,
+      "card_id": "P-360",
+      "side": "front",
+      "skill_index": 20,
+      "printed": "[Awaken] When your life is at 4 or less or you have 4 or more energy: You may draw 1 card, switch up to 1 of your energy to Active Mode, and flip this card over.",
+      "kind": "keyword",
+      "trigger": [],
+      "cost": {
+        "orbs": {},
+        "text": "When your life is at 4 or less or you have 4 or more energy",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "version": 1,
+        "readable": true,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "sel": {
+                "area": "energy",
+                "side": "you"
+              },
+              "kind": "count",
+              "atLeast": 4
+            }
+          ]
+        },
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "n": 1,
+              "op": "draw"
+            }
+          ],
+          "reason": "draw 1 card"
+        },
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "area": "energy",
+            "side": "you",
+            "upTo": true,
+            "count": 1
+          },
+          "reason": "switch up to 1 of your energy to Active Mode"
+        },
+        {
+          "by": "Awaken",
+          "op": "switchMode",
+          "mode": "active",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "unread": [],
+      "reads": "you may: draw 1, choose up to 1 card in your Energy Area, switch the chosen cards to active mode by a [Awaken] skill",
+      "pattern": "may[draw]→choose→switchMode",
+      "source": "compiler",
+      "status": "draft",
+      "version": 5,
+      "combo": null,
+      "usage": {
+        "limit": null,
+        "version": 1,
+        "oncePerTurn": false
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      }
+    }
+  ]
+}

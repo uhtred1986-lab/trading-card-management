@@ -1,0 +1,59 @@
+{
+  "format": "metadata-923-preflight-v1",
+  "commit": "cb3ab4c4fe984c3067d10a7ee0c0ca3c3d042ad4",
+  "nodeVersion": "v24.19.0",
+  "checks": [
+    {
+      "command": "./node_modules/.bin/tsx scripts/verify/metadata-923.mts",
+      "outcome": "pass",
+      "scope": "Local PGlite only: eleven-row full program and nonmetadata field preservation, three full catalog identities, pre-read and mid-write source races, private-field stale snapshot, wrong digest, replay/idempotence, real stored-row loader admission."
+    },
+    {
+      "command": "./node_modules/.bin/tsx scripts/arena-metadata-923.mts --snapshot /tmp/tcm-holdouts-899-20261019/923-reference-readback-private.json --out /tmp/tcm-holdouts-899-20261019/metadata-923-preview.json --payload-out /tmp/tcm-holdouts-899-20261019/metadata-923-private-payload.json",
+      "outcome": "pass",
+      "scope": "Offline full actual snapshot dry-run; eleven pending usage/validity projections."
+    },
+    {
+      "command": "./node_modules/.bin/eslint scripts/lib/metadata-923.ts scripts/arena-metadata-923.mts scripts/verify/metadata-923.mts",
+      "outcome": "pass"
+    },
+    {
+      "command": "git diff --cached --check",
+      "outcome": "pass"
+    }
+  ],
+  "preview": {
+    "path": "/tmp/tcm-holdouts-899-20261019/metadata-923-preview.json",
+    "digest": "75e82837c5c2b9f4cbc881719c45c38fffcea6d6d9eda593ebce400ab730bdaa",
+    "programsReplaced": 0,
+    "statusesChanged": 0,
+    "humanConfirmationsAdded": 0
+  },
+  "scope": {
+    "targetRows": 11,
+    "catalogIdentities": 3,
+    "allowedWrites": [
+      "usage",
+      "validity",
+      "version",
+      "updated_at"
+    ],
+    "fullCostsAndComboContractsPreserved": true,
+    "loaderAdmissionIsNotGameplayQualification": true,
+    "remainingAuthorityResidual": "BT3-070/front/0 native Union-Absorb identity"
+  },
+  "independentReview": "Passed immutable read-only review of cb3ab4c4 by rules_research; no reviewer tests, database access or games.",
+  "authorization": "Preparation only; requires separate explicit owner approval of exact #923 digest before live write. Separate #825 approval does not authorize #923.",
+  "limits": {
+    "liveDatabaseConnections": 0,
+    "liveDatabaseWrites": 0,
+    "fullTestSuiteRun": false,
+    "buildRun": false,
+    "integratedTypecheckRun": false,
+    "rootCheckoutModified": false,
+    "vmOrPolicyChanged": false,
+    "holdoutResultsInspected": false
+  },
+  "workingTreeCleanAtCompletion": true,
+  "receiptStage": "Preparation checks before the separately approved application; see application-receipt.json for actual write/readback results."
+}

@@ -1,0 +1,421 @@
+{
+  "format": "union-reference-readback-assessment-v1",
+  "readAt": "2026-10-19T15:16:19.874Z",
+  "readOnly": true,
+  "projectionOnly": true,
+  "application": false,
+  "liveDbContactByAssessment": false,
+  "rows": [
+    {
+      "key": "BT11-013/front/10",
+      "id": 6545,
+      "version": 4,
+      "kind": "keyword",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "d8d2907a90a9ce2675e5c4c8c92fe520fde24ced3b8639fbf169a92af5f168d0",
+      "historicalBodySha256": "d8d2907a90a9ce2675e5c4c8c92fe520fde24ced3b8639fbf169a92af5f168d0",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "BT11-013/front/20",
+      "id": 6546,
+      "version": 3,
+      "kind": "permanent",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "e1a53cc83e1b6f6f390c06bd8136f9dce2bde9f2f9b17ce8c9da5ac9faa3e159",
+      "historicalBodySha256": "e1a53cc83e1b6f6f390c06bd8136f9dce2bde9f2f9b17ce8c9da5ac9faa3e159",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "BT11-013/front/30",
+      "id": 6547,
+      "version": 6,
+      "kind": "auto",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "73c7f53f04d5abcdd4ca70818252b5466f0ca2db629f547e2c61a1a2e47081df",
+      "historicalBodySha256": "73c7f53f04d5abcdd4ca70818252b5466f0ca2db629f547e2c61a1a2e47081df",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "BT3-070/front/0",
+      "id": 6416,
+      "version": 8,
+      "kind": "keyword",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "4396f6cc828eebb4a0d437aaf34dcd04539b3e0690840e2c93cc3f33c6b949be",
+      "historicalBodySha256": "4396f6cc828eebb4a0d437aaf34dcd04539b3e0690840e2c93cc3f33c6b949be",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [
+        "keyword.Union activation/material contract is derived from printed text at runtime, not the stored executable contract"
+      ],
+      "projectedExecutable": false,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "BT3-070/front/10",
+      "id": 6417,
+      "version": 7,
+      "kind": "auto",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "5cbef0edf177422c052be6e394aa1764cf72f080fe61e4ac91e08b08fa7586ce",
+      "historicalBodySha256": "5cbef0edf177422c052be6e394aa1764cf72f080fe61e4ac91e08b08fa7586ce",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/back/0",
+      "id": 12065,
+      "version": 4,
+      "kind": "permanent",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "809a7a6eaf1c0f03159d4078669caab34cabbe8cb14f2a0edb01b612e16cf28a",
+      "historicalBodySha256": "809a7a6eaf1c0f03159d4078669caab34cabbe8cb14f2a0edb01b612e16cf28a",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/back/10",
+      "id": 12066,
+      "version": 2,
+      "kind": "auto",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "215a7e0ac9ab3343e5b40ce66d4ead74ac7aa9cf7a6bb156fd7bb2b9fd2c9eb0",
+      "historicalBodySha256": "215a7e0ac9ab3343e5b40ce66d4ead74ac7aa9cf7a6bb156fd7bb2b9fd2c9eb0",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/back/20",
+      "id": 12067,
+      "version": 7,
+      "kind": "auto",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "8b2cc88e93ebe63c6d90cb98a705a98ec3bb2476f341f3bc7e55a0a7b9415f9a",
+      "historicalBodySha256": "8b2cc88e93ebe63c6d90cb98a705a98ec3bb2476f341f3bc7e55a0a7b9415f9a",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/front/0",
+      "id": 12062,
+      "version": 2,
+      "kind": "auto",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "63d449a614ead9426b7100130d1844104a3f3f708ce47149fa6114439c945e59",
+      "historicalBodySha256": "63d449a614ead9426b7100130d1844104a3f3f708ce47149fa6114439c945e59",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/front/10",
+      "id": 12063,
+      "version": 8,
+      "kind": "activate:battle",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "ebc2db065325dfb6b183ebfa4303eed40da168a7d3625639b4f276900e0c8dba",
+      "historicalBodySha256": "ebc2db065325dfb6b183ebfa4303eed40da168a7d3625639b4f276900e0c8dba",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    },
+    {
+      "key": "P-360/front/20",
+      "id": 12064,
+      "version": 4,
+      "kind": "keyword",
+      "status": "draft",
+      "source": "compiler",
+      "flagged": false,
+      "printedCurrent": true,
+      "costValid": true,
+      "usagePresent": false,
+      "validityPresent": false,
+      "bodySha256": "566ca6566d2f594539b8032a1167b52ad64f92ef92004f9719b91e28134ed6eb",
+      "historicalBodySha256": "566ca6566d2f594539b8032a1167b52ad64f92ef92004f9719b91e28134ed6eb",
+      "unchangedHistoricalBody": true,
+      "changedHistoricalFields": [],
+      "projectedUsage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "projectedValidity": {
+        "version": 1,
+        "sparking": null
+      },
+      "projectedLoaderUnsupported": [],
+      "projectedAuthoritativeBlockers": [],
+      "projectedExecutable": true,
+      "compilerExecutableDifferences": []
+    }
+  ],
+  "actual": {
+    "physicalRows": 11,
+    "normalizedRows": 0,
+    "malformed": [
+      "row 0: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 1: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 2: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 3: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 4: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 5: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 6: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 7: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 8: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 9: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)",
+      "row 10: invalid validity: missing or malformed typed Sparking validity v1; regenerate rules and rebuild the match (#907)"
+    ],
+    "directLoaderBlockedRows": 11,
+    "directLoaderBlockerClasses": [
+      "missing or malformed typed Sparking validity v1",
+      "missing or malformed typed skill usage v1"
+    ]
+  },
+  "projected": {
+    "normalizedRows": 11,
+    "malformed": [],
+    "unexpectedRows": [],
+    "loaderAdmittedRows": 11,
+    "authoritativeExecutableTargetRows": 10,
+    "nativeAuthorityResidualTargetRows": 1
+  },
+  "assessedGitCommit": "e52dee6c842d47bca41eb796e06859f876cca289",
+  "inputPins": {
+    "coordinatorPrivateSnapshotSha256": "95f8f7f1cf1454de64c297a43176d5312feea4d1699d28a11ab41e08c769a61a",
+    "historicalReferenceExport": {
+      "path": "docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/reference-records.json",
+      "sha256": "c16cddd8c3c60c5670fdfd07548aecde469d96f18023c658a552b3662f395ed5"
+    },
+    "admissionSourceSha256": {
+      "scripts/arena-corpus-provenance.mts": "df1d1fbef7aadfc6e96c8c0f464278aa1a31008de64697055daba42eb63bd398",
+      "src/lib/arena/rules-store.ts": "dd332e375c94150d849d6ccdc2a3b0a7661b447fd42b3f0a4c6b8e2de8e0473c",
+      "src/lib/arena/draft.ts": "53acc3895a4d4510a1ecf2b6f9f467a050c6af3537080c27219f224beded64e1"
+    }
+  },
+  "method": {
+    "bodyHashFields": [
+      "printed",
+      "kind",
+      "trigger",
+      "cost",
+      "cond",
+      "ops",
+      "unread",
+      "reads",
+      "pattern",
+      "source",
+      "status"
+    ],
+    "compilerComparedFields": [
+      "printed",
+      "kind",
+      "trigger",
+      "cost",
+      "cond",
+      "ops",
+      "unread",
+      "reads",
+      "pattern"
+    ],
+    "comparison": "Current skillRecords persisted-record representation; source/status are compared against historical export, not absent compiler fields.",
+    "admission": "programProvenance stored mode (normalization and real rulesFromRows); direct camel-case rulesFromRows inspection additionally identifies both absent contracts.",
+    "projectionChangedFields": [
+      "usage",
+      "validity"
+    ],
+    "projectionPreserves": "All existing costs, kinds, triggers, conditions, operations, readings, statuses, versions and other raw fields; no database application.",
+    "runtimeGameplayProof": false,
+    "catalogIdentityVerifiedByCoordinator": true,
+    "scope": "Eleven stored targets only; manifest also contains one native Deflect line, not an additional stored target."
+  }
+}

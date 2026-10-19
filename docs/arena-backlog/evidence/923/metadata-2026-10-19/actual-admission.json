@@ -1,0 +1,17 @@
+{
+  "mode": "actual stored readback",
+  "readAt": "2026-10-19T15:33:45.167Z",
+  "normalizedRows": 11,
+  "loaderAdmittedRows": 11,
+  "fullyAuthoritativeRows": 10,
+  "residuals": [
+    {
+      "key": "BT3-070/front/0",
+      "blockers": [
+        "keyword.Union activation/material contract is derived from printed text at runtime, not the stored executable contract"
+      ]
+    }
+  ],
+  "programsReplaced": 0,
+  "statusesChanged": 0
+}

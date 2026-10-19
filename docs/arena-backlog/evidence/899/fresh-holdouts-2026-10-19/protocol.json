@@ -1,0 +1,48 @@
+{
+  "format": "arena-defense-protocol-v1",
+  "id": "899-exact-before-defense-2026-10-19",
+  "corpora": [
+    {
+      "key": "starters",
+      "path": "docs/arena-backlog/evidence/907/typed-use-validity-2026-10-19/starter-compiler-pack.json",
+      "sha256": "592b9d6da5ebf25ed81ea6ec2d5b70dc28db8c77f42b9791733215c93fce0a80",
+      "mode": "compiler",
+      "decks": [
+        "A",
+        "B"
+      ],
+      "seedBase": 40899000
+    },
+    {
+      "key": "bt6",
+      "path": "docs/arena-backlog/evidence/907/typed-use-validity-2026-10-19/actual-stored-pair-pack.json",
+      "sha256": "45cbd903986cd483c9d100c73c46073b2290fd67bbb71e26f1132a07f273b69f",
+      "mode": "stored",
+      "decks": [
+        "bt6-gogeta-br-fusion",
+        "bt6-paragus-broly-recovery"
+      ],
+      "seedBase": 40899400
+    }
+  ],
+  "deals": 20,
+  "maxMoves": 3000,
+  "policySeedBase": 89940000,
+  "privacyEvery": 100,
+  "baseline": {
+    "key": "heuristic-before-defense-1026",
+    "version": "combat1-choices1-fdd66953",
+    "sha256": "ad6b0a4d2acd2593f3a5126cbd007fd818314af80b396d7b9c57161850d48699"
+  },
+  "gate": {
+    "pairs": 160,
+    "decisivePairs": 20,
+    "pairWinCiLowGreaterThan": 0.5,
+    "perFixturePairCiUpperAtLeast": 0.5,
+    "completionRate": 1,
+    "illegal": 0,
+    "privacyFailures": 0,
+    "guardTrips": 0
+  },
+  "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5"
+}

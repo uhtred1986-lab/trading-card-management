@@ -1,0 +1,183 @@
+[
+  {
+    "id": "BT29-029",
+    "name": "Cooler",
+    "type": "LEADER",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": null,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[auto] When this card attacks, draw 1 card.\n[br]\n[auto] If you have 2 or more energy: When you activate a blue Extra from your hand, draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card to its back side.\n[br]\n[activate: main] Add up to 1 {Yes, Time to Die!} from your deck to your hand, shuffle your deck, and negate this skill for the game.\n[br]\n[awaken] When your life is at5 or less: Draw 2 cards.",
+    "characters": [
+      "Cooler"
+    ],
+    "traits": [
+      "Frieza Clan"
+    ],
+    "back": {
+      "name": "Cooler, Incredible Strongest Warrior",
+      "power": 15000,
+      "skill": "[auto][once per turn] When a blue \u226aCooler's Armored Squadron\u226b card or blue Extra is returned from your Battle Area to its owner's hand, you may play 1 blue \u226aCooler's Armored Squadron\u226b card with an energy cost of 5 from your energy. If you do, add 1 card from your hand to your energy in Rest Mode.\n[br]\n[activate: battle][once per turn] Choose up to 1 blue \u226aCooler's Armored Squadron\u226b card that's not in a battle or up to 1 blue Extra in your Battle Area and return it to its owner's hand."
+    }
+  },
+  {
+    "id": "BT3-090",
+    "name": "No Openings Son Goku",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 15000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Auto] During your turn, at the end of the battle after you combo with this card, if your Leader Card is yellow, play this card in Rest Mode. Then, choose up to 1 card from your life and add it to your hand.",
+    "characters": [
+      "Son Goku: Childhood"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT3-096",
+    "name": "Hidden Power Great Ape Tora",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Blocker] (When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card)<br>[Auto] During your turn, at the end of the battle after you combo with this card, choose up to 1 &lt;Tora&gt; in your Battle Area, and evolve it into this card.<br>[Auto] When a card evolves into this card, choose up to 1 opponent's Battle Card in Rest Mode, and KO that card.",
+    "characters": [
+      "Tora"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT3-098",
+    "name": "Hidden Power Great Ape Fasha",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 15000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Blocker] (When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card)<br>[Auto] During your turn, at the end of the battle after you combo with this card, choose up to 1 &lt;Fasha&gt; in your Battle Area, and evolve it into this card.<br>[Auto] When a card evolves into this card, choose up to 2 of your opponent's Battle Cards and switch them to Rest Mode.",
+    "characters": [
+      "Fasha"
+    ],
+    "traits": [
+      "Saiyan",
+      "Great Ape"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT3-112",
+    "name": "Unrelenting Assault Trunks",
+    "type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "energyCost": 3,
+    "zEnergyCost": null,
+    "power": 15000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[Over Realm 3] (If you have at least 3 cards in your Drop Area, you can play this card by sending all cards in your Drop Area to your Warp. At the end of that turn, send this card from the Battle Area to your Warp. [Over Realm] can be activated once per turn)<br>[Auto] When this card is sent to the Warp from your Battle Area or deck, add it to your hand.",
+    "characters": [
+      "Trunks: Xeno"
+    ],
+    "traits": [
+      "Saiyan",
+      "Earthling"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT7-040",
+    "name": "Kale, the Awakened Sister",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Critical]<br>[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 blue &lt;Kale&gt; card in your Battle Area and play this card on top of it.<br>[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards in Rest Mode, negate that card's skills for the duration of the turn, and return it to its owner's hand.",
+    "characters": [
+      "Kale"
+    ],
+    "traits": [
+      "Saiyan",
+      "Alien",
+      "Universe 6"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT7-083",
+    "name": "Caulifla, the Awakened Sister",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Double Strike]<br>[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 yellow &lt;Caulifla&gt; card in your Battle Area and play this card on top of it.<br>[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards or energy and switch it to Rest Mode.",
+    "characters": [
+      "Caulifla"
+    ],
+    "traits": [
+      "Saiyan",
+      "Alien",
+      "Universe 6"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT7-086",
+    "name": "Ironclad Defense Frost",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 1,
+    "comboPower": 10000,
+    "skill": "[Blocker] (When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card.)<br>[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 yellow &lt;Frost&gt; card in your Battle Area and play this card on top of it, then switch this card to Active Mode.",
+    "characters": [
+      "Frost"
+    ],
+    "traits": [
+      "Frieza Clan",
+      "Alien",
+      "Universe 6"
+    ],
+    "back": null
+  }
+]

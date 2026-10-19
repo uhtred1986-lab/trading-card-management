@@ -1,0 +1,1271 @@
+[
+  {
+    "id": 8932,
+    "card_id": "BT29-029",
+    "side": "back",
+    "skill_index": 0,
+    "printed": "[auto][once per turn] When a blue ≪Cooler's Armored Squadron≫ card or blue Extra is returned from your Battle Area to its owner's hand, you may play 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5 from your energy. If you do, add 1 card from your hand to your energy in Rest Mode.",
+    "kind": "auto",
+    "trigger": [
+      "yourCardReturnedToHand"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "sel": {
+        "filter": {
+          "z": null,
+          "type": null,
+          "anyOf": [
+            {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [
+                "Blue"
+              ],
+              "faceUp": false,
+              "traits": [
+                "Cooler's Armored Squadron"
+              ],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "characterOrTrait": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            },
+            {
+              "z": null,
+              "type": "EXTRA",
+              "names": [],
+              "token": false,
+              "colors": [
+                "Blue"
+              ],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "characterOrTrait": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          ],
+          "names": [],
+          "token": false,
+          "colors": [],
+          "faceUp": false,
+          "traits": [],
+          "costMax": null,
+          "costMin": null,
+          "notType": null,
+          "keywords": [],
+          "namesAll": [],
+          "notNames": [],
+          "notToken": false,
+          "powerMax": null,
+          "powerMin": null,
+          "powerRel": null,
+          "monoColor": false,
+          "notColors": [],
+          "notTraits": [],
+          "skillKind": null,
+          "skillLess": false,
+          "characters": [],
+          "markersMax": null,
+          "markersMin": null,
+          "multiColor": false,
+          "noKeywords": false,
+          "unreadable": false,
+          "notKeywords": [],
+          "charactersAll": [],
+          "comboPowerMax": null,
+          "comboPowerMin": null,
+          "notCharacters": [],
+          "namesIncluding": [],
+          "onlyCharacters": false,
+          "characterOrTrait": false,
+          "originalPowerMax": null,
+          "originalPowerMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostMin": null,
+          "nameInSkillTextOf": null,
+          "notNamesIncluding": [],
+          "charactersIncluding": [],
+          "originallySkillLess": false,
+          "notCharactersIncluding": []
+        },
+        "special": "subject"
+      },
+      "kind": "count",
+      "atLeast": 1
+    },
+    "ops": [
+      {
+        "op": "may",
+        "ops": [
+          {
+            "as": "p0",
+            "op": "choose",
+            "sel": {
+              "area": "energy",
+              "side": "you",
+              "upTo": false,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Blue"
+                ],
+                "faceUp": false,
+                "traits": [
+                  "cooler's armored squadron"
+                ],
+                "costMax": 5,
+                "costMin": 5,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "characterOrTrait": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "you may play 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5 from your energy"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            },
+            "counterWindow": true
+          }
+        ],
+        "reason": "play 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5 from your energy"
+      },
+      {
+        "op": "if",
+        "cond": {
+          "kind": "did",
+          "what": "play"
+        },
+        "then": [
+          {
+            "as": "c1",
+            "op": "choose",
+            "sel": {
+              "area": "hand",
+              "side": "you",
+              "upTo": false,
+              "count": 1
+            },
+            "reason": "add 1 card from your hand to your energy in Rest Mode"
+          },
+          {
+            "op": "moveTo",
+            "to": "energy",
+            "mode": "rest",
+            "owner": "you",
+            "reveal": true,
+            "target": {
+              "var": "c1"
+            }
+          }
+        ]
+      }
+    ],
+    "unread": [],
+    "reads": "if that card is a blue ≪Cooler's Armored Squadron≫ card or blue Extra Card: you may: choose 1 blue ≪cooler's armored squadron≫ card with an energy cost of 5 in your Energy Area, play the chosen cards through a [Counter: Play] window, if you played a card: choose 1 card in your hand, move the chosen cards to energy",
+    "pattern": "if:count[may[choose→play]→if:did[choose→moveTo]]",
+    "source": "compiler",
+    "status": "draft",
+    "version": 7,
+    "combo": null,
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": true
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 4054,
+    "card_id": "BT3-090",
+    "side": "front",
+    "skill_index": 0,
+    "printed": "[Auto] During your turn, at the end of the battle after you combo with this card, if your Leader Card is yellow, play this card in Rest Mode. Then, choose up to 1 card from your life and add it to your hand.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "op": "if",
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Yellow"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "then": [
+          {
+            "as": "p0",
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "reason": "play this card in Rest Mode"
+          },
+          {
+            "op": "play",
+            "mode": "rest",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ]
+      },
+      {
+        "as": "c1",
+        "op": "choose",
+        "sel": {
+          "area": "life",
+          "side": "you",
+          "upTo": true,
+          "count": 1
+        },
+        "reason": "choose up to 1 card from your life"
+      },
+      {
+        "op": "moveTo",
+        "to": "hand",
+        "target": {
+          "var": "c1"
+        }
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: if your leader is Yellow: choose this card, play the chosen cards in rest mode, choose up to 1 card in your Life Area, move the chosen cards to hand",
+    "pattern": "if:isTurnPlayer[if:leaderMatches[choose→play]→choose→moveTo]",
+    "source": "compiler",
+    "status": "draft",
+    "version": 8,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 12431,
+    "card_id": "BT3-096",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] During your turn, at the end of the battle after you combo with this card, choose up to 1 <Tora> in your Battle Area, and evolve it into this card.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "battle",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Tora"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "choose up to 1 <Tora> in your Battle Area"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "sel": {
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "Tora"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            },
+            "fromVar": "c0"
+          }
+        },
+        "using": "Evolve",
+        "target": {
+          "sel": {
+            "area": "drop",
+            "special": "self"
+          }
+        },
+        "counterWindow": true
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: choose up to 1 <Tora> card in your Battle Area, evolve the chosen <Tora> card in your Battle Area into this card from its Drop Area",
+    "pattern": "if:isTurnPlayer[choose→play]",
+    "source": "compiler",
+    "status": "confirmed",
+    "version": 8,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 10565,
+    "card_id": "BT3-098",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] During your turn, at the end of the battle after you combo with this card, choose up to 1 <Fasha> in your Battle Area, and evolve it into this card.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "battle",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Fasha"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "choose up to 1 <Fasha> in your Battle Area"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "sel": {
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "Fasha"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            },
+            "fromVar": "c0"
+          }
+        },
+        "using": "Evolve",
+        "target": {
+          "sel": {
+            "area": "drop",
+            "special": "self"
+          }
+        },
+        "counterWindow": true
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: choose up to 1 <Fasha> card in your Battle Area, evolve the chosen <Fasha> card in your Battle Area into this card from its Drop Area",
+    "pattern": "if:isTurnPlayer[choose→play]",
+    "source": "compiler",
+    "status": "confirmed",
+    "version": 8,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 12988,
+    "card_id": "BT3-112",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] When this card is sent to the Warp from your Battle Area or deck, add it to your hand.",
+    "kind": "auto",
+    "trigger": [
+      "battleOrDeckToWarp"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": null,
+    "ops": [
+      {
+        "op": "moveTo",
+        "to": "hand",
+        "target": {
+          "sel": {
+            "special": "self"
+          }
+        }
+      }
+    ],
+    "unread": [],
+    "reads": "move this card to hand",
+    "pattern": "moveTo",
+    "source": "compiler",
+    "status": "draft",
+    "version": 3,
+    "combo": null,
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 12685,
+    "card_id": "BT7-040",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 blue <Kale> card in your Battle Area and play this card on top of it.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "battle",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Blue"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Kale"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "characterOrTrait": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "choose up to 1 blue <Kale> card in your Battle Area"
+      },
+      {
+        "as": "p1",
+        "op": "choose",
+        "sel": {
+          "special": "self"
+        },
+        "reason": "play this card on top of it"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "var": "c0"
+        },
+        "target": {
+          "var": "p1"
+        }
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: choose up to 1 blue <Kale> card in your Battle Area, choose this card, play the chosen cards",
+    "pattern": "if:isTurnPlayer[choose→choose→play]",
+    "source": "compiler",
+    "status": "draft",
+    "version": 7,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 12960,
+    "card_id": "BT7-083",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 yellow <Caulifla> card in your Battle Area and play this card on top of it.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "battle",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Yellow"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Caulifla"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "characterOrTrait": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "choose up to 1 yellow <Caulifla> card in your Battle Area"
+      },
+      {
+        "as": "p1",
+        "op": "choose",
+        "sel": {
+          "special": "self"
+        },
+        "reason": "play this card on top of it"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "var": "c0"
+        },
+        "target": {
+          "var": "p1"
+        }
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: choose up to 1 yellow <Caulifla> card in your Battle Area, choose this card, play the chosen cards",
+    "pattern": "if:isTurnPlayer[choose→choose→play]",
+    "source": "compiler",
+    "status": "draft",
+    "version": 7,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  },
+  {
+    "id": 8230,
+    "card_id": "BT7-086",
+    "side": "front",
+    "skill_index": 10,
+    "printed": "[Auto] During your turn, at the end of a battle after you combo with this card, choose up to 1 yellow <Frost> card in your Battle Area and play this card on top of it, then switch this card to Active Mode.",
+    "kind": "auto",
+    "trigger": [
+      "comboed"
+    ],
+    "cost": {
+      "orbs": {},
+      "text": "",
+      "burst": null,
+      "either": [],
+      "marker": null,
+      "program": null,
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": {
+      "kind": "isTurnPlayer"
+    },
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "battle",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Yellow"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Frost"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "characterOrTrait": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "choose up to 1 yellow <Frost> card in your Battle Area"
+      },
+      {
+        "as": "p1",
+        "op": "choose",
+        "sel": {
+          "special": "self"
+        },
+        "reason": "play this card on top of it"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "var": "c0"
+        },
+        "target": {
+          "var": "p1"
+        }
+      },
+      {
+        "op": "switchMode",
+        "mode": "active",
+        "target": {
+          "sel": {
+            "special": "self"
+          }
+        }
+      }
+    ],
+    "unread": [],
+    "reads": "if it is your turn: choose up to 1 yellow <Frost> card in your Battle Area, choose this card, play the chosen cards, switch this card to active mode",
+    "pattern": "if:isTurnPlayer[choose→choose→play→switchMode]",
+    "source": "compiler",
+    "status": "draft",
+    "version": 7,
+    "combo": {
+      "turn": "controller",
+      "timing": "battleEnd",
+      "origins": null,
+      "subject": "self",
+      "version": 1
+    },
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  }
+]

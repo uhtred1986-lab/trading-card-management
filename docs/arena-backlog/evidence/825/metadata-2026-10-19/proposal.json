@@ -1,0 +1,431 @@
+{
+  "digest": "8284223ff78d2ced9cfa6aafa9f71919194bb041294010412c16cf57922dbcf5",
+  "format": "metadata-825-preview-v1",
+  "referenceSha256": "3f98452bada207cd318a1e392f76e1af83ff0cb14f5d33313dbe1ebed3cb46ec",
+  "snapshotSha256": "2e2532f8f6c081855b6921b02f92b56ba66fb2415fb42da49ef748e4194c4027",
+  "targets": [
+    {
+      "key": "BT29-029/back/0",
+      "id": 8932,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "a12f229dfda485fe51c945a970703eb55b52d370e52849f89fa5fd0b103300e5",
+      "snapshotSha256": "a60048a0f27413edf95b48b0e5541ae151b6ff8d3064ba0511d4e7ebdd922444",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": null
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-090/front/0",
+      "id": 4054,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "32702c81b85684302badb091a5bff285168d385c38e23465cecd6930295808f2",
+      "snapshotSha256": "fd5fb0a8965a07889f1f63a7920caf4c9647fa09c56e4a19ece55325429c507f",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-096/front/10",
+      "id": 12431,
+      "version": 7,
+      "status": "confirmed",
+      "source": "compiler",
+      "protected": true,
+      "programSha256": "c0a63def9b8e4e6c914f76ccb7cd7109f7b493229d0a0b64704bdf86f6373476",
+      "snapshotSha256": "e16ac2142e17515df76dfa8b253795df040db04092bcda4b9f44791b7eb8183f",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-098/front/10",
+      "id": 10565,
+      "version": 7,
+      "status": "confirmed",
+      "source": "compiler",
+      "protected": true,
+      "programSha256": "18e02e10e2092a4a93ecf9477b704be31c1fdd8515eba4dce008a3fa0b9498a6",
+      "snapshotSha256": "c4387f45b5b50f47b3add21479318fccd435bc87c53a556b459358b7f3c4ddfd",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-112/front/10",
+      "id": 12988,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "b70c2dca51452b8237d7fbcf5054216b9452b7a2c8e5974a01143b3a8f4dfd57",
+      "snapshotSha256": "5cafb0c0cb8bec7e0b601f051d17c903dbb24d633367a1266bebc85c2bdcbffe",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": null
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT7-040/front/10",
+      "id": 12685,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "10ab9c2c8440876dd679fd9858eb7fe88e658dc178a2056b4cb044584a9387fb",
+      "snapshotSha256": "95509bae5c4cd38bc0209561352da246cae0d92dad7c0feab747267074a2bd71",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT7-083/front/10",
+      "id": 12960,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "1b2ac48507ecc997df413708166c90a3d6fefbfaaeb1b75b84b65857a1512c1d",
+      "snapshotSha256": "de11472d97345767cc5b6bb585033cfe43742eaebf14397fd220cad7a2c2ed3d",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT7-086/front/10",
+      "id": 8230,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "588070e1ac124134b2483cd799d0e2623fed954562952db59e3f0eebe8da6228",
+      "snapshotSha256": "2bfa582d66dd1e7b319ff70631a2ce860aef222d8601d976797609f1f4d2d88a",
+      "pending": true,
+      "allowedChangedFields": [
+        "cost",
+        "usage",
+        "validity",
+        "combo"
+      ],
+      "before": {
+        "cost": null,
+        "usage": null,
+        "validity": null,
+        "combo": null
+      },
+      "after": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": null,
+          "turn": "controller"
+        }
+      },
+      "preserved": "Every effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    }
+  ],
+  "programsReplaced": 0,
+  "statusesChanged": 0,
+  "humanConfirmationsAdded": 0,
+  "mode": "dry-run",
+  "pending": 8
+}

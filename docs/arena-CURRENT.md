@@ -4,53 +4,54 @@ Last updated: 19 October 2026
 
 ## Current work
 
-Follow the [rules delivery plan](arena-rules-delivery.md) and #907: freeze an honest
-baseline, make persisted executable rules authoritative, qualify two starter controls
-plus one additional pair, then measure policy improvements. Union is the first
-reference family: explicit Fusion/Potara/Absorb procedures, shared machinery and
-typed support modifiers. Preserve delivered Union behaviour and reconcile its
-remaining acceptance in #923 before implementing fixes again.
+Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
+#897 corpus qualification is complete; persisted executable rules remain the
+authority. Preserve delivered Union behaviour and address the remaining typed
+Union-Absorb boundary in #923 through the existing machinery.
 
-#897 already has a compiler-based starter corpus/runner (#1030); the
-#897 baseline/provenance slice now separates stored execution through the match
-loader, records exact inputs and refuses stale/missing/unsupported records. It does
-not certify production records or whole-deck semantics. The two compiler starter
-controls preserve 16/16 completed traces. The additional pair is BT6 Gogeta / Br
-Fusion versus BT6 Paragus / Broly recovery, with exact lists and input/semantic
-blockers pinned in [the baseline receipt](arena-backlog/evidence/897/baseline-2026-10-19/README.md). #899's defensive valuation is implemented (#1026); fresh
-strength holdouts remain. #929/#930 have implementations, #932 is closed after
-final integrated validation, and #825 needs per-target application reconciliation. The plan and issue
-bodies distinguish these from new code work.
+#897 is closed after deployed #1071 and guarded record application. The actual
+stored BT6 Gogeta / Br Fusion versus Paragus / Broly pair completed 16/16 frozen
+games, with 316 targeted scenarios passing. The exact pair, application,
+protected-record preservation and Testing & stats import are recorded in the
+[qualification receipt](arena-backlog/evidence/907/typed-use-validity-2026-10-19/README.md).
+This qualifies that pair and those pinned inputs; it does not qualify every deck
+or every current starter record. The earlier [baseline](arena-backlog/evidence/897/baseline-2026-10-19/README.md)
+and [selected inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/README.md)
+remain dated evidence of the blockers and sources used before application.
 
-#1066 delivers authoritative typed activated payment and granted Union prices,
-with explicit rebuild refusal for obsolete records. #1067 repairs Fusion's
-material-before-additional-cost checkpoint under #907, using the current official
-manual and retaining distinct Potara/Absorb procedures. The authorized guarded
-application refreshed 11 compiler-draft rows for BT11-013, BT3-070 and P-360;
-all remain unconfirmed. Focused checks, typecheck and lint pass; all 16 frozen
-starter traces and 75 programs are unchanged. See the [checkpoint and application receipt](arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/README.md).
-The application covers these reference cards only; other obsolete records still
-require explicit rebuilding. The selected additional pair remains unqualified.
+#1073's [typed defensive decision facts](arena-backlog/evidence/899/typed-decisions-2026-10-19/README.md)
+are deployed. #899's fresh, fixed comparison is complete: **162 wins / 158 losses**
+over 320 completed games. Its 14 won-both / 12 lost-both decisive pairs give a
+95% interval of **35.5–71.2%**, so the strength gate is not passed.
+[Full paired results](arena-backlog/evidence/899/fresh-holdouts-2026-10-19/RESULTS.md)
+retain the original source pins, all consumed seeds and zero integrity failures.
+All eight cells remain underpowered. No new difficulty/default promotion is made;
+Worker performance remains unmeasured and known unaffordable-defense combo waste
+is unchanged. #899 closes as an inconclusive completed experiment.
+#929/#930 have implementations and #932 is closed after final integrated validation;
+their issue bodies retain their separate scope.
 
-#1068 carries Fusion material filters, equality and supported source permissions
-through the stored executable record, including granted Fusion. It also repairs
-two #1067 regressions found by the unchanged #541/#925 material assertions.
-See the [material receipt](arena-backlog/evidence/907/fusion-materials-2026-10-19/README.md)
-for validation and deployment. Its separate post-deployment application refreshed
-BT11-013/front/10 and P-360/back/0 only; nine reference rows are unchanged.
-Actual exported material/payment replay proofs pass; all eleven remain unconfirmed.
-The [selected BT6 pair now has frozen current inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/README.md):
-28 public catalog cards and 67 stored rows; no pair writes and four protected
-corrected rows. Its remaining blockers still prevent qualification.
-The [combo qualification draft](arena-backlog/evidence/907/combo-qualifications-2026-10-19/README.md)
-carries typed qualifications/bindings for BT6-006 front #10, BT6-010 front #0,
-BT6-066 front #0 and BT6-070 front #0 through the executable record and saved
-continuations. It is one draft PR, with deployment, its additive schema migration
-and live record application pending. Next single action: review/deploy that
-increment, then reconcile current rows and apply only the four compiler-draft
-targets through guarded tooling with actual-export verification. Other use limits,
-Union variant authority, unread clauses and protected-record migration remain
-explicit; the pair is unqualified and AI-strength changes remain deferred.
+The owner separately approved and applied 19 metadata-only updates: eight #825
+records and eleven #923 reference records. Actual readbacks preserve their
+programs, prices, statuses and review fields, including the two confirmed Ape
+records. The [#825 application receipt](arena-backlog/evidence/825/metadata-2026-10-19/application-receipt.json)
+and [#923 application receipt](arena-backlog/evidence/923/metadata-2026-10-19/application-receipt.json)
+record the distinct approvals and exact snapshots. #825's bounded reconciliation
+is complete, with its final actual-record evidence recorded. #923 remains open:
+BT3-070 front #0 still needs typed Union-Absorb identity/material authority;
+the eleven applied metadata updates do not remove that residual or authorize
+another refresh. Its [actual admission](arena-backlog/evidence/923/metadata-2026-10-19/actual-admission.json)
+and [reference material/payment proof](arena-backlog/evidence/923/metadata-2026-10-19/actual-reference-records.json)
+retain that distinction.
+
+Earlier #1066–#1068 deliveries are historical checkpoints, not pending drafts:
+[typed activated payment](arena-backlog/evidence/907/typed-payment-2026-10-19/README.md),
+[Fusion's material-before-cost checkpoint](arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/README.md)
+and [stored Fusion material authority](arena-backlog/evidence/907/fusion-materials-2026-10-19/README.md).
+The [combo qualification receipt](arena-backlog/evidence/907/combo-qualifications-2026-10-19/README.md)
+records the deployed #1070 slice; #1071's combined qualification supersedes its
+old pending migration/application queue. Other obsolete records still require
+separate reconciliation and authorization.
 
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
 (#898 is closed). #906 owns the separate API campaign, still gated on a qualified

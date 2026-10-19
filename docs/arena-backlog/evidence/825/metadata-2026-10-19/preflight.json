@@ -1,0 +1,69 @@
+{
+  "format": "metadata-825-preflight-v1",
+  "commits": [
+    "1e3df41c9ff0a7d8f59b71c8c3611ae2b74abe6d",
+    "e838c13dc2c1fd4587b7940c70f2cd8338b1f774"
+  ],
+  "nodeVersion": "v24.19.0",
+  "checks": [
+    {
+      "command": "./node_modules/.bin/tsx scripts/verify/metadata-825.mts",
+      "outcome": "pass",
+      "scope": "Local PGlite only: exact eight-row planning; protected statuses and all nonmetadata fields preserved; full-row and full-catalog races refused atomically; approval, malformed input, replay, idempotence and saved-row loader admission."
+    },
+    {
+      "command": "./node_modules/.bin/tsx scripts/verify/qualified-movement-evolve-825.ts --stored-targets /tmp/tcm-holdouts-899-20261019/metadata-825-proposed-rows.json",
+      "outcome": "pass",
+      "scope": "Original scenario assertions preserved and executed against mandatory exact eight proposed stored target rows, loaded through rulesFromRows. Eleven additional stored-only cases cover BT3-090 yellow/non-yellow Leader Life tail and BT7-040/083/086 cleanup, early return to hand, and opponent-turn refusal. Other skills and synthetic identities are compiled support fixtures."
+    },
+    {
+      "command": "./node_modules/.bin/tsx scripts/arena-metadata-825.mts --snapshot /tmp/tcm-holdouts-899-20261019/next-825-readback.json --out /tmp/tcm-holdouts-899-20261019/metadata-825-preview.json --payload-out /tmp/tcm-holdouts-899-20261019/metadata-825-private-payload.json",
+      "outcome": "pass",
+      "scope": "Offline dry-run against full actual snapshot, eight pending metadata-only changes; external private payload permission 0600."
+    },
+    {
+      "command": "./node_modules/.bin/eslint scripts/lib/metadata-825.ts scripts/arena-metadata-825.mts scripts/verify/metadata-825.mts scripts/verify/qualified-movement-evolve-825.ts",
+      "outcome": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "outcome": "pass"
+    }
+  ],
+  "scenarioContract": {
+    "defaultMode": "Existing compiler-fixture path remains unchanged; the final preflight used stored-target mode, not a separate default-mode rerun.",
+    "storedTargetMode": "Requires exactly one of each eight targets. No compiler fallback for any target. Source CardDefs are pinned public actual catalog identities; companion lines remain explicitly labelled compiled support fixtures.",
+    "originalAssertionsPreserved": true,
+    "additionalStoredCases": 11,
+    "targetsExecuted": 8,
+    "inputsAreProposedReadback": true,
+    "actualDatabaseApplicationVerified": false
+  },
+  "preview": {
+    "path": "/tmp/tcm-holdouts-899-20261019/metadata-825-preview.json",
+    "digest": "8284223ff78d2ced9cfa6aafa9f71919194bb041294010412c16cf57922dbcf5",
+    "programsReplaced": 0,
+    "statusesChanged": 0,
+    "humanConfirmationsAdded": 0
+  },
+  "independentReview": {
+    "status": "passed immutable final read-only review",
+    "commits": [
+      "1e3df41c9ff0a7d8f59b71c8c3611ae2b74abe6d",
+      "e838c13dc2c1fd4587b7940c70f2cd8338b1f774"
+    ],
+    "reviewer": "rules_research",
+    "note": "Final signoff received after receipt preparation: no remaining blocker. Reviewer ran no tests, database operations, or games."
+  },
+  "limits": {
+    "liveDatabaseConnections": 0,
+    "liveDatabaseWrites": 0,
+    "fullTestSuiteRun": false,
+    "buildRun": false,
+    "integratedTypecheckRun": false,
+    "rootCheckoutModified": false,
+    "holdoutResultsInspected": false
+  },
+  "workingTreeCleanAtCompletion": true,
+  "receiptBasis": "Completed check outcomes only; receipt preparation did not rerun tests."
+}

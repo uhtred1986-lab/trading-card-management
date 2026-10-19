@@ -1,0 +1,7853 @@
+{
+  "format": "arena-defense-freeze-v1",
+  "protocolSha256": "86d222dc3136851748a6b43206aaeb51958016dc00f2eb8f4767a62a915280cd",
+  "sourceSha256": "6b9953ba6ab60cbafd3e78062a90c6b9a054a33eef472b6eacf6c6c6ae7ba945",
+  "nodeVersion": "v24.19.0",
+  "fixtures": [
+    {
+      "key": "starters-0v0",
+      "sourceId": "starters-0v0",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "02d3307ba43fe463a75acd68632912dfc23b3944fd8237fb3bf855fb6e749284",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "4789120ae68df429d001844f85dc7e2c56582de562e92e4d5c779a7bb3bdf673",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "starters-0v1",
+      "sourceId": "starters-0v1",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "02d3307ba43fe463a75acd68632912dfc23b3944fd8237fb3bf855fb6e749284",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "4789120ae68df429d001844f85dc7e2c56582de562e92e4d5c779a7bb3bdf673",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "starters-1v0",
+      "sourceId": "starters-1v0",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "02d3307ba43fe463a75acd68632912dfc23b3944fd8237fb3bf855fb6e749284",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "4789120ae68df429d001844f85dc7e2c56582de562e92e4d5c779a7bb3bdf673",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "starters-1v1",
+      "sourceId": "starters-1v1",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "02d3307ba43fe463a75acd68632912dfc23b3944fd8237fb3bf855fb6e749284",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "4789120ae68df429d001844f85dc7e2c56582de562e92e4d5c779a7bb3bdf673",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "bt6-0v0",
+      "sourceId": "bt6-0v0",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p2DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "bt6-0v1",
+      "sourceId": "bt6-0v1",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p2DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "bt6-1v0",
+      "sourceId": "bt6-1v0",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p2DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "bt6-1v1",
+      "sourceId": "bt6-1v1",
+      "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p2DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [
+    {
+      "key": "current-typed-heuristic",
+      "version": "heuristic-main-2-combat-3-choices-2",
+      "sha256": "f7790e34e28f4d2f9cea7d242697125acf68a3d1e6eec57504210fcbc30202bc"
+    },
+    {
+      "key": "heuristic-before-defense-1026",
+      "version": "combat1-choices1-fdd66953",
+      "sha256": "ad6b0a4d2acd2593f3a5126cbd007fd818314af80b396d7b9c57161850d48699"
+    }
+  ],
+  "jobs": [
+    {
+      "index": 0,
+      "key": "starters-0v0-0-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899000,
+      "policySeed": 89940000,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880001,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880002,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 1,
+      "key": "starters-0v0-0-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899000,
+      "policySeed": 89940000,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880001,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880002,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 2,
+      "key": "starters-0v0-1-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899001,
+      "policySeed": 89940001,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880003,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880004,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 3,
+      "key": "starters-0v0-1-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899001,
+      "policySeed": 89940001,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880003,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880004,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 4,
+      "key": "starters-0v0-2-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899002,
+      "policySeed": 89940002,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880005,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880006,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 5,
+      "key": "starters-0v0-2-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899002,
+      "policySeed": 89940002,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880005,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880006,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 6,
+      "key": "starters-0v0-3-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899003,
+      "policySeed": 89940003,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880007,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880008,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 7,
+      "key": "starters-0v0-3-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899003,
+      "policySeed": 89940003,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880007,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880008,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 8,
+      "key": "starters-0v0-4-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899004,
+      "policySeed": 89940004,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880009,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880010,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 9,
+      "key": "starters-0v0-4-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899004,
+      "policySeed": 89940004,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880009,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880010,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 10,
+      "key": "starters-0v0-5-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899005,
+      "policySeed": 89940005,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880011,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880012,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 11,
+      "key": "starters-0v0-5-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899005,
+      "policySeed": 89940005,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880011,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880012,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 12,
+      "key": "starters-0v0-6-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899006,
+      "policySeed": 89940006,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880013,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880014,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 13,
+      "key": "starters-0v0-6-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899006,
+      "policySeed": 89940006,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880013,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880014,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 14,
+      "key": "starters-0v0-7-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899007,
+      "policySeed": 89940007,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880015,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880016,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 15,
+      "key": "starters-0v0-7-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899007,
+      "policySeed": 89940007,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880015,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880016,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 16,
+      "key": "starters-0v0-8-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899008,
+      "policySeed": 89940008,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880017,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880018,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 17,
+      "key": "starters-0v0-8-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899008,
+      "policySeed": 89940008,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880017,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880018,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 18,
+      "key": "starters-0v0-9-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899009,
+      "policySeed": 89940009,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880019,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880020,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 19,
+      "key": "starters-0v0-9-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899009,
+      "policySeed": 89940009,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880019,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880020,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 20,
+      "key": "starters-0v0-10-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899010,
+      "policySeed": 89940010,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880021,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880022,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 21,
+      "key": "starters-0v0-10-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899010,
+      "policySeed": 89940010,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880021,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880022,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 22,
+      "key": "starters-0v0-11-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899011,
+      "policySeed": 89940011,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880023,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880024,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 23,
+      "key": "starters-0v0-11-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899011,
+      "policySeed": 89940011,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880023,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880024,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 24,
+      "key": "starters-0v0-12-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899012,
+      "policySeed": 89940012,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880025,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880026,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 25,
+      "key": "starters-0v0-12-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899012,
+      "policySeed": 89940012,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880025,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880026,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 26,
+      "key": "starters-0v0-13-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899013,
+      "policySeed": 89940013,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880027,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880028,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 27,
+      "key": "starters-0v0-13-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899013,
+      "policySeed": 89940013,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880027,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880028,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 28,
+      "key": "starters-0v0-14-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899014,
+      "policySeed": 89940014,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880029,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880030,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 29,
+      "key": "starters-0v0-14-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899014,
+      "policySeed": 89940014,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880029,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880030,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 30,
+      "key": "starters-0v0-15-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899015,
+      "policySeed": 89940015,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880031,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880032,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 31,
+      "key": "starters-0v0-15-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899015,
+      "policySeed": 89940015,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880031,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880032,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 32,
+      "key": "starters-0v0-16-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899016,
+      "policySeed": 89940016,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880033,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880034,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 33,
+      "key": "starters-0v0-16-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899016,
+      "policySeed": 89940016,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880033,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880034,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 34,
+      "key": "starters-0v0-17-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899017,
+      "policySeed": 89940017,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880035,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880036,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 35,
+      "key": "starters-0v0-17-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899017,
+      "policySeed": 89940017,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880035,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880036,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 36,
+      "key": "starters-0v0-18-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899018,
+      "policySeed": 89940018,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880037,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880038,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 37,
+      "key": "starters-0v0-18-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899018,
+      "policySeed": 89940018,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880037,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880038,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 38,
+      "key": "starters-0v0-19-p1",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899019,
+      "policySeed": 89940019,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880039,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880040,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 39,
+      "key": "starters-0v0-19-p2",
+      "fixture": "starters-0v0",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "A",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899019,
+      "policySeed": 89940019,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880039,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880040,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 40,
+      "key": "starters-0v1-0-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899100,
+      "policySeed": 89940100,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880201,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880202,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 41,
+      "key": "starters-0v1-0-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899100,
+      "policySeed": 89940100,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880201,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880202,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 42,
+      "key": "starters-0v1-1-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899101,
+      "policySeed": 89940101,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880203,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880204,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 43,
+      "key": "starters-0v1-1-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899101,
+      "policySeed": 89940101,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880203,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880204,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 44,
+      "key": "starters-0v1-2-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899102,
+      "policySeed": 89940102,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880205,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880206,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 45,
+      "key": "starters-0v1-2-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899102,
+      "policySeed": 89940102,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880205,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880206,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 46,
+      "key": "starters-0v1-3-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899103,
+      "policySeed": 89940103,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880207,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880208,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 47,
+      "key": "starters-0v1-3-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899103,
+      "policySeed": 89940103,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880207,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880208,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 48,
+      "key": "starters-0v1-4-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899104,
+      "policySeed": 89940104,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880209,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880210,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 49,
+      "key": "starters-0v1-4-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899104,
+      "policySeed": 89940104,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880209,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880210,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 50,
+      "key": "starters-0v1-5-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899105,
+      "policySeed": 89940105,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880211,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880212,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 51,
+      "key": "starters-0v1-5-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899105,
+      "policySeed": 89940105,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880211,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880212,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 52,
+      "key": "starters-0v1-6-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899106,
+      "policySeed": 89940106,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880213,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880214,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 53,
+      "key": "starters-0v1-6-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899106,
+      "policySeed": 89940106,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880213,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880214,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 54,
+      "key": "starters-0v1-7-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899107,
+      "policySeed": 89940107,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880215,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880216,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 55,
+      "key": "starters-0v1-7-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899107,
+      "policySeed": 89940107,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880215,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880216,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 56,
+      "key": "starters-0v1-8-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899108,
+      "policySeed": 89940108,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880217,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880218,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 57,
+      "key": "starters-0v1-8-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899108,
+      "policySeed": 89940108,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880217,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880218,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 58,
+      "key": "starters-0v1-9-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899109,
+      "policySeed": 89940109,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880219,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880220,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 59,
+      "key": "starters-0v1-9-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899109,
+      "policySeed": 89940109,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880219,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880220,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 60,
+      "key": "starters-0v1-10-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899110,
+      "policySeed": 89940110,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880221,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880222,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 61,
+      "key": "starters-0v1-10-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899110,
+      "policySeed": 89940110,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880221,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880222,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 62,
+      "key": "starters-0v1-11-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899111,
+      "policySeed": 89940111,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880223,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880224,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 63,
+      "key": "starters-0v1-11-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899111,
+      "policySeed": 89940111,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880223,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880224,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 64,
+      "key": "starters-0v1-12-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899112,
+      "policySeed": 89940112,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880225,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880226,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 65,
+      "key": "starters-0v1-12-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899112,
+      "policySeed": 89940112,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880225,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880226,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 66,
+      "key": "starters-0v1-13-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899113,
+      "policySeed": 89940113,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880227,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880228,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 67,
+      "key": "starters-0v1-13-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899113,
+      "policySeed": 89940113,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880227,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880228,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 68,
+      "key": "starters-0v1-14-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899114,
+      "policySeed": 89940114,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880229,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880230,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 69,
+      "key": "starters-0v1-14-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899114,
+      "policySeed": 89940114,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880229,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880230,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 70,
+      "key": "starters-0v1-15-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899115,
+      "policySeed": 89940115,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880231,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880232,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 71,
+      "key": "starters-0v1-15-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899115,
+      "policySeed": 89940115,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880231,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880232,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 72,
+      "key": "starters-0v1-16-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899116,
+      "policySeed": 89940116,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880233,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880234,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 73,
+      "key": "starters-0v1-16-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899116,
+      "policySeed": 89940116,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880233,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880234,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 74,
+      "key": "starters-0v1-17-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899117,
+      "policySeed": 89940117,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880235,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880236,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 75,
+      "key": "starters-0v1-17-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899117,
+      "policySeed": 89940117,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880235,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880236,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 76,
+      "key": "starters-0v1-18-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899118,
+      "policySeed": 89940118,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880237,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880238,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 77,
+      "key": "starters-0v1-18-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899118,
+      "policySeed": 89940118,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880237,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880238,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 78,
+      "key": "starters-0v1-19-p1",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899119,
+      "policySeed": 89940119,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880239,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880240,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 79,
+      "key": "starters-0v1-19-p2",
+      "fixture": "starters-0v1",
+      "corpus": "starters",
+      "p1": "A",
+      "p2": "B",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899119,
+      "policySeed": 89940119,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880239,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880240,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 80,
+      "key": "starters-1v0-0-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899200,
+      "policySeed": 89940200,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880401,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880402,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 81,
+      "key": "starters-1v0-0-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899200,
+      "policySeed": 89940200,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880401,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880402,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 82,
+      "key": "starters-1v0-1-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899201,
+      "policySeed": 89940201,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880403,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880404,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 83,
+      "key": "starters-1v0-1-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899201,
+      "policySeed": 89940201,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880403,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880404,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 84,
+      "key": "starters-1v0-2-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899202,
+      "policySeed": 89940202,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880405,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880406,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 85,
+      "key": "starters-1v0-2-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899202,
+      "policySeed": 89940202,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880405,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880406,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 86,
+      "key": "starters-1v0-3-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899203,
+      "policySeed": 89940203,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880407,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880408,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 87,
+      "key": "starters-1v0-3-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899203,
+      "policySeed": 89940203,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880407,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880408,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 88,
+      "key": "starters-1v0-4-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899204,
+      "policySeed": 89940204,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880409,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880410,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 89,
+      "key": "starters-1v0-4-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899204,
+      "policySeed": 89940204,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880409,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880410,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 90,
+      "key": "starters-1v0-5-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899205,
+      "policySeed": 89940205,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880411,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880412,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 91,
+      "key": "starters-1v0-5-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899205,
+      "policySeed": 89940205,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880411,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880412,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 92,
+      "key": "starters-1v0-6-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899206,
+      "policySeed": 89940206,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880413,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880414,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 93,
+      "key": "starters-1v0-6-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899206,
+      "policySeed": 89940206,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880413,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880414,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 94,
+      "key": "starters-1v0-7-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899207,
+      "policySeed": 89940207,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880415,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880416,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 95,
+      "key": "starters-1v0-7-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899207,
+      "policySeed": 89940207,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880415,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880416,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 96,
+      "key": "starters-1v0-8-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899208,
+      "policySeed": 89940208,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880417,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880418,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 97,
+      "key": "starters-1v0-8-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899208,
+      "policySeed": 89940208,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880417,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880418,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 98,
+      "key": "starters-1v0-9-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899209,
+      "policySeed": 89940209,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880419,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880420,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 99,
+      "key": "starters-1v0-9-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899209,
+      "policySeed": 89940209,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880419,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880420,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 100,
+      "key": "starters-1v0-10-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899210,
+      "policySeed": 89940210,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880421,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880422,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 101,
+      "key": "starters-1v0-10-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899210,
+      "policySeed": 89940210,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880421,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880422,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 102,
+      "key": "starters-1v0-11-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899211,
+      "policySeed": 89940211,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880423,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880424,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 103,
+      "key": "starters-1v0-11-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899211,
+      "policySeed": 89940211,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880423,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880424,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 104,
+      "key": "starters-1v0-12-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899212,
+      "policySeed": 89940212,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880425,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880426,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 105,
+      "key": "starters-1v0-12-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899212,
+      "policySeed": 89940212,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880425,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880426,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 106,
+      "key": "starters-1v0-13-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899213,
+      "policySeed": 89940213,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880427,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880428,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 107,
+      "key": "starters-1v0-13-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899213,
+      "policySeed": 89940213,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880427,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880428,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 108,
+      "key": "starters-1v0-14-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899214,
+      "policySeed": 89940214,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880429,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880430,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 109,
+      "key": "starters-1v0-14-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899214,
+      "policySeed": 89940214,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880429,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880430,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 110,
+      "key": "starters-1v0-15-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899215,
+      "policySeed": 89940215,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880431,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880432,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 111,
+      "key": "starters-1v0-15-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899215,
+      "policySeed": 89940215,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880431,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880432,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 112,
+      "key": "starters-1v0-16-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899216,
+      "policySeed": 89940216,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880433,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880434,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 113,
+      "key": "starters-1v0-16-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899216,
+      "policySeed": 89940216,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880433,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880434,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 114,
+      "key": "starters-1v0-17-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899217,
+      "policySeed": 89940217,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880435,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880436,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 115,
+      "key": "starters-1v0-17-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899217,
+      "policySeed": 89940217,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880435,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880436,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 116,
+      "key": "starters-1v0-18-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899218,
+      "policySeed": 89940218,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880437,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880438,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 117,
+      "key": "starters-1v0-18-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899218,
+      "policySeed": 89940218,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880437,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880438,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 118,
+      "key": "starters-1v0-19-p1",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899219,
+      "policySeed": 89940219,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880439,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880440,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 119,
+      "key": "starters-1v0-19-p2",
+      "fixture": "starters-1v0",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "A",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899219,
+      "policySeed": 89940219,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880439,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880440,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 120,
+      "key": "starters-1v1-0-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899300,
+      "policySeed": 89940300,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880602,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 121,
+      "key": "starters-1v1-0-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899300,
+      "policySeed": 89940300,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880601,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880602,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 122,
+      "key": "starters-1v1-1-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899301,
+      "policySeed": 89940301,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880603,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880604,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 123,
+      "key": "starters-1v1-1-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899301,
+      "policySeed": 89940301,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880603,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880604,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 124,
+      "key": "starters-1v1-2-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899302,
+      "policySeed": 89940302,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880605,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880606,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 125,
+      "key": "starters-1v1-2-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899302,
+      "policySeed": 89940302,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880605,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880606,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 126,
+      "key": "starters-1v1-3-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899303,
+      "policySeed": 89940303,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880607,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880608,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 127,
+      "key": "starters-1v1-3-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899303,
+      "policySeed": 89940303,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880607,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880608,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 128,
+      "key": "starters-1v1-4-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899304,
+      "policySeed": 89940304,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880609,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880610,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 129,
+      "key": "starters-1v1-4-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899304,
+      "policySeed": 89940304,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880609,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880610,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 130,
+      "key": "starters-1v1-5-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899305,
+      "policySeed": 89940305,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880611,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880612,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 131,
+      "key": "starters-1v1-5-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899305,
+      "policySeed": 89940305,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880611,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880612,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 132,
+      "key": "starters-1v1-6-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899306,
+      "policySeed": 89940306,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880613,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880614,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 133,
+      "key": "starters-1v1-6-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899306,
+      "policySeed": 89940306,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880613,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880614,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 134,
+      "key": "starters-1v1-7-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899307,
+      "policySeed": 89940307,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880615,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880616,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 135,
+      "key": "starters-1v1-7-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899307,
+      "policySeed": 89940307,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880615,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880616,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 136,
+      "key": "starters-1v1-8-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899308,
+      "policySeed": 89940308,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880617,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880618,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 137,
+      "key": "starters-1v1-8-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899308,
+      "policySeed": 89940308,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880617,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880618,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 138,
+      "key": "starters-1v1-9-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899309,
+      "policySeed": 89940309,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880619,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880620,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 139,
+      "key": "starters-1v1-9-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899309,
+      "policySeed": 89940309,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880619,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880620,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 140,
+      "key": "starters-1v1-10-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899310,
+      "policySeed": 89940310,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880621,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880622,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 141,
+      "key": "starters-1v1-10-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899310,
+      "policySeed": 89940310,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880621,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880622,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 142,
+      "key": "starters-1v1-11-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899311,
+      "policySeed": 89940311,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880623,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880624,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 143,
+      "key": "starters-1v1-11-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899311,
+      "policySeed": 89940311,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880623,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880624,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 144,
+      "key": "starters-1v1-12-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899312,
+      "policySeed": 89940312,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880625,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880626,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 145,
+      "key": "starters-1v1-12-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899312,
+      "policySeed": 89940312,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880625,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880626,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 146,
+      "key": "starters-1v1-13-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899313,
+      "policySeed": 89940313,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880627,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880628,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 147,
+      "key": "starters-1v1-13-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899313,
+      "policySeed": 89940313,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880627,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880628,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 148,
+      "key": "starters-1v1-14-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899314,
+      "policySeed": 89940314,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880629,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880630,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 149,
+      "key": "starters-1v1-14-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899314,
+      "policySeed": 89940314,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880629,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880630,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 150,
+      "key": "starters-1v1-15-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899315,
+      "policySeed": 89940315,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880631,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880632,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 151,
+      "key": "starters-1v1-15-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899315,
+      "policySeed": 89940315,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880631,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880632,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 152,
+      "key": "starters-1v1-16-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899316,
+      "policySeed": 89940316,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880633,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880634,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 153,
+      "key": "starters-1v1-16-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899316,
+      "policySeed": 89940316,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880633,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880634,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 154,
+      "key": "starters-1v1-17-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899317,
+      "policySeed": 89940317,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880635,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880636,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 155,
+      "key": "starters-1v1-17-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899317,
+      "policySeed": 89940317,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880635,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880636,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 156,
+      "key": "starters-1v1-18-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899318,
+      "policySeed": 89940318,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880637,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880638,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 157,
+      "key": "starters-1v1-18-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899318,
+      "policySeed": 89940318,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880637,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880638,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 158,
+      "key": "starters-1v1-19-p1",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899319,
+      "policySeed": 89940319,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880639,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880640,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 159,
+      "key": "starters-1v1-19-p2",
+      "fixture": "starters-1v1",
+      "corpus": "starters",
+      "p1": "B",
+      "p2": "B",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899319,
+      "policySeed": 89940319,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880639,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880640,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 160,
+      "key": "bt6-0v0-0-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899400,
+      "policySeed": 89940400,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880801,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880802,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 161,
+      "key": "bt6-0v0-0-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899400,
+      "policySeed": 89940400,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880801,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880802,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 162,
+      "key": "bt6-0v0-1-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899401,
+      "policySeed": 89940401,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880803,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880804,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 163,
+      "key": "bt6-0v0-1-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899401,
+      "policySeed": 89940401,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880803,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880804,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 164,
+      "key": "bt6-0v0-2-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899402,
+      "policySeed": 89940402,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880805,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880806,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 165,
+      "key": "bt6-0v0-2-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899402,
+      "policySeed": 89940402,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880805,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880806,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 166,
+      "key": "bt6-0v0-3-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899403,
+      "policySeed": 89940403,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880807,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880808,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 167,
+      "key": "bt6-0v0-3-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899403,
+      "policySeed": 89940403,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880807,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880808,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 168,
+      "key": "bt6-0v0-4-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899404,
+      "policySeed": 89940404,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880809,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880810,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 169,
+      "key": "bt6-0v0-4-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899404,
+      "policySeed": 89940404,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880809,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880810,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 170,
+      "key": "bt6-0v0-5-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899405,
+      "policySeed": 89940405,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880811,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880812,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 171,
+      "key": "bt6-0v0-5-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899405,
+      "policySeed": 89940405,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880811,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880812,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 172,
+      "key": "bt6-0v0-6-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899406,
+      "policySeed": 89940406,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880813,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880814,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 173,
+      "key": "bt6-0v0-6-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899406,
+      "policySeed": 89940406,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880813,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880814,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 174,
+      "key": "bt6-0v0-7-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899407,
+      "policySeed": 89940407,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880815,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880816,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 175,
+      "key": "bt6-0v0-7-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899407,
+      "policySeed": 89940407,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880815,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880816,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 176,
+      "key": "bt6-0v0-8-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899408,
+      "policySeed": 89940408,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880817,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880818,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 177,
+      "key": "bt6-0v0-8-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899408,
+      "policySeed": 89940408,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880817,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880818,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 178,
+      "key": "bt6-0v0-9-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899409,
+      "policySeed": 89940409,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880819,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880820,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 179,
+      "key": "bt6-0v0-9-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899409,
+      "policySeed": 89940409,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880819,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880820,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 180,
+      "key": "bt6-0v0-10-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899410,
+      "policySeed": 89940410,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880821,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880822,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 181,
+      "key": "bt6-0v0-10-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899410,
+      "policySeed": 89940410,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880821,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880822,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 182,
+      "key": "bt6-0v0-11-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899411,
+      "policySeed": 89940411,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880823,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880824,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 183,
+      "key": "bt6-0v0-11-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899411,
+      "policySeed": 89940411,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880823,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880824,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 184,
+      "key": "bt6-0v0-12-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899412,
+      "policySeed": 89940412,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880825,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880826,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 185,
+      "key": "bt6-0v0-12-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899412,
+      "policySeed": 89940412,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880825,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880826,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 186,
+      "key": "bt6-0v0-13-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899413,
+      "policySeed": 89940413,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880827,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880828,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 187,
+      "key": "bt6-0v0-13-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899413,
+      "policySeed": 89940413,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880827,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880828,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 188,
+      "key": "bt6-0v0-14-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899414,
+      "policySeed": 89940414,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880829,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880830,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 189,
+      "key": "bt6-0v0-14-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899414,
+      "policySeed": 89940414,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880829,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880830,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 190,
+      "key": "bt6-0v0-15-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899415,
+      "policySeed": 89940415,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880831,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880832,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 191,
+      "key": "bt6-0v0-15-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899415,
+      "policySeed": 89940415,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880831,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880832,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 192,
+      "key": "bt6-0v0-16-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899416,
+      "policySeed": 89940416,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880833,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880834,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 193,
+      "key": "bt6-0v0-16-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899416,
+      "policySeed": 89940416,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880833,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880834,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 194,
+      "key": "bt6-0v0-17-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899417,
+      "policySeed": 89940417,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880835,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880836,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 195,
+      "key": "bt6-0v0-17-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899417,
+      "policySeed": 89940417,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880835,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880836,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 196,
+      "key": "bt6-0v0-18-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899418,
+      "policySeed": 89940418,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880837,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880838,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 197,
+      "key": "bt6-0v0-18-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899418,
+      "policySeed": 89940418,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880837,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880838,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 198,
+      "key": "bt6-0v0-19-p1",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899419,
+      "policySeed": 89940419,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880839,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880840,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 199,
+      "key": "bt6-0v0-19-p2",
+      "fixture": "bt6-0v0",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899419,
+      "policySeed": 89940419,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179880839,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179880840,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 200,
+      "key": "bt6-0v1-0-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899500,
+      "policySeed": 89940500,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881001,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881002,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 201,
+      "key": "bt6-0v1-0-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899500,
+      "policySeed": 89940500,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881001,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881002,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 202,
+      "key": "bt6-0v1-1-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899501,
+      "policySeed": 89940501,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881003,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881004,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 203,
+      "key": "bt6-0v1-1-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899501,
+      "policySeed": 89940501,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881003,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881004,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 204,
+      "key": "bt6-0v1-2-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899502,
+      "policySeed": 89940502,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881005,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881006,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 205,
+      "key": "bt6-0v1-2-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899502,
+      "policySeed": 89940502,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881005,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881006,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 206,
+      "key": "bt6-0v1-3-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899503,
+      "policySeed": 89940503,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881007,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881008,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 207,
+      "key": "bt6-0v1-3-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899503,
+      "policySeed": 89940503,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881007,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881008,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 208,
+      "key": "bt6-0v1-4-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899504,
+      "policySeed": 89940504,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881009,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881010,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 209,
+      "key": "bt6-0v1-4-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899504,
+      "policySeed": 89940504,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881009,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881010,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 210,
+      "key": "bt6-0v1-5-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899505,
+      "policySeed": 89940505,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881011,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881012,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 211,
+      "key": "bt6-0v1-5-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899505,
+      "policySeed": 89940505,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881011,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881012,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 212,
+      "key": "bt6-0v1-6-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899506,
+      "policySeed": 89940506,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881013,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881014,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 213,
+      "key": "bt6-0v1-6-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899506,
+      "policySeed": 89940506,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881013,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881014,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 214,
+      "key": "bt6-0v1-7-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899507,
+      "policySeed": 89940507,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881015,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881016,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 215,
+      "key": "bt6-0v1-7-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899507,
+      "policySeed": 89940507,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881015,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881016,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 216,
+      "key": "bt6-0v1-8-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899508,
+      "policySeed": 89940508,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881017,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881018,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 217,
+      "key": "bt6-0v1-8-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899508,
+      "policySeed": 89940508,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881017,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881018,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 218,
+      "key": "bt6-0v1-9-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899509,
+      "policySeed": 89940509,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881019,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881020,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 219,
+      "key": "bt6-0v1-9-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899509,
+      "policySeed": 89940509,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881019,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881020,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 220,
+      "key": "bt6-0v1-10-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899510,
+      "policySeed": 89940510,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881021,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881022,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 221,
+      "key": "bt6-0v1-10-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899510,
+      "policySeed": 89940510,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881021,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881022,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 222,
+      "key": "bt6-0v1-11-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899511,
+      "policySeed": 89940511,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881023,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881024,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 223,
+      "key": "bt6-0v1-11-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899511,
+      "policySeed": 89940511,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881023,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881024,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 224,
+      "key": "bt6-0v1-12-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899512,
+      "policySeed": 89940512,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881025,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881026,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 225,
+      "key": "bt6-0v1-12-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899512,
+      "policySeed": 89940512,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881025,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881026,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 226,
+      "key": "bt6-0v1-13-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899513,
+      "policySeed": 89940513,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881027,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881028,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 227,
+      "key": "bt6-0v1-13-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899513,
+      "policySeed": 89940513,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881027,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881028,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 228,
+      "key": "bt6-0v1-14-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899514,
+      "policySeed": 89940514,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881029,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881030,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 229,
+      "key": "bt6-0v1-14-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899514,
+      "policySeed": 89940514,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881029,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881030,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 230,
+      "key": "bt6-0v1-15-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899515,
+      "policySeed": 89940515,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881031,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881032,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 231,
+      "key": "bt6-0v1-15-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899515,
+      "policySeed": 89940515,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881031,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881032,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 232,
+      "key": "bt6-0v1-16-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899516,
+      "policySeed": 89940516,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881033,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881034,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 233,
+      "key": "bt6-0v1-16-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899516,
+      "policySeed": 89940516,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881033,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881034,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 234,
+      "key": "bt6-0v1-17-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899517,
+      "policySeed": 89940517,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881035,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881036,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 235,
+      "key": "bt6-0v1-17-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899517,
+      "policySeed": 89940517,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881035,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881036,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 236,
+      "key": "bt6-0v1-18-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899518,
+      "policySeed": 89940518,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881037,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881038,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 237,
+      "key": "bt6-0v1-18-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899518,
+      "policySeed": 89940518,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881037,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881038,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 238,
+      "key": "bt6-0v1-19-p1",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899519,
+      "policySeed": 89940519,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881039,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881040,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 239,
+      "key": "bt6-0v1-19-p2",
+      "fixture": "bt6-0v1",
+      "corpus": "bt6",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899519,
+      "policySeed": 89940519,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881039,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881040,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 240,
+      "key": "bt6-1v0-0-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899600,
+      "policySeed": 89940600,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881201,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881202,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 241,
+      "key": "bt6-1v0-0-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899600,
+      "policySeed": 89940600,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881201,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881202,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 242,
+      "key": "bt6-1v0-1-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899601,
+      "policySeed": 89940601,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881203,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881204,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 243,
+      "key": "bt6-1v0-1-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899601,
+      "policySeed": 89940601,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881203,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881204,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 244,
+      "key": "bt6-1v0-2-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899602,
+      "policySeed": 89940602,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881205,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881206,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 245,
+      "key": "bt6-1v0-2-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899602,
+      "policySeed": 89940602,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881205,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881206,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 246,
+      "key": "bt6-1v0-3-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899603,
+      "policySeed": 89940603,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881207,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881208,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 247,
+      "key": "bt6-1v0-3-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899603,
+      "policySeed": 89940603,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881207,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881208,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 248,
+      "key": "bt6-1v0-4-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899604,
+      "policySeed": 89940604,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881209,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881210,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 249,
+      "key": "bt6-1v0-4-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899604,
+      "policySeed": 89940604,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881209,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881210,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 250,
+      "key": "bt6-1v0-5-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899605,
+      "policySeed": 89940605,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881211,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881212,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 251,
+      "key": "bt6-1v0-5-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899605,
+      "policySeed": 89940605,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881211,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881212,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 252,
+      "key": "bt6-1v0-6-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899606,
+      "policySeed": 89940606,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881213,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881214,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 253,
+      "key": "bt6-1v0-6-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899606,
+      "policySeed": 89940606,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881213,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881214,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 254,
+      "key": "bt6-1v0-7-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899607,
+      "policySeed": 89940607,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881215,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881216,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 255,
+      "key": "bt6-1v0-7-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899607,
+      "policySeed": 89940607,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881215,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881216,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 256,
+      "key": "bt6-1v0-8-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899608,
+      "policySeed": 89940608,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881217,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881218,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 257,
+      "key": "bt6-1v0-8-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899608,
+      "policySeed": 89940608,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881217,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881218,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 258,
+      "key": "bt6-1v0-9-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899609,
+      "policySeed": 89940609,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881219,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881220,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 259,
+      "key": "bt6-1v0-9-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899609,
+      "policySeed": 89940609,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881219,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881220,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 260,
+      "key": "bt6-1v0-10-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899610,
+      "policySeed": 89940610,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881221,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881222,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 261,
+      "key": "bt6-1v0-10-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899610,
+      "policySeed": 89940610,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881221,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881222,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 262,
+      "key": "bt6-1v0-11-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899611,
+      "policySeed": 89940611,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881223,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881224,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 263,
+      "key": "bt6-1v0-11-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899611,
+      "policySeed": 89940611,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881223,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881224,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 264,
+      "key": "bt6-1v0-12-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899612,
+      "policySeed": 89940612,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881225,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881226,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 265,
+      "key": "bt6-1v0-12-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899612,
+      "policySeed": 89940612,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881225,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881226,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 266,
+      "key": "bt6-1v0-13-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899613,
+      "policySeed": 89940613,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881227,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881228,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 267,
+      "key": "bt6-1v0-13-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899613,
+      "policySeed": 89940613,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881227,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881228,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 268,
+      "key": "bt6-1v0-14-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899614,
+      "policySeed": 89940614,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881229,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881230,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 269,
+      "key": "bt6-1v0-14-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899614,
+      "policySeed": 89940614,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881229,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881230,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 270,
+      "key": "bt6-1v0-15-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899615,
+      "policySeed": 89940615,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881231,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881232,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 271,
+      "key": "bt6-1v0-15-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899615,
+      "policySeed": 89940615,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881231,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881232,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 272,
+      "key": "bt6-1v0-16-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899616,
+      "policySeed": 89940616,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881233,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881234,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 273,
+      "key": "bt6-1v0-16-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899616,
+      "policySeed": 89940616,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881233,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881234,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 274,
+      "key": "bt6-1v0-17-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899617,
+      "policySeed": 89940617,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881235,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881236,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 275,
+      "key": "bt6-1v0-17-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899617,
+      "policySeed": 89940617,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881235,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881236,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 276,
+      "key": "bt6-1v0-18-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899618,
+      "policySeed": 89940618,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881237,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881238,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 277,
+      "key": "bt6-1v0-18-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899618,
+      "policySeed": 89940618,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881237,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881238,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 278,
+      "key": "bt6-1v0-19-p1",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899619,
+      "policySeed": 89940619,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881239,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881240,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 279,
+      "key": "bt6-1v0-19-p2",
+      "fixture": "bt6-1v0",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899619,
+      "policySeed": 89940619,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881239,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881240,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 280,
+      "key": "bt6-1v1-0-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 0,
+      "candidateSeat": "p1",
+      "seed": 40899700,
+      "policySeed": 89940700,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881401,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881402,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 281,
+      "key": "bt6-1v1-0-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 0,
+      "candidateSeat": "p2",
+      "seed": 40899700,
+      "policySeed": 89940700,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881401,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881402,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 282,
+      "key": "bt6-1v1-1-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 1,
+      "candidateSeat": "p1",
+      "seed": 40899701,
+      "policySeed": 89940701,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881403,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881404,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 283,
+      "key": "bt6-1v1-1-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 1,
+      "candidateSeat": "p2",
+      "seed": 40899701,
+      "policySeed": 89940701,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881403,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881404,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 284,
+      "key": "bt6-1v1-2-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 2,
+      "candidateSeat": "p1",
+      "seed": 40899702,
+      "policySeed": 89940702,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881405,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881406,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 285,
+      "key": "bt6-1v1-2-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 2,
+      "candidateSeat": "p2",
+      "seed": 40899702,
+      "policySeed": 89940702,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881405,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881406,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 286,
+      "key": "bt6-1v1-3-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 3,
+      "candidateSeat": "p1",
+      "seed": 40899703,
+      "policySeed": 89940703,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881407,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881408,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 287,
+      "key": "bt6-1v1-3-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 3,
+      "candidateSeat": "p2",
+      "seed": 40899703,
+      "policySeed": 89940703,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881407,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881408,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 288,
+      "key": "bt6-1v1-4-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 4,
+      "candidateSeat": "p1",
+      "seed": 40899704,
+      "policySeed": 89940704,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881409,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881410,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 289,
+      "key": "bt6-1v1-4-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 4,
+      "candidateSeat": "p2",
+      "seed": 40899704,
+      "policySeed": 89940704,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881409,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881410,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 290,
+      "key": "bt6-1v1-5-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 5,
+      "candidateSeat": "p1",
+      "seed": 40899705,
+      "policySeed": 89940705,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881411,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881412,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 291,
+      "key": "bt6-1v1-5-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 5,
+      "candidateSeat": "p2",
+      "seed": 40899705,
+      "policySeed": 89940705,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881411,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881412,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 292,
+      "key": "bt6-1v1-6-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 6,
+      "candidateSeat": "p1",
+      "seed": 40899706,
+      "policySeed": 89940706,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881413,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881414,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 293,
+      "key": "bt6-1v1-6-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 6,
+      "candidateSeat": "p2",
+      "seed": 40899706,
+      "policySeed": 89940706,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881413,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881414,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 294,
+      "key": "bt6-1v1-7-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 7,
+      "candidateSeat": "p1",
+      "seed": 40899707,
+      "policySeed": 89940707,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881415,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881416,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 295,
+      "key": "bt6-1v1-7-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 7,
+      "candidateSeat": "p2",
+      "seed": 40899707,
+      "policySeed": 89940707,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881415,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881416,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 296,
+      "key": "bt6-1v1-8-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 8,
+      "candidateSeat": "p1",
+      "seed": 40899708,
+      "policySeed": 89940708,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881417,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881418,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 297,
+      "key": "bt6-1v1-8-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 8,
+      "candidateSeat": "p2",
+      "seed": 40899708,
+      "policySeed": 89940708,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881417,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881418,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 298,
+      "key": "bt6-1v1-9-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 9,
+      "candidateSeat": "p1",
+      "seed": 40899709,
+      "policySeed": 89940709,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881419,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881420,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 299,
+      "key": "bt6-1v1-9-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 9,
+      "candidateSeat": "p2",
+      "seed": 40899709,
+      "policySeed": 89940709,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881419,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881420,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 300,
+      "key": "bt6-1v1-10-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 10,
+      "candidateSeat": "p1",
+      "seed": 40899710,
+      "policySeed": 89940710,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881421,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881422,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 301,
+      "key": "bt6-1v1-10-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 10,
+      "candidateSeat": "p2",
+      "seed": 40899710,
+      "policySeed": 89940710,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881421,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881422,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 302,
+      "key": "bt6-1v1-11-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 11,
+      "candidateSeat": "p1",
+      "seed": 40899711,
+      "policySeed": 89940711,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881423,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881424,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 303,
+      "key": "bt6-1v1-11-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 11,
+      "candidateSeat": "p2",
+      "seed": 40899711,
+      "policySeed": 89940711,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881423,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881424,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 304,
+      "key": "bt6-1v1-12-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 12,
+      "candidateSeat": "p1",
+      "seed": 40899712,
+      "policySeed": 89940712,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881425,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881426,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 305,
+      "key": "bt6-1v1-12-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 12,
+      "candidateSeat": "p2",
+      "seed": 40899712,
+      "policySeed": 89940712,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881425,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881426,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 306,
+      "key": "bt6-1v1-13-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 13,
+      "candidateSeat": "p1",
+      "seed": 40899713,
+      "policySeed": 89940713,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881427,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881428,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 307,
+      "key": "bt6-1v1-13-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 13,
+      "candidateSeat": "p2",
+      "seed": 40899713,
+      "policySeed": 89940713,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881427,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881428,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 308,
+      "key": "bt6-1v1-14-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 14,
+      "candidateSeat": "p1",
+      "seed": 40899714,
+      "policySeed": 89940714,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881429,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881430,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 309,
+      "key": "bt6-1v1-14-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 14,
+      "candidateSeat": "p2",
+      "seed": 40899714,
+      "policySeed": 89940714,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881429,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881430,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 310,
+      "key": "bt6-1v1-15-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 15,
+      "candidateSeat": "p1",
+      "seed": 40899715,
+      "policySeed": 89940715,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881431,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881432,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 311,
+      "key": "bt6-1v1-15-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 15,
+      "candidateSeat": "p2",
+      "seed": 40899715,
+      "policySeed": 89940715,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881431,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881432,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 312,
+      "key": "bt6-1v1-16-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 16,
+      "candidateSeat": "p1",
+      "seed": 40899716,
+      "policySeed": 89940716,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881433,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881434,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 313,
+      "key": "bt6-1v1-16-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 16,
+      "candidateSeat": "p2",
+      "seed": 40899716,
+      "policySeed": 89940716,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881433,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881434,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 314,
+      "key": "bt6-1v1-17-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 17,
+      "candidateSeat": "p1",
+      "seed": 40899717,
+      "policySeed": 89940717,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881435,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881436,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 315,
+      "key": "bt6-1v1-17-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 17,
+      "candidateSeat": "p2",
+      "seed": 40899717,
+      "policySeed": 89940717,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881435,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881436,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 316,
+      "key": "bt6-1v1-18-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 18,
+      "candidateSeat": "p1",
+      "seed": 40899718,
+      "policySeed": 89940718,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881437,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881438,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 317,
+      "key": "bt6-1v1-18-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 18,
+      "candidateSeat": "p2",
+      "seed": 40899718,
+      "policySeed": 89940718,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881437,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881438,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 318,
+      "key": "bt6-1v1-19-p1",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 19,
+      "candidateSeat": "p1",
+      "seed": 40899719,
+      "policySeed": 89940719,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881439,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881440,
+          "n": 0
+        }
+      }
+    },
+    {
+      "index": 319,
+      "key": "bt6-1v1-19-p2",
+      "fixture": "bt6-1v1",
+      "corpus": "bt6",
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "k": 19,
+      "candidateSeat": "p2",
+      "seed": 40899719,
+      "policySeed": 89940719,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 179881439,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 179881440,
+          "n": 0
+        }
+      }
+    }
+  ],
+  "protocol": {
+    "format": "arena-defense-protocol-v1",
+    "id": "899-exact-before-defense-2026-10-19",
+    "deals": 20,
+    "maxMoves": 3000,
+    "policySeedBase": 89940000,
+    "privacyEvery": 100,
+    "baseline": {
+      "key": "heuristic-before-defense-1026",
+      "version": "combat1-choices1-fdd66953",
+      "sha256": "ad6b0a4d2acd2593f3a5126cbd007fd818314af80b396d7b9c57161850d48699"
+    },
+    "gate": {
+      "pairs": 160,
+      "decisivePairs": 20,
+      "pairWinCiLowGreaterThan": 0.5,
+      "perFixturePairCiUpperAtLeast": 0.5,
+      "completionRate": 1,
+      "illegal": 0,
+      "privacyFailures": 0,
+      "guardTrips": 0
+    },
+    "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+    "corpora": [
+      {
+        "key": "starters",
+        "sha256": "592b9d6da5ebf25ed81ea6ec2d5b70dc28db8c77f42b9791733215c93fce0a80",
+        "mode": "compiler",
+        "decks": [
+          "A",
+          "B"
+        ],
+        "seedBase": 40899000
+      },
+      {
+        "key": "bt6",
+        "sha256": "45cbd903986cd483c9d100c73c46073b2290fd67bbb71e26f1132a07f273b69f",
+        "mode": "stored",
+        "decks": [
+          "bt6-gogeta-br-fusion",
+          "bt6-paragus-broly-recovery"
+        ],
+        "seedBase": 40899400
+      }
+    ]
+  },
+  "sha256": "38831361ad90d52b368861f10768b81d3daa8ed38f56b62db949f5daddc25755"
+}

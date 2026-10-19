@@ -1,0 +1,82 @@
+[
+  {
+    "card": "BT29-029",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT29-029",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT29-029",
+    "status": 200,
+    "bytes": 139295,
+    "sha256": "5a78028e1f8b755cb54f76c38537b8d8ae15c75009e71c1412305e4b1f14dfde",
+    "retrievedUTC": "2026-10-19T14:50:35.839434+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT3-112",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-112",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-112",
+    "status": 200,
+    "bytes": 131448,
+    "sha256": "83abfdee4ba7423ead23396b375c05c4f4cdefb08cc98753c1f9facc4f363abd",
+    "retrievedUTC": "2026-10-19T14:50:36.225953+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT3-096",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-096",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-096",
+    "status": 200,
+    "bytes": 134436,
+    "sha256": "aaa7a188bdd7f1c841bc665ef77e8af06af4a4ded90499bfb69afc8e69e7397f",
+    "retrievedUTC": "2026-10-19T14:50:35.598020+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT3-098",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-098",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-098",
+    "status": 200,
+    "bytes": 134284,
+    "sha256": "d4be737ee6b2bffca1841704888494826bf88cbd19b29eb105d04a47eaf1802f",
+    "retrievedUTC": "2026-10-19T14:50:35.896940+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT3-090",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-090",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-090",
+    "status": 200,
+    "bytes": 133601,
+    "sha256": "fad294a11953117b8ad3f68f5f054226fd22a054c162c6bfd430a44cfa897ef7",
+    "retrievedUTC": "2026-10-19T14:50:36.486588+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT7-040",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-040",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-040",
+    "status": 200,
+    "bytes": 131414,
+    "sha256": "8286ce1c5a144ec41ac457ae1fc88229ff31bfb95acabae0639ada1f8fb21bd9",
+    "retrievedUTC": "2026-10-19T14:50:36.835131+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT7-083",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-083",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-083",
+    "status": 200,
+    "bytes": 134329,
+    "sha256": "e2215ab76934a1f5ba3e08ff3c9279f8c5ce577a6addedfbedb987510590ad3d",
+    "retrievedUTC": "2026-10-19T14:50:37.029798+00:00",
+    "matchedBlocks": 1
+  },
+  {
+    "card": "BT7-086",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-086",
+    "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT7-086",
+    "status": 200,
+    "bytes": 134195,
+    "sha256": "7181c4348d301b78664eec8f2f820b84b7bb0db7d6efb577c75331d41d2465c0",
+    "retrievedUTC": "2026-10-19T14:50:37.457860+00:00",
+    "matchedBlocks": 1
+  }
+]

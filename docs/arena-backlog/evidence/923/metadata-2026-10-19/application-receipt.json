@@ -1,0 +1,147 @@
+{
+  "format": "metadata-923-application-v1",
+  "ownerApproval": {
+    "scope": "exact 11 records; metadata only",
+    "digest": "75e82837c5c2b9f4cbc881719c45c38fffcea6d6d9eda593ebce400ab730bdaa",
+    "source": "explicit owner reply in this conversation on 19 October 2026"
+  },
+  "applied": true,
+  "written": 11,
+  "readbackAt": "2026-10-19T15:33:45.167Z",
+  "fullRawComparisonPassed": true,
+  "catalogEngineSourcesUnchanged": true,
+  "programsReplaced": 0,
+  "statusesChanged": 0,
+  "humanConfirmationsAdded": 0,
+  "privateFieldsPreserved": true,
+  "protectedConfirmedRowsPreserved": 0,
+  "targets": [
+    {
+      "key": "BT11-013/front/10",
+      "id": 6545,
+      "fromVersion": 4,
+      "toVersion": 5,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "2ec5b61214c40ada0d67dd734490907681d293c1ec85245a4875269671ec49bc",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT11-013/front/20",
+      "id": 6546,
+      "fromVersion": 3,
+      "toVersion": 4,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "0f0e51dd0ab62228cc38b121c7c3f07227451af1d0e7dc4dc44c03601787fff3",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT11-013/front/30",
+      "id": 6547,
+      "fromVersion": 6,
+      "toVersion": 7,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "a87381470338addda3377b9b6014c172080f8821d24875a95f2cc33e9f7d2dc6",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-070/front/0",
+      "id": 6416,
+      "fromVersion": 8,
+      "toVersion": 9,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "ec6fcbee59f20e87de3e0f3ff5019edf90b016b1db1be92a547d32eb17bf6838",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-070/front/10",
+      "id": 6417,
+      "fromVersion": 7,
+      "toVersion": 8,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "dba21690820f8577f2a2acf97de20e7b42184151aa8ef387314de58b471fd694",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/back/0",
+      "id": 12065,
+      "fromVersion": 4,
+      "toVersion": 5,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "4c40106ddaf102daaa7ec10ee66b72529ca6d841429661f8e53cacce7df5d365",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/back/10",
+      "id": 12066,
+      "fromVersion": 2,
+      "toVersion": 3,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "c853c66b4954cc57f4b58aa31541d67e535327d446dbefa90240e0779065820a",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/back/20",
+      "id": 12067,
+      "fromVersion": 7,
+      "toVersion": 8,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "2b6dcd560c21d51a5a41ccf7fe2f13ff082819c8a9002449d02fcd8e7ca51cdc",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/front/0",
+      "id": 12062,
+      "fromVersion": 2,
+      "toVersion": 3,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "b0bcc5a5200a602fedb27d3e48ffed7d85f5c74766713b76dc82f454e5fc3cea",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/front/10",
+      "id": 12063,
+      "fromVersion": 8,
+      "toVersion": 9,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "9e53f1b2cf34a706983b0776b5e5be102c90dcd8578fd98df131dbaa3ef187d1",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "P-360/front/20",
+      "id": 12064,
+      "fromVersion": 4,
+      "toVersion": 5,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "30614ade4fbd02902095a50d94a79e96b70ae365f52592018e290390ac95b134",
+      "allOtherRawFieldsPreserved": true
+    }
+  ],
+  "beforePrivateFileSha256": "95f8f7f1cf1454de64c297a43176d5312feea4d1699d28a11ab41e08c769a61a",
+  "afterPrivateFileSha256": "7540f4037ae12cbc16015aa888cdb9dd61005286ffdc20f82f0a4b3a271df172",
+  "allowlistedExportSha256": "52a222f194cd81da2b2244c867c6f0b0c79e359a9d355ce8a4d38a99d9c772b8",
+  "actualStoredProof": {
+    "result": "passed",
+    "runnerRevision": "cb3ab4c4fe984c3067d10a7ee0c0ca3c3d042ad4",
+    "vmSourceMatches": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+    "normalizedRows": 11,
+    "loaderAdmittedRows": 11,
+    "fullyAuthoritativeRows": 10,
+    "residual": "BT3-070/front/0 native Union-Absorb identity/material authority",
+    "commands": [
+      "npx tsx scripts/verify/fusion-materials-907.ts --reference-records <actual-reference-records.json>",
+      "npx tsx scripts/verify/typed-payment-907.ts --reference-records <actual-reference-records.json>"
+    ],
+    "scope": "Material proof substitutes the exact 9 BT11-013/P-360 rows; payment proof substitutes 3 BT11-013 rows. Other lines/cards are compiler support fixtures. These are focused runtime proofs, not full-deck qualification."
+  }
+}

@@ -1,0 +1,357 @@
+{
+  "digest": "75e82837c5c2b9f4cbc881719c45c38fffcea6d6d9eda593ebce400ab730bdaa",
+  "format": "metadata-923-preview-v1",
+  "referenceSha256": "969cc42c8bb9194a6f1d473c0a12b14a4b74966f28bd85775b168695f85a929b",
+  "snapshotSha256": "a73348854eb186f2995204ab6ca46bf982db650ed815747db7a09ec6e14f6b54",
+  "targets": [
+    {
+      "key": "BT11-013/front/10",
+      "id": 6545,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "2ec5b61214c40ada0d67dd734490907681d293c1ec85245a4875269671ec49bc",
+      "snapshotSha256": "ce0d1129276e9fdb6364c8c1cb91de14f7dfaf5518feb97af56ffb376555b3e8",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT11-013/front/20",
+      "id": 6546,
+      "version": 3,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "0f0e51dd0ab62228cc38b121c7c3f07227451af1d0e7dc4dc44c03601787fff3",
+      "snapshotSha256": "0ea240b16aa7fd622938a61a6215bcad047f6d3456669b228fcff0c03b15e7dc",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT11-013/front/30",
+      "id": 6547,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "a87381470338addda3377b9b6014c172080f8821d24875a95f2cc33e9f7d2dc6",
+      "snapshotSha256": "d8961939d3070e624786eb9d0c8e76440b336cdee49b6f3a16da4a2e86d8336a",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-070/front/0",
+      "id": 6416,
+      "version": 8,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "ec6fcbee59f20e87de3e0f3ff5019edf90b016b1db1be92a547d32eb17bf6838",
+      "snapshotSha256": "b047e41c9fb8cfb06b946142faa70bcc62602267a5b1b1fabbbf226a8156a2cb",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "BT3-070/front/10",
+      "id": 6417,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "dba21690820f8577f2a2acf97de20e7b42184151aa8ef387314de58b471fd694",
+      "snapshotSha256": "38f4fd0002d6bf79dc89fc258afee46c451e7c31f68697aea791f8303e49c8b9",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/back/0",
+      "id": 12065,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "4c40106ddaf102daaa7ec10ee66b72529ca6d841429661f8e53cacce7df5d365",
+      "snapshotSha256": "c28fdf785d650641271d664ab3b3f6064a86f1f757ab75afde7c6192ae951603",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/back/10",
+      "id": 12066,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "c853c66b4954cc57f4b58aa31541d67e535327d446dbefa90240e0779065820a",
+      "snapshotSha256": "dbdddb039e14e8d92198be43ebb93e332936cb74e1cfdc817490ca850575ec90",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/back/20",
+      "id": 12067,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "2b6dcd560c21d51a5a41ccf7fe2f13ff082819c8a9002449d02fcd8e7ca51cdc",
+      "snapshotSha256": "039f1eaa4ff5b293a55007001a755c7a98a34f390420fe4664d1df7993653a01",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/front/0",
+      "id": 12062,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "b0bcc5a5200a602fedb27d3e48ffed7d85f5c74766713b76dc82f454e5fc3cea",
+      "snapshotSha256": "2a55d9a3da31633ec534dcfefb27384dc176234a772c9f4d310be3946eb74f06",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/front/10",
+      "id": 12063,
+      "version": 8,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "9e53f1b2cf34a706983b0776b5e5be102c90dcd8578fd98df131dbaa3ef187d1",
+      "snapshotSha256": "d9379b9185f585201c406ab788724b25019f29d9023c8ca83f56ed9e664014b8",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    },
+    {
+      "key": "P-360/front/20",
+      "id": 12064,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "protected": false,
+      "programSha256": "30614ade4fbd02902095a50d94a79e96b70ae365f52592018e290390ac95b134",
+      "snapshotSha256": "7ebe01c49bac3dfc6f3a939b45cbe0e4125f6db92ecfb22f99e3ef83ab5fafc0",
+      "pending": true,
+      "allowedChangedFields": [
+        "usage",
+        "validity"
+      ],
+      "before": {
+        "usage": null,
+        "validity": null
+      },
+      "after": {
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "preserved": "Every cost, combo contract, effect, condition, trigger, printed source, reading, pattern and review field; no human confirmation added"
+    }
+  ],
+  "authorityResiduals": [
+    "BT3-070/front/0 still uses native Union-Absorb identity; metadata admission does not remove that separate text-authority residual"
+  ],
+  "programsReplaced": 0,
+  "statusesChanged": 0,
+  "humanConfirmationsAdded": 0,
+  "mode": "dry-run",
+  "pending": 11
+}

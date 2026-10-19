@@ -1,0 +1,29 @@
+{
+  "format": "arena-defense-final-review-v1",
+  "review": "independent recomputation over completed data; no additional games",
+  "runnerCommit": "a6cbd383c2c89e408a02e6018a604ac6b6d4f078",
+  "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+  "uniqueAttempts": 320,
+  "completePairedDeals": 160,
+  "cells": 8,
+  "pairsPerCell": 20,
+  "seedAndPhysicalSeatRngMatchFreeze": true,
+  "allJournalAndArtifactHashesMatch": true,
+  "wins": 162,
+  "losses": 158,
+  "wonBoth": 14,
+  "lostBoth": 12,
+  "split": 134,
+  "decisivePairWilson95": [
+    0.354576,
+    0.712444
+  ],
+  "allCellsUnderpowered": true,
+  "privacyOrPurityFailures": 0,
+  "cycleGuardTrips": 0,
+  "statisticalGatePassed": false,
+  "promotion": false,
+  "workerPerformanceVerified": false,
+  "privateTraceOrReviewFieldsPublished": false,
+  "findings": []
+}
