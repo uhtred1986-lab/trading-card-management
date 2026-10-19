@@ -54,7 +54,8 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { autoTriggerMatches, triggeredPermanent, comboBattleEndFromHand, comboBattleEndOpponentTurn, comboBattleEndSelf, comboBattleEndYourTurn, comboEntryOrigins, comboEntryQualifier, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } from "../text/triggers";
+import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts } from "./script";
@@ -337,7 +338,15 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // does not trigger although the card has moved on (and the move ended
       // the negation).
       if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
+      const script = showing.scripts.bySkill[sk.index];
+      const combo = script?.combo;
+      if (sk.kind === "auto" && (combo !== undefined || script?.trigger?.some((t) => t === "comboUsed" || t === "comboed"))) {
+        const gap = comboScriptProblem(script);
+        if (gap) throw new NotYet(gap, "#907");
+      }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      if (sk.kind === "auto" && ["comboUsed", "comboed"].includes(match.trigger) && !combo)
+        throw new NotYet(comboQualificationProblem(combo)!, "#907");
       // A qualified hand-return must become pending at the movement, not
       // first discover whether it qualified when another Auto has resolved.
       if (match.trigger === "yourCardReturnedToHand" || match.trigger === "yourUnisonLeft") {
@@ -356,11 +365,11 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       if (match.handWatcher) {
         if (!at || !outside.includes(at as never)) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
-      if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && comboBattleEndSelf(sk)) continue;
+      if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && combo?.timing === "battleEnd") continue;
       // 8-5-10-1 names the actual 8-5-8 cleanup departure, not an
       // arbitrary mid-battle exit. This also covers no-hand-source wordings.
-      if (match.trigger === "comboed" && comboBattleEndSelf(sk) && game.triggers.comboToDrop && moment.args.cleanupSpecial !== true) continue;
-      if (moment.args.cleanupSpecial === true && !comboBattleEndSelf(sk)) continue;
+      if (match.trigger === "comboed" && combo?.timing === "battleEnd" && game.triggers.comboToDrop && moment.args.cleanupSpecial !== true) continue;
+      if (moment.args.cleanupSpecial === true && combo?.timing !== "battleEnd") continue;
       // The named Cell/CELL Jr. is qualified at the *play* moment, before an
       // Auto price or another pending Auto can alter it. A current cost read
       // here is the event-time cost; it is never guessed from a later frame.
@@ -372,42 +381,26 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         // Auto's "energy cost" is the current cost after 20-21 adjustments.
         if (!predicateOf(whiteCell, game)({ ...attrs, energyCost: attrs.costOf })) continue;
       }
-      // A printed "in your hand ... used in a combo" requires this entry's
-      // captured source. The preceding moved(to: combo) moment replaces the
-      // record for this copy; an old/missing record cannot prove hand origin.
-      // The same for the wordings that name another source or the skill that made the combo
-      // (`comboEntryQualifier`, #907): "used in a combo from your hand", "in your deck or hand",
-      // "from an Energy Area using {X}'s skill". The plain hand wording keeps its own reader.
-      const wanted = match.trigger === "comboUsed" ? comboEntryOrigins(sk) : null;
-      if (wanted) {
-        const origin = state.battle?.comboOrigins?.[match.card];
-        if (origin === undefined) throw new NotYet("infer the source of a hand-qualified combo entry", "#672");
-        if (!wanted.includes(origin)) continue;
-        const via = comboEntryQualifier(sk)?.viaSkillOf;
-        if (via !== undefined) {
-          const by = state.battle?.comboVia?.[match.card];
-          if (!by || ctx.defs[state.cards[by]?.cardId ?? ""]?.name?.toLowerCase() !== via.toLowerCase()) continue;
+      // Qualification is captured before pending is created. It travels in the
+      // executable context through reload/replay, never through display wording.
+      if (combo && moment.card !== match.card) continue;
+      if (combo?.turn === "controller" && state.turnPlayer !== master) continue;
+      if (combo?.turn === "opponent" && state.turnPlayer === master) continue;
+      if (combo && (combo.timing === "battleEnd" || match.trigger === "comboUsed" || match.trigger === "comboed")) {
+        if (combo.timing === "entry" && match.trigger !== "comboUsed") continue;
+        if (combo.timing === "battleEnd") {
+          if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd"
+            || !["cleanup", "departures", "battleEndCheckpoint"].includes(state.battle.endCombo?.stage ?? "")) continue;
         }
-      }
-      // Older pinned rulesets have no entry declaration, so their `comboed`
-      // records keep their historical cleanup timing. Current DBS games use
-      // the entry declaration and must not pend the same ordinary Auto again
-      // when the card leaves Combo for Z-Energy, Drop or another area.
-      if (match.trigger === "comboed" && game.triggers.comboUsed && comboEntrySelf(sk)) continue;
-      // The printed end-of-battle Auto answers only for this copy entering
-      // this battle's Combo Area from hand and surviving until cleanup. It
-      // cannot answer a generic battleEnd or a mid-battle Combo Area exit,
-      // even if an older/manual record names the broader trigger.
-      if (comboBattleEndOpponentTurn(sk) && state.turnPlayer === master) continue;
-      if (comboBattleEndYourTurn(sk) && state.turnPlayer !== master) continue;
-      if (comboBattleEndFromHand(sk)) {
-        if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd" || !["cleanup", "departures", "battleEndCheckpoint"].includes(state.battle.endCombo?.stage ?? "")) continue;
-        const origin = comboOrigin ?? state.battle.comboOrigins?.[match.card];
-        // A game saved before provenance existed cannot prove the source of
-        // this copy. Stop with a typed interruption instead of inventing a
-        // hand combo or silently losing a possibly due skill (#544, #572).
-        if (origin === undefined) throw new NotYet("infer the origin of a combo card in an older saved battle", "#572");
-        if (origin !== "hand") continue;
+        if (combo.origins) {
+          const origin = comboOrigin ?? state.battle?.comboOrigins?.[match.card];
+          if (origin === undefined) throw new NotYet(combo.timing === "entry" ? "infer the source of a hand-qualified combo entry" : "infer the origin of a combo card in an older saved battle", combo.timing === "entry" ? "#672" : "#572");
+          if (!combo.origins.includes(origin)) continue;
+        }
+        if (combo.viaSkillOf !== undefined) {
+          const by = state.battle?.comboVia?.[match.card];
+          if (!by || ctx.defs[state.cards[by]?.cardId ?? ""]?.name?.toLowerCase() !== combo.viaSkillOf.toLowerCase()) continue;
+        }
       }
       // 5-5-1: a play into the Battle Area is also a placing (owner's ruling,
       // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
@@ -454,10 +447,6 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 function answersTo(scripts: CardScripts, sk: Skill, trigger: string): boolean {
   const recorded = scripts.bySkill[sk.index]?.trigger;
-  // Confirmed rows written before `comboUsed` carry `comboed`; honor their
-  // exact stored WHEN while interpreting ordinary wording at the new entry
-  // checkpoint. Explicit end-of-battle wording never passes this predicate.
-  if (trigger === "comboUsed" && recorded?.includes("comboed") && comboEntrySelf(sk)) return true;
   if (recorded) return (recorded as readonly string[]).includes(trigger);
   // A counter window is a moment no record's WHEN ever says (`whenMoments`), so
   // there is no printed wording to fall back on either.

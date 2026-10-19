@@ -44,6 +44,7 @@ export interface SkillRecord {
   printed: string;
   kind: string;
   trigger: string[];
+  combo: import("./vm/combo-qualification").ComboQualification | null;
   cost: CostRecord | null;
   cond: Cond | null;
   ops: Op[];
@@ -79,7 +80,8 @@ export function skillRecords(def: CardDef): SkillRecord[] {
         skillIndex: sk.index,
         printed: lines[Math.floor(sk.index / 10)] ?? sk.raw,
         kind: sk.kind,
-        trigger: triggersOf(sk),
+        trigger: script.trigger ?? triggersOf(sk),
+        combo: script.combo ?? null,
         cost: compileCostRecord(sk),
         cond,
         ops,
@@ -214,7 +216,7 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
         }
         if (compilerOwns(have)) {
           if (opts.onlyOpen && have.status !== "open") continue;
-          const opsChanged = !same(have.ops, rec.ops) || !same(have.cond, rec.cond);
+          const opsChanged = !same(have.ops, rec.ops) || !same(have.cond, rec.cond) || !same(have.combo, rec.combo);
           const changed = opsChanged || !same(have.unread, rec.unread) || have.printed !== rec.printed || have.kind !== rec.kind || !same(have.trigger, rec.trigger) || !same(have.cost, rec.cost) || have.pattern !== rec.pattern || have.reads !== rec.reads || have.status !== status;
           if (!changed) continue;
           await db

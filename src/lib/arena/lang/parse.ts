@@ -168,6 +168,11 @@ class Parser {
     }
     this.endOfLine();
 
+    let combo: Rule["combo"];
+    if (this.eatKw("COMBO")) {
+      try { combo = JSON.parse(this.string()); } catch { this.fail("a combo qualification must be valid JSON"); }
+      this.endOfLine();
+    }
     this.clause = "COST";
     const cost = this.eatKw("COST") ? this.cost() : null;
     this.clause = "IF";
@@ -177,7 +182,7 @@ class Parser {
     const ops = this.ops();
     this.skipNl();
     if (this.tok.kind !== "eof") this.fail("there is more here than a rule", []);
-    return { kind, trigger, cost, cond, ops };
+    return { kind, trigger, ...(combo !== undefined ? { combo } : {}), cost, cond, ops };
   }
 
   private endOfLine(): void {

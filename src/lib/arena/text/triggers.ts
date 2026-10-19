@@ -9,6 +9,7 @@
  */
 import { effectHead, maskNames, trailingTrigger } from "./cards";
 import { expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "./filters";
+import type { ComboQualification } from "../vm/combo-qualification";
 import type { Skill, Trigger } from "../types";
 import { playTaxWording } from "./play-tax";
 
@@ -749,4 +750,19 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (/^(?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(rest))
     return !(["removedFromBattle", "removedByOpponent", "koed"] as const).some((t) => autoTriggerMatches(sk, t));
   return true;
+}
+
+/** Compile-time only: the executable record owns these facts after drafting. */
+export function compileComboQualification(sk: Skill): ComboQualification | null {
+  if (sk.kind !== "auto") return null;
+  const end = comboBattleEndSelf(sk);
+  if (!end && !comboEntrySelf(sk)) return null;
+  const head = effectHead(maskNames(sk.effect).text);
+  const turn = /\bduring your opponent'?s turn\b/.test(head) ? "opponent"
+    : /\bduring your turn\b/.test(head) ? "controller" : "any";
+  const entry = comboEntryQualifier(sk);
+  const origins = end ? (comboBattleEndFromHand(sk) ? ["hand"] : null) : comboEntryOrigins(sk);
+  return { version: 1, timing: end ? "battleEnd" : "entry", subject: "self",
+    origins: origins ? [...origins] : null,
+    turn, ...(entry?.viaSkillOf ? { viaSkillOf: entry.viaSkillOf } : {}) };
 }

@@ -42,11 +42,12 @@ export type { BoardKnobs, KnobValue, ProbeFamily, ProbeOutcome, ProbeRule, Probe
  * — the row's hoisted condition already wrapped back around its steps, which
  * is `programOf` in the store; the probe never reads the table itself.
  */
-export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown; cond?: unknown }, def: CardDef, program: Op[]): ProbeRule {
+export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown; combo?: unknown; cond?: unknown }, def: CardDef, program: Op[]): ProbeRule {
 
   return {
     ...(row.cond !== undefined ? { hoisted: row.cond != null } : {}),
     price: priceFromCostRecord(row.cost as CostRecord),
+    ...(row.combo != null ? { combo: row.combo as ProbeRule["combo"] } : {}),
     def,
     side: row.side === "back" ? "back" : "front",
     skillIndex: row.skillIndex,
@@ -172,7 +173,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
   // (`rulesFor`), and an [Auto] answers to it rather than to its printed
   // text. An untraced run reads the printed text, as every stored digest was
   // taken.
-  const trigger = trace && rule.trigger.length ? { trigger: rule.trigger as Trigger[] } : {};
+  const trigger = { ...(rule.trigger.length ? { trigger: rule.trigger as Trigger[] } : {}), ...(rule.combo ? { combo: rule.combo } : {}) };
   scripts[key] = {
     bySkill: { [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread, price, ...trigger } : { ops, unsupported: [], price, ...trigger } },
     complete: !rule.open,
@@ -185,7 +186,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
 
 const PLAY_TRIGGERS = ["played", "playedFromHand", "youPlayed", "placed", "yourCardPlaced", "evolvedInto", "opponentPlayed", "opponentPlayedBySkill", "overRealmPlayed", "playedUsingOverRealm"];
 const BATTLE_TRIGGERS = ["attacks", "attacked", "kos", "dealtDamage", "opponentAttacks", "battleEnd", "yourLeaderAttacked", "offenseStart", "defenseStart", "damageStart", "blockerUsed", "koed"];
-const COMBO_TRIGGERS = ["comboed", "youCombo", "opponentCombos"];
+const COMBO_TRIGGERS = ["comboUsed", "comboed", "youCombo", "opponentCombos"];
 const MOMENT_TRIGGERS = ["turnEnd", "mainEnd", "mainStart", "chargeStart", "opponentTurnEnd", "opponentTurnStart", "opponentMainStart"];
 
 /** The family a rule belongs to: the moment it answers to, or the way it is used. */

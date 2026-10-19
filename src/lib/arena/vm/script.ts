@@ -1338,6 +1338,7 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  combo?: import("./combo-qualification").ComboQualification;
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
   unsupported: string[];

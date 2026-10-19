@@ -79,6 +79,7 @@ function itemOf(rule: RuleRow, card: CardBits, extra: { decks: string[]; firedIn
     tag: rule.kind,
     printed: rule.printed,
     trigger: (rule.trigger as string[] | null) ?? [],
+    ...(rule.combo != null ? { combo: rule.combo as import("./lang/ast").Rule["combo"] } : {}),
     cost: (rule.cost as CostRecord | null) ?? null,
     cond: (rule.cond as Cond | null) ?? null,
     ops: (rule.ops as Op[]) ?? [],

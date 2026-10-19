@@ -1,3 +1,4 @@
+import { comboQualificationProblem } from "../vm/combo-qualification";
 import { costRecordProblem } from "../vm/skill-payment";
 /**
  * Is this rule executable? The structural half of the workbench's Save, and
@@ -24,7 +25,7 @@ import type { Rule } from "./ast";
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
-export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
+export type Invalid = { field: "rule" | "kind" | "trigger" | "combo" | "cost" | "cond" | "ops"; message: string };
 
 /**
  * `kind` is what the row already says; a rule that names another one is
@@ -42,6 +43,13 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   const unknown = (rule.trigger as string[]).filter((t) => !moments.includes(t));
   if (unknown.length) return { field: "trigger", message: `the engine knows no moment called ${unknown.map((t) => JSON.stringify(t)).join(", ")} — a trigger it never fires is a skill that never happens` };
   if (new Set(rule.trigger as string[]).size !== rule.trigger.length) return { field: "trigger", message: "the same moment is named twice" };
+  if (rule.combo != null) {
+    const bad = comboQualificationProblem(rule.combo);
+    if (bad) return { field: "combo", message: bad };
+    const q = rule.combo as import("../vm/combo-qualification").ComboQualification;
+    if (!rule.trigger.includes(q.timing === "entry" ? "comboUsed" : "comboed"))
+      return { field: "combo", message: "typed combo timing has no corresponding WHEN trigger" };
+  }
   if (rule.cond != null) {
     const bad = condProblem(rule.cond, 0, false, "cond");
     if (bad) return { field: "cond", message: `that condition is not one the engine can ask — ${bad}` };
