@@ -1,5 +1,6 @@
 import { sparkingIsValid } from "./validity";
 import { requireSkillPayment } from "./skill-payment";
+import { fusionIdentityProblem } from "./skill-identity";
 /**
  * A skill being used, and the refusal one line is owed (§9-1-2, §4-3).
  *
@@ -202,7 +203,15 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
   if (!inst || inst.hidden) return [];
   const showing = skillsShowing(ctx, state, card);
   const out: ActivationLine[] = [];
-  for (const skill of showing.skills) {
+  for (const shown of showing.skills) {
+    const script = showing.scripts.bySkill[shown.index];
+    // Blocked records have no native keyword hooks. A valid stored Fusion
+    // identity still names a rejected activation, even when its price is
+    // unreadable. Restore that identity only for this candidate; the original
+    // unsupported script remains attached and canResolve must refuse it.
+    const skill: Skill = script?.unsupported.length && script.price?.fusion !== undefined && !fusionIdentityProblem(script, true)
+      ? { ...shown, keyword: { name: "Union", variant: "Fusion" } }
+      : shown;
     // Stage 7: a line that is nothing but a keyword is a move when the
     // keyword's declaration says so (`offer:`), and is then a candidate of the
     // family of the kind it is offered as. Without a `game` there is no

@@ -1,0 +1,12 @@
+{
+  "format": "unread-fusion-diagnostic-907-deployment-v1",
+  "pr": 1087,
+  "mergeCommit": "cf81bef67eaa65d16082877d7d598ff04975bd46",
+  "deploymentId": "dpl_AGjdxStszSxJfFrRdx4zeZAdBNKP",
+  "readyState": "READY",
+  "target": "production",
+  "readyAt": 1792433684735,
+  "sourceCommit": "cf81bef67eaa65d16082877d7d598ff04975bd46",
+  "applicationRecordWrites": 0,
+  "newGuardedMigration": false
+}

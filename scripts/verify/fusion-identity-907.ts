@@ -13,6 +13,8 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { attrsNow, forbids, hasKeyword, keywordsInForce } from "../../src/lib/arena/vm/program";
 import { skillsShowing } from "../../src/lib/arena/vm/triggers";
 import { fusionIdentityProblem } from "../../src/lib/arena/vm/skill-identity";
+import { IllegalAction } from "../../src/lib/arena/vm/common";
+import { buildSnapshot } from "../../src/lib/arena/snapshot-core";
 import { CTX, DEFS, card, fifty } from "./harness";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { CostRecord } from "../../src/lib/arena/vm/script";
@@ -83,6 +85,37 @@ for (const owner of ["p1", "p2"] as const) {
     checks.push(`${owner}/${t.cardId}/display-Strike-does-not-change-identity`);
   }
   const t = targets[0];
+  for (const status of ["draft", "open", "confirmed", "corrected"] as const) {
+    const blocked = board(owner, t, context(rs => {
+      const row = record(rs); row.status = status;
+      (row.cost as CostRecord).readable = false;
+    }));
+    // A display-only tag cannot grant hooks or hide a stored unread Fusion.
+    blocked.saved.ctx.defs[t.cardId].skill = blocked.saved.ctx.defs[t.cardId].skill!.replace(/\[union-fusion\]/i, "[Triple Strike]");
+    const s = clone(blocked.saved), before = clone(s);
+    const legal = RULES.legalActions(s.ctx, s.state);
+    const isTarget = (a: Action) => a.type === "activate" && a.card === blocked.source && a.skill === t.skillIndex;
+    assert.ok(!legal.some(l => isTarget(l.action)), `${status}: blocked Fusion never offered`);
+    const rejected = RULES.rejectedActions(s.ctx, s.state, legal).filter(r => isTarget(r.action));
+    assert.equal(rejected.length, 1, `${status}: stored identity retains one rejected candidate`);
+    assert.ok(rejected[0].why.some(r => r.kind === "unread"), `${status}: unread reason retained`);
+    assert.equal(skillsShowing(s.ctx, s.state, blocked.source).skills.find(sk => sk.index === t.skillIndex)!.keyword, null);
+    assert.equal(hasKeyword(s.ctx, game, s.state, blocked.source, "Union"), false);
+    assert.equal(hasKeyword(s.ctx, game, s.state, blocked.source, "Strike"), false);
+    assert.throws(() => RULES.apply(s.ctx, s.state, { type: "activate", player: owner, card: blocked.source, skill: t.skillIndex }), IllegalAction);
+    assert.deepEqual(s, before, "diagnostics and forged activation do not mutate saved state");
+    const foe: PlayerId = owner === "p1" ? "p2" : "p1";
+    const snapshot = (saved: Saved) => buildSnapshot({ id: 907, revision: 1, mode: "versus", status: "playing",
+      p1Name: "One", p2Name: "Two", ctx: saved.ctx, state: saved.state, legal, log: [], beats: null, spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer: foe, images: {} });
+    const withoutCandidate = clone(s);
+    delete withoutCandidate.ctx.scripts![t.cardId].bySkill[t.skillIndex].price!.fusion;
+    assert.deepEqual(snapshot(s), snapshot(withoutCandidate), "opponent snapshot cannot reveal the private unread candidate");
+    const hidden = clone(s); hidden.state.cards[blocked.source].hidden = true;
+    const hiddenLegal = RULES.legalActions(hidden.ctx, hidden.state);
+    assert.ok(!RULES.rejectedActions(hidden.ctx, hidden.state, hiddenLegal).some(r => isTarget(r.action)), "Hidden Mode exposes no diagnostic candidate");
+    checks.push(`${owner}/blocked-${status}-stored-Fusion-unread-without-native-hooks`);
+  }
   const changed = context(rs => { const f = (record(rs).cost as CostRecord).fusion!; f.needs[0] = { name: "Alternate Goku", filter: { ...f.needs[0].filter, colors: ["Blue"] } }; f.needs[1] = { name: "Alternate Vegeta", filter: { ...f.needs[1].filter, colors: ["Blue"] } }; });
   const alt = board(owner, t, changed); assert.equal(offer(alt.saved, alt.source, t.skillIndex), undefined); const a = stage(alt.saved, owner, "AF907", "hand"), b = stage(alt.saved, owner, "BF907", "hand");
   const altered = finish(alt.saved, offer(alt.saved, alt.source, t.skillIndex)!.action); for (const id of [a, b]) assert.ok(altered.state.sides[owner].zones.drop.includes(id)); for (const id of [alt.goku, alt.vegeta]) assert.ok(altered.state.sides[owner].zones.hand.includes(id));
@@ -96,6 +129,8 @@ for (const owner of ["p1", "p2"] as const) {
     const bad = board(owner, t, blocked); bad.saved.ctx.defs[t.cardId].skill = bad.saved.ctx.defs[t.cardId].skill!.replace(/\[union-fusion\]/i, "[Triple Strike]");
     assert.equal(offer(bad.saved, bad.source, t.skillIndex), undefined); assert.equal(hasKeyword(bad.saved.ctx, game, bad.saved.state, bad.source, "Strike"), false);
     assert.ok(!((attrsNow(bad.saved.ctx, game, bad.saved.state, bad.source).keywords ?? []) as string[]).includes("Strike"));
+    const legal = RULES.legalActions(bad.saved.ctx, bad.saved.state);
+    assert.ok(!RULES.rejectedActions(bad.saved.ctx, bad.saved.state, legal).some(r => r.action.type === "activate" && r.action.card === bad.source && r.action.skill === t.skillIndex), "missing or contradictory identity cannot recover a candidate from display text");
     checks.push(`${owner}/blocked-record-display-Strike-${missing ? "missing-material" : "wrong-kind"}`);
   }
   const base = board(owner), pending = take(base.saved, offer(base.saved, base.source, t.skillIndex)!.action).saved;

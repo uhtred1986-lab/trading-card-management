@@ -11,13 +11,18 @@ is applied, with exact preservation and 66 actual-record scenarios passing.
 Deployed PR #1084 adds typed Potara for BT2-012/front/0 (rule10297 only); its
 separately approved v1→v2 application passes 76 actual-record scenarios on
 deployed source. PR #1085 groups EX23-36/P-519 Drop-to-bottom permission,
-strict payment and ordering privacy; its four-record compiler repair requires
-a separate exact approval/application. See
+strict payment and ordering privacy; its four-record compiler repair is separately
+approved and applied, with exact full-field preservation and 116 actual-record
+scenarios passing. See
 `docs/arena-backlog/evidence/907/potara-identity-2026-10-19/README.md` and
 `docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/README.md`.
-The unchanged #926 verifier has a reproduced baseline refusal-category failure;
-retain that limitation. Do not repeat the completed nineteen metadata writes.
+The #926 refusal-category gap is repaired by the bounded
+[unread Fusion diagnostic fix](arena-backlog/evidence/907/unread-fusion-diagnostic-2026-10-19/README.md);
+the unchanged original verifier passes. Retain the earlier failure receipts as history. Do not repeat the completed nineteen metadata writes.
 Keep #907/#923/#929/#930 open for their remaining indexed acceptance.
+Next bounded source/record freeze: BT4-018/front/0's paid-material character
+comparison, as scoped in
+`docs/arena-backlog/evidence/923/next-absorb-boundary-2026-10-19.md`.
 #581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its
 two-engine descriptions and dated open/blocked lists; it does not override current

@@ -26,8 +26,10 @@
  * played on that revision) and deletes only older shell caches and its own older art caches —
  * never a cache it does not own (`dbs-arena-pack-*` belongs to the pack store).
  *
- * Navigations that fail for want of a network go to the shell when one is installed (`/`, `/arena`
- * and below — the installed app's start page), and otherwise get a short "you are offline" page.
+ * Navigations go to the shell only when the browser reports no network (`navigator.onLine === false`),
+ * one is installed and the page is `/arena` or below (the installed app's start page); `/` never does.
+ * A failed fetch with the browser online is retried once and then gets a "server did not answer" page
+ * (retry link, the shell as a choice) - never a redirect into offline mode (19 Oct 2026 bug).
  *
  * `scripts/verify/arena-offline-shell.mts` runs this file against a fake Cache Storage and fetch.
  */
@@ -231,15 +233,51 @@ async function shellPage(request, url) {
   }
 }
 
-/** Any other page: the network, untouched; with no network, the shell for the arena's start pages, else a notice. */
+/** True only when the browser itself says there is no network. A thrown fetch alone (timeout, cold start, aborted navigation) is not that. */
+function browserOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/** The notice for a navigation that failed with the browser online: retry, and the shell as a choice (never a redirect). */
+function unreachablePage(withShell, here) {
+  const more = withShell
+    ? `<a href="${here}">Try again</a> · <a href="${SHELL_PATH}">Play on this device</a>`
+    : `<a href="${here}">Try again</a>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cannot reach the server</title><style>
+html,body{height:100%;margin:0;background:#090b15;color:#d5dbeb;
+font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+div{height:100%;display:grid;place-content:center;text-align:center;padding:2rem;gap:.5rem}
+b{color:#ffa733;font-size:1.1rem}small{color:#7d8bb0}a{color:#ffa733}
+</style></head><body><div><b>The server did not answer</b>
+<small>${more}</small>
+</div></body></html>`;
+}
+
+/**
+ * Any other page: the network, untouched. A failed fetch is NOT "offline mode": the shell takes over
+ * only when the browser reports no network at all, and then only for the arena (`/arena`, `/arena/*`)
+ * - never for `/`, which gets the plain notice. A failure with the browser online (a slow cold start,
+ * a dropped connection, an aborted navigation) is retried once, then shown as "the server did not
+ * answer" with a retry link and the shell as a choice - it never silently lands the player in
+ * "Play on this device".
+ */
 async function networkOrShell(request, url) {
   try {
     return await fetch(request);
   } catch {
     const shells = await completeShells();
-    const arena = url.pathname === "/" || url.pathname === "/arena" || url.pathname.startsWith("/arena/");
-    if (shells.length && arena) return Response.redirect(new URL(SHELL_PATH, self.location.origin).href, 302);
-    return new Response(offlinePage(shells.length > 0), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+    const arena = url.pathname === "/arena" || url.pathname.startsWith("/arena/");
+    if (browserOffline()) {
+      if (shells.length && arena) return Response.redirect(new URL(SHELL_PATH, self.location.origin).href, 302);
+      return new Response(offlinePage(shells.length > 0), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    try {
+      return await fetch(request);
+    } catch {
+      return new Response(unreachablePage(shells.length > 0, url.pathname + url.search), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+    }
   }
 }
 

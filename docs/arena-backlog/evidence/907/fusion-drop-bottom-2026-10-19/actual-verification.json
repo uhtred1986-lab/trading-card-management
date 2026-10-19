@@ -1,0 +1,31 @@
+{
+  "format": "fusion-drop-bottom-930-actual-verification-v1",
+  "sourceCommit": "ca988c9eb856ae0c84c54f27accfc61ffe6600d0",
+  "nodeVersion": "v24.19.0",
+  "actualRecordIds": [
+    3897,
+    3898,
+    9887,
+    9888
+  ],
+  "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/fusion-drop-bottom-930.ts --stored-records docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/actual-records.json --out docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/actual-proof.json",
+  "exitCode": 0,
+  "actualRecordCases": 116,
+  "allStoredFieldsCompared": true,
+  "safeExportEqualsApprovedProposedRecords": true,
+  "artifactSha256": {
+    "actual-records.json": "a36f0bd85ed4a256340e253dc7c67649b81cb247c06aad69fbe06e9cdd33859c",
+    "actual-proof.json": "6a2c72e0a3364ee8fbc3f6ef2bc444e4a3685d2b8521635dbece119cc1de2098",
+    "application.json": "ee1326a061d0ba236139d0dba07a3454d2a285d6d42c8a4a1223c6398536b30e"
+  },
+  "limitations": [
+    "Only four selected records; unrelated proof rows are compiled support fixtures. No whole-card/deck qualification.",
+    "Existing #926 diagnostic failure remains documented in verification.json; oracle unchanged."
+  ],
+  "previousChecks": "Typecheck, lint and preservation controls retained from PR #1085; no code changed in this follow-up.",
+  "fullSuiteRun": false,
+  "applicationBuildRun": false,
+  "catalogSweepRun": false,
+  "newGamesRun": 0,
+  "absorbOrPotaraReapplied": false
+}
