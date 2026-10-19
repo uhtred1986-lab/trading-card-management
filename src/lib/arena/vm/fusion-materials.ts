@@ -28,3 +28,8 @@ export function requireFusionMaterials(price: SkillPrice | undefined): FusionMat
   if (problem) throw new IllegalAction(problem);
   return price!.fusion!;
 }
+
+/** Only the entered native branch is flattened into this list; dormant branches do not bind a route. */
+export function hasDropBottomRoute(ops: import("./script").Op[]): boolean {
+  return ops.some(op => op.op === "choose" && op.permission === "unionFusionDropBottom");
+}

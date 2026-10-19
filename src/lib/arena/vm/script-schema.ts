@@ -333,6 +333,7 @@ const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive",
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
+      { name: "permission", type: { enum: ["unionFusionDropBottom"] }, offCard: "recheck this typed own-hand permission while the suspended Fusion material cost is being chosen and paid" },
       { name: "sel", type: "selector", required: true },
       { name: "as", type: "string", required: true },
       { name: "reason", type: "string" },

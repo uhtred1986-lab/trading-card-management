@@ -477,7 +477,7 @@ DEFINE KEYWORD Union
       -- This card's own permission (BT12-136/137, P-286) adds Warp;
       -- each chosen card still goes to Drop, including hand/Warp mixes.
       if(cond: permits(what: unionFusionDropBottom), then: {
-        choose(sel: 2 "Battle Card" IN you.ANY(hand|drop) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named materials; chosen Drop cards go to your deck bottom in this chosen order")
+        choose(sel: 2 "Battle Card" IN you.ANY(hand|drop) otherThanSelf, as: "pair", namedSet: true, permission: unionFusionDropBottom, reason: "[Union-Fusion]: choose the named materials; chosen Drop cards go to your deck bottom in this chosen order")
         moveTo(target: $pair MINUS $pairOutside, to: drop, cause: cost)
         moveTo(target: $pairOutside, to: deck, position: bottom, cause: cost)
       }, else: {

@@ -579,7 +579,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -1441,6 +1441,9 @@ export interface ScriptFrame {
   /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
   /** Captured identity survives successful Fusion payment and source changes. */
   fusionIdentity?: Pick<Script, "kind" | "price">;
+  /** Declared source occurrence; required only by the Drop-to-bottom route. */
+  fusionSourceEpoch?: number;
+  fusionDropBottom?: true;
   evolutionIdentity?: Pick<Script, "kind" | "price">;
   absorbIdentity?: Pick<Script, "kind" | "price" | "ops">;
   absorbSourceEpoch?: number;
