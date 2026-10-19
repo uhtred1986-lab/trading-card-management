@@ -23,6 +23,8 @@ import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { SubmitButton } from "@/components/SubmitButton";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 import { PageHeader, SectionTabs } from "@/components/ui";
+import { HealthBadge } from "@/components/arena/rules/HealthBadge";
+import { cardHealthsFor } from "@/lib/arena/rules-store";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,8 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     decksForCard(db, id, scope),
     cachedTcgUrl(id),
   ]);
+  // The arena rules chip is SL-only (a player sees no rules UI) and for the original game only.
+  const ruleHealth = viewer.kind === "sl" ? (await cardHealthsFor(db, [id])).get(id) : undefined;
   const owners = viewer.kind === "player" ? [] : [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
@@ -113,6 +117,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <TypeBadge type={card.cardType} />
             <RarityBadge code={card.rarityCode} />
+            <HealthBadge cardId={card.id} health={ruleHealth} />
             {card.colors.map((c) => (
               <ColorPill key={c} color={c} />
             ))}

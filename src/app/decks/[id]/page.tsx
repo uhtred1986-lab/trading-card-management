@@ -28,6 +28,8 @@ import { checkOfflineDecks } from "@/lib/arena/offline-decks";
 import { runtimeRevision } from "@/lib/arena/replay-bundle";
 import { deleteDeckForm, duplicateDeckForm, importDeckListForm, renameDeckForm, updateDeckForm } from "../actions";
 import { PageHeader, SectionTabs } from "@/components/ui";
+import { HealthBadge } from "@/components/arena/rules/HealthBadge";
+import { cardHealthsFor } from "@/lib/arena/rules-store";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const tiedUpIds = conflicts.filter((c) => c.reservedElsewhere > 0).map((c) => c.cardId);
   const reserversMap = tiedUpIds.length ? await decksReservingFor(db, tiedUpIds, id, deck.owner) : new Map<string, { id: number; name: string; quantity: number }[]>();
   const reservers = Object.fromEntries(reserversMap);
+  // One batched read for every row; the chip is SL-only and the arena plays the original game only.
+  const health = viewer.kind === "sl" && deck.game === "dbs" ? await cardHealthsFor(db, deck.cards.map((c) => c.cardId)) : new Map();
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
   const rules = deckRules(deck.game);
@@ -156,6 +160,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                             </Link>
                             <div className="flex flex-wrap items-center gap-1 text-[11px] text-space-300">
                               <span className="font-mono">{r.cardId}</span>
+                              <HealthBadge cardId={r.cardId} health={health.get(r.cardId)} />
                               {r.energyCost ? <span>· {r.energyCost} energy</span> : null}
                               {r.power ? <span>· {r.power.toLocaleString()}</span> : null}
                               {deck.legality.flags[`${r.zone}:${r.cardId}`] ? <CardFlagBadge {...deck.legality.flags[`${r.zone}:${r.cardId}`]} /> : null}

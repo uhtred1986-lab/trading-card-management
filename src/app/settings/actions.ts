@@ -10,6 +10,7 @@ import { syncFx } from "@/lib/pricing/fx";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
 import { runSync } from "@/lib/sync";
 import { expireTagsFromAction, type CacheTag } from "@/lib/cache/tags";
+import { expireRulesHealth } from "@/lib/cache/rules-health";
 import { requireSl } from "@/lib/auth";
 
 /**
@@ -31,6 +32,8 @@ async function quietly(tags: CacheTag[], fn: () => Promise<unknown>): Promise<vo
 export async function syncCatalogAction(): Promise<void> {
   await requireSl();
   await quietly(["catalog"], () => runSync(db, "catalog", () => syncCatalog(db)));
+  // The sync drafts rules for new or changed cards (draftCards): the Rules queue's cached health is stale.
+  expireRulesHealth();
 }
 
 export async function syncCardTraderAction(): Promise<void> {

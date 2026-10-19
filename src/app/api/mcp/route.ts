@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { expireRulesHealthFromRoute } from "@/lib/cache/rules-health";
 import { handleMcpPost } from "@/lib/rules-review/mcp";
 import { mcpOriginAllowed } from "@/lib/oauth/origin";
 import { PROTECTED_RESOURCE_METADATA_PATH, bearerToken, resourceOf } from "@/lib/oauth/core";
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   }
   if (!token) return unauthorized(origin, true);
 
-  return handleMcpPost(request, { db, env: process.env, scopes: token.scopes, email: token.email });
+  return handleMcpPost(request, { db, env: process.env, scopes: token.scopes, email: token.email, onRuleWrite: expireRulesHealthFromRoute });
 }
 
 export function GET() {
