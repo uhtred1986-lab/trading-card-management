@@ -6,7 +6,7 @@
  * artifacts into this small contract before an authenticated import.
  */
 export type RunSource = "scenario" | "decision_cases" | "policy_eval";
-export type RunnerId = "arena-scenario" | "arena-policy-strategy" | "arena-policy-eval";
+export type RunnerId = "arena-scenario" | "arena-policy-strategy" | "arena-policy-eval" | "arena-corpus-freeze";
 export type RunOutcome = "pass" | "fail" | "interrupted" | "error";
 export type PolicyRngProvenance =
   | { mode: "seeded"; v: 1; seed: number; n: number }
@@ -121,7 +121,7 @@ export interface DecisionManifest extends ManifestBase {
 
 export interface PolicyEvalManifest extends ManifestBase {
   source: "policy_eval";
-  runner: ManifestRunner & { id: "arena-policy-eval" };
+  runner: ManifestRunner & { id: "arena-policy-eval" | "arena-corpus-freeze" };
   seedSet: "dev" | "holdout" | "custom";
   results: PolicyGameResult[];
 }
@@ -204,7 +204,7 @@ const HEX_256 = /^[a-f0-9]{64}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,127}$/;
 const TOKEN_TEXT = /^[A-Za-z0-9][A-Za-z0-9._:+-]*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const RUNNERS: readonly RunnerId[] = ["arena-scenario", "arena-policy-strategy", "arena-policy-eval"];
+const RUNNERS: readonly RunnerId[] = ["arena-scenario", "arena-policy-strategy", "arena-policy-eval", "arena-corpus-freeze"];
 const OUTCOMES: readonly RunOutcome[] = ["pass", "fail", "interrupted", "error"];
 const GAME_OUTCOMES = ["win", "loss", "draw", "interrupted", "limit", "illegal"] as const;
 const STOP_KINDS = ["illegal", "interrupted", "notAsked", "limit", "noSeat"] as const;
@@ -341,7 +341,9 @@ export function validateEvaluationManifest(value: unknown): ManifestValidation {
       return uniqueResults(resultKeys, { ok: true, value: value as unknown as DecisionManifest });
     }
     if (source === "policy_eval") {
-      if (value.runner.id !== "arena-policy-eval" || !enumValue(value.seedSet, ["dev", "holdout", "custom"] as const) || !value.results.every(validPolicyGameResult)) return { ok: false, reason: "Policy evaluation manifest does not match its runner contract." };
+      if (!["arena-policy-eval", "arena-corpus-freeze"].includes(value.runner.id) || !enumValue(value.seedSet, ["dev", "holdout", "custom"] as const) || !value.results.every(validPolicyGameResult)) return { ok: false, reason: "Policy evaluation manifest does not match its runner contract." };
+      if (value.runner.id === "arena-corpus-freeze" && (value.seedSet !== "custom" || !["arena-corpus-stored-v1", "arena-corpus-compiler-v1"].includes(value.protocol.id)))
+        return { ok: false, reason: "Corpus evidence requires its explicit mode and custom seed protocol." };
       const results = value.results as PolicyGameResult[];
       resultKeys.push(...results.map((result) => result.key));
       if (!results.every((result) => fixtureKeys.includes(result.fixtureKey) && policyKeys.includes(result.candidatePolicyKey) && policyKeys.includes(result.baselinePolicyKey))) return { ok: false, reason: "Game result references an unknown fixture or policy." };

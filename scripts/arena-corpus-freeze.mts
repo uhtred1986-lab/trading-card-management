@@ -21,6 +21,7 @@
  *   npx tsx scripts/arena-corpus-freeze.mts --check               # assert: starters admitted, no illegal game, replay equal
  *   npx tsx scripts/arena-corpus-freeze.mts --out pack.json       # the replayable pack (canonical JSON)
  *   flags: --mode compiler|stored (inferred from --stored-rules), --pairs N (seed pairs per matchup, default 3), --max-moves N (default 3000), --runtime <sha>
+ *          --manifest-out <JSON> projects actual game metrics into the Testing & stats import contract.
  *          (engine revision; default git HEAD), --seed-base N (default 897000)
  *
  * Beyond the starters (run by the COORDINATOR, who may read the live data; this task never does):
@@ -37,9 +38,13 @@
  *     npx tsx scripts/arena-corpus-freeze.mts --decks <lists.json> --catalog <catalog.json> \
  *       --stored-rules <rules.json> --out <private-pack.json>
  */
+import { corpusManifest, type CorpusAttempt } from "./lib/corpus-manifest";
+import { evaluationRunnerPin } from "./lib/evaluation-provenance";
+import { writeEvidenceFile } from "./lib/policy-evaluation-manifest";
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 import { DECKS, KNOWN_REFUSALS, auditCard, loadSnapshot, resolveDeck, skillTier, type DeckSpec } from "./arena-deck-audit.mts";
 import { playDuel, type DuelResult } from "./verify/arena-policy-duel.ts";
 import { legality, type LegalityCard } from "../src/lib/decks/legality";
@@ -211,19 +216,22 @@ export async function bundleFor(defs: Record<string, CardDef>, catalog: CatalogC
   return JSON.parse(JSON.stringify({ ...b, decks: { p1: { name: "", leader: "", main: [] }, p2: { name: "", leader: "", main: [] } } }));
 }
 
-async function playGame(bundle: ReplayBundleRecord, runtime: string, a: DeckVerdict, b: DeckVerdict, pair: string, seed: number, policySeed: number, maxMoves: number): Promise<Game> {
+async function playGame(bundle: ReplayBundleRecord, runtime: string, a: DeckVerdict, b: DeckVerdict, pair: string, seed: number, policySeed: number, maxMoves: number, attempt?: (value: CorpusAttempt) => void): Promise<Game> {
   const policy = localPolicy();
   const input = (d: DeckVerdict) => ({ name: d.name, leader: d.deck.leader, main: d.deck.main, ...(d.deck.z.length ? { z: d.deck.z } : {}) });
   try {
-  const r = await playDuel({ bundle: { ...bundle, decks: { p1: input(a), p2: input(b) } } as ReplayBundleRecord, interpreterRevision: runtime, gameSeed: seed, policySeed, testSeat: "p1", test: policy, baseline: policy, maxMoves });
+  const playedBundle = { ...bundle, decks: { p1: input(a), p2: input(b) } } as ReplayBundleRecord;
+  const r = await playDuel({ bundle: playedBundle, interpreterRevision: runtime, gameSeed: seed, policySeed, testSeat: "p1", test: policy, baseline: policy, maxMoves });
+  attempt?.({ bundle: playedBundle, runtime, seed, policySeed, result: r });
   const winnerSeat = !r.over ? null : r.winner === "draw" ? "draw" : r.winner === "test" ? "p1" : "p2";
   return { pair, seed, p1: a.key, p2: b.key, policySeed, over: r.over, winnerSeat, reason: r.reason, moves: r.moves, turn: r.turn, stopKind: r.stopKind, stopped: r.stopped ? r.stopped.replace(/\s+/g, " ").slice(0, 240) : null, trace: r.trace };
   } catch (error) {
+    attempt?.({ bundle, runtime, seed, policySeed, result: null });
     return { pair, seed, p1: a.key, p2: b.key, policySeed, over: false, winnerSeat: null, reason: null, moves: 0, turn: 0, stopKind: "crashed", stopped: String(error).slice(0, 240), trace: "" };
   }
 }
 
-export async function freeze(opts: { catalog: { source: { url: string; retrieved: string }; cards: CatalogCard[] }; extra?: Parameters<typeof candidatesFrom>[1]; starters?: boolean; stored?: ExportedRule[] | null; mode?: ProgramMode; runtime: string; pairs: number; maxMoves: number; seedBase: number; catalogPath: string }) {
+export async function freeze(opts: { catalog: { source: { url: string; retrieved: string }; cards: CatalogCard[] }; extra?: Parameters<typeof candidatesFrom>[1]; starters?: boolean; stored?: ExportedRule[] | null; mode?: ProgramMode; runtime: string; pairs: number; maxMoves: number; seedBase: number; catalogPath: string; attempt?: (value: CorpusAttempt) => void }) {
   const { catalog } = opts;
   const verdicts: DeckVerdict[] = [];
   const allDefs: Record<string, CardDef> = {};
@@ -249,8 +257,8 @@ export async function freeze(opts: { catalog: { source: { url: string; retrieved
       for (let k = 0; k < opts.pairs; k++) {
         // One deal (seed), played from both seats: a at p1, then b at p1. A mirror has nothing to swap, so it is played once.
         const seed = opts.seedBase + (i * 31 + j) * 100 + k;
-        games.push(await playGame(bundle, opts.runtime, a, b, pair, seed, 7919 + k, opts.maxMoves));
-        if (i !== j) games.push(await playGame(bundle, opts.runtime, b, a, pair, seed, 7919 + k, opts.maxMoves));
+        games.push(await playGame(bundle, opts.runtime, a, b, pair, seed, 7919 + k, opts.maxMoves, opts.attempt));
+        if (i !== j) games.push(await playGame(bundle, opts.runtime, b, a, pair, seed, 7919 + k, opts.maxMoves, opts.attempt));
       }
     }
   }
@@ -308,7 +316,11 @@ async function main() {
     pairs: Number(flag("--pairs") ?? 3), maxMoves: Number(flag("--max-moves") ?? 3000), seedBase: Number(flag("--seed-base") ?? 897000),
   };
   if (!Number.isInteger(opts.pairs) || opts.pairs < 0 || !Number.isInteger(opts.maxMoves) || opts.maxMoves < 0 || !Number.isSafeInteger(opts.seedBase)) throw new Error("pairs/move limit must be nonnegative integers and seed base a safe integer");
-  const pack = await freeze(opts);
+  const manifestPath = flag("--manifest-out");
+  if (manifestPath && flag("--out") && resolve(manifestPath) === resolve(flag("--out")!)) throw new Error("Manifest and corpus pack require different output paths.");
+  const runner = manifestPath ? evaluationRunnerPin("arena-corpus-freeze", "1") : null;
+  const manifest = runner ? corpusManifest(runner, { mode: opts.mode ?? (stored ? "stored" : "compiler"), pairs: opts.pairs, maxMoves: opts.maxMoves, seedBase: opts.seedBase }) : null;
+  const pack = await freeze({ ...opts, ...(manifest ? { attempt: manifest.record } : {}) });
   if (process.argv.includes("--check")) {
     const again = await freeze({ ...opts, pairs: 1 });
     for (const game of again.games) {
@@ -321,10 +333,19 @@ async function main() {
     if (opts.starters) for (const k of ["A", "B"]) if (!pack.summary.admitted.includes(k)) throw new Error(`starter ${k} is not admitted: ${JSON.stringify(pack.decks.find((d) => d.key === k)?.blockers)}`);
     console.log(`arena-corpus-freeze --check ok: admitted ${pack.summary.admitted.join(",")}; ${pack.summary.completed}/${pack.summary.games} completed, ${pack.summary.illegal} illegal, ${pack.summary.interrupted} interrupted, ${pack.summary.limited} limited`);
   }
+  if (manifestPath && manifest && runner) assertSameRunner(runner);
   const out = flag("--out");
   if (out) { writeFileSync(out, canonicalJson(pack) + "\n", "utf8"); console.log(`wrote ${out}`); }
+  if (manifestPath && manifest && runner) {
+    writeEvidenceFile(manifestPath, JSON.stringify(manifest.finish(), null, 2) + "\n");
+    console.log(`wrote allowlisted manifest ${manifestPath}; coverage progress unchanged`);
+  }
   const brief = { engineRevision: pack.engineRevision, hash: pack.hash, hashes: pack.hashes, summary: pack.summary, pairs: pack.pairs, decks: pack.decks.map((d) => ({ key: d.key, name: d.name, status: d.status, legality: d.legality.status, blockers: d.blockers, matches: d.matches })), interruptions: pack.interruptions };
   console.log(JSON.stringify(brief, null, 1));
+}
+
+function assertSameRunner(before: ReturnType<typeof evaluationRunnerPin>) {
+  if (canonicalJson(before) !== canonicalJson(evaluationRunnerPin("arena-corpus-freeze", "1"))) throw new Error("Runner source changed during corpus evaluation; refuse manifest export.");
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) await main();
