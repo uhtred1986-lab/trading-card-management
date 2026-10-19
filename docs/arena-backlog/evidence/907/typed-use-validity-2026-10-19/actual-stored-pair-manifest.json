@@ -1,0 +1,623 @@
+{
+  "version": 1,
+  "source": "policy_eval",
+  "requestId": "f9e4d3aa-25ed-4bfc-81ce-a84bc1eae853",
+  "runner": {
+    "id": "arena-corpus-freeze",
+    "version": "1",
+    "gitCommit": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+    "dirtyTreeSha256": "bb6cd7b5280862f05bc78215437d2c376f9ca5287e4e945febb7798f44b0a00a"
+  },
+  "protocol": {
+    "id": "arena-corpus-stored-v1",
+    "revision": "e2d666bd6bb778a8f0a31c19061c1fff62fb46ed104acccae8f3bdbc7767367b"
+  },
+  "seedSet": "custom",
+  "fixtures": [
+    {
+      "key": "corpus-fixture-1",
+      "sourceId": "corpus-fixture-1",
+      "runtimeRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p2DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "corpus-fixture-2",
+      "sourceId": "corpus-fixture-2",
+      "runtimeRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p2DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "corpus-fixture-3",
+      "sourceId": "corpus-fixture-3",
+      "runtimeRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p2DeckSha256": "7c929f18ca6126f6f7d64897d2155b1d3b60d792fdc1ebfcf72f0d313c991501",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "corpus-fixture-4",
+      "sourceId": "corpus-fixture-4",
+      "runtimeRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+      "bundleSha256": "3df6a08b90b57b8dcb0ac290d4ffce974cbd4f85e7b1633a774582de0e16fbe5",
+      "rulesSha256": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+      "catalogSha256": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+      "programsSha256": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+      "p1DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p2DeckSha256": "9e5f0b951adceb2ea564b8952981bfd7b370bde591c02da4e33b0de41f540ea2",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [
+    {
+      "key": "local-policy",
+      "version": "heuristic-main-2-combat-2-choices-1",
+      "sha256": "2481e6341af661bf0f9d0cdc1d6044fd95ad2a01e65b0ee941edb345bf751d1a"
+    }
+  ],
+  "results": [
+    {
+      "key": "game-1",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-1",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 347,
+      "turn": 22,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "5c4945cafdee6d8e73ca86cfe76b77005fc650c14986bb69325bf6133c11cf3f"
+    },
+    {
+      "key": "game-2",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-1",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897001,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 319,
+      "turn": 21,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "a58a4f35c6aef2226b9cd410e4eb28507628d17309984255efa35189abccbdc6"
+    },
+    {
+      "key": "game-3",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-1",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897002,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 275,
+      "turn": 15,
+      "damageDealt": 8,
+      "damageTaken": 6,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "3484e09a22323baa45bd2076e513c82beec1c806ba942ea3175a04f11ec16524"
+    },
+    {
+      "key": "game-4",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-1",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897003,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 309,
+      "turn": 16,
+      "damageDealt": 6,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "7685be5ac71a27a8d3fd7fefa585087178b189076a55fc56e5b2a9209c02993c"
+    },
+    {
+      "key": "game-5",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-2",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897100,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 166,
+      "turn": 10,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "a12b1972126271b9710943afb2a775cb94472192819f7168825507e3705e3ea8"
+    },
+    {
+      "key": "game-6",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-3",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897100,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 264,
+      "turn": 14,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "e28d615c52503249ff90c7a31d474a61bc2cf8567a32105c3d10690e37766aeb"
+    },
+    {
+      "key": "game-7",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-2",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897101,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 192,
+      "turn": 10,
+      "damageDealt": 8,
+      "damageTaken": 4,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "700f441c2a8fcb2a6ada4ea5de15d73a06130133394c420f2633e08f23a0cd5c"
+    },
+    {
+      "key": "game-8",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-3",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897101,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 228,
+      "turn": 12,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "048fb6c72c38a71b90ec229a4c93ba92873d6148c9f115600c0c9ef34a34caf0"
+    },
+    {
+      "key": "game-9",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-2",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897102,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 105,
+      "turn": 6,
+      "damageDealt": 8,
+      "damageTaken": 4,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "ffcb8d42fa4d1dc8fe5772ee217f9af977d95f0c68db65f93b4a935efdd67d74"
+    },
+    {
+      "key": "game-10",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-3",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897102,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 115,
+      "turn": 7,
+      "damageDealt": 3,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "e7ea138f4d30c0836fdf6564e42e9f45c635115e239067f047b0196ec13bf042"
+    },
+    {
+      "key": "game-11",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-2",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897103,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 340,
+      "turn": 21,
+      "damageDealt": 7,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "33f2a10788a212d1379eee1a8c11586952cbdc03998fced290a5bffe28bb3874"
+    },
+    {
+      "key": "game-12",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-3",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 897103,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 213,
+      "turn": 10,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "cd2e82e043da35ab44d93b39a2bc905f3a46799c18af6ea765a6019a9a2b4a8e"
+    },
+    {
+      "key": "game-13",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-4",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 900200,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15839,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15840,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 87,
+      "turn": 6,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "ee473bc6190884402505d7ea840177be4725c5c6a16e5b2320ba27091779e960"
+    },
+    {
+      "key": "game-14",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-4",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 900201,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15841,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15842,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 198,
+      "turn": 10,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "ded851baa624838b9d920a99529ad4f3faf680452e825e62992bad51f131607f"
+    },
+    {
+      "key": "game-15",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-4",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 900202,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15843,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15844,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "moves": 63,
+      "turn": 5,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "80bda68023641471178d7c6fb89ed0c5c9e61529bc75ddd1a4d7165100f8c04d"
+    },
+    {
+      "key": "game-16",
+      "kind": "policy_game",
+      "fixtureKey": "corpus-fixture-4",
+      "candidatePolicyKey": "local-policy",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 900203,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15845,
+          "n": 0
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 15846,
+          "n": 0
+        }
+      },
+      "outcome": "win",
+      "winner": "p1",
+      "moves": 218,
+      "turn": 11,
+      "damageDealt": 8,
+      "damageTaken": 7,
+      "guardTrips": 0,
+      "stopKind": null,
+      "reportedCostMicros": null,
+      "evidenceSha256": "59d49237392b74ac4b993904c2c08b01dcc6453bdaac85dc4f9a4c6500651a41"
+    }
+  ]
+}

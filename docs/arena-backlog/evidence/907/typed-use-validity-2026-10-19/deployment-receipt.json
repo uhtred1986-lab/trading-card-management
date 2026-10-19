@@ -1,0 +1,14 @@
+{
+  "pullRequest": "https://github.com/uhtred1986-lab/trading-card-management/pull/1071",
+  "mergeCommit": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+  "deploymentId": "dpl_KSTNxR7obumi7cbeaG5SuoBBzSn5",
+  "deploymentUrl": "https://vercel.com/gullet-cove/trading-card-management/dpl_KSTNxR7obumi7cbeaG5SuoBBzSn5",
+  "state": "READY",
+  "productionReadyAt": "2026-10-19T13:38:44.108000+00:00",
+  "deployedMetadataColumnsVerified": [
+    "usage",
+    "validity"
+  ],
+  "applicationBuilds": 1,
+  "localProductionBuildRun": false
+}
