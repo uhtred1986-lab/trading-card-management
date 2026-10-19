@@ -4,10 +4,11 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { validateRule } from "../src/lib/arena/lang/validate";
 import { canonicalJson } from "../src/lib/arena/replay-core";
-import { compileCard, costIsOnlyOrbs } from "../src/lib/arena/compile";
+import { compileCard } from "../src/lib/arena/compile";
 import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../src/lib/arena/rules-store";
 import { parseSkills, skillLines } from "../src/lib/arena/text/cards";
 import { comboBattleEndSelf, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboBattleEndFromHand, comboEntryOrigins, comboEntryQualifier, comboEntrySelf, whiteCellPlayedSubjectFilter } from "../src/lib/arena/text/triggers";
+import { needsPaymentRecord } from "../src/lib/arena/vm/skill-payment";
 import type { CardDef, Skill } from "../src/lib/arena/types";
 
 export type ProgramMode = "compiler" | "stored";
@@ -63,9 +64,13 @@ export function normalizeRows(exports: ExportedRule[]): { rows: RuleRow[]; malfo
 function textDependencies(sk: Skill): string[] {
   const fields: string[] = [];
   if (sk.keyword && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
-  if (Object.values(sk.energyCost).some(Boolean)) fields.push("cost.orbs");
-  if (sk.energyEither.length) fields.push("cost.either");
-  for (const [key, value] of Object.entries({ marker: sk.markerCost, burst: sk.burst, spiritBoost: sk.spiritBoost, oncePerTurn: sk.oncePerTurn || null, limit: sk.limit, bond: sk.bond, sparking: sk.sparking })) {
+  const activated = sk.kind.startsWith("activate:") || needsPaymentRecord(sk);
+  if (!activated && Object.values(sk.energyCost).some(Boolean)) fields.push("cost.orbs");
+  if (!activated && sk.energyEither.length) fields.push("cost.either");
+  if (!activated) for (const [key, value] of Object.entries({ marker: sk.markerCost, burst: sk.burst, spiritBoost: sk.spiritBoost })) {
+    if (value !== null) fields.push(`cost.${key}`);
+  }
+  for (const [key, value] of Object.entries({ oncePerTurn: sk.oncePerTurn || null, limit: sk.limit, bond: sk.bond, sparking: sk.sparking })) {
     if (value !== null) fields.push(key);
   }
   if (sk.kind === "auto") {
@@ -94,7 +99,7 @@ export function programProvenance(defs: Record<string, CardDef>, mode: ProgramMo
       const key = at(def.id, side, sk.index);
       usedKeys.add(key);
       const printed = lines[Math.floor(sk.index / 10)] ?? sk.raw;
-      const requiredRow = !!sk.effect.trim();
+      const requiredRow = !!sk.effect.trim() || needsPaymentRecord(sk);
       const found = rows.filter((row) => at(row.cardId, row.side, row.skillIndex) === key);
       const row = found.length === 1 ? found[0] : undefined;
       const current = !requiredRow ? "native" : mode === "compiler" ? "generated" : !found.length ? "missing" : found.length > 1 ? "duplicate" : row!.printed !== printed ? "stale" : "current";
@@ -109,12 +114,11 @@ export function programProvenance(defs: Record<string, CardDef>, mode: ProgramMo
           if (sk.kind === "auto" && !row.trigger?.length) blockers.push("missing stored trigger names");
           if (sk.cost.trim() && row.cost === null) blockers.push("missing stored activation cost/condition metadata");
           const cost = row.cost as Record<string, unknown> | null;
-          if (sk.kind.startsWith("activate:") && costIsOnlyOrbs(sk.cost) && Array.isArray(cost?.program) && cost.program.length) blockers.push("stored cost.program is ignored by runtime actionPriceOf for an empty/orbs-only printed activation cost");
           if (cost) for (const field of Object.keys(cost)) {
-            if (["condition", "program", "x", "payWith"].includes(field)) continue;
+            if (["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"].includes(field)) continue;
             const value = cost[field];
             const meaningful = value != null && value !== "" && (!Array.isArray(value) || value.length > 0) && (typeof value !== "object" || Object.keys(value).length > 0);
-            // `text` is a display/source field; chargeability is represented by condition/program.
+            // `text` is display/source only; chargeability comes from the versioned typed contract.
             if (meaningful && field !== "text") blockers.push(`cost.${field} is dropped by match loader priceOfRow`);
           }
           const loaded = scripts[programKey]?.bySkill[sk.index];

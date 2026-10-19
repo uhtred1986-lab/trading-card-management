@@ -123,9 +123,12 @@ Migrate incrementally within the existing language, loader and VM:
    and policy-visible summaries. Retire alternate interpretation paths as their
    equivalents pass the frozen cases; avoid a wholesale interpreter rewrite.
 
-Do not rewrite every card at once. Preserve old pinned saves with explicit
-format/version compatibility; migrate compiler-owned rows through existing
-guarded tooling and keep owner/Claude corrections protected.
+Do not rewrite every card at once. Owner clarification, 19 October: this is a
+development app and backward compatibility is not required. Use one current
+typed contract; reject obsolete records or saves explicitly with a documented
+rebuild path rather than retaining a printed-text fallback. Rebuild compiler-owned
+rows through existing guarded tooling and keep owner/Claude corrections protected;
+a format break does not authorize silent rewrites or database writes.
 
 **Exit of each slice:** full printed text → persisted/reloaded record → real VM
 proof, plus positive, negative, payment-failure and save/reload cases. Mutating
