@@ -222,4 +222,3 @@ rewritten issues. The [15 October census](rules-audit-2026-10-15/README.md) and
 [Union inventory](arena-backlog/evidence/923/README.md) remain dated baselines.
 GitHub delivery comments/PRs retain application receipts; no live database read
 or write was performed for this reconciliation.
-
