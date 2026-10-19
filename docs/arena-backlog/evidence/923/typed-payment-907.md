@@ -45,8 +45,38 @@ scope; this documentation task did not execute those scripts.
 | Fusion — payment ordering | #926 proves the draw action occurs after both materials reach Drop. It pays the red spheres at declaration before the material selection; #926 documents this as a log-order difference with no energy-area interaction, while the draw is paid after Fusion materials per 22-13-4-4-1. | Pending worker evidence. | State the typed contract's exact checkpoints. Do not describe the test as proving that all cost components happen after material placement. |
 | Absorb — BT3-070 required pair | #930 verifier covers the errata-corrected required Android 14 + Android 15 cost from Drop, one green orb, target Android 13 from deck, pair placed under the source and Android 13 played on top; both seats and JSON reload at each step. It checks each named material separately when duplicate candidates exist. | Pending worker evidence. | Prove cost components are in the typed stored record, loaded by the current runner, and paid through the same offer/payment/replay path. Verify target/source binding is preserved. |
 | Absorb — negatives | #930 covers a missing member, two Android 14s instead of one of each, the pair only in hand, no green orb, a forged activation, and wrong-name/wrong-area card picks refused. | Pending worker evidence. | Preserve these exact refusals through the typed path; assert no partial cost or target movement when declaration is unavailable. |
-| Serialization / stale record boundary | The #926 and #930 focused verifiers reload VM state at each prompt and construct stored-row cases. This establishes those test paths only. | Pending worker evidence. Legacy records/saves may be rejected by the new typed contract; no compatibility promise is made. | Record the rejection condition and explicit rebuild/recompile path. Prove a freshly rebuilt record executes and a stale/missing typed cost fails closed with an actionable diagnostic. |
+| Serialization / stale record boundary | The #926 and #930 focused verifiers reload VM state at each prompt and construct stored-row cases. This establishes those test paths only. | Pending worker evidence. | Record the rejection condition. Prove a freshly rebuilt record executes and an old record/save fails closed with an actionable rebuild instruction. |
 | Application / live rules | Not established by either verifier. | Not established by compiler or unit proof alone. | Keep compiler delivery, loaded/current stored-rule application, and production refresh receipts separate. Do not infer a current database row from the focused source tests. |
+
+## Compatibility decision and repair path
+
+Owner decision, 19 October 2026: this typed-record change has no backward
+compatibility requirement. It may reject old stored records, generated offline
+exports and serialized saves. The intended path is to rebuild those artifacts
+using the new typed contract; there is no legacy fallback. The worker proof is
+still pending, so this records the required contract rather than claiming the
+rebuild path has been implemented or exercised.
+
+For stored compiler rows, the guarded refresh tool supports a read-only
+classification first. After reviewing the proposed rows, any write is a
+separately authorized operation against the app database:
+
+```sh
+npm run arena:refresh-ids -- --ids "BT11-013#10,BT3-070#0"
+npm run arena:refresh-ids -- --apply --ids "BT11-013#10,BT3-070#0"
+```
+
+The first command is the dry run; the second writes and must not be run without
+separate authorization. `scripts/arena-refresh-ids.mts` and
+`scripts/lib/refresh-ids.ts` show that normal refresh writes are limited to
+compiler-owned `draft`/`open` rows and that confirmed, corrected or other
+person-owned rows are excluded. If the new native activated-keyword record has
+no stored row, `npm run arena:draft -- --card <CARD-ID>` is the existing catalog
+draft path; `scripts/arena-draft.mts` writes to `card_rules` directly and has no
+dry-run flag, so that too requires separate authorization. Neither path may
+silently replace a confirmed/corrected interpretation. Such edits retain the
+review/reopen process; owner or corrected rows are not compiler refresh
+targets. This matrix task did not invoke either writer or database command.
 
 ## Receipt and version boundaries
 
