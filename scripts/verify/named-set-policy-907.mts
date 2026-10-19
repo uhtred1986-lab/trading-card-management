@@ -45,13 +45,13 @@ for (const owner of ["p1", "p2"] as const) {
   assert.equal(forged.ok, false); if (!forged.ok) assert.match(forged.detail, /card 2 of the pick is no longer offered/);
   assert.deepEqual(copy(match), initial, "stale coupled compound answer stays refused atomically");
   let memory = localMemory(policyRng(907)); const policy = localPolicy();
-  const first = localStep(copy(match), owner, 0, memory, policy); assert.ok(first.ok); if (!first.ok) throw Error(first.detail);
+  const first = localStep(copy(match), owner, 0, memory, policy); if (!first.ok) throw Error(first.detail);
   const replay = localStep(copy(match), owner, 0, copy(memory), policy); assert.deepEqual(replay, first, "saved boundary step replays exactly");
   match = first.match; memory = first.memory;
   assert.equal(match.state.prompt.kind, "chooseCards"); if (match.state.prompt.kind !== "chooseCards") throw Error("expected second named-slot choice");
   const firstWasVegeta = match.state.programs[0].vars.pair.includes(veg);
   assert.deepEqual(match.state.prompt.choice.candidates.slice().sort(), (firstWasVegeta ? [a, b] : [veg]).sort(), "first material pick leaves only the matching opposite character slot");
-  const second = localStep(copy(match), owner, 1, memory, policy); assert.ok(second.ok); if (!second.ok) throw Error(second.detail); match = second.match;
+  const second = localStep(copy(match), owner, 1, memory, policy); if (!second.ok) throw Error(second.detail); match = second.match;
   assert.ok(match.state.sides[owner].zones.battle.includes(source));
   assert.ok(match.state.sides[owner].zones.drop.includes(veg)); assert.equal([a, b].filter(i => match.state.sides[owner].zones.drop.includes(i)).length, 1);
 }

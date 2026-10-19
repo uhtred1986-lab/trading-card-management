@@ -121,3 +121,25 @@ runner, fixture, program and RNG provenance, permits only an explicit custom
 corpus protocol, and refuses to invent metrics for a crashed attempt. Historical
 packs cannot supply omitted metrics. Raw game data stays local; recipe links
 remain null and coverage progress is not automatically changed.
+
+## Final pre-merge validation
+
+The integrated typecheck and repository lint pass (five existing prototype
+warnings, no errors); the final dependent-choice files also pass focused lint.
+The 280 named rule scenarios, guarded metadata/PGlite checks, provenance
+mutations, interruption/manifest proofs and existing evolution/language controls
+pass. [Both previously illegal game seeds](dependent-choice-regression.json)
+now finish normally on the exact prepared bundle. These are prepared-record
+checks, not an actual production application.
+
+[The final starter comparison](starter-control-comparison.json) preserves all
+16 complete game records and trace hashes, all original executable fields,
+catalog/deck/protocol inputs and ruleset/errata. It independently checks that
+every policy file is byte-identical to the original except the exact reviewed
+named-set legality condition and its comment. The resulting policy hash is
+recorded rather than pretending the source stayed unchanged. Seventy-five
+programs add only the enumerated kind/usage/validity metadata.
+
+Production deployment, the 63 compiler refreshes, the four approved protected
+metadata migrations, actual-export proofs, stored-pair games and supported
+Testing & stats import remain separate operational steps.
