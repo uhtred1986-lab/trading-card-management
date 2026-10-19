@@ -2,9 +2,9 @@
 
 This reconciles the dated 15 October inventory with delivered code and recorded
 applications. It does not rerun tests, query the database, certify all 229 cards
-or close #923/#929/#930. Current implementation baseline: merged #1071 (`c015cc30`)
-and #1073 (`2da6ef08`); the latter changes policy decision facts, not Union rules.
-The coordinator's ongoing strength experiment is outside this audit.
+or close #923/#929/#930. Current reconciliation baseline: merged #1087 (`cf81bef6`), following the
+separately applied #1083 Absorb, #1084 Potara and #1085/#1086 Fusion batches.
+The #899 strength experiment completed inconclusively and is outside this audit.
 
 ## Evidence levels and three separate contracts
 
@@ -16,9 +16,9 @@ and [official reference index](official-references.json) as dated source materia
 
 | Family / responsibility | Supported with proof | Still unverified or unsupported |
 |---|---|---|
-| **Fusion:** named/equal-power Battle materials, source permissions, payment order and entry | #925 exact-set/per-name controls; #541 Battle/Drop scenario; #924 Warp permissions and ordinary-play route; #926 action costs; #1067 material-before-additional-payment checkpoint; #1068 typed material contract. #1071 adds recorded Fusion identity and saved-context guards for actual BT6-012 front#0, BT6-013 front#0 and BT6-015 front#10. | This is not all Fusion cards or all modifiers. EX23-36/P-519's conditioned Drop-to-bottom permission remains outside the supported source contracts. Preserve the owner-approved #541 printed-power interpretation; no new power ruling is inferred here. |
-| **Potara:** named Battle set, extension transfer, stack order and carryover | #927 proves exact selection, Active entry, selected order/piles, power carryover and source extensions for the named fixtures. #930 proves energy/Warp extension paths; #926 covers printed action costs; #928 compound keyword declarations remain delivered. | Native dispatch/material/source authority has not received the same complete recorded identity contract as Fusion. These source/stack fixtures do not establish current deployed-record admission for every Potara card. |
-| **Absorb:** in-play source, printed cost/effect, target/onto and entry | #930 covers errata-correct BT3-070, BT3-048, BT17-067 and under-Leader cost BT14-079 through stored-row/reload fixtures. #929 covers generic host invalidation/failed entry. BT3-070's two reference records have historical application evidence. | Full native identity/source authority remains distinct from typed Fusion. BT17-082 substitution is not proved by BT14-079's different printed under-Leader cost. BT4-018's indexed binding issue and other named support clauses require exact current-source classification. |
+| **Fusion:** named/equal-power Battle materials, source permissions, payment order and entry | #925 exact-set/per-name controls; #541 Battle/Drop scenario; #924 Warp permissions and ordinary-play route; #926 action costs; #1067 material-before-additional-payment checkpoint; #1068 typed material contract. #1071 adds recorded Fusion identity and saved-context guards for actual BT6-012 front#0, BT6-013 front#0 and BT6-015 front#10. | #1085/#1086 add the conditioned EX23-36/P-519 Drop-to-bottom permission, with 116 actual-record cases for exactly two activation/support pairs. This is not all Fusion cards or all modifiers; combinations with Warp/Areas destinations remain unsupported. Preserve the owner-approved #541 printed-power interpretation; no new power ruling is inferred here. |
+| **Potara:** named Battle set, extension transfer, stack order and carryover | #927 proves exact selection, Active entry, selected order/piles, power carryover and source extensions for the named fixtures. #930 proves energy/Warp extension paths; #926 covers printed action costs; #928 compound keyword declarations remain delivered. | #1084 establishes typed identity/material/source authority for BT2-012/front/0 rule10297 v2, with 76 actual-record cases. That bounded record and the older source/stack fixtures do not establish current admission for every Potara card or all extension combinations. |
+| **Absorb:** in-play source, printed cost/effect, target/onto and entry | #930 covers errata-correct BT3-070, BT3-048, BT17-067 and under-Leader cost BT14-079 through stored-row/reload fixtures. #929 covers generic host invalidation/failed entry. BT3-070's two reference records have historical application evidence. | #1083 establishes typed native identity/source authority for BT3-070/front/0 rule6416 v10, with 66 actual-record cases. This is not all Absorb records. BT17-082 substitution is not proved by BT14-079's different printed under-Leader cost. BT4-018's indexed binding issue and other named support clauses require exact current-source classification. |
 
 References: [#925](../../../../scripts/verify/union-exact-sets-925.ts),
 [#541](../../../../scripts/verify/union-areas-541.ts),
@@ -39,7 +39,7 @@ References: [#925](../../../../scripts/verify/union-exact-sets-925.ts),
 | Official FAQ/errata/source mapping | The original official index maps 54 matching FAQ headings and six errata IDs. #934 corrected five outdated catalog texts; BT5-120 was already correct. Fresh #1068 official checks establish EX23-36/P-519 Drop-to-bottom wording, with no located power waiver, and BT17-082's Absorb-only scope. | No new ruling is supplied for the unproved modifier combinations. An absent card-specific FAQ is recorded as absence, not permission. Preserve labelled existing owner guidance in #925/#927/#929. |
 | Source/material/payment/stack/trigger/Counter/reload/privacy | Bounded family proofs above cover these concerns individually. #929's suite covers both seats, JSON answers, paid costs, first/second windows, returned/dropped replacements, missing hosts/materials and one-place invariants. | Full printed-card/stored-row cases across all three families, source-extension combinations, Union-specific Counter chains and all indexed triggers are not established by the synthetic suite. Separate Counter-chain proof does not automatically certify its Union composition. |
 | Ordinary energy-cost play remains separate | #924 proves P-286 ordinary play costs six without Fusion materials, alongside the three-energy Fusion route; printed prohibitions remain respected. | Do not generalize this to all restrictions. P-069/P-226's full printed restrictions still need exact supported/unread/proven classification. |
-| Application independent of code | Dated applications are listed below, with #1071's actual BT6 exports separated from older reference records. | Fresh read-only assessment below separates absent usage/validity from unchanged costs/programs and the remaining native Absorb authority gap. No blanket repeat refresh follows. |
+| Application independent of code | Dated applications are listed below, with #1071's actual BT6 exports separated from older reference records. | The dated read-only assessment below precedes the eleven-row metadata application and exact one-row Absorb repair. Later actual receipts supersede those specific blockers; no blanket repeat refresh follows. |
 
 ## #929 residual Counter/failed-entry acceptance
 
@@ -64,9 +64,9 @@ because the 15 October matrix still says unsupported.
 
 | Indexed card / face / skill | Current evidence classification |
 |---|---|
-| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Current readback preserves applied row v4 exactly; the approved metadata-only application restores loader admission. Existing actual-export Fusion material/payment proofs pass; no new grant behavior is claimed. |
+| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. The historical readback preserved v4; the approved metadata-only application advanced rule12065 v4→v5 and restored loader admission while preserving the existing body. Existing actual-export Fusion material/payment proofs pass; no new grant behavior is claimed. |
 | BT17-082 back#0 | **Unread/unproved support family:** substitution from under the Leader for Namekian Absorb payments; not Fusion and not identical to BT14-079's existing cost. |
-| EX23-36 front#20; P-519 front#20 | **Code implemented and proposed-record proof:** #1085 records the conditioned Drop-to-bottom permission and exact two activation dependencies;116 cases pass, including private order and strict payment/source guards. Actual support rows remain open/unread pending separate four-record repair approval/application. No equal-power waiver or whole-card qualification. [Bounded evidence](../907/fusion-drop-bottom-2026-10-19/README.md). |
+| EX23-36 front#20; P-519 front#20 | **Supported with actual-record proof:** #1085 implements the conditioned Drop-to-bottom permission; #1086 records the separately approved four-row application. Support IDs3898/9888 are v6 draft; activation IDs3897/9887 are v3/v2 draft. All stored fields match the approved plan and116 actual-record cases pass, including private order and strict payment/source guards. No equal-power waiver or whole-card qualification. [Bounded evidence](../907/fusion-drop-bottom-2026-10-19/README.md). |
 | BT28-079 back#0; BT31-042 front#0; BT31-043 front#20; EX23-11 front#10; EX23-29 front#10; EX25-11 front#10; SD19-04 front#20 | **Unverified exact indexed reductions:** standing/next-use conditions, payer, expiry and qualifying variant must be mapped to existing typed cost primitives and specific proof. The dated unread labels alone do not establish that current code is still wrong. |
 | EX13-14 front#0/#10; SD19-03 front#20 | **Unverified exact search/support clauses:** existing generic selection is not a complete per-card execution proof. Preserve exact source wording and binding in the reconciliation. |
 | P-069 back#10; P-226 front#0 | **Unverified full restriction semantics:** distinguish ordinary play, Fusion, other Union variants and printed conditions. Do not silently ignore the indexed remainder or treat a clean prefix as whole-skill support. |
@@ -74,7 +74,7 @@ because the 15 October matrix still says unsupported.
 | BT17-077 front#0 | **Historical unread target/onto word order:** no new current-source runtime proof identified by this audit. Needs precise classification, not a repeated blanket implementation. |
 | BT28-012 front#0 | **Source correction delivered:** #1019's application receipt explicitly records catalog correction. The old “the shuffle” inventory text is dated; current whole-line/readback/admission is not proved here. |
 | BT30-064 front#10 | **Historical unread granted-Absorb tail:** quote/source boundary and complete grant/cost/target execution remain unverified; no automatic extension of P-360's Fusion grant proof. |
-| BT4-018 front#0 | **Recorded unread after #1019:** named-character binding to the card used as cost remains a specific residual, not evidence that all Absorb costs are unimplemented. |
+| BT4-018 front#0 | **Unread relation confirmed in current source:** `compile/targets.ts` explicitly rejects the same-character comparison against the card paid under this source. The dated inventory's clean parse searched the wrong area; do not restore it. [Next bounded audit](next-absorb-boundary-2026-10-19.md); current stored version/application remains unqueried. |
 
 Existing positive #930 controls must remain distinct: BT3-070/020/022 required
 Android pair wording; BT3-048 hand-under-source; BT17-067 conditioned Namekian
@@ -93,7 +93,7 @@ cannot close unrelated full-card acceptance.
 | [#1068/#1069 material application](../907/fusion-materials-2026-10-19/application-receipt.json) | Exactly BT11-013 front#10 and P-360 back#0 refreshed v3→v4; actual exports pass material/payment replay. Other nine reference rows unchanged. | Fresh readback below finds all eleven usage/validity fields null; the historical effect/cost/reading bodies remain exact. Migrations0059/0060 added nullable columns without migrating these records. |
 | [#1071 actual application/qualification](../907/typed-use-validity-2026-10-19/README.md) |63 compiler rows plus four approved protected metadata migrations for the frozen BT6 pair; actual 67-row export,316 named cases and16 completed stored games with replay. Actual Fusion identity proof covers BT6-012#0, BT6-013#0, BT6-015#10. | These67 rows do not include BT11-013, BT3-070 or P-360. They cannot certify the older11reference rows or other Potara/Absorb/support cards. |
 
-## Current eleven-reference readback — 19 October
+## Historical eleven-reference readback — 19 October, 15:16 UTC
 
 The coordinator obtained the current three catalog definitions and eleven raw
 reference rows at 15:16:19 UTC. The [public assessment receipt](reference-readback-2026-10-19.json)
@@ -158,18 +158,33 @@ existing bodies/private fields preserved and 66 actual-record cases passing
 on the deployed engine. The older ten-of-eleven admission result above remains
 a dated pre-identity observation, not today's blocker for that exact row.
 
-PR #1084's [Potara contract and proposal](../907/potara-identity-2026-10-19/README.md)
-cover only BT2-012/front/0 rule10297 v1→v2. Its 76 proposed cases include native
-five-energy entry and ordinary seven-energy play; other two stored lines remain
-excluded. Original #925/#927/#929/#930 controls pass. The original #926 diagnostic
-assertion fails identically on deployed baseline; no full #926 pass is claimed.
-That one-record Potara proposal is now separately approved/applied, and its
-actual stored record passes76 scenarios on deployed418d2065. The next #1085
-Drop-to-bottom proposal repairs exactly four activation/support records and
-passes116 provided cases; it is not yet approved/applied. After code deployment
-and exact approval, apply only that four-record scope and verify actual readback. No repeat nineteen-
-row migration, whole-card/deck qualification or broad catalog refresh follows.
-Keep #923/#929/#930 open for their remaining indexed acceptance.
+PR #1084's [Potara contract and application](../907/potara-identity-2026-10-19/README.md)
+cover only BT2-012/front/0 rule10297 v1→v2. Its actual stored record passes76
+scenarios on deployed418d2065, including native five-energy entry and ordinary
+seven-energy play; the other two stored lines remain excluded.
+
+PR #1085's code deployed at `ca988c9e`. The owner separately approved digest
+`f3b8068dc937ebedfd0c4eb0181ca91fdbb7a2c19e0a33e4304803aa2cadf0af`.
+PR #1086 records the [four-row application](../907/fusion-drop-bottom-2026-10-19/application.json)
+and exact readback. The safe actual export equals the proposal, every stored
+field matches the approved plan, and116 actual-record scenarios pass. No human
+confirmation was added. This repair is complete and must not be repeated.
+
+PR #1087 repairs the diagnostic gap that earlier #1084/#1085 receipts correctly
+reported as an unchanged #926 failure. The original verifier now passes without
+any oracle changes; [42 identity cases and116 actual-record controls](../907/unread-fusion-diagnostic-2026-10-19/README.md)
+preserve execution refusal, stored authority, native-hook suppression and privacy.
+Historical failure receipts remain unchanged.
+
+**Next single action:** freeze and classify BT4-018/front/0's comparison against
+the material actually paid under its Absorb source. Current `compile/targets.ts`
+explicitly refuses the missing relation rather than searching the wrong area.
+Recheck official wording and source/record identity before proposing a typed
+paid-material binding and complete persisted/VM proof. The
+[three-case source audit](next-absorb-boundary-2026-10-19.md) separates BT17-082's
+under-Leader substitution and BT30-064's temporary grant as different gaps.
+No further nineteen-row migration, whole-card/deck qualification or broad catalog
+refresh follows. Keep #923/#929/#930 open for their remaining indexed acceptance.
 
 Audit method: read current merged source, existing committed verifiers/receipts,
 and public GitHub bodies/comments for #923/#929/#930/#934 on19October. The first
