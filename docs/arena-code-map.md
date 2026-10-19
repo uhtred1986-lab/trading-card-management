@@ -44,7 +44,7 @@ records how the rules engine was built and what it was held to at the time; the 
   — §5 says what both increments measured, §6 the remainder: `move()` is still synchronous at 46 of
   its 48 call sites and the two that are not decide the replacement before calling it, so 9-10-2's
   choice, 9-10-3's "you may" and the "by an opponent's skill" narrowing all read.
-- **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/keywords`): every
+- **The compiler's glossary** (`src/lib/arena/glossary.ts`, shown at `/arena/rules/reference#keywords`): every
   keyword skill the parser recognises, the keywords that are not skills, the skill types, and the
   rules a line is read by — each with what the manual *means* and, separately, what this engine
   actually *does*, including where it approximates. It is the only place either of those is
@@ -52,7 +52,7 @@ records how the rules engine was built and what it was held to at the time; the 
   rule below. `KEYWORDS` is keyed by `KeywordSkill["name"]` so a new keyword fails `npm run
   typecheck` until it is described, and `npm test` checks every tag printed there is a spelling
   `keywordOf` really reads. The *manual meaning* half is also `keywords.rules`'s own `text:`
-  (copied in equal at Stage 3, checked equal since #163) — `/arena/rules/keywords` shows that copy
+  (copied in equal at Stage 3, checked equal since #163) — `/arena/rules/reference#keywords` shows that copy
   rather than this file's, since a card's rule is checked against the declaration, not the page;
   the *engine* line stays this file's alone, since a `.rules` declaration has no field for it.
 - **One engine** (`src/lib/arena/engines.ts`; was "two engines, chosen per game" from 9 Sep 2026 to #118):
@@ -474,7 +474,7 @@ records how the rules engine was built and what it was held to at the time; the 
   kind that could declare it. `lang/index.ts` is where `parseRule`'s default vocabulary is
   bound, and the loader imports `lang/parse` directly — the one module that must not ask for
   the words it produces.
-- **The game is readable from the app** (`/arena/rules/game`, `src/lib/arena/rulesets/print-by-file.ts`,
+- **The game is readable from the app** (`/arena/rules/reference#ruleset`, `src/lib/arena/rulesets/print-by-file.ts`,
   issue #163): one section per `.rules` file, every declaration printed by `lang/print.ts`'s own
   printer from what the loader actually parsed — never the raw file — so what the owner reads here
   is provably what plays. Each file's own leading `--` comment (the manual sections and the
@@ -484,8 +484,8 @@ records how the rules engine was built and what it was held to at the time; the 
   Playwright-free stand-in for rendering the page: every declaration is accounted for exactly
   once, printing by file matches `printDefinitions` over the whole set, and every anchor id
   (`trigger-played`, `cost-energy`, `keyword-Awaken`, …) is unique — the same ids
-  `/arena/rules/keywords` and the workbench's own WHEN/COST chips (`RuleRecord.tsx`'s
-  `DeclarationLinks`) link to. `/arena/rules/keywords` itself now shows `keywords.rules`'s own
+  `/arena/rules/reference#keywords` and the workbench's own WHEN/COST chips (`RuleRecord.tsx`'s
+  `DeclarationLinks`) link to. `/arena/rules/reference#keywords` itself now shows `keywords.rules`'s own
   `text:` rather than `glossary.ts`'s `meaning` — the two were copied equal at Stage 3 and
   `game-page.ts` asserts they still are, so the page and the record it explains can never quietly
   drift apart. Editing the definition from the app is out of scope, the owner's decision until the
