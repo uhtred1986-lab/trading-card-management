@@ -292,6 +292,16 @@
       "signature": "{\"op\":\"choose\",\"sel\":SELECTOR,\"as\":\"…\",\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\",\"bindX\"?:true|false}",
       "fields": [
         {
+          "name": "permission",
+          "required": false,
+          "nullable": false,
+          "offCard": "recheck this typed own-hand permission while the suspended Fusion material cost is being chosen and paid",
+          "type": "enum",
+          "enumValues": [
+            "unionFusionDropBottom"
+          ]
+        },
+        {
           "name": "sel",
           "required": true,
           "nullable": false,
@@ -2367,6 +2377,7 @@
             "overRealmFromWarp",
             "unionFusionAreas",
             "unionFusionWarp",
+            "unionFusionDropBottom",
             "unionEnergy",
             "unionLine",
             "evolveEnergyBases",
@@ -3356,7 +3367,7 @@
     {
       "kind": "permits",
       "class": "primitive",
-      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"unionEnergy\"|…}",
+      "signature": "{\"kind\":\"permits\",\"what\":\"unionFusionAreas\"|\"unionFusionWarp\"|\"unionFusionDropBottom\"|…}",
       "fields": [
         {
           "name": "what",
@@ -3366,6 +3377,7 @@
           "enumValues": [
             "unionFusionAreas",
             "unionFusionWarp",
+            "unionFusionDropBottom",
             "unionEnergy",
             "evolveEnergyBases",
             "evolveFromZEnergy",
