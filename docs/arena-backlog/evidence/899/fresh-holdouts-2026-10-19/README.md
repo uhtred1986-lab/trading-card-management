@@ -109,3 +109,9 @@ or default promotion is made; all eight cells remain underpowered and Worker
 performance remains unmeasured. See [the full results](RESULTS.md), [public receipt](results.json)
 and [allowlisted 320-result manifest](manifest.json). The experiment retains its
 original runner/interpreter pins after integration. Known combo waste is unchanged.
+
+[Integrated verification](verification-receipt.json) records final typecheck, lint,
+both scoped metadata PGlite checks and the no-game evaluator proof after main
+integration. A minimal type annotation fix preserves both approved previews exactly.
+The owner requested essential checks only; no full suite or local production build
+was run. The PR changes scripts/evidence without changing the production VM/policy.

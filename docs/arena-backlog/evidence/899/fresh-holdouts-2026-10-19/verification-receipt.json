@@ -1,0 +1,57 @@
+{
+  "format": "arena-899-grouped-verification-v1",
+  "typecheck": {
+    "passed": true,
+    "commit": "0fb221f3a6db4b7b54d7d266063882fe131d0095",
+    "generatedNextRouteTypesRefreshed": true
+  },
+  "lint": {
+    "passed": true,
+    "errors": 0,
+    "existingPrototypeWarnings": 5,
+    "fullRunCommit": "f1d14775",
+    "finalTypeOnlyHelperFixTargetedLint": "passed"
+  },
+  "focusedIntegratedChecks": {
+    "metadata825PGlite": "passed",
+    "metadata923PGlite": "passed",
+    "noGameEvaluatorSafety": "passed",
+    "commit": "f1d14775"
+  },
+  "finalHelperFix": {
+    "scope": "minimal runtime-input type assertions and constant false for the exact draft-only 923 scope",
+    "approvedPreviewsByteEquivalent": true,
+    "approvalDigestsUnchanged": true,
+    "runtimeOrDatabaseChange": false
+  },
+  "actualAppliedRecords": {
+    "825": {
+      "rows": 8,
+      "originalAssertionsAndElevenStoredCases": "passed",
+      "confirmedRecordsPreserved": 2
+    },
+    "923": {
+      "rows": 11,
+      "loaderAdmitted": 11,
+      "strictAuthoritative": 10,
+      "materialAndPaymentSavedReplay": "passed",
+      "residual": "BT3-070/front/0 native Absorb identity/material authority"
+    }
+  },
+  "holdouts": {
+    "runnerCommit": "a6cbd383c2c89e408a02e6018a604ac6b6d4f078",
+    "interpreterRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+    "attempted": 320,
+    "completed": 320,
+    "statisticalGatePassed": false,
+    "promotion": false,
+    "independentFinalReview": "passed"
+  },
+  "fullSuiteRun": false,
+  "localProductionBuildRun": false,
+  "ownerEssentialTestingOnly": true,
+  "productionVmOrPolicyChangedByPr": false,
+  "newSchemaMigrationByPr": false,
+  "paidCalls": 0,
+  "holdoutResultsImportedToDatabase": false
+}
