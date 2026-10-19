@@ -32,10 +32,25 @@ starter traces and 75 programs are unchanged. See the [checkpoint and applicatio
 The application covers these reference cards only; other obsolete records still
 require explicit rebuilding. The selected additional pair remains unqualified.
 
+#1068 carries Fusion material filters, equality and supported source permissions
+through the stored executable record, including granted Fusion. It also repairs
+two #1067 regressions found by the unchanged #541/#925 material assertions.
+See the [material receipt](arena-backlog/evidence/907/fusion-materials-2026-10-19/README.md)
+for validation, deployment and the separate targeted reference application.
+The [selected BT6 pair now has frozen current inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/README.md):
+28 public catalog cards and 67 stored rows; no pair writes and four protected
+corrected rows. Its remaining blockers still prevent qualification.
+Next single task under #907: typed combo-trigger qualification/binding for
+BT6-006 front #10, BT6-010 front #0, BT6-066 front #0 and BT6-070 front #0,
+with preserved behavior and replay on the frozen inputs. Other use limits,
+Union variant authority, unread clauses and protected-record migration remain
+explicit; AI-strength changes remain deferred.
+
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
 (#898 is closed). #906 owns the separate API campaign, still gated on a qualified
 corpus and preflight; the approved $20 pilot / $100 inclusive total is unchanged.
-No paid calls or database access occurred in this reconciliation.
+The original backlog reconciliation made no paid calls or database accesses;
+subsequent scoped reads/applications are recorded in the receipts above.
 
 The [15 October audit](rules-audit-2026-10-15/README.md) and later #907 comments are
 dated evidence, not today's live counts. Readability, execution, semantic proof,

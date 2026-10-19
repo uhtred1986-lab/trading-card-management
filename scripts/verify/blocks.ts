@@ -275,9 +275,11 @@ THEN
   // Whatever the validator refuses, the blocks show somewhere: SAVE is disabled on `problems.length`.
   const refusedOnly = ruleOf({ kind: "auto", ops: [{ op: "draw", n: 1 }] });
   assert.ok(problemsOf(refusedOnly, "counter:play").length > 0, "a rule the validator refuses is never clean");
-  // A price: an orb charged zero times.
+  // Payment v1 accepts explicit zero; a negative count is invalid.
   const zero = ruleOf({ cost: editCostItem(addCostItem(null, "{Red}"), 0, { color: "Red", n: 0 }) });
-  assert.ok(problemsOf(zero, "auto").some((p) => p.path === "cost.orbs.Red"), "a bad orb shows at its item");
+  assert.deepEqual(problemsOf(zero, "auto"), [], "typed payment v1 permits nonnegative orb counts");
+  const negative = ruleOf({ cost: editCostItem(addCostItem(null, "{Red}"), 0, { color: "Red", n: -1 }) });
+  assert.ok(problemsOf(negative, "auto").some((p) => p.path === "cost.orbs.Red"), "a bad orb shows at its item");
   // Nested: a step inside a `may`.
   const nested = ruleOf({ ops: [{ op: "may", ops: [{ op: "ko" } as unknown as Op] }] });
   assert.ok(problemsOf(nested, "auto").some((p) => p.path === "ops[0].ops[0].target"), "a nested blank shows at its own path");

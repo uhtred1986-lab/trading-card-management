@@ -63,7 +63,8 @@ export function normalizeRows(exports: ExportedRule[]): { rows: RuleRow[]; malfo
 /** Boundaries where the match still obtains meaningful metadata from printed text. */
 function textDependencies(sk: Skill): string[] {
   const fields: string[] = [];
-  if (sk.keyword && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
+  if (sk.keyword && !(sk.keyword.name === "Union" && sk.keyword.variant === "Fusion") && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
+  if (sk.keyword?.name === "Union" && sk.keyword.variant === "Fusion") fields.push("keyword.Union activation identity/timing");
   const activated = sk.kind.startsWith("activate:") || needsPaymentRecord(sk);
   if (!activated && Object.values(sk.energyCost).some(Boolean)) fields.push("cost.orbs");
   if (!activated && sk.energyEither.length) fields.push("cost.either");
@@ -115,7 +116,7 @@ export function programProvenance(defs: Record<string, CardDef>, mode: ProgramMo
           if (sk.cost.trim() && row.cost === null) blockers.push("missing stored activation cost/condition metadata");
           const cost = row.cost as Record<string, unknown> | null;
           if (cost) for (const field of Object.keys(cost)) {
-            if (["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"].includes(field)) continue;
+            if (["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith", "fusion"].includes(field)) continue;
             const value = cost[field];
             const meaningful = value != null && value !== "" && (!Array.isArray(value) || value.length > 0) && (typeof value !== "object" || Object.keys(value).length > 0);
             // `text` is display/source only; chargeability comes from the versioned typed contract.

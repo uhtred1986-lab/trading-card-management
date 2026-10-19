@@ -169,3 +169,24 @@ Next single implementation: typed Fusion material selection, including the
 existing granted permission, under #907. Other residual matrix items remain open.
 Integrated focused proofs, typecheck and lint passed; all 16 frozen starter
 games and 75 executable programs match #1066 exactly.
+
+
+## #1068 follow-up: authoritative Fusion materials
+
+See the [receipt](../907/fusion-materials-2026-10-19/README.md) and
+[fresh online sources](../907/fusion-materials-2026-10-19/online-sources.md).
+
+| Boundary | Evidence and retained limit |
+| --- | --- |
+| Native Fusion stored material authority | `fusion-materials-907.ts` changes only stored named filters/equality/extensions, then exercises actual loaded choices, material payment and saved-context/state replay on both seats. Display wording cannot replace these facts. |
+| Granted Fusion | P-360's grant carries typed variant identity and the same typed material contract. Missing/malformed contracts fail admission/loading; unsupported granted timing/use tags are explicitly refused. |
+| Material source permissions | Existing Warp and Battle/Drop procedures remain distinct typed permissions. Positive/negative stored-extension cases, mixed/all-outside sources and captured pending metadata are exercised. |
+| Existing accepted behavior | Original #541/#925 material/outcome assertions are retained. Their new resource-prompt harness answers are separated from the two repaired #1067 runtime regressions. #926/#929/#930 retain distinct procedure/payment/Counter controls. |
+| Source correction | Manual requires Battle Cards, so Fusion no longer accepts Unison materials. EX23-36/P-519 print Drop-to-bottom permissions with no located equal-power waiver; those support clauses remain unimplemented. BT17-082 is Absorb-specific. |
+| Remaining authority | Native keyword identity/timing dispatch, use limits, trigger qualification, other Union variants and indexed support gaps are not certified by this slice. Old records/saves require explicit rebuilds. |
+| Application and decks | Reference-row application follows deployment and has its own receipt. The selected public BT6 pair's 28 catalog cards/67 rows are frozen without writes; four corrected rows remain protected. The pair remains unqualified. |
+
+No completed match is treated as proof every skill executed. Compiler delivery,
+source freshness, human review, runtime proof, exercised cases and deck qualification
+remain distinct. The next bounded #907 action is the selected pair's four typed
+combo-trigger qualifications/bindings, rather than a broader Union audit.

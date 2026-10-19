@@ -1,3 +1,4 @@
+import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
 import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
 import { keywordName } from "../text/cards";
@@ -326,7 +327,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1838,6 +1839,13 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       if (bad) return bad;
     }
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
+    if (o.op === "permit" && o.what === "unionLine") {
+      if (!["Fusion", "Potara"].includes(String(o.unionVariant))) return `${step}: missing typed Union grant identity; regenerate rules and rebuild saved matches/exports`;
+      if (o.unionVariant === "Fusion") {
+        const problem = fusionMaterialsProblem((o.price as { fusion?: unknown }).fusion);
+        if (problem) return `${step}: ${problem}`;
+      }
+    }
     // 12-2-4: Desire and the optional hand-Extra choice are two bounded
     // readings. Mixing their fields would silently change the old cost gate.
     if (o.op === "invokeSkill") {

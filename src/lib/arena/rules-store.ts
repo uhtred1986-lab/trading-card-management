@@ -24,6 +24,8 @@ import { parseSkills, skillLines } from "./text/cards";
 import { needsPaymentRecord, priceFromCostRecord, costRecordProblem, zeroCostRecord, zeroSkillPrice } from "./vm/skill-payment";
 import { reviewVersion } from "./rule-review-version";
 import type { Rule } from "./lang/ast";
+import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
+import { programProblem } from "./vm/script-schema";
 
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
@@ -67,6 +69,25 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
   return costRecordProblem(row.cost) ? zeroSkillPrice(false) : priceFromCostRecord(row.cost as CostRecord);
 }
 
+/** Structural material/grant failures always block drafts too. Other support
+ * diagnostics retain the loader's existing draft/review policy. */
+function materialContractGaps(row: Pick<RuleRow, "printed" | "cost" | "ops">): string[] {
+  const unsupported: string[] = [];
+  if (parseSkills(row.printed).some(isFusionSkill)) {
+    const gap = fusionMaterialsProblem((row.cost as CostRecord | null)?.fusion);
+    if (gap) unsupported.push(gap);
+  }
+  const grantGaps = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.flatMap(grantGaps);
+    if (!value || typeof value !== "object") return [];
+    const op = value as Record<string, unknown>;
+    if (op.op === "permit" && op.what === "unionLine") return [programProblem([op])].filter((s): s is string => !!s);
+    return Object.values(op).flatMap(grantGaps);
+  };
+  unsupported.push(...grantGaps(row.ops));
+  return unsupported;
+}
+
 /**
  * The rule record's review status does not answer what the rules engine can
  * execute. Keep this check bounded to gaps the runtime already names. The
@@ -79,6 +100,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   else if ((row.cost as CostRecord).readable === false) unsupported.push("the stored skill payment is unreadable");
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
+  unsupported.push(...materialContractGaps(row));
   const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
 
   // An Auto's action or X price is paid by the VM's own planner (#549,
@@ -235,7 +257,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { ops: [], unsupported: row.unread, price, trigger }
       : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger };
@@ -297,6 +319,10 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   // it out check their program with no X bound, as this does). Filters are
   // stored whole (`completeFilters`).
   const w: RuleWrite = { ...given, ops: completeFilters(given.ops), cond: given.cond ? completeFilters(given.cond) : given.cond, ...(given.cost !== undefined ? { cost: completeFilters(given.cost === null ? zeroCostRecord() : given.cost) } : {}) };
+  if (parseSkills(existing?.printed ?? w.printed ?? "").some(isFusionSkill)) {
+    const problem = fusionMaterialsProblem(((w.cost ?? existing?.cost) as CostRecord | undefined)?.fusion);
+    if (problem) throw new Error(`${w.cardId} [${w.skillIndex}]: ${problem}`);
+  }
   const bad = validateRule({ kind, trigger: [], cost: w.cost ?? null, cond: w.cond ?? null, ops: w.ops }, kind);
   if (bad) throw new Error(`${w.cardId} [${w.skillIndex}]: refused to store a rule the engine cannot run — ${bad.message}`);
   // The hoisted condition is part of the program, so the reading has to be of

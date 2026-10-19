@@ -1,3 +1,4 @@
+import { requireFusionMaterials } from "./fusion-materials";
 /**
  * #926: the printed action price of a keyword move — what [Union-Fusion],
  * [Union-Potara] and the [Evolve] family print before the colon beside their
@@ -217,6 +218,17 @@ function fail(state: VmState, ev: GameEvent[], cost: KeywordCost): "done" {
 export function stepFusionMaterials(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   assertCurrentFusion(frame.keywordPrice!);
   const host = automaticPriceHost(ctx, game, state, ev);
+  // Reject stale/forged answers before the strict host can classify a now
+  // impossible set as an ordinary failed payment. Rejected actions preserve
+  // the pending choice; an unanswered impossible payment still fails 5-8-4.
+  const choosing = frame.ops[frame.ip];
+  if (choosing?.op === "choose" && choosing.namedSet && frame.awaiting === choosing.as && state.lastChoice) {
+    let picked = [...(frame.vars[choosing.as] ?? [])];
+    for (const id of state.lastChoice) {
+      if (!host.namedCandidates(frame, choosing.sel, picked, !choosing.anyPower).includes(id)) throw new IllegalAction("that card can no longer be chosen");
+      picked = [...picked, id];
+    }
+  }
   try {
     const result = stepScript({ ...host, namedCandidates: (f, sel, picked, samePower) => {
       const candidates = host.namedCandidates(f, sel, picked, samePower);
@@ -383,5 +395,8 @@ function samePayment(a: VmPayment, b: VmPayment): boolean {
 /** Old pending Fusion saves already charged energy at declaration. They cannot
  * be repaired by guessing whether a cost was paid; require a rebuilt match. */
 export function assertCurrentFusion(cost: KeywordCost): void {
+  if (isFusionPayment(cost.line)) {
+    try { requireFusionMaterials(cost.line.script?.price); } catch { throw new NotYet("rebuild this saved match: missing or malformed typed Fusion material contract v1", "#907"); }
+  }
   if (isFusionPayment(cost.line) && !cost.fusion) throw new NotYet("rebuild this saved match: obsolete Union-Fusion payment checkpoint", "#907");
 }

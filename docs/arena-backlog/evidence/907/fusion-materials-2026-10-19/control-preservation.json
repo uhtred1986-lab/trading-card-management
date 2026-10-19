@@ -1,0 +1,81 @@
+{
+  "baseline": "docs/arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/starter-compiler-pack.json",
+  "baselineSHA256": "3a5b33f9144886cf1e9850e86958f3c527db6d10c2006b2795a86d5c9f104ef1",
+  "actualSHA256": "32957c9c9eafac4a3d6743de7286ba2cef8510ed390ed3490c4c6fa06513928e",
+  "baselineVersions": {
+    "engine": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c",
+    "engineSourceHash": "4bfc3c7280931996b29e8fe31e0e344b14b837e0c2b03700cf0b989ae6581f37",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "4a497b8269325e967ca5b26d449e1657dd835008b93657b0253b7b8cffd080e2",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "4031c53260f0b335b60bb9025b90dfccfa8d0ed260a599b13838b20ccb305169",
+    "sourceHead": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c"
+  },
+  "actualVersions": {
+    "engine": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24",
+    "engineSourceHash": "8437143dd47606de193432e9254e6716218ec43535719fefb4c52d6c20ed1a50",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "74b40854cb5fb56e151fbebc12ef6301284cdcc741e4e934ff73628e736e6170",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "cbe22727d8981fcf7a208805c6b1c74be5f479999bcab47d26cc72c6f6d7c3d3",
+    "sourceHead": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24"
+  },
+  "equal": [
+    "catalog/source/defs",
+    "decks/admission records",
+    "seeds/move limits/protocol",
+    "all 16 complete game records and trace hashes",
+    "all 75 executable programs and manifest",
+    "summary/measures",
+    "policy/ruleset/errata"
+  ],
+  "versionChanges": {
+    "engine": {
+      "before": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c",
+      "after": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24"
+    },
+    "engineSourceHash": {
+      "before": "4bfc3c7280931996b29e8fe31e0e344b14b837e0c2b03700cf0b989ae6581f37",
+      "after": "8437143dd47606de193432e9254e6716218ec43535719fefb4c52d6c20ed1a50"
+    },
+    "loader": {
+      "before": "4a497b8269325e967ca5b26d449e1657dd835008b93657b0253b7b8cffd080e2",
+      "after": "74b40854cb5fb56e151fbebc12ef6301284cdcc741e4e934ff73628e736e6170"
+    },
+    "runner": {
+      "before": "4031c53260f0b335b60bb9025b90dfccfa8d0ed260a599b13838b20ccb305169",
+      "after": "cbe22727d8981fcf7a208805c6b1c74be5f479999bcab47d26cc72c6f6d7c3d3"
+    },
+    "sourceHead": {
+      "before": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c",
+      "after": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24"
+    }
+  },
+  "versionChangeReasons": {
+    "engine/sourceHead/engineSourceHash": "Reviewed Fusion material implementation and two restored material behaviors.",
+    "loader": "Typed native/granted material loading and explicit obsolete-record refusal.",
+    "runner": "Hash includes arena-corpus-provenance.mts: Fusion material authority separated from residual native identity/timing; cost.fusion is retained by loader. The game runner itself is unchanged."
+  },
+  "outcomes": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "expectationChanges": [],
+  "note": "Compiler controls, not production stored-program qualification. Original comparison stopped on the expected provenance-source hash change after every game/program/input equality assertion passed; no gameplay expectation was changed."
+}

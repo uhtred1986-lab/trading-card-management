@@ -227,6 +227,12 @@ const ORB_COLORS = ["any", ...COLORS] as const;
 const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 
 export const COST_ITEM_SPECS: Record<CostSyntax, CostItemSpec> = {
+  FUSION: {
+    fields: [{ name: "json", type: "string", required: true }],
+    blank: () => ({ json: "{}" }),
+    read: (c) => c.fusion === undefined ? [] : [{ path: "cost.fusion", values: { json: JSON.stringify(c.fusion) } }],
+    write: (c, v) => { try { c.fusion = JSON.parse(String(v.json)); } catch { c.fusion = {} as NonNullable<CostRecord["fusion"]>; } },
+  },
   UNREAD: { fields: [], blank: () => ({}), read: (c) => c.readable === false ? [{ path: "cost.readable", values: {} }] : [], write: (c) => void (c.readable = false) },
   "{Red}": {
     fields: [

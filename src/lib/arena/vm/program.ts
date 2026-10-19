@@ -1,3 +1,4 @@
+import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
 /**
  * What a program *means*, read against a `VmState`.
  *
@@ -51,7 +52,7 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { grantedLineIndex, isGrantedLine, mirrorSides } from "./common";
+import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -610,15 +611,15 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
  * card granting it for `comboRest`), whose rule it is, and which cards it
  * lets in.
  */
-export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] {
-  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] = [];
+export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] {
+  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] = [];
   for (const e of state.effects) {
     const p = e.kind === "permit" ? e.permit : undefined;
-    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
+    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.unionVariant ? { unionVariant: p.unionVariant } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
   }
   for (const e of staticsNow(ctx, game, state)) {
     const p = e.value as Permission;
-    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
+    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.unionVariant ? { unionVariant: p.unionVariant } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
   }
   return out;
 }
@@ -633,11 +634,16 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
   if (findCard(state, card)?.zone !== "hand") return [];
   const out: (Skill & { price?: import("./script").SkillPrice })[] = [];
   for (const p of permissions(ctx, game, state, "unionLine")) {
-    if (p.target !== card || !p.line || !permitted(ctx, game, state, p.filter, card)) continue;
-    const parsed = parseSkills(p.line);
+    if (p.target !== card || !permitted(ctx, game, state, p.filter, card)) continue;
+    if (typeof p.line !== "string" || !p.line) throw new IllegalAction("malformed typed Union grant display source; regenerate rules and rebuild saved matches/exports");
+    if (p.unionVariant !== "Fusion" && p.unionVariant !== "Potara") throw new IllegalAction("missing typed Union grant identity; regenerate rules and rebuild saved matches/exports");
+    if (p.unionVariant === "Fusion") requireFusionMaterials(p.price);
+    // The template contains no material/cost text. Grant identity and executable
+    // facts come from the permission; line remains display/source evidence only.
+    const parsed = parseSkills(p.unionVariant === "Fusion" ? "[union-fusion]" : p.line);
     const sk = parsed[0];
-    if (parsed.length !== 1 || sk.kind !== "keyword" || sk.keyword?.name !== "Union" || sk.keyword.variant === "Absorb") continue;
-    out.push({ ...sk, index: grantedLineIndex(out.length), price: p.price });
+    if (parsed.length !== 1 || sk.keyword?.name !== "Union" || sk.keyword.variant !== p.unionVariant) throw new IllegalAction("malformed typed Union grant identity; regenerate rules and rebuild saved matches/exports");
+    out.push({ ...sk, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
   }
   return out;
 }
@@ -1586,6 +1592,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && p.target === card);
       // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
       if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
+      if (c.what === "unionFusionAreas" || c.what === "unionFusionWarp") {
+        const material = fusionOf(ctx, game, state, frame);
+        if (material && !material.extensions.includes(c.what)) return false;
+      }
       return !!card && permissions(ctx, game, state, c.what).some((p) => {
         if (p.master !== frame.master) return false;
         // A hand Permanent about “this card's” Fusion never widens another
@@ -1641,8 +1651,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
  * line cannot be paid.
  */
 export function namedCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, picked: string[], samePower = true): string[] {
-  const sk = lineOf(ctx, state, frame, game);
+  const sk = frame.keywordPrice?.line.skill ?? lineOf(ctx, state, frame, game);
   if (!sk) return [];
+  const fusion = fusionOf(ctx, game, state, frame);
+  if (fusion) samePower = fusion.samePower;
   // #925: each printed name carries only its own qualifiers (colour, type,
   // cost, power), so the combined description (`asPrinted`) must not narrow
   // the pool first — it would pool the union of every name's words.
@@ -1656,14 +1668,26 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     const now = attrsNow(ctx, game, state, id);
     const attrs: Attrs = def && def.power != null ? { ...now, power: def.power } : now;
     // 22-13-4-2, 22-13-5-2: "the specified character's Battle Cards" - an Extra, Leader or token that prints the name is no material.
-    const battle = !!def && ["BATTLE", "Z-BATTLE", "UNISON", "Z-UNISON"].includes(def.type);
+    const battle = !!def && (fusion ? ["BATTLE", "Z-BATTLE"] : ["BATTLE", "Z-BATTLE", "UNISON", "Z-UNISON"]).includes(def.type);
     return { id, characters: def?.characters ?? [], power: def?.power ?? 0, attrs, battle };
   });
-  const needs = unionNeeds(sk).map((n) => {
+  const needs = (fusion?.needs ?? unionNeeds(sk)).map((n) => {
     const test = predicateOf(n.filter, game);
     return { name: n.name, accepts: (c: { attrs: Attrs; battle: boolean }) => c.battle && test(c.attrs) };
   });
   return namedSetCandidates(needs, pool, picked, samePower);
+}
+
+/** A pending activation owns its captured executable contract across save/reload.
+ * Before declaration, read the loaded script (or typed granting permission). */
+function fusionOf(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): import("./script").FusionMaterials | undefined {
+  const captured = frame.keywordPrice?.line;
+  if (captured) return isFusionSkill(captured.skill) ? requireFusionMaterials(captured.script?.price) : undefined;
+  const sk = lineOf(ctx, state, frame, game);
+  if (!sk || !isFusionSkill(sk)) return undefined;
+  const price = isGrantedLine(sk.index) ? (sk as Skill & { price?: import("./script").SkillPrice }).price
+    : skillsShowing(ctx, state, frame.card).scripts.bySkill[sk.index]?.price;
+  return requireFusionMaterials(price);
 }
 
 /** An alternative way to pay an [Aegis] skill instead of its hand cards (22-30-3), already known to be payable. */
