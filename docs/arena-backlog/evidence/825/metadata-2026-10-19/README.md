@@ -84,12 +84,24 @@ existing casual rules or deck policy.
 
 ## Verification/application boundary
 
-Focused PGlite writer proof, exact stored-target execution and coordinator review
-are pending final recorded outcomes. The intended VM path uses exactly these
-eight supplied target rows through the existing loader; other lines/cards remain
-explicit compiler support fixtures. Preserve the historical #825 assertions and
-keep new target-specific counterexamples separate. Loader admission alone is not
-proof that every skill/interaction was exercised.
+Worker implementation commits `1e3df41c` and `e838c13d` have completed independent
+read-only review. The worker reports these essential checks passed at the final
+source; coordinator integration/readback remains separate:
+
+- `scripts/verify/metadata-825.mts`: PGlite proves eight-row metadata-only writes,
+  private-field preservation, catalog changes before/after the verified read,
+  stale-row atomic refusal, both confirmed statuses and replay/no-op behavior.
+- `scripts/verify/qualified-movement-evolve-825.ts --stored-targets <proposed-rows>`:
+  exactly eight mandatory target overrides pass the actual loader, all original
+  assertions remain, and 11 added cases execute the other four target rows.
+  These include Son Goku's non-yellow Life tail and BT7 cleanup/early-exit/turn
+  counterexamples with paid Combo, base stacking and mode checks.
+- Targeted lint passed. No full suite/build or production database was used for
+  these worker checks.
+
+Other lines/cards remain explicitly compiled support fixtures. This is proposed
+stored-target execution, not post-write actual-export proof or whole-deck
+qualification. No runtime effect/compiler implementation was changed.
 
 No production write, confirmation change, owner approval digest or post-write
 actual-export result is claimed here. After a reviewed preview and approval,
