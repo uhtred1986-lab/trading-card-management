@@ -36,7 +36,9 @@ require explicit rebuilding. The selected additional pair remains unqualified.
 through the stored executable record, including granted Fusion. It also repairs
 two #1067 regressions found by the unchanged #541/#925 material assertions.
 See the [material receipt](arena-backlog/evidence/907/fusion-materials-2026-10-19/README.md)
-for validation, deployment and the separate targeted reference application.
+for validation and deployment. Its separate post-deployment application refreshed
+BT11-013/front/10 and P-360/back/0 only; nine reference rows are unchanged.
+Actual exported material/payment replay proofs pass; all eleven remain unconfirmed.
 The [selected BT6 pair now has frozen current inputs](arena-backlog/evidence/897/selected-pair-inputs-2026-10-19/README.md):
 28 public catalog cards and 67 stored rows; no pair writes and four protected
 corrected rows. Its remaining blockers still prevent qualification.

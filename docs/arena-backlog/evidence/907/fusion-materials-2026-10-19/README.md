@@ -108,22 +108,36 @@ zero exclusions. Their material metadata changes even though the human effect
 reading is unchanged. All other reference rows are outside the write set.
 The refresh tool's focused exclusion/atomic-apply/recheck proof passed.
 
-The old deployed loader accepts the new field but drops it, continuing to read
-materials from text. Application therefore follows the new engine's successful
-deployment. At this PR's pre-merge boundary, application is pending; no new row
-has been written or confirmed. The authorized follow-up will use the exact
-keys above, read back all eleven reference rows, preserve non-target rows, and
-run the focused proofs against the actual exported records. Other obsolete
-Fusion records still need explicit rebuilding; stored `unionLine` grants, including
-Potara grants, also require the new typed variant identity. Potara material
-parsing remains an explicit residual boundary. No corpus-wide refresh is implied.
+The former loader accepted the new field but dropped it, continuing to read
+materials from text. Application therefore waited for the new engine's successful
+deployment. #1068 merged as `ec22e4236fe6315d5fcdac969748efbd6511a1b0`;
+Vercel succeeded at `2026-10-19T11:25:21Z`. At #1068's pre-merge boundary the
+application was still pending. The [subsequent application receipt](application-receipt.json)
+and [actual public reference export](reference-records.json) now record:
+
+- Exactly two compiler-draft rows written: BT11-013/front/10 (`6545`) and
+  P-360/back/0 (`12065`), each version 3 → 4; zero created/unread writes.
+- Nine non-target reference rows are unchanged in full raw readbacks. Catalog sources and all printed skill sources are unchanged.
+- All eleven expected stored skills are present, current and unconfirmed;
+  native Deflect is separate. No protected/corrected/user/Claude row was touched.
+- The guarded recheck and a separate subsequent dry run both report zero pending.
+- Material and payment proofs both pass against these actual exported records,
+  including P-360's real back-face grant, both seats and saved-context/state replay.
+
+Strict admission still reports BT11-013's native identity/timing, BT3-070's
+remaining Union material contract and P-360's two once-per-turn fields. Neither
+successful loading nor these focused proofs certifies every skill/card/deck.
+Other obsolete Fusion records still need explicit rebuilding; stored `unionLine`
+grants, including Potara grants, also require typed variant identity. Potara
+material parsing remains an explicit residual boundary. No corpus-wide refresh
+or pair-row write is implied.
 
 ## Progress measures and remaining acceptance
 
 | Measure | Evidence and limit |
 | --- | --- |
 | Parsed | The supported Fusion material grammar emits typed filters; unsupported alternatives/tags remain unread. |
-| Stored/executable | Synthetic persisted/reloaded records control actual native/granted material choices. Live application is separate. |
+| Stored/executable | Persisted/reloaded records control actual native/granted material choices; the actual two-row refresh/export passes the same focused proofs. |
 | Human reviewed | No row confirmed by this work; compiler drafts remain unconfirmed. Independent code review is not card confirmation. |
 | Verified/exercised | Named positive/negative material/payment/source/replay scenarios, including preserved #541/#925/#926/#929/#930 behavior. This is not every skill on each card. |
 | Deck-qualified | No additional deck qualified. Starter controls are compiler-mode preservation evidence. |
@@ -156,6 +170,14 @@ env -u DATABASE_URL npx tsx scripts/arena-corpus-freeze.mts --mode compiler --ch
 python3 docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/compare-controls.py /tmp/material-starters.json /tmp/material-preservation.json
 ```
 
-The new material proof also accepts `--reference-records <export.json>` with
-`catalog` and `after` fields. The pre-application #1067 export intentionally
+Both #907 proofs accept the actual export:
+
+```sh
+env -u DATABASE_URL npx tsx scripts/verify/fusion-materials-907.ts --reference-records docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/reference-records.json
+env -u DATABASE_URL npx tsx scripts/verify/typed-payment-907.ts --reference-records docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/reference-records.json
+```
+
+The export has `catalog` and `after` fields. The pre-application #1067 export intentionally
 requires rebuilding; it must not be silently recompiled to make that proof pass.
+
+[Next handover task](handover.md) gives the bounded implementation brief.
