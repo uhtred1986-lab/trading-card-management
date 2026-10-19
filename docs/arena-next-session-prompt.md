@@ -11,8 +11,9 @@ is applied, with exact preservation and 66 actual-record scenarios passing.
 Deployed PR #1084 adds typed Potara for BT2-012/front/0 (rule10297 only); its
 separately approved v1→v2 application passes 76 actual-record scenarios on
 deployed source. PR #1085 groups EX23-36/P-519 Drop-to-bottom permission,
-strict payment and ordering privacy; its four-record compiler repair requires
-a separate exact approval/application. See
+strict payment and ordering privacy; its four-record compiler repair is separately
+approved and applied, with exact full-field preservation and 116 actual-record
+scenarios passing. See
 `docs/arena-backlog/evidence/907/potara-identity-2026-10-19/README.md` and
 `docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/README.md`.
 The unchanged #926 verifier has a reproduced baseline refusal-category failure;

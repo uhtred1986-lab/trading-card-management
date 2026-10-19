@@ -1,0 +1,124 @@
+{
+  "format": "fusion-drop-bottom-930-application-v1",
+  "deployedCommit": "ca988c9eb856ae0c84c54f27accfc61ffe6600d0",
+  "approvedDigest": "f3b8068dc937ebedfd0c4eb0181ca91fdbb7a2c19e0a33e4304803aa2cadf0af",
+  "startedAt": "2026-10-19T18:03:27Z",
+  "completedAt": "2026-10-19T18:03:32Z",
+  "database": {
+    "vercelProject": "trading-card-management",
+    "productionVariable": true,
+    "pooledFrankfurtNeon": true,
+    "appTablesVerified": true,
+    "catalogIdentityVerifiedBeforeAndAfter": true
+  },
+  "privateSnapshot": {
+    "location": "outside repository and registered worktrees; owner-only directory/files",
+    "beforeSha256": "b4fadad9134b3e932de64b6684ef7843befa81b4f0d6aee7f7b65b88c2a0db2a",
+    "afterSha256": "8e279387267bc93e1e2e05f9e22c9754c0bcce85b73bf0dc52044eaf9ec40a34"
+  },
+  "application": {
+    "exitCode": 0,
+    "written": [
+      3897,
+      3898,
+      9887,
+      9888
+    ],
+    "humanConfirmationsAdded": 0
+  },
+  "targets": [
+    {
+      "id": 3897,
+      "key": "EX23-36/front/10",
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "beforeStatus": "draft",
+      "afterStatus": "draft",
+      "fieldsCompared": 32,
+      "changedFields": [
+        "cost",
+        "updated_at",
+        "usage",
+        "validity",
+        "version"
+      ],
+      "allOtherFieldsPreserved": true,
+      "beforeSha256": "63e232b76318465a48cec85695cc94351c35016980f7c829be9ffd5acfd9d704",
+      "afterSha256": "daa2fd102a576e6d3b32190e7f6ddcf7d8b8d7e31d34453de13836c7bbd7b6f3",
+      "updatedAt": "2026-10-19T18:03:31.877091+00:00"
+    },
+    {
+      "id": 3898,
+      "key": "EX23-36/front/20",
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "beforeStatus": "open",
+      "afterStatus": "draft",
+      "fieldsCompared": 32,
+      "changedFields": [
+        "cond",
+        "cost",
+        "ops",
+        "pattern",
+        "reads",
+        "status",
+        "unread",
+        "updated_at",
+        "usage",
+        "validity",
+        "version"
+      ],
+      "allOtherFieldsPreserved": true,
+      "beforeSha256": "4f98d207be64eaff2ec81f8ea2d8cbd1fce5d6d0e609db822f50c80a7bbd2311",
+      "afterSha256": "7f12b2d60a927577a99838c29b73d4e177507ae71cd7c910e01033b8c9b326ab",
+      "updatedAt": "2026-10-19T18:03:31.877091+00:00"
+    },
+    {
+      "id": 9887,
+      "key": "P-519/front/10",
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "beforeStatus": "draft",
+      "afterStatus": "draft",
+      "fieldsCompared": 32,
+      "changedFields": [
+        "cost",
+        "updated_at",
+        "usage",
+        "validity",
+        "version"
+      ],
+      "allOtherFieldsPreserved": true,
+      "beforeSha256": "2d947a935563eecc24a20f6a927f5f24a6c7ca9b8b3b0fef6b286011ab7df905",
+      "afterSha256": "d87781c6807618ce755ad387b280d6437d1c1c1866e25a43fbb8da8119930bde",
+      "updatedAt": "2026-10-19T18:03:31.877091+00:00"
+    },
+    {
+      "id": 9888,
+      "key": "P-519/front/20",
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "beforeStatus": "open",
+      "afterStatus": "draft",
+      "fieldsCompared": 32,
+      "changedFields": [
+        "cond",
+        "cost",
+        "ops",
+        "pattern",
+        "reads",
+        "status",
+        "unread",
+        "updated_at",
+        "usage",
+        "validity",
+        "version"
+      ],
+      "allOtherFieldsPreserved": true,
+      "beforeSha256": "8b3c52e13ff82fa630664773cb7dec8497f7ed8ba8ae5eee20105b3f6fd052ac",
+      "afterSha256": "5c9686b7c022f900d1616cf683e7af707982f07e05f947299340d17d1d20f727",
+      "updatedAt": "2026-10-19T18:03:31.877091+00:00"
+    }
+  ],
+  "safeExportEqualsApprovedProposedRecords": true
+}
