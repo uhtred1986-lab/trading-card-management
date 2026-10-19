@@ -75,7 +75,8 @@ import { useBeatPlayer } from "./useBeatPlayer";
 import { useLiveGame } from "./useLiveGame";
 import { useIdle } from "./useIdle";
 import { CenterPrompt } from "./CenterPrompt";
-import { PromptPanel } from "./PromptPanel";
+import { PromptPanel, type CentreOption } from "./PromptPanel";
+import { escapeAnswer, isCentredDecision } from "@/lib/arena/centred-decision";
 import { stakesSummary } from "./stakes-model";
 import { feedbackFromBeats, useFeedbackCues } from "./useFeedbackCues";
 import { FeedbackOverlay } from "./FeedbackOverlay";
@@ -1379,6 +1380,30 @@ export function ArenaStage({
         reason: refusalLine(offer.why, { name: card.name, reaching: responseType, side: view.you, inHand: inHand(card.id) }) ?? "Unavailable now", impact: null }];
     }),
   ] : [];
+  // Whenever the game waits on you for an answer it asked for, the question is drawn in the middle of the
+  // screen with the cards it is about (owner, 19 Oct 2026; `centred-decision.ts` says which kinds).
+  const centreOn = isCentredDecision(view.prompt.kind, { yours: view.prompt.player === view.you.player, playing: playback.playing, over: !!view.over || !!live.over, searchSheet: searching, playable });
+  const powerWord = (n: number) => n.toLocaleString("en");
+  const centreOptions: CentreOption[] = !centreOn ? [] : legal.flatMap((offer, index): CentreOption[] => {
+    const a = offer.action;
+    if (view.prompt.kind === "combo" && a.type === "combo") {
+      const card = cardOf(a.card);
+      if (!card) return [];
+      const base = view.battle ? (defending ? view.battle.guardPower : view.battle.attackPower) : null;
+      const add = card.comboPower;
+      return [{ key: `combo:${index}`, action: a, cards: [card], label: card.name, note: add != null ? `+${powerWord(add)} power${base != null ? ` → ${powerWord(base + add)}` : ""}${card.comboCost ? ` · costs ${card.comboCost}` : ""}` : offer.label }];
+    }
+    if (view.prompt.kind === "charge" && a.type === "charge" && a.card) {
+      const card = cardOf(a.card);
+      return card ? [{ key: `charge:${index}`, action: a, cards: [card], label: card.name, note: `Charge: ${view.you.activeEnergy} → ${view.you.activeEnergy + 1} ready energy` }] : [];
+    }
+    if (view.prompt.kind === "chooseCards" && a.type === "choose" && a.cards.length > 0) {
+      const cards = a.cards.flatMap((id) => { const c = cardOf(id); return c ? [c] : []; });
+      return cards.length ? [{ key: `choose:${index}`, action: a, cards, label: cards.map((c) => c.name).join(" + "), note: null }] : [];
+    }
+    return [];
+  });
+  const centre = centreOn ? { options: centreOptions, escape: escapeAnswer(legal.map((l) => l.action)) } : null;
   const whereOf = (id: string) => {
     const at = locate(id);
     return at ? `${at.side === view.you ? "Your" : `${at.side.name}'s`} ${at.zone}` : null;
@@ -1751,6 +1776,7 @@ export function ArenaStage({
               inlineBare={chargeSelection ? [] : inlineBare}
               attacksRemaining={attacksRemaining}
               defendOptions={defendOptions}
+              centre={centre}
               primaryBare={primaryBare}
               onSend={send}
               chargeSelection={chargeSelection}
