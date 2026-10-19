@@ -193,3 +193,50 @@ Gundam hits were not used as Masters authority. Search snippets also contain
 overbroad “optional Autos always consume” explanations: official cost versus
 effect distinctions above control instead. There is no unresolved owner
 semantics question for these eleven ordinary printed Once-per-turn rows.
+
+## Adjacent bounded audit: four selected Sparking rows
+
+This is a recommendation for a following validity slice, not usage-ceiling
+implementation evidence. The already-retrieved official card pages establish:
+
+| Exact row | Kind / threshold / trigger or cost |
+| --- | --- |
+| BT6-003 front #0 | Auto / Sparking 3 / when played **from hand**. |
+| BT6-004 front #0 | Auto / Sparking 2 / when played. |
+| BT6-007 front #0 | **Activate: Main** / Sparking 3 / switch this card to Rest Mode as cost; it is not an on-play Auto. |
+| BT6-008 front #0 | Auto / Sparking 2 / when played. |
+
+Manual §§22-26-1/3 say Sparking relates to when a skill is **valid**, and a
+Sparking X skill is valid only with X or more cards in its master's Drop.
+§9-1-3 says activation cannot be declared and effects cannot be performed for
+the part invalidated by an unmet validity condition. Official Game FAQ
+**[Sparking] Q1** confirms that Sparking 5 is inactive with only two Drop cards.
+Sparking is therefore a skill-validity condition, not a payment that removes
+cards and not an arbitrary conditional payoff after the effect starts.
+
+The manual separately makes an Auto pending when its printed event occurs
+(§9-6-2), then determines activation at the checkpoint. No card-specific
+official answer was located that explicitly varies the Drop count between
+this trigger and activation for the three scoped on-play Autos. Do not invent
+a new trigger event or infer that an ordinary effect IF is the whole validity
+contract. A following proof should establish below/at threshold, event versus
+activation count changes, both seats, saved pending/resuming frames and stored
+threshold authority before claiming the timing interaction verified.
+
+Static repository inspection on the handoff baseline finds that
+`compileCostRecord` compiles `priceCondition(skill)` from the cost text but has
+no Sparking-tag reader. The frozen four rows have no persisted threshold in
+their cost condition (three obsolete null costs; BT6-007's old rest-action
+cost has `condition: null`). The existing Activate gates and static-effect
+collection read parsed `sk.sparking`; the Auto pending/activation paths have
+no corresponding Sparking threshold check. Thus an implementation should
+first make the threshold executable metadata and apply it at the correct
+validity boundary, retaining the four rows' effects, origin distinctions and
+BT6-007's real Rest Mode payment. This is not a claim that current prices
+already persist Sparking.
+
+Additional public searches located [“Sparking clarifications”](https://www.reddit.com/r/DBS_CardGame/comments/cbqj0q/sparking_clarifications/)
+in snippets discussing a card contributing to its own Drop count and comparing
+Afterimage Technique. No complete discussion was retrieved, so those snippets
+do not establish the pending/activation count-change semantics above. Unrelated
+Sparking ZERO game results and older manual versions were excluded.

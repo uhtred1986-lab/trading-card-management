@@ -209,6 +209,54 @@
       "bytes": 1522,
       "sha256": "42d178bf26c37ab343a6afa99831d0dfb326543e020418da67ee1aa04c67812a",
       "retrievedAt": "2026-10-19T12:12:51.887387+00:00"
+    },
+    {
+      "key": "sparking-search-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20Sparking%20auto%20trigger%20condition%20pending%20activation",
+      "status": 200,
+      "bytes": 34711,
+      "sha256": "2f17aa1e1432127c873b4d9bd8e49a74eb5cbd647d8ce66bdf5f6a9a9053ce6e",
+      "retrievedAt": "2026-10-19T12:15:03.933800+00:00"
+    },
+    {
+      "key": "sparking-search-1",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20sparking%20trigger%20auto%20drop",
+      "status": 200,
+      "bytes": 35308,
+      "sha256": "d0dcc0fce475539426b9c246f4fef88e35643eec09e2be693c177a16891fd226",
+      "retrievedAt": "2026-10-19T12:15:03.733254+00:00"
+    },
+    {
+      "key": "sparking-search-2",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Adbs-cardgame.com%20sparking%20%22pending%22",
+      "status": 200,
+      "bytes": 14194,
+      "sha256": "cab05ce0fdeaa94b2c1a05e2544bba20a5ab70a0cb4dbac0444d13d198f407b8",
+      "retrievedAt": "2026-10-19T12:15:03.680430+00:00"
+    },
+    {
+      "key": "sparking-timing-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22pending%22%20%22condition%22",
+      "status": 200,
+      "bytes": 9425,
+      "sha256": "ae86600a0abba63a3c4e1a4c1716878faf00031dcdd6e611776a6f287ca98598",
+      "retrievedAt": "2026-10-19T12:15:30.797599+00:00"
+    },
+    {
+      "key": "sparking-timing-1",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22resolve%22%20%22Auto%22%20%22five%22",
+      "status": 200,
+      "bytes": 9461,
+      "sha256": "a4a6e2e7ee3ea58d1266012c1fcb323666844f19cdc0e2e6e170b67747760e16",
+      "retrievedAt": "2026-10-19T12:15:30.791497+00:00"
+    },
+    {
+      "key": "sparking-timing-2",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20%22Sparking%22%20%22trigger%22%20%22before%22",
+      "status": 200,
+      "bytes": 11720,
+      "sha256": "4b0a89e3d6dc3113918fe55a50908df1682781023a094d639eb49b1e8f1c62de",
+      "retrievedAt": "2026-10-19T12:15:30.791010+00:00"
     }
   ]
 }
