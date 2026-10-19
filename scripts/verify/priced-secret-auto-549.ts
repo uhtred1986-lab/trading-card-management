@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** 9-6-3-1-1 / 9-6-4: synthetic secret-area priced Auto declaration. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -32,7 +33,7 @@ for (const id of ["PRICE549", "ACTION549"] as const) {
   const old = scripts[id].bySkill[0];
   assert.ok(old);
   scripts[id].bySkill[0] = { ...old, trigger: ["played"], unsupported: [], ops: [{ op: "draw", n: 1 }],
-    price: { ...old.price, condition: null, ops: id === "ACTION549" ? [
+    price: { ...zeroSkillPrice(), ...old.price, condition: null, ops: id === "ACTION549" ? [
       { op: "choose", sel: { area: "hand", side: "you", count: 1 }, as: "paid" },
       { op: "moveTo", target: { var: "paid" }, to: "drop" },
     ] : null } };

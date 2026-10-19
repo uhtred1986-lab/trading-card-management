@@ -610,15 +610,15 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
  * card granting it for `comboRest`), whose rule it is, and which cards it
  * lets in.
  */
-export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string; source?: CardFilter; n?: number }[] {
-  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string; source?: CardFilter; n?: number }[] = [];
+export function permissions(ctx: EngineContext, game: GameDefinition, state: VmState, what: Permission["what"]): { target: string; master: PlayerId; filter?: CardFilter; line?: string; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] {
+  const out: { target: string; master: PlayerId; filter?: CardFilter; line?: string; price?: import("./script").SkillPrice; source?: CardFilter; n?: number }[] = [];
   for (const e of state.effects) {
     const p = e.kind === "permit" ? e.permit : undefined;
-    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
+    if (p?.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
   }
   for (const e of staticsNow(ctx, game, state)) {
     const p = e.value as Permission;
-    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
+    if (e.kind === "permit" && p.what === what) out.push({ target: e.target, master: e.master, ...(p.filter ? { filter: p.filter } : {}), ...(p.line ? { line: p.line } : {}), ...(p.price ? { price: p.price } : {}), ...(p.source ? { source: p.source } : {}), ...(p.n !== undefined ? { n: p.n } : {}) });
   }
   return out;
 }
@@ -629,15 +629,15 @@ export function permissions(ctx: EngineContext, game: GameDefinition, state: VmS
  * does not parse as exactly one [Union-Fusion] / [Union-Potara] skill is not a
  * line (the compiler only writes such, so this is a guard on a stored record).
  */
-export function grantedLines(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): Skill[] {
+export function grantedLines(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): (Skill & { price?: import("./script").SkillPrice })[] {
   if (findCard(state, card)?.zone !== "hand") return [];
-  const out: Skill[] = [];
+  const out: (Skill & { price?: import("./script").SkillPrice })[] = [];
   for (const p of permissions(ctx, game, state, "unionLine")) {
     if (p.target !== card || !p.line || !permitted(ctx, game, state, p.filter, card)) continue;
     const parsed = parseSkills(p.line);
     const sk = parsed[0];
     if (parsed.length !== 1 || sk.kind !== "keyword" || sk.keyword?.name !== "Union" || sk.keyword.variant === "Absorb") continue;
-    out.push({ ...sk, index: grantedLineIndex(out.length) });
+    out.push({ ...sk, index: grantedLineIndex(out.length), price: p.price });
   }
   return out;
 }

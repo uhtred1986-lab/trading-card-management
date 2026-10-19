@@ -206,6 +206,7 @@ void _everyAttrWritten;
  * same list.
  */
 export const COST_ITEMS = [
+  { syntax: "UNREAD", doc: "this price is not executable until its complete payment is recorded" },
   { syntax: "{Red}", doc: "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})" },
   { syntax: "{Red/Blue}", doc: "an either-orb: pay with any one of the listed colours" },
   { syntax: "+1 marker", doc: "add that many markers to the card paying this price" },
@@ -271,7 +272,7 @@ export interface EventPattern {
  * text needs and no op field has (`color`, `colors`), so a parameter list can
  * say exactly what `OP_SCHEMA` says about a step's field.
  */
-export const PARAM_TYPES = ["amount", "ref", "selector", "side", "area", "duration", "cond", "conds", "ops", "string", "strings", "word", "number", "boolean", "keyword", "filter", "modes", "color", "colors"] as const;
+export const PARAM_TYPES = ["amount", "ref", "selector", "side", "area", "duration", "cond", "conds", "ops", "string", "strings", "word", "number", "boolean", "keyword", "price", "filter", "modes", "color", "colors"] as const;
 export type ParamType = (typeof PARAM_TYPES)[number];
 export interface DefineParam {
   name: string;

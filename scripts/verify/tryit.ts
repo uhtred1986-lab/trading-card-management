@@ -1,3 +1,4 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
 /**
  * Try it → fix it (#470): the rule being built, tried on boards made from its
  * condition, judged, and every wrong row pointing at its block.
@@ -259,7 +260,7 @@ const FIXTURES: [string, string][] = [
       ops: rec.cond ? [{ op: "if", cond: rec.cond, then: rec.ops }] : rec.ops,
       open: rec.unread.length > 0,
       unread: rec.unread,
-      price: { condition: rec.cost?.condition ?? null, ops: rec.cost?.program ?? null, ...(rec.cost?.x ? { x: rec.cost.x } : {}) },
+      price: priceFromCostRecord(rec.cost),
       hoisted: rec.cond != null,
     };
     const view = ruleViewOf(r);

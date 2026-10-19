@@ -1091,10 +1091,10 @@ export function payersFor(ctx: EngineContext, game: GameDefinition, state: VmSta
  * does nothing, which is 20-21-2's floor for an orb price. A negative change
  * adds orbs the same way round.
  */
-export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill, onto?: string): { total: number; orbs: Partial<Record<Color, number>>; either: Color[][] } {
+export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill, onto?: string, resources?: { orbs: Record<string, number>; either: string[][] }): { total: number; orbs: Partial<Record<Color, number>>; either: Color[][] } {
   const orbs: Partial<Record<Color, number>> = {};
   let total = 0;
-  for (const [key, n] of Object.entries(sk.energyCost)) {
+  for (const [key, n] of Object.entries(resources?.orbs ?? sk.energyCost)) {
     if (!n) continue;
     total += n;
     // "{1}" is an orb of no colour (1-2-3): part of the total, asking for no
@@ -1102,7 +1102,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
     if (key !== "any") orbs[key as Color] = (orbs[key as Color] ?? 0) + n;
   }
   // 22-13: "{r}/{u}" is one orb payable with either, and one energy of the total.
-  const either = sk.energyEither.map((one) => [...one]);
+  const either = (resources?.either ?? sk.energyEither).map((one) => [...one] as Color[]);
   total += either.length;
   const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
   const applies = (kind: string | undefined, tag?: string) => (!kind || sk.kind.startsWith(kind)) && skillTagMatches(sk, tag);

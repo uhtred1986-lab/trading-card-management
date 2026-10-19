@@ -134,6 +134,7 @@ export function controlFor(t: FieldType): Control {
       return "number";
     case "boolean":
       return "toggle";
+    case "price":
     case "string":
       return "text";
     case "filter":
@@ -226,6 +227,7 @@ const ORB_COLORS = ["any", ...COLORS] as const;
 const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 
 export const COST_ITEM_SPECS: Record<CostSyntax, CostItemSpec> = {
+  UNREAD: { fields: [], blank: () => ({}), read: (c) => c.readable === false ? [{ path: "cost.readable", values: {} }] : [], write: (c) => void (c.readable = false) },
   "{Red}": {
     fields: [
       { name: "color", type: { enum: ORB_COLORS }, required: true },
@@ -307,7 +309,7 @@ export const COST_ITEM_SPECS: Record<CostSyntax, CostItemSpec> = {
 export const COST_SYNTAXES = COST_ITEMS.map((c) => c.syntax) as CostSyntax[];
 
 /** A price with nothing in it — the parser's own starting record. */
-export const bareCost = (): CostRecord => ({ text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null });
+export const bareCost = (): CostRecord => ({ version: 1, readable: true, text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null });
 
 export interface CostItem {
   key: CostSyntax;

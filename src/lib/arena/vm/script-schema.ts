@@ -1,3 +1,4 @@
+import { skillPriceProblem } from "./skill-payment";
 import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
 import { keywordName } from "../text/cards";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
@@ -31,6 +32,7 @@ export type FieldType =
   | "string"
   | "number"
   | "boolean"
+  | "price"
   | "keyword"
   | "filter"
   | "modes"
@@ -324,7 +326,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1835,6 +1837,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
+    if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     // 12-2-4: Desire and the optional hand-Extra choice are two bounded
     // readings. Mixing their fields would silently change the old cost gate.
     if (o.op === "invokeSkill") {
@@ -2244,6 +2247,8 @@ function fieldProblem(f: OpField, v: unknown, depth: number, xBound: boolean, at
       return null;
     case "filter":
       return filterProblem(v, at);
+    case "price":
+      return skillPriceProblem(v, depth + 1);
     case "keyword":
       return isRecord(v) && typeof v.name === "string" ? null : no("a keyword skill");
     case "side":
@@ -2828,6 +2833,8 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
       const inner = describeScript((v as Op[] | undefined) ?? [], r);
       return inner || (hint ?? "");
     }
+    case "price":
+      return "the recorded skill price";
     case "keyword":
       // "[Double Strike]", not "[Strike]": the number is part of the name
       // the card prints (22), and the reading said a different keyword.
@@ -2927,7 +2934,7 @@ export function opSignature(name: Op["op"]): string {
       if ("enum" in t) return t.enum.length > 6 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|");
       return t.list === "string" ? '["…"]' : `[${t.list.enum.map((e) => `"${e}"`).join("|")}]`;
     }
-    return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", conds: "[COND]", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
+    return { amount: "AMOUNT", ref: "TARGET", selector: "SELECTOR", side: '"you"|"opponent"', area: "AREA", duration: "DURATION", cond: "COND", conds: "[COND]", ops: "[…]", string: '"…"', number: "N", boolean: "true|false", price: "PRICE", keyword: '{"name":"Blocker"}', filter: "FILTER", modes: '[{"label":"…","ops":[…]}]' }[t];
   };
   const fields = OP_SCHEMA[name].fields.filter((f) => !f.offCard).map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"op":"${name}"${fields.length ? "," : ""}${fields.join(",")}}`;
@@ -2937,7 +2944,7 @@ export function opSignature(name: Op["op"]): string {
 export function condSignature(kind: Cond["kind"]): string {
   const shape = (t: FieldType): string => {
     if (typeof t === "object") return "enum" in t ? (t.enum.length > 4 ? `${t.enum.slice(0, 3).map((e) => `"${e}"`).join("|")}|…` : t.enum.map((e) => `"${e}"`).join("|")) : "[…]";
-    return { selector: "SELECTOR", side: '"you"|"opponent"', cond: "COND", conds: "[COND]", filter: "FILTER", string: '"…"', number: "N", boolean: "true|false", amount: "AMOUNT", ref: "TARGET", area: "AREA", duration: "DURATION", ops: "[…]", keyword: '{"name":"Blocker"}', modes: "[…]" }[t];
+    return { selector: "SELECTOR", side: '"you"|"opponent"', cond: "COND", conds: "[COND]", filter: "FILTER", string: '"…"', number: "N", boolean: "true|false", amount: "AMOUNT", ref: "TARGET", area: "AREA", duration: "DURATION", ops: "[…]", price: "PRICE", keyword: '{"name":"Blocker"}', modes: "[…]" }[t];
   };
   const fields = COND_SCHEMA[kind].fields.filter((f) => !f.offCard).map((f) => `"${f.name}"${f.required ? "" : "?"}:${shape(f.type)}`);
   return `{"kind":"${kind}"${fields.length ? "," : ""}${fields.join(",")}}`;

@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** Fixed expectations from 9-6-4 / 5-8-2 / 20-5, independent of the legacy oracle. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -14,8 +15,11 @@ import { staticsNow } from "../../src/lib/arena/vm/program";
 import { stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
-import type { Op, Script } from "../../src/lib/arena/vm/script";
+import type { Cond, Op, Script } from "../../src/lib/arena/vm/script";
 
+// #907 validates persisted prices: use a schema-valid true predicate instead of
+// the old internal-only empty conjunction; payment expectations stay unchanged.
+const TRUE_PRICE_COND: Cond = { kind: "count", sel: { side: "you", area: "life" }, atLeast: 0 };
 const rules = RULES;
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
@@ -54,7 +58,7 @@ const defs = { ...DEFS,
 const scripts = rulesFromCompiler(defs);
 function script(id: keyof typeof defs, ops: Op[], priceOps: Op[] | null = null): Script {
   const old = scripts[id].bySkill[0];
-  return scripts[id].bySkill[0] = { ...old, unsupported: [], trigger: ["played"], ops, price: { ...old?.price, condition: null, ops: priceOps } };
+  return scripts[id].bySkill[0] = { ...old, unsupported: [], trigger: ["played"], ops, price: { ...zeroSkillPrice(), ...old?.price, condition: null, ops: priceOps } };
 }
 script("A549", [{ op: "draw", n: 1 }]);
 script("B549", [{ op: "draw", n: 2 }]);
@@ -182,7 +186,7 @@ function assertPrivateInterruption(s: VmState) {
   const s = main(); const source = stage(s, "FREE549"); const ev = pend(s, source);
   assert.equal(s.prompt.kind, "main"); assert.equal(draws(ev), 1);
   const prior = scripts.FREE549.bySkill[0];
-  scripts.FREE549.bySkill[0] = { ...prior, price: { condition: { kind: "all", conds: [] }, ops: null } };
+  scripts.FREE549.bySkill[0] = { ...prior, price: { ...zeroSkillPrice(), condition: TRUE_PRICE_COND, ops: null } };
   const conditional = mainWith("FREE549");
   assert.equal(draws(pend(conditional.state, conditional.source)), 1);
   assert.equal(conditional.state.prompt.kind, "main");
@@ -200,7 +204,7 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
 // A false condition takes precedence over an unread price/effect.
 {
   const old = scripts.MIX549.bySkill[0];
-  scripts.MIX549.bySkill[0] = { ...old, unsupported: ["unread effect"], price: { condition: { kind: "not", cond: { kind: "all", conds: [] } }, ops: [{ op: "draw", n: 1 }] } };
+  scripts.MIX549.bySkill[0] = { ...old, unsupported: ["unread effect"], price: { ...zeroSkillPrice(), condition: { kind: "not", cond: TRUE_PRICE_COND }, ops: [{ op: "draw", n: 1 }] } };
   const a = mainWith("MIX549"); const ev = pend(a.state, a.source);
   assert.equal(a.state.outcome, undefined); assert.equal(draws(ev), 0); assert.equal(a.state.prompt.kind, "main");
   scripts.MIX549.bySkill[0] = old;
@@ -414,11 +418,11 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
 // ceiling enumerates only values payable by the finite resource pool.
 {
   const old = scripts.X549.bySkill[0];
-  scripts.X549.bySkill[0] = { ...old, price: { ...old.price!, x: { min: 100 } } };
+  scripts.X549.bySkill[0] = { ...old, price: { ...zeroSkillPrice(), ...old.price!, x: { min: 100 } } };
   const a = mainWith("X549"); stage(a.state, "ENERGY549", "energy"); const ev = pend(a.state, a.source);
   assert.equal(a.state.outcome, undefined); assert.equal(a.state.prompt.kind, "main");
   assert.ok(ev.some((e) => e.type === "note" && /unaffordable/.test(e.text)));
-  scripts.X549.bySkill[0] = { ...old, price: { ...old.price!, x: { min: 1, max: 1000000000 } } };
+  scripts.X549.bySkill[0] = { ...old, price: { ...zeroSkillPrice(), ...old.price!, x: { min: 1, max: 1000000000 } } };
   const b = mainWith("X549"); stage(b.state, "ENERGY549", "energy"); pend(b.state, b.source);
   assert.ok(b.state.prompt.kind === "chooseMode" && b.state.prompt.options.length === 2);
   scripts.X549.bySkill[0] = old;
@@ -937,7 +941,7 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
   const old = scripts.ACTION549.bySkill[0];
   const rest: Op = { op: "switchMode", target: { sel: { special: "self" } }, mode: "rest" };
   const drop: Op = { op: "moveTo", target: { sel: { special: "self" } }, to: "drop" };
-  const trueCond = { kind: "all" as const, conds: [] };
+  const trueCond = TRUE_PRICE_COND;
   script("ACTION549", [{ op: "draw", n: 1 }], [{ op: "if", cond: trueCond, then: [rest], else: [drop] }]);
   const yes = mainWith("ACTION549"); pend(yes.state, yes.source);
   assert.equal(yes.state.prompt.kind, "chooseMode");
@@ -1029,10 +1033,10 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
   assert.ok(moved >= 0 && moved < shuffled && shuffled < activated, "full price, terminal shuffle, then activation");
   assert.equal(paid.state.prompt.kind, "main");
 
-  const falseCond = { kind: "not" as const, cond: { kind: "all" as const, conds: [] } };
+  const falseCond = { kind: "not" as const, cond: TRUE_PRICE_COND };
   const old = scripts.CONDSHUFFLE549.bySkill[0];
   try {
-    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...old.price, condition: old.price?.condition ?? null, ops: [compiled[0], compiled[1], { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }] } };
+    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...zeroSkillPrice(), ...old.price, condition: old.price?.condition ?? null, ops: [compiled[0], compiled[1], { op: "if", cond: falseCond, then: [{ op: "shuffle" }] }] } };
     const falseBranch = mainWith("CONDSHUFFLE549"); pend(falseBranch.state, falseBranch.source);
     const falseSelected = falseBranch.state.sides.p1.zones.hand[0];
     const falseOpened = answer(falseBranch.state, 0);
@@ -1043,9 +1047,9 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
   } finally { scripts.CONDSHUFFLE549.bySkill[0] = old; }
 
   try {
-    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...old.price, condition: old.price?.condition ?? null,
-      ops: [compiled[0], compiled[1], { op: "if", cond: { kind: "all", conds: [] }, then: [
-        { op: "if", cond: { kind: "all", conds: [] }, then: [{ op: "shuffle" }] },
+    scripts.CONDSHUFFLE549.bySkill[0] = { ...old, price: { ...zeroSkillPrice(), ...old.price, condition: old.price?.condition ?? null,
+      ops: [compiled[0], compiled[1], { op: "if", cond: TRUE_PRICE_COND, then: [
+        { op: "if", cond: TRUE_PRICE_COND, then: [{ op: "shuffle" }] },
       ] }] } };
     const nested = mainWith("CONDSHUFFLE549"); pend(nested.state, nested.source);
     const opened = answer(nested.state, 0);
@@ -1213,7 +1217,7 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
 // spent before the face-up note, and neither step is confused with activation.
 {
   const old = scripts.AEGISFACE549.bySkill[0];
-  scripts.AEGISFACE549.bySkill[0] = { ...old, price: { ...old.price!, ops: scripts.FACEUP549.bySkill[0].price!.ops! } };
+  scripts.AEGISFACE549.bySkill[0] = { ...old, price: { ...zeroSkillPrice(), ...old.price!, ops: scripts.FACEUP549.bySkill[0].price!.ops! } };
   let s = main(); const source = stage(s, "AEGISFACE549");
   const energy = stage(s, "ENERGY549", "energy"); s.cards[energy].mode = "rest";
   const [red, blue] = s.sides.p1.zones.hand;

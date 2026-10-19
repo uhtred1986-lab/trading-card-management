@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /**
  * #550 (20-5-3, 4-3-3, 5-8-1, 9-7-3-2, 22-10-7): what a skill's price chose —
  * the cards it picked, and the X it fixed — is what the effect reads.
@@ -72,7 +73,7 @@ const xPrice = (effect: Script["ops"]): CardScripts => ({
     0: {
       ops: effect,
       unsupported: [],
-      price: {
+      price: { ...zeroSkillPrice(),
         condition: null,
         ops: [
           { op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "paid", bindX: true },

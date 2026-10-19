@@ -339,6 +339,8 @@ function printValue(type: FieldType, v: unknown, indent: number): string {
     case "number":
     case "boolean":
       return String(v);
+    case "price":
+      return JSON.stringify(JSON.stringify(v));
     case "keyword":
       return printKeyword(v as KeywordSkill);
     case "filter":
@@ -397,6 +399,7 @@ export function printCost(cost: CostRecord): string {
   // 20-19, before TEXT for the same reason `costSentence` puts it first: the
   // payers are part of what the price *is*, and TEXT is what is left over.
   for (const pw of cost.payWith ?? []) items.push(`PAYWITH ${printSelector(pw.sel)} AS ${pw.as === "energy" ? "energy" : `{${pw.as}}`}`);
+  if (cost.readable === false) items.push("UNREAD");
   if (cost.text) items.push(`TEXT ${JSON.stringify(cost.text)}`);
   if (cost.condition !== null) items.push(`IF ${printCond(cost.condition)}`);
   if (cost.program !== null) items.push(`DO ${printBlock(cost.program, 0)}`);

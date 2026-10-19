@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** #549: a Bond selector is a validity condition, not an Auto payment. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -30,7 +31,7 @@ assert.equal(automaticHasPrice(skill, script), false, "Bond's exact specified-ca
 const selectorAndOrb = parseSkills("[Auto][Bond 2] ≪Universe 6≫ {g}: draw 1 card.")[0];
 assert.equal(automaticHasPrice(selectorAndOrb, script), true, "a selector plus an additional price is not waived");
 assert.equal(automaticHasPrice({ ...skill, cost: "≪Universe 6≫ draw 1 card" }, script), true, "unconsumed text is not treated as a free selector");
-assert.equal(automaticHasPrice({ ...skill, cost: "If your Leader is red, ≪Universe 6≫, choose 1 card from your hand and place it in your Drop Area" }, { ...script, price: { condition: null, ops: [{ op: "draw", n: 1 }] } }), true, "a mixed condition and action price is never waived as a Bond selector");
+assert.equal(automaticHasPrice({ ...skill, cost: "If your Leader is red, ≪Universe 6≫, choose 1 card from your hand and place it in your Drop Area" }, { ...script, price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "draw", n: 1 }] } }), true, "a mixed condition and action price is never waived as a Bond selector");
 const pricedBond = parseSkills("[Auto][Bond 2] {g}: draw 1 card.")[0];
 assert.equal(automaticHasPrice(pricedBond, script), true, "an orb-only Bond remains a paid Auto");
 

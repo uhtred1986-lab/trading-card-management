@@ -608,6 +608,10 @@ function FieldChip({ field, value, path, labels, onChange, rule, inCond }: { fie
   const { problems } = useBlocks();
   const bad = own(problems, path).length > 0 || (!!field.required && value === undefined);
   const t = field.type;
+  if (t === "price") return <textarea key={JSON.stringify(value)} aria-label="Granted skill payment" defaultValue={JSON.stringify(value, null, 2)} onBlur={(e) => {
+    try { const parsed: unknown = JSON.parse(e.target.value); onChange(parsed); e.target.setCustomValidity(""); }
+    catch { e.target.setCustomValidity("Enter a valid payment record"); e.target.reportValidity(); }
+  }} className={`${chip} w-64 font-mono ${bad ? blankChip : ""}`} />;
   switch (controlFor(t)) {
     case "select":
       return <SelectChip label={field.name} value={selectValue(t, value)} options={optionsOf(t)} labels={labels} optional={!field.required} bad={bad} onChange={(w) => onChange(selectWrite(t, w))} />;

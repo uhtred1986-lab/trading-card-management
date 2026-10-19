@@ -20,7 +20,7 @@ export async function verifyRuleExplanationDb(db: Db) {
     source: "compiler", status: "draft", trigger: [], cost: null, cond: null, ops: [{ op: "draw", n: 1 }] });
   const get = async () => (await db.select().from(cardRules).where(eq(cardRules.id, first.id)))[0];
   const rule: Rule = { kind: "activate:main", trigger: [],
-    cost: { text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
+    cost: { version: 1, readable: true, text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
     cond: { kind: "life", side: "you", atMost: 4 }, ops: [{ op: "draw", n: 2 }] };
   const answer: ExplanationAnswer = { confident: true, question: "", missingCapability: "", meaning: "In your Main Phase pay one red and one other energy; at life 4 or less draw two.", ruleJson: JSON.stringify(rule) };
   const words = ruleReading({ ...rule, cost: { ...rule.cost!, text: "discard one card", x: { min: 1, max: 3 } } });

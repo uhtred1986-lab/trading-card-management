@@ -1,13 +1,13 @@
-import { keywordOf, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
+import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
 import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
-import type { CardScripts, Cond, Op, Script, SkillPrice } from "../vm/script";
+import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
-import { IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
+import { compileSkillPrice, IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -431,7 +431,7 @@ function compileSkillText(skill: Skill): Script {
   if (granted) {
     const who = parseTarget(`${granted[1]} cards in your hand`);
     if (who && !who.special && !who.fromVar && !who.upTo && who.side === "you" && who.area === "hand" && !who.filter?.unreadable) {
-      return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2] }], unsupported: [] };
+      return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2], price: compileSkillPrice(parseSkills(granted[2])[0]) }], unsupported: [] };
     }
   }
   // #930, 22-13-5-2-1: "[Permanent] If you have 4 or more energy, you can choose
@@ -850,17 +850,8 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
     // a context built from card text — `rulesFor` reads the row instead — and
     // it is what keeps `npm test` and the probe playing prices at all now that
     // the engine no longer compiles one mid-game.
-    bySkill[sk.index] = { ...script, price: priceFromText(sk) };
+    bySkill[sk.index] = { ...script, price: compileSkillPrice(sk) };
     unsupported.push(...script.unsupported);
   }
   return { bySkill, complete: unsupported.length === 0, unsupported };
-}
-
-/**
- * The two halves of a price, read together (4-3-3). Module-local on purpose:
- * outside the compiler a price comes off the record, never off the text.
- */
-function priceFromText(skill: Skill): SkillPrice {
-  const x = priceX(skill);
-  return { condition: priceCondition(skill)?.cond ?? null, ops: compileCostProgram(skill)?.ops ?? null, ...(x ? { x } : {}) };
 }

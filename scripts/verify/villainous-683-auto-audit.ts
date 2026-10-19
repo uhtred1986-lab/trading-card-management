@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** Standalone focused proof of Extra Auto Heroic/Villainous hook timing (#683). */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -41,11 +42,11 @@ const scripts = rulesFromCompiler(defs);
 const moving = scripts.AUDIT_MOVE.bySkill[10];
 assert.ok(moving);
 scripts.AUDIT_MOVE.bySkill[10] = { ...moving, unsupported: [], ops: [{ op: "draw", n: 1 }],
-  price: { condition: null, ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop" }] } };
+  price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "drop" }] } };
 const redirecting = scripts.AUDIT_REDIRECT.bySkill[10];
 assert.ok(redirecting);
 scripts.AUDIT_REDIRECT.bySkill[10] = { ...redirecting, unsupported: [], ops: [{ op: "draw", n: 1 }],
-  price: { condition: null, ops: [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }] } };
+  price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }] } };
 const mutating = scripts.AUDIT_MUTATE.bySkill[10];
 assert.ok(mutating);
 scripts.AUDIT_MUTATE.bySkill[10] = { ...mutating, unsupported: [],

@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /**
  * The rules language: printed, read back, and the same object again.
  *
@@ -30,7 +31,7 @@ import { CTX, DEFS, stagedG, findG, parseFilter, pendedG, rulesFromCompiler, ski
 const ruleOf = (ops: Op[], rest: Partial<Rule> = {}): Rule => ({ kind: "auto", trigger: [], cost: null, cond: null, ops, ...rest });
 
 /** A price with nothing in it, for the round trips that are about one field of one. */
-const BARE_COST: CostRecord = { text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null };
+const BARE_COST: CostRecord = { version: 1, readable: true, text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null };
 
 /** print → parse → the same object. The failure message carries the text, which is what a person would be looking at. */
 function trip(rule: Rule, what: string): void {
@@ -91,6 +92,8 @@ const sample = (t: FieldType, wide: boolean): unknown => {
       return wide ? 3 : 1;
     case "boolean":
       return wide;
+    case "price":
+      return zeroSkillPrice();
     case "keyword":
       return wide ? { name: "Empower", color: "Red", x: 1 } : { name: "Blocker" };
     case "filter":
@@ -908,7 +911,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
 
 // ── WHEN, COST and the whole rule ───────────────────────────────────────────
 {
-  const cost = (patch: Partial<CostRecord> = {}): CostRecord => ({ text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null, ...patch });
+  const cost = (patch: Partial<CostRecord> = {}): CostRecord => ({ version: 1, readable: true, text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null, ...patch });
   for (const rule of [
     ruleOf([]),
     ruleOf([], { kind: "permanent" }),

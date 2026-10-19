@@ -1,3 +1,4 @@
+import { priceFromCostRecord, zeroSkillPrice } from "./vm/skill-payment";
 /**
  * Try it → fix it (#470): the rule being built, tried on every board its
  * trigger and its condition call for, on the engine games use — with the
@@ -35,7 +36,7 @@ import { describeCond } from "./vm/script";
 
 /** A `Rule` from the builder as a `ProbeRule`: the IF wrapped back around the steps, as `programOf` does for a row. */
 export function probeRuleOf(rule: Rule, def: CardDef, side: "front" | "back", skillIndex: number): ProbeRule {
-  const cost = rule.cost as { condition?: ProbeRule["price"]["condition"]; program?: ProbeRule["price"]["ops"]; x?: ProbeRule["price"]["x"] } | null;
+
   return {
     def,
     side,
@@ -45,7 +46,7 @@ export function probeRuleOf(rule: Rule, def: CardDef, side: "front" | "back", sk
     ops: rule.cond ? [{ op: "if", cond: rule.cond, then: rule.ops }] : rule.ops,
     open: false,
     unread: [],
-    price: { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}) },
+    price: rule.cost ? priceFromCostRecord(rule.cost) : zeroSkillPrice(),
     hoisted: rule.cond != null,
   };
 }
@@ -183,7 +184,7 @@ export function gateOf(rule: ProbeRule, scenario: ProbeScenario, run: ProbeRun):
   }
   const hasPrice = !!(rule.price.condition || rule.price.ops?.length);
   if (hasPrice) {
-    const free = probe({ ...rule, price: { condition: null, ops: null } }, scenario, { trace: true });
+    const free = probe({ ...rule, price: zeroSkillPrice() }, scenario, { trace: true });
     if (FIRES.includes(effective(free))) {
       const condOnly = rule.price.condition ? probe({ ...rule, price: { ...rule.price, condition: null } }, scenario, { trace: true }) : null;
       const byCond = !!condOnly && FIRES.includes(effective(condOnly));

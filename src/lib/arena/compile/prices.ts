@@ -1,6 +1,7 @@
+import { priceFromCostRecord, zeroCostRecord } from "../vm/skill-payment";
 import { keywordOf, orbsIn } from "../text/cards";
 import type { Color, Skill } from "../types";
-import type { Cond, Op, Ref, Script, XCost } from "../vm/script";
+import type { Cond, CostRecord, Op, Ref, Script, SkillPrice, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
 import { allConditions, foldBothQualifier } from "./conditions";
 import { disjointMoveSpans } from "./disjoint-shape";
@@ -479,4 +480,23 @@ export function joints(said: string): { at: number; len: number }[] {
     }
   }
   return out;
+}
+
+/** Compile the complete price once, including an explicit zero payment. */
+export function compileCostRecord(skill: Skill): CostRecord {
+  if (skill.kind === "permanent") return zeroCostRecord();
+  const condition = priceCondition(skill)?.cond ?? null;
+  const program = compileCostProgram(skill)?.ops ?? null;
+  const x = priceX(skill);
+  return {
+    version: 1,
+    readable: costIsOnlyOrbs(skill.cost) || condition !== null || !!program?.length || x !== null,
+    text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
+    marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
+    condition, program, ...(x ? { x } : {}),
+  };
+}
+
+export function compileSkillPrice(skill: Skill): SkillPrice {
+  return priceFromCostRecord(compileCostRecord(skill));
 }

@@ -18,7 +18,9 @@ import { compileCardCached, compileSkill } from "./compile";
 import { parseSkills, skillLines } from "./text/cards";
 import { type CardDef, type KeywordSkill } from "./types";
 import { type CardScripts, type Op } from "./vm/script";
-import { aegisPriceLine, compileCostProgram, costText, priceCondition, priceX } from "./compile";
+import { aegisPriceLine } from "./compile";
+import { compileCostRecord } from "./compile/prices";
+import { needsPaymentRecord } from "./vm/skill-payment";
 import type { Cond, CostRecord } from "./vm/script";
 import { describeScript } from "./vm/script";
 
@@ -63,7 +65,7 @@ export function skillRecords(def: CardDef): SkillRecord[] {
     if (!text) continue;
     const lines = skillLines(text);
     for (const parsed of parseSkills(text)) {
-      if (!parsed.effect.trim()) continue;
+      if (!parsed.effect.trim() && !needsPaymentRecord(parsed)) continue;
       // 22-30-2: an [Aegis] line's text after its tag is its price, drafted
       // as the record's cost program rather than its effect (#595).
       const sk = aegisPriceLine(parsed);
@@ -78,7 +80,7 @@ export function skillRecords(def: CardDef): SkillRecord[] {
         printed: lines[Math.floor(sk.index / 10)] ?? sk.raw,
         kind: sk.kind,
         trigger: triggersOf(sk),
-        cost: costRecord(sk),
+        cost: compileCostRecord(sk),
         cond,
         ops,
         unread,
@@ -88,24 +90,6 @@ export function skillRecords(def: CardDef): SkillRecord[] {
     }
   }
   return out;
-}
-
-function costRecord(sk: ReturnType<typeof parseSkills>[number]): CostRecord | null {
-  const text = costText(sk.cost);
-  const orbs = Object.fromEntries(Object.entries(sk.energyCost).filter(([, v]) => v)) as Record<string, number>;
-  const x = priceX(sk);
-  if (!text && !Object.keys(orbs).length && !sk.energyEither.length && sk.markerCost == null && sk.burst == null && sk.spiritBoost == null && !x) return null;
-  return {
-    text,
-    orbs,
-    either: sk.energyEither,
-    marker: sk.markerCost,
-    burst: sk.burst,
-    spiritBoost: sk.spiritBoost,
-    condition: priceCondition(sk)?.cond ?? null,
-    program: compileCostProgram(sk)?.ops ?? null,
-    ...(x ? { x } : {}),
-  };
 }
 
 /**

@@ -492,6 +492,7 @@ export interface Permission {
   n?: number;
   /** `unionLine`: the printed text of the line granted. */
   line?: string;
+  price?: import("./vm/script").SkillPrice;
   /** `unionSourceUnder`: which Unison cards' piles may be searched (BT24-112's "your black Z-Unison"). */
   source?: CardFilter;
 }
