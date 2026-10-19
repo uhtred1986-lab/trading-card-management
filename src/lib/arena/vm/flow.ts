@@ -1,3 +1,4 @@
+import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
 import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, sameAbsorbIdentity } from "./skill-identity";
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
 import { lifeToHandForbidden } from "./life-movement";
@@ -1229,7 +1230,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       const gap = evolutionIdentityProblem(frame.evolutionIdentity, true); if (gap) throw new NotYet(gap, "#907");
       if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
     }
-    if (frame.absorbIdentity || sourceScript?.price?.absorb !== undefined) {
+    if (frame.absorbIdentity || sourceScript?.price?.absorb !== undefined || containsAbsorbPlay(frame.ops) || [frame.keywordPrice?.line, frame.keywordCost?.line].some(line => line && (line.script?.price?.absorb !== undefined || isAbsorbSkill(line.skill)))) {
       const gap = absorbIdentityProblem(frame.absorbIdentity, true); if (gap) throw new NotYet(gap, "#907");
       if (!Number.isSafeInteger(frame.absorbSourceEpoch)) throw new NotYet("rebuild this saved Absorb source occurrence (#907)", "#907");
       for (const line of [frame.keywordPrice?.line, frame.keywordCost?.line]) if (line && (!sameAbsorbIdentity(frame.absorbIdentity, { kind: line.script?.kind, price: line.script?.price, ops: line.script?.ops }))) throw new NotYet("rebuild inconsistent saved Absorb identity/price (#907)", "#907");

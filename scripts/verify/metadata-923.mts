@@ -75,5 +75,5 @@ try {
   const camel = after.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()), v]))) as unknown as RuleRow[];
   const loaded = rulesFromRows(camel, defs);
   for (const r of camel) assert.deepEqual(loaded[`${r.cardId}${r.side === "back" ? "#back" : ""}`].bySkill[r.skillIndex].unsupported, r.cardId === "BT3-070" && r.skillIndex === 0 ? [ABSORB_REBUILD] : [], "ten historical saved rows admit; the unchanged Absorb row explicitly requires its separate migration");
-  console.log("metadata-923: eleven original programs/review records preserved, full snapshot and catalog races refused, costs/combo contracts/statuses retained, replay/idempotence and actual eleven-row loader admission PASS (separate native Absorb authority residual retained) (PGlite only)");
+  console.log("metadata-923: eleven original programs/review records preserved, full snapshot and catalog races refused, costs/combo contracts/statuses retained, replay/idempotence and ten historical rows admit and unchanged Absorb explicitly requires rebuild PASS (PGlite only)");
 } finally { await client.close(); }

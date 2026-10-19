@@ -34,3 +34,10 @@ export function absorbEffectProblem(ops: Op[] | undefined): string | null {
   walk(ops);
   return bad || !plays ? ABSORB_REBUILD : null;
 }
+/** Old saved executable programs identify a missing migration, never supply identity. */
+export function containsAbsorbPlay(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsAbsorbPlay);
+  if (!value || typeof value !== "object") return false;
+  const op = value as Record<string, unknown>;
+  return op.op === "play" && op.using === "Union-Absorb" || Object.values(op).some(containsAbsorbPlay);
+}
