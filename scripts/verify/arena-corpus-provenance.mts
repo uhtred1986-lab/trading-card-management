@@ -106,6 +106,18 @@ delete (absentIdentity[0].cost as Record<string, unknown>).fusion;
 assert.equal(programProvenance(identityDefs, "stored", absentIdentity).manifest[0].executable, false);
 const wrongIdentity = structuredClone(identityRows); wrongIdentity[0].kind = "activate:main";
 assert.equal(programProvenance(identityDefs, "stored", wrongIdentity).manifest[0].executable, false);
+// Only a validated stored EX-Evolve identity removes its activation/base gap.
+const evolutionDef=card("PROVENANCE-EVOLUTION",{skill:"[EX-Evolve] Choose 2 red cards from your hand and place them in your Drop Area: Red <Gogeta: Br> card with an energy cost of 6."});
+const evolutionRows=skillRecords(evolutionDef).map(r=>({...r,status:"draft",source:"compiler",version:1})) as ExportedRule[];
+const evolutionDefs={[evolutionDef.id]:evolutionDef};
+assert.equal(programProvenance(evolutionDefs,"stored",evolutionRows).manifest[0].executable,true);
+const missingEvolution=structuredClone(evolutionRows); delete (missingEvolution[0].cost as Record<string,unknown>).evolution;
+assert.equal(programProvenance(evolutionDefs,"stored",missingEvolution).manifest[0].executable,false);
+const wrongEvolution=structuredClone(evolutionRows); wrongEvolution[0].kind="auto";
+assert.equal(programProvenance(evolutionDefs,"stored",wrongEvolution).manifest[0].executable,false);
+const otherEvolution=card("PROVENANCE-OTHER-EVOLUTION",{skill:"[Evolve]{r}: Red <Gogeta: Br> card with an energy cost of 6."});
+const otherEvolutionRows=skillRecords(otherEvolution).map(r=>({...r,status:"draft",source:"compiler",version:1})) as ExportedRule[];
+assert.equal(programProvenance({[otherEvolution.id]:otherEvolution},"stored",otherEvolutionRows).manifest[0].executable,false,"other evolution families retain their named boundary");
 const snake = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`), value])));
 assert.deepEqual(programProvenance(defs, "stored", snake).scripts, current.scripts, "supported export naming preserves loaded program");
 assert.throws(() => programProvenance(defs, "compiler", rows), /stored mode/);

@@ -6,8 +6,9 @@ import {readFileSync,writeFileSync} from 'node:fs';
 import {cardDefFrom} from '../../src/lib/arena/load.ts';
 import {skillRecords} from '../../src/lib/arena/draft.ts';
 import {fusionMaterialsProblem} from '../../src/lib/arena/vm/fusion-materials.ts';
+import {evolutionBaseProblem} from '../../src/lib/arena/vm/evolution-base.ts';
 import {zeroCostRecord} from '../../src/lib/arena/vm/skill-payment.ts';
-import {sem,normPrinted} from '../lib/refresh-ids.ts';
+import {sem,normPrinted,parseIdList} from '../lib/refresh-ids.ts';
 const base='docs/arena-backlog/evidence/';
 const catalog: Parameters<typeof cardDefFrom>[0][]=JSON.parse(readFileSync(base+'897/selected-pair-inputs-2026-10-19/catalog.json','utf8')).cards;
 const beforeFlag=process.argv.indexOf('--before');
@@ -81,11 +82,27 @@ for(const old of current){
    assert.ok(metadataOnly,'Typed Fusion contract must be the only extra change');
    reviewedRepair='Previously delivered typed Fusion material contract plus persisted keyword kind; exact three frozen both-seat payment/play/draw and identity proofs';
  }
+ if(key==='BT6-014/front/0'&&!metadataOnly){
+   const evolution=fresh.cost?.evolution; assert.ok(evolution); assert.equal(evolutionBaseProblem(evolution),null);
+   assert.equal(fresh.kind,'keyword');
+   assert.deepEqual({version:evolution.version,variant:evolution.variant,activation:evolution.activation,area:evolution.base.area,side:evolution.base.side},
+     {version:1,variant:'EX-Evolve',activation:'hand',area:'battle',side:'you'});
+   assert.deepEqual(evolution.base.filter.colors,['Red']);
+   assert.deepEqual(evolution.base.filter.characters,['Gogeta: Br']);
+   assert.equal(evolution.base.filter.type,'BATTLE');
+   assert.equal(evolution.base.filter.costMin,6); assert.equal(evolution.base.filter.costMax,6);
+   metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity})===sem({...old,cost:{...upgradedCost,evolution}});
+   assert.ok(metadataOnly,'Typed EX-Evolve base must be the only extra change');
+   reviewedRepair='Typed EX-Evolve hand/Main identity and own Battle Area red Gogeta: Br current-energy-six base; existing two-red-hand payment and effect bodies preserved';
+ }
  if(!metadataOnly)reasons.push('other semantic/reading difference requires separate review');
  const record={key,id:old.id,version:old.version,status:old.status,source:old.source,metadataOnly:metadataOnly&&!reviewedRepair,reviewedRepair,reasons,...(reviewedRepair?{beforeProgram:{cost:old.cost,cond:old.cond,ops:old.ops,unread:old.unread,reads:old.reads},afterProgram:{cost:fresh.cost,cond:fresh.cond,ops:fresh.ops,unread:fresh.unread,reads:fresh.reads,usage:fresh.usage,validity:fresh.validity}}:{})};
  if(reasons.length)held.push(record);else plan.push(record);
 }
 const out={before:beforePath,plan,held,protectedUnchanged:[...protectedKeys],note:'No human confirmation or pair qualification; frozen original inputs remain unchanged'};
 writeFileSync(process.argv[outFlag+1],JSON.stringify(out,null,2)+'\n');
-writeFileSync(process.argv[idsFlag+1],plan.map(r=>r.key).join('\n')+'\n');
+const ids=plan.map(r=>{const [card,side,index]=r.key.split('/');return `${card}#${index}#${side}`;}).join('\n')+'\n';
+const parsedIds=parseIdList(ids); assert.deepEqual(parsedIds.bad,[]); assert.equal(parsedIds.specs.length,plan.length);
+assert.ok(parsedIds.specs.every(s=>s.skill!==null&&s.side!==null),'Only concrete existing face/skill targets may be refreshed');
+writeFileSync(process.argv[idsFlag+1],ids);
 console.log(JSON.stringify({planned:plan.length,held:held.map(r=>({key:r.key,reasons:r.reasons}))},null,2));

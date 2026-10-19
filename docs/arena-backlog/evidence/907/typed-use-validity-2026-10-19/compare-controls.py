@@ -15,8 +15,9 @@ limited = {'SD15-01/back/10': (True, None), 'SD15-02/front/0': (False, 1),
 manifest = {r['key']: r for r in a['programs']['manifest']}
 migrations = []
 for card, saved in expected.items():
+    card_id, side = (card[:-5], 'back') if card.endswith('#back') else (card, 'front')
     for index, program in saved['bySkill'].items():
-        keys = [k for k, r in manifest.items() if r['cardId'] == card and str(r['skillIndex']) == index]
+        keys = [k for k, r in manifest.items() if r['cardId'] == card_id and r['side'] == side and str(r['skillIndex']) == index]
         assert len(keys) == 1, (card, index, keys)
         key = keys[0]
         once, limit = limited.get(key, (False, None))

@@ -16,6 +16,7 @@ bytes and access limitations:
 - [Four Sparking skills and validity timing](../typed-validity-2026-10-19/online-sources.md).
 - [Paragus Life lock, Broly Q7 and actual damage](../life-lock-2026-10-19/online-sources.md).
 - [Counter card energy costs](../counter-cost-2026-10-19/online-sources.md).
+- [BT6-014 EX-Evolve base, hand timing and stacking](../evolution-identity-2026-10-19/online-sources.md).
 
 Usage v1 persists `oncePerTurn` and `limit`, including explicit unlimited.
 Once-per-turn remains per skill/copy; Limit remains shared by master, card
@@ -37,6 +38,13 @@ A misleading displayed Strike cannot grant keyword hooks or selector properties
 from a blocked record. Native bare keywords remain owned by the pinned ruleset;
 other paid keyword variants keep their named boundaries. No extra column is
 needed for identity.
+
+BT6-014's bounded EX-Evolve contract records hand activation and a base in its
+controller's Battle Area: red Gogeta: Br with current energy cost six, including
+the specified-cost floor. The existing two-red-hand discard payment and evolved
+Auto remain separate programs. Printed ownership is not a base restriction;
+the official control FAQ permits a borrowed card. Other evolution families and
+extra-area permissions retain their separate boundaries.
 
 Paragus's front skill pays its Life-to-hand cost before installing its turn lock;
 the back's Permanent holds during its controller's turn. Both native and skill
@@ -65,9 +73,10 @@ still pay and consume Once-per-turn; both payoff effects and the Counter bound
 remain gated together.
 
 [The offline application plan](application-plan.json) admits exactly 63
-compiler-owned records: 54 preserve their existing effect/condition/trigger/payment bodies while
-adding typed metadata/payment format; nine have explicitly reviewed repairs
-(two Barrier flags, two Life locks, two Counter bounds, three Fusion contracts).
+compiler-owned records: 53 preserve their existing effect/condition/trigger/payment bodies while
+adding typed metadata/payment format; ten have explicitly reviewed repairs
+(two Barrier flags, two Life locks, two Counter bounds, three Fusion contracts,
+one EX-Evolve contract).
 No generic refresh may overwrite the four owner corrections.
 
 The owner explicitly approved [the exact four-row metadata preview](protected-metadata-preview.json)
@@ -78,9 +87,9 @@ approved digest is `0a46676c2d9d7149968ab3fdc0d6e8b517e77b2121a6d2af97c075b937e1
 One atomic full-row comparison refuses all pending writes if any reviewed row
 changes. The original frozen catalog and 67-row export remain unchanged.
 
-Focused validation covers 220 named both-seat scenarios across usage, Sparking,
+Focused validation covers 280 named both-seat scenarios across usage, Sparking,
 Life lock, Counter costs, Fusion identity, exact Barrier targeting and the
-protected Leader program. Separate checks cover mono-red predicates,
+protected Leader program and EX-Evolve. Separate checks cover mono-red predicates,
 provenance mutations and guarded PGlite writes. Missing/malformed old records
 and contexts explicitly require rebuilding. Current compiler drafts remain
 unconfirmed; applying metadata adds no human confirmation.
@@ -89,3 +98,10 @@ Essential integrated validation, starter control preservation, deployment and
 actual application are recorded separately below as they complete. The owner
 requested focused testing: no full `npm test`, full `verify-arena` or local
 production build.
+
+The exact starter comparison caught a missing captured usage/validity snapshot
+on native Dual Attack hooks. Those hooks now capture their executable metadata;
+obsolete saved frames still require rebuilding. It also exposed a reporting
+defect: a referee interruption closes the engine phase but is not a result.
+The shared duel adapter and corpus classifier now report it as unfinished
+instead of a completed draw, with private context excluded from public receipts.

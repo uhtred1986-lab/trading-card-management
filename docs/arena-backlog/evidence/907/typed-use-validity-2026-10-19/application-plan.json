@@ -601,9 +601,262 @@
       "version": 2,
       "status": "draft",
       "source": "compiler",
-      "metadataOnly": true,
-      "reviewedRepair": null,
-      "reasons": []
+      "metadataOnly": false,
+      "reviewedRepair": "Typed EX-Evolve hand/Main identity and own Battle Area red Gogeta: Br current-energy-six base; existing two-red-hand payment and effect bodies preserved",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": {
+          "orbs": {},
+          "text": "Choose 2 red cards from your hand and place them in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 2,
+                "filter": {
+                  "z": null,
+                  "type": null,
+                  "names": [],
+                  "token": false,
+                  "colors": [
+                    "Red"
+                  ],
+                  "faceUp": false,
+                  "traits": [],
+                  "costMax": null,
+                  "costMin": null,
+                  "notType": null,
+                  "keywords": [],
+                  "namesAll": [],
+                  "notNames": [],
+                  "notToken": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "monoColor": false,
+                  "notColors": [],
+                  "notTraits": [],
+                  "skillKind": null,
+                  "skillLess": false,
+                  "characters": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "multiColor": false,
+                  "noKeywords": false,
+                  "unreadable": false,
+                  "notKeywords": [],
+                  "charactersAll": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "notCharacters": [],
+                  "namesIncluding": [],
+                  "onlyCharacters": false,
+                  "characterOrTrait": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "nameInSkillTextOf": null,
+                  "notNamesIncluding": [],
+                  "charactersIncluding": [],
+                  "originallySkillLess": false,
+                  "notCharactersIncluding": []
+                }
+              },
+              "reason": "Choose 2 red cards from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 2 red cards from your hand and place them in your Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 2,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 2 red cards from your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ],
+          "evolution": {
+            "version": 1,
+            "variant": "EX-Evolve",
+            "activation": "hand",
+            "base": {
+              "area": "battle",
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Gogeta: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 6,
+                "costMax": 6,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            }
+          }
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": "",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
     },
     {
       "key": "BT6-014/front/20",
