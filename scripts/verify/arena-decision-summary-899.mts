@@ -47,6 +47,12 @@ for (const owner of ["p1", "p2"] as const) {
   const cardId = match.state.cards[source].cardId;
   const mutate = (ops: Op[]) => { const m = copy(match); m.ctx.scripts![cardId].bySkill[0].ops = ops; return m; };
   const power: Op = { op: "power", target: { sel: { special: "leader" } }, amount: 7000, until: "battle" };
+  const twoSkills = copy(match);
+  twoSkills.ctx.defs[cardId].skill += "<br>[Activate: Battle] Your Leader gets +99999 power for the turn.";
+  twoSkills.ctx.scripts![cardId].bySkill[10] = { ...copy(twoSkills.ctx.scripts![cardId].bySkill[0]), ops: [{ ...power, amount: 9000 }] };
+  const twoOffers = legalMoves(twoSkills).filter(l => l.action.type === "activate" && l.action.card === source);
+  assert.equal(twoOffers.length, 2, "both distinct lines are genuinely offered");
+  assert.deepEqual(twoOffers.map(l => direct(twoSkills, l).battleActivation?.power.battle).sort((a, b) => a! - b!), [5000, 9000], "exact stored offered line controls its own summary"); cases++;
   const typed = mutate([{ op: "draw", n: 1 }, power]);
   assert.deepEqual(direct(typed, activation).battleActivation, { version: 1, skillIndex: 0, timing: "activate:battle", power: { battle: 7000, turn: 0 }, drawnFirst: 1 }); cases++;
   typed.ctx.defs[cardId].skill = "[Activate: Battle] Your Leader gets +1 power for the turn.";
