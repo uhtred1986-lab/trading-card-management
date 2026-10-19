@@ -1627,7 +1627,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && p.target === card);
       // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
       if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
-      if (c.what === "unionEnergy" || c.what === "unionFusionAreas" || c.what === "unionFusionWarp") {
+      if (c.what === "unionEnergy" || c.what === "unionFusionAreas" || c.what === "unionFusionWarp" || c.what === "unionFusionDropBottom") {
         const potara = potaraOf(ctx, game, state, frame);
         if (potara && !potara.extensions.includes(c.what as import("./script").PotaraMaterials["extensions"][number])) return false;
         const material = fusionOf(ctx, game, state, frame);
@@ -1637,7 +1637,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (p.master !== frame.master) return false;
         // A hand Permanent about “this card's” Fusion never widens another
         // card's skill, nor the granting card's skill from another area.
-        if ((c.what === "unionFusionWarp" || c.what === "unionEnergy") && (p.target !== card || findCard(state, card)?.zone !== "hand")) return false;
+        if ((c.what === "unionFusionWarp" || c.what === "unionEnergy" || c.what === "unionFusionDropBottom") && (p.target !== card || findCard(state, card)?.zone !== "hand")) return false;
         return permitted(ctx, game, state, p.filter, card);
       });
     }

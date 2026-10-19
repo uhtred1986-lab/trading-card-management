@@ -463,9 +463,10 @@ DEFINE KEYWORD Union
   offer: "activate:main"
   REFUSE zone(area: battle) UNLESS any([NOT oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.battle) >= 1])
   REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
-  REFUSE target(reason: "needs {names} in hand") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf)])])
-  REFUSE target(reason: "the two cards must have equal power") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf, samePower: true)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf, samePower: true)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf, samePower: true)])])
+  REFUSE target(reason: "needs {names} in hand") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf)]), all([permits(what: unionFusionDropBottom), eachNamed(sel: "Battle Card" IN you.ANY(hand|drop) otherThanSelf)])])
+  REFUSE target(reason: "the two cards must have equal power") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf, samePower: true)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf, samePower: true)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf, samePower: true)]), all([permits(what: unionFusionDropBottom), eachNamed(sel: "Battle Card" IN you.ANY(hand|drop) otherThanSelf, samePower: true)])])
   REFUSE target(reason: "needs {names} in your Battle Area") UNLESS any([NOT oneOf(value: $variant, of: ["Potara"]), eachNamed(sel: IN you.battle), all([permits(what: unionEnergy), NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy))]), all([permits(what: unionFusionWarp), NOT permits(what: unionEnergy), eachNamed(sel: IN you.ANY(battle|warp))]), all([permits(what: unionEnergy), permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy|warp))])])
+  REFUSE other(detail: "not yet: combining Drop-to-bottom Fusion permission with Warp or Battle/Drop-to-Warp permissions") UNLESS any([NOT permits(what: unionFusionDropBottom), all([NOT permits(what: unionFusionWarp), NOT permits(what: unionFusionAreas)])])
   label: "Union-{variant} {card}"
   DO {
     if(cond: oneOf(value: $variant, of: ["Fusion"]), then: {
@@ -475,6 +476,11 @@ DEFINE KEYWORD Union
       -- (22-13-4-4) and the others to their owner's Warp.
       -- This card's own permission (BT12-136/137, P-286) adds Warp;
       -- each chosen card still goes to Drop, including hand/Warp mixes.
+      if(cond: permits(what: unionFusionDropBottom), then: {
+        choose(sel: 2 "Battle Card" IN you.ANY(hand|drop) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named materials; chosen Drop cards go to your deck bottom in this chosen order")
+        moveTo(target: $pair MINUS $pairOutside, to: drop, cause: cost)
+        moveTo(target: $pairOutside, to: deck, position: bottom, cause: cost)
+      }, else: {
       if(cond: permits(what: unionFusionWarp), then: {
         choose(sel: 2 "Battle Card" IN you.ANY(hand|warp) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards from hand or Warp")
         moveTo(target: $pair, to: drop, cause: cost)
@@ -487,6 +493,7 @@ DEFINE KEYWORD Union
           choose(sel: 2 IN you.hand otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards to drop")
           moveTo(target: $pair, to: drop, cause: cost)
         })
+      })
       })
       -- 22-13-4-4-1 (#926): with the materials in the Drop, the rest of the
       -- skill cost — an action printed with the orbs, "draw 2 cards" — is paid.

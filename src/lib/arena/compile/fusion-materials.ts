@@ -18,6 +18,6 @@ export function compileFusionMaterials(skill: Skill): FusionMaterials | undefine
   const needs = compileNamedUnionNeeds(skill); if (!needs) return undefined;
   return {
     version: 1, needs, samePower: true,
-    activation: "hand", base: "hand", extensions: ["unionFusionAreas", "unionFusionWarp"],
+    activation: "hand", base: "hand", extensions: ["unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom"],
   };
 }

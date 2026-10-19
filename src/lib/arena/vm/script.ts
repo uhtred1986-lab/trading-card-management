@@ -478,7 +478,7 @@ export type Cond =
    * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
    * the card using the line, not of the card granting it.
    */
-  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAlt" }
+  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAlt" }
   /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
@@ -1117,7 +1117,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1329,7 +1329,7 @@ export interface FusionMaterials {
   samePower: boolean;
   activation: "hand";
   base: "hand";
-  extensions: ("unionFusionAreas" | "unionFusionWarp")[];
+  extensions: ("unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom")[];
 }
 
 /**

@@ -747,7 +747,7 @@ function moveTo(
   // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
   if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
   if (from && fromOwner) {
-    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
+    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });
   } else if (host && hostZone) {
     log(ev, { type: "move", card: id, from: hostZone as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
     log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
