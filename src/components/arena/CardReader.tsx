@@ -1,9 +1,10 @@
 "use client";
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { cardImage } from "@/lib/catalog/card-image";
 import { useArenaAdmin } from "./admin-context";
-import { chipKind, chipLabel, readerAbilities, skillShortName } from "./card-reader-model";
+import { chipKind, chipLabel, keywordBadge, keywordRule, readerAbilities, skillBody, skillShortName, type KeywordBadge } from "./card-reader-model";
+import type { KeywordRule } from "@/lib/arena/keyword-rules.generated";
 import styles from "./CardReader.module.css";
 
 /**
@@ -14,7 +15,7 @@ import styles from "./CardReader.module.css";
  * a coloured keyword chip, a short name, and a "+" that opens that one skill's full text. The
  * "Full text" toggle opens them all. Inspection only: reading or swiping can never submit a game action.
  */
-export function CardReader({ card, showAbilities, direction }: { card: CardView; showAbilities: boolean; direction: "next" | "prev" }) {
+export function CardReader({ card, showAbilities, direction, docked = false }: { card: CardView; showAbilities: boolean; direction: "next" | "prev"; /** In the desktop inspector: the scan is sized to the inspector's height, not to a sheet of its own. */ docked?: boolean }) {
   const id = useId();
   const admin = useArenaAdmin();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -49,12 +50,12 @@ export function CardReader({ card, showAbilities, direction }: { card: CardView;
           </div>
           <button type="button" className={styles.info} data-reader-info aria-label={`${expanded ? "Hide" : "Read"} full text: ${line.title}`} aria-expanded={expanded} aria-controls={textId} onClick={e => { e.stopPropagation(); toggle(line.key); }}><span aria-hidden>{expanded ? "−" : "+"}</span></button>
         </div>
-        {expanded && <div id={textId} className={styles.fullText} role="region" aria-label={`${line.title}, exact printed text`}><p>{line.text}</p></div>}
+        {expanded && <div id={textId} className={styles.fullText} role="region" aria-label={`${line.title}, exact printed text`}><p>{line.text}</p>{keywordRule(line.tag) && <KeywordRuleText rule={keywordRule(line.tag)!} />}</div>}
       </div>;
     })}
     {abilities.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}
   </div>;
-  return <div className={styles.reader} data-card-reader data-reader-layout={hasArt ? "anchored" : "tray"}>
+  return <div className={styles.reader} data-card-reader data-reader-docked={docked || undefined} data-reader-layout={hasArt ? "anchored" : "tray"}>
     <div className={styles.face} data-reader-direction={direction} data-reader-face>
       {hasArt ? <>
         {/* eslint-disable-next-line @next/next/no-img-element -- use the best available original, without inventing image detail. */}
@@ -63,5 +64,78 @@ export function CardReader({ card, showAbilities, direction }: { card: CardView;
       {showAbilities && !card.hidden && hasArt && panel}
     </div>
     {showAbilities && !card.hidden && !hasArt && <div className={styles.tray}>{panel}</div>}
+  </div>;
+}
+
+const PIP_NAME: Record<string, string> = { r: "red", u: "blue", g: "green", y: "yellow", b: "black" };
+
+/** A keyword badge: its name and the values it carries; the reminder is its tooltip, and a tap opens its rule. */
+function Badge({ badge, open, onToggle }: { badge: KeywordBadge; open?: boolean; onToggle?: () => void }) {
+  const said = [badge.label, badge.count, badge.pips.length ? `cost ${badge.pips.map((p) => PIP_NAME[p] ?? p).join(" ")}` : null, badge.target ? `on ${badge.target}` : null].filter(Boolean).join(", ");
+  const inner = <>
+    <span>{badge.label}{badge.count ? ` ${badge.count}` : ""}</span>
+    {badge.pips.length > 0 && <span className={styles.kwSlot} aria-hidden>{badge.pips.map((p, i) => <i key={i} className={styles.pip} data-pip={PIP_NAME[p] ? p : "n"}>{PIP_NAME[p] ? "" : p}</i>)}</span>}
+    {badge.target && <span className={styles.kwSlot} aria-hidden>on {badge.target}</span>}
+  </>;
+  if (!onToggle) return <span className={styles.kwBadge} data-deck={badge.deck || undefined} title={badge.reminder || undefined} aria-label={badge.reminder ? `${said}: ${badge.reminder}` : said}>{inner}</span>;
+  return <button type="button" className={styles.kwBadge} data-deck={badge.deck || undefined} title={badge.reminder || undefined} aria-label={`${said}. How it works`} aria-expanded={open} onClick={onToggle} data-keyword-badge={badge.key}>
+    {inner}<span className={styles.kwInfo} aria-hidden>ⓘ</span>
+  </button>;
+}
+
+/** A keyword's rule: the glossary's one-line meaning, and the Rule Manual's own section a tap further. */
+export function KeywordRuleText({ rule }: { rule: KeywordRule }) {
+  return <div className={styles.rule} data-keyword-rule={rule.name}>
+    <p className={styles.ruleMeaning}>{rule.meaning}</p>
+    <details className={styles.ruleManual}>
+      <summary>Rule Manual {rule.section}</summary>
+      {rule.manual.map((p) => <p key={p.id} data-depth={Math.min(p.id.split("-").length - 2, 3)}><span className={styles.ruleId}>{p.id}</span> {p.text}</p>)}
+    </details>
+  </div>;
+}
+
+/**
+ * Everything a card can do, at one glance (owner, 19 Oct 2026): for the desktop card column, where there
+ * is room to write it out. Keywords are a strip of badges (their meaning never changes; the reminder is a
+ * tooltip), then every other skill in full, with its type chip and its limits. Nothing is behind a "+".
+ */
+export function CardSkills({ card, actionsFor }: { card: CardView; /** What the skill with this reader key can do now, drawn under its text (`SkillActions`). */ actionsFor?: (key: string) => React.ReactNode }) {
+  const [openRule, setOpenRule] = useState<string | null>(null);
+  if (card.hidden) return <p className={styles.empty}>Face-down card.</p>;
+  const lines = readerAbilities(card);
+  const badges: KeywordBadge[] = [];
+  const rows = lines.filter((line) => {
+    const badge = keywordBadge(line);
+    if (badge) badges.push(badge);
+    return !badge;
+  });
+  badges.sort((a, b) => Number(a.deck) - Number(b.deck));
+  const ruleOf = (key: string) => keywordRule(lines.find((l) => l.key === key)?.tag ?? "");
+  const toggle = (key: string) => () => setOpenRule(openRule === key ? null : key);
+  const badgeOf = (b: KeywordBadge) => ruleOf(b.key) ? <Badge badge={b} open={openRule === b.key} onToggle={toggle(b.key)} /> : <Badge badge={b} />;
+  // A keyword that is also a move (Over Realm, Aegis) keeps its badge and gets its actions under the strip.
+  const badgeActions = badges.map((b) => [b, actionsFor?.(b.key)] as const).filter(([, a]) => a);
+  const stripRule = badges.some((b) => b.key === openRule) && !badgeActions.some(([b]) => b.key === openRule) ? ruleOf(openRule!) : null;
+  return <div className={styles.skills} data-card-skills={card.id}>
+    {badges.length > 0 && <div className={styles.kwStrip} aria-label="Keywords">{badges.map((b) => <Fragment key={b.key}>{badgeOf(b)}</Fragment>)}</div>}
+    {stripRule && <KeywordRuleText rule={stripRule} />}
+    {badgeActions.map(([b, a]) => <div key={b.key} className={styles.skillRow} data-reader-ability={b.key}><div className={styles.skillHead}>{badgeOf(b)}</div>{openRule === b.key && ruleOf(b.key) && <KeywordRuleText rule={ruleOf(b.key)!} />}{a}</div>)}
+    {rows.map((line) => {
+      const rule = keywordRule(line.tag);
+      return <div key={line.key} className={styles.skillRow} data-available={line.offered || undefined} data-chip={chipKind(line.tag, line.keyword)} data-reader-ability={line.key}>
+        <div className={styles.skillHead}>
+          <span className={styles.chip}>{chipLabel(line.tag)}</span>
+          {rule && <button type="button" className={styles.ruleButton} aria-label={`How ${chipLabel(line.tag)} works`} aria-expanded={openRule === line.key} onClick={toggle(line.key)} data-keyword-info={line.key}>ⓘ</button>}
+          {line.extraTags.map((t) => <span key={t} className={styles.limit}>{chipLabel(t)}</span>)}
+          {line.copied && <span className={styles.limit}>Added</span>}
+          {line.offered && <span className={styles.now}>Available now</span>}
+          {!line.offered && line.state === "Pending" && <span className={styles.limit}>Pending</span>}
+        </div>
+        {rule && openRule === line.key && <KeywordRuleText rule={rule} />}
+        <p className={styles.skillText}>{skillBody(line.text)}</p>
+        {actionsFor?.(line.key)}
+      </div>;
+    })}
+    {lines.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}
   </div>;
 }

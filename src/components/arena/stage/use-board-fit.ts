@@ -86,3 +86,65 @@ export function useCompactSqueeze(ref: RefObject<HTMLElement | null>, enabled: b
     };
   }, [ref, enabled]);
 }
+
+/** The field's card sizes at `--arena: 1` (`StageZones.tsx`): a leader, a Battle Card, and a card's height per width. */
+const FIELD_LEADER_W = 80;
+const FIELD_CARD_W = 68;
+const CARD_RATIO = 88 / 63;
+/** The field's card scale never drops below the phone's nor grows past a 260 px scan's worth of leader. */
+export const FIELD_FIT_MIN = 1;
+export const FIELD_FIT_MAX = 2.6;
+
+/**
+ * The scale at which a leader and `cards` Battle Cards fill a Battle Area of `width` x `height` px:
+ * the leader as tall as the row allows (its LEADER tag overhangs the top, 24 px of padding and ring), and the
+ * whole row no wider than the area. Floored to 0.05 so a pixel of resize does not restyle every card.
+ */
+export function fieldFitScale(width: number, height: number, cards: number): number {
+  const n = Math.max(cards, 3);
+  const byHeight = (height - 24) / (FIELD_LEADER_W * CARD_RATIO + FIELD_LEADER_W * 0.2);
+  // A rested leader lies on its side, as wide as it is tall: budget for that, so turning it never clips the row.
+  const byWidth = (width - 24 - 12 * n) / (FIELD_LEADER_W * CARD_RATIO + FIELD_CARD_W * n);
+  const scale = Math.min(byHeight, byWidth, FIELD_FIT_MAX);
+  return Math.max(FIELD_FIT_MIN, Math.floor(scale * 20) / 20);
+}
+
+/**
+ * Desktop (xl): sizes the field's cards from the space the two Battle Areas actually have
+ * (`[data-field-row]`, which split the field's height evenly), not from a viewport-height step,
+ * so a wide window fills its field instead of leaving a lane of empty sky between two rows of
+ * small cards. Sets `--field-fit` and `data-field-fit` on the board; the CSS gives the rows that
+ * scale. The hand keeps its own `--arena` (it reads it to space its cards). Off below xl.
+ */
+export function useFieldFit(ref: RefObject<HTMLElement | null>, enabled: boolean, cards: number) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const clear = () => {
+      delete el.dataset.fieldFit;
+      el.style.removeProperty("--field-fit");
+    };
+    if (!enabled) {
+      clear();
+      return;
+    }
+    const fit = () => {
+      const rows = [...el.querySelectorAll<HTMLElement>(".arena-stage [data-field-row]")];
+      if (rows.length < 2) return clear();
+      const height = Math.min(...rows.map((row) => row.clientHeight));
+      const width = Math.min(...rows.map((row) => row.clientWidth));
+      if (height <= 0 || width <= 0) return;
+      const scale = String(fieldFitScale(width, height, cards));
+      if (el.style.getPropertyValue("--field-fit") !== scale) el.style.setProperty("--field-fit", scale);
+      el.dataset.fieldFit = "";
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    for (const row of el.querySelectorAll(".arena-stage [data-field-row]")) ro.observe(row);
+    return () => {
+      ro.disconnect();
+      clear();
+    };
+  }, [ref, enabled, cards]);
+}

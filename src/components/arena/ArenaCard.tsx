@@ -51,7 +51,7 @@ export function preloadCardArt(cards: readonly Pick<CardView, "imageUrl" | "hidd
 
 /**
  * The keyword skills that change how a card behaves *while it sits on the
- * board*, and the glyph each gets. The rest (Evolve, Union, Arrival â€¦) matter
+ * board*, and the glyph each gets. The rest (Evolve, Union, Arrival …) matter
  * when a card is played, not after, so they stay off the face and live in the
  * card's detail panel instead.
  */
@@ -90,7 +90,7 @@ export function permanentState(card: CardView): keyof typeof PERMANENT_CHIP | nu
 }
 
 /**
- * `dead`: the card has no move but the engine can say why â€” it sits a little
+ * `dead`: the card has no move but the engine can say why — it sits a little
  * desaturated and its cost badge turns red, so the board says "not this one"
  * before you even tap it (docs/arena-workflow-spec.md Â§4).
  */
@@ -98,7 +98,7 @@ export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "g
 
 /**
  * The glow each state wears is a named class in `globals.css` rather than an
- * arbitrary shadow here, so it is painted from the theme's tokens â€” and so a
+ * arbitrary shadow here, so it is painted from the theme's tokens — and so a
  * skin can turn the ring into an aura without this file knowing.
  */
 const RING: Record<CardState, string> = {
@@ -123,6 +123,12 @@ const px = (n: number) => `calc(${n}px * var(--arena, 1))`;
  * at a glance. The wrapper keeps the upright footprint so a rotated card does
  * not shove its neighbours around.
  */
+/** A five-digit power ("10,000", "▲5,000") is set smaller than "5,000", so it always fits on the plate. */
+function powerFit(power: number, delta: number): string {
+  const chars = power.toLocaleString("en").length + (delta ? 1 : 0);
+  return chars >= 7 ? styles.powerXL : chars >= 6 ? styles.powerLong : "";
+}
+
 export function ArenaCard({
   card,
   width = 56,
@@ -173,7 +179,7 @@ export function ArenaCard({
   const colourStyle = c1 ? ({ "--c1": c1, "--c2": c2 ?? c1 } as React.CSSProperties) : null;
 
   // A long press opens the inspector; the timer has to survive re-renders.
-  // `held` is what draws the bar that fills while you hold â€” without it the
+  // `held` is what draws the bar that fills while you hold — without it the
   // long press is a secret, and a card you keep pressing just sits there.
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [held, setHeld] = useState(false);
@@ -200,7 +206,7 @@ export function ArenaCard({
   // The REF badge is an engine internal: an admin's board draws it, a player's does not (#350).
   const admin = useArenaAdmin();
   const hoverable = !!onHover && !card.hidden;
-  // Energy sits upside-down and its cost, power and combo mean nothing there â€”
+  // Energy sits upside-down and its cost, power and combo mean nothing there —
   // badges would just be clutter on a 22px card.
   const chrome = !card.hidden && !upsideDown;
   // A rule in force changes the number and the glyphs; the face says so
@@ -285,10 +291,10 @@ export function ArenaCard({
             {chrome && card.power != null && width >= 30 && (
               <span className={styles.powerPlate} data-power-plate>
                 <span
-                  className={`arena-power ${styles.power} ${delta > 0 ? `arena-power-up ${styles.powerUp}` : delta < 0 ? `arena-power-down ${styles.powerDown}` : ""}`}
+                  className={`arena-power ${styles.power} ${powerFit(card.power, delta)} ${delta > 0 ? `arena-power-up ${styles.powerUp}` : delta < 0 ? `arena-power-down ${styles.powerDown}` : ""}`}
                   title={delta ? `${card.basePower!.toLocaleString("en")} printed, ${delta > 0 ? "+" : ""}${delta.toLocaleString("en")} in force` : undefined}
                 >
-                  {delta > 0 ? "â–²" : delta < 0 ? "â–¼" : ""}
+                  {delta > 0 ? "▲" : delta < 0 ? "▼" : ""}
                   {card.power.toLocaleString("en")}
                 </span>
               </span>
@@ -307,7 +313,7 @@ export function ArenaCard({
           <span className={styles.kws}>
             {perm && (
               <span key="perm" title={PERMANENT_CHIP[perm].title} className={`${styles.kw} ${PERMANENT_CHIP[perm].className}`}>
-                âˆž
+                ∞
               </span>
             )}
             {card.keywords
@@ -322,7 +328,7 @@ export function ArenaCard({
         )}
         {/* The long press, made visible: it fills, then the inspector opens. */}
         {held && !holdLock && <span className="arena-hold pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left bg-ki-400" aria-hidden />}
-        {/* Combo is the number that decides a battle from hand â€” worth its own badge. */}
+        {/* Combo is the number that decides a battle from hand — worth its own badge. */}
         {card.comboPower != null && card.comboPower > 0 && chrome && (
           <span className={styles.combo}>+{Math.round(card.comboPower / 1000)}k</span>
         )}

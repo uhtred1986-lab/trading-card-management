@@ -1,5 +1,5 @@
 "use client";
-import { CardReader } from "./CardReader";
+import { CardSkills } from "./CardReader";
 
 import { useEffect, useRef, useState } from "react";
 import { useArenaAdmin } from "./admin-context";
@@ -266,6 +266,7 @@ export function DockedInspector({
   onUnpin,
   narrator = DEFAULT_NARRATOR,
   battle,
+  skillActions,
 }: {
   card: CardView | null;
   /** "Claude's battle area", "Your hand". */
@@ -278,6 +279,8 @@ export function DockedInspector({
   onUnpin: () => void;
   narrator?: Narrator;
   battle?: Parameters<typeof CardDetail>[0]["battle"];
+  /** A skill's actions, by its reader key, drawn under the skill rather than in a list of their own. */
+  skillActions?: (key: string) => React.ReactNode;
 }) {
   // The board hands it a card whenever there is one on the table (the last
   // hovered, else your first hand card), so this is a table with no cards.
@@ -290,24 +293,31 @@ export function DockedInspector({
     );
   }
   return (
-    <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
+    <div className="space-y-3 p-3 lg:px-4 lg:py-3" data-arena-inspector={card.id}>
       {basicActions}
-      <div data-desktop-reader><CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" /></div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
-        {pinned && (
-          <button
-            type="button"
-            onClick={onUnpin}
-            className="tap min-h-11 shrink-0 rounded-full border border-space-500 px-3 py-2 text-xs uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
-          >
-            pinned · esc
-          </button>
-        )}
+      {/* The card at one glance (owner, 19 Oct 2026): the art beside what it is and its numbers, then
+          everything it does written out, not behind a panel over the art. */}
+      <div className="grid grid-cols-[minmax(0,42%)_minmax(0,1fr)] items-start gap-3" data-desktop-reader>
+        <CardArt card={card} />
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
+            {pinned && (
+              <button
+                type="button"
+                onClick={onUnpin}
+                className="tap min-h-11 shrink-0 rounded-full border border-space-500 px-3 py-2 text-xs uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
+              >
+                pinned · esc
+              </button>
+            )}
+          </div>
+          <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
+          <ChipRow chips={chips} />
+          {stats}
+        </div>
       </div>
-      <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
-      <ChipRow chips={chips} />
-      {stats}
+      <CardSkills card={card} actionsFor={skillActions} />
       <div className="space-y-1.5">{actions}</div>
       <details><summary className="tap min-h-11 cursor-pointer py-3 text-sm">More card details</summary><CardDetail card={card} narrator={narrator} battle={battle} figures={false} /></details>
     </div>
@@ -396,55 +406,103 @@ export function InPlayList({
  * The inspector over two tabs — In play, and the log. The log is the narration
  * log (#350): the sentences the story told, newest first, under their turn.
  */
-export function InspectorColumn({
-  inspector,
-  inPlay,
-  story,
-  tab,
-  onTab,
-}: {
-  inspector: React.ReactNode;
-  inPlay: React.ReactNode;
-  story: StoryLine[];
-  /** Which tab is open; the board owns it so its bar's log button can open the log. */
-  tab: "play" | "log";
-  onTab: (tab: "play" | "log") => void;
-}) {
-  const setTab = onTab;
+/** The card column's group: where the card on show sits among its neighbours, for paging through them. */
+export interface CardPager {
+  /** "Your hand", "Your cards in play", "Claude's cards in play". */
+  label: string;
+  cards: CardView[];
+  index: number;
+  /** Show (and pin) another card of the group. */
+  onGo: (id: string) => void;
+}
+
+/**
+ * The board's right-hand column from 1024 px (owner, 19 Oct 2026): only the card being looked at.
+ * Hover shows a card, a click pins it, and a pinned card pages through its group like the phone's
+ * review: the arrows, the thumbnails, the arrow keys, or a swipe across the card.
+ */
+export function InspectorColumn({ inspector, pager }: { inspector: React.ReactNode; pager: CardPager | null }) {
+  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
+  const step = (by: number) => {
+    if (!pager) return;
+    const next = pager.cards[pager.index + by];
+    if (next) pager.onGo(next.id);
+  };
+  // The arrow keys page through the group too, unless the focus is somewhere that reads them itself.
+  const stepRef = useRef(step);
+  useEffect(() => { stepRef.current = step; });
+  const paged = !!pager && pager.cards.length > 1;
+  useEffect(() => {
+    if (!paged) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable], [data-hand-browse-card]")) return;
+      e.preventDefault();
+      stepRef.current(e.key === "ArrowRight" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paged]);
   return (
-    // The board's right-hand column (#444): its full height, the card over the tabs.
-    <div className="arena-sidecol flex h-full flex-col overflow-hidden" aria-label="Card review">
-      {/* A fixed height, scrolling inside: the tabs below must not move when a
-          taller card fills it, or a row under the pointer slides away from it. */}
-      <div className="arena-sidecol-sheet h-[58%] shrink-0 overflow-y-auto">{inspector}</div>
-      <div role="tablist" className="arena-sidecol-tabs flex shrink-0 gap-2 p-2.5 text-sm font-semibold">
-        {(
-          [
-            ["play", "In play"],
-            ["log", "Battle log"],
-          ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`arena-tab tap flex-1 rounded-xl px-2 py-1.5 ${tab === k ? "arena-tab-on text-space-50" : "text-space-300 hover:text-space-50"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "play" ? (
-          inPlay
-        ) : (
-          <ol className="space-y-0.5 p-2 text-xs leading-relaxed text-space-300">
-            <StoryList story={story} />
-          </ol>
-        )}
-      </div>
+    <div
+      className="arena-sidecol flex h-full flex-col overflow-hidden"
+      aria-label="Card review"
+      onPointerDown={(e) => { if (e.pointerType !== "mouse") swipe.current = { x: e.clientX, y: e.clientY, id: e.pointerId }; }}
+      onPointerUp={(e) => {
+        const start = swipe.current;
+        swipe.current = null;
+        if (!start || start.id !== e.pointerId) return;
+        const dx = e.clientX - start.x;
+        if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(e.clientY - start.y) * 1.5) step(dx < 0 ? 1 : -1);
+      }}
+      onPointerCancel={() => { swipe.current = null; }}
+    >
+      {pager && pager.cards.length > 1 && (
+        <div className="arena-sidecol-tabs flex shrink-0 items-center gap-2 px-2 py-1.5" data-card-pager>
+          <button type="button" className="arena-iconbtn tap grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl font-bold disabled:opacity-30" onClick={() => step(-1)} disabled={pager.index === 0} aria-label="Previous card">‹</button>
+          <p className="min-w-0 flex-1 text-center text-sm font-semibold leading-tight text-space-100">
+            <span className="arena-num text-base text-space-50">{pager.index + 1} / {pager.cards.length}</span>
+            <span className="block truncate text-xs text-space-300">{pager.label} · ← → or swipe</span>
+          </p>
+          <button type="button" className="arena-iconbtn tap grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl font-bold disabled:opacity-30" onClick={() => step(1)} disabled={pager.index === pager.cards.length - 1} aria-label="Next card">›</button>
+        </div>
+      )}
+      {/* The sheet is the size container the docked reader measures its scan against. */}
+      <div className="arena-sidecol-sheet min-h-0 flex-1 overflow-y-auto [container-type:size]">{inspector}</div>
+      {pager && pager.cards.length > 1 && (
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto px-2 py-2" role="tablist" aria-label={pager.label}>
+          {pager.cards.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={i === pager.index}
+              aria-label={c.hidden ? "Face-down card" : c.name}
+              onClick={() => pager.onGo(c.id)}
+              className={`relative h-[52px] w-[37px] shrink-0 overflow-hidden rounded-[5px] border-2 ${i === pager.index ? "border-ki-400 ring-2 ring-ki-400/60" : "border-space-700 opacity-70 hover:opacity-100"}`}
+            >
+              {c.imageUrl && !c.hidden
+                // eslint-disable-next-line @next/next/no-img-element -- a 37 px thumbnail of the catalog's own scan.
+                ? <img src={cardImage(c.imageUrl, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
+                : <span className="grid h-full w-full place-items-center bg-space-800 text-[8px] text-space-200">{c.hidden ? "?" : c.name.slice(0, 6)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The card's scan beside its details in the desktop card column; the words are written out below it. */
+function CardArt({ card }: { card: CardView }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const art = !card.hidden && card.imageUrl && failed !== card.imageUrl ? card.imageUrl : null;
+  return (
+    <div className="aspect-[63/88] w-full overflow-hidden rounded-[9px] border-2 border-space-950 bg-space-900 shadow-[2px_3px_0_rgba(18,22,31,.85)]">
+      {art
+        // eslint-disable-next-line @next/next/no-img-element -- the catalog's scan at its own size, never enlarged.
+        ? <img src={cardImage(art, "full")} alt={card.name} className="h-full w-full object-cover" draggable={false} onError={() => setFailed(art)} />
+        : <span className="grid h-full w-full place-items-center p-2 text-center text-xs font-bold text-space-100">{card.hidden ? "Face-down card" : card.name}</span>}
     </div>
   );
 }

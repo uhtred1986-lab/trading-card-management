@@ -22,7 +22,10 @@
 .ability[data-chip="activate"] .chip { background: #b45309; }
 .ability[data-chip="counter"] .chip { background: #c2410c; }
 .ability[data-chip="keyword"] .chip { background: #0f766e; }
-.summary { flex: 1; min-width: 0; padding: 2px 0; }
+/* A narrow scan (the desktop inspector's) cannot hold chip, name and "+" on one line: the name then
+   takes a line of its own with the "+" beside it, instead of wrapping one word per line. */
+.bar { flex-wrap: wrap; row-gap: 0; }
+.summary { flex: 1 1 96px; min-width: 0; padding: 2px 0; }
 .name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
 .note { display: block; margin-top: 1px; font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--soft); }
 .info { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 0 8px 8px 0; background: transparent; color: var(--ink); font-size: 26px; font-weight: 700; line-height: 1; cursor: pointer; }
@@ -30,6 +33,10 @@
 .info:focus-visible, .fullToggle:focus-visible { outline: 3px solid #ffc14f; outline-offset: -3px; }
 .fullText { padding: 8px 12px 12px; border-top: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); user-select: text; }
 .fullText p { margin: 0; font-size: 14px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+/* Docked in the desktop inspector, which is the size container: the scan leaves room under it for
+   the card's name and stats, and the reader does not scroll on its own. */
+.reader[data-reader-docked] { container-type: normal; flex: none; overflow: visible; padding: 0; }
+.reader[data-reader-docked] .face { width: min(100%, 300px, calc((100cqh - 150px) * .716)); }
 .tray { width: min(100%, 340px); display: flex; flex-direction: column; padding-bottom: 4px; }
 .empty { margin: 0; padding: 8px; font-size: 14px; line-height: 1.5; }
 
@@ -40,3 +47,41 @@
 .face[data-reader-direction="prev"] { --reader-enter: -12px; }
 @keyframes arrive { from { opacity: .6; transform: translateX(var(--reader-enter, 12px)); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .face { animation: none; transition: none; } }
+
+/* The desktop card column's skills (CardSkills): keyword badges, then every skill written out. */
+.skills { --paper: #f6fbff; --ink: #0f2a3d; --soft: #3d5a6e; display: grid; gap: 8px; color: var(--ink); }
+:global([data-skin="night"]) .skills { --paper: #14283cf5; --ink: #eefaff; --soft: #a9cfe0; }
+.kwStrip { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwBadge { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 5px 3px 10px; border: 2px solid #0f2a3d; border-radius: 999px; background: #0f766e; color: #fff; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; box-shadow: 1px 2px 0 #0f2a3d; cursor: help; max-width: 100%; }
+.kwBadge:not(:has(.kwSlot)) { padding-right: 10px; }
+.kwBadge[data-deck] { background: #475569; }
+.kwSlot { display: inline-flex; align-items: center; gap: 3px; min-width: 0; padding: 1px 7px; border-radius: 999px; background: #fff; color: #0f2a3d; font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #0f2a3d; font-size: 9px; font-style: normal; font-weight: 800; color: #0f2a3d; background: #c8d0db; }
+.pip[data-pip="r"] { background: #e5484d; } .pip[data-pip="u"] { background: #3b82f6; } .pip[data-pip="g"] { background: #22a35a; } .pip[data-pip="y"] { background: #e0a800; } .pip[data-pip="b"] { background: #4b5263; }
+.skillRow { display: grid; gap: 4px; padding: 8px 10px; border: 1.5px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 10px; background: var(--paper); }
+.skillRow[data-available] { border-color: #0e9f8e; box-shadow: 0 0 0 2px #34ead655, 0 0 10px #34ead680; }
+.skillHead { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.skillRow .chip { max-width: 100%; }
+.skillRow[data-chip="auto"] .chip { background: #1d4ed8; }
+.skillRow[data-chip="permanent"] .chip { background: #6d28d9; }
+.skillRow[data-chip="activate"] .chip { background: #b45309; }
+.skillRow[data-chip="counter"] .chip { background: #c2410c; }
+.skillRow[data-chip="keyword"] .chip { background: #0f766e; }
+.limit { padding: 1px 7px; border: 1.5px solid currentColor; border-radius: 6px; font-size: 11px; font-weight: 800; color: var(--soft); white-space: nowrap; }
+.now { padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 800; background: #0e9f8e; color: #fff; white-space: nowrap; }
+.skillText { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; user-select: text; }
+
+/* A keyword's rule (KeywordRuleText): opened from its badge or its ⓘ, in the card column and the phone reader. */
+button.kwBadge { cursor: pointer; font-family: inherit; }
+button.kwBadge[aria-expanded="true"] { outline: 2px solid #34ead6; outline-offset: 1px; }
+.kwInfo { font-size: 12px; font-weight: 700; opacity: .85; letter-spacing: 0; }
+.ruleButton { display: inline-grid; place-items: center; min-width: 28px; min-height: 28px; border: 0; border-radius: 999px; background: transparent; color: inherit; font-size: 14px; opacity: .75; cursor: pointer; }
+.ruleButton:hover, .ruleButton[aria-expanded="true"] { opacity: 1; }
+.rule { display: grid; gap: 4px; padding: 7px 9px; border-radius: 8px; border: 1.5px solid color-mix(in srgb, currentColor 25%, transparent); background: color-mix(in srgb, currentColor 6%, transparent); font-size: 12.5px; line-height: 1.45; text-transform: none; letter-spacing: 0; }
+.ruleMeaning { margin: 0; font-weight: 700; }
+.ruleManual summary { cursor: pointer; font-size: 11.5px; font-weight: 800; opacity: .8; min-height: 28px; display: flex; align-items: center; }
+.ruleManual p { margin: 3px 0 0; font-weight: 500; }
+.ruleManual p[data-depth="1"] { padding-left: 10px; }
+.ruleManual p[data-depth="2"] { padding-left: 20px; }
+.ruleManual p[data-depth="3"] { padding-left: 30px; }
+.ruleId { font-family: ui-monospace, monospace; font-size: 10.5px; opacity: .7; }

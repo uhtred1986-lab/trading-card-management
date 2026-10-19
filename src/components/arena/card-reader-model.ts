@@ -1,3 +1,4 @@
+import { KEYWORD_RULES, type KeywordRule } from "@/lib/arena/keyword-rules.generated";
 import type { CardView } from "@/lib/arena/view";
 import { plainText } from "./shared-model";
 
@@ -48,7 +49,8 @@ export function abilityPreview(text: string): string {
 
 /** The tag as a chip reads it: "Activate:Main" becomes "Activate · Main". */
 export function chipLabel(tag: string): string {
-  return tag.replace(/\s*:\s*/g, " · ");
+  // The catalog prints some tags in lower case ("[permanent]"); a chip reads them as names.
+  return tag.replace(/\s*:\s*/g, " · ").replace(/(^|[\s·-])([a-z])/g, (_, gap: string, c: string) => gap + c.toUpperCase());
 }
 
 /** Which colour family a chip wears. Anything the app has no colour for falls back to "other". */
@@ -71,4 +73,77 @@ export function skillShortName(line: Pick<ReaderAbility, "text" | "tag">): strin
   if (!body) return chipLabel(line.tag);
   const cut = body.length > 52 ? body.slice(0, 50).replace(/[\s,;:]+\S*$/, "") + "…" : body;
   return cut.charAt(0).toUpperCase() + cut.slice(1);
+}
+
+/**
+ * Keywords that read as a badge rather than a written row (docs/design/arena-keyword-rendering, owner
+ * 19 Oct 2026): their meaning never changes, so the card only needs to say which one and its values.
+ * Keywords that introduce a card's own effect (Awaken, Heroic, ...) stay rows.
+ */
+const BADGE_KEYWORDS = [
+  "blocker", "barrier", "double strike", "triple strike", "quadruple strike", "dual attack", "triple attack", "critical",
+  "deflect", "revenge", "indestructible", "energy-exhaust", "unique", "servant", "victory strike", "field",
+  "evolve", "ex-evolve", "xeno-evolve", "union-fusion", "union-potara", "union-absorb", "over realm", "dark over realm",
+  "swap", "arrival", "revive", "alliance", "aegis", "z-stack", "empower", "spirit boost",
+  "super combo", "ultimate", "dragon ball", "warrior of universe 7", "invoker", "wormhole",
+];
+const DECK_KEYWORDS = new Set(["super combo", "ultimate", "dragon ball"]);
+const BADGE_RE = new RegExp(`^(${BADGE_KEYWORDS.map((k) => k.replace(/[-\s]/g, (c) => (c === "-" ? "[- ]?" : "\\s+"))).sort((a, b) => b.length - a.length).join("|")})\\b\\s*(.*)$`, "i");
+
+/** One keyword as a badge: its name, the values the card prints with it, and its reminder text for a tooltip. */
+export interface KeywordBadge {
+  key: string;
+  label: string;
+  /** Energy cost tokens in printed order: a colour letter (r, u, g, y, b) or a generic number. */
+  pips: string[];
+  /** A number printed with the keyword ("Over Realm 7", "Swap 3"). */
+  count: string | null;
+  /** The card or character it names ("Grand Supreme Kai"). */
+  target: string | null;
+  reminder: string;
+  /** A deck-building rule (Super Combo, Ultimate, Dragon Ball): shown last and quieter. */
+  deck: boolean;
+}
+
+const titleCase = (s: string) => s.replace(/\b([a-z])/g, (m) => m.toUpperCase()).replace(/\bEx\b/, "EX");
+
+/**
+ * A reader line as a keyword badge, or null when it is a skill to write out. A line is a badge when its
+ * first bracketed tag is a badge keyword and nothing after it is another skill (no second tag).
+ */
+export function keywordBadge(line: Pick<ReaderAbility, "key" | "tag" | "text">): KeywordBadge | null {
+  const tag = line.tag.trim();
+  const m = BADGE_RE.exec(tag);
+  if (!m) return null;
+  const body = line.text.replace(/^(?:\s*\[[^\]]+\])+\s*/, "");
+  if (/\[(?:auto|permanent|activate|counter)/i.test(body)) return null;
+  const reminder = [...body.matchAll(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)].map((r) => r[1].trim()).join(" ");
+  const values = body.replace(/\([^()]*(?:\([^()]*\)[^()]*)*\)/g, " ");
+  const pips = [...values.matchAll(/\{([a-z]|\d+)\}/gi)].map((p) => p[1].toLowerCase());
+  const targets = [...values.matchAll(/<([^>]+)>/g)].map((t) => t[1].trim());
+  const name = m[1].toLowerCase().replace(/\s+/g, " ");
+  const rest = m[2].trim();
+  const count = /^\d+$/.test(rest) ? rest : null;
+  return {
+    key: line.key,
+    label: titleCase(name) + (rest && !count ? ` ${titleCase(rest)}` : ""),
+    pips,
+    count,
+    target: targets.length ? targets.join(" or ") : null,
+    reminder,
+    deck: DECK_KEYWORDS.has(name),
+  };
+}
+
+/** A skill's printed text without the bracketed tags it opens with (they are on its chip and pills). */
+export function skillBody(text: string): string {
+  return text.replace(/^(?:\s*\[[^\]]+\])+\s*/, "").trim() || text;
+}
+
+const KEYWORD_SPELLINGS = KEYWORD_RULES.flatMap((rule) => rule.spellings.map((s) => [s, rule] as const)).sort((a, b) => b[0].length - a[0].length);
+
+/** The rule behind a chip's keyword ("Double Strike", "Over Realm 7", "Awaken: Surge"), or null for a skill type or a limit. */
+export function keywordRule(tag: string): KeywordRule | null {
+  const t = tag.toLowerCase().replace(/[[\]]/g, "").replace(/\s*:\s*/g, ": ").replace(/\s+/g, " ").trim();
+  return KEYWORD_SPELLINGS.find(([s]) => t === s || t.startsWith(`${s} `))?.[1] ?? null;
 }

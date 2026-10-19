@@ -69,6 +69,10 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* "5,000" fills the plate at 27 % of the card; "10,000" and "▲5,000" would run past the card's edge
+   and clip ("10,00C"), so longer numbers step down to what fits within the card's width. */
+.powerLong { font-size: calc(var(--cw) * 0.215); }
+.powerXL { font-size: calc(var(--cw) * 0.185); }
 .powerUp { color: #7dffa1; }
 .powerDown { color: #ff8a80; }
 

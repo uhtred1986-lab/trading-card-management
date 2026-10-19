@@ -64,7 +64,7 @@ export function Hand({
     const measure = () => {
       const scale = parseFloat(getComputedStyle(el).getPropertyValue("--arena")) || 1;
       // Less the side padding (px-2.5): the fan lays out inside it.
-      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1280px)").matches };
+      const next = { width: el.clientWidth - 20, card: cardWidth * scale, desktop: window.matchMedia("(min-width: 1024px)").matches };
       setRoom((current) => current?.width === next.width && current.card === next.card && current.desktop === next.desktop ? current : next);
     };
     measure();
@@ -133,20 +133,20 @@ export function Hand({
           review on a tap, and the public zones are in the board's menu, so a phone keeps the row for
           the cards themselves. */}
       {(firstProps?.onInspect || onZones) && (
-        <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden xl:flex"}`}>
-          <span className="mr-auto hidden text-xs font-semibold text-space-100 xl:inline">Hand · {n}<span className="ml-2 font-normal">Swipe to browse</span></span>
+        <div data-hand-toolbar className={`flex-wrap items-center justify-end gap-2 px-3 ${decisionHint ? "flex" : "hidden lg:flex"}`}>
+          <span className="mr-auto hidden text-xs font-semibold text-space-100 lg:inline">Hand · {n}<span className="ml-2 font-normal">Click a card to review it · drag to play</span></span>
           {decisionHint && <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-space-100">{decisionHint}</span>}
           {firstProps?.onInspect && <button
             type="button"
             onClick={firstProps.onInspect}
             aria-label={`Inspect your hand, starting with ${first?.hidden ? "face-down card" : first?.name ?? "first card"}`}
-            className="tap hidden min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 xl:inline-flex hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
+            className="tap hidden min-h-[44px] items-center gap-2 rounded-lg border border-space-600 bg-space-900/90 px-3 text-xs font-semibold text-space-100 lg:inline-flex hover:border-ki-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
           >
             <span aria-hidden="true">⌕</span>
             <span>Inspect hand</span>
           </button>}
-          {n > 0 && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 xl:block`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
-          {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 xl:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
+          {n > 0 && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? "Compact" : "Expand"}</button>}
+          {onZones && <button type="button" className={`${styles.handControl} tap hidden rounded-lg border border-space-600 px-2 text-xs font-semibold text-space-100 lg:block`} onClick={onZones} aria-label="Inspect public zones">Zones</button>}
         </div>
       )}
       {fanMode && <p className={styles.handFanHeader}>Your hand · {n} · {cards.filter((c) => ["playable", "targets", "noTarget"].includes(handStatus?.(c.id) ?? "")).length} playable · tap a card to browse</p>}
@@ -188,8 +188,9 @@ export function Hand({
         style={browsing ? { touchAction: "none" } : undefined}
         className={`${styles.handViewport} ${fanMode ? styles.fanViewport : ""}`} tabIndex={0} aria-label="Scrollable hand cards">
       <div
-        className={`${styles.handCards} flex items-end justify-center px-2.5 pb-3 ${charging ? "pt-4" : "pt-3"}`}
-        // One card's height and its dip, so an empty hand keeps the board's shape.
+        className={`${styles.handCards} flex items-end ${fanMode ? "justify-start" : "justify-center"} px-2.5 ${wide ? "pb-6" : "pb-3"} ${charging ? "pt-4" : "pt-3"}`}
+        // One card's height and its dip, so an empty hand keeps the board's shape. A fan starts at the
+        // left edge, where its cost and power overlays are placed (`left: 10 + i * step`).
           style={{ minHeight: n ? `calc(${Math.round((cardWidth * 88) / 63)}px * var(--arena, 1) + 32px)` : 0 }}
       >
         {cards.map((c, i) => {
@@ -217,7 +218,8 @@ export function Hand({
             >
               <StageCard {...props} onTap={browsing ? () => wide ? props.onInspect?.() : showPeek(c.id) : props.onTap} onDoubleTap={props.onDoubleTap} width={cardWidth} fan={fanMode || up ? 0 : tilt} lift={fanMode ? 0 : dip} lifts holdLock={dragId === c.id} unaffordable={status === "unaffordable"} />
               {!fanMode && status && <span className={`${styles.handStatus} ${styles[`status_${status}`]}`} aria-label={status} title={status} />}
-              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
+              {/* Under the card, wherever its fan dip has put it: anchored to the slot, it would sit on the power. */}
+              {!fanMode && handAction?.(c.id) && <span data-hand-action className={`${styles.handAction} ${styles[`action_${status ?? "playable"}`]}`} style={dip ? { bottom: -17 - dip } : undefined} title={handAction(c.id) ?? undefined}>{handAction(c.id)}</span>}
             </div>
           );
         })}

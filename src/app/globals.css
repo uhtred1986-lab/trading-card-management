@@ -900,7 +900,6 @@ input[type="number"] {
   .arena-board .arena-field.arena-hand {
     --arena: 1.2;
   }
-  /* Between lg and xl the columns are narrower, and so is the field. */
   .arena-board .arena-field {
     --arena: 1.2;
   }
@@ -916,13 +915,6 @@ input[type="number"] {
     border-left: 2px solid var(--ink);
     background: rgba(255, 255, 255, 0.78);
   }
-  .arena-context > :first-child {
-    max-height: 70%;
-    overflow-y: auto;
-    border-bottom: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
-    overscroll-behavior: contain;
-  }
-  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-context > :first-child { border-bottom: 2px solid var(--ink); }
   .arena-context .arena-bar {
     padding: 12px;
     gap: 8px;
@@ -933,7 +925,6 @@ input[type="number"] {
     overscroll-behavior: contain;
   }
   .arena-context .arena-bar > p { flex-basis: 100%; }
-  .arena-context > :last-child { overflow: hidden; }
   .arena-match-phases { background: transparent; }
   .arena-title {
     color: var(--color-space-50);
@@ -985,10 +976,10 @@ input[type="number"] {
     letter-spacing: 0.12em;
   }
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .arena-board {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-columns: 232px minmax(0, 1fr) 300px;
   }
   /* The desktop field has room for larger cards. Keep these as numeric
      presets: Hand measures the resolved scale to space its overlapping cards. */
@@ -999,58 +990,95 @@ input[type="number"] {
     --arena: 1.8;
   }
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
+  /* Three columns from 1024 px (owner, 19 Oct 2026; the motion prototype's PC
+     frame): game status on the left (both players, the battle log, and the
+     decision at its foot), the field over the hand in the middle, and the one
+     card being looked at on the right. The players' strips no longer cross the
+     field, and nothing floats over its corners. */
   .arena-board {
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "top top"
-      "field side"
-      "decision side"
-      "hand side";
+      "top top top"
+      "status field card"
+      "status hand card";
   }
   .arena-board .arena-stage { padding-block: 0; }
   .arena-board .arena-stage .arena-row { padding-block: 0; }
   .arena-board .arena-stage .arena-row:has(.arena-leader) {
     min-height: calc(112px * var(--arena, 1) + 16px) !important;
   }
-  .arena-board .arena-lane { min-height: 0; margin-block: 0; padding-block: 0; }
   .arena-board [data-player-resources]:not([data-player-resources-open]) { display: none; }
   .arena-board [data-player-resources-open] { display: flex; }
-  .arena-board .arena-context > :first-child > [data-arena-quiet-controls] { padding-block: 0; }
-  /* Place the one decision panel beside the hand; keep card details in the
-     inspector column. The prompt remains in the same React instance. */
-  .arena-board .arena-context { display: contents; }
-  .arena-board .arena-context > :first-child {
-    grid-area: decision;
-    max-height: none;
-    overflow: visible;
-    border: 0;
+  .arena-board .arena-context > [data-arena-dock] > [data-arena-quiet-controls] { padding-block: 0; }
+  /* The status column: the players and the log on top, the decision at its foot. */
+  .arena-board .arena-context {
+    grid-area: status;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    border-left: 0;
+    border-right: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+    background: rgba(4, 7, 18, 0.55);
   }
-  .arena-board .arena-context > :last-child {
-    grid-area: side;
+  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-context {
+    border-right: 2px solid var(--ink);
+    background: rgba(255, 255, 255, 0.78);
+  }
+  .arena-board .arena-context > [data-arena-status] {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .arena-board .arena-context > [data-arena-dock] {
+    flex: 0 0 auto;
+    border-top: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
+  }
+  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-context > [data-arena-dock] { border-top: 2px solid var(--ink); }
+  /* The card column: one card, its group's pager and its actions. */
+  .arena-board .arena-cardcol {
+    grid-area: card;
+    min-height: 0;
+    min-width: 0;
     overflow: hidden;
     border-left: 1px solid color-mix(in srgb, var(--color-space-300) 22%, transparent);
     background: rgba(4, 7, 18, 0.55);
   }
-  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-context > :last-child {
+  :is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) .arena-board .arena-cardcol {
     border-left: 2px solid var(--ink);
     background: rgba(255, 255, 255, 0.78);
   }
+  /* The field: both Battle Areas share its height, the lane between them is a
+     slim band for the narration, and the cards are sized to what the field
+     has (`useFieldFit`, `--field-fit`), not to a viewport-height step. */
+  .arena-board .arena-stage [data-field-row] {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .arena-board .arena-lane { flex: 0 0 auto; min-height: 40px; margin-block: 0; padding-block: 0; }
+  .arena-board[data-field-fit] .arena-stage [data-field-row] { --arena: var(--field-fit); }
   /* The board never grows past the screen (owner, 17 Oct 2026: "the battle
      screen on a laptop should always show the cards"). A tall decision scrolls
-     inside its own panel (`.arena-context > :first-child`, capped below) and the
+     inside its own panel (`.arena-context > [data-arena-dock]`, capped below) and the
      card sizes step down with the viewport's height instead (the ladder at the
      end of this block), so the whole table, the prompt and every hand card stay
      on one screen with no page scroll. */
   .arena-board {
     min-height: 0;
     /* The grid's own rows may shrink below their content: the field takes what
-       the strips, the prompt and the hand leave. */
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+       the strips and the hand leave. */
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
   .arena-board .arena-field:not(.arena-hand) { min-height: 0; }
-  .arena-board .arena-context > :first-child {
-    max-height: 30dvh;
+  /* The decision sits at the foot of the status column; a long one scrolls inside itself. */
+  .arena-board .arena-context > [data-arena-dock] {
+    max-height: 48dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -1059,7 +1087,7 @@ input[type="number"] {
   .arena-board [data-hand-toolbar] > * { min-height: 34px !important; }
   /* A defence (counter, blocker, combo) has the longest panel. It may take more
      of the screen, because the fight is drawn over the field and needs little. */
-  .arena-board:has([data-defend-step]) .arena-context > :first-child { max-height: 38dvh; }
+  .arena-board:has([data-defend-step]) .arena-context > [data-arena-dock] { max-height: 70dvh; }
   /* Whatever the panel's length, what a player does with it comes first: the
      buttons sit beside the question, the options and the step summary below,
      so scrolling the panel never hides the way to answer. */
@@ -1067,6 +1095,7 @@ input[type="number"] {
   .arena-board .arena-context .arena-bar > [data-decision-summary] { order: 5; }
   /* The fight takes the field's height, as on a phone: the rows under it need
      none of their own, or the field would be taller than its grid row. */
+  .arena-board .arena-stage[data-takeover] [data-field-row] { flex: 0 0 auto; }
   .arena-board .arena-stage[data-takeover] .arena-row,
   .arena-board .arena-stage[data-takeover] .arena-lane {
     min-height: 0 !important;
@@ -1076,20 +1105,20 @@ input[type="number"] {
   }
 }
 /* The fight's figures step down with the height, like the cards (the ladder below). */
-@media (min-width: 1280px) and (max-height: 959px) {
+@media (min-width: 1024px) and (max-height: 959px) {
   .arena-board .arena-clash-pow { font-size: 46px; }
   .arena-board .arena-clash-vs { font-size: 58px; }
 }
-@media (min-width: 1280px) and (max-height: 859px) {
+@media (min-width: 1024px) and (max-height: 859px) {
   .arena-board .arena-clash-pow { font-size: 42px; }
   .arena-board .arena-clash-vs { font-size: 52px; }
   .arena-board .arena-fight { gap: 2px; padding-block: 4px; }
 }
-@media (min-width: 1280px) and (max-height: 779px) {
+@media (min-width: 1024px) and (max-height: 779px) {
   /* The step line under the buttons is the first thing to give up its height. */
   .arena-board .arena-context .arena-bar > [data-decision-summary] { display: none; }
 }
-@media (min-width: 1280px) and (max-height: 739px) {
+@media (min-width: 1024px) and (max-height: 739px) {
   .arena-board .arena-clash-pow { font-size: 30px; }
   .arena-board .arena-clash-vs { font-size: 34px; }
   .arena-board .arena-clash-role { font-size: 9px; }
@@ -1124,77 +1153,77 @@ input[type="number"] {
  * the hand a little smaller than the field. `--arena` must stay a plain number
  * (the hand reads it to space its cards), hence steps, not a calc() on dvh.
  */
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .arena-board { --arena: 1.8; }
   .arena-board .arena-field { --arena: 1.8; }
   .arena-board .arena-fight { --arena: 1.4; }
   .arena-board .arena-field.arena-hand { --arena: 1.65; }
   .arena-inspect-art { --arena: 1.8; }
 }
-@media (min-width: 1280px) and (max-height: 1049px) {
+@media (min-width: 1024px) and (max-height: 1049px) {
   .arena-board { --arena: 1.55; }
   .arena-board .arena-field { --arena: 1.55; }
   .arena-board .arena-fight { --arena: 1.15; }
   .arena-board .arena-field.arena-hand { --arena: 1.4; }
   .arena-inspect-art { --arena: 1.55; }
 }
-@media (min-width: 1280px) and (max-height: 959px) {
+@media (min-width: 1024px) and (max-height: 959px) {
   .arena-board { --arena: 1.4; }
   .arena-board .arena-field { --arena: 1.4; }
   .arena-board .arena-fight { --arena: 1.0; }
   .arena-board .arena-field.arena-hand { --arena: 1.25; }
   .arena-inspect-art { --arena: 1.4; }
 }
-@media (min-width: 1280px) and (max-height: 899px) {
+@media (min-width: 1024px) and (max-height: 899px) {
   .arena-board { --arena: 1.25; }
   .arena-board .arena-field { --arena: 1.25; }
   .arena-board .arena-fight { --arena: 0.85; }
   .arena-board .arena-field.arena-hand { --arena: 1.1; }
   .arena-inspect-art { --arena: 1.25; }
 }
-@media (min-width: 1280px) and (max-height: 859px) {
+@media (min-width: 1024px) and (max-height: 859px) {
   .arena-board { --arena: 1.12; }
   .arena-board .arena-field { --arena: 1.12; }
   .arena-board .arena-fight { --arena: 0.8; }
   .arena-board .arena-field.arena-hand { --arena: 1.0; }
   .arena-inspect-art { --arena: 1.12; }
 }
-@media (min-width: 1280px) and (max-height: 819px) {
+@media (min-width: 1024px) and (max-height: 819px) {
   .arena-board { --arena: 1.0; }
   .arena-board .arena-field { --arena: 1.0; }
   .arena-board .arena-fight { --arena: 0.72; }
   .arena-board .arena-field.arena-hand { --arena: 0.9; }
   .arena-inspect-art { --arena: 1.0; }
 }
-@media (min-width: 1280px) and (max-height: 779px) {
+@media (min-width: 1024px) and (max-height: 779px) {
   .arena-board { --arena: 0.9; }
   .arena-board .arena-field { --arena: 0.9; }
   .arena-board .arena-fight { --arena: 0.64; }
   .arena-board .arena-field.arena-hand { --arena: 0.8; }
   .arena-inspect-art { --arena: 0.9; }
 }
-@media (min-width: 1280px) and (max-height: 739px) {
+@media (min-width: 1024px) and (max-height: 739px) {
   .arena-board { --arena: 0.78; }
   .arena-board .arena-field { --arena: 0.78; }
   .arena-board .arena-fight { --arena: 0.56; }
   .arena-board .arena-field.arena-hand { --arena: 0.7; }
   .arena-inspect-art { --arena: 0.78; }
 }
-@media (min-width: 1280px) and (max-height: 699px) {
+@media (min-width: 1024px) and (max-height: 699px) {
   .arena-board { --arena: 0.66; }
   .arena-board .arena-field { --arena: 0.66; }
   .arena-board .arena-fight { --arena: 0.5; }
   .arena-board .arena-field.arena-hand { --arena: 0.6; }
   .arena-inspect-art { --arena: 0.66; }
 }
-@media (min-width: 1280px) and (max-height: 659px) {
+@media (min-width: 1024px) and (max-height: 659px) {
   .arena-board { --arena: 0.55; }
   .arena-board .arena-field { --arena: 0.55; }
   .arena-board .arena-fight { --arena: 0.45; }
   .arena-board .arena-field.arena-hand { --arena: 0.5; }
   .arena-inspect-art { --arena: 0.55; }
 }
-@media (min-width: 1280px) and (max-height: 619px) {
+@media (min-width: 1024px) and (max-height: 619px) {
   .arena-board { --arena: 0.45; }
   .arena-board .arena-field { --arena: 0.45; }
   .arena-board .arena-fight { --arena: 0.38; }
@@ -1203,7 +1232,7 @@ input[type="number"] {
 }
 
 /* The same ladder keyed on the board's own height (`use-board-fit.ts`), which outranks the viewport's. */
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .arena-board[data-fit="0"] { --arena: 1.8; }
   .arena-board[data-fit="0"] .arena-field { --arena: 1.8; }
   .arena-board[data-fit="0"] .arena-field.arena-hand { --arena: 1.65; }
@@ -4074,4 +4103,30 @@ html:is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) body::bef
   textarea {
     font-size: max(1em, 16px);
   }
+}
+/* Wider screens give the status and card columns more room; the field keeps the rest. */
+@media (min-width: 1280px) {
+  .arena-board { grid-template-columns: 272px minmax(0, 1fr) 360px; }
+}
+@media (min-width: 1680px) {
+  .arena-board { grid-template-columns: 300px minmax(0, 1fr) 400px; }
+}
+/* The players' strips in the status column, stacked: the name, then life and energy, then the
+   hand, deck and drop counts, so nothing is cut off at the column's width. */
+@media (min-width: 1024px) {
+  .arena-board [data-arena-status] .arena-pstrip {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 12px;
+    row-gap: 8px;
+    column-gap: 10px;
+  }
+  .arena-board [data-arena-status] [data-strip-name] { flex: 1 1 100%; }
+  .arena-board [data-arena-status] [data-strip-counts] {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .arena-board [data-arena-status] .arena-energy-toggle { flex: 1 1 auto; }
 }
