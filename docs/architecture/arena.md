@@ -70,6 +70,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
   otherwise, and proves no leak, permutation invariance and round trips on the #641/#642 fixtures.
+  Typed defensive decision facts (#899) are projected by `vm/decision-summary.ts` from the exact
+  offered executable skill, then passed through this boundary. `battleActivation` carries total
+  current-battle power, its turn-duration subset and leading draws; `counterResponse` carries the
+  selected Counter kind, true/false/unknown attack negation and resolved alternative-price route.
+  `battlePowerTarget` connects a supported boost to an eligible own battler and mode. The combat
+  policy reads these facts rather than displayed English. Unknown paths and hidden-dependent
+  predicates provide no positive effect summary; continuation facts do not trust captured IDs.
   The online Claude opponent (`ai/`) does not use the contract itself, but **its free choices are
   this layer's** (#645): the "cannot go wrong" shortcuts — one legal move, the coin flip, mulligan,
   charge, Z-Energy, [Empower] markers — are pure functions in `policy/shortcuts.ts` over the
