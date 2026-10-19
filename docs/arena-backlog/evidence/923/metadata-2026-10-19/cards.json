@@ -1,0 +1,69 @@
+[
+  {
+    "id": "BT11-013",
+    "name": "Gogeta, Fusion of the Gods",
+    "type": "BATTLE",
+    "colors": [
+      "Red"
+    ],
+    "energyCost": 5,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[deflect]<br>[union-fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[permanent] This card can't be KO'd.<br>[auto] If your Leader Card is red: When this card is played, choose up to 1 of your red Unison Cards, add a marker to it, then choose all of your opponent's Battle Cards and they get -15000 power for the turn.",
+    "characters": [
+      "Gogeta: Br"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": null
+  },
+  {
+    "id": "BT3-070",
+    "name": "Dawn of Terror, Android 13",
+    "type": "BATTLE",
+    "colors": [
+      "Green"
+    ],
+    "energyCost": 4,
+    "zEnergyCost": null,
+    "power": 20000,
+    "comboCost": 0,
+    "comboPower": 5000,
+    "skill": "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.<br>[auto] When you play this card, your opponent chooses 1 of their Battle Cards and KO-s it.",
+    "characters": [
+      "Android 13"
+    ],
+    "traits": [
+      "Android"
+    ],
+    "back": null
+  },
+  {
+    "id": "P-360",
+    "name": "Vegeta",
+    "type": "LEADER",
+    "colors": [
+      "Blue"
+    ],
+    "energyCost": null,
+    "zEnergyCost": null,
+    "power": 10000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Auto] When this card attacks, draw 1 card.\r\n[Activate: Battle][Once per turn] Choose 1 red or blue \u226aSaiyan\u226b card in your hand and discard it: Look at up to 3 cards from the top of your deck, add up to 1 &lt;Son Goku: Br&gt;, &lt;Vegeta: Br&gt;, or &lt;Gogeta: Br&gt; card among them to your hand, then place the remaining cards on top of your deck in any order.\r\n[Awaken] When your life is at 4 or less or you have 4 or more energy: You may draw 1 card, switch up to 1 of your energy to Active Mode, and flip this card over.",
+    "characters": [
+      "Vegeta: Br"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "back": {
+      "name": "SSG Vegeta, Crimson Warrior",
+      "power": 15000,
+      "skill": "[permanent] Red <Gogeta: Br> cards in your hand gain the following skill:\r \u30fb[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.\r [auto] When this card attacks, draw 1 card.\r [auto][once per turn] When you play a <Gogeta: Br> card, draw 1 card, then switch up to 1 of your Red/Blue multicolor energy to Active Mode at the end of the turn."
+    }
+  }
+]
