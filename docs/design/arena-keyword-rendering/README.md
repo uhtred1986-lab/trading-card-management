@@ -9,4 +9,8 @@ not spend a text row on them. Evolve's reminder belongs behind expand; Double St
 The page sorts all 39 keywords in `src/lib/arena/glossary.ts` into five classes: badge, badge with values, skill row,
 condition and deck rule. For each class it says how the reader, board card, hand, desktop inspector and clash panel
 show it, with catalog counts (Masters catalog, deckplanet, 18 Oct 2026) for how often each keyword is printed and in
-how many wordings. Not built yet: the "What changes in the app" section lists the files a build would touch.
+how many wordings.
+
+Built so far (19 Oct 2026): the desktop card column (`CardSkills` in `CardReader.tsx`) shows keywords as badges
+with their values (cost pips, count, named card; the reminder is the tooltip) and every other skill written out.
+The phone reader and the board icons are not built yet.

@@ -505,7 +505,7 @@ export function ActionRows({
 }
 
 /** Cost, power and combo as three tiles; a leader's are power, life and energy. */
-export function StatTiles({ card, leader }: { card: CardView; leader?: { life: number; energy: string } | null }) {
+export function StatTiles({ card, leader, stacked = false }: { card: CardView; leader?: { life: number; energy: string } | null; /** One per row, label beside value: beside the art in the desktop card column. */ stacked?: boolean }) {
   const n = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en"));
   const tiles: [string, string][] = leader
     ? [
@@ -519,9 +519,9 @@ export function StatTiles({ card, leader }: { card: CardView; leader?: { life: n
         ...(card.comboCost != null ? [["combo", card.comboPower != null && card.comboPower > 0 ? `+${n(card.comboPower)}` : "—"] as [string, string]] : []),
       ];
   return (
-    <dl className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))` }} data-stat-tiles={card.id}>
+    <dl className="grid gap-1.5" style={{ gridTemplateColumns: stacked ? "minmax(0, 1fr)" : `repeat(${tiles.length}, minmax(0, 1fr))` }} data-stat-tiles={card.id}>
       {tiles.map(([k, v]) => (
-        <div key={k} className="rounded-lg border border-space-700 bg-space-800/60 px-2 py-1">
+        <div key={k} className={`rounded-lg border border-space-700 bg-space-800/60 px-2 py-1 ${stacked ? "flex items-baseline justify-between gap-2" : ""}`}>
           <dt className="text-[9px] font-semibold uppercase tracking-widest text-space-300">{k}</dt>
           <dd className="font-mono text-sm font-bold tabular-nums text-space-50">{v}</dd>
         </div>

@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { cardImage } from "@/lib/catalog/card-image";
 import { useArenaAdmin } from "./admin-context";
-import { chipKind, chipLabel, readerAbilities, skillShortName } from "./card-reader-model";
+import { chipKind, chipLabel, keywordBadge, readerAbilities, skillBody, skillShortName, type KeywordBadge } from "./card-reader-model";
 import styles from "./CardReader.module.css";
 
 /**
@@ -63,5 +63,48 @@ export function CardReader({ card, showAbilities, direction, docked = false }: {
       {showAbilities && !card.hidden && hasArt && panel}
     </div>
     {showAbilities && !card.hidden && !hasArt && <div className={styles.tray}>{panel}</div>}
+  </div>;
+}
+
+const PIP_NAME: Record<string, string> = { r: "red", u: "blue", g: "green", y: "yellow", b: "black" };
+
+/** A keyword badge: its name and the values it carries; the reminder is its tooltip. */
+function Badge({ badge }: { badge: KeywordBadge }) {
+  const said = [badge.label, badge.count, badge.pips.length ? `cost ${badge.pips.map((p) => PIP_NAME[p] ?? p).join(" ")}` : null, badge.target ? `on ${badge.target}` : null].filter(Boolean).join(", ");
+  return <span className={styles.kwBadge} data-deck={badge.deck || undefined} title={badge.reminder || undefined} aria-label={badge.reminder ? `${said}: ${badge.reminder}` : said}>
+    <span>{badge.label}{badge.count ? ` ${badge.count}` : ""}</span>
+    {badge.pips.length > 0 && <span className={styles.kwSlot} aria-hidden>{badge.pips.map((p, i) => <i key={i} className={styles.pip} data-pip={PIP_NAME[p] ? p : "n"}>{PIP_NAME[p] ? "" : p}</i>)}</span>}
+    {badge.target && <span className={styles.kwSlot} aria-hidden>on {badge.target}</span>}
+  </span>;
+}
+
+/**
+ * Everything a card can do, at one glance (owner, 19 Oct 2026): for the desktop card column, where there
+ * is room to write it out. Keywords are a strip of badges (their meaning never changes; the reminder is a
+ * tooltip), then every other skill in full, with its type chip and its limits. Nothing is behind a "+".
+ */
+export function CardSkills({ card }: { card: CardView }) {
+  if (card.hidden) return <p className={styles.empty}>Face-down card.</p>;
+  const lines = readerAbilities(card);
+  const badges: KeywordBadge[] = [];
+  const rows = lines.filter((line) => {
+    const badge = keywordBadge(line);
+    if (badge) badges.push(badge);
+    return !badge;
+  });
+  badges.sort((a, b) => Number(a.deck) - Number(b.deck));
+  return <div className={styles.skills} data-card-skills={card.id}>
+    {badges.length > 0 && <div className={styles.kwStrip} aria-label="Keywords">{badges.map((b) => <Badge key={b.key} badge={b} />)}</div>}
+    {rows.map((line) => <div key={line.key} className={styles.skillRow} data-available={line.offered || undefined} data-chip={chipKind(line.tag, line.keyword)} data-reader-ability={line.key}>
+      <div className={styles.skillHead}>
+        <span className={styles.chip}>{chipLabel(line.tag)}</span>
+        {line.extraTags.map((t) => <span key={t} className={styles.limit}>{chipLabel(t)}</span>)}
+        {line.copied && <span className={styles.limit}>Added</span>}
+        {line.offered && <span className={styles.now}>Available now</span>}
+        {!line.offered && line.state === "Pending" && <span className={styles.limit}>Pending</span>}
+      </div>
+      <p className={styles.skillText}>{skillBody(line.text)}</p>
+    </div>)}
+    {lines.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}
   </div>;
 }

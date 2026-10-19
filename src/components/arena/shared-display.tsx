@@ -1,5 +1,5 @@
 "use client";
-import { CardReader } from "./CardReader";
+import { CardSkills } from "./CardReader";
 
 import { useEffect, useRef, useState } from "react";
 import { useArenaAdmin } from "./admin-context";
@@ -290,24 +290,31 @@ export function DockedInspector({
     );
   }
   return (
-    <div className="space-y-2 p-3 lg:px-5 lg:py-4" data-arena-inspector={card.id}>
+    <div className="space-y-3 p-3 lg:px-4 lg:py-3" data-arena-inspector={card.id}>
       {basicActions}
-      <div data-desktop-reader><CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities direction="next" docked /></div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
-        {pinned && (
-          <button
-            type="button"
-            onClick={onUnpin}
-            className="tap min-h-11 shrink-0 rounded-full border border-space-500 px-3 py-2 text-xs uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
-          >
-            pinned · esc
-          </button>
-        )}
+      {/* The card at one glance (owner, 19 Oct 2026): the art beside what it is and its numbers, then
+          everything it does written out, not behind a panel over the art. */}
+      <div className="grid grid-cols-[minmax(0,42%)_minmax(0,1fr)] items-start gap-3" data-desktop-reader>
+        <CardArt card={card} />
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-space-200">{where}</p>
+            {pinned && (
+              <button
+                type="button"
+                onClick={onUnpin}
+                className="tap min-h-11 shrink-0 rounded-full border border-space-500 px-3 py-2 text-xs uppercase tracking-wider text-space-200 hover:border-ki-400 hover:text-ki-300"
+              >
+                pinned · esc
+              </button>
+            )}
+          </div>
+          <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
+          <ChipRow chips={chips} />
+          {stats}
+        </div>
       </div>
-      <h3 className="text-lg font-black italic leading-tight text-space-50">{card.name}</h3>
-      <ChipRow chips={chips} />
-      {stats}
+      <CardSkills card={card} />
       <div className="space-y-1.5">{actions}</div>
       <details><summary className="tap min-h-11 cursor-pointer py-3 text-sm">More card details</summary><CardDetail card={card} narrator={narrator} battle={battle} figures={false} /></details>
     </div>
@@ -479,6 +486,20 @@ export function InspectorColumn({ inspector, pager }: { inspector: React.ReactNo
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The card's scan beside its details in the desktop card column; the words are written out below it. */
+function CardArt({ card }: { card: CardView }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const art = !card.hidden && card.imageUrl && failed !== card.imageUrl ? card.imageUrl : null;
+  return (
+    <div className="aspect-[63/88] w-full overflow-hidden rounded-[9px] border-2 border-space-950 bg-space-900 shadow-[2px_3px_0_rgba(18,22,31,.85)]">
+      {art
+        // eslint-disable-next-line @next/next/no-img-element -- the catalog's scan at its own size, never enlarged.
+        ? <img src={cardImage(art, "full")} alt={card.name} className="h-full w-full object-cover" draggable={false} onError={() => setFailed(art)} />
+        : <span className="grid h-full w-full place-items-center p-2 text-center text-xs font-bold text-space-100">{card.hidden ? "Face-down card" : card.name}</span>}
     </div>
   );
 }

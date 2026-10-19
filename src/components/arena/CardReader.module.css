@@ -47,3 +47,26 @@
 .face[data-reader-direction="prev"] { --reader-enter: -12px; }
 @keyframes arrive { from { opacity: .6; transform: translateX(var(--reader-enter, 12px)); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .face { animation: none; transition: none; } }
+
+/* The desktop card column's skills (CardSkills): keyword badges, then every skill written out. */
+.skills { --paper: #f6fbff; --ink: #0f2a3d; --soft: #3d5a6e; display: grid; gap: 8px; color: var(--ink); }
+:global([data-skin="night"]) .skills { --paper: #14283cf5; --ink: #eefaff; --soft: #a9cfe0; }
+.kwStrip { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwBadge { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 5px 3px 10px; border: 2px solid #0f2a3d; border-radius: 999px; background: #0f766e; color: #fff; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; box-shadow: 1px 2px 0 #0f2a3d; cursor: help; max-width: 100%; }
+.kwBadge:not(:has(.kwSlot)) { padding-right: 10px; }
+.kwBadge[data-deck] { background: #475569; }
+.kwSlot { display: inline-flex; align-items: center; gap: 3px; min-width: 0; padding: 1px 7px; border-radius: 999px; background: #fff; color: #0f2a3d; font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #0f2a3d; font-size: 9px; font-style: normal; font-weight: 800; color: #0f2a3d; background: #c8d0db; }
+.pip[data-pip="r"] { background: #e5484d; } .pip[data-pip="u"] { background: #3b82f6; } .pip[data-pip="g"] { background: #22a35a; } .pip[data-pip="y"] { background: #e0a800; } .pip[data-pip="b"] { background: #4b5263; }
+.skillRow { display: grid; gap: 4px; padding: 8px 10px; border: 1.5px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 10px; background: var(--paper); }
+.skillRow[data-available] { border-color: #0e9f8e; box-shadow: 0 0 0 2px #34ead655, 0 0 10px #34ead680; }
+.skillHead { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.skillRow .chip { max-width: 100%; }
+.skillRow[data-chip="auto"] .chip { background: #1d4ed8; }
+.skillRow[data-chip="permanent"] .chip { background: #6d28d9; }
+.skillRow[data-chip="activate"] .chip { background: #b45309; }
+.skillRow[data-chip="counter"] .chip { background: #c2410c; }
+.skillRow[data-chip="keyword"] .chip { background: #0f766e; }
+.limit { padding: 1px 7px; border: 1.5px solid currentColor; border-radius: 6px; font-size: 11px; font-weight: 800; color: var(--soft); white-space: nowrap; }
+.now { padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 800; background: #0e9f8e; color: #fff; white-space: nowrap; }
+.skillText { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; user-select: text; }

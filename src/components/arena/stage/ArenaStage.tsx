@@ -1683,6 +1683,7 @@ export function ArenaStage({
                 stats={
                   inspectCard && (
                     <StatTiles
+                      stacked
                       card={inspectCard}
                       leader={inspectAt?.zone === "leader" ? { life: inspectAt.side.life, energy: `${inspectAt.side.activeEnergy}/${inspectAt.side.energy.length}` } : null}
                     />
