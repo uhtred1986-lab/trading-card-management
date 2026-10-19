@@ -43,14 +43,12 @@ Exact captured main-deck quantities:
 
 ## Pinned public sources and inputs
 
-- The prepared recipe hash above is also the input provenance for `additional-pair.json`; the expanded lists are mechanically copied from its card IDs and quantities. They are authored public proposals, not official tournament lists or private owner decks.
 - Exact recipes, quantities, list hashes, app-catalog legality, ingredients,
   named compile gaps, and `inputGaps: []`: [`src/lib/arena/testing/prepared-recipes.json`](../../../../../src/lib/arena/testing/prepared-recipes.json), captured at `2026-10-15T02:16:02.092Z`, source commit `b7fcf2237b9a6c6875772d2ae97f0a3cf1731efe`, SHA-256 `9ec32d4622d42140516447ee5325d731815a4adfc259b91feb4f916b6067b3c4`.
 - Prepared-list receipt: [`evidence/827/prepared-lists/receipt.json`](../../827/prepared-lists/receipt.json), SHA-256 `94a9809f7116380dbbf7236440b043f64e77dcd007d0817ce96e57055bf06338`. It reports all 17 as draft and unqualified; both viewports report 17 lists, and neither reports a qualification run.
 - The 15 October Union text/record inventory is [`evidence/923/inventory.json`](../../923/inventory.json), source snapshot `2026-10-15`, baseline compiler commit `15487afd`, SHA-256 `133344b946883ab47be06bd1ddf1c1f6ec4f0abca1aec80fa13a56dad63fd3a3`. It is an evidence inventory, not the full `CatalogCard[]` snapshot expected by the corpus runner.
 - The corpus runner's committed catalog input is [`evidence/649/catalog-subset-2026-10-13.json`](../../649/catalog-subset-2026-10-13.json), SHA-256 `49c8271093a836849b37decbffc03da964980dd349d79d8b28a11a21a85a24c6`. It contains only the two SD starter controls' card pool (including BT6-010 and BT6-011), not the selected pair's full list. It cannot support offline admission for these recipes. No new/live catalog source was fetched for this baseline. Therefore the exact recipe inputs are pinned, but a complete frozen catalog input and stored-rule export for these lists are absent; the pair cannot yet be admitted by `arena-corpus-freeze.mts`.
-- The prepared recipe hash above is also the input provenance for `additional-pair.json`; the expanded lists are mechanically copied from its card IDs and quantities. They are authored public proposals, not official tournament lists or private owner decks.
-- The prepared recipe hash above is also the input provenance for `additional-pair.json`; the expanded lists are mechanically copied from its card IDs and quantities. They are authored public proposals, not official tournament lists or private owner decks.
+- `additional-pair.json` expands only these public recipe IDs and quantities; the recipes are authored proposals, not official tournament lists or private owner decks.
 
 The app-catalog legality result is not an independent check against the current
 official restricted-card list. The recipes have 50 main cards each, zero Z cards,
@@ -90,29 +88,28 @@ are distinct from the semantic/compiler gaps above.
 ## #825 eight-target reconciliation
 
 PR #834 delivered the compiler/engine changes and focused evidence for all
-eight #825 targets. That is code delivery, not current stored-row freshness.
-The available later application receipts and readiness record reconcile as
-follows:
+eight #825 targets. The later public records do not all agree on the stored-row
+application status. The exact per-target evidence is:
 
 | Target | Code delivery | Later application receipt / dated readiness evidence |
 | --- | --- | --- |
-| BT29-029 back #0 | PR #834 / `docs/arena-backlog/evidence/825/` | No exact application receipt located. `rule-refresh.json` has BT29-029 **back #10**, a different skill, so it does not establish #0 freshness. The 17 Oct readiness receipt still lists BT29-029 blocked. |
-| BT3-112 front #10 | PR #834 | No exact application receipt located. The 17 Oct readiness receipt lists it blocked. |
-| BT3-096 front #10 | PR #834 | No exact application receipt located. The 17 Oct readiness receipt lists it blocked. |
-| BT3-098 front #10 | PR #834 | No exact application receipt located. The 17 Oct readiness receipt lists it blocked. |
-| BT3-090 front #0 | PR #834 timing-reading change | No exact application receipt located in the checked-in later refresh receipts. |
-| BT7-040 front #10 | PR #834 timing-reading change | No exact application receipt located in the checked-in later refresh receipts. |
-| BT7-083 front #10 | PR #834 timing-reading change | No exact application receipt located in the checked-in later refresh receipts. |
-| BT7-086 front #10 | PR #834 timing-reading change | No exact application receipt located in the checked-in later refresh receipts. |
+| BT29-029 back #0 | PR #834 / `docs/arena-backlog/evidence/825/` | #907's 17 Oct 15:43 receipt explicitly says rule row 9829 for BT29-029 back #0 was written after owner approval ([comment 6235968236](https://github.com/uhtred1986-lab/trading-card-management/issues/907#issuecomment-6235968236)). The checked-in `rule-refresh.json` instead records BT29-029 **back #10**, a different skill. The later #825 comment at 21:40 says repo receipts did not prove back #0 and cites readiness that still lists BT29-029 blocked ([comment 6241581216](https://github.com/uhtred1986-lab/trading-card-management/issues/825#issuecomment-6241581216)). Record this as conflicting application evidence; no current stored-row readback is available here. |
+| BT3-112 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-112 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
+| BT3-096 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-096 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
+| BT3-098 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-098 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
+| BT3-090 front #0 | PR #834 timing-reading change | No exact later public application receipt found; 18 Oct batches do not list this target. Current freshness is unverified. |
+| BT7-040 front #10 | PR #834 timing-reading change | No exact later public application receipt found; 18 Oct batches do not list this target. Current freshness is unverified. |
+| BT7-083 front #10 | PR #834 timing-reading change | No exact later public application receipt found; 18 Oct batches do not list this target. Current freshness is unverified. |
+| BT7-086 front #10 | PR #834 timing-reading change | No exact later public application receipt found; 18 Oct batches do not list this target. Current freshness is unverified. |
 
-The later 18 October receipts under #907 record other batches; no exact
-`#825` target above appears in the checked-in `rule-refresh.json` or
-`second-rule-refresh.json`. `post-refresh-readiness.json` is explicitly dated
-to deployed commit `1996255ea874bca8349ec64328ea4712e23505b0` and lists four
-blocked cards. That is dated application/readiness evidence only, not a claim
-about freshness today. The 17 October #825 issue comment independently says
-the rules were not shown refreshed at that time and identifies the mismatch
-between back #0 and the unrelated BT29 back #10 receipt.
+The #907 17 Oct 15:43 comment is a specific application claim for BT29-029
+back #0. It must be retained alongside the later #825 repo-only reconciliation
+and the checked-in back #10 receipt; neither side is silently substituted for
+the other. The 18 October #907 receipts describe other batches and do not name
+the remaining seven targets. The checked-in `post-refresh-readiness.json` is
+dated to deployed commit `1996255ea874bca8349ec64328ea4712e23505b0` and lists
+four blocked cards. These are dated application/readiness records, not a current
+database read or a claim about stored freshness today.
 
 Sources: [#825](https://github.com/uhtred1986-lab/trading-card-management/issues/825),
 [PR #834](https://github.com/uhtred1986-lab/trading-card-management/pull/834),
