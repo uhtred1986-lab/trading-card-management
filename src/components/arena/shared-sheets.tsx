@@ -541,10 +541,43 @@ export function ActionRows({
     );
   };
   const evidence = (m: SheetMove) => <MoveEvidence m={m} side={side} resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />;
+  // Charge, Play and Grow Unison are the game's own moves and need no sentence (owner, 19 Oct 2026): the
+  // verb as a small button, or as a small pill with what stands in the way. The sentence stays the tooltip.
+  // The payment and target previews stay only when they ask something: a choice of payment, or a skill
+  // with no target.
+  const basicMoves = moves.filter((m) => BASIC_VERB[m.legal.action.type] && !abilities.some((line) => offeredMoves(line, card, abilities, [m]).length > 0));
+  const otherMoves = moves.filter((m) => !basicMoves.includes(m) && !abilities.some((line) => offeredMoves(line, card, abilities, [m]).length > 0));
+  const basicRefusals = refusals.filter((r) => BASIC_VERB[r.action.type]);
+  const fullRefusals = refusals.filter((r) => !BASIC_VERB[r.action.type]);
+  const sentence = (r: RejectedAction) => r.why.map((q) => {
+    const w = refusal(q, { name: card.name, reaching: r.action.type, ...word });
+    return w.remedy ? `${w.fact} ${w.remedy}` : w.fact;
+  }).join(" ");
+  const asks = (m: SheetMove) => m.legal.paymentPreview?.state === "choice" || m.choicePreview?.state === "empty";
   return (
     <>
       {!basicOnly && !skillsInline && <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />}
-      {moves.filter((move) => !abilities.some((line) => offeredMoves(line, card, abilities, [move]).length > 0)).map((m) => {
+      {basicMoves.filter(asks).map((m) => <div key={`ev:${m.index}`}>{evidence(m)}</div>)}
+      {(basicMoves.length > 0 || (!basicOnly && basicRefusals.length > 0)) && (
+        <div className="flex flex-wrap items-center gap-1.5" data-basic-actions>
+          {basicMoves.map((m) => {
+            const price = priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
+            return (
+              <button key={`move:${m.index}`} type="button" onClick={() => onPick(m)} className="tap inline-flex min-h-9 items-center gap-1.5 rounded-full border border-ki-500/60 bg-ki-500/10 px-3 text-xs font-semibold text-space-50 hover:border-ki-400">
+                {m.choicePreview?.state === "empty" && m.legal.action.type === "play" ? "Play anyway" : BASIC_VERB[m.legal.action.type]}
+                {price && <span className="font-mono text-[10px] text-ki-300">{price}</span>}
+              </button>
+            );
+          })}
+          {!basicOnly && basicRefusals.map((r, i) => (
+            <span key={`no:${r.action.type}:${i}`} title={sentence(r)} aria-label={`${BASIC_VERB[r.action.type]}: ${sentence(r)}`} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-space-700 bg-space-800/60 px-2.5 text-[11px] font-semibold text-space-200" aria-disabled data-basic-refusal={r.action.type}>
+              {BASIC_VERB[r.action.type]}
+              <span className="font-mono text-[10px] font-normal text-loss">{pill(r.why[0])}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {otherMoves.map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
           <div key={`move:${m.index}`} className="space-y-1">
@@ -554,13 +587,13 @@ export function ActionRows({
             onClick={() => onPick(m)}
             className={`tap flex min-h-11 w-full items-center gap-3 rounded-lg border border-ki-500/60 bg-ki-500/10 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400 ${docked ? "" : "sm:px-4 sm:py-3 sm:text-base"}`}
           >
-            <span className="min-w-0 flex-1">{m.choicePreview?.state === "empty" && m.legal.action.type === "play" ? "Play anyway" : m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
+            <span className="min-w-0 flex-1">{m.targets ? `Attack with ${card.name}…` : (m.label ?? m.legal.label)}</span>
             {price && <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300 sm:text-xs">{price}</span>}
           </button>
           </div>
         );
       })}
-      {!basicOnly && refusals.map(refusalRow)}
+      {!basicOnly && fullRefusals.map(refusalRow)}
       {!basicOnly && otherActions.length > 0 && (
         <details className="rounded-lg border border-space-700 bg-space-800/30 px-3 py-2" data-other-actions>
           <summary className="cursor-pointer text-xs font-semibold text-space-200">Other actions ({otherActions.length})</summary>
@@ -570,6 +603,9 @@ export function ActionRows({
     </>
   );
 }
+
+/** The game's own moves, which a player knows without being told what they do. */
+const BASIC_VERB: Partial<Record<string, string>> = { charge: "Charge", play: "Play", playUnison: "Play Unison", playZ: "Play", growUnison: "Grow Unison" };
 
 /** Cost, power and combo as three tiles; a leader's are power, life and energy. */
 export function StatTiles({ card, leader, stacked = false }: { card: CardView; leader?: { life: number; energy: string } | null; /** One per row, label beside value: beside the art in the desktop card column. */ stacked?: boolean }) {
