@@ -188,8 +188,11 @@ export function ArenaStage({
   const [abandonPending, startAbandon] = useTransition();
   const [abandonError, setAbandonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  /** A price only an energy marker can complete, waiting for the player's yes (`settlePayment`). */
-  const [markerAsk, setMarkerAsk] = useState<{ action: Action; card: string | null; options: PaymentOption[] } | null>(null);
+  /**
+   * A payment waiting on the player (`settlePayment`): `marker` when only an energy marker completes the
+   * price, `colour` when the energy cards could pay in ways that leave different colours ready.
+   */
+  const [payAsk, setPayAsk] = useState<{ kind: "marker" | "colour"; action: Action; card: string | null; options: PaymentOption[] } | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   /** The hand card whose browse preview is open on a phone; in the Charge phase the dock offers to charge it. */
   const [peekedId, setPeekedId] = useState<string | null>(null);
@@ -547,8 +550,9 @@ export function ArenaStage({
 
   /**
    * Energy markers are a one-off (owner, 19 Oct 2026): a price the energy cards can pay is paid with them,
-   * without a question, and one that needs a marker is asked first. The engine asks whenever the ways to pay
-   * differ (3-8-2), so the answer goes with the move as its `pay` (the cards to rest; markers make up the rest).
+   * and one that needs a marker is asked first. Which colours to rest is asked only when it matters: when
+   * the ways the energy cards could pay leave different colours ready. The engine asks whenever the ways to
+   * pay differ (3-8-2), so the answer goes with the move as its `pay` (the cards to rest; markers make up the rest).
    */
   const settlePayment = (action: Action): Action | "ask" => {
     if (!PAYABLE.has(action.type) || (action as { pay?: string[] }).pay !== undefined) return action;
@@ -556,10 +560,25 @@ export function ArenaStage({
     const options = (legal.find((l) => l.action === action) ?? legal.find((l) => JSON.stringify(l.action) === key))?.paymentPreview?.options ?? [];
     if (!options.length) return action;
     const energyOnly = options.filter((o) => o.markers === 0);
-    if (energyOnly.length) return options.length === 1 ? action : ({ ...action, pay: energyOnly[0].energyRest } as Action);
-    setMarkerAsk({ action, card: cardIdOf(action), options });
-    return "ask";
+    if (!energyOnly.length) {
+      setPayAsk({ kind: "marker", action, card: cardIdOf(action), options });
+      return "ask";
+    }
+    // One option per set of colours rested: two Reds are the same answer, a Red or a Blue is not.
+    const byColours = new Map<string, PaymentOption>();
+    for (const o of energyOnly) {
+      const colours = o.energyRest.map((id) => energyColoursOf(id).join("/")).sort().join("+");
+      if (!byColours.has(colours)) byColours.set(colours, o);
+    }
+    if (byColours.size > 1) {
+      setPayAsk({ kind: "colour", action, card: cardIdOf(action), options: [...byColours.values()] });
+      return "ask";
+    }
+    return options.length === 1 ? action : ({ ...action, pay: energyOnly[0].energyRest } as Action);
   };
+  const energyColoursOf = (id: string): string[] => view.you.energyColors?.find((e) => e.card === id)?.colors ?? cardOf(id)?.colors ?? [];
+  /** The colours still ready once these cards are rested, for the colour question. */
+  const readyAfter = (rest: string[]): string[] => view.you.energy.filter((c) => c.mode === "active" && !rest.includes(c.id)).flatMap((c) => energyColoursOf(c.id).slice(0, 1));
 
   const send = (action: Action, settled = false) => {
     if (notice && admin) return;
@@ -568,7 +587,7 @@ export function ArenaStage({
       if (paid === "ask") return;
       action = paid;
     }
-    setMarkerAsk(null);
+    setPayAsk(null);
     setSheet(null);
     setPinned(null);
     setSelected(null);
@@ -1205,9 +1224,9 @@ export function ArenaStage({
     if (failed.some((r) => r.action.type === "activate")) return "skill";
     return null;
   };
-  /** The player's yes to an energy marker: the move goes with that payment, already settled. */
-  const payWithMarker = (option: number) => {
-    if (markerAsk) send({ ...markerAsk.action, pay: markerAsk.options[option].energyRest } as Action, true);
+  /** The player's answer to the payment question: the move goes with that payment, already settled. */
+  const payWith = (option: number) => {
+    if (payAsk) send({ ...payAsk.action, pay: payAsk.options[option].energyRest } as Action, true);
   };
   /** What a hand chip does when tapped: the move its words name, or the card's review when it needs a closer look. */
   const runHandAction = (id: string) => {
@@ -1678,19 +1697,23 @@ export function ArenaStage({
               <div className="p-2">{youStrip}</div>
             </div>
           )}
-          {markerAsk && (
-            <CenterPrompt label="Use an energy marker?">
-              <div className="arena-bar space-y-2 p-4" data-marker-ask>
-                <p className="text-base font-bold text-space-50">Use your energy marker?</p>
-                <p className="text-sm text-space-200">Your ready energy can’t pay for {markerAsk.card ? cardOf(markerAsk.card)?.name ?? "this card" : "this move"} on its own. An energy marker is spent once and doesn’t come back.</p>
-                {markerAsk.options.map((o, i) => {
-                  const rest = o.energyRest.map((id) => cardOf(id)?.name ?? "energy");
+          {payAsk && (
+            <CenterPrompt label={payAsk.kind === "marker" ? "Use an energy marker?" : "Which energy do you rest?"}>
+              <div className="arena-bar space-y-2 p-4" data-pay-ask={payAsk.kind}>
+                <p className="text-base font-bold text-space-50">{payAsk.kind === "marker" ? "Use your energy marker?" : `Which energy pays for ${payAsk.card ? cardOf(payAsk.card)?.name ?? "this card" : "this move"}?`}</p>
+                <p className="text-sm text-space-200">{payAsk.kind === "marker"
+                  ? <>Your ready energy can’t pay for {payAsk.card ? cardOf(payAsk.card)?.name ?? "this card" : "this move"} on its own. An energy marker is spent once and doesn’t come back.</>
+                  : "The colours you keep ready decide what you can still play this turn."}</p>
+                {payAsk.options.map((o, i) => {
+                  const colours = o.energyRest.map((id) => energyColoursOf(id)[0] ?? "energy");
                   const markers = `${o.markers} energy marker${o.markers === 1 ? "" : "s"}`;
-                  return <button key={i} type="button" disabled={busy} onClick={() => payWithMarker(i)} className="arena-btn tap block min-h-12 w-full rounded-xl bg-ki-500 px-4 py-2 text-left text-base font-bold text-space-950 hover:bg-ki-400 disabled:opacity-50" data-marker-option={i}>
-                    {rest.length ? `Rest ${rest.join(", ")} + ${markers}` : `Spend ${markers}`}
+                  const left = readyAfter(o.energyRest);
+                  return <button key={i} type="button" disabled={busy} onClick={() => payWith(i)} className={`arena-btn tap block min-h-12 w-full rounded-xl px-4 py-2 text-left text-base font-bold disabled:opacity-50 ${i === 0 ? "bg-ki-500 text-space-950 hover:bg-ki-400" : "border border-space-600 bg-space-800 text-space-50"}`} data-pay-option={i}>
+                    {payAsk.kind === "marker" ? (colours.length ? `Rest ${colours.join(", ")} + ${markers}` : `Spend ${markers}`) : `Rest ${colours.join(", ")}`}
+                    <span className="block text-xs font-normal">{left.length ? `Keeps ready: ${left.join(", ")}` : "No energy left ready"}</span>
                   </button>;
                 })}
-                <button type="button" onClick={() => setMarkerAsk(null)} className="arena-btn tap block min-h-11 w-full rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50" data-marker-cancel>Keep the marker</button>
+                <button type="button" onClick={() => setPayAsk(null)} className="arena-btn tap block min-h-11 w-full rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50" data-pay-cancel>{payAsk.kind === "marker" ? "Keep the marker" : "Cancel"}</button>
               </div>
             </CenterPrompt>
           )}
