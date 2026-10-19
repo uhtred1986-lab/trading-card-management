@@ -10,7 +10,7 @@ import { PHRASING_ONLY } from "@/lib/arena/gaps";
 import { firedInGame } from "@/lib/arena/fired";
 import { deckCardSets } from "@/lib/arena/readiness";
 import { defaultState, neighbours, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
-import { countRules, draftPatterns, openPatterns, reasonGroups, ruleById, ruleIdsFor, setGroups, setsWithRules, statusCounts, worklistPage, type PatternGroup, type QueueGroup, type RuleFilter, type RuleStatus } from "@/lib/arena/rules-store";
+import { draftPatterns, healthCounts, openPatterns, reasonGroups, ruleById, ruleIdsFor, setGroups, setsWithRules, statusCounts, worklistPage, type PatternGroup, type QueueGroup, type RuleFilter, type RuleStatus } from "@/lib/arena/rules-store";
 import { listDecks } from "@/lib/decks/queries";
 import { lastSyncRuns } from "@/lib/sync";
 import { recentBatches } from "../actions";
@@ -90,7 +90,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
   const link = (patch: Partial<Queue>) => queueLink(here, patch);
   const filter: RuleFilter = { ...base, status: state };
 
-  const [inDecks, catalog, syncs, batches, sets] = await Promise.all([countRules(db, allDeckCards), countRules(db), lastSyncRuns(db), recentBatches(), setsWithRules(db)]);
+  const [inDecks, catalog, syncs, batches, sets] = await Promise.all([healthCounts(db, allDeckCards), healthCounts(db), lastSyncRuns(db), recentBatches(), setsWithRules(db)]);
   const lastSync = syncs.latest.get("catalog")?.summary as { stillOpen?: number; cardsNew?: number; cardsChanged?: number } | null | undefined;
 
   // ── the list, or its groups ───────────────────────────────────────────────

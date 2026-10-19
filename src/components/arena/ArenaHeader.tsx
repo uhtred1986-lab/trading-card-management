@@ -7,7 +7,7 @@ import { STAGING_COOKIE, stagingFrom } from "@/lib/arena/staging";
 import { getRepoUrl } from "@/lib/github";
 import { isArenaAdmin } from "@/lib/auth";
 import { ReferenceDrawer } from "@/components/arena/rules/ReferenceDrawer";
-import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
+import type { HealthCounts } from "@/lib/arena/rules-store";
 
 /**
  * The one header for the Arena's two doors (docs/arena-home-spec.md §1, §2):
@@ -24,12 +24,12 @@ import type { RuleCounts, RuleStatus } from "@/lib/arena/rules-store";
  */
 
 /** What the Rules side says about the rules: its numbers (today's `Kpi`). */
-export type ArenaKpis = { inDecks: RuleCounts; catalog: RuleCounts; openSinceSync?: number | null };
+export type ArenaKpis = { inDecks: HealthCounts; catalog: HealthCounts; openSinceSync?: number | null };
 
-/** Count skills with an interpretation, including unreviewed drafts. Not runtime support or correctness. */
-export function interpreted(c: RuleCounts): string {
-  const total = (Object.keys(c) as RuleStatus[]).reduce((n, k) => n + c[k], 0);
-  return `${total - c.open} / ${total}`;
+/** "done / all" skills, by `ruleHealth` (rules-store.ts): approved, and nothing the engine cannot carry out. */
+export function doneOf(c: HealthCounts): string {
+  const total = c["text-only"] + c.incomplete + c.unchecked + c.done;
+  return `${c.done} / ${total}`;
 }
 
 const item = "tap flex items-center rounded-md px-3 py-2 text-sm text-space-100 hover:bg-space-800";
@@ -130,12 +130,14 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
 
       {side === "rules" && kpis ? (
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 sm:flex">
-          <p className="w-full text-xs text-space-400">Overview across all playable Masters decks and the catalog. The list below follows your selected scope; these counts include unreviewed drafts.</p>
+          <p className="w-full text-xs text-space-400">Overview across all playable Masters decks and the catalog, skill by skill. The list below follows your selected scope.</p>
           <div className="flex flex-wrap gap-4">
-            <Kpi n={kpis.inDecks.open} label="open in decks" tone={kpis.inDecks.open ? "text-loss" : ""} />
-            <Kpi n={kpis.inDecks.draft} label="drafts to check" tone={kpis.inDecks.draft ? "text-ki-300" : ""} />
-            <Kpi n={interpreted(kpis.inDecks)} label="deck skills interpreted (includes drafts)" />
-            <Kpi n={interpreted(kpis.catalog)} label="catalog skills interpreted (includes drafts)" />
+            <Kpi n={kpis.inDecks["text-only"]} label="text only in decks (engine does nothing)" tone={kpis.inDecks["text-only"] ? "text-loss" : ""} />
+            <Kpi n={kpis.inDecks.incomplete} label="incomplete in decks" tone={kpis.inDecks.incomplete ? "text-ki-300" : ""} />
+            <Kpi n={kpis.inDecks.unchecked} label="read, not checked in decks" />
+            <Kpi n={doneOf(kpis.inDecks)} label="deck skills done" />
+            <Kpi n={doneOf(kpis.catalog)} label="catalog skills done" />
+            {kpis.inDecks.needsRebuild ? <Kpi n={kpis.inDecks.needsRebuild} label="deck skills to rebuild (old payment record)" /> : null}
             {kpis.openSinceSync != null ? <Kpi n={kpis.openSinceSync} label="open since last sync" tone={kpis.openSinceSync ? "text-loss" : ""} /> : null}
           </div>
         </div>
