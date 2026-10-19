@@ -1,5 +1,7 @@
 # #907 typed combo qualifications
 
+Combined [draft PR #1070](https://github.com/uhtred1986-lab/trading-card-management/pull/1070).
+
 Scope: BT6-006 front #10, BT6-010 front #0, BT6-066 front #0 and BT6-070
 front #0, from the existing selected public BT6 pair. Starting main is
 `1aa8e3c60a13a763d7282be91dcb6bfe45303060` (#1069).

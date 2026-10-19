@@ -1,5 +1,6 @@
 # Next action: review and apply the typed combo draft
 
+Review [draft PR #1070](https://github.com/uhtred1986-lab/trading-card-management/pull/1070).
 Read [the receipt](README.md), its focused/control evidence and online sources.
 The user requested one combined draft PR and essential tests only. No full
 `npm test`, `verify-arena` or build was run. The selected BT6 pair is still
