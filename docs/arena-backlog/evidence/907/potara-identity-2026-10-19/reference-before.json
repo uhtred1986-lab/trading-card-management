@@ -1,0 +1,178 @@
+{
+  "catalog": [
+    {
+      "id": "BT2-012",
+      "name": "Repeated Force Vegito",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": 7,
+      "zEnergyCost": null,
+      "power": 25000,
+      "comboCost": 1,
+      "comboPower": 10000,
+      "skill": "[Union-Potara] ⑤: &lt;Son Goku&gt; and &lt;Vegeta&gt; (Place this card in Active Mode on top of the 2 specified cards stacked together)<br>[Triple Strike] (This card inflicts 3 damage instead of 1 when attacking)<br>[Auto] When this card attacks, this card gains +5000 power for each &lt;Son Goku&gt; and &lt;Vegeta&gt; in your Drop Area for the duration of the turn.",
+      "characters": [
+        "Vegito"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "back": null
+    }
+  ],
+  "rows": [
+    {
+      "id": 10297,
+      "card_id": "BT2-012",
+      "side": "front",
+      "skill_index": 0,
+      "printed": "[Union-Potara] {5}: <Son Goku> and <Vegeta> (Place this card in Active Mode on top of the 2 specified cards stacked together)",
+      "kind": "keyword",
+      "trigger": [],
+      "cost": {
+        "orbs": {
+          "any": 5
+        },
+        "text": "",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": null,
+        "condition": null,
+        "spiritBoost": null
+      },
+      "cond": null,
+      "ops": [],
+      "source": "compiler",
+      "status": "draft",
+      "unread": [],
+      "reads": "",
+      "pattern": "keyword:Union",
+      "version": 1,
+      "combo": null,
+      "usage": null,
+      "validity": null
+    },
+    {
+      "id": 10298,
+      "card_id": "BT2-012",
+      "side": "front",
+      "skill_index": 10,
+      "printed": "[Triple Strike] (This card inflicts 3 damage instead of 1 when attacking)",
+      "kind": "keyword",
+      "trigger": [],
+      "cost": null,
+      "cond": null,
+      "ops": [],
+      "source": "compiler",
+      "status": "draft",
+      "unread": [],
+      "reads": "",
+      "pattern": "keyword:Strike",
+      "version": 1,
+      "combo": null,
+      "usage": null,
+      "validity": null
+    },
+    {
+      "id": 10299,
+      "card_id": "BT2-012",
+      "side": "front",
+      "skill_index": 20,
+      "printed": "[Auto] When this card attacks, this card gains +5000 power for each <Son Goku> and <Vegeta> in your Drop Area for the duration of the turn.",
+      "kind": "auto",
+      "trigger": [
+        "attacks"
+      ],
+      "cost": null,
+      "cond": null,
+      "ops": [
+        {
+          "op": "power",
+          "until": "turn",
+          "amount": {
+            "count": {
+              "area": "drop",
+              "side": "you",
+              "upTo": false,
+              "count": 99,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "son goku",
+                  "vegeta"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "times": 5000
+          },
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "source": "compiler",
+      "status": "draft",
+      "unread": [],
+      "reads": "this card +5000 power for each of <son goku> or <vegeta> cards in your Drop Area for the turn",
+      "pattern": "power",
+      "version": 7,
+      "combo": null,
+      "usage": null,
+      "validity": null
+    }
+  ]
+}
