@@ -1,0 +1,116 @@
+{
+  "mode": "prepared rows, not production readback",
+  "engineRevision": "a66014001305aa6c3b4d04bd580c8873274a8a1b",
+  "packSHA256": "dfa97a4f5253361edb1b88d2297427f799310384f5074b509bc1ac112950b29e",
+  "hashes": {
+    "bundle": "4f098f45ef67da6af76c917a441508e397532c9e7bfaa6a81a5a1c61503bf40d",
+    "catalog": "6c3b37fe3c1c9f7c517112feb1fec3745648c59a54904da403c87a516fd16ca6",
+    "programs": "8624c4e0f20bf8780e0fe9c8a50c1ea2780fea5165503de3633f4294a0befaa9",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062"
+  },
+  "summary": {
+    "admitted": [],
+    "candidates": 2,
+    "completed": 2,
+    "crashed": 0,
+    "games": 4,
+    "illegal": 2,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "bt6-gogeta-br-fusion",
+      "bt6-paragus-broly-recovery"
+    ]
+  },
+  "games": [
+    {
+      "class": "illegal",
+      "moves": 52,
+      "over": false,
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "pair": "bt6-gogeta-br-fusion-bt6-gogeta-br-fusion",
+      "policySeed": 7919,
+      "reason": null,
+      "seed": 897000,
+      "stopKind": "illegal",
+      "stopped": "p1: refused: card 2 of the pick is no longer offered",
+      "trace": "6d8f5b20",
+      "turn": 4,
+      "winnerSeat": null
+    },
+    {
+      "class": "illegal",
+      "moves": 24,
+      "over": false,
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "pair": "bt6-gogeta-br-fusion-bt6-paragus-broly-recovery",
+      "policySeed": 7919,
+      "reason": null,
+      "seed": 897100,
+      "stopKind": "illegal",
+      "stopped": "p1: refused: card 2 of the pick is no longer offered",
+      "trace": "0a9cd98f",
+      "turn": 3,
+      "winnerSeat": null
+    },
+    {
+      "class": "completed",
+      "moves": 262,
+      "over": true,
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-gogeta-br-fusion",
+      "pair": "bt6-gogeta-br-fusion-bt6-paragus-broly-recovery",
+      "policySeed": 7919,
+      "reason": "BT6 \u2014 Paragus / Broly recovery lost: there are no cards in your Life Area (0-1-3-2)",
+      "seed": 897100,
+      "stopKind": null,
+      "stopped": null,
+      "trace": "be2f0554",
+      "turn": 14,
+      "winnerSeat": "p2"
+    },
+    {
+      "class": "completed",
+      "moves": 87,
+      "over": true,
+      "p1": "bt6-paragus-broly-recovery",
+      "p2": "bt6-paragus-broly-recovery",
+      "pair": "bt6-paragus-broly-recovery-bt6-paragus-broly-recovery",
+      "policySeed": 7919,
+      "reason": "BT6 \u2014 Paragus / Broly recovery lost: there are no cards in your Life Area (0-1-3-2)",
+      "seed": 900200,
+      "stopKind": null,
+      "stopped": null,
+      "trace": "5bf00c0a",
+      "turn": 6,
+      "winnerSeat": "p2"
+    }
+  ],
+  "interruptions": [
+    {
+      "class": "illegal",
+      "detail": "p1: refused: card 2 of the pick is no longer offered",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-gogeta-br-fusion",
+      "pair": "bt6-gogeta-br-fusion-bt6-gogeta-br-fusion",
+      "policySeed": 7919,
+      "regressionPin": "to pin: add this seed/pair to the scenario or policy proof that owns the window",
+      "seed": 897000
+    },
+    {
+      "class": "illegal",
+      "detail": "p1: refused: card 2 of the pick is no longer offered",
+      "p1": "bt6-gogeta-br-fusion",
+      "p2": "bt6-paragus-broly-recovery",
+      "pair": "bt6-gogeta-br-fusion-bt6-paragus-broly-recovery",
+      "policySeed": 7919,
+      "regressionPin": "to pin: add this seed/pair to the scenario or policy proof that owns the window",
+      "seed": 897100
+    }
+  ],
+  "qualification": false,
+  "action": "Pin the named-set policy legality regression and recheck both failing seeds before deployment."
+}

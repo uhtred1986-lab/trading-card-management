@@ -105,3 +105,19 @@ obsolete saved frames still require rebuilding. It also exposed a reporting
 defect: a referee interruption closes the engine phase but is not a result.
 The shared duel adapter and corpus classifier now report it as unfinished
 instead of a completed draw, with private context excluded from public receipts.
+
+The prepared stored-pair smoke check completed two games and reproduced two
+illegal coupled Fusion material picks. The policy boundary had advertised a
+conditional named-set choice as an ordinary independent two-card choice. It
+must choose one currently offered material, then ask the engine for the narrowed
+second pool. The repair changes that legality boundary only; card rankings and
+policy promotion criteria are unchanged. The policy source hash is separately
+pinned in the final starter comparison; original game and trace expectations
+remain exact.
+
+`arena-corpus-freeze --manifest-out <path>` now projects actual full duel metrics
+through the existing versioned Testing & stats import contract. It captures
+runner, fixture, program and RNG provenance, permits only an explicit custom
+corpus protocol, and refuses to invent metrics for a crashed attempt. Historical
+packs cannot supply omitted metrics. Raw game data stays local; recipe links
+remain null and coverage progress is not automatically changed.
