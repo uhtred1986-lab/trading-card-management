@@ -49,7 +49,8 @@ explicit; AI-strength changes remain deferred.
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
 (#898 is closed). #906 owns the separate API campaign, still gated on a qualified
 corpus and preflight; the approved $20 pilot / $100 inclusive total is unchanged.
-No paid calls or database access occurred in this reconciliation.
+The original backlog reconciliation made no paid calls or database accesses;
+subsequent scoped reads/applications are recorded in the receipts above.
 
 The [15 October audit](rules-audit-2026-10-15/README.md) and later #907 comments are
 dated evidence, not today's live counts. Readability, execution, semantic proof,
