@@ -42,17 +42,17 @@ export function priceFromCostRecord(cost: CostRecord | null): SkillPrice {
   return { payment: payment as SkillPayment, condition: cost!.condition, ops: cost!.program, ...(cost!.x ? { x: cost!.x } : {}), ...(cost!.payWith?.length ? { payWith: cost!.payWith } : {}) };
 }
 
-export function skillPriceProblem(value: unknown, depth = 0): string | null {
+export function skillPriceProblem(value: unknown, depth = 0, path = "price"): string | null {
   const p = value as SkillPrice | null;
   const resource = skillPaymentProblem(p?.payment);
   if (resource) return resource;
   if (depth > 20) return "skill price is nested too deeply";
   if (p!.condition !== null) {
-    const bad = condProblem(p!.condition, depth + 1, !!p!.x, "price.condition");
+    const bad = condProblem(p!.condition, depth + 1, !!p!.x, `${path}.condition`);
     if (bad) return bad;
   }
   if (p!.ops !== null) {
-    const bad = programProblem(p!.ops, depth + 1, !!p!.x, "price.ops");
+    const bad = programProblem(p!.ops, depth + 1, !!p!.x, `${path}.${path === "cost" ? "program" : "ops"}`);
     if (bad) return bad;
   }
   const x = p!.x;
@@ -65,7 +65,7 @@ export function skillPriceProblem(value: unknown, depth = 0): string | null {
     if (!Array.isArray(p!.payWith)) return "invalid alternative skill payers";
     for (const pw of p!.payWith!) {
       if (!pw || typeof pw !== "object") return "invalid alternative skill payer";
-      const bad = selectorProblem(pw.sel, "price.payWith.sel");
+      const bad = selectorProblem(pw.sel, `${path}.payWith.sel`);
       if (bad) return bad;
       if (!["energy", ...COLORS].includes(pw.as)) return "invalid alternative skill payer colour";
     }
@@ -78,5 +78,5 @@ export function costRecordProblem(value: unknown): string | null {
   const resources = skillPaymentProblem(c);
   if (resources) return resources;
   if (typeof c!.text !== "string") return "the price needs display text";
-  return skillPriceProblem({ payment: c, condition: c!.condition, ops: c!.program, ...(c!.x !== undefined ? { x: c!.x } : {}), ...(c!.payWith !== undefined ? { payWith: c!.payWith } : {}) });
+  return skillPriceProblem({ payment: c, condition: c!.condition, ops: c!.program, ...(c!.x !== undefined ? { x: c!.x } : {}), ...(c!.payWith !== undefined ? { payWith: c!.payWith } : {}) }, 0, "cost");
 }
