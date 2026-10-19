@@ -47,3 +47,6 @@ writes were run. This bounded repair does not close #907, #923, #929 or #930.
   applied Drop-to-bottom records; blocked native hooks and opponent privacy.
 - **Unchanged scope:** prior Absorb/Potara applications and remaining Union support
   acceptance. Historical #926 failure receipts are retained, not rewritten as passes.
+
+[Deployment receipt](deployment.json): PR #1087 merged as `cf81bef6` and Vercel
+production is READY. No guarded record migration was needed or run.

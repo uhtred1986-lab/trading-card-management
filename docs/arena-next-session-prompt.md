@@ -20,6 +20,9 @@ The #926 refusal-category gap is repaired by the bounded
 [unread Fusion diagnostic fix](arena-backlog/evidence/907/unread-fusion-diagnostic-2026-10-19/README.md);
 the unchanged original verifier passes. Retain the earlier failure receipts as history. Do not repeat the completed nineteen metadata writes.
 Keep #907/#923/#929/#930 open for their remaining indexed acceptance.
+Next bounded source/record freeze: BT4-018/front/0's paid-material character
+comparison, as scoped in
+`docs/arena-backlog/evidence/923/next-absorb-boundary-2026-10-19.md`.
 #581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its
 two-engine descriptions and dated open/blocked lists; it does not override current
