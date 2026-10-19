@@ -108,7 +108,8 @@ function drive(t: Setup, policy: Policy = () => null, mid?: (s: VmState) => void
   const windows: Run["windows"] = [];
   for (let i = 0; i < 40 && s.prompt.kind !== "main"; i++) {
     const p = s.prompt;
-    if (p.kind === "payCost") s = apply(s, { type: "payCost", player: p.player, option: 0 });
+    if (p.kind === "chooseMode") s = apply(s, { type: "chooseMode", player: p.player, index: 0 });
+    else if (p.kind === "payCost") s = apply(s, { type: "payCost", player: p.player, option: 0 });
     else if (p.kind === "chooseCards") s = apply(s, { type: "choose", player: p.player, cards: p.choice.candidates.slice(0, Math.max(1, p.choice.min)) });
     else if (p.kind === "orderPending") s = apply(s, { type: "orderPending", player: p.player, index: 0 });
     else if (p.kind === "counter") {

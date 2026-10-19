@@ -1181,7 +1181,8 @@ export type Op =
    * colon, "[Union-Fusion]{r}{r}{r}, draw 2 cards: …" (BT11-013) — is paid: on
    * the strict action-price host, in front of the rest of the `DO`
    * (`vm/keyword-costs.ts`). [Union-Fusion] says it after its materials are
-   * in the Drop (22-13-4-4-1), [Union-Potara] and the [Evolve] family first
+   * in the Drop (22-13-4-4-1), and also determines/pays its recorded resource
+   * cost here (#907). [Union-Potara] and the [Evolve] family pay the action first
    * (22-13-5-2, 22-5-3). A `DEFINE KEYWORD` body's word, on no card: it pays
    * what `ScriptFrame.keywordPrice` carries and does nothing anywhere else.
    */
@@ -1393,7 +1394,7 @@ export interface ScriptFrame {
   counterMotion?: import("./battle").CounterMotion;
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
-  /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Additive: older states never carry one. */
+  /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */

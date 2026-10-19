@@ -879,11 +879,12 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
-  spendUse(state, player, card, sk);
-  if (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
+  const deferredFusion = !waived && isFusionPayment(line);
+  if (!deferredFusion) spendUse(state, player, card, sk);
+  if (!deferredFusion && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  if (!waived) {
+  if (!waived && !deferredFusion) {
     spendSkillCostUses(state, ev, card, sk);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
@@ -906,8 +907,8 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // #926: a [Union]/[Evolve] move with an action price is announced, and its
   // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
   // now, while "from: hand" is still true.
-  const keywordPrice: KeywordCost | null = !waived && keywordActionPrice(line)
-    ? { key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
+  const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion)
+    ? { ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
     : null;
   if (!announcesBeforePrice(line) && !priceOps && !keywordPrice) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
@@ -984,6 +985,11 @@ export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "scrip
   if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara" || variant === "Absorb"))) return null;
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
+}
+
+/** Fusion determines every remaining resource cost only after its material payment. */
+export function isFusionPayment(line: Pick<ActivationLine, "skill" | "keyword">): boolean {
+  return line.keyword?.name === "Union" && line.skill.keyword?.name === "Union" && line.skill.keyword.variant === "Fusion";
 }
 
 /** Does this program say where an action price is paid? A keyword whose `DO` never says `payActionPrice` would play the line free. */
@@ -1101,7 +1107,7 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * fails (5-8-4) leaves no skill announced.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
+  return !isFusionPayment(line) && !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
 }
 
 /** The `skill` event for a line being used (9-6). */

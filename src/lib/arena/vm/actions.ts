@@ -42,11 +42,11 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
+import { isFusionPayment, activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDropCost } from "./drop-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
-import { assertKeywordPricePayable, keywordPriceRefusals } from "./keyword-costs";
+import { assertKeywordPricePayable, fusionPaymentRefusals, keywordPriceRefusals } from "./keyword-costs";
 import { readableAutomaticPrice } from "./auto-costs";
 import { actionCostOf, altCostFor, chargeCost, freePrice, payAltCost, planCost, priceFor, restingFor, spendPriceUses, xValues, type BoundAmounts, type Price } from "./costs";
 import { NotYet, RulesetBroken } from "./errors";
@@ -238,6 +238,12 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
       const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
       const withX: BoundAmounts = { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
       const price = priceFor(ctx, game, state, def, line.card, withX);
+      if (isFusionPayment(line)) {
+        const failures = fusionPaymentRefusals(ctx, game, state, player, line, n);
+        if (failures.length) { short = failures; break; }
+        out.push({ card: line.card, skill: line.skillIndex, why: [], price, x: n });
+        continue;
+      }
       const plan = planCost(ctx, game, state, player, price, line.card);
       if (!plan.ok) {
         short = plan.why;
@@ -248,7 +254,9 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
   }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
-  if (!why.length && def.cost?.length) {
+  if (!why.length && isFusionPayment(line)) {
+    if (!gates.after.length) why.push(...fusionPaymentRefusals(ctx, game, state, player, line));
+  } else if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
     if (!plan.ok) why.push(...plan.why);
     // #729: a [Swap]'s action price is offered only when the energy this plan
@@ -480,7 +488,8 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
     // procedures, so never attach the ordinary program's Life count to them.
     const line = c.card !== null && c.skill !== undefined ? lineOf(ctx, game, state, def, c.card, c.skill) : undefined;
     const actionPrice = !c.alt && line && !line.keyword ? line.script?.price?.ops : undefined;
-    const cost = actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
+    // Fusion has no determined resource amount until its materials move.
+    const cost = line && isFusionPayment(line) ? undefined : actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
     const paymentPreview = paymentPreviewFor(ctx, game, state, player, c);
     out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}), ...(paymentPreview ? { paymentPreview } : {}) });
   }
@@ -493,6 +502,7 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
  * and previews must never reconstruct it from the menu's display cost. */
 function paymentPreviewFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, candidate: Candidate): LegalAction["paymentPreview"] {
   const { price, alt, card } = candidate;
+  if (card && candidate.skill !== undefined && activationsOf(ctx, state, game.actions.activate, card, game).some((line) => line.skillIndex === candidate.skill && isFusionPayment(line))) return undefined;
   const resourcePrice = price.energy > 0 || Object.values(price.orbs).some((n) => (n ?? 0) > 0) ||
     price.markers !== 0 || price.payers.length > 0;
   if (!resourcePrice && alt?.pay !== "energy") return undefined;
@@ -904,6 +914,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // nothing is paid, not after the colour cards have gone to the Drop.
     readableAutomaticPrice(line.script?.price?.ops ?? [], "Aegis", "#595");
     queueAegisCost(game, state, player, line, def.cost ?? [], chosen.x);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
+  if (line && isFusionPayment(line)) {
+    resolveActivation(ctx, game, state, ev, player, line, chosen.x);
     if (def.again !== true) answered(state);
     return "done";
   }
