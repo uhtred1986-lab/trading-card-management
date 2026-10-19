@@ -588,7 +588,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           && (union === "Union-Fusion" || (!!opts.onto && (declared ? union === "Union-Absorb" ? inBattle(opts.onto) : materials.every((m) => inBattle(m, dest)) : true)));
         if (!ready) {
           // Fusion/Potara: the card that activated it, if it is still in the hand. Absorb: the chosen card, if it is still where it was chosen from.
-          const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand";
+          // A typed Potara source that left and returned is a new card (3-1-4),
+          // not the old activating card placed in Drop by 22-13-5-4-2.
+          const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand" && (!frame.potaraIdentity || epoch(source) === frame.potaraSourceEpoch);
           const there = findCard(state, source);
           if (fails && there && there.zone !== "drop") moveTo(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
           frame.unionBound = undefined;
