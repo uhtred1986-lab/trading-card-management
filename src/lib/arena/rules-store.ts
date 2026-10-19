@@ -597,10 +597,19 @@ export async function markRuleSeen(db: Db, cardId: string, side: Side, skillInde
     .where(and(eq(cardRules.cardId, cardId), eq(cardRules.side, side), eq(cardRules.skillIndex, skillIndex)));
 }
 
-/** A person accepted the draft as it stands. */
+/**
+ * A person accepted the draft as it stands. That also settles a "Wrong" they
+ * marked earlier: the flag is cleared, or an approved rule would stay
+ * `incomplete` for a mark its own approver has just answered.
+ */
 export async function confirmRule(db: Db, id: number): Promise<void> {
   const reviewable = db.select({ id: cards.id }).from(cards).where(REVIEWABLE_CARD);
-  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.cardId, reviewable)));
+  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), reviewFlag: null, updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.cardId, reviewable)));
+}
+
+/** "Yes, it plays right now": the owner answers a flag on a rule that is already approved or corrected, without changing the rule. */
+export async function clearReviewFlag(db: Db, id: number): Promise<void> {
+  await db.update(cardRules).set({ reviewFlag: null, updatedAt: new Date() }).where(eq(cardRules.id, id));
 }
 
 /** Guided review uses the exact displayed record, including edits that do not bump version. */

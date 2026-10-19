@@ -2,6 +2,7 @@ import Link from "next/link";
 import { reviewFlagAction } from "@/app/arena/actions";
 import type { FlaggedGame, FlagLine } from "@/lib/arena/review-store";
 import { resolveOutcome } from "@/lib/arena/outcome";
+import { cardHref } from "@/lib/arena/rule-card";
 import type { Review, ReviewBeat } from "@/lib/arena/review";
 import type { CardView, SideView } from "@/lib/arena/view";
 
@@ -88,7 +89,7 @@ function Side({ side, name }: { side: SideView; name: string }) {
 }
 
 /** What was decided, for the selected move. */
-function BeatDetail({ b, data, gameId }: { b: ReviewBeat; data: ReviewScreenData; gameId: number }) {
+function BeatDetail({ b, data }: { b: ReviewBeat; data: ReviewScreenData }) {
   const d = b.decision;
   return (
     <div className="space-y-3">
@@ -163,11 +164,11 @@ function BeatDetail({ b, data, gameId }: { b: ReviewBeat; data: ReviewScreenData
       )}
 
       {b.cardId && (
-        <Link href={`/arena/rules?game=${gameId}&q=${encodeURIComponent(b.cardId)}`} className="tap inline-flex items-center rounded-lg border border-space-600 px-3 py-2 text-sm font-semibold text-space-50 hover:border-ki-500">
-          Open {b.cardName ?? b.cardId} in the rules workbench →
+        <Link href={cardHref(b.cardId)} className="tap inline-flex items-center rounded-lg border border-space-600 px-3 py-2 text-sm font-semibold text-space-50 hover:border-ki-500">
+          Open {b.cardName ?? b.cardId} in Card rules →
         </Link>
       )}
-      {data.fixture && b.cardId && <p className="text-[11px] text-space-400">Sample data: the workbench link is real, the card id is made up.</p>}
+      {data.fixture && b.cardId && <p className="text-[11px] text-space-400">Sample data: the Card rules link is real, the card id is made up.</p>}
     </div>
   );
 }
@@ -352,7 +353,7 @@ export function ReviewScreen({ data }: { data: ReviewScreenData }) {
           </main>
 
           <aside aria-label="Selected move" className="space-y-3">
-            {selected && game ? <BeatDetail b={selected} data={data} gameId={game.id} /> : <p className="text-sm text-space-300">Pick a flagged turn to see its moves.</p>}
+            {selected && game ? <BeatDetail b={selected} data={data} /> : <p className="text-sm text-space-300">Pick a flagged turn to see its moves.</p>}
             {flag && <FlagPanel flag={flag} fixture={fx} />}
           </aside>
         </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { reportBug, rematch, requestReview } from "@/app/arena/actions";
 import type { GameReview } from "@/lib/arena/ai/review";
 import type { PublicOutcome } from "@/lib/arena/outcome";
+import { cardHref } from "@/lib/arena/rule-card";
 import { ReportBug } from "./ReportBug";
 
 /**
@@ -43,7 +44,7 @@ export function GameOver({
   /** A 1 v 1: rematch opens a new invitation rather than starting a game. */
   versus: boolean;
   /** Draft rules that resolved in this game (`game-over.ts`). */
-  draftFired: { count: number; names: string[] };
+  draftFired: { count: number; names: string[]; ids?: string[] };
   cards: { cardId: string; name: string }[];
 }) {
   const [pending, start] = useTransition();
@@ -101,7 +102,18 @@ export function GameOver({
             {draftFired.count} unchecked {draftFired.count === 1 ? "rule" : "rules"} played this game
           </p>
           <p className="mt-0.5 text-space-400">
-            {draftFired.names.join(", ")}
+            {draftFired.names.map((name, i) => (
+              <span key={`${name}${i}`}>
+                {i > 0 && ", "}
+                {draftFired.ids?.[i] ? (
+                  <Link href={cardHref(draftFired.ids[i])} className="text-ki-300 hover:underline">
+                    {name}
+                  </Link>
+                ) : (
+                  name
+                )}
+              </span>
+            ))}
             {draftFired.count > draftFired.names.length && ` and ${draftFired.count - draftFired.names.length} more`}
           </p>
           {/* Computer: a link into the Rules queue scoped to this game. Phone: a

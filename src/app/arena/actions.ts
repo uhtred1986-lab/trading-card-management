@@ -6,8 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { arenaFeedback, arenaGames, cards } from "@/db/schema";
-import { describeAiError } from "@/lib/ai/client";
+import { arenaFeedback, arenaGames, cardRules, cards } from "@/db/schema";
 import { IllegalAction } from "@/lib/arena/vm/common";
 import { previewLoadedGame } from "@/lib/arena/gameplan-preview";
 import { validPlanActions, type GameplanPreview } from "@/lib/arena/gameplan-types";
@@ -21,9 +20,11 @@ import { flagTurn as storeFlagTurn, reopenFlag, reviewFlag, type FlagLine } from
 import { advance } from "@/lib/arena/ai/run";
 import { concealForViewer, resolveForViewer } from "@/lib/arena/session";
 import { InterruptedGameReviewError, reviewGame } from "@/lib/arena/ai/review";
-import { clarifyRule } from "@/lib/arena/ai/clarify";
+import { describeAiError } from "@/lib/ai/client";
+import { draftCards } from "@/lib/arena/draft";
+import { reviewVersion } from "@/lib/arena/rule-review-version";
 import { approvalProblem } from "@/lib/arena/rule-review";
-import { blankRule, confirmMatching, confirmRule, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
+import { blankRule, clearReviewFlag, confirmMatching, confirmRule, ruleHealth, reopenRule, programOf, ruleById, setProbe, saveRule, setBrief, setCompilerDiff, takeCompilerDiff, undoConfirmed, type ConfirmBatch, type RuleFilter, type RuleSource, type RuleStatus } from "@/lib/arena/rules-store";
 import { defsForCards } from "@/lib/arena/load";
 import { parseSpecifiedCost, printSpecifiedCost } from "@/lib/arena/specified-cost";
 import { probe, ruleFrom, scenariosFor, type ProbeRule, type ProbeRun, type ProbeScenario } from "@/lib/arena/probe";
@@ -389,38 +390,44 @@ export async function recentBatches(): Promise<{ id: number; note: string; n: nu
 }
 
 /**
- * You explain the card; Claude answers with a program that lands as its draft, and a brief for the compiler.
- *
- * An answer that saved no program is an error, not a success: the record is
- * unchanged, and saying "the draft is in the block above" over it sent the
- * owner looking for a change that never happened. `question` is Claude's one
- * question when it was not sure — returned whether or not a program was saved,
- * since it is what to add to the explanation before asking again.
+ * Rebuild one card's rule rows with the compiler (the card page's *Rebuild card*): the sync's own
+ * writer, `draftCards`, for this card alone. It fills the skills that have no current record and
+ * refreshes the compiler's own drafts; a row a person confirmed, corrected or had Claude write is
+ * never rewritten, the compiler's newer reading only lands beside it as a diff to choose from.
+ * So a stale payment record on an approved rule is not fixed by this: that one is edited.
  */
-export async function explainRuleAction(id: number, explanation: string): Promise<{ error: string | null; question: string | null }> {
+export async function rebuildCardAction(cardId: string): Promise<{ error: string | null; rebuilt: number; added: number; left: number }> {
   await requireSl();
-  const row = await ruleById(db, id);
-  if (!row) return { error: "no such rule", question: null };
-  let error: string | null = null;
-  let question: string | null = null;
-  try {
-    const r = await clarifyRule(db, row, explanation);
-    question = (!r.clarification.confident || !r.saved) && r.clarification.question.trim() ? r.clarification.question.trim() : null;
-    if (r.rejected) {
-      error =
-        r.rejected === "invalid"
-          ? "Claude's program did not pass the engine's validator, so nothing was saved — the record is unchanged. The compiler brief was kept."
-          : "Claude found nothing the engine's steps can express, so nothing was saved — the record is unchanged. The compiler brief was kept.";
-    }
-    const resolution = [r.rejected ? `no program saved (${r.rejected})` : null, r.clarification.meaning, question ? `Claude asks: ${question}` : null].filter(Boolean).join(" — ");
-    await db.insert(arenaFeedback).values({ kind: "card", noteId: row.id, cardId: row.cardId, skillIndex: row.skillIndex, note: explanation.trim(), resolution });
-  } catch (err) {
-    return { error: describeAiError(err), question: null };
-  }
-  // Revalidated on a refusal too: the brief was written either way.
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY, rebuilt: 0, added: 0, left: 0 };
+  if (typeof cardId !== "string" || !cardId.trim()) return { error: "no such card", rebuilt: 0, added: 0, left: 0 };
+  const [card] = await db.select({ id: cards.id }).from(cards).where(eq(cards.id, cardId));
+  if (!card) return { error: "no such card", rebuilt: 0, added: 0, left: 0 };
+  const s = await draftCards(db, [cardId]);
+  if (s.cards === 0) return { error: "the arena only plays the original game's cards", rebuilt: 0, added: 0, left: 0 };
+  const rows = await db.select().from(cardRules).where(eq(cardRules.cardId, cardId));
+  const left = rows.filter((r) => ruleHealth(r).needsRebuild).length;
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/feedback");
-  return { error, question };
+  revalidatePath(`/arena/rules/card/${cardId}`);
+  return { error: null, rebuilt: s.updated + s.diffed, added: s.inserted, left };
+}
+
+/**
+ * "Yes, approve" on a skill the owner marked Wrong: a draft is approved as it stands (the flag goes
+ * with it), and an already approved or corrected one only has its flag cleared. An open skill
+ * (nothing read yet) is neither: it needs a rule first.
+ */
+export async function approveFlaggedAction(id: number, expectedVersion: string): Promise<{ error: string | null }> {
+  await requireSl();
+  if (!(await isArenaAdmin())) return { error: RULES_ADMINS_ONLY };
+  const row = await ruleById(db, id);
+  if (!row) return { error: "no such rule" };
+  if (row.status === "open") return { error: "This skill has no reading yet, so there is nothing to approve. Edit it or ask Claude first." };
+  if (row.status === "draft") return confirmRuleAction(id, expectedVersion);
+  if (!expectedVersion || reviewVersion(row) !== expectedVersion) return { error: "This skill changed. Reload it and look at the current rule before approving." };
+  await clearReviewFlag(db, id);
+  await noteRule(id, `flag answered, the rule plays right: ${row.printed}`, row.reads);
+  revalidatePath(`/arena/rules/card/${row.cardId}`);
+  return { error: null };
 }
 
 export async function startGameForm(formData: FormData) {

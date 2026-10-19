@@ -15,9 +15,10 @@ export const dynamic = "force-dynamic";
  * builder's unsaved rule is not in the URL (it can be long): the Try it row's
  * link leaves it in `sessionStorage`, and with none the saved rule is played.
  */
-export default async function SandboxPage({ searchParams }: { searchParams: Promise<{ rule?: string; board?: string }> }) {
+export default async function SandboxPage({ params, searchParams }: { params: Promise<{ cardId: string }>; searchParams: Promise<{ rule?: string; board?: string }> }) {
   await requireSlPage();
   const q = await searchParams;
+  const cardId = (await params).cardId;
   const ruleId = Number(q.rule);
   if (!Number.isSafeInteger(ruleId) || ruleId < 1) notFound();
   const jar = await cookies();
@@ -27,7 +28,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
       <SandboxPlay
         ruleId={ruleId}
         boardKey={q.board ?? null}
-        backHref={`/arena/rules/build/${ruleId}`}
+        backHref={`/arena/rules/card/${cardId}?skill=${ruleId}&edit=1`}
         skin={skinFrom(jar.get(SKIN_COOKIE)?.value)}
         staging={stagingFrom(jar.get(STAGING_COOKIE)?.value)}
         lighting={lightingFrom(jar.get(LIGHTING_COOKIE)?.value)}
