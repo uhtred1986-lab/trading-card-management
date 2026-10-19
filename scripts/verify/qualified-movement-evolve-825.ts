@@ -17,7 +17,7 @@ import { addEffect } from "../../src/lib/arena/vm/effects";
 import { attrsNow } from "../../src/lib/arena/vm/program";
 import { vmHost } from "../../src/lib/arena/vm/host";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
-import { runtimeSupportOfRow } from "../../src/lib/arena/rules-store";
+import { rulesFromRows, type RuleRow, runtimeSupportOfRow } from "../../src/lib/arena/rules-store";
 import { matches, parseFilter } from "../../src/lib/arena/text/filters";
 import { predicateOf } from "../../src/lib/arena/vm/filters";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
@@ -33,7 +33,33 @@ const defs: Record<string, CardDef> = { ...DEFS, ...Object.fromEntries(printed.m
   REMOVED825: card("REMOVED825", { characters: ["V1"], skill: "[Auto] When this card is removed from your Battle Area by a skill, draw 1 card." }),
   RETURN825: card("RETURN825", { skill: "[Auto] When your blue Battle Card is played, return it to its owner's hand." }),
 };
-const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
+// Optional exact eight stored-target rows; every other line remains a labelled
+// compiled support fixture. The original default path/assertions are unchanged.
+const storedFlag = process.argv.indexOf("--stored-targets"), storedPath = storedFlag < 0 ? null : process.argv[storedFlag + 1];
+if (storedFlag >= 0) assert.ok(storedPath && !storedPath.startsWith("--"), "--stored-targets needs eight actual/proposed full rows");
+let scripts = rulesFromCompiler(defs);
+if (storedPath) {
+  const current: CardDef[] = JSON.parse(readFileSync(new URL("../../docs/arena-backlog/evidence/825/metadata-2026-10-19/cards.json", import.meta.url), "utf8"));
+  for (const card of current) defs[card.id] = card;
+  // Public support identities for the four additional actual stored Autos.
+  defs.META825Y = card("META825Y", { type: "LEADER", energyCost: null, colors: ["Yellow"], skill: null });
+  defs.META825KALE = card("META825KALE", { colors: ["Blue"], characters: ["Kale"] });
+  defs.META825CAULIFLA = card("META825CAULIFLA", { colors: ["Yellow"], characters: ["Caulifla"] });
+  defs.META825FROST = card("META825FROST", { colors: ["Yellow"], characters: ["Frost"] });
+  const raw = JSON.parse(readFileSync(storedPath, "utf8")); assert.ok(Array.isArray(raw));
+  const rows = raw.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()), v]))) as RuleRow[];
+  const expected = ["BT29-029/back/0", "BT3-090/front/0", "BT3-096/front/10", "BT3-098/front/10", "BT3-112/front/10", "BT7-040/front/10", "BT7-083/front/10", "BT7-086/front/10"];
+  assert.deepEqual(rows.map(r => `${r.cardId}/${r.side}/${r.skillIndex}`).sort(), expected.sort(), "exactly one of each stored target, no compiler fallback");
+  const stored = rulesFromRows(rows, defs);
+  const compiled = rulesFromCompiler(defs);
+  scripts = Object.fromEntries(Object.values(defs).flatMap(d => [d.id, ...(d.back ? [`${d.id}#back`] : [])]).map(key => [key, compiled[key]]));
+  for (const row of rows) {
+    const key = `${row.cardId}${row.side === "back" ? "#back" : ""}`, actual = stored[key]?.bySkill[row.skillIndex];
+    assert.ok(actual); assert.deepEqual(actual.unsupported, [], "stored target must admit without inferred metadata");
+    scripts[key] = { ...scripts[key], bySkill: { ...scripts[key].bySkill, [row.skillIndex]: actual } };
+  }
+}
+const ctx: EngineContext = { ...CTX, defs, scripts };
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const clone = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
 const zone = (s: VmState, p: PlayerId, area: string) => s.sides[p].zones[area];
@@ -410,4 +436,46 @@ for (const negated of [false, true]) {
   assert.ok(played >= 0 && (negated || returned > played), "pending Warp return resolves after the evolution lands");
   invariant(s); privacy(s);
 }
-console.log("qualified-movement-evolve-825: real card compiler/movement/paid-combo regressions passed");
+// Extra stored-only counterexamples. These execute the actual four rows not
+// present in the historical four-primary-target scenario matrix above.
+let storedExtraCases = 0;
+if (storedPath) {
+  const closeBattle = (state: VmState, preferred?: string): VmState => {
+    let s = state;
+    for (let n = 0; n < 40 && s.prompt.kind !== "main"; n++) {
+      const p = s.prompt;
+      if (p.kind === "chooseCards") s = choose(s, preferred && p.choice.candidates.includes(preferred) ? [preferred] : p.choice.candidates.slice(0, Math.max(p.choice.min, 1)));
+      else if (p.kind === "combo") s = take(s, { type: "pass", player: p.player });
+      else if (p.kind === "zEnergyFromCombo") s = take(s, { type: "zEnergyFromCombo", player: p.player, card: null });
+      else if (p.kind === "orderPending") s = take(s, { type: "orderPending", player: p.player, index: 0 });
+      else if (p.kind === "counter") s = take(s, { type: "counter", player: p.player, card: null });
+      else throw Error(`stored-only combo continuation ${p.kind}`);
+    }
+    assert.equal(s.prompt.kind, "main"); invariant(s); privacy(s); return s;
+  };
+  for (const yellow of [true, false]) {
+    let s = fresh(); if (yellow) s.cards[leader(s, "p1")].cardId = "META825Y";
+    const combo = stage(s, "BT3-090", yellow ? "hand" : "battle"), energy = stage(s, "V1", "energy"), lifeBefore = zone(s, "p1", "life").length;
+    s = take(s, { type: "attack", player: "p1", attacker: leader(s, "p1"), target: leader(s, "p2") });
+    s = take(s, { type: "combo", player: "p1", card: combo }); assert.equal(s.cards[energy].mode, "rest");
+    s = closeBattle(s);
+    assert.equal(zone(s, "p1", "battle").includes(combo), yellow);
+    if (yellow) assert.equal(s.cards[combo].mode, "rest");
+    assert.equal(zone(s, "p1", "life").length, lifeBefore - 1, "official BT3-090 Q4: Life tail resolves even without a yellow Leader"); storedExtraCases++;
+  }
+  for (const [cardId, baseId] of [["BT7-040", "META825KALE"], ["BT7-083", "META825CAULIFLA"], ["BT7-086", "META825FROST"]]) for (const kind of ["cleanup", "earlyHand", "opponentTurn"] as const) {
+    let s = fresh(); const owner = kind === "opponentTurn" ? "p2" : "p1";
+    const combo = stage(s, cardId, "hand", owner), base = stage(s, baseId, "battle", owner), energy = stage(s, "V1", "energy", owner); s.cards[base].mode = "rest";
+    s = take(s, { type: "attack", player: "p1", attacker: leader(s, "p1"), target: leader(s, "p2") });
+    while (s.prompt.kind === "combo" && s.prompt.player !== owner) s = take(s, { type: "pass", player: s.prompt.player });
+    assert.equal(s.prompt.kind, "combo"); s = take(s, { type: "combo", player: owner, card: combo, pay: [energy] }); assert.equal(s.cards[energy].mode, "rest", `${cardId} ${kind}: actual combo energy paid (prompt ${s.prompt.kind})`);
+    if (kind === "earlyHand") moved(ctx, game, s, events, combo, "hand");
+    s = closeBattle(s, base);
+    assert.equal(zone(s, owner, "battle").includes(combo), kind === "cleanup", "typed actual turn/cleanup qualification controls this stored source");
+    if (kind === "cleanup") { assert.ok(s.cards[combo].under.includes(base)); assert.equal(s.cards[combo].mode, cardId === "BT7-086" ? "active" : "rest"); }
+    else { assert.ok(zone(s, owner, "battle").includes(base)); assert.ok(zone(s, owner, kind === "earlyHand" ? "hand" : "drop").includes(combo)); }
+    storedExtraCases++;
+  }
+}
+assert.equal(storedExtraCases, storedPath ? 11 : 0);
+console.log(`qualified-movement-evolve-825: real card movement/paid-combo regressions passed; ${storedPath ? "eight exact stored targets +11 additional cases, companions compiled support fixtures" : "original compiler fixtures"}`);

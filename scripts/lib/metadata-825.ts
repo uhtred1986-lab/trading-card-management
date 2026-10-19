@@ -14,6 +14,7 @@ import { comboScriptProblem } from "../../src/lib/arena/vm/combo-qualification";
 import { costRecordProblem, zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { runtimeSupportOfRow } from "../../src/lib/arena/rules-store";
 import type { RuleRow } from "../../src/lib/arena/rules-store";
+import { cardDefFrom } from "../../src/lib/arena/load";
 import type { CardDef } from "../../src/lib/arena/types";
 export const METADATA_825_REFERENCE = "docs/arena-backlog/evidence/825/metadata-2026-10-19";
 export const METADATA_825_TARGETS = [
@@ -58,7 +59,7 @@ export function metadata825Plan(input: Metadata825Row[]) {
     for (const [field, value] of Object.entries({ usage, validity, combo })) if (before[field] != null) assert.equal(metadata825Hash(before[field]), metadata825Hash(value), `existing authored ${field} differs; never overwrite`);
     const cost = before.cost == null ? zeroCostRecord() : before.cost;
     assert.equal(costRecordProblem(cost), null); assert.equal(metadata825Hash(cost), metadata825Hash(zeroCostRecord()), "only the exact zero Auto price is permitted");
-    const after = { ...before, cost, usage, validity, combo };
+    const after: Metadata825Row = { ...before, cost, usage, validity, combo };
     assert.equal(metadata825ProgramHash(after), metadata825ProgramHash(before), "program body must be preserved");
     assert.deepEqual(runtimeSupportOfRow({ kind: String(before.kind), printed: String(before.printed), trigger: before.trigger, unread: before.unread, ops: before.ops, cost, usage, validity, combo } as RuleRow).unsupported, [], "metadata does not establish runtime admission");
     const changed = ["cost", "usage", "validity", "combo"].filter(k => metadata825Hash(before[k]) !== metadata825Hash(after[k]));
@@ -79,7 +80,11 @@ export async function applyMetadata825(db: Db, before: Metadata825Row[], approve
   const plan = metadata825Plan(before); assert.equal(approvedDigest, plan.digest, "approval digest is stale or describes another full snapshot");
   if (!plan.rules.length) return [];
   const payload = JSON.stringify(plan.entries.map(({ before, cost, usage, validity, combo, changed }) => ({ before, cost, usage, validity, combo, pending: changed.length > 0 })));
-  const catalog = readFileSync(`${METADATA_825_REFERENCE}/cards.json`, "utf8");
+  const expectedCatalog: CardDef[] = JSON.parse(readFileSync(`${METADATA_825_REFERENCE}/cards.json`, "utf8"));
+  const currentCatalog = rows<{ record: Metadata825Row }>(await db.execute(sql`select to_jsonb(c) record from cards c where c.id in (${sql.join(expectedCatalog.map(c => sql`${c.id}`), sql`, `)}) order by c.id`)).map(r => r.record);
+  const normalize = (r: Metadata825Row) => Object.fromEntries(Object.entries(r).map(([key, value]) => [key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()), value])) as unknown as Parameters<typeof cardDefFrom>[0];
+  assert.equal(metadata825Hash(currentCatalog.map(r => cardDefFrom(normalize(r)))), metadata825Hash(expectedCatalog.slice().sort((a, b) => a.id.localeCompare(b.id))), "current full catalog engine identity changed");
+  const catalog = JSON.stringify(currentCatalog);
   const written = rows<{ id: number }>(await db.execute(sql`
     with input as (select value from jsonb_array_elements(${payload}::jsonb)),
     source as (select value from jsonb_array_elements(${catalog}::jsonb)),
@@ -87,7 +92,7 @@ export async function applyMetadata825(db: Db, before: Metadata825Row[], approve
     locked as materialized (select r.* from card_rules r join input i on r.id=(i.value->'before'->>'id')::int order by r.id for update of r),
     valid as materialized (select 1 where
       (select count(*) from locked_cards c join source s on c.id=s.value->>'id'
-        where c.skill is not distinct from s.value->>'skill' and c.back_skill is not distinct from s.value->'back'->>'skill')=8
+        where to_jsonb(c)=s.value)=8
       and (select count(*) from locked r join input i on r.id=(i.value->'before'->>'id')::int
       where to_jsonb(r)=i.value->'before' and r.source='compiler' and r.status in ('draft','confirmed'))=8)
     update card_rules r set cost=i.value->'cost',usage=i.value->'usage',validity=i.value->'validity',combo=i.value->'combo',version=r.version+1,updated_at=now()
