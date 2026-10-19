@@ -66,7 +66,7 @@ import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, 
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
-import { RulesetBroken } from "./errors";
+import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey } from "./script";
 import { endGame } from "./flow";
 import { emit, fire, log } from "./events";
@@ -525,6 +525,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
       const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
+      if (frame.evolutionIdentity) {
+        if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
+        if (cards.some(id => findCard(state, id)?.zone !== "hand" || (state.cards[id]?.zoneEpoch ?? 0) !== frame.evolutionSourceEpoch)) {
+          // A card paid from hand is a new card after moving (3-1-4). The
+          // activated hand-only EX-Evolve cannot play it from its new area.
+          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          state.programs.unshift(frame);
+          return;
+        }
+      }
       if (evolution && opts.onto) {
         const base = state.cards[opts.onto];
         const bound = frame.evolutionBase ??= { card: opts.onto, zoneEpoch: base?.zoneEpoch ?? 0 };

@@ -1,3 +1,5 @@
+import { requireUsage } from "./usage";
+import { requireValidity } from "./validity";
 import { recordedSkillIdentity } from "./skill-identity";
 import { NotYet } from "./errors";
 import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
@@ -532,7 +534,7 @@ const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
 function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
   if (!text) return NO_KEYWORDS;
-  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined))
+  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined))
     return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
   if (!names) {
@@ -840,8 +842,9 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
 }
 
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
-export function hookFrame(game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
+export function hookFrame(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
+  const skill = skillIndex === undefined ? undefined : skillsShowing(ctx, state, subject).skills.find(s => s.index === skillIndex);
+  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
 }
 
 export type QueryFact =
@@ -874,7 +877,7 @@ export function queryHookStatics(ctx: EngineContext, game: GameDefinition, state
   if (spec.answer !== "query") throw new Error(`vm/program.ts: "${point}" is an effect hook — use fireHook, not queryHookStatics`);
   const out: QueryFact[] = [];
   for (const body of hookBodiesFor(ctx, game, state, subject, point)) {
-    const frame = hookFrame(game, state, subject, body.ops, {});
+    const frame = hookFrame(ctx, game, state, subject, body.ops, {});
     readHookLeaf(ctx, game, state, frame, body.ops, body.keyword, out);
   }
   return out;
@@ -1329,10 +1332,22 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   // `sk.effect || sk.cost`. A frame with no line finds nothing.
   let matchesPrinted: ((id: string) => boolean) | null = null;
   if (sel.printed) {
-    const sk = lineOf(ctx, state, frame, game);
-    if (!sk) return [];
-    const printed = predicateOf(parseFilter(printedDescription(sk)), game);
-    matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+    const evolution = frame.evolutionIdentity?.price?.evolution ?? frame.keywordPrice?.line.script?.price?.evolution ?? frame.keywordCost?.line.script?.price?.evolution
+      ?? (frame.skillIndex === undefined ? undefined : skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex]?.price?.evolution);
+    if (evolution) {
+      const predicate = predicateOf(evolution.base.filter, game);
+      matchesPrinted = id => {
+        const at = findCard(state, id), attrs = attrsNow(ctx, game, state, id);
+        if (at?.owner !== frame.master || at.zone !== evolution.base.area || typeof attrs.costOf !== "number") return false;
+        const current = Math.max(attrs.costOf, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
+        return predicate({ ...attrs, energyCost: current });
+      };
+    } else {
+      const sk = lineOf(ctx, state, frame, game);
+      if (!sk) return [];
+      const printed = predicateOf(parseFilter(printedDescription(sk)), game);
+      matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+    }
   }
   // #970: cards an earlier choice of this program bound are not on offer again.
   const chosenBefore = sel.notIn?.length ? new Set(sel.notIn.flatMap((v) => frame.vars[v] ?? [])) : null;

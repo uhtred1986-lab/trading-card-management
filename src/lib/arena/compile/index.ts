@@ -1,3 +1,5 @@
+import { compileEvolutionBase } from "./evolution-base";
+import { needsEvolutionContract, EVOLUTION_REBUILD } from "../vm/evolution-base";
 import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { triggersOf } from "../gaps";
@@ -39,6 +41,7 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
+  if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read = narrowHiddenChoices(compileSkillText(skill));
   // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named

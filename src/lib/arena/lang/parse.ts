@@ -237,6 +237,11 @@ class Parser {
   }
 
   private costItem(cost: CostRecord): void {
+    if (this.eatKw("EVOLUTION")) {
+      const text = this.string("a typed evolution base contract as JSON");
+      try { cost.evolution = JSON.parse(text); } catch { this.fail("an evolution base contract must be valid JSON"); }
+      return;
+    }
     if (this.eatKw("FUSION")) {
       const text = this.string("a typed Fusion material contract as JSON");
       try { cost.fusion = JSON.parse(text); } catch { this.fail("a Fusion material contract must be valid JSON"); }

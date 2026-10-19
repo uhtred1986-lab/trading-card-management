@@ -64,6 +64,8 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
     const bad = condProblem(rule.cond, 0, false, "cond");
     if (bad) return { field: "cond", message: `that condition is not one the engine can ask — ${bad}` };
   }
+  if (isObject(rule.cost) && rule.cost.evolution !== undefined && kind !== "keyword")
+    return { field: "kind", message: "a typed EX-Evolve price requires recorded keyword kind (#907)" };
   if (isObject(rule.cost) && rule.cost.fusion !== undefined && kind !== "keyword")
     return { field: "kind", message: "a typed Fusion price requires recorded keyword kind (#907)" };
   if (rule.cost != null) {

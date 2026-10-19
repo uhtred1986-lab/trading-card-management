@@ -1,4 +1,5 @@
-import { fusionIdentityProblem } from "./vm/skill-identity";
+import { needsEvolutionContract } from "./vm/evolution-base";
+import { fusionIdentityProblem, evolutionIdentityProblem } from "./vm/skill-identity";
 import { validityProblem, type ValidityRecord } from "./vm/validity";
 import { usageProblem, type UsageRecord } from "./vm/usage";
 /**
@@ -81,6 +82,10 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
   const unsupported: string[] = [];
   if ((row.cost as CostRecord | null)?.fusion !== undefined || parseSkills(row.printed).some(isFusionSkill)) {
     const gap = fusionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
+    if (gap) unsupported.push(gap);
+  }
+  if ((row.cost as CostRecord | null)?.evolution !== undefined || parseSkills(row.printed).some(needsEvolutionContract)) {
+    const gap = evolutionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -347,6 +352,11 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
     const effectiveCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
     const problem = kind !== "keyword" ? "contradictory recorded Union-Fusion identity (#907)" : fusionMaterialsProblem(effectiveCost?.fusion);
     if (problem) throw new Error(`${w.cardId} [${w.skillIndex}]: ${problem}`);
+  }
+  const evolveCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
+  if (evolveCost?.evolution !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(needsEvolutionContract)) {
+    const gap = evolutionIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(evolveCost) ? undefined : priceFromCostRecord(evolveCost!) }, true);
+    if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;
   const validityGap = validityProblem(validity);

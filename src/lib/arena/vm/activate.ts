@@ -228,7 +228,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
     // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, and only that, when its [Permanent]
     // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card))) continue;
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && (showing.scripts.bySkill[skill.index]?.price?.evolution || !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card)))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
@@ -497,6 +497,7 @@ export function activationRefusals(
   const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
   const at = findCard(state, card)?.zone ?? null;
+  if (line.script?.price?.evolution && at !== line.script.price.evolution.activation) before.push({ kind: "zone", card, area: "hand" });
 
   // 9-1-5 in both its shapes: one line switched off by index, and the whole
   // card at once. The one reading of that rule is `vm/effects.ts` and every
@@ -925,7 +926,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and

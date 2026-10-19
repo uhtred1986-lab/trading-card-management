@@ -687,6 +687,14 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Native indexed keyword hook continuations (#907)",
+    body: "A ruleset-owned native keyword hook captures the actual projected skill's usage and validity records when its indexed frame is created. JSON continuation replay keeps those snapshots; old frames missing them still require rebuilding. This preserves native Dual Attack battle-end activation without treating an obsolete frame as unlimited."
+  },
+  {
+    title: "Typed hand-discard EX-Evolve base (#907)",
+    body: "BT6-014's hand-discard EX-Evolve family persists optional evolution v1 beside its skill price: recorded keyword kind, EX-Evolve variant, hand activation and a single-color/character/exact-current-cost Battle base in its controller's Battle Area. The record supplies the base filter and identity; display wording never fills missing metadata. Its two red hand cards are paid before choosing the base and playing onto it, using the existing Evolve procedure. Mode and power effects transfer, ordinary granted keywords do not, and its evolved Auto remains independent. A borrowed base controlled in your Battle Area is allowed; an opponent's Battle Area is not. A source paid from hand cannot return as the same activated card and evolve from Drop. Captured identity and source occurrence require rebuilding obsolete saves. Other Evolve variants and expanded-source/base families retain their existing named boundaries; this contract is omitted entirely from unrelated prices."
+  },
+  {
     title: "Record-owned Union-Fusion identity (#907)",
     body: "A valid versioned cost.fusion contract and the existing recorded keyword kind identify Union-Fusion; runtime display tags do not choose its activation or hooks. The compiler and loader project the persisted kind into executable scripts. Missing or contradictory Fusion identity requires regeneration and match rebuilding. Blocked records cannot gain another keyword through their display, including keyword filters. Captured Fusion payment lines and effect frames retain and validate the same identity after JSON reload; an activated effect does not rediscover its current source eligibility. Native bare keywords remain ruleset-owned, and other paid keyword variants retain their named admission boundaries. Exact BT6-012, BT6-013 and BT6-015 Fusion proofs do not overwrite protected records or qualify the pair."
   },

@@ -86,7 +86,7 @@ export { hookBodiesFor, queryHookStatics, type HookBody, type QueryFact } from "
  */
 export function fireHook(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint, vars: Record<string, string[]> = {}): void {
   if (HOOK_CONTRACT[point].answer !== "effect") throw new Error(`vm/hooks.ts: "${point}" is a query hook — use queryHookStatics, not fireHook`);
-  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(game, state, subject, body.ops, vars, body.skillIndex, body.grantEffectId, body.standingGrantId));
+  for (const body of hookBodiesFor(ctx, game, state, subject, point)) state.programs.unshift(hookFrame(ctx, game, state, subject, body.ops, vars, body.skillIndex, body.grantEffectId, body.standingGrantId));
 }
 
 /** The activating player's eligible in-play cards hear one of 22-35-2's two events. */
@@ -110,7 +110,7 @@ export function fireAfterSkill(
     if (other === source && cause === "battleCardPlayed") continue;
     for (const body of hookBodiesFor(ctx, game, state, other, "afterSkill")) {
       const vars = { source: [source], activatedExtra: cause === "heroicExtraSkillActivated" ? [source] : [] };
-      const frame = hookFrame(game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars, activatedKeywords), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
+      const frame = hookFrame(ctx, game, state, other, captureEventPredicates(ctx, game, state, other, body.ops, vars, activatedKeywords), vars, body.skillIndex, body.grantEffectId, body.standingGrantId);
       frames.push(frame);
       // Use the hook's own conditions and the source-event variables above;
       // an unrelated event's false branch must not raise this limitation.
@@ -164,7 +164,7 @@ function captureEventPredicates(
   vars: Record<string, string[]>,
   activatedKeywords?: ("Heroic" | "Villainous")[],
 ): Op[] {
-  const frame = hookFrame(game, state, subject, [], vars);
+  const frame = hookFrame(ctx, game, state, subject, [], vars);
   const eventVars = new Set(Object.keys(vars));
   const boundOnly = (cond: Cond): boolean => {
     switch (cond.kind) {

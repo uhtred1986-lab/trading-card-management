@@ -4281,6 +4281,10 @@
   ],
   "costItems": [
     {
+      "syntax": "EVOLUTION",
+      "doc": "the versioned EX-Evolve Battle-base contract as a quoted JSON object"
+    },
+    {
       "syntax": "FUSION",
       "doc": "the versioned Fusion material contract as a quoted JSON object"
     },

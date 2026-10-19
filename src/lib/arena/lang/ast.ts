@@ -209,6 +209,7 @@ void _everyAttrWritten;
  * same list.
  */
 export const COST_ITEMS = [
+  { syntax: "EVOLUTION", doc: "the versioned EX-Evolve Battle-base contract as a quoted JSON object" },
   { syntax: "FUSION", doc: "the versioned Fusion material contract as a quoted JSON object" },
   { syntax: "UNREAD", doc: "this price is not executable until its complete payment is recorded" },
   { syntax: "{Red}", doc: "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})" },
@@ -229,7 +230,7 @@ export const COST_ITEMS = [
  * kind names, and the words that introduce a declaration's clauses.
  */
 export const RESERVED = new Set([
-  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "FUSION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
+  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
   "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 

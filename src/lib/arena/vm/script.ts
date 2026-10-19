@@ -1234,6 +1234,7 @@ export interface PayWith {
 export interface SkillPrice {
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
+  evolution?: EvolutionBase;
   /** Executable resource cost. Missing/unknown contracts require regeneration. */
   payment: SkillPayment;
   condition: Cond | null;
@@ -1271,6 +1272,7 @@ export interface XCost {
  */
 export interface CostRecord {
   fusion?: FusionMaterials;
+  evolution?: EvolutionBase;
   version: 1;
   /** Whether the compiler/editor accounted for the whole price. Text is display only. */
   readable: boolean;
@@ -1302,6 +1304,13 @@ export interface SkillPayment {
 
 /** The supported §22-13-4 procedure. Extensions are typed standing permissions,
  * scoped by their own records; their presence here never grants permission. */
+export interface EvolutionBase {
+  version: 1;
+  variant: "EX-Evolve";
+  activation: "hand";
+  base: { area: "battle"; side: "you"; filter: CardFilter };
+}
+
 export interface FusionMaterials {
   version: 1;
   needs: { name: string; filter: CardFilter }[];
@@ -1420,6 +1429,8 @@ export interface ScriptFrame {
   /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
   /** Captured identity survives successful Fusion payment and source changes. */
   fusionIdentity?: Pick<Script, "kind" | "price">;
+  evolutionIdentity?: Pick<Script, "kind" | "price">;
+  evolutionSourceEpoch?: number;
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */

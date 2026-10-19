@@ -1,4 +1,4 @@
-import { fusionIdentityProblem } from "./skill-identity";
+import { fusionIdentityProblem, evolutionIdentityProblem } from "./skill-identity";
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
 import { lifeToHandForbidden } from "./life-movement";
 import { requireUsage, usageProblem } from "./usage";
@@ -1221,9 +1221,13 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+    }
+    if (frame.evolutionIdentity || sourceScript?.price?.evolution !== undefined) {
+      const gap = evolutionIdentityProblem(frame.evolutionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+      if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
     }
     // Activated effects carry the executable usage they began with (9-6-11).
     // Do not rediscover a copied skill after its granting effect has gone.
@@ -1245,7 +1249,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
-    if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice);
+    if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice, !!frame.evolutionIdentity);
     if (frame.keywordCost) return stepKeywordCost(ctx, game, state, ev, frame);
     if (frame.keywordPrice?.fusion && !frame.keywordPrice.queued) return stepFusionMaterials(ctx, game, state, ev, frame);
     if (frame.dropCost) return stepDropCost(ctx, game, state, ev, frame);
