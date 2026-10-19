@@ -1,0 +1,79 @@
+BT3-070 FAQ
+BT3-070 Dawn of Terror, Android 13 Q1. You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area? A1. No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary.
+
+BT1-107 FAQQ6
+Q6. When can you activate {BT1-107 Cold Bloodlust} against your opponent’s [Union-Absorb] skills? A6. [Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play. When your opponent activates and pays the cost for [Union-Absorb], you can activate [Counter: Play] either before they choose the card to play, or after your opponent chooses a card from the deck, puts it into play, and shuffles their deck. If you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card’s “when you play this card” skill(s) will still activate even though the original skill was negated. If you want to prevent their “when you play this card” skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves.
+
+BT1-110 FAQQ5
+Q5. When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent’s [Union-Absorb] skill comes into play in Rest Mode? A5. Activate it after your opponent pays for and activates [Union-Absorb] but before they choose the card they’re going to play (before it resolves). {BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won’t allow you to put it into Rest Mode.
+
+BT3-070 official errata
+2018.3.2 [CROSS WORLDS] BT3-070 Dawn of Terror, Android 13 Card No:BT3-070 Card Name:Dawn of Terror, Android 13 Card Errata Before [Union-Absorb] ● , choose up to 1 each After [Union-Absorb] ● , choose 1 each Errata Notes 3/9 The errata will be issued from the release of series 3. Read as the errata when playing.
+
+Manual generalUnion
+22-13. [Union]
+ 22-13-1. This [Activate : Main] keyword skill is related to playing cards.
+
+ 22-13-2. [Union] is a general term for a subset of skills that play Battle Cards to Battle Areas from specific areas when certain costs and conditions
+
+       are fulfilled.
+
+ 22-13-3. [Union] skills are generally formatted [Union-(type)].
+
+   22-13-3-1. Some card text refers to [Union] skills. This refers to [Union-Fusion], [Union-Potara], and [Union-Absorb] skills.
+
+Manual Absorb
+22-13-6. [Union-Absorb]
+
+   22-13-6-1. [Union-Absorb] is described as follows: “[Union-Absorb] skill cost : effect.”
+
+   22-13-6-2. [Union-Absorb] can only be activated from the Battle Area.
+
+   22-13-6-3. To resolve the effects of [Union-Absorb], one specified Battle Card in the area specified by the effect is played on top of the card that
+
+             activated the skill.
+
+     22-13-6-3-1. All continuous effects affecting the position or power of the played cards carry over.
+
+     22-13-6-3-2. If a Battle Card chosen for a [Union-Absorb] effect fails to enter play, it is placed in its owner’s Drop Area.
+
+       22-13-6-3-2-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
+
+                   returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
+
+Manual Potara feasibility only
+22-13-5. [Union-Potara]
+
+   22-13-5-1. [Union-Potara] is described as follows: “[Union-Potara] skill cost : <Character Name A> and <Character Name B>.” Here, “<Character
+
+             Name A> and <Character Name B>” are the conditions for the [Union-Potara] skill.
+
+   22-13-5-2. [Union-Potara] can be activated by paying the skill cost and choosing one of each specified character’s Battle Card in your Battle Area.
+
+             If the player can’t choose all of the specified Battle Cards, they can’t activate [Union-Potara].
+
+     22-13-5-2-1. Some card text reads “you can choose Battle Cards in one of your areas when choosing cards to use with this card's [Union-
+
+               Potara] skill.” These skills expand the conditions that can be fulfilled when choosing cards for a given keyword skill.
+
+       22-13-5-2-1-1. When using such a skill to choose Battle Cards from an expanded range of areas, if the skill resolution would cause the card
+
+                   that activated [Union-Potara] to be played, first move any Battle Cards in that area to the Battle Area, and then resolve the keyword
+
+                   skill normally. Furthermore, any area movement triggers resulting from the chosen Battle Card moving to a different area are not
+
+                   made pending, nor does counter timing occur.
+
+   22-13-5-3. [Union-Potara] can only be activated from a player’s hand.
+
+   22-13-5-4. To resolve the effects of [Union-Potara], the card that activated the skill is played by placing it on top of the two Battle Cards chosen
+
+             in 22-13-5-2, which can be in any order.
+
+     22-13-5-4-1. All continuous effects affecting the power of the played Battle Cards carry over.
+
+     22-13-5-4-2. If a card that activated [Union-Potara] fails to enter play, it is placed in its owner’s Drop Area.
+
+       22-13-5-4-2-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
+
+                   returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
