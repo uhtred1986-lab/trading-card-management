@@ -8,6 +8,7 @@ import type { PlayerId, VmState } from "./harness";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { attrsNow } from "../../src/lib/arena/vm/program";
+import { typedRecords } from "./records";
 
 const rules = RULES;
 const loaded = rulesetFor("dbs");
@@ -54,7 +55,7 @@ function replacementContext(lines: { to: "warp" | "hand" | "battle"; mode?: "res
     complete: true,
     unsupported: [],
     bySkill: Object.fromEntries(lines.map((line, i) => [i * 10, {
-      unsupported: [],
+      unsupported: [], ...typedRecords(),
       ops: [{ op: "replaceLeave", to: line.to, ...(line.mode ? { mode: line.mode } : {}), ...(line.by ? { by: line.by } : {}), ...(line.bySide ? { bySide: line.bySide } : {}), ...(line.optional ? { optional: true } : {}) }],
     }])),
   };
@@ -75,7 +76,7 @@ function sourceStaticContext(): EngineContext {
   const sourceScripts = {
     complete: true,
     unsupported: [],
-    bySkill: { 0: { unsupported: [], ops: [{ op: "power", target: { sel: { side: "opponent", area: "battle" } }, amount: -5000 }] } },
+    bySkill: { 0: { unsupported: [], ...typedRecords(), ops: [{ op: "power", target: { sel: { side: "opponent", area: "battle" } }, amount: -5000 }] } },
   };
   return {
     ...CTX,
@@ -91,7 +92,7 @@ function sourceReplacementContext(): EngineContext {
   const scripts = {
     complete: true,
     unsupported: [],
-    bySkill: { 0: { unsupported: [], ops: [
+    bySkill: { 0: { unsupported: [], ...typedRecords(), ops: [
       { op: "power", target: { sel: { side: "opponent", area: "battle" } }, amount: -5000 },
       { op: "replaceLeave", to: "warp", by: "skill", bySide: "opponent", target: { sel: { side: "opponent", area: "battle" } } },
     ] } },
@@ -117,7 +118,7 @@ function askingSubstituteContext(): EngineContext {
     unsupported: [],
     bySkill: {
       0: {
-        unsupported: [],
+        unsupported: [], ...typedRecords(),
         ops: [{
           op: "replace",
           event: "leave",
@@ -127,7 +128,7 @@ function askingSubstituteContext(): EngineContext {
           ],
         }],
       },
-      10: { unsupported: [], ops: [{ op: "draw", n: 1, side: "you" }] },
+      10: { unsupported: [], ...typedRecords(), ops: [{ op: "draw", n: 1, side: "you" }] },
     },
   };
   return {

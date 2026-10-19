@@ -107,7 +107,11 @@ function declineEffect(s: VmState): VmState { assert.equal(s.prompt.kind, "choos
   assert.equal(old.prompt.kind, "chooseMode"); assert.equal(old.programs[0].aegisCost?.stage, "additional");
   assert.ok([oldAdditional.cards[0], oldAdditional.cards[2]].every((id) => old.sides.p1.zones.drop.includes(id)));
   const before = JSON.stringify(old);
-  assert.throws(() => mode(old, 0), /typed skill payment v1; regenerate rules and rebuild/);
+  // #1071: the frame also predates the typed usage record, which is read first, so the engine ends such a save as an
+  // interrupted game (the convention of absorb-identity-923) instead of throwing mid-move. Either way it never resumes.
+  const refused = mode(old, 0);
+  assert.equal(refused.state.outcome?.kind, "interrupted", "the obsolete save is interrupted, never resumed");
+  assert.equal(refused.state.sides.p1.zones.energy.filter((id) => refused.state.cards[id].mode === "rest").length, old.sides.p1.zones.energy.filter((id) => old.cards[id].mode === "rest").length, "and no energy was charged");
   assert.equal(JSON.stringify(old), before, "rejected obsolete save remains unchanged");
 }
 // One multicolor card pays only one hand card; fee remains strictly after it.

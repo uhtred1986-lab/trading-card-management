@@ -862,7 +862,8 @@ assert.equal(specifiedCostWords({}), "no colour");
 {
   const sk = parseSkills("[Auto] When this card attacks during the turn you played it with [Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
   assert.deepEqual(triggersOf(sk), ["attacks"]);
-  assert.deepEqual(compileSkill(sk), { ops: [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }], unsupported: [] });
+  // #1071: a compiled program also carries the typed `kind`, `usage` and `validity` v1 records.
+  assert.deepEqual(compileSkill(sk), { ops: [{ op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] }], unsupported: [], kind: "auto", usage: { version: 1, oncePerTurn: false, limit: null }, validity: { version: 1, sparking: null } });
   const passive = parseSkills("[Auto] When this card attacks during the turn this card was played using [Dark Over Realm], draw 1 card.").find((x) => x.kind === "auto")!;
   assert.deepEqual(compileSkill(passive).ops[0], { op: "if", cond: { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" }, then: [{ op: "draw", n: 1 }] });
   const plain = parseSkills("[Auto] When this card attacks, draw 1 card.").find((x) => x.kind === "auto")!;

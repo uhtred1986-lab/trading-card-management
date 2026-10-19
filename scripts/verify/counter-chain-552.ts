@@ -22,6 +22,8 @@
  * its costs, so an unaffordable one is not offered, and a window with nothing
  * to offer is not put (the attack and play windows already behave so).
  */
+import { typedRecords } from "./records";
+import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
@@ -37,6 +39,8 @@ import { combatChoice } from "../../src/lib/arena/policy/combat";
 import { secretAreas } from "../../src/lib/arena/policy/boundary";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId, Prompt } from "../../src/lib/arena/types";
+// #1073: the defensive policy reads typed counter facts the policy boundary attaches (policy/boundary.ts), not card text.
+import { defensiveSummary } from "../../src/lib/arena/vm/decision-summary";
 
 const engine = RULES;
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok);
@@ -61,7 +65,7 @@ const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
 for (const id of ["STOPA552", "STOPB552", "STOPX552", "STOP2552"]) {
   const row = { cardId: id, side: "front", skillIndex: 0,
     printed: defs[id].skill!, kind: "counter:counter", status: "confirmed",
-    source: "user", trigger: [], cost: null, cond: null,
+    source: "user", trigger: [], cost: zeroCostRecord(), cond: null, ...typedRecords(),
     ops: [{ op: "negate", what: "counter" }], unread: [],
   } as unknown as RuleRow;
   assert.deepEqual(runtimeSupportOfRow(row), { unsupported: [], unknown: [] });
@@ -167,7 +171,7 @@ const counter = (player: PlayerId, card: string | null): Action => ({ type: "cou
 
   // The local policy answers the window — explicitly declining.
   const observation = buildObservation(snapshot(d, "p2"), "p2", [], {}, secretAreas(game, "p2"));
-  const { decisions } = buildDecisions({ seat: "p2", revision: 1, observation, window: "counter", actor: "p2", legal: legal(d), choice: null, aliases: {} });
+  const { decisions } = buildDecisions({ seat: "p2", revision: 1, observation, window: "counter", actor: "p2", legal: legal(d).map((l) => ({ ...l, ...defensiveSummary(ctx, game, d, l, "p2") })), choice: null, aliases: {} });
   const pick = combatChoice({ observation, decisions });
   assert.ok(pick, "the battle policy answers a [Counter: Counter] window");
   const chosen = decisions.decisions.find((x) => x.id === pick.id);

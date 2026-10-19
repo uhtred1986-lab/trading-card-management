@@ -6,11 +6,13 @@ import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
 import { createFakeProvider } from "../../src/lib/ai/providers/fake";
 import { NO_SETTINGS, setSettingsLoader } from "../../src/lib/ai/settings";
 import { ExplanationSchema, explainDecision } from "../../src/lib/arena/rule-explanation";
+// A stored price is the typed payment v1 record (version, readable): costRecordProblem refuses a bare one.
+import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { readRule } from "../../src/lib/arena/lang/validate";
 
 async function main() {
 const printed = "[swap 3] {y}{y}:≪Goku's Lineage≫ with an energy cost of 3. (Play the specified card from your hand, then return this card to your hand)";
-const rule = { kind: "keyword", trigger: [], cost: { text: "", orbs: { Yellow: 2 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null }, cond: null, ops: [] };
+const rule = { kind: "keyword", trigger: [], cost: { ...zeroCostRecord(), orbs: { Yellow: 2 } }, cond: null, ops: [] };
 const answer = { confident: true, question: "", missingCapability: "", meaning: "Main Phase: pay two yellow energy, reveal a cost-3 Goku's Lineage Battle Card from hand and return Gohan as activation cost; play the revealed card on resolution.", ruleJson: JSON.stringify(rule) };
 for (const trigger of [null, "played", {}, ["invented-moment"], [7]]) {
   const bad = { ...rule, trigger };

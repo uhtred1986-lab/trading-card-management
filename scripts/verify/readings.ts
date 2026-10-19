@@ -1586,7 +1586,13 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   let s = stagedG({ battle: ["LEADS", "ALLY"] });
   const leads = zoneOf(s, "p1", "battle").find((id) => s.cards[id].cardId === "LEADS")!;
   s = playG(s, { type: "attack", player: "p1", attacker: leads, target: leaderOf(s, "p2") });
-  assert.equal((s as VmState).outcome?.kind, "interrupted", "the unsupported Auto action price interrupts instead of silently taking no payment");
+  // #1071: [Alliance Red]'s line is a keyword record the compiler could not read whole ("When this card attacks" is
+  // unsupported), and a blocked keyword record no longer stands as the native hook, so it is played as blank - like any
+  // open row (rulesFromRows) - rather than interrupting the game. What must hold is that it is not paid for nothing
+  // or fired: the attack goes on to its combo window, the Alliance never pends, and nothing was drawn.
+  assert.equal((s as VmState).outcome, undefined, "an unread keyword record does not end the game");
+  assert.equal((s as VmState).pending.length, 0, "and queues nothing");
+  assert.equal(zoneOf(s, "p1", "hand").length, 0, "and draws nothing");
 }
 
 {
@@ -2316,7 +2322,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.ok(autoTriggerMatches(bt2Combo, "comboed") && !autoTriggerMatches(bt2Combo, "battleEnd"), "BT2-010 answers its own end-of-battle combo moment");
   assert.ok(comboBattleEndFromHand(bt2Combo) && !comboBattleEndOpponentTurn(bt2Combo), "BT2-010 binds hand origin without the BT6 turn restriction (#572)");
   const s = compileSkill(sk);
-  assert.deepEqual((s.ops[0] as { cond: unknown }).cond, { kind: "not", cond: { kind: "isTurnPlayer" } }, "…during the opponent's turn");
+  // #1070: the hand origin and the opponent's turn are the typed combo qualification now (checked where the combo
+  // enters, `pendAutos`), not a condition on the program; the program keeps only the Leader condition.
+  assert.deepEqual(s.combo, { version: 1, timing: "battleEnd", subject: "self", origins: ["hand"], turn: "opponent" }, "…during the opponent's turn");
+  assert.equal((s.ops[0] as { cond: { kind: string } }).cond.kind, "leaderMatches", "…and the program keeps only the Leader condition");
   const xd = parseSkills("[Auto] When a blue or yellow ≪Universe 6≫ card is played in your Battle Area, that card gets +5000 power for the duration of the turn, then choose up to 1 card in your life and add it to your hand.")[0];
   assert.ok(autoTriggerMatches(xd, "youPlayed"), "XD1-01 has its trigger");
   const cond = (compileSkill(xd).ops[0] as { cond?: { sel?: { filter?: { colors: string[] } } } }).cond;

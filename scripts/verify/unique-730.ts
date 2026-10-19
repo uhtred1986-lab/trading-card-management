@@ -63,6 +63,8 @@ const defs: Record<string, CardDef> = {
   ONECOPY730: card("ONECOPY730", { name: "One Copy", colors: ["Red"], energyCost: 1, skill: "[Permanent] You can't play another copy of this card while this card is in your Battle Area." }),
 };
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromCompiler(defs) };
+/** The compiler-backed scripts as plain data: a pinned match is JSON-copied, and a lazy Proxy copies as {} (no record for any card, which the engine now refuses by name instead of compiling mid-game). */
+const materialised = (): NonNullable<EngineContext["scripts"]> => Object.fromEntries(Object.keys(defs).flatMap((id) => [[id, ctx.scripts![id]], ...(defs[id].back ? [[`${id}#back`, ctx.scripts![`${id}#back`]]] : [])]));
 const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
 const apply = (s: VmState, action: Action) => rules.apply(ctx, reload(s), action) as { state: VmState; events: GameEvent[] };
 const legal = (s: VmState) => rules.legalActions(ctx, s);
@@ -218,7 +220,7 @@ async function main(): Promise<void> {
   {
     const { s, inBattle: [a], inHand: b } = playBeside(["SD15-05"], "SD15-05", { seed: 7304 });
     assert.ok(isUniqueQuestion(s));
-    const match: PinnedMatch = { ctx: { ...ctx, rulesetDefinition: game }, state: s, beats: null, art: {}, names: { p1: "P1", p2: "P2" } };
+    const match: PinnedMatch = { ctx: { ...ctx, scripts: materialised(), rulesetDefinition: game }, state: s, beats: null, art: {}, names: { p1: "P1", p2: "P2" } };
     const turn = policyTurn(match, "p1", 1);
     assert.equal(turn.input.decisions.window, "chooseCards");
     const decided = choiceDecision(turn.input);
@@ -250,7 +252,7 @@ async function main(): Promise<void> {
     // A mandatory redirect is applied as on every rule move; an optional one is asked.
     const withReplacement = (optional: boolean): EngineContext => {
       const compiled = ctx.scripts!.UWARP730;
-      const replaced = { ...compiled, complete: true, unsupported: [], bySkill: { ...compiled.bySkill, 10: { unsupported: [], ops: [{ op: "replaceLeave", to: "warp", ...(optional ? { optional: true } : {}) }] } } };
+      const replaced = { ...compiled, complete: true, unsupported: [], bySkill: { ...compiled.bySkill, 10: { ...compiled.bySkill[10], unsupported: [], ops: [{ op: "replaceLeave", to: "warp", ...(optional ? { optional: true } : {}) }] } } };
       return { ...ctx, scripts: new Proxy(ctx.scripts!, { get: (target, key: string) => (key === "UWARP730" ? replaced : Reflect.get(target, key)) }) } as EngineContext;
     };
     for (const optional of [false, true]) {

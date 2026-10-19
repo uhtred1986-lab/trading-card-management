@@ -646,8 +646,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -665,12 +684,31 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": {
               "kind": "life",
               "side": "you",
               "atMost": 4
             },
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -683,8 +721,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -696,8 +753,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -788,8 +864,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -802,8 +897,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -816,8 +930,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -840,8 +973,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "counter:attack",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "20": {
@@ -913,8 +1065,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -927,8 +1098,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -1000,8 +1190,47 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
-            "ops": null
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "Place 1 card from your life to the Drop Area"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ]
+          },
+          "kind": "activate:main",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": true,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1014,8 +1243,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -1033,8 +1281,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "permanent",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1047,24 +1314,84 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {
+                "Green": 2,
+                "any": 1
+              },
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "20": {
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "30": {
@@ -1090,8 +1417,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1115,8 +1461,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "permanent",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1129,16 +1494,54 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "20": {
@@ -1168,8 +1571,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1201,8 +1623,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1215,8 +1656,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1306,8 +1766,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "activate:battle",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1388,8 +1867,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "counter:attack",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1467,8 +1965,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "activate:main",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1547,8 +2064,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -1566,12 +2102,31 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": {
               "kind": "life",
               "side": "you",
               "atMost": 4
             },
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1650,8 +2205,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -1663,8 +2237,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1677,16 +2270,57 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {
+                "Yellow": 2,
+                "any": 1
+              },
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "20": {
@@ -1761,8 +2395,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1851,8 +2504,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -1865,8 +2537,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -1979,8 +2670,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2013,8 +2723,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "permanent",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2027,8 +2756,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -2102,8 +2850,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2136,8 +2903,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "permanent",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2160,8 +2946,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2174,8 +2979,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -2259,8 +3083,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2273,8 +3116,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         },
         "10": {
@@ -2404,8 +3266,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "auto",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2433,8 +3314,27 @@
           "ops": [],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "keyword",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },
@@ -2518,8 +3418,27 @@
           ],
           "unsupported": [],
           "price": {
+            "payment": {
+              "version": 1,
+              "readable": true,
+              "orbs": {},
+              "either": [],
+              "marker": null,
+              "burst": null,
+              "spiritBoost": null
+            },
             "condition": null,
             "ops": null
+          },
+          "kind": "activate:main",
+          "usage": {
+            "version": 1,
+            "oncePerTurn": false,
+            "limit": null
+          },
+          "validity": {
+            "version": 1,
+            "sparking": null
           }
         }
       },

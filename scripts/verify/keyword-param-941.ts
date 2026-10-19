@@ -42,7 +42,9 @@ const roundtrip = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 // 1. Reading: the number survives, the family stays, other forms are unchanged.
 const rec = skillRecords(defs.CHR941);
 assert.equal(rec.length, 1); assert.deepEqual(rec[0].unread, []);
-const rows = rec.map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow));
+// Every drafted skill of every staged card, as the database would hold them: an [Over Realm 2] line needs
+// its stored payment record (#1066), and a card with none is an unread skill that interrupts the game.
+const rows = [...rec, ...Object.values(defs).filter((d) => d.id !== "CHR941").flatMap(skillRecords)].map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow));
 type StoredRow = { kind: string; trigger: string[]; reads: string; ops: Array<{ op: string; mode?: string }>; cost: { program: unknown; condition: { kind: string } | null }; cond: { kind: string } | null };
 const storedRows = roundtrip(rows);
 const stored = storedRows as unknown as StoredRow[];

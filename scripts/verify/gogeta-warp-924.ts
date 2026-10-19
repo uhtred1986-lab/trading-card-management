@@ -53,10 +53,13 @@ function start(s: VmState, id: string): VmState {
   const offer = union(s, id); assert.ok(offer, `Fusion offered for ${s.cards[id].cardId}`);
   let d = apply(s, offer.action);
   if (d.prompt.kind === "payCost") d = apply(d, { type: "payCost", player: "p2", option: 0 });
+  if (d.prompt.kind === "chooseMode") d = apply(d, { type: "chooseMode", player: "p2", index: 0 });
   return d;
 }
 function finish(s: VmState): VmState {
   for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+    // #1062/#1063: paying with a marker instead of a ready energy is asked as a mode (index 0 is the energy payment, as before).
+    if (s.prompt.kind === "chooseMode") { s = apply(s, { type: "chooseMode", player: "p2", index: 0 }); continue; }
     if (s.prompt.kind === "chooseCards") s = apply(s, { type: "choose", player: "p2", cards: [candidates(s)[0]] });
     else s = apply(s, { type: "pass", player: (s.prompt as { player: PlayerId }).player });
   }
@@ -126,7 +129,8 @@ for (const row of rows) {
   assert.ok(ordinary, "ordinary play remains available with no Fusion materials");
   assert.equal(ordinary.cost?.energy, 6); assert.equal(union(s, p286), undefined);
   stage(s, "p2", "GOKU924", "warp"); stage(s, "p2", "VEG924", "warp");
-  assert.equal(union(s, p286)?.cost?.energy, 3, "Fusion is the alternate3-energy route plus materials");
+  // #1067: a Fusion offer carries no cost summary - its resource amount is not determined until the materials move.
+  const fusionOffer = union(s, p286); assert.ok(fusionOffer, "Fusion is offered beside the ordinary play"); assert.equal(fusionOffer.cost, undefined, "…as the alternate route, with no cost summary until its materials move");
   s = apply(s, ordinary.action);
   if (s.prompt.kind === "payCost") s = apply(s, { type: "payCost", player: "p2", option: 0 });
   s = finish(s); assert.ok(s.sides.p2.zones.battle.includes(p286));

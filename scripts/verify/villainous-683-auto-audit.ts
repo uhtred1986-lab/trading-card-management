@@ -46,7 +46,8 @@ scripts.AUDIT_MOVE.bySkill[10] = { ...moving, unsupported: [], ops: [{ op: "draw
 const redirecting = scripts.AUDIT_REDIRECT.bySkill[10];
 assert.ok(redirecting);
 scripts.AUDIT_REDIRECT.bySkill[10] = { ...redirecting, unsupported: [], ops: [{ op: "draw", n: 1 }],
-  price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }] } };
+  // #1066: the {r} orb payment is part of the stored price record, so the override keeps the compiled one (zeroSkillPrice() dropped it).
+  price: { ...redirecting.price!, condition: null, ops: [{ op: "moveTo", target: { sel: { special: "subject" } }, to: "drop" }] } };
 const mutating = scripts.AUDIT_MUTATE.bySkill[10];
 assert.ok(mutating);
 scripts.AUDIT_MUTATE.bySkill[10] = { ...mutating, unsupported: [],

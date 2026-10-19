@@ -46,6 +46,7 @@ import { triggersOf } from "../../src/lib/arena/gaps";
 import { parseFilter } from "../../src/lib/arena/text/filters";
 import type { EngineContext } from "../../src/lib/arena/types";
 import type { CardScripts, Op } from "../../src/lib/arena/vm/script";
+import { recordsWithPrice } from "./records";
 
 /** A card's compiled programs, by skill index. */
 const compileSkillsOf = (id: string) => compileCard(DEFS[id]).bySkill;
@@ -130,7 +131,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     ...DEFS.V1,
     id: "UABS",
     name: "UABS",
-    skill: "[Auto] When this card's [Union-Absorb] is activated, draw 1 card.\n[Union-Absorb][Activate: Main] Draw 1 card.",
+    skill: "[Auto] When this card's [Union-Absorb] is activated, draw 1 card.\n[Union-Absorb] Draw 1 card. Then, play up to 1 <UABS> card with an energy cost of 3 or less from your hand on top of this card.",  // #1083: an Absorb line plays a card on top of itself; a draw-only one is refused as unread
   };
   s = arenaG({ battle: ["UABS"] });
   const handBeforeAbsorb = zoneOf(s, "p1", "hand").length;
@@ -2550,7 +2551,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   // Off a record, as `card_rules` hands it over: the selector ignores [Barrier]
   // so the [Barrier] card itself is on offer — whether [Barrier] keeps a skill
   // on it from being chosen is a ruling still open, and not this test's subject.
-  const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [] };
+  const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [], ...recordsWithPrice() };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {
     ...CTX,
@@ -2661,7 +2662,7 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
     name: "EXILEKO",
     skill: "[Permanent] If this card would be KO'd, remove it from the game instead.",
   };
-  const record = { ops: [{ op: "replace", event: "ko", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }], unsupported: [] };
+  const record = { ops: [{ op: "replace", event: "ko", with: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }] }], unsupported: [], ...recordsWithPrice() };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {
     ...CTX,
@@ -2797,7 +2798,7 @@ function opponentSkill(s: EngineState, killer: string, target: string): EngineSt
   // Leader or a Unison Card, and their areas hold one card each. The refusal
   // is a note rather than a silent no-op, so the log says what did not happen.
   DEFS.LEADERGRAB = { ...DEFS.V1, id: "LEADERGRAB", name: "LEADERGRAB", skill: "[Activate: Main] Gain control of your opponent's Leader Card." };
-  const record = { ops: [{ op: "control", target: { sel: { special: "opponentLeader" } } }], unsupported: [] };
+  const record = { ops: [{ op: "control", target: { sel: { special: "opponentLeader" } } }], unsupported: [], ...recordsWithPrice() };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {
     defs: DEFS,
@@ -2826,7 +2827,7 @@ function withRecord(cardId: string, record: { ops: unknown[]; unsupported: strin
   return {
     defs: DEFS,
     scripts: new Proxy({} as Record<string, unknown>, {
-      get: (_, key) => (key === cardId ? { bySkill: { 0: record }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
+      get: (_, key) => (key === cardId ? { bySkill: { 0: { ...recordsWithPrice(), ...record } }, complete: true, unsupported: [] } : CTX.scripts[key as string]),
     }),
   } as typeof CTX;
 }

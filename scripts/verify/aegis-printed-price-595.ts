@@ -47,7 +47,13 @@ const defs = { ...DEFS,
   // Orbs alone are unchanged; orbs beside an action stay unread rather than
   // losing the orbs the parse never put in the energy cost.
   assert.equal(compileCard(defs.ORBS595P).bySkill[0].price?.ops, null);
-  assert.deepEqual(skillRecords(defs.ORBS595P), [], "an orbs-only keyword line still needs no record");
+  // #1066: an [Aegis] move's price is stored, so even an orbs-only line has a record now - one with the orbs as its
+  // payment, no program and no effect (nothing for a person to confirm beyond the price).
+  const orbsOnly = skillRecords(defs.ORBS595P);
+  assert.equal(orbsOnly.length, 1, "an orbs-only [Aegis] line gets the record that stores its payment");
+  assert.equal(orbsOnly[0].cost?.program, null, "…with no cost program");
+  assert.deepEqual(orbsOnly[0].cost?.orbs, { any: 1 }, "…and its orbs as the payment");
+  assert.deepEqual(orbsOnly[0].ops, [], "…and no effect steps");
   assert.ok(compileCard(defs.MIXED595P).unsupported.length > 0, "orbs mixed with an action stay explicitly unread");
   assert.equal(compileCard(defs.UNREAD595P).bySkill[0].price?.ops, null);
 }
@@ -181,7 +187,9 @@ const view = (s: VmState, viewer: PlayerId) => JSON.stringify(buildSnapshot({ id
 // an effect are each refused, never activated for the colours alone.
 for (const source of ["UNREAD595P", "MIXED595P", "STALE595P"]) {
   const a = defense(source);
-  assert.throws(() => activate(a.s, a.card), (err: unknown) => err instanceof IllegalAction && /refused: unread/.test(err.message), source);
+  // #1071: a record that carries unread text is blocked, and a blocked record no longer stands as the native
+  // [Aegis] move, so the reader may say that the skill is refused as unread, that it is not offered, or (a record with no typed payment, #1066) that the payment record is missing.
+  assert.throws(() => activate(a.s, a.card), (err: unknown) => err instanceof IllegalAction && /refused: unread|is not one of the cards Activate is offered for|missing or unsupported typed skill payment v1/.test(err.message), source);
 }
 // Orb-only and colour-only Aegis lines are offered as before.
 {

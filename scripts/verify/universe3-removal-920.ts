@@ -168,7 +168,9 @@ for (const row of corpus) {
   assert.ok(s.sides.p1.zones.battle.includes(redirected), "the affordability simulation does not mutate the board");
   const stored = scripts["DB2-151"].bySkill[10];
   delete scripts["DB2-151"].bySkill[10];
-  assert.equal(offers(s, own), false, "a missing persisted program cannot infer Drop permission from text");
+  // #1066: a skill with no stored price record is obsolete data, not a free skill and not a Drop permission read
+  // from its text — the legal-action reader refuses it by name instead of answering "not offered".
+  assert.throws(() => offers(s, own), /missing or unsupported typed skill payment v1/, "a missing persisted program cannot infer Drop permission from text");
   scripts["DB2-151"].bySkill[10] = stored;
 }
 // A saved Drop-price choice pays once, owns its choices, and spends Limit

@@ -60,7 +60,7 @@ function board(n: number, eligible = true, leader = "LEADER819") {
   const mainFlow = structuredClone(s.flow);
   // The resolution frame is staged after activation/price. This covers zero
   // energy without claiming the cost-4 Extra can be normally activated free.
-  const frame: ScriptFrame = { ops: skill.ops, ip: 0, master: "p1", card: source, vars: {}, skillIndex: 10 };
+  const frame: ScriptFrame = { ops: skill.ops, ip: 0, master: "p1", card: source, vars: {}, skillIndex: 10, usage: skill.usage, validity: skill.validity };
   const result = stepScript(vmHost(ctx, game, s, []), frame);
   return { s, source, targets, excluded, energy, result, mainFlow };
 }

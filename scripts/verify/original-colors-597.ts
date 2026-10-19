@@ -1,6 +1,7 @@
 /** #597: independent expected-state evidence for original-colour keyword payments. */
 import assert from "node:assert/strict";
 import { CTX, rulesFromCompiler } from "./harness";
+import { typedRecords } from "./records";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { attrsNow, condHolds, resolveSelector } from "../../src/lib/arena/vm/program";
@@ -29,7 +30,7 @@ const defs = {
   SOURCE597: def("SOURCE597", ["Green"], "[Permanent] Cards in all your areas gain Red and Blue."),
 };
 const identity: Op[] = [{ op: "gains", target: { sel: { side: "you", areas: ["hand", "combo", "life"], count: 99 } }, colors: ["Red", "Blue"] }];
-const records = { SOURCE597: { bySkill: { 0: { ops: identity, unsupported: [] } }, complete: true, unsupported: [] } };
+const records = { SOURCE597: { bySkill: { 0: { ops: identity, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] } };
 const ctx = { ...CTX, defs, scripts: new Proxy(rulesFromCompiler(defs), { get: (base, key) => key === "SOURCE597" ? records.SOURCE597 : Reflect.get(base, key) }) } as EngineContext;
 const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
 const act = (s: VmState, ...actions: Action[]): VmState => actions.reduce((state, action) => engine.apply(ctx, state, action).state as VmState, s);

@@ -4,13 +4,20 @@ import { isFusionSkill } from "../vm/fusion-materials";
 import { unionNeeds } from "../text/union";
 import { unreadFilterWords } from "../lang/filter-words";
 
+/**
+ * A closing parenthesis is the keyword's reminder text ("(Place 1 each of the specified card with the same
+ * power from your hand into your Drop Area and play this card)", BT2-015), which the engine plays itself:
+ * it is not a qualifier of the last material, and left in it every such Fusion read as an unreadable filter.
+ */
+const withoutReminder = (text: string) => text.replace(/\s*\([^()]*\)\s*$/, "");
+
 /** Read every named qualifier once, before persistence. Unsupported tails must
  * remain unread rather than becoming a permissive empty material filter. */
 export function compileNamedUnionNeeds(skill: Skill): FusionMaterials["needs"] | undefined {
   const needs = unionNeeds(skill);
   if (/<[^>]+>\s*(?:cards?\s+)?or\s*(?:(?:red|blue|green|yellow|black|white)\s+)?</i.test(skill.effect) || needs.length !== 2
     || needs.some((n) => !n.name.trim() || n.filter.unreadable
-      || unreadFilterWords(n.text.replace(/\b(?:both|cards?)\b/gi, ""), { ...n.filter, characters: [n.name] }).length)) return undefined;
+      || unreadFilterWords(withoutReminder(n.text).replace(/\b(?:both|cards?)\b/gi, ""), { ...n.filter, characters: [n.name] }).length)) return undefined;
   return needs.map(({ name, filter }) => ({ name: name.trim(), filter }));
 }
 export function compileFusionMaterials(skill: Skill): FusionMaterials | undefined {

@@ -1,4 +1,5 @@
 /** Fuzz interruptions are distinct from draws, reproducible, and executable without a DB import. */
+import { recordsWithPrice } from "./records";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +13,7 @@ import type { Action, CardDef, EngineContext } from "../../src/lib/arena/types";
 const leader: CardDef = { id: "FUZZ-L", name: "Fuzz leader", type: "LEADER", colors: ["Red"], energyCost: null, zEnergyCost: null, power: 10000, comboCost: null, comboPower: null, characters: [], traits: [], skill: "[Auto] When this card attacks, draw 1 card.", back: null };
 const battle: CardDef = { ...leader, id: "FUZZ-B", name: "Fuzz battle", type: "BATTLE", skill: null, energyCost: 1, power: 5000, comboCost: 0, comboPower: 5000 };
 const context: EngineContext = { defs: { [leader.id]: leader, [battle.id]: battle }, scripts: {
-  [leader.id]: { bySkill: { 0: { ops: [], unsupported: ["synthetic unread effect"], trigger: ["attacks"] } }, complete: false, unsupported: ["synthetic unread effect"] },
+  [leader.id]: { bySkill: { 0: { ops: [], unsupported: ["synthetic unread effect"], trigger: ["attacks"], ...recordsWithPrice() } }, complete: false, unsupported: ["synthetic unread effect"] },
   [battle.id]: { bySkill: {}, complete: true, unsupported: [] },
 } };
 const deck = { name: "Diagnostic fixture", leader: leader.id, main: Array(50).fill(battle.id) as string[] };

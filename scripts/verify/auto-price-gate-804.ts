@@ -29,6 +29,8 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
+import { typedRecords } from "./records";
+import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 
 // ── the catalog's own texts ─────────────────────────────────────────────────
 const SUBSET = "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json";
@@ -68,7 +70,8 @@ for (const id of ["BT9-031", "DB2-004"]) {
 
 // ── 2. what the planner cannot plan stays refused, with its reason ──────────
 {
-  const auto = (cost: unknown) => runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost, trigger: ["attacks"], printed: "" } as never).unsupported;
+  // #1066/#1071: a stored row carries the typed payment, usage and validity records; the cases below vary only the price.
+  const auto = (cost: unknown) => runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { ...zeroCostRecord(), ...(cost as object | null) }, ...typedRecords(), trigger: ["attacks"], printed: "" } as never).unsupported;
   assert.deepEqual(auto({ program: [{ op: "draw", n: 1 }] }), ["the rules engine cannot pay Auto action price containing draw yet — #549 builds it"], "an unplannable action stays refused, in the planner's words");
   assert.match(auto({ program: [{ op: "choose", sel: { side: "you", area: "life", count: 1 }, as: "c0" }, { op: "moveTo", target: { var: "c0" }, to: "play" }] }).join(), /containing moveTo/, "a price that plays a card is not a payment");
   assert.match(auto({ program: [{ op: "faceUp", target: { sel: { special: "self" } } }] }).join(), /face-up action price outside the verified Life choice/);
@@ -77,7 +80,7 @@ for (const id of ["BT9-031", "DB2-004"]) {
   assert.deepEqual(auto({ x: { min: 0 } }), [], "a readable X price is supported");
   assert.deepEqual(auto(null), [], "a free Auto is unaffected");
   // Activate lines never were in this check.
-  assert.deepEqual(runtimeSupportOfRow({ kind: "activate:main", unread: [], ops: [], cost: { program: [{ op: "draw", n: 1 }] }, trigger: [] } as never).unsupported, []);
+  assert.deepEqual(runtimeSupportOfRow({ kind: "activate:main", unread: [], ops: [], cost: { ...zeroCostRecord(), program: [{ op: "draw", n: 1 }] }, ...typedRecords(), trigger: [] } as never).unsupported, []);
 }
 
 // ── 3. in a game: offered, paid or declined, effect only once paid ──────────

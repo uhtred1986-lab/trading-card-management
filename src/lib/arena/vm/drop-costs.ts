@@ -18,7 +18,7 @@ export function hasDropActionPrice(state: VmState, line: ActivationLine): boolea
   return !line.keyword && findCard(state, line.card)?.zone === "drop" && !!line.script?.price?.ops?.length;
 }
 const frameFor = (ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, x?: number): ScriptFrame => ({
-  card: line.card, master: player, skillIndex: line.skillIndex, ops: line.script!.price!.ops!, ip: 0, vars: {}, ...(x === undefined ? {} : { x }),
+  card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, ops: line.script!.price!.ops!, ip: 0, vars: {}, ...(x === undefined ? {} : { x }),
   dropCost: { line, moment: activationMoment(ctx, game, state, player, line) },
 });
 function finishes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, charge: (s: VmState) => void): boolean {

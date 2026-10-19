@@ -1,11 +1,23 @@
 {
   "ABSORBER#0": {
     "outcome": "notOffered",
-    "digest": "ad77cf6f"
+    "digest": "4ffdd4db"
   },
   "ACTIVE-HUNTER#0": {
     "outcome": "inForce",
     "digest": "befb97a9"
+  },
+  "AEG#0": {
+    "outcome": "notOffered",
+    "digest": "f2ba8760"
+  },
+  "AEG2#0": {
+    "outcome": "notOffered",
+    "digest": "0ea46128"
+  },
+  "AEG3#0": {
+    "outcome": "notOffered",
+    "digest": "8b1ca116"
   },
   "ALLY#0": {
     "outcome": "noScenario",
@@ -22,6 +34,10 @@
   "ALTC#10": {
     "outcome": "inForce",
     "digest": "49f36b12"
+  },
+  "ARRIVER#0": {
+    "outcome": "notOffered",
+    "digest": "815dc947"
   },
   "ARRIVES#0": {
     "outcome": "fired",
@@ -283,9 +299,21 @@
     "outcome": "fired",
     "digest": "c02c8607"
   },
+  "FIELD#0": {
+    "outcome": "fired",
+    "digest": "747b97a8"
+  },
+  "FIELD-ARRIVES#0": {
+    "outcome": "fired",
+    "digest": "6c7db55b"
+  },
   "FIELD-ARRIVES#10": {
     "outcome": "fired",
     "digest": "465c59fa"
+  },
+  "FIELDB#0": {
+    "outcome": "fired",
+    "digest": "c5a057b4"
   },
   "FIELDB#10": {
     "outcome": "inForce",
@@ -305,7 +333,7 @@
   },
   "FUSER#0": {
     "outcome": "notOffered",
-    "digest": "837c25d7"
+    "digest": "4f20cc88"
   },
   "GLOATER#0": {
     "outcome": "noScenario",
@@ -385,7 +413,7 @@
   },
   "LEADS#0": {
     "outcome": "notOffered",
-    "digest": "f83139f2"
+    "digest": "cbaae28d"
   },
   "LIFEGIVER#0": {
     "outcome": "fired",
@@ -499,9 +527,17 @@
     "outcome": "notOffered",
     "digest": "03e2c26c"
   },
+  "ORB2#0": {
+    "outcome": "notOffered",
+    "digest": "fba238f0"
+  },
   "ORBSKILL#0": {
     "outcome": "fired",
     "digest": "ff506940"
+  },
+  "OVER#0": {
+    "outcome": "fired",
+    "digest": "cd41e4fc"
   },
   "OVERWATCH#0": {
     "outcome": "noScenario",
@@ -686,6 +722,10 @@
   "STUBBORN#10": {
     "outcome": "inForce",
     "digest": "2a4f515a"
+  },
+  "SUCC#0": {
+    "outcome": "notOffered",
+    "digest": "b7a75ce7"
   },
   "SUMMON#0": {
     "outcome": "fired",

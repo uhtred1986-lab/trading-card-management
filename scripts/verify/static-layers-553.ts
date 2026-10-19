@@ -11,6 +11,7 @@ import { vmHost } from "../../src/lib/arena/vm/host";
 import { stepScript, validateProgram, type Op, type Ref, type ScriptFrame } from "../../src/lib/arena/vm/script";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
+import { typedRecords } from "./records";
 import { CTX } from "./harness";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -58,17 +59,17 @@ const timedOps: Op[] = [{ op: "modifyAttr", target: { var: "target" }, attr: "tr
 const shieldOps: Op[] = [{ op: "forbid", what: "beNegated", target: targetAllBattle, until: "game" }];
 
 const records: Record<string, unknown> = {
-  [identityId]: { bySkill: { 0: { ops: identityOps, unsupported: [] } }, complete: true, unsupported: [] },
-  [grantId]: { bySkill: { 0: { ops: grantOps, unsupported: [] } }, complete: true, unsupported: [] },
-  [negateId]: { bySkill: { 0: { ops: negateOps, unsupported: [] } }, complete: true, unsupported: [] },
-  [shieldId]: { bySkill: { 0: { ops: shieldOps, unsupported: [] } }, complete: true, unsupported: [] },
+  [identityId]: { bySkill: { 0: { ops: identityOps, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] },
+  [grantId]: { bySkill: { 0: { ops: grantOps, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] },
+  [negateId]: { bySkill: { 0: { ops: negateOps, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] },
+  [shieldId]: { bySkill: { 0: { ops: shieldOps, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] },
   [handIdentityId]: {
-    bySkill: { 0: { ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "colors", values: ["Blue"], allAreas: true }], unsupported: [] } },
+    bySkill: { 0: { ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "colors", values: ["Blue"], allAreas: true }], unsupported: [], ...typedRecords() } },
     complete: true,
     unsupported: [],
   },
   [handOrdinaryIdentityId]: {
-    bySkill: { 0: { ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "colors", values: ["Blue"] }], unsupported: [] } },
+    bySkill: { 0: { ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "colors", values: ["Blue"] }], unsupported: [], ...typedRecords() } },
     complete: true,
     unsupported: [],
   },
