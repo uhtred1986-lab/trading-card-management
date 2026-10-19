@@ -93,7 +93,7 @@ application status. The exact per-target evidence is:
 
 | Target | Code delivery | Later application receipt / dated readiness evidence |
 | --- | --- | --- |
-| BT29-029 back #0 | PR #834 / `docs/arena-backlog/evidence/825/` | #907's 17 Oct 15:43 receipt explicitly says rule row 9829 for BT29-029 back #0 was written after owner approval ([comment 6235968236](https://github.com/uhtred1986-lab/trading-card-management/issues/907#issuecomment-6235968236)). The checked-in `rule-refresh.json` instead records BT29-029 **back #10**, a different skill. The later #825 comment at 21:40 says repo receipts did not prove back #0 and cites readiness that still lists BT29-029 blocked ([comment 6241581216](https://github.com/uhtred1986-lab/trading-card-management/issues/825#issuecomment-6241581216)). Record this as conflicting application evidence; no current stored-row readback is available here. |
+| BT29-029 back #0 | PR #834 / `docs/arena-backlog/evidence/825/` | #907's 17 Oct 15:43 receipt explicitly says rule row 9829 for BT29-029 back #0 was written after owner approval ([comment 6235968236](https://github.com/uhtred1986-lab/trading-card-management/issues/907#issuecomment-6235968236)). The separate checked-in `rule-refresh.json` records BT29-029 **back #10**, a different skill. The later #825 comment at 21:40 says repo receipts did not prove back #0 and cites readiness that still lists BT29-029 blocked ([comment 6241581216](https://github.com/uhtred1986-lab/trading-card-management/issues/825#issuecomment-6241581216)). The exact target-naming application receipt supersedes that repo-only absence claim. No current stored-row readback is available here. |
 | BT3-112 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-112 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
 | BT3-096 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-096 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
 | BT3-098 front #10 | PR #834 | The 17 Oct readiness snapshot at deployed commit `1996255e` lists BT3-098 blocked. No later public application receipt names this exact target; the 18 Oct batches do not list it. Current freshness is unverified. |
@@ -103,9 +103,9 @@ application status. The exact per-target evidence is:
 | BT7-086 front #10 | PR #834 timing-reading change | No exact later public application receipt found; 18 Oct batches do not list this target. Current freshness is unverified. |
 
 The #907 17 Oct 15:43 comment is a specific application claim for BT29-029
-back #0. It must be retained alongside the later #825 repo-only reconciliation
-and the checked-in back #10 receipt; neither side is silently substituted for
-the other. The 18 October #907 receipts describe other batches and do not name
+back #0. The later #825 repo-only reconciliation missed that receipt; back #10
+is a separate skill and does not contradict the back #0 application. No repeat
+refresh is justified by that old absence claim. The 18 October #907 receipts describe other batches and do not name
 the remaining seven targets. The checked-in `post-refresh-readiness.json` is
 dated to deployed commit `1996255ea874bca8349ec64328ea4712e23505b0` and lists
 four blocked cards. These are dated application/readiness records, not a current
