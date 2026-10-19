@@ -14,7 +14,7 @@ export function fusionMaterialsProblem(value: unknown): string | null {
     || f.version !== 1 || typeof f.samePower !== "boolean" || f.activation !== "hand" || f.base !== "hand"
     || !Array.isArray(f.needs) || f.needs.length !== 2
     || !Array.isArray(f.extensions) || new Set(f.extensions).size !== f.extensions.length
-    || f.extensions.some((p) => !["unionFusionAreas", "unionFusionWarp"].includes(p))) return FUSION_REBUILD;
+    || f.extensions.some((p) => !["unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom"].includes(p))) return FUSION_REBUILD;
   for (const n of f.needs) {
     if (!n || typeof n !== "object" || Array.isArray(n) || Object.keys(n).some((k) => !["name", "filter"].includes(k))
       || typeof n.name !== "string" || !n.name.trim() || n.name !== n.name.trim() || /[<>]/.test(n.name)
@@ -27,4 +27,9 @@ export function requireFusionMaterials(price: SkillPrice | undefined): FusionMat
   const problem = fusionMaterialsProblem(price?.fusion);
   if (problem) throw new IllegalAction(problem);
   return price!.fusion!;
+}
+
+/** Only the entered native branch is flattened into this list; dormant branches do not bind a route. */
+export function hasDropBottomRoute(ops: import("./script").Op[]): boolean {
+  return ops.some(op => op.op === "choose" && op.permission === "unionFusionDropBottom");
 }

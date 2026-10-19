@@ -162,7 +162,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       // A combo paid as a cost is still a combo (5-7-3-1), as a cost KO is a
       // KO; its arrival in the Combo Area is verified below (5-8-2-2-1-1).
       const actual = host.move(id, to, owner, { ...opts, reason: opts?.reason === "combo" && to === "combo" ? "combo" : "cost" });
-      if (actual !== to || host.areaOf(id) !== to) {
+      if (actual !== to || host.areaOf(id) !== to || (to === "deck" && opts?.position === "bottom" && host.zone(owner, "deck").at(-1) !== id)) {
         const replaced = opts?.replaced;
         if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");

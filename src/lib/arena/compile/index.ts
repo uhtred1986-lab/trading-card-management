@@ -428,6 +428,13 @@ function compileSkillText(skill: Skill): Script {
   // the clause list would cut at the comma and leave both halves unread.
   const scoped = c.permanent ? scopedPayWith(text) : null;
   if (scoped) return { ops: [scoped], unsupported: [] };
+  // EX23-36 / P-519: source timing and replacement destination are one
+  // standing permission, not an effect-time instruction to select materials.
+  const dropBottom = c.permanent ? /^if (your leader(?: card)? is a yellow <gotenks: adolescence>(?: card)?)(?: and you are choosing cards to use with this card's \[union\] skill from your hand| and you choose cards to use with this card's \[union\] skill from a hand),? you may choose the specified battle cards? (?:from|in) your drop(?: area)?\.\s*if you do,? place the chosen cards at the bottom of your deck in any order\.?$/i.exec(text.trim()) : null;
+  if (dropBottom) {
+    const leader = parseConditionClause(`if ${dropBottom[1]}`, true);
+    if (leader) return { ops: [{ op: "if", cond: leader.cond, then: [{ op: "permit", what: "unionFusionDropBottom", target: { sel: { special: "self" } }, until: "game" }] }], unsupported: [] };
+  }
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;

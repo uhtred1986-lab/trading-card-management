@@ -1,0 +1,64 @@
+BT12-136/137 analogous mixing FAQ
+BT12-136 SS3 Gogeta, Marvelous Might Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can. BT12-137 Gogeta, Fearless Fusion Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can.
+
+P-286 analogous mixing FAQ
+P-286 SS3 Gogeta, Martial Melee Q1. When you activate this card’s [Union-Fusion] skill, can you choose 1 card each from your hand and Warp? A1. Yes, you can.
+
+Manual card text priority and sequence
+0-2-2. When card text contradicts the Official Rules other than those contained in 0-2 Fundamental Principles, the text takes precedence over the
+
+        rules.
+
+    0-2-2-1. However, the act of conceding is not affected by cards. Players can never be forced to concede due to card effects, and losing the game
+
+            by conceding is not subject to any replacement effects.
+
+    0-2-2-2. However, the rules in the following sections take precedence over card effects:
+
+            ・3-1-6-1. ・3-5-3. ・5-7-2-1. ・21-6-2. ・21-9-2.
+
+  0-2-3. Unless otherwise specified, card effects are resolved in the order described on the card.
+
+Manual simultaneous area placement order
+3-1-5. When multiple cards are placed in an area simultaneously, unless otherwise specified, the owner of the cards decides the order they’re
+
+       placed in.
+
+   3-1-5-1. When multiple cards from an open area are placed in a secret area simultaneously, if the owner of the cards can determine the order the
+
+             cards are placed in, the other player can’t confirm the order in which the cards were placed.
+
+Manual Fusion sources/material/payment
+22-13-4. [Union-Fusion]
+
+   22-13-4-1. [Union-Fusion] is described as follows: “[Union-Fusion] skill cost : <Character Name A> and <Character Name B>.” Here, “<Character
+
+              Name A> and <Character Name B>” are the conditions for the [Union-Fusion] skill.
+
+   22-13-4-2. [Union-Fusion] can be activated by revealing 1 of each of the specified character’s Battle Cards from your hand, with each Battle
+
+              Card’s power being equal. If such a set of cards can’t be revealed, you can't declare activation of [Union-Fusion].
+
+     22-13-4-2-1. Some card text reads “you can choose Battle Cards in one of your areas when choosing cards to use with this card's [Union-
+
+                    Fusion] skill.” These skills expand the conditions that can be fulfilled when choosing cards for a given keyword skill.
+
+   22-13-4-3. [Union-Fusion] can only be activated from a player’s hand.
+
+   22-13-4-4. When activating [Union-Fusion], players place one of each of the specified Battle Cards with the same power from their hand in the
+
+              Drop Area as the skill cost.
+
+     22-13-4-4-1. Then, if there is a necessary skill cost, determine that cost and then pay it in its entirety.
+
+   22-13-4-5. To resolve the effects of [Union-Fusion], players play the Battle Card that activated the skill.
+
+     22-13-4-5-1. If a card that activated [Union-Fusion] fails to enter play, it is placed in its owner’s Drop Area.
+
+       22-13-4-5-1-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
+
+                        returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
+
+
+
+                                                                              59

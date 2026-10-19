@@ -1,0 +1,125 @@
+{
+  "format": "fusion-drop-bottom-930-verification-v1",
+  "nodeVersion": "v24.19.0",
+  "finalSourceCommit": "e24bf380145c9120c45bdaed91101becec697bed",
+  "providedTargetRecords": [
+    3897,
+    3898,
+    9887,
+    9888
+  ],
+  "providedProofCases": 116,
+  "targetCompilerFallback": false,
+  "companions": "Explicit compiled support fixtures, not an actual whole-card export",
+  "checks": [
+    {
+      "check": "provided-record proof",
+      "sourceCommit": "e24bf380145c9120c45bdaed91101becec697bed",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "ece09802e20b49d34cf5a29a0a495dc4f906d8d24cb1ccad561822ea35e96249"
+    },
+    {
+      "check": "typecheck",
+      "sourceCommit": "e24bf380145c9120c45bdaed91101becec697bed",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "bb7e1de4f1201488c25d2ea97d3ba65589e1b860bd0f494ea3ca514f1eccd419"
+    },
+    {
+      "check": "focused final lint",
+      "sourceCommit": "e24bf380145c9120c45bdaed91101becec697bed",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "check": "full lint",
+      "sourceCommit": "6017ba2ca2b7ea951a359f937d0360efae0d9714",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "1c625cf0e258fe0ea1a8b263f875474059d75d3ecb3402e455c550188128b4fd"
+    },
+    {
+      "check": "original exact sets925",
+      "sourceCommit": "f7722658",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "e791bb829f66ad155175403969fe5f17230ebd001a3d72a012179e617a6e00de"
+    },
+    {
+      "check": "original Counter929",
+      "sourceCommit": "f7722658",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "a05d2fb995ee73a8264085eb0ef5ca50f14250aff69d85e9731b4e8735cbe9be"
+    },
+    {
+      "check": "original Fusion authority907",
+      "sourceCommit": "f7722658",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "e2ccd2089f258b30c0b24012c01b8342e8d905044e2455f02dc0d34bcdef8a54"
+    },
+    {
+      "check": "original source-support930",
+      "sourceCommit": "927b4330",
+      "rootEquivalentCore": "1aa0b9ff",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "273eda3643b462e748cbeccdbccf9e32cdf772ffebb354ec8bdace91883c4afa",
+      "scope": "Earlier first coherent core; retained original oracle. Final narrow new-route/strict-bottom fixes independently reviewed and covered by final proof/control set."
+    },
+    {
+      "check": "guarded four-record migration PGlite",
+      "toolCommit": "6518d2c8",
+      "engineCore": "1aa0b9ff",
+      "result": "pass",
+      "exitCode": 0,
+      "logSha256": "8cb7beb563b44b7a61cad4a7d2821efd404f852acdc3cfaf4529aad09a3939b8",
+      "scope": "First coherent compiler and unchanged migration helper/SQL bytes. Later fresh reading changed only approved public text payload, verified by final proposal replay."
+    }
+  ],
+  "fullLint": {
+    "errors": 0,
+    "warnings": 5,
+    "existingPrototypeWarnings": true
+  },
+  "proposal": {
+    "digest": "f3b8068dc937ebedfd0c4eb0181ca91fdbb7a2c19e0a33e4304803aa2cadf0af",
+    "finalReplayByteIdentical": true,
+    "publicProposalFileSha256": "df639a8711000bd90f514a46b57da49e90f98f7c55d6e045e0a5e52f426a73fd",
+    "freshReadsCorrectlyDescribeDropMaterials": true,
+    "obsoleteInitialDigestNotApproved": "e94c4fc5bead2dfb3c6252290e41b00ea1b8f4e53e7752d9ba771844f048e205"
+  },
+  "rulesBasis": "Official card text; manual0-2-2,3-1-4,3-1-5/3-1-5-1,5-8-4,22-13-4; analogous BT12-136/BT12-137/P-286 FAQ area mixing",
+  "sourceGuard": "New route only: own Hand occurrence and permission until material cost; occurrence retained through remaining cost/entry. Paid cost not retroactively invalidated by later Leader change. New returned occurrence not discarded.",
+  "paymentGuard": "Actual requested deck bottom after each cost movement, not just destination area; partial paid movements retained on failure.",
+  "privacy": "Opposite owner bottom orders have identical full opponent snapshots/logs/beats and policy observations; owner retains exact deck suffix. Internal move.privateOrder omitted from public beats.",
+  "counterScope": "Actual non-replacing Counter responses plus source/Leader changes at paid Counter continuation; original929 remains separate generic returned/dropped replacement control. No claim of every Union composition.",
+  "plannerOnlyEdge": "Initially empty-deck affordability uses post-material board in strict planner; no claim an already lost empty-deck game can legally continue.",
+  "keyedCorpusDelta": {
+    "supportKeys": [
+      "EX23-36/front/20",
+      "P-519/front/20"
+    ],
+    "beforeUnreadClauses": 2,
+    "afterUnreadClauses": 0,
+    "activationBodiesAndLegacyPricesPreserved": true,
+    "wholeCatalogSweep": false
+  },
+  "knownBaselineFailure": {
+    "suite": "keyword-action-costs-926.ts",
+    "assertionLine": 344,
+    "description": "Blocked raw BT31-149 keyword is absent from offered and rejected candidates; unread diagnostic is missing. Payment remains refused.",
+    "baselineEvidence": "../potara-identity-2026-10-19/baseline-926.json",
+    "originalOracleChanged": false,
+    "full926PassClaimed": false
+  },
+  "independentReview": "Researcher cleared first core, new guards, guarded writer, immutable116 proof and final reading/type-only fixes. Coordinator reviewed actual diff/receipts.",
+  "databaseWritesForThisProposal": 0,
+  "approval": "Not yet approved or applied; exact program-repair approval required after review/deployment.",
+  "fullSuiteRun": false,
+  "localProductionBuildRun": false,
+  "newGamesRun": 0
+}

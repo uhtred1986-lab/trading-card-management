@@ -582,6 +582,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
         const stood = bound.length === watch.length && watch.every((id, i) => bound[i].card === id && bound[i].zoneEpoch === epoch(id));
         const ready = stood
+          && (!frame.fusionDropBottom || sourceAt?.zone === "hand" && sourceAt.owner === frame.master && epoch(source) === frame.fusionSourceEpoch)
           && (!frame.potaraIdentity || sourceAt?.zone === "hand" && sourceAt.owner === frame.master && epoch(source) === frame.potaraSourceEpoch)
           && (!frame.absorbIdentity || opts.onto === frame.card && inBattle(frame.card) && epoch(frame.card) === frame.absorbSourceEpoch)
           && (union === "Union-Absorb" ? true : sourceAt?.zone === "hand" && sourceAt.owner === opts.player)
@@ -590,7 +591,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           // Fusion/Potara: the card that activated it, if it is still in the hand. Absorb: the chosen card, if it is still where it was chosen from.
           // A typed Potara source that left and returned is a new card (3-1-4),
           // not the old activating card placed in Drop by 22-13-5-4-2.
-          const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand" && (!frame.potaraIdentity || epoch(source) === frame.potaraSourceEpoch);
+          const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand" && (!frame.potaraIdentity || epoch(source) === frame.potaraSourceEpoch) && (!frame.fusionDropBottom || epoch(source) === frame.fusionSourceEpoch);
           const there = findCard(state, source);
           if (fails && there && there.zone !== "drop") moveTo(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
           frame.unionBound = undefined;
@@ -747,7 +748,7 @@ function moveTo(
   // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
   if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
   if (from && fromOwner) {
-    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
+    log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });
   } else if (host && hostZone) {
     log(ev, { type: "move", card: id, from: hostZone as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}) });
     log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });

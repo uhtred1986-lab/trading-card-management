@@ -1,3 +1,4 @@
+import { hasDropBottomRoute } from "./fusion-materials";
 import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineProblem } from "./skill-identity";
 /**
  * #926: the printed action price of a keyword move — what [Union-Fusion],
@@ -155,7 +156,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const ops = keywordActionPrice(cost.line);
   if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -168,6 +169,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
 export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.keywordCost!;
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
+  if (frame.fusionDropBottom && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.fusionSourceEpoch)) return fail(state, ev, cost);
   if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);
   try {
@@ -221,6 +223,13 @@ function fail(state: VmState, ev: GameEvent[], cost: KeywordCost): "done" {
 export function stepFusionMaterials(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   assertCurrentFusion(frame.keywordPrice!);
   const host = automaticPriceHost(ctx, game, state, ev);
+  if (frame.fusionDropBottom || hasDropBottomRoute(frame.ops)) {
+    if (!Number.isSafeInteger(frame.fusionSourceEpoch)) throw new NotYet("rebuild this saved Drop-to-bottom Fusion source occurrence", "#930");
+    frame.fusionDropBottom = true;
+    const source = findCard(state, frame.card);
+    if (source?.zone !== "hand" || source.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.fusionSourceEpoch
+      || !host.condHolds(frame, { kind: "permits", what: "unionFusionDropBottom" })) return fail(state, ev, frame.keywordPrice!);
+  }
   // Reject stale/forged answers before the strict host can classify a now
   // impossible set as an ordinary failed payment. Rejected actions preserve
   // the pending choice; an unanswered impossible payment still fails 5-8-4.
@@ -375,7 +384,7 @@ export function fusionPaymentRefusals(ctx: EngineContext, game: GameDefinition, 
         throw err;
       }
     };
-    const frame: ScriptFrame = { ops: keywordProgram(game, line.keyword!, line.skill), ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, keywordPrice: { key: `${line.card}:${line.skillIndex}`, line, moments: [], fusion: { stage: "resources" } } };
+    const frame: ScriptFrame = { ops: keywordProgram(game, line.keyword!, line.skill), ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, fusionSourceEpoch: state.cards[line.card]?.zoneEpoch ?? 0, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, keywordPrice: { key: `${line.card}:${line.skillIndex}`, line, moments: [], fusion: { stage: "resources" } } };
     return visit(structuredClone(state), structuredClone(from ?? frame)) ? [] : [{ kind: "other", detail: "its skill cost cannot be paid in full" }];
   } catch (err) {
     if (err instanceof NotYet) return [{ kind: "other", detail: `not yet: ${err.step} (${err.issue})` }];

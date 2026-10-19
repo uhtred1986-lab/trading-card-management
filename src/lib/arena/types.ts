@@ -491,7 +491,7 @@ export interface Permission {
    * the game with X life." The Leader in the Leader Area sets how many cards the Life
    * Area is set up with (6-2-1-10) in place of the 8 of the rule; `n` is X.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -1041,7 +1041,7 @@ export type GameEvent =
   | { type: "action"; action: Action }
   /** `skipped` is 20-13: the phase is announced and then not performed. */
   | { type: "phase"; phase: Phase; player: PlayerId; turn: number; skipped?: true }
-  | { type: "move"; card: string; from: Area; to: Area; owner: PlayerId; index?: number; reveal?: boolean }
+  | { type: "move"; card: string; from: Area; to: Area; owner: PlayerId; index?: number; reveal?: boolean; privateOrder?: true }
   | { type: "draw"; player: PlayerId; card: string }
   | { type: "mode"; card: string; mode: Mode }
   | { type: "flip"; card: string; flipped: boolean }

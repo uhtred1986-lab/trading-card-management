@@ -66,7 +66,7 @@ because the 15 October matrix still says unsupported.
 |---|---|
 | P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Current readback preserves applied row v4 exactly; the approved metadata-only application restores loader admission. Existing actual-export Fusion material/payment proofs pass; no new grant behavior is claimed. |
 | BT17-082 back#0 | **Unread/unproved support family:** substitution from under the Leader for Namekian Absorb payments; not Fusion and not identical to BT14-079's existing cost. |
-| EX23-36 front#20; P-519 front#20 | **Unsupported indexed permission:** conditioned specified Drop materials go to deck bottom. Fresh official text does not print an equal-power waiver. Existing Warp/Drop-to-Warp contracts do not establish this destination. |
+| EX23-36 front#20; P-519 front#20 | **Code implemented and proposed-record proof:** #1085 records the conditioned Drop-to-bottom permission and exact two activation dependencies;116 cases pass, including private order and strict payment/source guards. Actual support rows remain open/unread pending separate four-record repair approval/application. No equal-power waiver or whole-card qualification. [Bounded evidence](../907/fusion-drop-bottom-2026-10-19/README.md). |
 | BT28-079 back#0; BT31-042 front#0; BT31-043 front#20; EX23-11 front#10; EX23-29 front#10; EX25-11 front#10; SD19-04 front#20 | **Unverified exact indexed reductions:** standing/next-use conditions, payer, expiry and qualifying variant must be mapped to existing typed cost primitives and specific proof. The dated unread labels alone do not establish that current code is still wrong. |
 | EX13-14 front#0/#10; SD19-03 front#20 | **Unverified exact search/support clauses:** existing generic selection is not a complete per-card execution proof. Preserve exact source wording and binding in the reconciliation. |
 | P-069 back#10; P-226 front#0 | **Unverified full restriction semantics:** distinguish ordinary play, Fusion, other Union variants and printed conditions. Do not silently ignore the indexed remainder or treat a clean prefix as whole-skill support. |
@@ -163,8 +163,11 @@ cover only BT2-012/front/0 rule10297 v1→v2. Its 76 proposed cases include nati
 five-energy entry and ordinary seven-energy play; other two stored lines remain
 excluded. Original #925/#927/#929/#930 controls pass. The original #926 diagnostic
 assertion fails identically on deployed baseline; no full #926 pass is claimed.
-After deployment and exact approval, apply only that one-record proposal and
-verify the actual readback. The proposal is not applied yet. No repeat nineteen-
+That one-record Potara proposal is now separately approved/applied, and its
+actual stored record passes76 scenarios on deployed418d2065. The next #1085
+Drop-to-bottom proposal repairs exactly four activation/support records and
+passes116 provided cases; it is not yet approved/applied. After code deployment
+and exact approval, apply only that four-record scope and verify actual readback. No repeat nineteen-
 row migration, whole-card/deck qualification or broad catalog refresh follows.
 Keep #923/#929/#930 open for their remaining indexed acceptance.
 

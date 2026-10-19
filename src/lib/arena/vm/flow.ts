@@ -1,3 +1,4 @@
+import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
 import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, sameAbsorbIdentity, potaraIdentityProblem } from "./skill-identity";
@@ -1226,6 +1227,10 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+    }
+    if (frame.fusionDropBottom || hasDropBottomRoute(frame.ops)) {
+      if (!Number.isSafeInteger(frame.fusionSourceEpoch)) throw new NotYet("rebuild this saved Drop-to-bottom Fusion source occurrence", "#930");
+      frame.fusionDropBottom = true;
     }
     if (frame.evolutionIdentity || sourceScript?.price?.evolution !== undefined) {
       const gap = evolutionIdentityProblem(frame.evolutionIdentity, true); if (gap) throw new NotYet(gap, "#907");

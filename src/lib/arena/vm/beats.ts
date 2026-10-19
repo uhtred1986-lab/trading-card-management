@@ -74,6 +74,9 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         push({ t: "draw", player: e.player, card: e.card });
         break;
       case "move":
+        // 3-1-5-1: raw private replay retains the payment order; the public
+        // animation must not reveal the order chosen for a secret deck.
+        if (e.privateOrder) break;
         remember(e.card);
         push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner, ...(revealedMove(e, state.cards[e.card]?.faceUp) ? { reveal: true as const } : {}) });
         break;

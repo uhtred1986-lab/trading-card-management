@@ -478,7 +478,7 @@ export type Cond =
    * areas (`unionFusionAreas`, BT31-001): the permission's `filter` is asked of
    * the card using the line, not of the card granting it.
    */
-  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAlt" }
+  | { kind: "permits"; what: "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAlt" }
   /**
    * Do the cards among `sel` carry every one of these colours between them —
    * one card of each, or one multicolour card for two (22-29-3, 22-30-3,
@@ -579,7 +579,7 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -1117,7 +1117,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1329,7 +1329,7 @@ export interface FusionMaterials {
   samePower: boolean;
   activation: "hand";
   base: "hand";
-  extensions: ("unionFusionAreas" | "unionFusionWarp")[];
+  extensions: ("unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom")[];
 }
 
 /**
@@ -1441,6 +1441,9 @@ export interface ScriptFrame {
   /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
   /** Captured identity survives successful Fusion payment and source changes. */
   fusionIdentity?: Pick<Script, "kind" | "price">;
+  /** Declared source occurrence; required only by the Drop-to-bottom route. */
+  fusionSourceEpoch?: number;
+  fusionDropBottom?: true;
   evolutionIdentity?: Pick<Script, "kind" | "price">;
   absorbIdentity?: Pick<Script, "kind" | "price" | "ops">;
   absorbSourceEpoch?: number;

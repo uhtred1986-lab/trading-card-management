@@ -1,0 +1,19 @@
+{
+  "normalization": "HTML decoded; official keyword image alt labels bracketed; yellow_ball.png rendered {y}; surrounding card lines included for source context, not execution claims.",
+  "lines": {
+    "EX23-36": [
+      "Skill",
+      "[Double Strike]",
+      "[Union-Fusion]{y}{y}{y}, draw 1 card : Yellow \uff1cSon Goten : GT\uff1e card and yellow \uff1cTrunks : GT\uff1e card.",
+      "[Permanent] If your Leader is a yellow \uff1cGotenks : Adolescence\uff1e card and you are choosing cards to use with this card\u2019s [Union] skill from your hand, you may choose the specified Battle Cards from your Drop. If you do, place the chosen cards at the bottom of your deck in any order.",
+      "[Auto] When this card is played, choose up to 1 of your opponent\u2019s Battle Cards and KO it. Additionally, if a Rest Mode Battle Card was KO\u2019d by this skill, this card isn\u2019t affected by the skills of opponent\u2019s non-Extra cards for the turn."
+    ],
+    "P-519": [
+      "Skill",
+      "[Unique][Barrier]",
+      "[Union-Fusion][Limit 1] \uff1cSon Goten : GT\uff1e card and \uff1cTrunks : GT\uff1e card, both yellow.",
+      "[Permanent] If your Leader is a yellow \uff1cGotenks : Adolescence\uff1e and you choose cards to use with this card\u2019s [Union] skill from a hand, you may choose the specified Battle Card in your Drop. If you do, place the chosen cards at the bottom of your deck in any order.",
+      "[Permanent] If this card is in Rest Mode, only your opponent\u2019s Leader can attack Unisons."
+    ]
+  }
+}
