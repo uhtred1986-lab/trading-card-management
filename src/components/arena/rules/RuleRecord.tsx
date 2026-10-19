@@ -25,7 +25,7 @@ import { RuleBlocks } from "./Blocks";
  * grammar itself (`"THEN"`, `"{Red}"`, …), not a missing row.
  */
 function ExpectedItem({ item, clause }: { item: string; clause: string }) {
-  const href = clause === "THEN" && item in OP_SCHEMA ? `/arena/rules/language#op-${item}` : clause === "IF" && item in COND_SCHEMA ? `/arena/rules/language#cond-${item}` : null;
+  const href = clause === "THEN" && item in OP_SCHEMA ? `/arena/rules/reference#op-${item}` : clause === "IF" && item in COND_SCHEMA ? `/arena/rules/reference#cond-${item}` : null;
   if (!href) return <span className="font-mono">{item}</span>;
   return (
     <Link href={href} target="_blank" className="font-mono text-ki-300 hover:underline">
@@ -174,7 +174,7 @@ function DeclarationLinks({ define, names }: { define: string; names: string[] }
   return (
     <>
       {names.map((name) => (
-        <Link key={name} href={`/arena/rules/game#${define}-${name}`} target="_blank" className="text-[10px] text-space-500 hover:text-ki-300 hover:underline">
+        <Link key={name} href={`/arena/rules/reference#${define}-${name}`} target="_blank" className="text-[10px] text-space-500 hover:text-ki-300 hover:underline">
           {name} →
         </Link>
       ))}
