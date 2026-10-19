@@ -24,7 +24,7 @@ import { shouldMigrate } from "./vercel-build.mjs";
 import { parseSpecifiedCost, printSpecifiedCost, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { groupPreview, type DeckPreviewCard } from "../src/lib/arena/deck-preview";
-import { defaultState, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
+import { defaultHealth, legacyQueueUrl, neighbours, parseQueue, queueHref, queueLink, reasonOf } from "../src/lib/arena/queue";
 import { parseSkills, specifiedCostOf, specifiedCostUnknown } from "../src/lib/arena/text/cards";
 import { describeTrigger, triggersOf } from "../src/lib/arena/gaps";
 import { compileSkill } from "../src/lib/arena/compile";
@@ -767,25 +767,25 @@ assert.equal(specifiedCostWords({}), "no colour");
 // reads back, and the two retired URLs mean their equivalent queue.
 {
   const fresh = parseQueue({});
-  assert.deepEqual([fresh.scope.kind, fresh.state, fresh.group], ["decks", null, "none"], "the default is all decks, a state chosen from the counts, ungrouped");
+  assert.deepEqual([fresh.scope.kind, fresh.health, fresh.group], ["decks", null, null], "the default is my decks, a tab chosen from the counts, the tab's own grouping");
   assert.equal(queueHref(fresh), "/arena/rules", "and the default is the bare URL");
-  const q = parseQueue({ deck: "12", state: "draft", group: "wording", q: " krillin ", set: "BT19" });
-  assert.equal(queueHref(q), "/arena/rules?deck=12&state=draft&group=wording&q=krillin&set=BT19");
+  const q = parseQueue({ deck: "12", health: "unchecked", group: "wording", q: " krillin ", set: "BT19" });
+  assert.equal(queueHref(q), "/arena/rules?deck=12&health=unchecked&group=wording&q=krillin&set=BT19");
   assert.deepEqual(parseQueue(Object.fromEntries(new URL(`http://x${queueHref(q)}`).searchParams)), q, "a link reads back as the queue that built it");
   assert.equal(parseQueue({ game: "7", deck: "12" }).scope.kind, "game", "a game's scope wins: it is what ah-04 links to");
   const fromPlay = parseQueue({ deck: "4", seg: "open", q: "BT19-061" });
-  assert.deepEqual([fromPlay.scope, fromPlay.state, fromPlay.q], [{ kind: "deck", id: 4 }, "open", "BT19-061"], "the Play picker's link (?deck=&seg=open&q=) still lands on that deck's open card");
-  assert.equal(parseQueue({ state: "bogus", group: "bogus" }).group, "none", "an unknown state or grouping is the default, not an error");
-  assert.equal(queueLink({ ...q, page: 3, rule: 9 }, { state: "open" }), "/arena/rules?deck=12&state=open&group=wording&q=krillin&set=BT19", "changing the view drops the page and the selection");
+  assert.deepEqual([fromPlay.scope, fromPlay.health, fromPlay.q], [{ kind: "deck", id: 4 }, "text-only", "BT19-061"], "the Play picker's old link (?deck=&seg=open&q=) lands on that deck's text-only card");
+  assert.equal(parseQueue({ state: "bogus", group: "bogus" }).group, null, "an unknown tab or grouping is the default, not an error");
+  assert.equal(queueLink({ ...q, page: 3, rule: 9 }, { health: "text-only" }), "/arena/rules?deck=12&health=text-only&group=wording&q=krillin&set=BT19", "changing the view drops the page and the selection");
   assert.match(queueLink({ ...q, page: 3 }, { rule: 9 }), /page=3&rule=9$/, "selecting a rule keeps the page");
-  assert.equal(defaultState({ open: 2, draft: 9, confirmed: 0, corrected: 0 }), "open");
-  assert.equal(defaultState({ open: 0, draft: 9, confirmed: 0, corrected: 0 }), "draft", "Open when the scope has any, else Draft");
+  assert.equal(defaultHealth({ "text-only": 2, incomplete: 0, unchecked: 9, done: 0 }), "text-only");
+  assert.equal(defaultHealth({ "text-only": 0, incomplete: 3, unchecked: 9, done: 0 }), "incomplete", "Incomplete when it has cards, else the first non-empty of Text only and Incomplete");
 
   assert.equal(legacyQueueUrl("all", { set: "BT19" }), "/arena/rules?scope=catalog&set=BT19", "/all?set=BT19 is the catalog, narrowed to the set");
-  assert.equal(legacyQueueUrl("all", { seg: "draft", source: "claude", pattern: "draw", q: "x", page: "2", rule: "5" }), "/arena/rules?scope=catalog&state=draft&source=claude&pattern=draw&q=x&page=2&rule=5");
-  assert.equal(legacyQueueUrl("all", { seg: "all" }), "/arena/rules?scope=catalog", "seg=all was every state: now the default state");
-  assert.equal(legacyQueueUrl("patterns", {}), "/arena/rules?scope=catalog&state=draft&group=wording", "the drafts half");
-  assert.equal(legacyQueueUrl("patterns", { half: "open" }), "/arena/rules?scope=catalog&state=open&group=wording", "/patterns?half=open is the open state grouped by wording");
+  assert.equal(legacyQueueUrl("all", { seg: "draft", source: "claude", pattern: "draw", q: "x", page: "2", rule: "5" }), "/arena/rules?scope=catalog&health=unchecked&source=claude&pattern=draw&q=x&page=2&rule=5");
+  assert.equal(legacyQueueUrl("all", { seg: "all" }), "/arena/rules?scope=catalog", "seg=all was every state: now the default tab");
+  assert.equal(legacyQueueUrl("patterns", {}), "/arena/rules?scope=catalog&health=unchecked&group=wording", "the drafts half");
+  assert.equal(legacyQueueUrl("patterns", { half: "open" }), "/arena/rules?scope=catalog&health=text-only&group=wording", "/patterns?half=open is text only grouped by wording");
 
   const row = { status: "draft", source: "compiler", unread: [] as string[] };
   assert.equal(reasonOf(row), null, "a plain draft has nothing to flag");

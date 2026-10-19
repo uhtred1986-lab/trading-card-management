@@ -31,6 +31,8 @@ import type { Rule } from "./lang/ast";
 import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
 import { programProblem } from "./vm/script-schema";
 import { emptyOnPurpose, readsAsNothingSilently } from "./compile/silent";
+import { DEFAULT_GAME } from "@/lib/catalog/games";
+import { FLAG_PREFIX } from "./rule-review";
 
 import { comboScriptProblem, type ComboQualification } from "./vm/combo-qualification";
 import { compileComboQualification } from "./text/triggers";
@@ -1168,4 +1170,196 @@ export async function probedRules(db: Db): Promise<WorklistRow[]> {
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(isNotNull(cardRules.probe));
   return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+}
+
+// ── the Rules queue: cards, not rows ────────────────────────────────────────
+
+/** Why an Incomplete card is incomplete, as a family the queue groups by (queue.ts `FAMILIES`). */
+export type ReasonFamily = "wrong" | "combo" | "diff" | "fusion" | "review" | "other";
+const FAMILY_ORDER: ReasonFamily[] = ["wrong", "combo", "diff", "fusion", "review", "other"];
+
+/** One skill of a card in the queue: a dot. */
+export interface QueueSkill {
+  health: RuleHealth;
+  /** The `card_rules` row; null where the card prints a skill that has no current row. */
+  ruleId: number | null;
+  family: ReasonFamily | null;
+}
+
+/** A card as the queue lists it: the card, its dots, and the reason of its worst skill. */
+export interface QueueCard {
+  cardId: string;
+  name: string;
+  setCode: string;
+  cardType: string;
+  colors: string[];
+  imageUrl: string | null;
+  health: RuleHealth;
+  /** One per printed skill, front then back. */
+  skills: QueueSkill[];
+  /** The worst skill's reasons in plain words, then its hints; empty when there is nothing to say. */
+  reasons: string[];
+  family: ReasonFamily | null;
+  /** The worst skill's row: where *Open ›* lands. */
+  ruleId: number | null;
+  source: RuleSource | null;
+  wording: string | null;
+  mechanism: string | null;
+  /** Printed skills with no current row (the engine plays them as blank). */
+  missing: number;
+  /** Rows whose payment record predates #1066: `compiler` the compiler can rebuild, `protectedRows` a person approved, `other` a Claude or person draft. */
+  rebuild: { rows: number; compiler: number; protectedRows: number; other: number };
+}
+
+function familyOfRow(row: HealthRow, report: RuleHealthReport): ReasonFamily | null {
+  if (report.health !== "incomplete") return null;
+  const flag = row.reviewFlag ?? "";
+  if (flag.startsWith(FLAG_PREFIX)) return "wrong";
+  const gaps = report.reasons.join(" | ").toLowerCase();
+  if (/combo/.test(gaps)) return "combo";
+  if (row.compilerDiff) return "diff";
+  if (/fusion/.test(gaps)) return "fusion";
+  if (flag) return "review";
+  return "other";
+}
+
+/** The key *Same wording* groups a row under: its compiler pattern, else the shape of its first unread clause. */
+const wordingKey = (r: { pattern?: string | null; unread?: string[] | null }): string | null => r.pattern || (r.unread?.[0] ? clauseShape(r.unread[0]) : null);
+
+/** A card from its catalog row and its `card_rules` rows (the light columns, plus `id`, `side` and `pattern`). Null for a card that prints nothing to check. */
+export function classifyQueueCard(
+  card: { id: string; name: string; setCode: string; cardType: string; colors: string[]; imageUrl: string | null; skill: string | null; backSkill: string | null },
+  rows: (HealthRow & { id: number; side: string; pattern?: string | null })[],
+): QueueCard | null {
+  const matched = currentRowsOf(card, rows);
+  if (matched.length === 0) return null;
+  const rank = (h: RuleHealth) => RULE_HEALTHS.indexOf(h);
+  const skills: QueueSkill[] = [];
+  const rebuild = { rows: 0, compiler: 0, protectedRows: 0, other: 0 };
+  let worst: { row: (typeof rows)[number]; report: RuleHealthReport } | null = null;
+  let missing = 0;
+  for (const { row } of matched) {
+    if (!row) { missing++; skills.push({ health: "text-only", ruleId: null, family: null }); continue; }
+    const report = ruleHealth(row);
+    skills.push({ health: report.health, ruleId: row.id, family: familyOfRow(row, report) });
+    if (report.needsRebuild) {
+      rebuild.rows++;
+      if (row.source === "compiler" && (row.status === "open" || row.status === "draft")) rebuild.compiler++;
+      else if (row.status === "confirmed" || row.status === "corrected") rebuild.protectedRows++;
+      else rebuild.other++;
+    }
+    if (!worst || rank(report.health) < rank(worst.report.health)) worst = { row, report };
+  }
+  const health = cardHealth(skills.map((s) => s.health));
+  // A card's incomplete skills may have different reasons; the one that comes first in the queue's order names the card.
+  const family = health === "incomplete" ? (FAMILY_ORDER.find((f) => skills.some((s) => s.health === "incomplete" && s.family === f)) ?? "other") : null;
+  const w = worst?.row ?? null;
+  const reasons = worst ? [...worst.report.reasons.filter(Boolean), ...worst.report.hints] : ["No rule record for this skill yet."];
+  return {
+    cardId: card.id, name: card.name, setCode: card.setCode, cardType: card.cardType, colors: card.colors, imageUrl: card.imageUrl,
+    health, skills,
+    reasons: health === "done" && !worst?.report.hints.length ? [] : reasons,
+    family,
+    ruleId: w?.id ?? null,
+    source: (w?.source as RuleSource | undefined) ?? null,
+    wording: w && health !== "done" ? wordingKey(w) : null,
+    mechanism: w && w.status === "open" ? mechanismOf(w.unread?.[0] ?? "") : null,
+    missing, rebuild,
+  };
+}
+
+export interface CardQueueFilter {
+  /** Only these cards. Absent is the whole catalog; empty matches nothing. */
+  cardIds?: string[];
+  setCode?: string;
+  /** Card name, id or printed text. */
+  q?: string;
+}
+
+/**
+ * Every card the filter reaches, classified by `ruleHealth` in JS from the light columns. The
+ * catalog scope loads all ~13,500 rule rows once per request, as `healthCounts(db)` does; the page
+ * narrows and pages *after* classifying.
+ */
+export async function loadQueueCards(db: Db, f: CardQueueFilter = {}): Promise<QueueCard[]> {
+  if (f.cardIds && !f.cardIds.length) return [];
+  const q = f.q?.trim();
+  const like = q ? `%${q}%` : null;
+  const where = and(
+    REVIEWABLE_CARD,
+    eq(cards.game, DEFAULT_GAME),
+    f.cardIds ? inArray(cards.id, [...new Set(f.cardIds)]) : undefined,
+    f.setCode ? eq(cards.setCode, f.setCode) : undefined,
+    like ? or(ilike(cards.name, like), ilike(cards.id, like), ilike(cards.skill, like), ilike(cards.backSkill, like)) : undefined,
+  );
+  const [cardRows, ruleRows] = await Promise.all([
+    db
+      .select({ id: cards.id, name: cards.name, setCode: cards.setCode, cardType: cards.cardType, colors: cards.colors, imageUrl: cards.imageUrl, skill: cards.skill, backSkill: cards.backSkill })
+      .from(cards)
+      .where(where),
+    db
+      .select({
+        id: cardRules.id, cardId: cardRules.cardId, side: cardRules.side, pattern: cardRules.pattern,
+        kind: cardRules.kind, unread: cardRules.unread, ops: cardRules.ops, cost: cardRules.cost, trigger: cardRules.trigger, printed: cardRules.printed,
+        status: cardRules.status, skillIndex: cardRules.skillIndex, source: cardRules.source, cond: cardRules.cond, combo: cardRules.combo,
+        usage: cardRules.usage, validity: cardRules.validity, reviewFlag: cardRules.reviewFlag, compilerDiff: cardRules.compilerDiff,
+      })
+      .from(cardRules)
+      .innerJoin(cards, eq(cards.id, cardRules.cardId))
+      .where(where),
+  ]);
+  const byCard = new Map<string, typeof ruleRows>();
+  for (const r of ruleRows) (byCard.get(r.cardId) ?? byCard.set(r.cardId, []).get(r.cardId)!).push(r);
+  const out: QueueCard[] = [];
+  for (const c of cardRows) {
+    const qc = classifyQueueCard(c, byCard.get(c.id) ?? []);
+    if (qc) out.push(qc);
+  }
+  return out;
+}
+
+export interface CardQueueView extends CardQueueFilter {
+  health?: RuleHealth | null;
+  family?: ReasonFamily | "";
+  source?: RuleSource | "";
+  pattern?: string;
+  mech?: string;
+  /** How many decks run a card (or how early a game fired it): more first. */
+  weight?: (cardId: string) => number;
+}
+export interface CardQueuePage {
+  /** The page. */
+  cards: QueueCard[];
+  /** How many the view matches. */
+  total: number;
+  /** Every card in the scope (find and set applied), by health: the tabs' numbers. */
+  counts: Record<RuleHealth, number>;
+  /** Every card the view matches, in queue order: what Next and Previous walk. */
+  matched: QueueCard[];
+  /** The scope's cards, before the health and family narrowing: for the summary strip and the rebuild banner. */
+  scope: QueueCard[];
+}
+
+/** The pure half of `cardQueuePage`: what a view keeps of classified cards, in queue order. */
+export function viewOfQueue(cs: readonly QueueCard[], v: CardQueueView): QueueCard[] {
+  const weight = v.weight ?? (() => 0);
+  return cs
+    .filter(
+      (c) =>
+        (!v.health || c.health === v.health) &&
+        (!v.family || c.family === v.family) &&
+        (!v.source || c.source === v.source) &&
+        (!v.pattern || c.wording === v.pattern) &&
+        (!v.mech || c.mechanism === v.mech),
+    )
+    .sort((a, b) => weight(b.cardId) - weight(a.cardId) || a.name.localeCompare(b.name) || a.cardId.localeCompare(b.cardId));
+}
+
+/** One page of the queue by card: load, classify, then narrow, order and page. */
+export async function cardQueuePage(db: Db, view: CardQueueView, page: { limit: number; offset: number }): Promise<CardQueuePage> {
+  const scope = await loadQueueCards(db, view);
+  const counts: Record<RuleHealth, number> = { "text-only": 0, incomplete: 0, unchecked: 0, done: 0 };
+  for (const c of scope) counts[c.health]++;
+  const matched = viewOfQueue(scope, view);
+  return { cards: matched.slice(page.offset, page.offset + page.limit), total: matched.length, counts, matched, scope };
 }
