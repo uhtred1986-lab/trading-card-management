@@ -18,6 +18,7 @@ import type { GameDefinition } from "../rulesets/types";
 import { applyMove, legalMoves, projectSnapshot, type PinnedMatch } from "../browser";
 import { rulesetFor } from "../rulesets";
 import { IllegalAction } from "../vm/common";
+import { battlePowerChoices, defensiveSummary } from "../vm/decision-summary";
 import { owedInFull } from "../vm/script";
 import { hiddenAliases, secretAreasOf } from "../conceal";
 import { isTokenCard } from "../vm/zones";
@@ -118,13 +119,19 @@ export function policyTurn(match: PinnedMatch, seat: PlayerId, revision: number)
   const actor = "player" in prompt ? prompt.player : null;
   const over = match.state.phase === "over";
   const choice = prompt.kind === "chooseCards" && actor === seat && !over ? cardQuestion(match) : null;
+  const powerChoice = over || actor !== seat ? {} : battlePowerChoices(match.ctx, game, match.state, seat);
+  if (choice && powerChoice.target) choice.battlePowerTarget = powerChoice.target;
   const { decisions, key } = buildDecisions({
     seat,
     revision,
     observation,
     window: over ? "gameOver" : prompt.kind,
     actor: over ? null : actor,
-    legal: over || actor !== seat ? [] : legalMoves(match),
+    legal: over || actor !== seat ? [] : legalMoves(match).map(legal => ({
+      ...legal,
+      ...defensiveSummary(match.ctx, game, match.state, legal, seat),
+      ...(legal.action.type === "chooseMode" && powerChoice.target && powerChoice.modes?.includes(legal.action.index) ? { battlePowerTarget: powerChoice.target } : {}),
+    })),
     choice,
     aliases,
   });
