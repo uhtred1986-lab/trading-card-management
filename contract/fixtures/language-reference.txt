@@ -2352,7 +2352,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"source\"?:FILTER,\"n\"?:N}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"source\"?:FILTER,\"n\"?:N}",
       "fields": [
         {
           "name": "what",
@@ -2402,6 +2402,22 @@
           "required": false,
           "nullable": false,
           "type": "string"
+        },
+        {
+          "name": "unionVariant",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "Fusion",
+            "Potara"
+          ]
+        },
+        {
+          "name": "price",
+          "required": false,
+          "nullable": false,
+          "type": "price"
         },
         {
           "name": "source",
@@ -4262,6 +4278,14 @@
     "specifiedCost"
   ],
   "costItems": [
+    {
+      "syntax": "FUSION",
+      "doc": "the versioned Fusion material contract as a quoted JSON object"
+    },
+    {
+      "syntax": "UNREAD",
+      "doc": "this price is not executable until its complete payment is recorded"
+    },
     {
       "syntax": "{Red}",
       "doc": "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})"

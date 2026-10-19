@@ -1,0 +1,134 @@
+{
+  "hashMethod": "SHA-256 over canonicalJson, same as arena-corpus-provenance",
+  "engineRevision": "4b0ce6cb48c695d8240a3fed24b900f965fc26bb",
+  "frozenInputHashes": {
+    "catalog": "55693eea0d06e0a54abeece46ed79519346945247c6caabea1ac4a40e28c015e",
+    "physicalExport": "bad88e2aa52d282d6689e58e5b1f20f182248fdd8b2f0f712f67522fc73fcc8b",
+    "actualExport": null
+  },
+  "records": [
+    {
+      "key": "BT6-006/front/10",
+      "sourceHash": "1862982dfc1ce54bbc40aab1fe467b04c6b614154cded0884c59ed4edb479480",
+      "oldRowId": 7053,
+      "oldRowVersion": 5,
+      "oldRowSource": "compiler",
+      "oldReview": {
+        "confirmed": false,
+        "flagged": null,
+        "status": "draft"
+      },
+      "oldLoadedProgramHash": "82b9d13015ac04ea07bfa95aa8c5697c0b0b8961515a4b51863b54c4597e9b81",
+      "oldExecutable": false,
+      "oldBlockers": [
+        "missing or malformed typed combo qualification; regenerate rules and rebuild the match (#907)",
+        "missing or unsupported typed skill payment v1; regenerate rules and rebuild saved matches/exports"
+      ],
+      "rebuiltLoadedProgramHash": "aa642ee26c0a54cdb402afe17a76aae05d9844bee6cb054563a3180565c74b59",
+      "rebuiltQualification": {
+        "version": 1,
+        "timing": "entry",
+        "subject": "self",
+        "origins": null,
+        "turn": "any"
+      },
+      "sourceChanged": false,
+      "applied": false,
+      "newDatabaseVersion": null,
+      "classification": "newly verified typed contract; existing gameplay preserved"
+    },
+    {
+      "key": "BT6-010/front/0",
+      "sourceHash": "a792bcdd543f86982cf44ff7afcd7027f5594162951b9de96d7f0b0a13f3b93f",
+      "oldRowId": 2994,
+      "oldRowVersion": 5,
+      "oldRowSource": "compiler",
+      "oldReview": {
+        "confirmed": false,
+        "flagged": null,
+        "status": "draft"
+      },
+      "oldLoadedProgramHash": "d15de5ee2cf7dd4e25fb132379615ba9e2051407da3c89402e64216beafc8607",
+      "oldExecutable": false,
+      "oldBlockers": [
+        "missing or malformed typed combo qualification; regenerate rules and rebuild the match (#907)",
+        "missing or unsupported typed skill payment v1; regenerate rules and rebuild saved matches/exports"
+      ],
+      "rebuiltLoadedProgramHash": "8ed653eafb02a94a0b5bcf2027a75340e05d79458cfbb6272b46c8fd1ea070e9",
+      "rebuiltQualification": {
+        "version": 1,
+        "timing": "battleEnd",
+        "subject": "self",
+        "origins": [
+          "hand"
+        ],
+        "turn": "opponent"
+      },
+      "sourceChanged": false,
+      "applied": false,
+      "newDatabaseVersion": null,
+      "classification": "newly verified typed contract; existing gameplay preserved"
+    },
+    {
+      "key": "BT6-066/front/0",
+      "sourceHash": "deb1b8e3c090bce03d98207bdb7b210127c23e06dbe7c42c41656651eecfa6ac",
+      "oldRowId": 11581,
+      "oldRowVersion": 6,
+      "oldRowSource": "compiler",
+      "oldReview": {
+        "confirmed": false,
+        "flagged": null,
+        "status": "draft"
+      },
+      "oldLoadedProgramHash": "c1cb79c3e23d5b8d6c7471af95827e4b2e8409ad9b3ae0118d2086dc197c3ec3",
+      "oldExecutable": false,
+      "oldBlockers": [
+        "missing or malformed typed combo qualification; regenerate rules and rebuild the match (#907)",
+        "missing or unsupported typed skill payment v1; regenerate rules and rebuild saved matches/exports"
+      ],
+      "rebuiltLoadedProgramHash": "aae44913ac940074b9af428a49c435c5bd99ea333bf19f2d146aaf9bd53c13e6",
+      "rebuiltQualification": {
+        "version": 1,
+        "timing": "entry",
+        "subject": "self",
+        "origins": null,
+        "turn": "any"
+      },
+      "sourceChanged": false,
+      "applied": false,
+      "newDatabaseVersion": null,
+      "classification": "newly verified typed contract; exposed old decline-shuffle misread repaired"
+    },
+    {
+      "key": "BT6-070/front/0",
+      "sourceHash": "4e52276f5a4f56ceb8873289a48e205f9f21062ebbb07a8cb99e4622964b57ee",
+      "oldRowId": 6899,
+      "oldRowVersion": 6,
+      "oldRowSource": "compiler",
+      "oldReview": {
+        "confirmed": false,
+        "flagged": null,
+        "status": "draft"
+      },
+      "oldLoadedProgramHash": "71d806d6a84e5d71ca05592206bf170b6b048ed883eefaafd67d132607919027",
+      "oldExecutable": false,
+      "oldBlockers": [
+        "missing or malformed typed combo qualification; regenerate rules and rebuild the match (#907)",
+        "missing or unsupported typed skill payment v1; regenerate rules and rebuild saved matches/exports"
+      ],
+      "rebuiltLoadedProgramHash": "ecac65e651e2c3126648487c4ed6dd8ae9493069f5fbb5486bee9577624f1727",
+      "rebuiltQualification": {
+        "version": 1,
+        "timing": "entry",
+        "subject": "self",
+        "origins": null,
+        "turn": "controller"
+      },
+      "sourceChanged": false,
+      "applied": false,
+      "newDatabaseVersion": null,
+      "classification": "newly verified typed contract; existing gameplay preserved"
+    }
+  ],
+  "note": "Old loaded hashes identify explicitly refused frozen rows under the new loader. Rebuilt hashes are actual reloaded offline records, asserted equal to the fresh typed compiler programs. No live application or new database version is claimed."
+}

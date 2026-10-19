@@ -30,23 +30,23 @@ assert.ok(programProvenance(defs, "stored", [rows[0], ...rows]).manifest[0].bloc
 // A stale export is still physical evidence, but cannot become an executable
 // self-combo Auto by deriving its qualification from the printed wording.
 const comboDef = card("PROVENANCE-COMBO", { skill: "[Auto] When this card is used in a combo during your turn, draw 1 card." });
-const comboRows = skillRecords(comboDef).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as ExportedRule[];
-const comboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", comboRows);
+const qualifiedRows = skillRecords(comboDef).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as ExportedRule[];
+const comboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", qualifiedRows);
 assert.equal(comboReport.manifest[0].executable, true);
 assert.ok(!comboReport.manifest[0].blockers.some((s) => s.includes("derived from printed text")));
 assert.equal(comboReport.scripts[comboDef.id].bySkill[0].combo?.turn, "controller");
-const changedCombo = structuredClone(comboRows);
+const changedCombo = structuredClone(qualifiedRows);
 (changedCombo[0].combo as Record<string, unknown>).turn = "opponent";
 const changedComboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", changedCombo);
 assert.equal(changedComboReport.manifest[0].executable, true);
 assert.equal(changedComboReport.manifest[0].differsFromCompiler, true);
 assert.equal(changedComboReport.scripts[comboDef.id].bySkill[0].combo?.turn, "opponent");
-const obsoleteCombo = structuredClone(comboRows);
+const obsoleteCombo = structuredClone(qualifiedRows);
 delete obsoleteCombo[0].combo;
 const obsoleteComboReport = programProvenance({ [comboDef.id]: comboDef }, "stored", obsoleteCombo);
 assert.equal(obsoleteComboReport.manifest[0].executable, false);
 assert.ok([...obsoleteComboReport.malformed, ...obsoleteComboReport.manifest[0].blockers].some((s) => /combo.*regenerate/.test(s)));
-assert.ok(normalizeRows([{ ...comboRows[0], combo: { version: 1, timing: "entry", subject: "self", origins: [], turn: "any" } }]).malformed.length);
+assert.ok(normalizeRows([{ ...qualifiedRows[0], combo: { version: 1, timing: "entry", subject: "self", origins: [], turn: "any" } }]).malformed.length);
 assert.ok(normalizeRows([{ ...rows[0], card_id: "CONFLICT" }]).malformed.length);
 assert.ok(normalizeRows([{ ...rows[0], ops: [null] }]).malformed.length, "nested malformed executable rejected explicitly");
 const partial = { ...rows[0] }; delete partial.cost;
@@ -99,7 +99,9 @@ assert.equal(nativeReport.manifest[0].executable, false, "row-free keyword must 
 assert.equal(nativeReport.manifest[1].executable, true, "ordinary native keyword contract remains identified by pinned ruleset");
 const combo = card("PROVENANCE-TRIGGER", { skill: "[Auto] When this card is used in a combo from your hand, draw 1 card." });
 const comboRows = skillRecords(combo).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 }));
-assert.ok(programProvenance({ [combo.id]: combo }, "stored", comboRows).manifest[0].blockers.some((s) => s.includes("trigger.combo")), "runtime English qualifier boundary is explicit");
+const handCombo = programProvenance({ [combo.id]: combo }, "stored", comboRows);
+assert.equal(handCombo.manifest[0].executable, true, "the former runtime-English blocker is replaced by an executable typed origin contract");
+assert.deepEqual(handCombo.scripts[combo.id].bySkill[0].combo?.origins, ["hand"]);
 
 // Frozen runner reports exact stored bytes/programs and never admits zero or move-limited games.
 const template = loadSnapshot().cards[0];

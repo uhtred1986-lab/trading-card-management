@@ -1,0 +1,1461 @@
+{
+  "baseline": "docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/starter-compiler-pack.json",
+  "baselineSHA256": "32957c9c9eafac4a3d6743de7286ba2cef8510ed390ed3490c4c6fa06513928e",
+  "actualSHA256": "9deb920fcc4362f7c7ae8b589c844834d6783dc1042fb8aea1d4e775fbb65ed1",
+  "equal": [
+    "all 16 complete game records and trace hashes",
+    "catalog/source/defs",
+    "decks/admission",
+    "seeds/move limits/protocol",
+    "policy/ruleset/errata",
+    "summary/measures",
+    "all other executable fields and 69 unchanged skill programs"
+  ],
+  "programMigrations": {
+    "BT14-010/front/10": {
+      "before": {
+        "ops": [
+          {
+            "cond": {
+              "conds": [
+                {
+                  "filter": {
+                    "characterOrTrait": false,
+                    "characters": [],
+                    "charactersAll": [],
+                    "charactersIncluding": [],
+                    "colors": [
+                      "Red"
+                    ],
+                    "comboPowerMax": null,
+                    "comboPowerMin": null,
+                    "costAboveEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costMax": null,
+                    "costMin": null,
+                    "energyOfOpponent": false,
+                    "faceUp": false,
+                    "keywords": [],
+                    "markersMax": null,
+                    "markersMin": null,
+                    "monoColor": false,
+                    "multiColor": false,
+                    "nameInSkillTextOf": null,
+                    "names": [],
+                    "namesAll": [],
+                    "namesIncluding": [],
+                    "noKeywords": false,
+                    "notCharacters": [],
+                    "notCharactersIncluding": [],
+                    "notColors": [],
+                    "notKeywords": [],
+                    "notNames": [],
+                    "notNamesIncluding": [],
+                    "notToken": false,
+                    "notTraits": [],
+                    "notType": null,
+                    "onlyCharacters": false,
+                    "originalPowerMax": null,
+                    "originalPowerMin": null,
+                    "originallySkillLess": false,
+                    "powerMax": null,
+                    "powerMin": null,
+                    "powerRel": null,
+                    "skillKind": null,
+                    "skillLess": false,
+                    "specifiedCostMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostNone": false,
+                    "token": false,
+                    "traits": [],
+                    "type": null,
+                    "unreadable": false,
+                    "z": null
+                  },
+                  "kind": "leaderMatches"
+                },
+                {
+                  "atMost": 4,
+                  "kind": "life",
+                  "side": "you"
+                }
+              ],
+              "kind": "all"
+            },
+            "op": "if",
+            "then": [
+              {
+                "n": 1,
+                "op": "draw"
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": {
+            "conds": [
+              {
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Red"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": null,
+                  "unreadable": false,
+                  "z": null
+                },
+                "kind": "leaderMatches"
+              },
+              {
+                "atMost": 4,
+                "kind": "life",
+                "side": "you"
+              }
+            ],
+            "kind": "all"
+          },
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "cond": {
+              "conds": [
+                {
+                  "filter": {
+                    "characterOrTrait": false,
+                    "characters": [],
+                    "charactersAll": [],
+                    "charactersIncluding": [],
+                    "colors": [
+                      "Red"
+                    ],
+                    "comboPowerMax": null,
+                    "comboPowerMin": null,
+                    "costAboveEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costMax": null,
+                    "costMin": null,
+                    "energyOfOpponent": false,
+                    "faceUp": false,
+                    "keywords": [],
+                    "markersMax": null,
+                    "markersMin": null,
+                    "monoColor": false,
+                    "multiColor": false,
+                    "nameInSkillTextOf": null,
+                    "names": [],
+                    "namesAll": [],
+                    "namesIncluding": [],
+                    "noKeywords": false,
+                    "notCharacters": [],
+                    "notCharactersIncluding": [],
+                    "notColors": [],
+                    "notKeywords": [],
+                    "notNames": [],
+                    "notNamesIncluding": [],
+                    "notToken": false,
+                    "notTraits": [],
+                    "notType": null,
+                    "onlyCharacters": false,
+                    "originalPowerMax": null,
+                    "originalPowerMin": null,
+                    "originallySkillLess": false,
+                    "powerMax": null,
+                    "powerMin": null,
+                    "powerRel": null,
+                    "skillKind": null,
+                    "skillLess": false,
+                    "specifiedCostMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostNone": false,
+                    "token": false,
+                    "traits": [],
+                    "type": null,
+                    "unreadable": false,
+                    "z": null
+                  },
+                  "kind": "leaderMatches"
+                },
+                {
+                  "atMost": 4,
+                  "kind": "life",
+                  "side": "you"
+                }
+              ],
+              "kind": "all"
+            },
+            "op": "if",
+            "then": [
+              {
+                "n": 1,
+                "op": "draw"
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": {
+            "conds": [
+              {
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Red"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": null,
+                  "unreadable": false,
+                  "z": null
+                },
+                "kind": "leaderMatches"
+              },
+              {
+                "atMost": 4,
+                "kind": "life",
+                "side": "you"
+              }
+            ],
+            "kind": "all"
+          },
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "entry",
+          "subject": "self",
+          "origins": null,
+          "turn": "any"
+        },
+        "trigger": [
+          "comboUsed"
+        ]
+      }
+    },
+    "BT4-085/front/10": {
+      "before": {
+        "ops": [
+          {
+            "cond": {
+              "kind": "inBattle",
+              "role": "guard",
+              "sel": {
+                "area": "battle",
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Yellow"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "BATTLE",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you"
+              }
+            },
+            "op": "if",
+            "then": [
+              {
+                "amount": 10000,
+                "op": "comboPower",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "until": "turn"
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "cond": {
+              "kind": "inBattle",
+              "role": "guard",
+              "sel": {
+                "area": "battle",
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Yellow"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "BATTLE",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you"
+              }
+            },
+            "op": "if",
+            "then": [
+              {
+                "amount": 10000,
+                "op": "comboPower",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "until": "turn"
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "entry",
+          "subject": "self",
+          "origins": null,
+          "turn": "any"
+        },
+        "trigger": [
+          "comboUsed"
+        ]
+      }
+    },
+    "BT4-086/front/20": {
+      "before": {
+        "ops": [
+          {
+            "cond": {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Yellow"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [
+                  "goku's lineage"
+                ],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            "op": "if",
+            "then": [
+              {
+                "cond": {
+                  "atMost": 4,
+                  "kind": "life",
+                  "side": "you"
+                },
+                "op": "if",
+                "then": [
+                  {
+                    "n": 1,
+                    "op": "draw"
+                  },
+                  {
+                    "amount": 10000,
+                    "op": "comboPower",
+                    "target": {
+                      "sel": {
+                        "special": "self"
+                      }
+                    },
+                    "until": "turn"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "cond": {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Yellow"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [
+                  "goku's lineage"
+                ],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            "op": "if",
+            "then": [
+              {
+                "cond": {
+                  "atMost": 4,
+                  "kind": "life",
+                  "side": "you"
+                },
+                "op": "if",
+                "then": [
+                  {
+                    "n": 1,
+                    "op": "draw"
+                  },
+                  {
+                    "amount": 10000,
+                    "op": "comboPower",
+                    "target": {
+                      "sel": {
+                        "special": "self"
+                      }
+                    },
+                    "until": "turn"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "entry",
+          "subject": "self",
+          "origins": null,
+          "turn": "any"
+        },
+        "trigger": [
+          "comboUsed"
+        ]
+      }
+    },
+    "BT6-010/front/0": {
+      "before": {
+        "ops": [
+          {
+            "cond": {
+              "cond": {
+                "kind": "isTurnPlayer"
+              },
+              "kind": "not"
+            },
+            "op": "if",
+            "then": [
+              {
+                "cond": {
+                  "filter": {
+                    "characterOrTrait": false,
+                    "characters": [],
+                    "charactersAll": [],
+                    "charactersIncluding": [],
+                    "colors": [
+                      "Red"
+                    ],
+                    "comboPowerMax": null,
+                    "comboPowerMin": null,
+                    "costAboveEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costMax": null,
+                    "costMin": null,
+                    "energyOfOpponent": false,
+                    "faceUp": false,
+                    "keywords": [],
+                    "markersMax": null,
+                    "markersMin": null,
+                    "monoColor": false,
+                    "multiColor": false,
+                    "nameInSkillTextOf": null,
+                    "names": [],
+                    "namesAll": [],
+                    "namesIncluding": [],
+                    "noKeywords": false,
+                    "notCharacters": [],
+                    "notCharactersIncluding": [],
+                    "notColors": [],
+                    "notKeywords": [],
+                    "notNames": [],
+                    "notNamesIncluding": [],
+                    "notToken": false,
+                    "notTraits": [],
+                    "notType": null,
+                    "onlyCharacters": false,
+                    "originalPowerMax": null,
+                    "originalPowerMin": null,
+                    "originallySkillLess": false,
+                    "powerMax": null,
+                    "powerMin": null,
+                    "powerRel": null,
+                    "skillKind": null,
+                    "skillLess": false,
+                    "specifiedCostMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostNone": false,
+                    "token": false,
+                    "traits": [],
+                    "type": null,
+                    "unreadable": false,
+                    "z": null
+                  },
+                  "kind": "leaderMatches"
+                },
+                "op": "if",
+                "then": [
+                  {
+                    "as": "p0",
+                    "op": "choose",
+                    "reason": "play this card in Rest Mode",
+                    "sel": {
+                      "special": "self"
+                    }
+                  },
+                  {
+                    "mode": "rest",
+                    "op": "play",
+                    "target": {
+                      "var": "p0"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "cond": {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Red"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            "op": "if",
+            "then": [
+              {
+                "as": "p0",
+                "op": "choose",
+                "reason": "play this card in Rest Mode",
+                "sel": {
+                  "special": "self"
+                }
+              },
+              {
+                "mode": "rest",
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                }
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": [
+            "hand"
+          ],
+          "turn": "opponent"
+        },
+        "trigger": [
+          "comboed"
+        ]
+      }
+    },
+    "BT9-031/front/0": {
+      "before": {
+        "ops": [
+          {
+            "amount": 6000,
+            "op": "comboPower",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "turn"
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "reason": "Choose 1 Extra Card in your hand",
+              "sel": {
+                "area": "hand",
+                "count": 1,
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "EXTRA",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you",
+                "upTo": false
+              }
+            },
+            {
+              "op": "moveTo",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop"
+            }
+          ],
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "amount": 6000,
+            "op": "comboPower",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "turn"
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "reason": "Choose 1 Extra Card in your hand",
+              "sel": {
+                "area": "hand",
+                "count": 1,
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "EXTRA",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you",
+                "upTo": false
+              }
+            },
+            {
+              "op": "moveTo",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop"
+            }
+          ],
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "entry",
+          "subject": "self",
+          "origins": null,
+          "turn": "any"
+        },
+        "trigger": [
+          "comboUsed"
+        ]
+      }
+    },
+    "TB1-055/front/0": {
+      "before": {
+        "ops": [
+          {
+            "cond": {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [
+                  "universe 7"
+                ],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            "op": "if",
+            "then": [
+              {
+                "as": "p0",
+                "op": "choose",
+                "reason": "play this card in Rest Mode",
+                "sel": {
+                  "special": "self"
+                }
+              },
+              {
+                "mode": "rest",
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                }
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": []
+      },
+      "after": {
+        "ops": [
+          {
+            "cond": {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [
+                  "universe 7"
+                ],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            "op": "if",
+            "then": [
+              {
+                "as": "p0",
+                "op": "choose",
+                "reason": "play this card in Rest Mode",
+                "sel": {
+                  "special": "self"
+                }
+              },
+              {
+                "mode": "rest",
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                }
+              }
+            ]
+          }
+        ],
+        "price": {
+          "condition": null,
+          "ops": null,
+          "payment": {
+            "burst": null,
+            "either": [],
+            "marker": null,
+            "orbs": {},
+            "readable": true,
+            "spiritBoost": null,
+            "version": 1
+          }
+        },
+        "unsupported": [],
+        "combo": {
+          "version": 1,
+          "timing": "battleEnd",
+          "subject": "self",
+          "origins": [
+            "hand"
+          ],
+          "turn": "any"
+        },
+        "trigger": [
+          "comboed"
+        ]
+      }
+    }
+  },
+  "versionChanges": {
+    "engine": {
+      "before": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24",
+      "after": "4b0ce6cb48c695d8240a3fed24b900f965fc26bb"
+    },
+    "engineSourceHash": {
+      "before": "8437143dd47606de193432e9254e6716218ec43535719fefb4c52d6c20ed1a50",
+      "after": "1b2802c5beb03c14b4098ac5fb558457c9e8a217253412a06db141d52bbb13e1"
+    },
+    "loader": {
+      "before": "74b40854cb5fb56e151fbebc12ef6301284cdcc741e4e934ff73628e736e6170",
+      "after": "4ae647c8f6501d353a95a9683b1389382bcfa8623fd06fee6d5faecc2573a796"
+    },
+    "runner": {
+      "before": "cbe22727d8981fcf7a208805c6b1c74be5f479999bcab47d26cc72c6f6d7c3d3",
+      "after": "1aae815e1e0112500d68243393a3441ba3c2534d0396fdb6e6d4675d8c11235f"
+    },
+    "sourceHead": {
+      "before": "c3ba274d06f72174a3533c4b02ecb8bfa6cd1d24",
+      "after": "4b0ce6cb48c695d8240a3fed24b900f965fc26bb"
+    }
+  },
+  "outcomes": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "gameplayExpectationChanges": [],
+  "note": "Six self-combo Autos gain typed metadata through shared compilation. BT6-010 turn qualification moves from a redundant effect guard into event qualification. Compiler controls do not certify production stored records or per-skill exercise."
+}
