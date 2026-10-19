@@ -65,6 +65,14 @@
       "bytes": 9459,
       "sha256": "059cfbc43f0cbe90cf6eefb8585382dbb3a8609d66f5e4dda39a81903cef91ce",
       "retrievedAt": "2026-10-19T12:27:28.537491+00:00"
+    },
+    {
+      "key": "BT6-063",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-063",
+      "status": 200,
+      "bytes": 134207,
+      "sha256": "5eafbdd4c7bee6d1ac133da8a031c7d81aa9acfe7567fde0c78b90d16e0f19b6",
+      "retrievedAt": "2026-10-19T12:30:03.080690+00:00"
     }
   ]
 }
