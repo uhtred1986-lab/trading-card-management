@@ -14,8 +14,8 @@ remaining acceptance in #923 before implementing fixes again.
 #897 already has a compiler-based starter corpus/runner (#1030); its remaining
 stored-program provenance and admission gaps must be fixed before it certifies
 production records. #899's defensive valuation is implemented (#1026); fresh
-strength holdouts remain. #929/#930 have implementations, #932 is validation
-closeout, and #825 needs per-target application reconciliation. The plan and issue
+strength holdouts remain. #929/#930 have implementations, #932 is closed after
+final integrated validation, and #825 needs per-target application reconciliation. The plan and issue
 bodies distinguish these from new code work.
 
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance

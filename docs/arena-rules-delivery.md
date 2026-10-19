@@ -52,7 +52,7 @@ need explicit game semantics.
 | #897 | Exact frozen inputs/programs, honest admission, two controls plus one additional deck pair | Immediate baseline work; extend existing #1030 tooling |
 | #923 | Union inventory and evidence matrix | Audit/reconcile existing children; not a second implementation queue |
 | #929 / #930 | Residual Union Counter and support acceptance after #1017 / #1019 | Reproduce only unproved cases before writing code |
-| #932 | Final integrated validation after #989 and the recorded 25-row refresh | Validation only |
+| #932 | #989, recorded 25-row refresh and final integrated validation | Completed 19 October; issue closed |
 | #825 | Reconcile eight named targets with later application receipts and remaining deck evidence | Code already delivered in #834; no blanket repeat refresh |
 | #899 | Fresh strategic holdouts after the delivered #1026 defensive fix | After a reliable corpus; no renewed White Kamehameha implementation |
 | #827 | Additional candidate recipes/scenarios | Expansion backlog; next pair belongs to #897 |
@@ -65,6 +65,11 @@ $100 inclusive total**; no new budget decision is needed within those limits.
 This reconciliation does not dispatch a paid run or change unrelated UI work.
 
 ## Sequence and bounded exits
+
+#897 remains open across steps 1–3. Freeze and classify failures first, repair the
+shared record/runtime boundary in #907, then rerun qualification. Closing #897 is
+not a prerequisite for starting the scoped #907 repair; that would create a
+dependency cycle. Policy holdouts wait for the completed qualification exit.
 
 ### 1. Freeze evidence and make the gate honest — #897, reporting in #907
 
@@ -112,9 +117,11 @@ Migrate incrementally within the existing language, loader and VM:
    disappears as a negative regression fixture.
 3. Make review progress use the expected skill/face manifest and current source
    identity, so one confirmed row cannot certify a multi-skill card.
-4. Choose a single normalization boundary: either actually expand declared
-   macros into the executable program, or retain explicit domain operations
-   with one implementation. Do not keep two competing semantics for one rule.
+4. Keep timing-sensitive domain operations explicit, and lower reusable surface
+   syntax/macros once before execution into the same typed program. Extend the
+   existing operation schema as the shared contract for validation, execution
+   and policy-visible summaries. Retire alternate interpretation paths as their
+   equivalents pass the frozen cases; avoid a wholesale interpreter rewrite.
 
 Do not rewrite every card at once. Preserve old pinned saves with explicit
 format/version compatibility; migrate compiler-owned rows through existing
@@ -205,6 +212,9 @@ Planning-only reconciliation checks metadata, sources and links; it does not
 claim engine acceptance.
 
 ## Evidence retained
+
+[Reconciliation and validation receipt](arena-backlog/evidence/rules-reliability-2026-10-19/README.md)
+records the full passing local gate and #932's closure. No application code changed.
 
 The [pre-reconciliation issue snapshot](arena-backlog/evidence/rules-reliability-2026-10-19/issues-before.json)
 preserves the original requirements, old dispatch text and status for the
