@@ -554,6 +554,12 @@ export function ActionRows({
     return w.remedy ? `${w.fact} ${w.remedy}` : w.fact;
   }).join(" ");
   const asks = (m: SheetMove) => m.legal.paymentPreview?.state === "choice" || m.choicePreview?.state === "empty";
+  // The one exception to "the player knows what it does": a move rare enough to need its rule (owner, 19 Oct 2026).
+  const [ruleOpen, setRuleOpen] = useState<string | null>(null);
+  const ruleButton = (type: string) => BASIC_RULE[type] && (
+    <button type="button" onClick={() => setRuleOpen(ruleOpen === type ? null : type)} aria-expanded={ruleOpen === type} aria-label={`How ${BASIC_VERB[type]} works`} className="tap -ml-1 inline-flex min-h-7 min-w-7 items-center justify-center rounded-full text-[13px] text-space-300 hover:text-ki-300" data-basic-rule={type}>ⓘ</button>
+  );
+  const openRefusal = ruleOpen ? refusals.find((r) => r.action.type === ruleOpen) : undefined;
   return (
     <>
       {!basicOnly && !skillsInline && <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />}
@@ -563,18 +569,31 @@ export function ActionRows({
           {basicMoves.map((m) => {
             const price = priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
             return (
-              <button key={`move:${m.index}`} type="button" onClick={() => onPick(m)} className="tap inline-flex min-h-9 items-center gap-1.5 rounded-full border border-ki-500/60 bg-ki-500/10 px-3 text-xs font-semibold text-space-50 hover:border-ki-400">
+              <span key={`move:${m.index}`} className="inline-flex items-center gap-1">
+              <button type="button" onClick={() => onPick(m)} className="tap inline-flex min-h-9 items-center gap-1.5 rounded-full border border-ki-500/60 bg-ki-500/10 px-3 text-xs font-semibold text-space-50 hover:border-ki-400">
                 {m.choicePreview?.state === "empty" && m.legal.action.type === "play" ? "Play anyway" : BASIC_VERB[m.legal.action.type]}
                 {price && <span className="font-mono text-[10px] text-ki-300">{price}</span>}
               </button>
+              {ruleButton(m.legal.action.type)}
+              </span>
             );
           })}
           {!basicOnly && basicRefusals.map((r, i) => (
-            <span key={`no:${r.action.type}:${i}`} title={sentence(r)} aria-label={`${BASIC_VERB[r.action.type]}: ${sentence(r)}`} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-space-700 bg-space-800/60 px-2.5 text-[11px] font-semibold text-space-200" aria-disabled data-basic-refusal={r.action.type}>
+            <span key={`no:${r.action.type}:${i}`} className="inline-flex items-center gap-1">
+            <span title={sentence(r)} aria-label={`${BASIC_VERB[r.action.type]}: ${sentence(r)}`} className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-space-700 bg-space-800/60 px-2.5 text-[11px] font-semibold text-space-200" aria-disabled data-basic-refusal={r.action.type}>
               {BASIC_VERB[r.action.type]}
               <span className="font-mono text-[10px] font-normal text-loss">{pill(r.why[0])}</span>
             </span>
+            {ruleButton(r.action.type)}
+            </span>
           ))}
+        </div>
+      )}
+      {ruleOpen && BASIC_RULE[ruleOpen] && (
+        <div className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2 text-xs leading-snug text-space-100" data-basic-rule-text={ruleOpen}>
+          <p className="font-semibold text-space-50">{BASIC_VERB[ruleOpen]} <span className="font-mono text-[10px] font-normal text-space-300">rule {BASIC_RULE[ruleOpen].section}</span></p>
+          {BASIC_RULE[ruleOpen].lines.map((line) => <p key={line} className="mt-1">{line}</p>)}
+          {openRefusal && <p className="mt-1.5 font-semibold text-loss">Right now: {sentence(openRefusal)}</p>}
         </div>
       )}
       {otherMoves.map((m) => {
@@ -606,6 +625,25 @@ export function ActionRows({
 
 /** The game's own moves, which a player knows without being told what they do. */
 const BASIC_VERB: Partial<Record<string, string>> = { charge: "Charge", play: "Play", playUnison: "Play Unison", playZ: "Play", growUnison: "Grow Unison" };
+
+/** The rule behind a basic move that is rare enough to need it, in the manual's own terms (docs/rules/rulemanual.txt). */
+const BASIC_RULE: Partial<Record<string, { section: string; lines: string[] }>> = {
+  growUnison: {
+    section: "13-3",
+    lines: [
+      "Once per turn, in your Main Phase, you may place a copy of the Unison Card in your Unison Area (same card number) from your hand under it. It gains 1 marker. No energy is paid.",
+      "Markers pay a Unison's [X] marker skills (13-4), and an attack on a Unison takes markers instead of life (13-5). A Unison whose last marker goes is placed in the Drop Area (21-9-2).",
+      "Your opponent may answer with a [Counter] once it is grown (13-3-3).",
+    ],
+  },
+  playUnison: {
+    section: "13-2",
+    lines: [
+      "Pay its cost to place it in your Unison Area. It enters with one marker for each energy you rested to play it.",
+      "A Unison already in your Unison Area is placed in the Drop Area. Your opponent may answer with a [Counter: Play].",
+    ],
+  },
+};
 
 /** Cost, power and combo as three tiles; a leader's are power, life and energy. */
 export function StatTiles({ card, leader, stacked = false }: { card: CardView; leader?: { life: number; energy: string } | null; /** One per row, label beside value: beside the art in the desktop card column. */ stacked?: boolean }) {
