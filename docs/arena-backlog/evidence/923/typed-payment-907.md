@@ -4,8 +4,9 @@ This matrix tracks two printed payment paths selected for #907: Fusion on
 BT11-013 and Absorb on BT3-070. It supplements the full card inventory; it does
 not generalize coverage to the other Union cards. The baseline inventory calls
 both rows `runtime-unproven`; later focused verifiers cover narrower contracts
-listed below. The new #907 implementation's end-to-end result remains pending
-until its exact proof run and artifact hashes are recorded here.
+listed below. #907 adds typed payment authority for BT11-013's stored Fusion
+cost; it does not make either inventory row a blanket certification of the
+card's full text or every Union variant.
 
 ## Rules and printed sources
 
@@ -40,22 +41,39 @@ scope; this documentation task did not execute those scripts.
 
 | Variant / exact case | Existing supported-with-proof scope | New #907 typed slice status | Remaining proof required |
 | --- | --- | --- | --- |
-| Fusion — BT11-013 with three red energy, two equal-power qualifying materials in hand, and at least two cards in deck | #926 verifier covers offer, material choice, all three red energy rested, both materials in Drop, draw two after materials, one skill announcement, both seats, JSON reload at every step, and the drawn card visible only to its owner. | Pending worker evidence. Existing #926 coverage does not certify the new authoritative typed record or its fresh persisted loader. | Show the compiled typed components survive storage/load exactly and drive the live offer/payment/replay path. Record source, stored-program and ruleset revisions/hashes. |
-| Fusion — negatives | #926 covers fewer than three energy, a one-card deck refusing a draw-two price, a forged declaration refused without payment, exactly two deck cards as payable, and a deck that becomes too small after declaration: materials stay paid, partial draw does not occur, activation is not announced. | Pending worker evidence. | Preserve each result through the new record path. Include unequal-power, wrong-name/color or unavailable material refusal if the new implementation changes the material offer boundary. |
-| Fusion — payment ordering | #926 proves the draw action occurs after both materials reach Drop. It pays the red spheres at declaration before the material selection; #926 documents this as a log-order difference with no energy-area interaction, while the draw is paid after Fusion materials per 22-13-4-4-1. | Pending worker evidence. | State the typed contract's exact checkpoints. Do not describe the test as proving that all cost components happen after material placement. |
-| Absorb — BT3-070 required pair | #930 verifier covers the errata-corrected required Android 14 + Android 15 cost from Drop, one green orb, target Android 13 from deck, pair placed under the source and Android 13 played on top; both seats and JSON reload at each step. It checks each named material separately when duplicate candidates exist. | Pending worker evidence. | Prove cost components are in the typed stored record, loaded by the current runner, and paid through the same offer/payment/replay path. Verify target/source binding is preserved. |
-| Absorb — negatives | #930 covers a missing member, two Android 14s instead of one of each, the pair only in hand, no green orb, a forged activation, and wrong-name/wrong-area card picks refused. | Pending worker evidence. | Preserve these exact refusals through the typed path; assert no partial cost or target movement when declaration is unavailable. |
-| Serialization / stale record boundary | The #926 and #930 focused verifiers reload VM state at each prompt and construct stored-row cases. This establishes those test paths only. | Pending worker evidence. | Record the rejection condition. Prove a freshly rebuilt record executes and an old record/save fails closed with an actionable rebuild instruction. |
+| Fusion — BT11-013 with three red energy, qualifying equal-power materials, and at least two cards in deck | #926 covers the printed path, material choice, red energy, materials in Drop, draw after materials, one announcement, both seats, JSON state reload, and drawer-only visibility. | **Supported-with-proof for the typed payment contract:** `typed-payment-907.ts` constructs the versioned stored record from `skillRecords`, loads it through `rulesFromRows`, and runs legal offer, payment and play on both seats with executable context and VM state cloned at every step. The successful case pays three red energy and draws two. | This proves the stored payment authority used by the fixture record and loader. It does not establish whole-card authority, every material condition, or live database application. |
+| Fusion — payment authority and display independence | #926 covers the original printed payment. | **Supported-with-proof:** changing only stored `CostRecord` from RRR/draw-two to R/draw-one makes the move payable at one energy and charges one draw; changing only `cost.text` changes no outcome; changing the live printed cost after loading to Blue/draw-99 neither replaces nor cheapens the stored Red/draw-two payment. | No runtime printed-text fallback is accepted for payment. This is limited to the typed payment fields exercised by the script. |
+| Fusion — refusal and mid-payment failure | #926 covers fewer than three energy, one-card draw-two refusal, forged declaration, exact two-card deck, and the draw becoming impossible after declaration with no partial draw or announcement. | **Supported-with-proof:** the new contract refuses obsolete version, missing row, malformed negative orb, unreadable cost and invalid X; forged activations throw without state mutation. A saved continuation where the deck becomes too small after energy and material payment does not play the Fusion, draw partially or announce the skill; those payments remain paid. | The new script does not replace #926's per-card coverage of all printed material-filter negatives. |
+| Fusion — checkpoint order | #926 proves draw payment occurs after materials reach Drop. It pays red spheres at declaration before material selection, and documents the log-order difference; #907's saved failure case confirms paid resources/materials remain paid if the later draw cannot complete. | **Supported-with-proof for the tested action-price continuation.** | Do not say every payment component occurs after material placement. Full Union material/activation authority remains a separate boundary. |
+| Absorb — BT3-070 required pair | #930 covers the errata-corrected required Android 14 + Android 15 cost from Drop, one green orb, target Android 13 from deck, pair placed under the source and Android 13 played on top; both seats, each-name choice and state reload at each step. | **Preserved proof:** the unchanged #930 verifier passes against the new stored loader. | The #907 typed-payment script does not add a BT3-070 live-row application claim; this remains focused verifier evidence. |
+| Absorb — negatives | #930 covers a missing member, duplicate Android 14 instead of one of each, pair only in hand, no green orb, forged activation, and wrong-name/wrong-area picks. | **Preserved proof:** unchanged #930 cases pass against the new stored loader. | No new #907 Absorb payment implementation is claimed. |
+| Shared payment forms and granted Fusion | No BT11-013 / P-360 stored-price mutation in #926 or #930. | **Supported-with-proof:** the new verifier exercises typed either-color, marker, Burst and Spirit Boost costs and their shortfall refusals. It mutates the P-360 typed grant payment from red+blue+generic to one red orb and proves the granted activation uses that stored one-red price. | Does not prove every granted Union line or all support cards. |
+| Serialization / stale record boundary | Prior #926/#930 proofs reload VM state and construct stored-row cases. | **Supported-with-proof within fixture scope:** new verifier clones the executable context and VM state at every step, replays the same actions, and compares final state/context and events. It explicitly refuses obsolete/missing/malformed/unreadable/invalid-X payment records instead of falling back to printed text. | Offline exports and saves outside these fixtures still need rebuilding under the current format; no compatibility fallback is promised. |
 | Application / live rules | Not established by either verifier. | Not established by compiler or unit proof alone. | Keep compiler delivery, loaded/current stored-rule application, and production refresh receipts separate. Do not infer a current database row from the focused source tests. |
+
+## Still outside this slice
+
+| Remaining authority boundary | Current evidence |
+| --- | --- |
+| Counter cards with printed resource/action prices | Direct Counter payment authority is outside this slice. #929's window and failed-entry cases do not prove that typed payments govern a Counter's printed price. |
+| Union material, trigger and full printed-text authority | Payment is typed, but Fusion/Absorb material procedure, Union activation/source identity and triggered effects are not made generally authoritative by these cases. Preserve #929/#930's narrow proofs; leave other indexed clauses unproven or blocked. |
+| #897 starter final control | Pending coordinator's separate final README/evidence; this matrix does not qualify the selected starter pair. |
+
+The focused #929 Counter/failed-entry, #930 source/grant, and relevant
+rule-language roundtrip checks passed as preservation controls for this worker
+slice. The coordinator also reports `auto-costs-549.ts` passed as an
+integration control. These checks do not expand the payment authority claimed
+above.
 
 ## Compatibility decision and repair path
 
 Owner decision, 19 October 2026: this typed-record change has no backward
 compatibility requirement. It may reject old stored records, generated offline
 exports and serialized saves. The intended path is to rebuild those artifacts
-using the new typed contract; there is no legacy fallback. The worker proof is
-still pending, so this records the required contract rather than claiming the
-rebuild path has been implemented or exercised.
+using the new typed contract; there is no legacy fallback. The focused worker
+and reviewer proof passed for the fixture cases below. The coordinator rerun
+and #897 starter final control remain separate; this matrix does not claim that
+external exports or saves have already been rebuilt.
 
 For stored compiler rows, the guarded refresh tool supports a read-only
 classification first. After reviewing the proposed rows, any write is a
@@ -93,6 +111,13 @@ Relevant source SHA-256 values at that revision:
 | `scripts/verify/union-sources-930.ts` | `b76d4895294ba1e904632dcd7df398fcf79d59c43f33c21a59815e56dd13a191` |
 | `src/lib/catalog/errata.ts` | `af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0` |
 
+New #907 implementation revision: `ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8`.
+The focused verifier is `scripts/verify/typed-payment-907.ts`, SHA-256
+`7bcecd3b1300d115627beb5d0af35ba503008db4192b0602a6b7d5f85b34972c` at that
+revision. Worker and reviewer runs passed; the coordinator rerun was still
+underway when this matrix was updated. No database refresh or live application
+is included in that proof.
+
 Current issue snapshots read for this matrix:
 
 | Snapshot | SHA-256 | Relevant boundary |
@@ -104,6 +129,5 @@ Current issue snapshots read for this matrix:
 
 The #1019 receipt also notes BT4-018 unread and BT28-012 source correction.
 Those facts do not establish whether BT3-070 was among refreshed or already
-current rows. This matrix makes no BT3-070 production-row claim. The #907
-worker's test result, exact commit, and new source/program hashes should be
-added above before anyone marks the new typed slice supported-with-proof.
+current rows. This matrix makes no BT3-070 production-row claim. The #897
+starter final control remains outside this document and pending the coordinator.
