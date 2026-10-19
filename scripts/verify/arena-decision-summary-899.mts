@@ -32,7 +32,7 @@ for (const owner of ["p1", "p2"] as const) {
   changed.ctx.scripts!["C-NEG"].bySkill[0].ops = [{ op: "negateAttack" }, { op: "damage", n: 1 }];
   assert.equal(direct(changed, neg).counterResponse?.negatesAttack, null, "unrecognized tail cannot certify negation"); cases++;
   for (const pay of ["none", "life"] as const) {
-    const m = copy(counter); m.state.effects.push({ id: 899, kind: "altCost", source: counterCard, target: counterCard, master: owner, value: 0, until: "turn", altCost: { for: "counter", pay, n: 1 } });
+    const m = copy(counter); m.state.effects.push({ id: 899, ownerTurn: m.state.turnPlayer, createdTurn: m.state.turn, kind: "altCost", source: counterCard, target: counterCard, master: owner, value: 0, until: "turn", altCost: { for: "counter", pay, n: 1 } });
     const legal: LegalAction = { ...neg, action: { type: "counter", player: owner, card: counterCard, alt: true } };
     assert.equal(direct(m, legal).counterResponse?.alternativePrice, pay === "none" ? "free" : "other"); cases++;
   }
