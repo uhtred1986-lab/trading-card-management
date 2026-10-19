@@ -1,0 +1,392 @@
+{
+  "catalog": [
+    {
+      "id": "EX23-36",
+      "name": "SS3 Gotenks, Overwhelming Power",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "energyCost": 6,
+      "zEnergyCost": null,
+      "power": 25000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[double strike]<br>[union-fusion]{y}{y}{y}, draw 1 card: Yellow <Son Goten: GT> card and yellow <Trunks: GT> card.<br>[permanent] If your Leader is a yellow <Gotenks: Adolescence> card and you are choosing cards to use with this card's [union] skill from your hand, you may choose the specified Battle Cards from your Drop. If you do, place the chosen cards at the bottom of your deck in any order.<br>[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and KO it. Additionally, if a Rest Mode Battle Card was KO'd by this skill, this card isn't affected by the skills of opponent's non-Extra cards for the turn.",
+      "characters": [
+        "Gotenks: Adolescence"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "back": null
+    },
+    {
+      "id": "P-519",
+      "name": "SS3 Gotenks, Flying Fists",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "energyCost": 3,
+      "zEnergyCost": null,
+      "power": 16000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Unique][Barrier]<br>[Union-Fusion][Limit 1] &lt;Son Goten: GT&gt; card and &lt;Trunks: GT&gt; card, both yellow.<br>[Permanent] If your Leader is a yellow &lt;Gotenks: Adolescence&gt; and you choose cards to use with this card's [Union] skill from a hand, you may choose the specified Battle Card in your Drop. If you do, place the chosen cards at the bottom of your deck in any order.<br>[Permanent] If this card is in Rest Mode, only your opponent's Leader can attack Unisons.",
+      "characters": [
+        "Gotenks: Adolescence"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "back": null
+    }
+  ],
+  "rows": [
+    {
+      "id": 3897,
+      "card_id": "EX23-36",
+      "side": "front",
+      "skill_index": 10,
+      "version": 2,
+      "source": "compiler",
+      "status": "draft",
+      "printed": "[union-fusion]{y}{y}{y}, draw 1 card: Yellow <Son Goten: GT> card and yellow <Trunks: GT> card.",
+      "kind": "keyword",
+      "trigger": [],
+      "combo": null,
+      "cond": null,
+      "ops": [],
+      "unread": [],
+      "pattern": "keyword:Union",
+      "reads": "",
+      "cost": {
+        "orbs": {
+          "Yellow": 3
+        },
+        "text": "draw 1 card",
+        "burst": null,
+        "either": [],
+        "marker": null,
+        "program": [
+          {
+            "n": 1,
+            "op": "draw"
+          }
+        ],
+        "condition": null,
+        "spiritBoost": null
+      },
+      "usage": null,
+      "validity": null
+    },
+    {
+      "id": 3898,
+      "card_id": "EX23-36",
+      "side": "front",
+      "skill_index": 20,
+      "version": 5,
+      "source": "compiler",
+      "status": "open",
+      "printed": "[permanent] If your Leader is a yellow <Gotenks: Adolescence> card and you are choosing cards to use with this card's [union] skill from your hand, you may choose the specified Battle Cards from your Drop. If you do, place the chosen cards at the bottom of your deck in any order.",
+      "kind": "permanent",
+      "trigger": [],
+      "combo": null,
+      "cond": null,
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [
+                "Yellow"
+              ],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "characters": [
+                "gotenks: adolescence"
+              ],
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "characterOrTrait": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "notNamesIncluding": [],
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "then": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "drop",
+                "side": "you",
+                "upTo": true,
+                "count": 99,
+                "filter": {
+                  "z": null,
+                  "type": "BATTLE",
+                  "names": [],
+                  "token": false,
+                  "colors": [],
+                  "faceUp": false,
+                  "traits": [],
+                  "costMax": null,
+                  "costMin": null,
+                  "notType": null,
+                  "keywords": [],
+                  "notNames": [],
+                  "notToken": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "monoColor": false,
+                  "notColors": [],
+                  "notTraits": [],
+                  "skillKind": null,
+                  "characters": [],
+                  "multiColor": false,
+                  "noKeywords": false,
+                  "unreadable": false,
+                  "notKeywords": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "notCharacters": [],
+                  "namesIncluding": [],
+                  "onlyCharacters": false,
+                  "characterOrTrait": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "notNamesIncluding": [],
+                  "charactersIncluding": [],
+                  "originallySkillLess": false,
+                  "notCharactersIncluding": []
+                }
+              },
+              "reason": "you may choose the specified Battle Cards from your Drop"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "var": "c0",
+            "kind": "chose"
+          },
+          "then": [
+            {
+              "op": "moveTo",
+              "to": "deck",
+              "target": {
+                "var": "c0"
+              },
+              "position": "bottom"
+            }
+          ]
+        }
+      ],
+      "unread": [
+        "you are choosing cards to use with this card's [union] skill from your hand"
+      ],
+      "pattern": "you are choosing cards to use with this card's [union] skill from your hand",
+      "reads": "if your leader is Yellow <gotenks: adolescence>: choose all Battle Cards in your Drop Area, if you took that choice: move the chosen cards to deck",
+      "cost": null,
+      "usage": null,
+      "validity": null
+    },
+    {
+      "id": 9887,
+      "card_id": "P-519",
+      "side": "front",
+      "skill_index": 10,
+      "version": 1,
+      "source": "compiler",
+      "status": "draft",
+      "printed": "[Union-Fusion][Limit 1] <Son Goten: GT> card and <Trunks: GT> card, both yellow.",
+      "kind": "keyword",
+      "trigger": [],
+      "combo": null,
+      "cond": null,
+      "ops": [],
+      "unread": [],
+      "pattern": "keyword:Union",
+      "reads": "",
+      "cost": null,
+      "usage": null,
+      "validity": null
+    },
+    {
+      "id": 9888,
+      "card_id": "P-519",
+      "side": "front",
+      "skill_index": 20,
+      "version": 5,
+      "source": "compiler",
+      "status": "open",
+      "printed": "[Permanent] If your Leader is a yellow <Gotenks: Adolescence> and you choose cards to use with this card's [Union] skill from a hand, you may choose the specified Battle Card in your Drop. If you do, place the chosen cards at the bottom of your deck in any order.",
+      "kind": "permanent",
+      "trigger": [],
+      "combo": null,
+      "cond": null,
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [
+                "Yellow"
+              ],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "characters": [
+                "gotenks: adolescence"
+              ],
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "characterOrTrait": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "notNamesIncluding": [],
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "then": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "drop",
+                "side": "you",
+                "upTo": true,
+                "count": 1,
+                "filter": {
+                  "z": null,
+                  "type": "BATTLE",
+                  "names": [],
+                  "token": false,
+                  "colors": [],
+                  "faceUp": false,
+                  "traits": [],
+                  "costMax": null,
+                  "costMin": null,
+                  "notType": null,
+                  "keywords": [],
+                  "notNames": [],
+                  "notToken": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "monoColor": false,
+                  "notColors": [],
+                  "notTraits": [],
+                  "skillKind": null,
+                  "characters": [],
+                  "multiColor": false,
+                  "noKeywords": false,
+                  "unreadable": false,
+                  "notKeywords": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "notCharacters": [],
+                  "namesIncluding": [],
+                  "onlyCharacters": false,
+                  "characterOrTrait": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "notNamesIncluding": [],
+                  "charactersIncluding": [],
+                  "originallySkillLess": false,
+                  "notCharactersIncluding": []
+                }
+              },
+              "reason": "you may choose the specified Battle Card in your Drop"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "var": "c0",
+            "kind": "chose"
+          },
+          "then": [
+            {
+              "op": "moveTo",
+              "to": "deck",
+              "target": {
+                "var": "c0"
+              },
+              "position": "bottom"
+            }
+          ]
+        }
+      ],
+      "unread": [
+        "you choose cards to use with this card's [Union] skill from a hand"
+      ],
+      "pattern": "you choose cards to use with this card's [union] skill from a hand",
+      "reads": "if your leader is Yellow <gotenks: adolescence>: choose up to 1 Battle Card in your Drop Area, if you took that choice: move the chosen cards to deck",
+      "cost": null,
+      "usage": null,
+      "validity": null
+    }
+  ]
+}
