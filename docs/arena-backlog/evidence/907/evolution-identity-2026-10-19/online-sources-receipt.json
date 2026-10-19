@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-19",
+  "authority": "Official Masters manual/card list/Q&A/errata; community requests are access-limit evidence only.",
+  "official": [
+    {
+      "key": "card",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-014",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-014",
+      "status": 200,
+      "bytes": 135332,
+      "sha256": "ad4487c9d271b49ffc83026a343c4e861be722270cf0b4308fd39ce7875697e6",
+      "retrievedUTC": "2026-10-19T13:07:05.966599+00:00"
+    },
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "finalURL": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedUTC": "2026-10-19T13:07:11.288512+00:00"
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedUTC": "2026-10-19T13:07:20.944547+00:00"
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedUTC": "2026-10-19T13:07:25.624300+00:00"
+    },
+    {
+      "key": "general",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/game_faq.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/game_faq.php",
+      "status": 200,
+      "bytes": 153481,
+      "sha256": "2e86832a709f58c352e1ac8035bb0f1c363134a1847df41e84d40af21f3a04d4",
+      "retrievedUTC": "2026-10-19T13:07:26.710692+00:00"
+    }
+  ],
+  "communitySearch": [
+    {
+      "query": "Dragon Ball Super BT6-014 EX Evolve cost Gogeta Battle red 6 rules",
+      "url": "https://html.duckduckgo.com/html/?q=Dragon%20Ball%20Super%20BT6-014%20EX%20Evolve%20cost%20Gogeta%20Battle%20red%206%20rules",
+      "status": 202,
+      "bytes": 14348,
+      "sha256": "68b7a7643a4fef62b891d8bf41ff22b7923c7b47a2263a2797796ff8af65832b",
+      "retrievedUTC": "2026-10-19T13:07:33.947971+00:00",
+      "accessLimit": "HTTP202 DuckDuckGo bot challenge; no search result or discussion content established."
+    },
+    {
+      "query": "Dragon Ball Super EX Evolve current energy cost power carry over Reddit",
+      "url": "https://html.duckduckgo.com/html/?q=Dragon%20Ball%20Super%20EX%20Evolve%20current%20energy%20cost%20power%20carry%20over%20Reddit",
+      "status": 202,
+      "bytes": 14370,
+      "sha256": "ded2e9294f34d897c297c3523825361b3232757aea5671be52a6d2ac2667d105",
+      "retrievedUTC": "2026-10-19T13:07:34.102269+00:00",
+      "accessLimit": "HTTP202 DuckDuckGo bot challenge; no search result or discussion content established."
+    }
+  ],
+  "communityDirect": {
+    "url": "https://www.reddit.com/r/DBS_CardGame/search.json?q=BT6-014%20EX%20Evolve&restrict_sr=1&limit=5",
+    "retrievedUTC": "2026-10-19T13:08:13.307829+00:00",
+    "status": 403,
+    "bytes": 1522,
+    "sha256": "e218c984482e9a3c945e0088757498e0e5f8217a2bbf1fe483b97cbad049260c",
+    "accessLimit": "Direct public Reddit search refused; no thread/comments read."
+  },
+  "rawStorage": "Responses retrieved to /tmp/evolution-online; raw third-party pages not committed.",
+  "claim": "Bounded BT6-014 front skill0 EX-Evolve only; no match/deck qualification or human review."
+}
