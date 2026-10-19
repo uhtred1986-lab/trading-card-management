@@ -299,7 +299,7 @@ for (const seat of ["p1", "p2"] as const) {
   assert.ok(!burstFailed.events.some((event) => event.type === "skill" && "card" in event && event.card === burst.fusion));
 
   const failed = make("L-RED", 3, true);
-  let pending = take(failed.saved, offer(failed.saved, failed.fusion)!.action).saved;
+  const pending = take(failed.saved, offer(failed.saved, failed.fusion)!.action).saved;
   assert.equal(pending.state.prompt.kind, "chooseCards");
   assert.equal(rested(pending, seat), 0, "declaring Fusion spends no energy");
   // A saved-state resource invalidation models a payment that became impossible.
