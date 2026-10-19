@@ -55,15 +55,17 @@ The [bounded Potara proposal](arena-backlog/evidence/907/potara-identity-2026-10
 adds only identity/material and admission metadata to rule10297, BT2-012/front/0,
 v1→v2. Its 76 actual-record scenarios pass, including ordinary seven-energy
 play alongside native five-energy Potara. The other two stored Vegito records
-are excluded. Original #925/#927/#929/#930 controls pass; #926 retains an
-independently reproduced baseline refusal-category assertion failure. This is
+are excluded. Original #925/#927/#929/#930 controls pass. The historical #926
+refusal-category failure is repaired by the bounded
+[unread Fusion diagnostic fix](arena-backlog/evidence/907/unread-fusion-diagnostic-2026-10-19/README.md):
+the unchanged original verifier now passes. This is
 not a whole-card, whole-deck or complete Union certification. Its production
 deployment is READY and the separately approved
 [actual application](arena-backlog/evidence/907/potara-identity-2026-10-19/application-receipt.json)
-is verified. The next
+is verified. The
 [Drop-to-bottom batch](arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/README.md)
-freezes two activation/support pairs; their existing support records are still
-open/unread until a separately approved compiler repair. Other indexed #923/#930
+is applied and verified for its two activation/support pairs; both support
+records are now draft with empty unread clauses. Other indexed #923/#930
 acceptance remains open.
 
 Earlier #1066–#1068 deliveries are historical checkpoints, not pending drafts:
