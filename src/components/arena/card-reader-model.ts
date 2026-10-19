@@ -1,3 +1,4 @@
+import { KEYWORD_RULES, type KeywordRule } from "@/lib/arena/keyword-rules.generated";
 import type { CardView } from "@/lib/arena/view";
 import { plainText } from "./shared-model";
 
@@ -137,4 +138,12 @@ export function keywordBadge(line: Pick<ReaderAbility, "key" | "tag" | "text">):
 /** A skill's printed text without the bracketed tags it opens with (they are on its chip and pills). */
 export function skillBody(text: string): string {
   return text.replace(/^(?:\s*\[[^\]]+\])+\s*/, "").trim() || text;
+}
+
+const KEYWORD_SPELLINGS = KEYWORD_RULES.flatMap((rule) => rule.spellings.map((s) => [s, rule] as const)).sort((a, b) => b[0].length - a[0].length);
+
+/** The rule behind a chip's keyword ("Double Strike", "Over Realm 7", "Awaken: Surge"), or null for a skill type or a limit. */
+export function keywordRule(tag: string): KeywordRule | null {
+  const t = tag.toLowerCase().replace(/[[\]]/g, "").replace(/\s*:\s*/g, ": ").replace(/\s+/g, " ").trim();
+  return KEYWORD_SPELLINGS.find(([s]) => t === s || t.startsWith(`${s} `))?.[1] ?? null;
 }
