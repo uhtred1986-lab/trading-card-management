@@ -1,3 +1,4 @@
+import { requireUsage, usageProblem } from "./usage";
 import { comboScriptProblem } from "./combo-qualification";
 /**
  * The turn, run as a program.
@@ -786,6 +787,17 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.
   if (state.programs.length) return true;
+  // An old pending queue cannot bypass the executable-record migration.
+  for (const item of state.pending) {
+    if (item.kind === "hook") continue;
+    const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+    const gap = usageProblem(sk?.usage);
+    if (gap) {
+      interruptGame(ctx, game, state, ev, { sourceCard: item.card, skillIndex: item.skillIndex,
+        trigger: item.trigger, issue: "#907", detail: gap });
+      return true;
+    }
+  }
   // 22-11-4/5 and 22-44-4/5 (#741): a pending [Auto] whose line has no use
   // left this turn fails to activate — dropped before the order is asked, so
   // it is never offered or paid for. Not while an order question is open: that
@@ -853,6 +865,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     subject: next.subject,
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     skillIndex: next.skillIndex,
+    usage: skill?.usage as import("./usage").UsageRecord,
   };
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
@@ -1201,6 +1214,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     const sourceScript = frame.skillIndex !== undefined ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    // Activated effects carry the executable usage they began with (9-6-11).
+    // Do not rediscover a copied skill after its granting effect has gone.
+    if (frame.skillIndex !== undefined && !frame.replacing && !frame.standingGrantId && !frame.taxGate)
+      requireUsage(frame.usage);
+    for (const captured of [frame.autoCost?.skill, frame.counterCost?.skill, frame.reviveCost?.skill,
+      frame.keywordPrice?.line.skill, frame.keywordCost?.line.skill, frame.swapCost?.line.skill]) {
+      if (captured) requireUsage(captured.usage);
+    }
     if (sourceScript?.combo !== undefined || frame.trigger && ["comboUsed", "comboed"].includes(frame.trigger)) {
       const gap = comboScriptProblem(sourceScript)
         ?? (!frame.trigger || !sourceScript?.trigger?.includes(frame.trigger) ? "saved combo continuation has no matching occurrence; rebuild the match (#907)" : null);

@@ -1338,6 +1338,7 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  usage?: import("./usage").UsageRecord;
   combo?: import("./combo-qualification").ComboQualification;
   ops: Op[];
   /** Clauses the compiler could not read; non-empty means the referee handles the skill. */
@@ -1385,6 +1386,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** Captured at activation; a resolving effect remains independent of later source/copy changes. */
+  usage?: import("./usage").UsageRecord;
   /** #933: this frame is a player's declared play (`DEFINE ACTION play`/`playUnison`/`playZ`, 5-5-2), not a skill's (5-5-3): its `play` op is asked of 20-14 as `bySkill: false`. Additive: an older suspended frame was a declared play only by its `ops`, and a skill play is the default. */
   declaredPlay?: true;
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry

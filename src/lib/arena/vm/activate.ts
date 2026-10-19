@@ -237,7 +237,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     for (const skill of grantedLines(ctx, game, state, card)) {
       const keyword = keywordMoveOf(game, skill);
       if (!keyword || !families.has(familyOf(keyword.offer as string))) continue;
-      out.push({ card, skillIndex: skill.index, skill, script: { ops: [], unsupported: [], price: skill.price }, kind: keyword.offer as string, keyword });
+      out.push({ card, skillIndex: skill.index, skill, script: { ops: [], unsupported: [], price: skill.price, usage: skill.usage as import("./usage").UsageRecord }, kind: keyword.offer as string, keyword });
     }
   }
   return out;
@@ -329,7 +329,7 @@ export function evolveOntoBases(ctx: EngineContext, game: GameDefinition, state:
   const scoped = (e: { kind: string; target?: string; onto?: string[] }) => e.kind === "evolveCost" && e.target === line.card && !!e.onto?.length;
   const bases = new Set([...staticsNow(ctx, game, state).filter(scoped), ...state.effects.filter(scoped)].flatMap((e) => e.onto ?? []));
   if (!bases.size) return [];
-  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex };
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord };
   return resolveSelector(ctx, game, state, frame, { area: "battle", side: "you", printed: true }).filter((id) => bases.has(id));
 }
 
@@ -923,7 +923,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -931,7 +931,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     // frame is queued even when it does nothing, because it is what is
     // announced when the price is paid.
     const key = costVarsKey(card, sk.index);
-    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);

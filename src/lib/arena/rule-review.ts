@@ -43,6 +43,8 @@ export interface ReviewRecord {
   tag: string;
   printed: string;
   trigger: string[];
+  usage?: import("./lang/ast").Rule["usage"];
+  combo?: import("./lang/ast").Rule["combo"];
   cost: CostRecord | null;
   cond: Cond | null;
   ops: Op[];

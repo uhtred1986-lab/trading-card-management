@@ -243,8 +243,8 @@ export async function saveRuleAction(id: number, rule: unknown, explanation: str
   if (!row) return { error: "no such rule" };
   const read = readRule(rule, row.kind);
   if ("error" in read) return { error: read.error.message };
-  const { trigger, combo, cost, cond, ops } = read.rule;
-  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, cond, trigger, combo, cost, source: "user", status: "corrected", explanation });
+  const { trigger, combo, usage, cost, cond, ops } = read.rule;
+  const saved = await saveRule(db, { cardId: row.cardId, side: row.side === "back" ? "back" : "front", skillIndex: row.skillIndex, ops, cond, trigger, combo, usage, cost, source: "user", status: "corrected", explanation });
   if (patternWrong && row.pattern) {
     // The correction fixes this card; the brief is what fixes every card the
     // same pattern misreads, and it belongs on the row the reading is on.

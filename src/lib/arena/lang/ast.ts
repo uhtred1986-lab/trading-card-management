@@ -26,6 +26,7 @@ import type { Requirement, SkillKind, Trigger } from "../types";
  */
 export interface Rule {
   kind: string;
+  usage?: import("../vm/usage").UsageRecord;
   trigger: Trigger[];
   combo?: import("../vm/combo-qualification").ComboQualification | null;
   cost: CostRecord | null;

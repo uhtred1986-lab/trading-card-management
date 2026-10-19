@@ -107,7 +107,7 @@ function readable(line: ActivationLine, ops: Op[]): void {
 }
 
 const priceFrame = (line: ActivationLine, player: PlayerId, ops: Op[], cost?: KeywordCost): ScriptFrame => ({
-  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, ...(cost ? { keywordCost: cost } : {}),
+  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, ...(cost ? { keywordCost: cost } : {}),
 });
 
 /** Pay the energy half with `charge` and then the whole action price, on a copy; true when every instruction can complete. */
@@ -372,7 +372,7 @@ export function fusionPaymentRefusals(ctx: EngineContext, game: GameDefinition, 
         throw err;
       }
     };
-    const frame: ScriptFrame = { ops: keywordProgram(game, line.keyword!, line.skill), ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, keywordPrice: { key: `${line.card}:${line.skillIndex}`, line, moments: [], fusion: { stage: "resources" } } };
+    const frame: ScriptFrame = { ops: keywordProgram(game, line.keyword!, line.skill), ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, keywordPrice: { key: `${line.card}:${line.skillIndex}`, line, moments: [], fusion: { stage: "resources" } } };
     return visit(structuredClone(state), structuredClone(from ?? frame)) ? [] : [{ kind: "other", detail: "its skill cost cannot be paid in full" }];
   } catch (err) {
     if (err instanceof NotYet) return [{ kind: "other", detail: `not yet: ${err.step} (${err.issue})` }];

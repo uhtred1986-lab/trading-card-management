@@ -75,6 +75,8 @@ export interface CardDef {
 
 /** One printed skill line, parsed by `cards.ts`. */
 export interface Skill {
+  /** Runtime executable usage, attached from the stored script rather than display tags. */
+  usage?: unknown;
   /** Index within the card face's text, stable across games. */
   index: number;
   kind: SkillKind;

@@ -31,6 +31,7 @@ export default async function BuildRulePage({ params, searchParams }: { params: 
   const rule: Rule = {
     kind: row.kind,
     trigger: (row.trigger ?? []) as Trigger[],
+    ...(row.usage !== undefined ? { usage: row.usage as import("@/lib/arena/lang/ast").Rule["usage"] } : {}),
     ...(row.combo != null ? { combo: row.combo as import("@/lib/arena/lang/ast").Rule["combo"] } : {}),
     cost: (row.cost as CostRecord | null) ?? null,
     cond: (row.cond as Cond | null) ?? null,

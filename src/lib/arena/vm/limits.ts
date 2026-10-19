@@ -1,3 +1,4 @@
+import { requireUsage, usageProblem } from "./usage";
 /**
  * How many more times a skill line may be used this turn: 22-11's
  * [Once per turn] and 22-44's [Limit X], the two ceilings a printed line can
@@ -40,13 +41,14 @@ export function limitUsed(state: VmState, master: PlayerId, card: string, sk: Pi
 
 /**
  * How many more times this line may be used this turn by this master, or null
- * for a line with no ceiling. [Once per turn] wins when a line prints both,
- * as the legacy `usesLeft` reads it.
+ * for a line with no ceiling. Combined printed ceilings are explicitly
+ * unsupported until their joint semantics have a verified implementation.
  */
 export function usesLeft(state: VmState, master: PlayerId, card: string, sk: Skill): number | null {
-  if (sk.oncePerTurn) return (state.cards[card]?.usedThisTurn ?? []).includes(sk.index) ? 0 : 1;
-  if (sk.limit == null) return null;
-  return Math.max(0, sk.limit - limitUsed(state, master, card, sk));
+  const usage = requireUsage(sk.usage);
+  if (usage.oncePerTurn) return (state.cards[card]?.usedThisTurn ?? []).includes(sk.index) ? 0 : 1;
+  if (usage.limit === null) return null;
+  return Math.max(0, usage.limit - limitUsed(state, master, card, sk));
 }
 
 /**
@@ -55,9 +57,10 @@ export function usesLeft(state: VmState, master: PlayerId, card: string, sk: Ski
  * line is also counted on its master, across copies.
  */
 export function spendUse(state: VmState, master: PlayerId, card: string, sk: Skill): void {
-  if (!sk.oncePerTurn && sk.limit == null) return;
+  const usage = requireUsage(sk.usage);
+  if (!usage.oncePerTurn && usage.limit === null) return;
   state.cards[card]?.usedThisTurn.push(sk.index);
-  if (sk.oncePerTurn) return;
+  if (usage.oncePerTurn) return;
   const side = state.sides[master];
   if (!side) return;
   const key = limitKey(state, card, sk);
@@ -70,7 +73,7 @@ export function spendUse(state: VmState, master: PlayerId, card: string, sk: Ski
  * master — public, since every activation is announced (9-6-2).
  */
 export function usedForView(state: VmState, master: PlayerId, card: string, skills: Skill[]): number[] {
-  const limited = new Set(skills.filter((sk) => !sk.oncePerTurn && sk.limit != null).map((sk) => sk.index));
+  const limited = new Set(skills.filter((sk) => !usageProblem(sk.usage) && !requireUsage(sk.usage).oncePerTurn && requireUsage(sk.usage).limit !== null).map((sk) => sk.index));
   const out = (state.cards[card]?.usedThisTurn ?? []).filter((index) => !limited.has(index));
   for (const sk of skills) {
     if (!limited.has(sk.index)) continue;

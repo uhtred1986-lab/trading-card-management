@@ -1173,7 +1173,7 @@ export function problemsOf(rule: Rule, kind: string): Problem[] {
   });
   const whole = validateRule(rule, kind);
   if (whole) {
-    const clause: RuleClause = whole.field === "rule" || whole.field === "kind" || whole.field === "combo" ? "trigger" : whole.field;
+    const clause: RuleClause = whole.field === "rule" || whole.field === "kind" || whole.field === "combo" || whole.field === "usage" ? "trigger" : whole.field;
     if (!out.some((p) => clauseOf(p.path) === clause)) out.push({ path: clause, message: whole.message });
   }
   return out;
@@ -1208,6 +1208,7 @@ export interface Block {
 }
 
 export interface RuleBlocks {
+  usage?: Rule["usage"];
   combo?: Rule["combo"];
   kind: string;
   trigger: Block[];
@@ -1263,6 +1264,7 @@ function costBlock(item: CostItem): Block {
 export function blocksOf(rule: Rule): RuleBlocks {
   return {
     kind: rule.kind,
+    ...(rule.usage !== undefined ? { usage: rule.usage } : {}),
     ...(rule.combo != null ? { combo: rule.combo } : {}),
     trigger: rule.trigger.map((t, i) => ({ path: `trigger[${i}]`, clause: "trigger" as const, what: "trigger" as const, key: t, slots: [] })),
     cost: rule.cost ? costItems(rule.cost).map(costBlock) : null,
@@ -1292,6 +1294,7 @@ function nodeOf(b: Block): unknown {
 export function ruleFromBlocks(b: RuleBlocks): Rule {
   return {
     kind: b.kind,
+    ...(b.usage !== undefined ? { usage: b.usage } : {}),
     ...(b.combo != null ? { combo: b.combo } : {}),
     trigger: b.trigger.map((t) => t.key) as Rule["trigger"],
     cost: b.cost ? costFrom(b.cost.map((blk) => ({ key: blk.key as CostSyntax, values: Object.fromEntries(blk.slots.map((s) => [s.name, slotValue(s)]).filter(([, v]) => v !== undefined)) }))) : null,

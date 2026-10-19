@@ -991,6 +991,8 @@ export const cardRules = pgTable(
     trigger: jsonb("trigger").$type<string[]>(),
     /** Versioned self/origin/turn/battle binding for combo Autos. */
     combo: jsonb("combo"),
+    /** Versioned per-copy Once-per-turn or master-shared Limit ceiling, including explicit unlimited. */
+    usage: jsonb("usage"),
     /** The parsed skill cost, or null when the skill has none. */
     cost: jsonb("cost"),
     /** A top-level condition hoisted from a program that is one wrapping `if`. */

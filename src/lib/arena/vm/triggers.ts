@@ -1,3 +1,5 @@
+import { unlimitedUsage, withUsage, requireUsage } from "./usage";
+import { needsPaymentRecord } from "./skill-payment";
 /**
  * `pendTriggers` as data: which cards answer to a moment, and with which skills.
  *
@@ -345,6 +347,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (gap) throw new NotYet(gap, "#907");
       }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      requireUsage(sk.usage);
       if (sk.kind === "auto" && ["comboUsed", "comboed"].includes(match.trigger) && !combo)
         throw new NotYet(comboQualificationProblem(combo)!, "#907");
       // A qualified hand-return must become pending at the movement, not
@@ -478,7 +481,12 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   // on it, every reader of this function at once (#439). A copied pure
   // keyword line is not here: it is granted as a `keyword` effect.
   const copies = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === id && e.copied);
-  if (!copies.length) return own;
+  const executable = (sk: Skill, scripts: CardScripts): Skill => {
+    const script = scripts.bySkill[sk.index];
+    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
+    return withUsage(sk, script?.usage ?? (native ? unlimitedUsage() : undefined));
+  };
+  if (!copies.length) return { ...own, skills: own.skills.map((sk) => executable(sk, own.scripts)) };
   const skills = own.skills.slice();
   const bySkill = { ...own.scripts.bySkill };
   for (const e of copies) {
@@ -490,10 +498,14 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
       if (!c.skills.includes(sk.index)) continue;
       const index = copiedSkillIndex(e.id, sk.index);
       skills.push({ ...sk, index });
-      if (scripts.bySkill[sk.index]) bySkill[index] = scripts.bySkill[sk.index];
+      if (scripts.bySkill[sk.index]) {
+        const script = scripts.bySkill[sk.index];
+        bySkill[index] = script.usage?.limit != null ? { ...script, usage: undefined,
+          unsupported: [...script.unsupported, "copied Limit ceilings require a canonical shared same-skill identity; unsupported (#907)"] } : script;
+      }
     }
   }
-  return { skills, scripts: { ...own.scripts, bySkill } };
+  return { skills: skills.map((sk) => executable(sk, { ...own.scripts, bySkill })), scripts: { ...own.scripts, bySkill } };
 }
 
 // ── the checkpoint's queue (4-2-2, 9-6-6) ───────────────────────────────────
