@@ -83,7 +83,7 @@ function Badge({ badge }: { badge: KeywordBadge }) {
  * is room to write it out. Keywords are a strip of badges (their meaning never changes; the reminder is a
  * tooltip), then every other skill in full, with its type chip and its limits. Nothing is behind a "+".
  */
-export function CardSkills({ card }: { card: CardView }) {
+export function CardSkills({ card, actionsFor }: { card: CardView; /** What the skill with this reader key can do now, drawn under its text (`SkillActions`). */ actionsFor?: (key: string) => React.ReactNode }) {
   if (card.hidden) return <p className={styles.empty}>Face-down card.</p>;
   const lines = readerAbilities(card);
   const badges: KeywordBadge[] = [];
@@ -93,8 +93,11 @@ export function CardSkills({ card }: { card: CardView }) {
     return !badge;
   });
   badges.sort((a, b) => Number(a.deck) - Number(b.deck));
+  // A keyword that is also a move (Over Realm, Aegis) keeps its badge and gets its actions under the strip.
+  const badgeActions = badges.map((b) => [b, actionsFor?.(b.key)] as const).filter(([, a]) => a);
   return <div className={styles.skills} data-card-skills={card.id}>
     {badges.length > 0 && <div className={styles.kwStrip} aria-label="Keywords">{badges.map((b) => <Badge key={b.key} badge={b} />)}</div>}
+    {badgeActions.map(([b, a]) => <div key={b.key} className={styles.skillRow} data-reader-ability={b.key}><div className={styles.skillHead}><Badge badge={b} /></div>{a}</div>)}
     {rows.map((line) => <div key={line.key} className={styles.skillRow} data-available={line.offered || undefined} data-chip={chipKind(line.tag, line.keyword)} data-reader-ability={line.key}>
       <div className={styles.skillHead}>
         <span className={styles.chip}>{chipLabel(line.tag)}</span>
@@ -104,6 +107,7 @@ export function CardSkills({ card }: { card: CardView }) {
         {!line.offered && line.state === "Pending" && <span className={styles.limit}>Pending</span>}
       </div>
       <p className={styles.skillText}>{skillBody(line.text)}</p>
+      {actionsFor?.(line.key)}
     </div>)}
     {lines.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}
   </div>;

@@ -40,6 +40,7 @@ import { AdminDrawer, AdminShield } from "./AdminDrawer";
 import { missingEnergyChips, pill, priceOf } from "@/lib/arena/wording";
 import {
   ActionRows,
+  SkillActions,
   AttackBeam,
   CardPreview,
   CardSheet,
@@ -1690,7 +1691,11 @@ export function ArenaStage({
                   )
                 }
                 basicActions={inspectCard && inspectMoves.some((move) => move.legal.action.type === "charge" || move.legal.action.type === "attack") && <div className="space-y-2" data-review-basic-actions><ActionRows card={inspectCard} side={view.you} moves={inspectMoves.filter((move) => move.legal.action.type === "charge" || move.legal.action.type === "attack")} rejected={[]} onPick={pickMove} narrator={narrator} docked basicOnly /></div>}
-                actions={inspectCard && <ActionRows card={inspectCard} side={view.you} moves={inspectMoves.filter((move) => move.legal.action.type !== "charge" && move.legal.action.type !== "attack")} rejected={inspectRejected} onPick={pickMove} narrator={narrator} docked />}
+                actions={inspectCard && <ActionRows card={inspectCard} side={view.you} moves={inspectMoves.filter((move) => move.legal.action.type !== "charge" && move.legal.action.type !== "attack")} rejected={inspectRejected} onPick={pickMove} narrator={narrator} docked skillsInline />}
+                skillActions={(key) => {
+                  const line = inspectCard?.abilities?.find((l) => `${l.origin}:${l.skillIndex}:${l.category}` === key);
+                  return inspectCard && line ? <SkillActions card={inspectCard} side={view.you} line={line} moves={inspectMoves} onPick={pickMove} narrator={narrator} /> : null;
+                }}
                 pinned={!!pinned}
                 onUnpin={() => setPinned(null)}
                 narrator={narrator}

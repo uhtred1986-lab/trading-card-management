@@ -266,6 +266,7 @@ export function DockedInspector({
   onUnpin,
   narrator = DEFAULT_NARRATOR,
   battle,
+  skillActions,
 }: {
   card: CardView | null;
   /** "Claude's battle area", "Your hand". */
@@ -278,6 +279,8 @@ export function DockedInspector({
   onUnpin: () => void;
   narrator?: Narrator;
   battle?: Parameters<typeof CardDetail>[0]["battle"];
+  /** A skill's actions, by its reader key, drawn under the skill rather than in a list of their own. */
+  skillActions?: (key: string) => React.ReactNode;
 }) {
   // The board hands it a card whenever there is one on the table (the last
   // hovered, else your first hand card), so this is a table with no cards.
@@ -314,7 +317,7 @@ export function DockedInspector({
           {stats}
         </div>
       </div>
-      <CardSkills card={card} />
+      <CardSkills card={card} actionsFor={skillActions} />
       <div className="space-y-1.5">{actions}</div>
       <details><summary className="tap min-h-11 cursor-pointer py-3 text-sm">More card details</summary><CardDetail card={card} narrator={narrator} battle={battle} figures={false} /></details>
     </div>

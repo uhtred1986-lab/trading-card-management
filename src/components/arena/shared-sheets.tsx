@@ -372,6 +372,106 @@ function AbilityRows({
   );
 }
 
+/** What a move would do before it is taken: the payment it would make, and whom its skill could choose. */
+function MoveEvidence({ m, side, resolveCard, onPreviewPayment }: { m: SheetMove; side: SideView | null; resolveCard?: (id: string) => CardView | null; onPreviewPayment?: (ids: string[]) => void }) {
+  const preview = m.choicePreview;
+  const payment = m.legal.paymentPreview;
+  if (!preview && !payment) return null;
+  const energyIds = new Set((side?.energy ?? []).filter((item) => item.mode === "active").map((item) => item.id));
+  const hasCounter = (side?.hand ?? []).some((item) => item.abilities?.some((ability) => ability.category === "counter"));
+  const options = payment?.options ?? [];
+  const afterReady = (ids: string[]) => Math.max(0, (side?.activeEnergy ?? 0) - ids.filter((id) => energyIds.has(id)).length);
+  return <div className="space-y-1 rounded-lg border border-space-700 bg-space-950/70 p-2 text-xs" data-action-evidence={m.index}>
+    {payment && <div className="space-y-1" data-payment-preview>
+      <p className="font-semibold text-space-100">{payment.state === "choice" ? "Preview a payment" : "Payment"}</p>
+      {options.map((option, i) => {
+        const ready = afterReady(option.energyRest);
+        const paid = option.energyRest.filter((id) => energyIds.has(id)).length;
+        const names = option.energyRest.map((id) => resolveCard?.(id)?.name ?? "Card");
+        return <button type="button" className="tap block min-h-11 w-full rounded px-1 py-1 text-left text-space-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ki-400" key={i} data-payment-option={i} onPointerEnter={() => onPreviewPayment?.(option.energyRest)} onFocus={() => onPreviewPayment?.(option.energyRest)} onClick={() => onPreviewPayment?.(option.energyRest)} aria-label={`Preview payment ${i + 1}`}>
+          {payment.state === "choice" ? `Option ${i + 1}: ` : ""}
+          {option.energyRest.length ? `Rest ${names.join(", ")}` : "No energy cards rest"}
+          {option.markers > 0 ? ` · ${option.markers} ⚡ marker${option.markers === 1 ? "" : "s"}` : ""}
+          {option.costMarkers ? ` · ${option.costMarkers > 0 ? "+" : ""}${option.costMarkers} cost marker${Math.abs(option.costMarkers) === 1 ? "" : "s"}` : ""}
+          {` · ${paid} ⚡ of ${side?.activeEnergy ?? 0} ready → ${ready} left`}
+          {ready === 0 && hasCounter && <span className="block font-semibold text-dbs-yellow">This leaves no ready energy for a Counter in your hand.</span>}
+        </button>;
+      })}
+    </div>}
+    {preview && preview.state !== "notEvaluated" && <div data-choice-preview>
+      {preview.state === "empty" ? <>
+        <p className="font-semibold text-dbs-yellow">{m.legal.action.type === "activate" ? "You can activate this skill — but it has no target." : "You can play this card — but its skill has no target."}</p>
+        {preview.reason && <p className="mt-0.5 leading-snug text-space-200">{preview.reason}</p>}
+      </> : <>
+        <p className="font-semibold text-space-100">Skill targets now</p>
+        {!!preview.candidates?.length && <p className="mt-0.5 text-gain">Available: {preview.candidates.map((id) => resolveCard?.(id)?.name ?? "Card").join(", ")}</p>}
+        {!!preview.rejected?.length && <div className="mt-1 space-y-0.5 text-loss">{preview.rejected.map((target) => <p key={`${target.card}:${target.reason}`}>Cannot choose {resolveCard?.(target.card)?.name ?? "that card"}: {target.reason}</p>)}</div>}
+      </>}
+    </div>}
+  </div>;
+}
+
+/**
+ * One skill's part of "Abilities now", for the desktop card column, which writes the skill out and puts this
+ * under it (owner, 19 Oct 2026: the same skill must not appear twice). The buttons, costs, payment previews
+ * and refusal sentences are the ones `AbilityRows` draws for the line.
+ */
+export function SkillActions({
+  card,
+  side,
+  line,
+  moves,
+  onPick,
+  narrator = DEFAULT_NARRATOR,
+  resolveCard,
+  onPreviewPayment,
+}: {
+  card: CardView;
+  side: SideView | null;
+  line: AbilityLine;
+  moves: SheetMove[];
+  onPick: (move: SheetMove) => void;
+  narrator?: Narrator;
+  resolveCard?: (id: string) => CardView | null;
+  onPreviewPayment?: (ids: string[]) => void;
+}) {
+  const admin = useArenaAdmin();
+  const abilities = card.abilities ?? [];
+  const inHand = side?.hand?.some((item) => item.id === card.id) ?? false;
+  const choices = line.category === "manual" || line.category === "counter" ? offeredMoves(line, card, abilities, moves) : [];
+  const messages = line.why
+    ? line.why.map((item) => {
+        const words = refusal(item, { name: card.name, reaching: abilityReasonType(line), side, inHand, them: narrator.them });
+        return words.remedy ? `${words.fact} ${words.remedy}` : words.fact;
+      })
+    : [];
+  const state = line.permanentState && (admin || line.permanentState === "on" || line.permanentState === "off") ? `Passive · ${PERMANENT_STATE[line.permanentState].word}` : null;
+  if (!choices.length && !messages.length && !state && !(line.availability === "offered")) return null;
+  return (
+    <div className="space-y-1.5" data-skill-actions={line.skillIndex}>
+      {state && <p className="text-[11px] font-semibold opacity-80">{state}</p>}
+      {messages.length > 0 && <p className="text-xs font-semibold leading-snug text-loss" role="status">{messages.join(" ")}</p>}
+      {choices.map((move) => {
+        const fullMove: SheetMove = moves.find((item) => item.index === move.index) ?? move;
+        return (
+          <div key={`${move.index}:${move.legal.label}`} className="space-y-1">
+            <MoveEvidence m={fullMove} side={side} resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />
+            <button
+              type="button"
+              onClick={() => onPick(move)}
+              className="tap flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg border border-ki-500/60 bg-ki-500/15 px-3 py-2 text-left text-sm font-semibold text-space-50 hover:border-ki-400"
+            >
+              <span className="min-w-0 flex-1 break-words">{fullMove.choicePreview?.state === "empty" && move.legal.action.type === "play" ? "Play anyway" : abilityActionLabel(line, move, choices)}</span>
+              <span className="shrink-0 rounded-full border border-space-600 px-2 py-px font-mono text-[10px] text-ki-300">{abilityCost(line, move)}</span>
+            </button>
+          </div>
+        );
+      })}
+      {line.availability === "offered" && choices.length === 0 && <p className="text-xs opacity-80" role="status">The legal action is temporarily unavailable while the board updates.</p>}
+    </div>
+  );
+}
+
 /**
  * The moves a card has right now, each with its price, then the ones it does
  * not have, each with the sentence the rules gave. One list for the action
@@ -389,6 +489,7 @@ export function ActionRows({
   resolveCard,
   onPreviewPayment,
   basicOnly = false,
+  skillsInline = false,
 }: {
   card: CardView;
   side: SideView | null;
@@ -406,6 +507,8 @@ export function ActionRows({
   onPreviewPayment?: (ids: string[]) => void;
   /** Compact legal Charge/Attack rows before the review's artwork. */
   basicOnly?: boolean;
+  /** The skills' own actions are drawn under each skill (`SkillActions`), so leave out "Abilities now". */
+  skillsInline?: boolean;
 }) {
   const inHand = side?.hand?.some((c) => c.id === card.id) ?? false;
   const word = { side, inHand, them: narrator.them };
@@ -437,46 +540,10 @@ export function ActionRows({
       </div>
     );
   };
-  const evidence = (m: SheetMove) => {
-    const preview = m.choicePreview;
-    const payment = m.legal.paymentPreview;
-    if (!preview && !payment) return null;
-    const energyIds = new Set((side?.energy ?? []).filter((item) => item.mode === "active").map((item) => item.id));
-    const hasCounter = (side?.hand ?? []).some((item) => item.abilities?.some((ability) => ability.category === "counter"));
-    const options = payment?.options ?? [];
-    const afterReady = (ids: string[]) => Math.max(0, (side?.activeEnergy ?? 0) - ids.filter((id) => energyIds.has(id)).length);
-    return <div className="space-y-1 rounded-lg border border-space-700 bg-space-950/70 p-2 text-xs" data-action-evidence={m.index}>
-      {payment && <div className="space-y-1" data-payment-preview>
-        <p className="font-semibold text-space-100">{payment.state === "choice" ? "Preview a payment" : "Payment"}</p>
-        {options.map((option, i) => {
-          const ready = afterReady(option.energyRest);
-          const paid = option.energyRest.filter((id) => energyIds.has(id)).length;
-          const names = option.energyRest.map((id) => resolveCard?.(id)?.name ?? "Card");
-          return <button type="button" className="tap block min-h-11 w-full rounded px-1 py-1 text-left text-space-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ki-400" key={i} data-payment-option={i} onPointerEnter={() => onPreviewPayment?.(option.energyRest)} onFocus={() => onPreviewPayment?.(option.energyRest)} onClick={() => onPreviewPayment?.(option.energyRest)} aria-label={`Preview payment ${i + 1}`}>
-            {payment.state === "choice" ? `Option ${i + 1}: ` : ""}
-            {option.energyRest.length ? `Rest ${names.join(", ")}` : "No energy cards rest"}
-            {option.markers > 0 ? ` · ${option.markers} ⚡ marker${option.markers === 1 ? "" : "s"}` : ""}
-            {option.costMarkers ? ` · ${option.costMarkers > 0 ? "+" : ""}${option.costMarkers} cost marker${Math.abs(option.costMarkers) === 1 ? "" : "s"}` : ""}
-            {` · ${paid} ⚡ of ${side?.activeEnergy ?? 0} ready → ${ready} left`}
-            {ready === 0 && hasCounter && <span className="block font-semibold text-dbs-yellow">This leaves no ready energy for a Counter in your hand.</span>}
-          </button>;
-        })}
-      </div>}
-      {preview && preview.state !== "notEvaluated" && <div data-choice-preview>
-        {preview.state === "empty" ? <>
-          <p className="font-semibold text-dbs-yellow">{m.legal.action.type === "activate" ? "You can activate this skill — but it has no target." : "You can play this card — but its skill has no target."}</p>
-          {preview.reason && <p className="mt-0.5 leading-snug text-space-200">{preview.reason}</p>}
-        </> : <>
-          <p className="font-semibold text-space-100">Skill targets now</p>
-          {!!preview.candidates?.length && <p className="mt-0.5 text-gain">Available: {preview.candidates.map((id) => resolveCard?.(id)?.name ?? "Card").join(", ")}</p>}
-          {!!preview.rejected?.length && <div className="mt-1 space-y-0.5 text-loss">{preview.rejected.map((target) => <p key={`${target.card}:${target.reason}`}>Cannot choose {resolveCard?.(target.card)?.name ?? "that card"}: {target.reason}</p>)}</div>}
-        </>}
-      </div>}
-    </div>;
-  };
+  const evidence = (m: SheetMove) => <MoveEvidence m={m} side={side} resolveCard={resolveCard} onPreviewPayment={onPreviewPayment} />;
   return (
     <>
-      {!basicOnly && <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />}
+      {!basicOnly && !skillsInline && <AbilityRows card={card} side={side} moves={moves} onPick={onPick} narrator={narrator} docked={docked} evidence={evidence} />}
       {moves.filter((move) => !abilities.some((line) => offeredMoves(line, card, abilities, [move]).length > 0)).map((m) => {
         const price = m.targets ? `${m.targets} target${m.targets === 1 ? "" : "s"}` : priceOf(m.legal.action, card, m.legal.label, m.legal.cost);
         return (
