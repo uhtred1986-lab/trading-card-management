@@ -297,7 +297,7 @@
         ],
         "unread": [],
         "pattern": "if:leaderMatches[permit]",
-        "reads": "if your leader is Yellow <gotenks: adolescence>: this card can attack cards in Active Mode",
+        "reads": "if your leader is Yellow <gotenks: adolescence>: this card’s [Union-Fusion] skill from hand may choose its specified equal-power Battle Cards from your Drop as well; put only the chosen Drop cards on the bottom of your deck in your privately chosen order",
         "status": "draft"
       }
     },
@@ -588,7 +588,7 @@
         ],
         "unread": [],
         "pattern": "if:leaderMatches[permit]",
-        "reads": "if your leader is Yellow <gotenks: adolescence>: this card can attack cards in Active Mode",
+        "reads": "if your leader is Yellow <gotenks: adolescence>: this card’s [Union-Fusion] skill from hand may choose its specified equal-power Battle Cards from your Drop as well; put only the chosen Drop cards on the bottom of your deck in your privately chosen order",
         "status": "draft"
       }
     }
@@ -596,6 +596,6 @@
   "scope": "Exactly two Fusion activations plus their own conditioned Drop-to-bottom support; two open compiler support rows become draft, with new typed programs and empty unread clauses. No human confirmation.",
   "preserved": "All printed sources, native triggers/kinds, combo, source ownership and private review fields; activation effects/conditions/readings and legacy prices unchanged",
   "humanConfirmationsAdded": 0,
-  "digest": "e94c4fc5bead2dfb3c6252290e41b00ea1b8f4e53e7752d9ba771844f048e205",
+  "digest": "f3b8068dc937ebedfd0c4eb0181ca91fdbb7a2c19e0a33e4304803aa2cadf0af",
   "mode": "dry-run"
 }

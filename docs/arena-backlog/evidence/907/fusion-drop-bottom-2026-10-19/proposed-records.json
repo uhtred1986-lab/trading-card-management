@@ -260,7 +260,7 @@
     ],
     "unread": [],
     "pattern": "if:leaderMatches[permit]",
-    "reads": "if your leader is Yellow <gotenks: adolescence>: this card can attack cards in Active Mode",
+    "reads": "if your leader is Yellow <gotenks: adolescence>: this card’s [Union-Fusion] skill from hand may choose its specified equal-power Battle Cards from your Drop as well; put only the chosen Drop cards on the bottom of your deck in your privately chosen order",
     "cost": {
       "version": 1,
       "readable": true,
@@ -537,7 +537,7 @@
     ],
     "unread": [],
     "pattern": "if:leaderMatches[permit]",
-    "reads": "if your leader is Yellow <gotenks: adolescence>: this card can attack cards in Active Mode",
+    "reads": "if your leader is Yellow <gotenks: adolescence>: this card’s [Union-Fusion] skill from hand may choose its specified equal-power Battle Cards from your Drop as well; put only the chosen Drop cards on the bottom of your deck in your privately chosen order",
     "cost": {
       "version": 1,
       "readable": true,

@@ -10,6 +10,6 @@
   "deploymentState": "READY",
   "githubVercelStatus": "success",
   "mergedRemoteBranchDeleted": true,
-  "potaraDatabaseApplication": "Pending separate owner approval; no write performed",
+  "potaraDatabaseApplication": "Subsequently approved and applied; see application-receipt.json and actual-proof.json.",
   "applicationBuildsForBatch": 1
 }

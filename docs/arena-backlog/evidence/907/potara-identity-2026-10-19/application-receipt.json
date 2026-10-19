@@ -1,0 +1,33 @@
+{
+  "format": "potara-record-907-application-v1",
+  "readAt": "2026-10-19T17:24:44.101Z",
+  "approvalDigest": "0abeab213937eb646d2211188767c97de8c70e27d8bf3be4816a5433542017da",
+  "id": 10297,
+  "key": "BT2-012/front/0",
+  "beforeVersion": 1,
+  "afterVersion": 2,
+  "source": "compiler",
+  "status": "draft",
+  "writes": 1,
+  "onlyChangedFields": [
+    "cost.version",
+    "cost.readable",
+    "cost.potara",
+    "usage",
+    "validity",
+    "version",
+    "updated_at"
+  ],
+  "fullPrivateFieldComparisonPassed": true,
+  "costProgramPreserved": true,
+  "effectsAndReviewPreserved": true,
+  "humanConfirmationsAdded": 0,
+  "beforeSnapshotSha256": "f767a65779478c03eef95a42f49259ebf038f263f9ef89df9658378576e98296",
+  "afterSnapshotSha256": "323126b3e41df4b27a31e9f45c9f7efd1d392475a612107116033a6d8ce08208",
+  "actualProof": {
+    "sourceCommit": "418d20651021497e9c0c2a2a1609cd5699f5f727",
+    "cases": 76,
+    "result": "pass",
+    "logSha256": "2e5e9f2aa3aa5599cc3032fb242f4ed22598657e31cc6bddbfd2d980bc6c4d0e"
+  }
+}

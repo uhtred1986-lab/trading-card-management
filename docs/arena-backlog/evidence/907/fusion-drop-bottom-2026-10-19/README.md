@@ -59,11 +59,34 @@ boundaries without contacting Neon.
 **Application is not approved or performed.** Deploy reviewed code first, then
 apply only the exact approved proposal and verify its actual readback. Prior
 nineteen-row metadata approvals, the applied Absorb identity update and the
-separate pending Potara proposal authorize none of these four program repairs.
+separately applied Potara identity update authorize none of these four program repairs.
 
 ## Validation status
 
-The provided-record execution proof and final source review are in progress.
-No full suite, local production build, broad catalog sweep, game campaign or
-strength claim belongs to this increment. Existing #926 has a reproduced
-baseline diagnostic gap; its unchanged assertion is not a passing control.
+[Verification receipt](verification.json) pins **116 passing provided-record cases**
+through the real loader/VM, both seats with JSON restoration on each step.
+[Case receipt](proposed-proof.json) includes Hand/Drop mixtures, both private
+bottom orders, no shuffle, exact name/color/type/equal-power checks, no automatic
+permission, stored-contract mutations, source/permission loss, explicit old-save
+rebuild refusal, deck-top redirection failure with partial payment retained,
+ordinary play and P-519's Limit1. Actual non-replacing Counter responses and
+paid Counter-continuation mutations are covered; the original #929 suite remains
+separate evidence for generic incoming-card replacements.
+
+Original #925/#929/Fusion-authority #907 controls pass on the final runtime;
+original #930 passed on the first coherent core. Typecheck and final changed-file
+lint pass. Full lint passes with five existing prototype warnings. The guarded
+PGlite migration proof passes; the final proposal replay is byte-identical.
+Independent source/rules/tool/proof review reports no blockers. The generated
+reading explicitly describes Drop-to-bottom Fusion, with no attack permission.
+
+Strict affordability checks include replenishing an empty deck through material
+payment **in the planner only**; a game already lost by deck-out cannot continue.
+Real positive execution proves materials precede EX23-36's draw and remaining
+price, using a normal nonempty deck.
+
+Existing #926 has a reproduced baseline diagnostic gap; its unchanged assertion
+is not a passing control. No full suite, local production build, broad catalog
+sweep, game campaign or strength claim belongs to this increment. Public Snapshot
+shape is unchanged; source/route capture and the movement privacy marker are
+internal continuation/event metadata.
