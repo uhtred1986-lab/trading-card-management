@@ -429,7 +429,7 @@ export function PlayerStrip({
         } : undefined}
       >
         <ZoneAnchor zone={`${p}:energy`} />
-        <span className="flex min-w-0 flex-1 shrink items-center gap-1.5 font-bold text-space-50 lg:flex-none">
+        <span className="flex min-w-0 flex-1 shrink items-center gap-1.5 font-bold text-space-50 lg:flex-none" data-strip-name>
           <span className="arena-avatar grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-xs lg:h-7 lg:w-7 lg:text-sm" data-them={flag} aria-hidden>
             {side.name.slice(0, 1).toUpperCase()}
           </span>
@@ -481,7 +481,7 @@ export function PlayerStrip({
                 {chip.text}
               </span>
             ))}
-            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs lg:hidden xl:inline">⚡ {side.activeEnergy}/{side.energy.length}</span>
+            <span className="ml-1 whitespace-nowrap text-[10px] font-bold tabular-nums text-space-50 sm:text-xs">⚡ {side.activeEnergy}/{side.energy.length}</span>
             {gain && !them && (
               <span key={gain.key} className="arena-gain arena-num pointer-events-none absolute bottom-full left-0 z-10 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] tracking-wider" style={{ animationDuration: `${gain.ms}ms` }} aria-hidden>
                 +1 ENERGY
@@ -489,7 +489,7 @@ export function PlayerStrip({
             )}
           </button>
         )}
-        <span className="ml-auto flex shrink-0 items-baseline gap-2 whitespace-nowrap tabular-nums sm:gap-2.5">
+        <span className="ml-auto flex shrink-0 items-baseline gap-2 whitespace-nowrap tabular-nums sm:gap-2.5" data-strip-counts>
           {them && (
             <span className="relative">
               <ZoneAnchor zone={`${p}:hand`} />

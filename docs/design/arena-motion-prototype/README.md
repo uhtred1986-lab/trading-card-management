@@ -26,3 +26,16 @@ Open points from the review (19 Oct 2026) to settle when building it into the ap
 - Phones: board animations under the scrim (legal-card ki glow, energy blink) make the browser recompute the blur every
   frame. Pause board animations while the scrim is up.
 - The app has no board blur yet; `backdrop-blur` appears only on panels (notices, bug report, rule builder).
+
+## Desktop and tablet layout (owner, 19 Oct 2026)
+
+From 1024 px (landscape tablets and up) the board has three columns, as the prototype's PC frame:
+- **Left, game status:** both players (life, energy, hand/deck/drop counts) stacked instead of strips across the field,
+  the battle log between them, and the decision (End turn, the prompt and its answers) at the foot.
+- **Middle:** the field over the hand. The two Battle Areas split the field's height and their cards are sized to it
+  (`useFieldFit`).
+- **Right, one card:** hover previews a card, a click or tap pins it, and a pinned card pages through its group (your
+  hand, your cards in play, the opponent's) with the arrows, the arrow keys, a swipe or the thumbnails, like the
+  phone's review. The old In play list and Battle log tabs are gone from this column.
+
+Portrait tablets (768-1023 px) keep the phone's touch layout.

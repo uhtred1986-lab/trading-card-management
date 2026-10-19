@@ -33,7 +33,7 @@
 .scrollRail { display: none; }
 .fullscreenReview { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 .cardReview { }
-@media (max-width: 1279px) {
+@media (max-width: 1023px) {
  .cardReview[data-review-mode="opponent-peek"], .cardReview[data-review-mode="targeting"] { max-height: 56dvh !important; }
  .scrollRail { display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 10px; z-index: 29; touch-action: pan-y; }
  .board { padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
@@ -112,7 +112,7 @@
  * does not scroll during a turn. On a short screen (a phone browser with its address bar shown is
  * about 360 x 650) the cards step down; on a tall one they step up.
  */
-@media (max-width: 1279px) {
+@media (max-width: 1023px) {
  /* The turn wash runs 14 % past the board's edges; below lg that scrolled the page by as much. */
  .board { overflow-y: clip; }
  .board :global(.arena-lane) { padding-top: 2px; padding-bottom: 2px; }
@@ -120,7 +120,7 @@
  .board :global(.arena-lanepill) { padding-top: 4px; padding-bottom: 4px; font-size: .8125rem; }
  .dock :global(.arena-bar) { min-height: 0; }
 }
-@media (max-width: 1279px) and (max-height: 760px) {
+@media (max-width: 1023px) and (max-height: 760px) {
  .board :global(.arena-row) { --arena: .72; }
  .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .board :global(.arena-topbar) { min-height: 44px; }
@@ -132,12 +132,12 @@
  /* Choosing how to pay needs the dock's room more than the last line of narration. */
  .board:has(:global(.arena-bar[data-prompt-kind="payCost"])) :global(.arena-lane) { display: none; }
 }
-@media (max-width: 1279px) and (max-height: 720px) {
+@media (max-width: 1023px) and (max-height: 720px) {
  .board:not([data-response-window]) :global(.arena-row) { --arena: .64; }
  .board[data-response-window="combo"] :global(.arena-row) { --arena: .45; }
  .cardReview[data-review-mode="opponent"] :global(.arena-review-art) { width: min(100%, 200px); }
 }
-@media (min-width: 400px) and (max-width: 1279px) and (min-height: 860px) {
+@media (min-width: 400px) and (max-width: 1023px) and (min-height: 860px) {
  .board :global(.arena-row) { --arena: 1; }
 }
 
@@ -162,8 +162,8 @@
  .board[data-squeeze="3"] :global(.arena-pstrip), .board[data-squeeze="4"] :global(.arena-pstrip) { min-height: 36px; }
 }
 
-/* Tablets retain the touch layout rather than squeezing a desktop inspector beside it. */
-@media (min-width: 768px) and (max-width: 1279px) {
+/* Portrait tablets retain the touch layout; from 1024 px the board has its three columns (globals.css). */
+@media (min-width: 768px) and (max-width: 1023px) {
  .board { display: flex; height: calc(100dvh - 1rem); min-height: 620px; max-width: 1180px; }
  .board :global(.arena-context) { display: contents; }
  .board :global(.arena-row) { --arena: 1.2; padding: 10px 24px; }
@@ -177,18 +177,16 @@
  .board :global(.arena-context .arena-bar) { padding: 8px 16px; }
  .handAction { width: 64px; font-size: 10px; }
 }
-@media (min-width: 768px) and (max-width: 1279px) and (max-height: 800px) {
+@media (min-width: 768px) and (max-width: 1023px) and (max-height: 800px) {
  .board :global(.arena-row) { --arena: .9; padding-block: 4px; }
  .board :global(.arena-field.arena-hand) { --arena: 1 !important; }
  .board :global(.arena-lane) { min-height: 16px; }
 }
-@media (min-width: 1280px) {
- .board :global(.arena-sidecol-sheet) { height: 78%; }
+@media (min-width: 1024px) {
  .board :global(.arena-context) { background: color-mix(in srgb, var(--color-space-900) 80%, transparent); }
- .board :global([data-desktop-reader]) { display: flex; height: clamp(290px, 44dvh, 470px); }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
  .handCards { padding-bottom: 36px; }
  .board :global(.arena-slot:not(.arena-slot-lifted):not(.arena-slot-land)) { display: none; }
 }

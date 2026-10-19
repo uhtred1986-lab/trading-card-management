@@ -396,56 +396,89 @@ export function InPlayList({
  * The inspector over two tabs — In play, and the log. The log is the narration
  * log (#350): the sentences the story told, newest first, under their turn.
  */
-export function InspectorColumn({
-  inspector,
-  inPlay,
-  story,
-  tab,
-  onTab,
-}: {
-  inspector: React.ReactNode;
-  inPlay: React.ReactNode;
-  story: StoryLine[];
-  /** Which tab is open; the board owns it so its bar's log button can open the log. */
-  tab: "play" | "log";
-  onTab: (tab: "play" | "log") => void;
-}) {
-  const setTab = onTab;
+/** The card column's group: where the card on show sits among its neighbours, for paging through them. */
+export interface CardPager {
+  /** "Your hand", "Your cards in play", "Claude's cards in play". */
+  label: string;
+  cards: CardView[];
+  index: number;
+  /** Show (and pin) another card of the group. */
+  onGo: (id: string) => void;
+}
+
+/**
+ * The board's right-hand column from 1024 px (owner, 19 Oct 2026): only the card being looked at.
+ * Hover shows a card, a click pins it, and a pinned card pages through its group like the phone's
+ * review: the arrows, the thumbnails, the arrow keys, or a swipe across the card.
+ */
+export function InspectorColumn({ inspector, pager }: { inspector: React.ReactNode; pager: CardPager | null }) {
+  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
+  const step = (by: number) => {
+    if (!pager) return;
+    const next = pager.cards[pager.index + by];
+    if (next) pager.onGo(next.id);
+  };
+  // The arrow keys page through the group too, unless the focus is somewhere that reads them itself.
+  const stepRef = useRef(step);
+  useEffect(() => { stepRef.current = step; });
+  const paged = !!pager && pager.cards.length > 1;
+  useEffect(() => {
+    if (!paged) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if ((e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable], [data-hand-browse-card]")) return;
+      e.preventDefault();
+      stepRef.current(e.key === "ArrowRight" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paged]);
   return (
-    // The board's right-hand column (#444): its full height, the card over the tabs.
-    <div className="arena-sidecol flex h-full flex-col overflow-hidden" aria-label="Card review">
-      {/* The card over the tabs. The tab panel has a fixed height, so the tabs never move when a
-          taller card fills the sheet, or a row under the pointer would slide away from it. */}
+    <div
+      className="arena-sidecol flex h-full flex-col overflow-hidden"
+      aria-label="Card review"
+      onPointerDown={(e) => { if (e.pointerType !== "mouse") swipe.current = { x: e.clientX, y: e.clientY, id: e.pointerId }; }}
+      onPointerUp={(e) => {
+        const start = swipe.current;
+        swipe.current = null;
+        if (!start || start.id !== e.pointerId) return;
+        const dx = e.clientX - start.x;
+        if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(e.clientY - start.y) * 1.5) step(dx < 0 ? 1 : -1);
+      }}
+      onPointerCancel={() => { swipe.current = null; }}
+    >
+      {pager && pager.cards.length > 1 && (
+        <div className="arena-sidecol-tabs flex shrink-0 items-center gap-2 px-2 py-1.5" data-card-pager>
+          <button type="button" className="arena-iconbtn tap grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl font-bold disabled:opacity-30" onClick={() => step(-1)} disabled={pager.index === 0} aria-label="Previous card">‹</button>
+          <p className="min-w-0 flex-1 text-center text-sm font-semibold leading-tight text-space-100">
+            <span className="arena-num text-base text-space-50">{pager.index + 1} / {pager.cards.length}</span>
+            <span className="block truncate text-xs text-space-300">{pager.label} · ← → or swipe</span>
+          </p>
+          <button type="button" className="arena-iconbtn tap grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl font-bold disabled:opacity-30" onClick={() => step(1)} disabled={pager.index === pager.cards.length - 1} aria-label="Next card">›</button>
+        </div>
+      )}
       {/* The sheet is the size container the docked reader measures its scan against. */}
       <div className="arena-sidecol-sheet min-h-0 flex-1 overflow-y-auto [container-type:size]">{inspector}</div>
-      <div role="tablist" className="arena-sidecol-tabs flex shrink-0 gap-2 p-2.5 text-sm font-semibold">
-        {(
-          [
-            ["play", "In play"],
-            ["log", "Battle log"],
-          ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`arena-tab tap flex-1 rounded-xl px-2 py-1.5 ${tab === k ? "arena-tab-on text-space-50" : "text-space-300 hover:text-space-50"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="h-[clamp(120px,22dvh,240px)] shrink-0 overflow-y-auto">
-        {tab === "play" ? (
-          inPlay
-        ) : (
-          <ol className="space-y-0.5 p-2 text-xs leading-relaxed text-space-300">
-            <StoryList story={story} />
-          </ol>
-        )}
-      </div>
+      {pager && pager.cards.length > 1 && (
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto px-2 py-2" role="tablist" aria-label={pager.label}>
+          {pager.cards.map((c, i) => (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={i === pager.index}
+              aria-label={c.hidden ? "Face-down card" : c.name}
+              onClick={() => pager.onGo(c.id)}
+              className={`relative h-[52px] w-[37px] shrink-0 overflow-hidden rounded-[5px] border-2 ${i === pager.index ? "border-ki-400 ring-2 ring-ki-400/60" : "border-space-700 opacity-70 hover:opacity-100"}`}
+            >
+              {c.imageUrl && !c.hidden
+                // eslint-disable-next-line @next/next/no-img-element -- a 37 px thumbnail of the catalog's own scan.
+                ? <img src={cardImage(c.imageUrl, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
+                : <span className="grid h-full w-full place-items-center bg-space-800 text-[8px] text-space-200">{c.hidden ? "?" : c.name.slice(0, 6)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

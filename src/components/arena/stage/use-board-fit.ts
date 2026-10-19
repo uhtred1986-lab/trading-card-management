@@ -103,7 +103,8 @@ export const FIELD_FIT_MAX = 2.6;
 export function fieldFitScale(width: number, height: number, cards: number): number {
   const n = Math.max(cards, 3);
   const byHeight = (height - 24) / (FIELD_LEADER_W * CARD_RATIO + FIELD_LEADER_W * 0.2);
-  const byWidth = (width - 24 - 12 * n) / (FIELD_LEADER_W + FIELD_CARD_W * n);
+  // A rested leader lies on its side, as wide as it is tall: budget for that, so turning it never clips the row.
+  const byWidth = (width - 24 - 12 * n) / (FIELD_LEADER_W * CARD_RATIO + FIELD_CARD_W * n);
   const scale = Math.min(byHeight, byWidth, FIELD_FIT_MAX);
   return Math.max(FIELD_FIT_MIN, Math.floor(scale * 20) / 20);
 }

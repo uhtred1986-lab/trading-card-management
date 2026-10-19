@@ -44,8 +44,8 @@ import {
   CardPreview,
   CardSheet,
   DockedInspector,
-  InPlayList,
   InspectorColumn,
+  type CardPager,
   SearchSheet,
   Sheet,
   SkillSpotlight,
@@ -54,7 +54,6 @@ import {
   cardsOnTable,
   isGhostAction,
   refusalLine,
-  type InPlaySide,
   type InspectorChip,
   type SheetMove,
 } from "../shared";
@@ -104,11 +103,12 @@ import { quietSkills } from "./quiet-skills";
  * what flies it there and back, so it may exist in exactly one place.
  */
 /**
- * Whether the board is wide enough for the docked inspector (Tailwind `xl`).
+ * Whether the board is wide enough for its three columns, game status, field and card (Tailwind `lg`,
+ * landscape tablets and up; owner, 19 Oct 2026).
  * Behaviour only — the column itself is shown by CSS, so there is nothing to
  * mismatch on hydration. False on the server, which has no pointer to hover.
  */
-const WIDE = "(min-width: 1280px)";
+const WIDE = "(min-width: 1024px)";
 
 type ArenaDecklist = {
   name: string;
@@ -225,14 +225,10 @@ export function ArenaStage({
    */
   const [inspected, setInspected] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
-  /** The In play row under the pointer, outlined on the board. */
-  const [rowHover, setRowHover] = useState<string | null>(null);
   const wide = useWide();
   const [logOpen, setLogOpen] = useState(false);
   /** A combo tapped and sent but not yet drawn by the engine: the fight and the hand show it at once. */
   const [pendingCombo, setPendingCombo] = useState<{ id: string; name: string; plus: number; rev: number } | null>(null);
-  /** The desktop inspector's lower tab: In play, or the battle log (the bar's log button opens it). */
-  const [deskTab, setDeskTab] = useState<"play" | "log">("play");
   const [adminOpen, setAdminOpen] = useState(false);
   /** The narration log (#350): what `NarrationRibbon` said, kept, oldest first. */
   const [story, setStory] = useState<StoryLine[]>([]);
@@ -678,6 +674,9 @@ export function ArenaStage({
       else if (p.type === "mouse") return;
       else if (p.held < 450) return;
     }
+    // From 1024 px a click (or a tablet's tap) also pins the card in the card column, so what it does
+    // and what it says are on show while the move goes ahead.
+    if (wide) setPinned(id);
     const options = taps.byCard[id];
     const why = whyOf(id);
     // A combo window asks for exactly one thing from the hand, and the hint says "tap a glowing card":
@@ -1136,6 +1135,8 @@ export function ArenaStage({
   );
 
   const cardProps = (c: CardView) => ({
+    // The card pinned in the card column, outlined where it sits.
+    outlined: wide && pinned === c.id,
     layoutMotion: wide && !still,
     feedback: feedback.cards[c.id] ?? null,
     card: c,
@@ -1143,11 +1144,10 @@ export function ArenaStage({
     suppressed: playback.suppressed.has(c.id),
     nudge: nudging && !!taps.byCard[c.id]?.length,
     moment: momentOf(c.id),
-    onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : wide ? undefined : () => inspect(c),
+    onTap: taps.byCard[c.id]?.length || whyOf(c.id)?.length || isTargeting ? () => tapCard(c.id) : wide ? () => setPinned(c.id) : () => inspect(c),
     onDoubleTap: chargeGesture(c.id) ? () => doubleTapCard(c.id) : undefined,
     onInspect: () => inspect(c),
     onHover: hoverOf(c),
-    outlined: rowHover === c.id,
   });
 
   type HandActionStatus = "playable" | "targets" | "noTarget" | "skill" | "unaffordable" | "counter" | "charge";
@@ -1375,14 +1375,38 @@ export function ArenaStage({
   const zoneRuns = sheet ? [view.you, view.them].flatMap((side) => Object.entries(side.inspectableZones ?? {}).map(([zone, cards]) => ({ label: `${side.name} · ${zoneNames[zone] ?? zone}`, items: cards.map((card) => ({ card, yours: side === view.you })) }))) : [];
   const sequence = sheet ? (inPlayRun.some((i) => i.card.id === sheet.id) ? { label: "In play", items: inPlayRun } : handRun.some((i) => i.card.id === sheet.id) ? { label: "Your hand", items: handRun } : zoneRuns.find((run) => run.items.some((i) => i.card.id === sheet.id)) ?? null) : null;
   const sheetAt = sheet ? locate(sheet.id) : null;
-  const inPlaySides: InPlaySide[] = wide ? [view.them, view.you].map((side) => {
-    const word = (c: CardView) => (c.mode === "rest" ? "rested" : "standing");
-    const rows: InPlaySide["rows"] = [];
-    if (side.leader) rows.push({ card: side.leader, note: `Leader · ${side.life} life · ${word(side.leader)}` });
-    if (side.unison) rows.push({ card: side.unison, note: `Unison · ${word(side.unison)}` });
-    for (const c of side.battle) rows.push({ card: c, note: c.mode === "rest" ? "Rested" : "Standing" });
-    return { name: side.name, rows, battleCount: side.battle.length, battlePower: side.battle.reduce((n, c) => n + (c.power ?? 0), 0) };
-  }) : [];
+
+  // The card column pages through the group the card on show belongs to (owner, 19 Oct 2026).
+  const pagerGroups: { label: string; cards: CardView[] }[] = [
+    { label: "Your hand", cards: view.you.hand ?? [] },
+    { label: "Your cards in play", cards: [view.you.leader, ...view.you.battle, view.you.unison].filter((c): c is CardView => !!c) },
+    { label: `${view.them.name}'s cards in play`, cards: [view.them.leader, ...view.them.battle, view.them.unison].filter((c): c is CardView => !!c) },
+  ];
+  const pagerGroup = wide && inspectId ? pagerGroups.find((g) => g.cards.some((c) => c.id === inspectId)) : undefined;
+  const cardPager: CardPager | null = pagerGroup && inspectId
+    ? { label: pagerGroup.label, cards: pagerGroup.cards, index: pagerGroup.cards.findIndex((c) => c.id === inspectId), onGo: (id) => setPinned(id) }
+    : null;
+
+  // The players' strips: across the field on a phone, stacked in the status column from 1024 px.
+  const themStrip = (
+    <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className={wide ? "" : "mx-2"} />
+  );
+  const youStrip = (
+    <PlayerStrip
+      lifeCue={feedback.life[view.you.player]}
+      side={view.you}
+      cardProps={cardProps}
+      onOpenInspection={wide ? undefined : () => setZonesOpen(true)}
+      hit={hitOf(view.you.player)}
+      narrator={narrator}
+      energyChips={energyChips}
+      drop={energyDrop}
+      willRest={willRest}
+      restingIds={restingIds}
+      gain={gain}
+      className={wide ? "" : "mx-2"}
+    />
+  );
 
   return (
     <AdminContext.Provider value={admin}>
@@ -1393,7 +1417,7 @@ export function ArenaStage({
         // 0.5 rem gutter for everything else), so its edge line is flush.
         // From lg the board has one match strip over the field and hand. On
         // desktop the decision sits beside the hand and card review stays right.
-        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-xl:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
+        className={`${phoneStyles.board} arena arena-board relative mx-auto flex w-full max-w-7xl flex-col max-sm:-mx-2 max-lg:min-h-[calc(100dvh-1rem)] max-sm:w-[calc(100%+1rem)]`}
         data-skin={skin}
         data-phone-cinema={phoneCinema}
         data-response-window={defending ? view.prompt.kind : undefined}
@@ -1423,16 +1447,16 @@ export function ArenaStage({
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
-        <div className="flex min-w-0 flex-1 flex-col xl:contents">
+        <div className="flex min-w-0 flex-1 flex-col lg:contents">
           {/* One desktop match strip: turn and phase are said here, while the
               board's two resource strips show life and energy at their zones.
               It sticks
               to the top of a phone's screen so the turn is never scrolled away. */}
-          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center xl:h-auto" : "h-[52px] sm:h-[52px] xl:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] xl:min-h-[60px] xl:flex-wrap xl:gap-x-4 xl:gap-y-1 xl:px-3 xl:py-1 xl:[grid-area:top]`}>
+          <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
             {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
             {playback.playing && <SkipChip onSkip={playback.skip} />}
-            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 xl:flex" />
+            <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (
               <div className="order-last flex min-w-0 basis-full justify-center sm:order-none sm:basis-auto sm:justify-start">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-950/45 px-2 py-0.5 text-[11px] leading-none text-amber-100 sm:gap-2 sm:px-2.5 sm:py-1 sm:text-xs" role="status" aria-live="polite" data-arena-connection={liveGame.connection}>
@@ -1445,12 +1469,12 @@ export function ArenaStage({
               </div>
             )}
             <div className="ml-auto flex shrink-0 items-center gap-0.5">
-              <span className="hidden xl:contents"><SpeedButton /></span>
+              <span className="hidden lg:contents"><SpeedButton /></span>
               <button
                 type="button"
                 onClick={() => view.them.leader && setSheet(view.them.leader)}
                 disabled={!view.them.leader}
-                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center disabled:opacity-40 xl:hidden"
+                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center disabled:opacity-40 lg:hidden"
                 aria-label="Review cards in play"
               >
                 <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1458,13 +1482,13 @@ export function ArenaStage({
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </button>
-              {/* From xl: the battle log, the inspector's second tab. */}
+              {/* Below lg the battle log opens over the lane; from lg it is always in the status column. */}
               <button
                 type="button"
-                onClick={() => wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((open) => !open)}
-                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center"
+                onClick={() => setLogOpen((open) => !open)}
+                className="arena-iconbtn tap flex h-11 w-11 items-center justify-center lg:hidden"
                 aria-label="Battle log"
-                aria-pressed={deskTab === "log"}
+                aria-pressed={logOpen}
               >
                 <svg viewBox="0 0 24 24" className="h-[21px] w-[21px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
                   <path d="M5 6h14M5 11h14M5 16h9" />
@@ -1480,21 +1504,21 @@ export function ArenaStage({
             </div>
           </div>
           {/* The phase words under the bar; from lg they are the left column's list. */}
-          <div className="h-[30px] shrink-0 xl:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
+          <div className="h-[30px] shrink-0 lg:hidden" data-phase-step={view.battle ? 3 : view.phase === "charge" ? 1 : view.phase === "main" || view.phase === "mainEnd" ? 2 : view.phase === "end" ? 4 : 0}>
             <PhaseChips view={view} cue={feedback.phase} className="arena-phases-row h-full overflow-hidden px-2" />
           </div>
 
           {/* The shake is on this block and not on the board: a transform on the
               board would become the containing block of the takeover and the
               drag ghost, which are `fixed`. Nothing fixed is inside this one. */}
-          <div className={`flex min-w-0 flex-1 flex-col xl:min-h-0 xl:[grid-area:field] ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
+          <div className={`flex min-w-0 flex-1 flex-col lg:min-h-0 lg:[grid-area:field] ${damageNow ? (damageNow.n % 2 ? "arena-fx-shake-a" : "arena-fx-shake-b") : ""}`}>
 
             {/* The field: their strip, their row with their leader first, the
                 lane, your row, your strip. Open sky — no panel round it. */}
             {/* The field is also what a takeover covers and what the verdict slams
                 over; the hand and the prompt are outside it and stay usable. */}
-            <section data-takeover={takeoverOn ? "" : undefined} className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 xl:min-h-0 xl:pb-1.5 ${takeoverOn ? "min-h-[250px] xl:min-h-0" : ""}`} aria-label="Battle Areas">
-              <PlayerStrip side={view.them} them cardProps={cardProps} hit={hitOf(view.them.player)} lifeCue={feedback.life[view.them.player]} narrator={narrator} onOpenInspection={wide ? undefined : () => setZonesOpen(true)} className="mx-2" />
+            <section data-takeover={takeoverOn ? "" : undefined} className={`arena-stage relative flex min-w-0 flex-1 flex-col pt-1.5 lg:min-h-0 lg:pb-1.5 ${takeoverOn ? "min-h-[250px] lg:min-h-0" : ""}`} aria-label="Battle Areas">
+              {!wide && themStrip}
               {/* Dimmed and blurred under the band, never hidden: the position
                 being fought over stays legible while the fight resolves. */}
               <div className={`flex min-w-0 flex-1 flex-col ${bandOn ? (asksForBoard ? "arena-behind-soft" : "arena-behind") : ""}`}>
@@ -1513,9 +1537,9 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => (wide ? setDeskTab((t) => (t === "log" ? "play" : "log")) : setLogOpen((x) => !x))} logOpen={logOpen} summary={attackSummary}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen} summary={attackSummary}>
                   {logOpen && (
-                    <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 xl:hidden" role="dialog" aria-label="Battle log">
+                    <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-space-300">Battle log</span>
                         <button type="button" onClick={() => setLogOpen(false)} className="arena-iconbtn tap -my-2 -mr-2 flex h-11 w-11 items-center justify-center" aria-label="Close battle log">
@@ -1547,20 +1571,7 @@ export function ArenaStage({
                 />
               </div>
               {bandOn && shape && <DuelBand shape={shape} cardProps={stagedProps} beat={beat} progress={playback.playing ? { index: playback.index, total: playback.total } : null} />}
-              <PlayerStrip
-                lifeCue={feedback.life[view.you.player]}
-                side={view.you}
-                cardProps={cardProps}
-                onOpenInspection={wide ? undefined : () => setZonesOpen(true)}
-                hit={hitOf(view.you.player)}
-                narrator={narrator}
-                energyChips={energyChips}
-                drop={energyDrop}
-                willRest={willRest}
-                restingIds={restingIds}
-                gain={gain}
-                className="mx-2"
-              />
+              {!wide && youStrip}
               {takeoverOn && (
                 <Takeover
                   shape={shape}
@@ -1581,7 +1592,7 @@ export function ArenaStage({
           </div>
 
           {/* The fan, and the moves that have no card, in the grid's hand row. */}
-          <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col xl:justify-end xl:[grid-area:hand]">
+          <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-end lg:[grid-area:hand]">
           {playable && !playback.playing && !isTargeting && overflowBare.length > 0 && (
             <div className="flex flex-wrap gap-1.5 px-3 pt-2 sm:gap-2">
               {overflowBare.map(({ i, l }) => (
@@ -1602,10 +1613,22 @@ export function ArenaStage({
           {!(!wide && (isTargeting || (defending && (view.prompt.kind === "counter" || view.prompt.kind === "blocker")))) && <Hand sendingId={incoming?.id ?? null} onPeek={setPeekedId} browseEnabled={!isTargeting && !busy && view.prompt.kind !== "combo"} cards={view.you.hand ?? []} cardProps={cardProps} dragId={drag?.id ?? null} dragFor={dragFor} chargeable={chargeGesture} handStatus={handStatus} handAction={handAction} defending={view.prompt.kind === "counter" || view.prompt.kind === "blocker" || view.prompt.kind === "combo"} onZones={() => setZonesOpen(true)} decisionHint={!wide && bandOn && asksForHand && view.prompt.kind === "combo" ? "Tap a glowing card to combo" : undefined} />}
           </div>
 
-          {/* This single decision panel stays with the hand on phones and moves
-              beside it on desktop, while inspection stays in the right column. */}
-          <div className="arena-context xl:min-h-0 xl:[grid-area:side]">
-          <div data-arena-dock className={`${phoneStyles.dock} sticky bottom-0 z-30 xl:static xl:z-auto xl:shrink-0`}>
+          {/* On a phone this is only the decision, sticky under the hand. From 1024 px it is the status
+              column: both players, the battle log, and the decision at its foot. */}
+          <div className="arena-context lg:min-h-0">
+          {wide && (
+            <div data-arena-status aria-label="Game status">
+              <div className="p-2">{themStrip}</div>
+              <section className="arena-statuslog flex min-h-0 flex-1 flex-col px-3 pb-1" aria-label="Battle log">
+                <h3 className="py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-space-300">Battle log</h3>
+                <ol className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain text-xs leading-relaxed text-space-200">
+                  <StoryList story={story} />
+                </ol>
+              </section>
+              <div className="p-2">{youStrip}</div>
+            </div>
+          )}
+          <div data-arena-dock className={`${phoneStyles.dock} sticky bottom-0 z-30 lg:static lg:z-auto lg:shrink-0`}>
             <PromptPanel
               view={view}
               decision={live.decision}
@@ -1647,10 +1670,11 @@ export function ArenaStage({
               onNext={playback.next}
             />
           </div>
-          {wide && <div className="hidden xl:block xl:min-h-0 xl:flex-1 xl:[grid-area:side]">
+          </div>
+          {/* The card column: the hovered or pinned card, paged through its group. */}
+          {wide && <div className="arena-cardcol">
           <InspectorColumn
-            tab={deskTab}
-            onTab={setDeskTab}
+            pager={cardPager}
             inspector={
               <DockedInspector
                 card={inspectCard}
@@ -1672,21 +1696,8 @@ export function ArenaStage({
                 battle={inspectId ? shareOf(inspectId) : null}
               />
             }
-            inPlay={
-              <InPlayList
-                sides={inPlaySides}
-                inspected={inspectId}
-                onReview={(id) => {
-                  setRowHover(id);
-                  if (id && !pinned) setInspected(id);
-                }}
-                onPin={setPinned}
-              />
-            }
-            story={story}
           />
           </div>}
-          </div>
         </div>
 
         {view.battle && !shape && <AttackBeam from={view.battle.attacker} to={view.battle.guard} hostRef={boardRef} />}
@@ -1780,7 +1791,7 @@ export function ArenaStage({
               </MenuSection>
             )}
             {/* From lg the log is the right column's second tab. */}
-            <div className="xl:hidden">
+            <div className="lg:hidden">
               <MenuSection title="Log">
                 <button
                   type="button"
@@ -1806,7 +1817,7 @@ export function ArenaStage({
             </MenuSection>
             <MenuSection title="Combat effects"><ImmersionSettings /></MenuSection>
             <MenuSection title="Board">
-              <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm xl:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
+              <button type="button" className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden" aria-pressed={phoneCinema} onClick={() => setPhoneCinema(!phoneCinema)}>{phoneCinema ? "Use compact phone board" : "Enable cinematic battle staging"}</button>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] uppercase tracking-widest text-space-300 sm:text-xs">
                 {session.chooseStaging && <StagingToggle staging={staging} onChoose={session.chooseStaging} />}
                 {session.chooseSkin && <SkinToggle skin={skin} onChoose={session.chooseSkin} />}
@@ -1821,7 +1832,7 @@ export function ArenaStage({
                     setMoreOpen(false);
                     setZonesOpen(true);
                   }}
-                  className="tap min-h-11 rounded border border-space-600 px-3 text-sm xl:hidden"
+                  className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden"
                   aria-label="Inspect public zones"
                 >
                   Zones: Drop, Warp, Z-Deck, Z-Energy
