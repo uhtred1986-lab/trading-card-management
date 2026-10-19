@@ -1,0 +1,13 @@
+BT3-112 Unrelenting Assault Trunks Q1. After activating this card’s [Over Realm], can I activate {BT3-111 Trunks, Power Overseeing Time}’s Over Realm during the same turn? A1. No, you can’t. Over Realm can only be activated once a turn. Q2. When this card is sent to the Warp by an opponent’s skill, what happens? A2. This card is added to your hand.
+
+BT3-096 Hidden Power Great Ape Tora Q1. When playing a card using card skills, do you need to pay the energy cost of that card? A1. No, you do not need to pay unless specified otherwise.
+
+BT3-098 Hidden Power Great Ape Fasha Q1. When playing a card using card skills, do you need to pay the energy cost of that card? A1. No, you do not need to pay unless specified otherwise.
+
+BT3-090 No Openings Son Goku Q1. You comboed with this card, then your opponent returned it to your hand with {BT 1‐048 Ultimate Judgment Jaco}’s auto skill. Does this card’s auto skill activate after the battle ends? A1. No, it doesn’t. Q2. During your turn, you combo with this card in Active Mode from your Battle Area. Can you put it into play at the end of the battle using its auto skill? A2. Yes, you can. Q3. When playing a card using card skills, do you need to pay the energy cost of that card? A3. No, you do not need to pay unless specified otherwise. Q4. When you combo with this card, can you still activate the “Then, choose up to 1 card from your life and add it to your hand” part of its skill even if your leader isn’t yellow? A4. Yes, you can.
+
+BT7-040 Kale, the Awakened Sister Q1. You used this card in a combo. Then, your opponent used {BT1-048 Ultimate Judgment Jaco}’s auto skill to return it to your hand. At the end of the battle, can you use this card’s auto skill to play this card? A1. No, you can’t.
+
+BT7-083 Caulifla, the Awakened Sister Q1. You comboed with this card, then your opponent returned it to your hand with {BT 1‐048 Ultimate Judgment Jaco}’s auto skill. Does this card’s auto skill activate after the battle ends? A1. No, it doesn’t.
+
+BT7-086 Ironclad Defense Frost Q1. You comboed with this card, then your opponent returned it to your hand with {BT 1‐048 Ultimate Judgment Jaco}’s auto skill. Does this card’s auto skill activate after the battle ends? A1. No, it doesn’t.
