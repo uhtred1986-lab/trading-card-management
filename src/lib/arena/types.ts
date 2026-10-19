@@ -1333,6 +1333,31 @@ export interface GameOptions {
   p2: DeckInput;
 }
 
+/** Bounded facts from the exact offered executable skill, for the current own battle card. */
+export interface BattleActivationSummary {
+  version: 1;
+  skillIndex: number;
+  timing: "activate:battle" | "activate:main/battle";
+  power: {
+    /** Total boost applying in this battle, including turn-duration boosts. */
+    battle: number;
+    /** The lasting-turn subset of `battle`; never add the two figures. */
+    turn: number;
+  };
+  /** Unconditional draws before the power effect, not a prediction of drawn identities. */
+  drawnFirst: number;
+}
+
+export interface CounterResponseSummary {
+  version: 1;
+  skillIndex: number;
+  kind: "counter:attack" | "counter:battle card attack" | "counter:counter" | "counter:play";
+  /** Null means the complete effect path is outside the bounded summary. */
+  negatesAttack: boolean | null;
+  /** Classification of the offered payment route, from the existing price resolver. */
+  alternativePrice: "none" | "free" | "other";
+}
+
 export interface LegalAction {
   action: Action;
   /** One line for menus and Claude: "Play Son Goku (3)". */
@@ -1344,6 +1369,8 @@ export interface LegalAction {
    * price is its printed cost and a client reads that off the card.
    */
   cost?: ActionCost;
+  battleActivation?: BattleActivationSummary;
+  counterResponse?: CounterResponseSummary;
   /** The engine's exact current resource projection for this legal choice.
    * `energyRest` names the cards the payment plan will rest (including legal
    * 20-19 payers); `markers` are Energy markers spent and `costMarkers` are
