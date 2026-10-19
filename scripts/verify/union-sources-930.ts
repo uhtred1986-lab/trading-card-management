@@ -153,7 +153,8 @@ function settle(s0: VmState, seat: PlayerId, pick: (candidates: string[], min: n
   let r = { s: s0 };
   for (let i = 0; i < 20 && r.s.prompt.kind !== "main"; i++) {
     const q = r.s.prompt;
-    if (q.kind === "payCost") r = take(r.s, { type: "payCost", player: seat, option: 0 } as Action);
+    if (q.kind === "chooseMode") r = take(r.s, { type: "chooseMode", player: seat, index: 0 } as Action);
+    else if (q.kind === "payCost") r = take(r.s, { type: "payCost", player: seat, option: 0 } as Action);
     else if (q.kind === "chooseCards") r = take(r.s, { type: "choose", player: q.player, cards: pick(q.choice.candidates, q.choice.min) });
     else if (q.kind === "orderPending") r = take(r.s, { type: "orderPending", player: q.player, index: 0 } as Action);
     else r = take(r.s, { type: "pass", player: (q as { player: PlayerId }).player } as Action);

@@ -97,22 +97,18 @@ function declineEffect(s: VmState): VmState { assert.equal(s.prompt.kind, "choos
   const stale = reload(colorPaid.state); const payer = stale.programs[0].aegisCost!.choices![0].payment.rest[0]; stale.cards[payer].mode = "rest";
   const staleBefore = JSON.stringify(stale); assert.throws(() => mode(stale, 0), IllegalAction); assert.equal(JSON.stringify(stale), staleBefore);
 }
-// Captured at fccead5 with Aegis source identical to ed44cb0, at its saved
-// additional-payment prompt. This upgrade path honors already-paid colors,
-// even though that frame has no new native/action cursor fields.
+// Captured at fccead5 with Aegis source identical to ed44cb0. The owner
+// removed legacy-save compatibility on 19 Oct (#907/#1066): this frame has
+// no typed payment contract and must require rebuilding, never resume freely.
 {
   assert.equal(oldAdditional.source, "ed44cb0");
   assert.equal(oldAdditional.runtimeHead, "fccead5");
   const old = reload(oldAdditional.state as unknown as VmState);
   assert.equal(old.prompt.kind, "chooseMode"); assert.equal(old.programs[0].aegisCost?.stage, "additional");
   assert.ok([oldAdditional.cards[0], oldAdditional.cards[2]].every((id) => old.sides.p1.zones.drop.includes(id)));
-  const resumed = mode(old, 0);
-  assert.equal(resumed.state.prompt.kind, "chooseCards");
-  assert.equal(resumed.events.filter((e) => e.type === "move" && e.from === "hand" && e.to === "drop").length, 0);
-  assert.equal(rests(resumed.events).length, 1); assert.equal(skills(resumed.events, oldAdditional.card).length, 1);
-  assert.deepEqual(resumed.state.cards[oldAdditional.card].usedThisTurn, [0]);
-  const effect = declineEffect(resumed.state);
-  assert.equal(effect.prompt.kind, "combo"); assert.ok(!effect.programs.some((f) => f.aegisCost));
+  const before = JSON.stringify(old);
+  assert.throws(() => mode(old, 0), /typed skill payment v1; regenerate rules and rebuild/);
+  assert.equal(JSON.stringify(old), before, "rejected obsolete save remains unchanged");
 }
 // One multicolor card pays only one hand card; fee remains strictly after it.
 {

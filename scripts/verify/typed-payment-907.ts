@@ -5,11 +5,15 @@
  * Generic resource mutations deliberately leave the printed skill unchanged.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { cardDefFrom } from "../../src/lib/arena/load";
+import { normalizeRows } from "../arena-corpus-provenance.mts";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, saveRule, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
+import { addEffect } from "../../src/lib/arena/vm/effects";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { IllegalAction, GRANTED_LINE_BASE } from "../../src/lib/arena/vm/common";
 import type { CostRecord, Op } from "../../src/lib/arena/vm/script";
@@ -22,16 +26,29 @@ const defs: Record<string, CardDef> = { ...DEFS,
   "BT11-013": card("BT11-013", { name: "Gogeta, Fusion of the Gods", colors: ["Red"], characters: ["Gogeta: Br"], power: 20000, energyCost: 5, specifiedCost: { Red: 3 }, traits: ["Saiyan"], skill: FUSION }),
   GOKU907: card("GOKU907", { characters: ["Son Goku: Br"] }),
   VEG907: card("VEG907", { characters: ["Vegeta: Br"] }),
+  MULTI907: card("MULTI907", { colors: ["Red", "Blue"] }),
   BLUE907: card("BLUE907", { colors: ["Blue"] }),
   RESOURCE907: card("RESOURCE907", { skill: "[Activate: Main] Draw 1 card." }),
   MARKER907: card("MARKER907", { type: "UNISON", skill: "[Activate: Main] Draw 1 card." }),
   UNISON907: card("UNISON907", { type: "UNISON" }),
   GRANT907: card("GRANT907", { type: "LEADER", skill: GRANT }),
+  GAIN907: card("GAIN907", { type: "LEADER", skill: "[Permanent] If you have 2 or more cards in your Drop Area, reduce the skill cost of [union] skills on red <Gogeta: Br> cards in your hand by {r}." }),
+  LOSE907: card("LOSE907", { type: "LEADER", skill: "[Permanent] If you have 3 or more cards in your hand, reduce the skill cost of [union] skills on red <Gogeta: Br> cards in your hand by {r}." }),
+  AUTOGOKU907: card("AUTOGOKU907", { characters: ["Son Goku: Br"], skill: "[Auto] When this card is placed in your Drop Area from your hand by a skill, draw 1 card." }),
   GOG907: card("GOG907", { characters: ["Gogeta: Br"] }),
 };
+const referencePath = process.argv.includes("--reference-records") ? process.argv[process.argv.indexOf("--reference-records") + 1] : undefined;
+const reference = referencePath ? JSON.parse(readFileSync(referencePath, "utf8")) : undefined;
+if (reference) defs["BT11-013"] = cardDefFrom(reference.catalog.find((entry: { id: string }) => entry.id === "BT11-013"));
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const rows = Object.values(defs).flatMap((def) => skillRecords(def).map((row, id) => ({ ...row, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
+if (reference) {
+  const stored = normalizeRows(reference.after).rows.filter((row) => row.cardId === "BT11-013");
+  assert.equal(stored.length, 3, "exact exported BT11-013 skill set");
+  for (let i = rows.length - 1; i >= 0; i--) if (rows[i].cardId === "BT11-013") rows.splice(i, 1);
+  rows.push(...stored);
+}
 const fusionRow = rows.find((row) => row.cardId === "BT11-013" && row.kind === "keyword")!;
 assert.ok(fusionRow);
 const original = fusionRow.cost as CostRecord;
@@ -81,7 +98,8 @@ function finish(start: Saved, first: Action): { saved: Saved; events: GameEvent[
   apply(first);
   for (let i = 0; i < 30 && saved.state.prompt.kind !== "main"; i++) {
     const prompt = saved.state.prompt;
-    if (prompt.kind === "payCost") apply({ type: "payCost", player: prompt.player, option: 0 } as Action);
+    if (prompt.kind === "chooseMode" || prompt.kind === "replaceMove") apply({ type: "chooseMode", player: prompt.player, index: 0 } as Action);
+    else if (prompt.kind === "payCost") apply({ type: "payCost", player: prompt.player, option: 0 } as Action);
     else if (prompt.kind === "chooseCards") apply({ type: "choose", player: prompt.player, cards: prompt.choice.candidates.slice(0, prompt.choice.min) });
     else if (prompt.kind === "orderPending") apply({ type: "orderPending", player: prompt.player, index: prompt.candidates[0] } as Action);
     else apply({ type: "pass", player: (prompt as { player: PlayerId }).player });
@@ -161,12 +179,13 @@ for (const seat of ["p1", "p2"] as const) {
   assert.equal(done.state.sides.p1.zones.hand.length, 1);
 }
 
-// A saved continuation rechecks a price that became impossible after energy was paid.
+// Official ver4 §22-13-4-4/-4-1 disproves the old energy-at-declaration
+// expectation: a reload before material payment must still hold all energy active.
 {
   const board = fusionBoard(context(), 3);
   let pending = take(board.saved, offer(board.saved, board.fusion)!.action).saved;
   if (pending.state.prompt.kind === "payCost") pending = take(pending, { type: "payCost", player: "p1", option: 0 } as Action).saved;
-  assert.equal(rested(pending, "p1"), 3);
+  assert.equal(rested(pending, "p1"), 0);
   assert.equal(pending.state.prompt.kind, "chooseCards");
   for (const id of pending.state.sides.p1.zones.deck.slice(1)) assert.ok(moveCard(pending.state, game, id, "warp", { owner: "p1" }).ok);
   const question = pending.state.prompt;
@@ -177,6 +196,120 @@ for (const seat of ["p1", "p2"] as const) {
   assert.equal(failed.saved.state.sides.p1.zones.drop.length, 2, "material payment remains paid");
   assert.equal(rested(failed.saved, "p1"), 3, "energy payment remains paid");
   assert.ok(!failed.events.some((event) => event.type === "skill" && "card" in event && event.card === board.fusion), "failed activation is never announced");
+}
+
+// Synthetic printed support cards isolate §22-13-4-4-1's dynamic board rule;
+// they are engineering interaction probes, not claims about catalog cards.
+for (const seat of ["p1", "p2"] as const) {
+  const make = (leader: string, energy: number, auto = false) => {
+    const saved = fresh(context(), seat, leader);
+    const fusion = stage(saved, seat, "BT11-013", "hand");
+    const goku = stage(saved, seat, auto ? "AUTOGOKU907" : "GOKU907", "hand");
+    const vegeta = stage(saved, seat, "VEG907", "hand");
+    for (let i = 0; i < energy; i++) stage(saved, seat, "V1", "energy");
+    return { saved, fusion, goku, vegeta };
+  };
+  for (const leader of ["GAIN907", "LOSE907"]) {
+    assert.ok((rows.find((row) => row.cardId === leader)?.ops as Op[]).length, "support survives stored compiler record");
+  }
+  const gained = make("GAIN907", 2);
+  assert.ok(offer(gained.saved, gained.fusion), "a reducer becoming true after materials makes RRR affordable with RR");
+  const before = clone(gained.saved);
+  const gainedDone = finish(gained.saved, offer(gained.saved, gained.fusion)!.action);
+  assert.deepEqual(gained.saved, before, "offer proof has no board side effects");
+  assert.equal(rested(gainedDone.saved, seat), 2, "remaining cost is determined after Drop count changes");
+  assert.ok(gainedDone.saved.state.sides[seat].zones.battle.includes(gained.fusion));
+  const lost = make("LOSE907", 2);
+  assert.equal(offer(lost.saved, lost.fusion), undefined, "a hand-count reducer lost with the materials cannot discount the remaining cost");
+  const enough = make("LOSE907", 3);
+  assert.equal(rested(finish(enough.saved, offer(enough.saved, enough.fusion)!.action).saved, seat), 3);
+
+  const watched = make("L-RED", 3, true);
+  const watchedDone = finish(watched.saved, offer(watched.saved, watched.fusion)!.action);
+  const activation = watchedDone.events.findIndex((event) => event.type === "skill" && "card" in event && event.card === watched.fusion && "skill" in event && event.skill === fusionRow.skillIndex);
+  const materialAuto = watchedDone.events.findIndex((event) => event.type === "skill" && "card" in event && event.card === watched.goku);
+  assert.ok(activation >= 0 && materialAuto > activation, "material-leave Auto stays pending through remaining payment and activation");
+  assert.equal(watchedDone.events.filter((event) => event.type === "draw").length, 3, "printed draw2 cost plus later material Auto draw1");
+
+  const choiceBoard = make("L-RED", 4);
+  choiceBoard.saved.state.cards[choiceBoard.saved.state.sides[seat].zones.energy.at(-1)!].cardId = "MULTI907";
+  let choicePending = take(choiceBoard.saved, offer(choiceBoard.saved, choiceBoard.fusion)!.action).saved;
+  for (let i = 0; i < 2; i++) {
+    const question = choicePending.state.prompt; assert.ok(question.kind === "chooseCards");
+    assert.equal(rested(choicePending, seat), 0);
+    choicePending = take(choicePending, { type: "choose", player: seat, cards: question.choice.candidates.slice(0, question.choice.min) }).saved;
+  }
+  assert.equal(choicePending.state.prompt.kind, "chooseMode", "resource choices open only after both material departures");
+  assert.ok([choiceBoard.goku, choiceBoard.vegeta].every((id) => choicePending.state.sides[seat].zones.drop.includes(id)));
+  assert.equal(rested(choicePending, seat), 0);
+  for (const old of [clone(choicePending), take(choiceBoard.saved, offer(choiceBoard.saved, choiceBoard.fusion)!.action).saved]) {
+    const frame = old.state.programs.find((entry) => entry.keywordPrice || entry.keywordCost)!;
+    const cost = frame.keywordPrice ?? frame.keywordCost!;
+    delete cost.fusion;
+    const question = old.state.prompt;
+    const beforeZones = clone(old.state.sides[seat].zones);
+    const obsolete = take(old, question.kind === "chooseCards" ? { type: "choose", player: seat, cards: question.choice.candidates.slice(0, question.choice.min) } : { type: "chooseMode", player: seat, index: 0 } as Action);
+    assert.equal(obsolete.saved.state.outcome?.kind, "interrupted");
+    assert.match(obsolete.saved.state.outcome?.privateContext?.detail ?? "", /rebuild this saved match/);
+    assert.deepEqual(obsolete.saved.state.sides[seat].zones, beforeZones, "obsolete payment save is diagnosed before resource or material movement");
+  }
+  const stale = clone(choicePending);
+  for (const id of stale.state.sides[seat].zones.energy) stale.state.cards[id].mode = "rest";
+  assert.throws(() => take(stale, { type: "chooseMode", player: seat, index: 0 } as Action), IllegalAction, "a saved stale payment cannot replan or pay twice");
+  assert.equal(rested(finish(choicePending, { type: "chooseMode", player: seat, index: 0 } as Action).saved, seat), 3);
+
+  const xctx = withCost("BT11-013", (cost) => { cost.x = { min: 1, max: 1 }; });
+  const xBoard = fusionBoard(xctx, 4, seat);
+  assert.equal(rested(finish(xBoard.saved, offer(xBoard.saved, xBoard.fusion)!.action).saved, seat), 4, "stored X is charged in addition to fixed orbs at the checkpoint");
+  const xShort = fusionBoard(xctx, 3, seat);
+  assert.equal(offer(xShort.saved, xShort.fusion), undefined, "stored X cannot silently become free");
+
+  const replaced = make("L-RED", 3);
+  addEffect(replaced.saved.state, [], { master: seat, source: replaced.goku, target: replaced.goku, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  let replacedPending = take(replaced.saved, offer(replaced.saved, replaced.fusion)!.action).saved;
+  for (let i = 0; i < 2; i++) {
+    const question = replacedPending.state.prompt; assert.ok(question.kind === "chooseCards");
+    replacedPending = take(replacedPending, { type: "choose", player: seat, cards: question.choice.candidates.slice(0, question.choice.min) }).saved;
+  }
+  assert.equal(replacedPending.state.prompt.kind, "replaceMove");
+  assert.equal(rested(replacedPending, seat), 0);
+  const diverted = finish(replacedPending, { type: "chooseMode", player: seat, index: 0 } as Action);
+  assert.ok(diverted.saved.state.sides[seat].zones.warp.includes(replaced.goku));
+  assert.ok(diverted.saved.state.sides[seat].zones.hand.includes(replaced.fusion));
+  assert.equal(rested(diverted.saved, seat), 0, "redirected material fails before energy or draw payment");
+  assert.ok(!diverted.events.some((event) => event.type === "skill" && "card" in event && event.card === replaced.fusion));
+
+  const burstCtx = withCost("BT11-013", (cost) => { cost.burst = 1; });
+  const burst = fusionBoard(burstCtx, 3, seat);
+  const top = burst.saved.state.sides[seat].zones.deck[0];
+  let burstPending = take(burst.saved, offer(burst.saved, burst.fusion)!.action).saved;
+  // Install a legal replacement after declaration to isolate the saved
+  // native-payment failure path from the declaration's affordability proof.
+  addEffect(burstPending.state, [], { master: seat, source: top, target: top, kind: "replaceLeave", value: { to: "warp", optional: true }, until: "turn" });
+  for (let i = 0; i < 2; i++) {
+    const question = burstPending.state.prompt; assert.ok(question.kind === "chooseCards");
+    burstPending = take(burstPending, { type: "choose", player: seat, cards: question.choice.candidates.slice(0, question.choice.min) }).saved;
+  }
+  assert.equal(burstPending.state.prompt.kind, "replaceMove", "native Burst asks its persisted replacement before completing payment");
+  const burstFailed = finish(burstPending, { type: "chooseMode", player: seat, index: 0 } as Action);
+  assert.ok(burstFailed.saved.state.sides[seat].zones.warp.includes(top));
+  assert.equal(rested(burstFailed.saved, seat), 0, "declared Burst precedes energy; an unpaid Burst never charges later resources");
+  assert.equal(burstFailed.saved.state.sides[seat].zones.drop.length, 2, "already paid Fusion materials stay in Drop");
+  assert.ok(burstFailed.saved.state.sides[seat].zones.hand.includes(burst.fusion));
+  assert.ok(!burstFailed.events.some((event) => event.type === "skill" && "card" in event && event.card === burst.fusion));
+
+  const failed = make("L-RED", 3, true);
+  const pending = take(failed.saved, offer(failed.saved, failed.fusion)!.action).saved;
+  assert.equal(pending.state.prompt.kind, "chooseCards");
+  assert.equal(rested(pending, seat), 0, "declaring Fusion spends no energy");
+  // A saved-state resource invalidation models a payment that became impossible.
+  for (const id of pending.state.sides[seat].zones.energy) pending.state.cards[id].mode = "rest";
+  const q = pending.state.prompt; assert.ok(q.kind === "chooseCards");
+  const failure = finish(pending, { type: "choose", player: seat, cards: q.choice.candidates.slice(0, q.choice.min) });
+  assert.ok([failed.goku, failed.vegeta].every((id) => failure.saved.state.sides[seat].zones.drop.includes(id)), "failed resource payment retains already paid materials");
+  assert.ok(failure.saved.state.sides[seat].zones.hand.includes(failed.fusion));
+  assert.ok(!failure.events.some((event) => event.type === "skill" && "card" in event && event.card === failed.fusion), "resource failure never activates Fusion");
+  assert.ok(failure.events.some((event) => event.type === "skill" && "card" in event && event.card === failed.goku), "failed activation still reaches the ordinary checkpoint for the material Auto");
 }
 
 // Invalid or absent stored contracts never become a free Union activation.
@@ -248,5 +381,5 @@ async function verifyNewRecordAdmission() {
   }), /new rule requires explicit typed payment/);
 }
 verifyNewRecordAdmission().then(() => {
-  console.log("typed-payment-907: stored Union resource/action costs, display independence, rejected bad contracts, either/marker/Burst/Spirit Boost, typed P-360 grant and context+state replay passed");
+  console.log("typed-payment-907: stored Union payment; post-material resources/reducers/X; pending Autos; material and Burst replacement failure; stale choices and obsolete saves; both seats/context+state replay passed");
 }).catch((error: unknown) => { console.error(error); process.exitCode = 1; });

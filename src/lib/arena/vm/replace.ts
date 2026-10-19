@@ -268,7 +268,10 @@ export function leaveRoute(
   // hand card. The answer must reach the move, even though automatic
   // replacement discovery remains scoped to in-play departures and life.
   const answeredHandDeparture = from === "hand" && opts.replaced != null;
-  if (((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredComboCleanup) && !held(to)) || (scopedDeparture && (selected || opts.replaced != null))) {
+  // A strict cost can also ask about a declared deck/life/pool departure.
+  // Honor that supplied answer without widening automatic discovery.
+  const answeredCostDeparture = opts.reason === "cost" && opts.replaced != null;
+  if (((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredCostDeparture || answeredComboCleanup) && !held(to)) || (scopedDeparture && (selected || opts.replaced != null))) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });

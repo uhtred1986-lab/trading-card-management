@@ -190,14 +190,15 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(offer(board(3, 2).s, board(3, 2).fus), "exactly two cards can pay it");
 
     const deck = count(ok.s, seat, "deck"), drop = count(ok.s, seat, "drop");
-    // Declared: the energy is paid, the materials are asked, nothing drawn and nothing announced yet.
+    // The old energy-at-declaration expectation was disproved by official manual
+    // ver4 §22-13-4-4/-4-1 (19 Oct #907 source receipt): materials precede all remaining cost.
     const declared = take(ok.s, offer(ok.s, ok.fus)!.action);
     let mid = declared.s;
     if (mid.prompt.kind === "payCost") mid = take(mid, { type: "payCost", player: seat, option: 0 } as Action).s;
     assert.equal(mid.prompt.kind, "chooseCards", "the material choice comes first (22-13-4-2)");
     assert.equal(count(mid, seat, "deck"), deck, "no card drawn before the materials are in the Drop");
     assert.equal(skillAt(declared.ev, ok.fus), -1, "the skill is not announced before its price is paid");
-    assert.equal(mid.sides[seat].zones.energy.filter((id) => mid.cards[id].mode === "rest").length, 3, "{r}{r}{r} paid");
+    assert.equal(mid.sides[seat].zones.energy.filter((id) => mid.cards[id].mode === "rest").length, 0, "{r}{r}{r} remains unpaid until materials are placed");
     const pair = (t: VmState) => t.prompt.kind === "chooseCards" ? [ok.goku, ok.veg].filter((id) => t.prompt.kind === "chooseCards" && t.prompt.choice.candidates.includes(id)).slice(0, Math.max(1, t.prompt.choice.min)) : undefined;
     const done = resolve(ok.s, seat, ok.fus, pair);
     assert.ok(done.s.sides[seat].zones.battle.includes(ok.fus), "Gogeta is played");

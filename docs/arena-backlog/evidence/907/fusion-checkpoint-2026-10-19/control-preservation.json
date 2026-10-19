@@ -1,0 +1,54 @@
+{
+  "baseline": "docs/arena-backlog/evidence/907/typed-payment-2026-10-19/starter-compiler-pack.json",
+  "baselineSHA256": "d9ace4c2998c46a54e9a223e5890260cab0c500845b7302da2bb93b907302c9f",
+  "actualSHA256": "3a5b33f9144886cf1e9850e86958f3c527db6d10c2006b2795a86d5c9f104ef1",
+  "baselineVersions": {
+    "engine": "ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8",
+    "engineSourceHash": "a4331c7ce1b196832cc6de677a0ad41268ad2edd932a047e647ecb2ef12dab3b",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "f5c63310871d73054c90a83f6136d766ed7cc517ca9c7890157ed549cf216fde",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "4031c53260f0b335b60bb9025b90dfccfa8d0ed260a599b13838b20ccb305169",
+    "sourceHead": "ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8"
+  },
+  "actualVersions": {
+    "engine": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c",
+    "engineSourceHash": "4bfc3c7280931996b29e8fe31e0e344b14b837e0c2b03700cf0b989ae6581f37",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "4a497b8269325e967ca5b26d449e1657dd835008b93657b0253b7b8cffd080e2",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "4031c53260f0b335b60bb9025b90dfccfa8d0ed260a599b13838b20ccb305169",
+    "sourceHead": "fd8ac39d04602ea52f095566333c8e4ccbaf3c5c"
+  },
+  "equal": [
+    "catalog/source/defs/owner-specified costs",
+    "decks/complete admission records",
+    "seeds/move limits/protocol",
+    "all16 complete game records and trace hashes",
+    "all75 executable programs and manifest",
+    "summary/measures",
+    "policy/ruleset/errata/runner"
+  ],
+  "outcomes": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "expectationChanges": [],
+  "note": "Compiler-mode controls, not production stored-mode qualification. Loader source difference from prior frozen pack includes #1066 authoring-only guard already disclosed in its receipt; exact executable programs and games equal."
+}
