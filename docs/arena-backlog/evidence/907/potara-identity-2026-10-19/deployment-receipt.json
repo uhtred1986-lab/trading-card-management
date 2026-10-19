@@ -1,0 +1,15 @@
+{
+  "format": "potara-907-deployment-v1",
+  "pr": "https://github.com/uhtred1986-lab/trading-card-management/pull/1084",
+  "reviewedHead": "78fa1086ca42a257a21dfba8338783d3742246eb",
+  "sourceProofPin": "84fcc4a8a71c9c762e7ca6289756001b0a43e15d",
+  "mergeCommit": "418d20651021497e9c0c2a2a1609cd5699f5f727",
+  "mergeTreeMatchesReviewedHead": true,
+  "deploymentId": "dpl_DYJX4cXBHJ1DgpM7SgJRa5e6pfci",
+  "deploymentUrl": "https://trading-card-management-c091g4lhd-gullet-cove.vercel.app",
+  "deploymentState": "READY",
+  "githubVercelStatus": "success",
+  "mergedRemoteBranchDeleted": true,
+  "potaraDatabaseApplication": "Pending separate owner approval; no write performed",
+  "applicationBuildsForBatch": 1
+}

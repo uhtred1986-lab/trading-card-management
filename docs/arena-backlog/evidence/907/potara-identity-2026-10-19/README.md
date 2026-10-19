@@ -6,6 +6,8 @@ Only **BT2-012/front/0, id10297 v1 → proposed v2** is proposed for application
 
 [The proposal](proposal.json) adds `cost.version`, `cost.readable`, `cost.potara`, `usage` and `validity`, with version/update bookkeeping. The existing five-energy cost body, effect, condition, trigger, printed text, reading, source/status and private fields are preserved. [The proposed safe record](proposed-record.json) is input to the same proof intended for eventual approved readback. Approval digest: `0abeab213937eb646d2211188767c97de8c70e27d8bf3be4816a5433542017da`.
 
+[PR #1084](https://github.com/uhtred1986-lab/trading-card-management/pull/1084) is merged and production is READY with a successful Vercel status; [deployment receipt](deployment-receipt.json).
+
 **Owner approval is pending. This proposal has not been applied.** The guarded writer checks the full row and catalog identity atomically and refuses stale state, wrong digest and replay.
 
 [Verification](verification.json) records the final 76-case provided-record proof and typecheck at `84fcc4a8`, plus original 925/927/929/930 preservation checks and full lint at `205cc4d0`. The proof covers both seats, stored/display mutations, mandatory Battle/Z-Battle material type, permission boundaries, typed grants, saved identity/source occurrences, valid Fusion shared branches and ordinary seven-energy play without Potara materials. Companions are compiled fixtures, not refreshed actual card rows. The earlier PGlite writer proof passed; replaying the preview produced the identical digest. Final focused lint passed; full lint reported five existing warnings.
