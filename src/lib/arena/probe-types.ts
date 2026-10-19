@@ -5,6 +5,7 @@ import type { RulePath } from "./lang/path";
 
 /** The rule under test, as the row holds it. */
 export interface ProbeRule {
+  combo?: import("./vm/combo-qualification").ComboQualification;
   /** The card as the engine sees it — its printed text included, since the engine reads kinds and triggers off it. */
   def: CardDef;
   side: "front" | "back";

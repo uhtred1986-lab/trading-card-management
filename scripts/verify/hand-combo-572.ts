@@ -21,19 +21,19 @@ for (const [id, printed] of [["C572-BT2", BT2], ["C572-BT6", BT6]] as const) {
   assert.deepEqual(skillRecords(DEFS[id]).map((row) => row.trigger), [["comboed"]], `${id}: the stored WHEN is this card's cleanup moment`);
   assert.deepEqual(compileSkill(sk).unsupported, [], `${id}: the Auto reads whole`);
 }
-assert.deepEqual((compileSkill(parseSkills(BT6)[0]!).ops[0] as { cond: unknown }).cond,
-  { kind: "not", cond: { kind: "isTurnPlayer" } }, "BT6-010: opponent-turn condition remains part of the reading");
+assert.deepEqual(compileSkill(parseSkills(BT6)[0]!).combo?.turn,
+  "opponent", "BT6-010: opponent-turn condition is the typed occurrence qualification");
 for (const verb of ["comboed with", "used"] as const) {
   const alias = BT6.replace("combo with", verb);
   const sk = parseSkills(alias)[0]!;
   assert.equal(comboBattleEndFromHand(sk), true, `${verb}: the same source-bound timing`);
-  assert.deepEqual((compileSkill(sk).ops[0] as { cond: unknown }).cond,
-    { kind: "not", cond: { kind: "isTurnPlayer" } }, `${verb}: opponent-turn reading survives its printed alias`);
+  assert.deepEqual(compileSkill(sk).combo?.turn,
+    "opponent", `${verb}: opponent-turn reading survives its printed alias`);
 }
 assert.equal(comboBattleEndFromHand(parseSkills("[Auto] At the end of the battle after you combo with this card from your Battle Area, place 1 card from your hand in its owner's Drop Area.")[0]!), false,
   "an effect's mention of hand does not change the combo's source");
-assert.deepEqual((compileSkill(parseSkills("[Auto] At the end of a battle in which you combo with this card during your opponent's turn, draw 1 card.")[0]!).ops[0] as { cond: unknown }).cond,
-  { kind: "not", cond: { kind: "isTurnPlayer" } }, "a no-hand-source wording keeps its prior opponent-turn condition");
+assert.deepEqual(compileSkill(parseSkills("[Auto] At the end of a battle in which you combo with this card during your opponent's turn, draw 1 card.")[0]!).combo?.turn,
+  "opponent", "a no-hand-source wording keeps its prior opponent-turn condition");
 
 function take(state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } {
   assert.ok(IMPL.legalActions(CTX, state).some((row) => JSON.stringify(row.action) === JSON.stringify(action)),

@@ -1,5 +1,6 @@
+import { triggersOf } from "../gaps";
 import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
+import { compileComboQualification, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import { emptyFilter } from "../text/filters";
@@ -58,7 +59,9 @@ export function compileSkill(skill: Skill): Script {
   // The skill holds while its card is where it is valid (9-5-1), and `game`
   // is the nearest thing the language has to that.
   const held = skill.kind === "permanent" && !triggeredPermanent(skill) ? { ...caused, ops: holdForGame(caused.ops) } : caused;
-  return refuseUnmatchedComboEntry(skill, held);
+  const result = refuseUnmatchedComboEntry(skill, held);
+  const combo = compileComboQualification(skill);
+  return combo ? { ...result, combo, trigger: triggersOf(skill).filter((t) => combo.timing !== "entry" || t !== "comboed") } : result;
 }
 
 /**
@@ -558,7 +561,7 @@ function compileSkillText(skill: Skill): Script {
   // stays — it must compile or the skill goes to the referee.
   let triggerCond: Cond | null = null;
   let returnedFromBattle = false;
-  if (ownComboEnd) triggerCond = { kind: "isTurnPlayer" };
+  if (ownComboEnd && !compileComboQualification(skill)) triggerCond = { kind: "isTurnPlayer" };
   // "If this card is placed in your Drop Area from your hand by a skill"
   // (SD13-05, behind a condition before the colon) is the trigger said with
   // "if" — `droppedFromHand`, the same moment as "when" — and not a condition.
@@ -618,7 +621,7 @@ function compileSkillText(skill: Skill): Script {
     // `comboed`; whose turn it is, a condition on it. The two trigger
     // interpreters now bind "from your hand" to this battle's combo-entry
     // source before queueing the Auto, rather than widening this condition.
-    if (comboBattleEndOpponentTurn(skill))
+    if (comboBattleEndOpponentTurn(skill) && !compileComboQualification(skill))
       triggerCond = { kind: "not", cond: { kind: "isTurnPlayer" } };
     // "When this card is sent from your deck to your Warp by your <Heles>
     // card's skill" (BT30-106, 3-10): the moment is any skill of yours
@@ -738,7 +741,7 @@ function compileSkillText(skill: Skill): Script {
     }
   }
 
-  if (turnCond) triggerCond = triggerCond ? { kind: "all", conds: [turnCond, triggerCond] } : turnCond;
+  if (turnCond && !compileComboQualification(skill)) triggerCond = triggerCond ? { kind: "all", conds: [turnCond, triggerCond] } : turnCond;
 
   const unsupportedBeforeHead = unsupported.length;
   // The head's surgery above only ever removes clauses, so what is left is a

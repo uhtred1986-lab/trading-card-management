@@ -13,6 +13,7 @@ import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
 import { negateAs } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
+import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
 import {
@@ -266,7 +267,7 @@ import type { CardFilter, SchemaOp } from "./harness";
     "choose up to 1 blue ≪Another World Budokai≫ card in your Warp, move the chosen cards to drop",
   );
   assert.equal(describeScript([{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, mode: "rest" }, as: "t" }]), "choose 1 card in your opponent's Battle Area in rest mode");
-  assert.equal(play.cost, null);
+  assert.deepEqual(play.cost, zeroCostRecord(), "payment v1 records an explicit zero price for a free Auto");
   // A program that is one wrapping `if` is shown as IF + DO; the reading still covers the whole thing.
   const perm = recs[1];
   assert.equal(perm.cond?.kind, "leaderMatches", "the wrapping if is hoisted into IF");

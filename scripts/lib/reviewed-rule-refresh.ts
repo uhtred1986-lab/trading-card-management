@@ -30,7 +30,7 @@ export async function applyReviewedRefresh(db: Db, plan: ReviewedRefresh): Promi
     catalog_write as (update cards set skill=${plan.catalog?.after ?? null}
       where id=${plan.catalog?.id ?? null} and exists(select 1 from valid) returning id),
     rule_write as (update card_rules r set
-      printed=i.fresh->>'printed', kind=i.fresh->>'kind', trigger=i.fresh->'trigger',
+      printed=i.fresh->>'printed', kind=i.fresh->>'kind', trigger=i.fresh->'trigger', combo=nullif(i.fresh->'combo','null'::jsonb),
       cost=nullif(i.fresh->'cost','null'::jsonb), cond=nullif(i.fresh->'cond','null'::jsonb),
       ops=i.fresh->'ops', unread=i.fresh->'unread', pattern=i.fresh->>'pattern',
       reads=i.fresh->>'reads', status='draft', version=r.version+1, updated_at=now()
@@ -68,7 +68,7 @@ export async function applyReviewedUnreadRefresh(db: Db, plan: ReviewedUnreadRef
         and r.skill_index=(i.fresh->>'skillIndex')::int
         and jsonb_typeof(i.fresh->'unread')='array' and i.fresh->'unread'<>'[]'::jsonb)=${plan.rules.length}),
     rule_write as (update card_rules r set
-      printed=i.fresh->>'printed', kind=i.fresh->>'kind', trigger=i.fresh->'trigger',
+      printed=i.fresh->>'printed', kind=i.fresh->>'kind', trigger=i.fresh->'trigger', combo=nullif(i.fresh->'combo','null'::jsonb),
       cost=nullif(i.fresh->'cost','null'::jsonb), cond=nullif(i.fresh->'cond','null'::jsonb),
       ops=i.fresh->'ops', unread=i.fresh->'unread', pattern=i.fresh->>'pattern',
       reads=i.fresh->>'reads', status='open', version=r.version+1, updated_at=now()

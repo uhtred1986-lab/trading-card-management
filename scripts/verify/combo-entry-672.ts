@@ -6,7 +6,6 @@ import { parseSkills } from "../../src/lib/arena/text/cards";
 import { comboEntryFromHand, comboEntrySelf } from "../../src/lib/arena/text/triggers";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { fire } from "../../src/lib/arena/vm/events";
-import { moved } from "../../src/lib/arena/vm/flow";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { NotYet } from "../../src/lib/arena/vm/errors";
@@ -44,7 +43,7 @@ for (const [line, expected] of [
   assert.equal(skillRecords(card("C672-TEXT", { skill: line }))[0]?.trigger.includes("comboUsed"), expected, `compiled entry: ${line}`);
   if (expected) assert.deepEqual(compileSkill(skill).unsupported, [], `supported wording: ${line}`);
 }
-assert.deepEqual(skillRecords(DEFS["C672-ORDINARY"])[0]?.trigger, ["comboed", "comboUsed"], "legacy record name remains as an alias");
+assert.deepEqual(skillRecords(DEFS["C672-ORDINARY"])[0]?.trigger, ["comboUsed"], "the executable entry record no longer carries the obsolete cleanup alias");
 assert.deepEqual(skillRecords(DEFS["C672-LATE"])[0]?.trigger, ["comboed"], "explicit battle-end wording stays late");
 assert.ok(skillRecords(DEFS["C672-SUPER"]).some((row) => row.trigger.includes("comboUsed")), "[Super Combo] does not hide its separate ordinary Auto");
 assert.ok(skillRecords(DEFS["C672-PLAY-OR-COMBO"])[0]?.trigger.includes("played"));
@@ -134,9 +133,8 @@ assert.equal(skills(result.events, played).length, 1);
 assert.ok(zoneOf(result.state, "p1", "battle").includes(played));
 }
 
-// An old confirmed `card_rules` row has only the historical trigger name.
-// The new DSL maps its ordinary printed wording to entry, once, without
-// rewriting that person's stored record.
+// Historical cleanup-only rows need an explicit migration; display text cannot
+// silently redirect them to a different executable occurrence.
 {
 const state = arenaG();
 assert.ok(isVmState(state));
@@ -145,14 +143,11 @@ const definition = rulesetFor("dbs");
 assert.ok(definition.ok);
 const oldScripts = Object.create(CTX.scripts) as typeof CTX.scripts;
 const current = CTX.scripts["C672-ORDINARY"];
-oldScripts["C672-ORDINARY"] = { ...current, bySkill: { ...current.bySkill, 0: { ...current.bySkill[0], trigger: ["comboed"] } } };
+oldScripts["C672-ORDINARY"] = { ...current, bySkill: { ...current.bySkill, 0: { ...current.bySkill[0], combo: undefined, trigger: ["comboed"] } } };
 const oldCtx = { ...CTX, scripts: oldScripts };
 assert.ok(moveCard(state, definition.definition, combo, "combo", { owner: "p1" }).ok);
-fire(oldCtx, definition.definition, state, { event: "comboUsed", card: combo, controller: "p1", args: { to: "combo" } });
-assert.deepEqual(state.pending.map((p) => [p.card, p.trigger]), [[combo, "comboUsed"]]);
-state.pending = [];
-moved(oldCtx, definition.definition, state, [], combo, "drop", { owner: "p1" });
-assert.deepEqual(state.pending, [], "old confirmed row does not duplicate at cleanup");
+assert.throws(() => fire(oldCtx, definition.definition, state, { event: "comboUsed", card: combo, controller: "p1", args: { to: "combo" } }), /typed combo qualification/);
+assert.deepEqual(state.pending, [], "obsolete record cannot pend an unqualified Auto");
 }
 
 // The next combo belongs to its own copy and master. A saved state between

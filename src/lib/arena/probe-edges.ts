@@ -48,6 +48,7 @@ export function ruleViewOf(rule: ProbeRule): Rule {
   return {
     kind: rule.kind,
     trigger: rule.trigger as Rule["trigger"],
+    ...(rule.combo ? { combo: rule.combo } : {}),
     cost,
     cond: wrapper ? wrapper.cond : null,
     ops: wrapper ? wrapper.then : rule.ops,

@@ -1,0 +1,143 @@
+{
+  "scope": [
+    "BT6-006/front/10",
+    "BT6-010/front/0",
+    "BT6-066/front/0",
+    "BT6-070/front/0"
+  ],
+  "retrievalMethod": "Python urllib.request over configured session network; no browser bypass, credentials or database access. Hashes identify raw retrieved response bytes, including rejected responses. Raw responses held in session /tmp/combo-online only.",
+  "sources": [
+    {
+      "key": "BT6-006",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-006",
+      "retrievedAt": "2026-10-19T11:37:40.291756+00:00",
+      "status": 200,
+      "bytes": 133833,
+      "sha256": "8ef924eae8f82c10ddafb34a1b650c2de8c0614a431d95af5136d5762124292a",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-006"
+    },
+    {
+      "key": "BT6-010",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-010",
+      "retrievedAt": "2026-10-19T11:37:41.783833+00:00",
+      "status": 200,
+      "bytes": 134010,
+      "sha256": "21f07cef264a8963f7ca36242fe6aeefbded5cc6d366f6f4814ecca36b974077",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-010"
+    },
+    {
+      "key": "BT6-066",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-066",
+      "retrievedAt": "2026-10-19T11:37:40.319442+00:00",
+      "status": 200,
+      "bytes": 130931,
+      "sha256": "adf2a7b7469ded6495d82e0727a260039ec2dc02a481e3ca1ff3b3b6b55d4eda",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-066"
+    },
+    {
+      "key": "BT6-070",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-070",
+      "retrievedAt": "2026-10-19T11:37:41.312063+00:00",
+      "status": 200,
+      "bytes": 133411,
+      "sha256": "a898130679049e582207e51058115758e23449fe83692da9622f08399af6248a",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-070"
+    },
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "retrievedAt": "2026-10-19T11:37:43.394854+00:00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "finalUrl": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00"
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "retrievedAt": "2026-10-19T11:37:41.425654+00:00",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php"
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "retrievedAt": "2026-10-19T11:37:43.962978+00:00",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "finalUrl": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php"
+    },
+    {
+      "key": "duckduckgo",
+      "url": "https://html.duckduckgo.com/html/?q=DBS+%22Support+Attack+Trunks%22+combo+ruling",
+      "status": 200,
+      "bytes": 26294,
+      "sha256": "8603a228c8ddef5f9fecdfaa87c040ad84facfed80203367d642b4d67b34bf81",
+      "retrievedAt": "2026-10-19T11:38:14.763993+00:00"
+    },
+    {
+      "key": "reddit-search",
+      "url": "https://www.reddit.com/r/DBS_CardGame/search.json?q=%22Support%20Attack%20Trunks%22&restrict_sr=on&limit=10",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "a749d56d27d88cb13bb690b782752498550432fc26295c98d37d4504d5634a84",
+      "retrievedAt": "2026-10-19T11:38:15.300590+00:00"
+    },
+    {
+      "key": "google",
+      "url": "https://www.google.com/search?q=%22Quickshift+Angila%22+%22ruling%22",
+      "status": 200,
+      "bytes": 92096,
+      "sha256": "6d7fb6cfc81cdd5a307bc49fa62aea9f507f80cf82f302f5370ebc159bb418ed",
+      "retrievedAt": "2026-10-19T11:38:16.162855+00:00"
+    },
+    {
+      "key": "forum-search-0",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20%22Support%20Attack%20Trunks%22",
+      "status": 200,
+      "bytes": 17407,
+      "sha256": "e466924d6c08ebcf1e50220481e5e260e96670bb7a5667e4bf40d81374f8e6f1",
+      "retrievedAt": "2026-10-19T11:38:31.495989+00:00"
+    },
+    {
+      "key": "forum-search-1",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20%22Quickshift%20Angila%22",
+      "status": 200,
+      "bytes": 9407,
+      "sha256": "76ebdf09c040a9fd5108be23ea232891692e787aa77e7391a13c2a910f0772e5",
+      "retrievedAt": "2026-10-19T11:38:31.332920+00:00"
+    },
+    {
+      "key": "forum-search-2",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20combo%20%22end%20of%20battle%22%20trunks",
+      "status": 200,
+      "bytes": 9434,
+      "sha256": "cc0494f2addbc4fbee42e707fda1eeb660dd06d18007a9effca2d48afce9aa18",
+      "retrievedAt": "2026-10-19T11:38:31.470277+00:00"
+    },
+    {
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/qoi8qj/can_you_counter_then_combo/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "016581c20723de1842252ecd05f156cfb60e429dccdc7ca0340d3a62169d5675",
+      "retrievedAt": "2026-10-19T11:38:44.457775+00:00"
+    },
+    {
+      "url": "https://old.reddit.com/r/DBS_CardGame/comments/qoi8qj/can_you_counter_then_combo/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "1e27f216b2813c7077707b95436aebd2ccfdcaca06df916aa2f03a2d16eddbd6",
+      "retrievedAt": "2026-10-19T11:38:44.484898+00:00"
+    },
+    {
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/fk9o8f/question_megathread/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "974d54957187bf410de6269ccbe4232c0abd5dccd2165a0e69abc70462f6164a",
+      "retrievedAt": "2026-10-19T11:38:44.435339+00:00"
+    }
+  ]
+}

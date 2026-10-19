@@ -5090,6 +5090,19 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
           pendingMay = mayBefore;
           continue;
         }
+        // BT6-066: returning the optional exact selection AND shuffling the
+        // deck is one action. The move alone is inert on decline, but its
+        // shuffle is not; keep both inside the offer. "If you do" still
+        // checks the exact chosen set, rather than merely accepting the offer.
+        const selection = mayBefore.ops[0];
+        if (selection?.op === "choose" && !selection.sel.upTo
+          && /^shuffle (?:it|them|those cards) (?:into|in) your deck[.]?$/i.test(clause.trim())
+          && got.some((op) => op.op === "shuffle")) {
+          mayBefore.ops.push(...got);
+          c.lastOp = "choose";
+          pendingMay = mayBefore;
+          continue;
+        }
         chain = mayBefore;
         // "…reveal 1 ≪Universe 9≫ card from your hand and place **it** at the
         // bottom of your deck" (TB1-042): a counted reveal shows every match

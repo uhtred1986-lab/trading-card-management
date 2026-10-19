@@ -1,3 +1,4 @@
+import { comboScriptProblem } from "./combo-qualification";
 /**
  * The turn, run as a program.
  *
@@ -819,6 +820,16 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
   const program = showing.scripts.bySkill[next.skillIndex]
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  // Validate saved pending data without rechecking an occurrence that already
+  // happened (9-6-11: Angila still resolves after a Jaco return to hand).
+  if (program?.combo !== undefined || ["comboUsed", "comboed"].includes(next.trigger)) {
+    const gap = comboScriptProblem(program) ?? (!program?.trigger?.includes(next.trigger as Trigger) ? "saved combo Auto has no matching occurrence; rebuild the match (#907)" : null);
+    if (gap) {
+      interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex,
+        trigger: next.trigger, issue: "#907", detail: gap });
+      return true;
+    }
+  }
   // A pending trigger can wait behind other Autos; check Bond again when this
   // one is actually activated (22-21-3). In particular, do so before deciding
   // whether a secret-area Auto must be revealed.
@@ -1189,6 +1200,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    const sourceScript = frame.skillIndex !== undefined ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    if (sourceScript?.combo !== undefined || frame.trigger && ["comboUsed", "comboed"].includes(frame.trigger)) {
+      const gap = comboScriptProblem(sourceScript)
+        ?? (!frame.trigger || !sourceScript?.trigger?.includes(frame.trigger) ? "saved combo continuation has no matching occurrence; rebuild the match (#907)" : null);
+      if (gap) throw new NotYet(gap, "#907");
+    }
     if (frame.taxGate) return stepTaxGate(ctx, game, state, ev, frame);
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);

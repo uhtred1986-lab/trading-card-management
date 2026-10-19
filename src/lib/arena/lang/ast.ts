@@ -27,6 +27,7 @@ import type { Requirement, SkillKind, Trigger } from "../types";
 export interface Rule {
   kind: string;
   trigger: Trigger[];
+  combo?: import("../vm/combo-qualification").ComboQualification | null;
   cost: CostRecord | null;
   /** The hoisted condition: one `if` with no `else`, lifted out of the steps. */
   cond: Cond | null;

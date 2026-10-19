@@ -417,6 +417,7 @@ export function printCost(cost: CostRecord): string {
  */
 export function printRule(rule: Rule): string {
   const lines = [`WHEN [${rule.kind}]${rule.trigger.length ? ` ${rule.trigger.join(" | ")}` : ""}`];
+  if (rule.combo != null) lines.push(`COMBO ${JSON.stringify(JSON.stringify(rule.combo))}`);
   if (rule.cost) lines.push(`COST ${printCost(rule.cost)}`.trimEnd());
   if (rule.cond) lines.push(`IF ${printCond(rule.cond)}`);
   lines.push(rule.ops.length ? `THEN\n${printOps(rule.ops, 1)}` : "THEN");

@@ -27,6 +27,9 @@ import type { Rule } from "./lang/ast";
 import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
 import { programProblem } from "./vm/script-schema";
 
+import { comboScriptProblem, type ComboQualification } from "./vm/combo-qualification";
+import { compileComboQualification } from "./text/triggers";
+
 export type RuleRow = typeof cardRules.$inferSelect;
 export type RuleStatus = "open" | "draft" | "confirmed" | "corrected";
 export type RuleSource = "compiler" | "claude" | "user";
@@ -88,13 +91,24 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "cost" | "ops">): s
   return unsupported;
 }
 
+/** Printed wording establishes only whether migration is required; never reconstruct the executable qualification. */
+function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unknown }): string | null {
+  const triggers = Array.isArray(row.trigger) ? row.trigger : [];
+  const required = row.combo != null || triggers.some((t) => t === "comboUsed" || t === "comboed")
+    || parseSkills(row.printed).some((sk) => compileComboQualification(sk));
+  if (!required) return null;
+  return comboScriptProblem(row);
+}
+
 /**
  * The rule record's review status does not answer what the rules engine can
  * execute. Keep this check bounded to gaps the runtime already names. The
  * interpreter remains authoritative for contextual questions during a game.
  */
-export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed">): RuntimeSupport {
+export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed"> & { combo?: unknown }): RuntimeSupport {
   const unsupported = [...(row.unread ?? [])];
+  const comboGap = comboContractGap(row);
+  if (comboGap) unsupported.push(comboGap);
   const paymentGap = costRecordProblem(row.cost);
   if (paymentGap) unsupported.push(paymentGap);
   else if ((row.cost as CostRecord).readable === false) unsupported.push("the stored skill payment is unreadable");
@@ -257,10 +271,10 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
-      ? { ops: [], unsupported: row.unread, price, trigger }
-      : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger };
+      ? { ops: [], unsupported: row.unread, price, trigger, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
+      : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
     base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
@@ -292,6 +306,7 @@ export interface RuleWrite {
    * the same as leaving it out, so the three are read with `!== undefined`.
    */
   trigger?: string[];
+  combo?: unknown;
   cost?: unknown;
   cond?: Cond | null;
   /** Needed when the row does not exist yet; a row that exists keeps its own. */
@@ -323,7 +338,10 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
     const problem = fusionMaterialsProblem(((w.cost ?? existing?.cost) as CostRecord | undefined)?.fusion);
     if (problem) throw new Error(`${w.cardId} [${w.skillIndex}]: ${problem}`);
   }
-  const bad = validateRule({ kind, trigger: [], cost: w.cost ?? null, cond: w.cond ?? null, ops: w.ops }, kind);
+  const combo = w.combo !== undefined ? w.combo : existing?.combo;
+  const comboGap = comboContractGap({ printed: existing?.printed ?? w.printed ?? "", trigger: w.trigger ?? existing?.trigger, combo });
+  if (comboGap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${comboGap}`);
+  const bad = validateRule({ kind, trigger: w.trigger ?? existing?.trigger ?? [], combo, cost: w.cost ?? null, cond: w.cond ?? null, ops: w.ops }, kind);
   if (bad) throw new Error(`${w.cardId} [${w.skillIndex}]: refused to store a rule the engine cannot run — ${bad.message}`);
   // The hoisted condition is part of the program, so the reading has to be of
   // the whole thing; describing the steps alone dropped the IF from the line
@@ -336,6 +354,7 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
         ops: w.ops,
         cond: w.cond ?? null,
         ...(w.trigger !== undefined ? { trigger: w.trigger } : {}),
+      ...(w.combo !== undefined ? { combo: w.combo } : {}),
         ...(w.cost !== undefined ? { cost: w.cost } : {}),
         source: w.source,
         status: w.status,
@@ -364,6 +383,7 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
       ops: w.ops,
       cond: w.cond ?? null,
       ...(w.trigger !== undefined ? { trigger: w.trigger } : {}),
+      ...(w.combo !== undefined ? { combo: w.combo } : {}),
       ...(w.cost !== undefined ? { cost: w.cost } : {}),
       source: w.source,
       status: w.status,
