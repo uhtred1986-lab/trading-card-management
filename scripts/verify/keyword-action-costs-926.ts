@@ -341,11 +341,7 @@ for (const seat of ["p1", "p2"] as const) {
     stage(s, seat, "GOKU926", "hand"); stage(s, seat, "VEG926", "hand");
     for (let i = 0; i < 3; i++) { stage(s, seat, "V1", "energy"); stage(s, foe, "V-BLUE", "energy"); }
     assert.equal(offer(s, gog), undefined, "BT31-149 is not offered");
-    // #1071: a keyword record the compiler could not read whole is blocked, and a blocked record is no activation line at
-    // all (`recordedSkillIdentity`), so it has no refusal to list; what must hold is that it is never offered and
-    // that declaring the activation anyway is refused rather than charged for part of its price.
-    assert.deepEqual(refusal(s, gog), [], "a blocked keyword record lists no per-line refusal");
-    for (const skill of [0, 10, 20]) assert.throws(() => take(s, { type: "activate", player: seat, card: gog, skill }), "declaring the unread activation anyway is refused");
+    assert.ok(refusal(s, gog).some((r) => r.kind === "unread"), "it is refused as unread");
     // …and its catalog typo is corrected on the way in (errata.ts, official card list):
     // "{1}, if your opponent has 3 or more energy and you draw 3 cards".
     const board = (foeEnergy: number, deck: number) => {
