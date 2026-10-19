@@ -19,7 +19,7 @@ assert.ok(!apply || !offline && approved && /^[a-f0-9]{64}$/.test(approved), "ap
 const publicOut = options.get("--out"), privateOut = options.get("--private-out");
 if (offline) for (const path of [publicOut, privateOut]) if (path) assert.notEqual(resolve(path), resolve(offline), "output must not overwrite the input snapshot");
 if (publicOut && privateOut) assert.notEqual(resolve(publicOut), resolve(privateOut), "public and private outputs must differ");
-const privatePath = privateOut ? externalCheckpointPath(privateOut, "private Absorb reviewed snapshot") : undefined;
+const privatePath = privateOut ? externalCheckpointPath(privateOut) : undefined;
 let before: RawAbsorbRow;
 let liveDb: Awaited<typeof import("../src/db")>["db"] | undefined;
 if (offline) {
