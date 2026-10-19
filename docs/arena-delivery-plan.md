@@ -1,8 +1,10 @@
 # Arena delivery plan — updated 12 October 2026
 
-Authoritative next-work queue, reconciled with all 13 originally open repository issues and their comments.
-The current queue uses eight existing GitHub milestones; historical completed stages stay separate.
-Master tracking issue: [#581](https://github.com/uhtred1986-lab/trading-card-management/issues/581). The grounded review/spec is [arena-playability-review.md](arena-playability-review.md).
+**Historical plan, superseded for dispatch.** #581 is complete. Read
+[current state](arena-CURRENT.md) and the [rules delivery plan](arena-rules-delivery.md)
+for the current rules/AI order. The dated statuses below preserve the 12 October
+record and must not reopen delivered work. The grounded review/spec remains
+[arena-playability-review.md](arena-playability-review.md).
 
 ## Priority and execution policy
 

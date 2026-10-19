@@ -1,5 +1,14 @@
 # Arena testing progress
 
+**Current dispatch — 19 October 2026:** follow [rules delivery](arena-rules-delivery.md).
+#1030 pinned the two compiler-based starter controls (16/16 completed in its recorded
+pack); #897 retains stored-program qualification and one additional pair. #1026's
+defense cases passed 18/18 and its real-card tactics matrix 12/12; #899 still needs
+fresh strength holdouts. The dated tables below retain candidate/scenario history;
+their old #825 gap labels do not request reimplementation of #834. Reconcile
+per-target application before qualifying a deck. #827 owns later expansion and
+#906 alone owns the paid campaign.
+
 The persisted progress page is **Arena → Testing & stats** (`/arena/testing`, admin access).
 It contains 64 proposed deck recipes and 55 scenarios, editable progress/evidence,
 actual-deck links, manually recorded results and separate server Arena statistics.

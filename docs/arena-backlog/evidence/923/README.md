@@ -1,5 +1,9 @@
 # Union audit — 15 October 2026
 
+Historical inventory and initial coverage matrix. Several gaps below were later
+implemented. Read [the reconciled #923 body](../../923.md) for current delivery
+and remaining acceptance; this snapshot must not redispatch completed fixes.
+
 Source snapshot: all 6,552 Masters cards, compiler baseline `15487afd`. No live database writes or paid API calls.
 
 229 cards / 233 faces mention a Union tag. 268 parsed skill records reference Union: **170 direct top-level activations** and 98 surrounding support/reference records. Activations: **63 Fusion, 51 Potara, 56 Absorb**. Of these 170, 168 have no unread clauses; two Absorb lines remain unread (BT17-077 and BT28-012). Two of the clean Potara records have their Union tag hidden behind another primary keyword, so **clean is not playable**.

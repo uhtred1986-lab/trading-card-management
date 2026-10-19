@@ -1,22 +1,36 @@
 # Arena current state
 
-Last updated: 15 October 2026
+Last updated: 19 October 2026
 
 ## Current work
 
-New readiness planning (15 October): [execution plan](arena-readiness-plan-2026-10-15.md)
-tracks built-in opponent discoverability/reliability (#896–#900), a prepared Claude API
-campaign (#901–#906; owner-approved $20 pilot / $100 inclusive total), and the single
-unread-rule repair queue (#907). The [live audit](rules-audit-2026-10-15/README.md)
-found 1,714 affected cards / 1,985 skills; a guarded 22-skill refresh leaves 1,694
-cards / 1,963 unread skills. The eight social-promo rulings are recorded and the
-compiler now reads them (two shown log notes, #907 named-gaps PR); the stored rows
-await the guarded refresh. No paid calls ran.
+Follow the [rules delivery plan](arena-rules-delivery.md) and #907: freeze an honest
+baseline, make persisted executable rules authoritative, qualify two starter controls
+plus one additional pair, then measure policy improvements. Union is the first
+reference family: explicit Fusion/Potara/Absorb procedures, shared machinery and
+typed support modifiers. Preserve delivered Union behaviour and reconcile its
+remaining acceptance in #923 before implementing fixes again.
+
+#897 already has a compiler-based starter corpus/runner (#1030); its remaining
+stored-program provenance and admission gaps must be fixed before it certifies
+production records. #899's defensive valuation is implemented (#1026); fresh
+strength holdouts remain. #929/#930 have implementations, #932 is closed after
+final integrated validation, and #825 needs per-target application reconciliation. The plan and issue
+bodies distinguish these from new code work.
+
+#827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
+(#898 is closed). #906 owns the separate API campaign, still gated on a qualified
+corpus and preflight; the approved $20 pilot / $100 inclusive total is unchanged.
+No paid calls or database access occurred in this reconciliation.
+
+The [15 October audit](rules-audit-2026-10-15/README.md) and later #907 comments are
+dated evidence, not today's live counts. Readability, execution, semantic proof,
+current stored programs, human confirmation and AI strength are separate measures.
 
 The original delivery programme #581 is complete. All eight child trackers are closed;
 #518 and provider tracker #511 were accepted after the owner confirmed production testing works.
-The continuing programme is [O5, #637](arena-backlog/o5-tracking.md): reliable deck admission,
-bounded opponent search, measured strength, and development tooling.
+The continuing programme is [O5, #637](arena-backlog/o5-tracking.md), which links the
+single owners above rather than dispatching another overlapping queue.
 
 - The rules VM is the only engine; #118 retired the legacy engine.
 - Arena plays Masters (`dbs`), not Fusion World.
@@ -37,11 +51,9 @@ match runs and card-specific scenarios remain necessary to find interactions it 
 The current coverage work records typed interruption causes and reproducible private replay
 artifacts, and can repeat a captured real-deck corpus without further database reads.
 
-PR #824 corrects optional exact-count behavior and includes the separately approved follow-up
-refresh of eleven compiler records, SD13-05 condition metadata, and two verified specified costs.
-The three formerly held records are BT3-109/front/20, BT6-062/front/10 and SD8-03/front/10.
-Apply the rule refresh only after the matching production deployment is Ready; the PR closeout
-records application and readback. Preserve corrected or confirmed user programs.
+PR #824's optional exact-count fixes and application are historical delivery evidence;
+do not repeat a refresh from this handoff. For any new application, reconcile current
+source/program versions with the receipt and preserve corrected/confirmed user rules.
 
 Opponent search must use only the restricted observation, keep its RNG separate, return legal
 engine actions, respect work budgets, and fall back to the existing heuristic. Difficulty labels
@@ -55,10 +67,10 @@ Actual decks can be marked testing and are hidden by default in online and local
 new-game selectors; players can opt in. Downloaded decks need Update after a flag change.
 Local match results remain device-only until manually recorded.
 
-[Testing progress](arena-testing-progress.md) is the planning index for the proposed
-16-deck first wave, 62-deck booster expansion, small scenarios, [general strategic benchmarks](arena-strategy-validation.md), White Cell decision
-benchmarks and bounded Opus budget. These are proposed recipes and explicit progress
-states, not a claim that new lists or paid comparisons have already run.
+[Testing progress](arena-testing-progress.md) retains recipe/scenario and strategic
+evidence. Expansion beyond the selected pair is backlog, not a prerequisite of
+the current increment. Candidate lists, exercised skills, qualified decks and
+paired strength results each retain their own status.
 
 ## Entry points
 
