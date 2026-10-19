@@ -3480,16 +3480,21 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return [{ op: "forbid", what: "attack", side, until, ...(objects.attacker ? { filter: objects.attacker } : {}), ...(objects.defender ? { attackTarget: objects.defender } : {}), ...withUnless }];
     }
     if (/^activate\b/.test(rest) && /\[counter/.test(rest)) {
+      // BT6-060/061: energy-cost information is on the Counter card
+      // (1-2-4/5), not its additional skill price or what is actually paid.
+      const bounded = /^activate (?:the )?\[counter\] skills? with energy costs? of (\d+) or more(?: for (?:the (?:duration of the )?turn|the battle)| during (?:this turn|the battle)| until the end of (?:the turn|the battle))?$/.exec(rest);
+      if (bounded) return [{ op: "forbid", what: "activateCounter", side, until, filter: { ...parseFilter(""), costMin: Number(bounded[1]) }, ...withUnless }];
       // #716: "the [Counter: Play] skills of other cards for the turn"
-      // (BT10-008's price) names one kind of [Counter] and leaves this card
-      // out. Only that exact form is narrowed; any other description beside
-      // "of other cards" stays the bare rule it was read as before.
+      // (BT10-008's price) names one kind of [Counter] and leaves this card out.
       const narrow = /^activate (?:the )?\[counter: (play|attack|battle card attack|counter)\] skills of other cards(?:\s+(?:for|during|until)\b.*)?$/.exec(rest);
       if (narrow) {
         const counterKind = narrow[1] === "battle card attack" ? "battleCardAttack" : (narrow[1] as "play" | "attack" | "counter");
         return [{ op: "forbid", what: "activateCounter", side, until, counterKind, otherCards: true, ...withUnless }];
       }
-      return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+      if (/^activate (?:the )?\[counter\] skills?(?:\s+(?:until|for|during)\b.*)?$/.test(rest))
+        return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+      // A trailing qualifier cannot be discarded into a wider Counter ban.
+      return null;
     }
     if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until, ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the

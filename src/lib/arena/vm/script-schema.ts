@@ -846,10 +846,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // whoever takes the action, not this card's controller.
       const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
       // #716: "you can't activate the [Counter: Play] skills of other cards".
-      if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.unlessPay?.length)) {
+      if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.filter || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter)}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").

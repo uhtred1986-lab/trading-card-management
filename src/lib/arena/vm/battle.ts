@@ -1249,6 +1249,9 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const showing = skillsShowing(ctx, state, card);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
+  // A saved or forged candidate list cannot override a live Counter restriction.
+  if (forbids(ctx, game, state, "activateCounter", { player: action.player, card, skillKind: sk.kind }))
+    throw new IllegalAction("that counter is prohibited now");
   // #677, 20-14-1: a price a rule puts on activating this [Counter] —
   // "your opponent can't activate skills unless …" (EX06-35), "…[Counter]
   // skills unless …" (DB1-015), "…[Counter: Attack] skills …" (BT29-022). One

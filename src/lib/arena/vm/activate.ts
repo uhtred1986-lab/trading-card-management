@@ -1019,7 +1019,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   // matching over their candidates, never each slot against the whole pool.
   const movementPayable = (id: string, variable: string): boolean => {
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
-    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
+    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
   };
   if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as)))) return false;
   const linked = new Set(disjointGroups(ops).flat());
@@ -1064,7 +1064,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         // "Under" needs a host and "play" is not an area (3-1).
         if (op.to === "under" || op.to === "play") return false;
         if ("var" in op.target) break;
-        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
+        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
         break;
       case "removeMarker": {
         if (typeof op.n !== "number") return false;

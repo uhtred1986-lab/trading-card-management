@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Counter restrictions bounded by current card energy cost (#907)",
+    body: "BT6-060 and BT6-061 prohibit the opponent's Counter skills only while this card is attacking and only when the Counter card's current energy cost is 2 or more (1-2-4/5, 9-9-1). The stored forbid filter carries that bound and the human reading exposes it. Card-cost reductions/increases and the remaining specified-cost floor apply; additional skill orbs and waived payment do not change the card information. Unknown trailing qualifications stay unread. Both live offers and direct activation recheck the prohibition, so a stale or forged candidate list cannot bypass it. Compiler proof is not actual-record application or pair qualification."
+  },
+  {
     title: "Life-to-hand prohibition and actual damage",
     body: "20-14 and 0-2-5 (#907): BT6-053 front Activate pays its Life-to-hand price before installing a turn-long prohibition; another activation cannot pay that price. Its back Permanent prohibits only its controller during that controller's turn. Both use the existing player prohibition primitive, addLifeToHand, checked centrally after movement replacement routing for skill and native moves. Life-to-Drop, including Critical damage, remains allowed. An impossible Life-add effect does not cancel a later independent effect: official BT6-063 Q7 still permits the Broly upgrade. Under 1-13 and 5-10, actual damage requires Life removal; blocked movement emits no actual damage, damage totals or dealt/taken Auto. The existing separate pre-damage announcement/checkpoint remains a residual, not an actual-damage event. Activated effects survive awakening until their stated duration ends. This repair does not establish every combination of alternative payment and replacement effects.",
   },

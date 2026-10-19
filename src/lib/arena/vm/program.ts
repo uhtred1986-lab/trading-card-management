@@ -1070,7 +1070,17 @@ function ruleApplies(
   if (f.turnPlayer && opts.player !== state.turnPlayer) return false;
   if (f.filter || f.name) {
     if (!opts.card || !state.cards[opts.card]) return false;
-    if (f.filter && !predicateOf(f.filter, game)(attrsNow(ctx, game, state, opts.card))) return false;
+    if (f.filter) {
+      const attrs = attrsNow(ctx, game, state, opts.card);
+      if (what === "activateCounter" && (f.filter.costMin != null || f.filter.costMax != null)) {
+        // 1-2-4/5: Counter restrictions ask current card energy information,
+        // independently of its additional skill price or waived payment.
+        if (typeof attrs.costOf !== "number" || !Number.isFinite(attrs.costOf)) return false;
+        const current = Math.max(attrs.costOf, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
+        if (!predicateOf({ ...emptyFilter(), costMin: f.filter.costMin, costMax: f.filter.costMax }, game)({ ...attrs, energyCost: current })) return false;
+        if (!predicateOf({ ...f.filter, costMin: null, costMax: null }, game)(attrs)) return false;
+      } else if (!predicateOf(f.filter, game)(attrs)) return false;
+    }
     if (f.name && nameShowing(ctx, state, opts.card) !== f.name) return false;
   }
   return !escapeHolds(ctx, game, state, f, opts, rule.source);

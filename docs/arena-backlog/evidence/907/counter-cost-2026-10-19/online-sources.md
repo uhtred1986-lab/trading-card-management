@@ -45,9 +45,17 @@ Both records must remain held from actual metadata application until repaired.
 The existing operation's `filter.costMin:2` and existing `ruleApplies` current-card
 filtering can represent the exact restriction without a new interpreter.
 
-The proposed focused proof uses the frozen actual Broly printings plus synthetic
+The implemented focused proof uses the frozen actual Broly printings plus synthetic
 Counter controls. Both seats cover the source attacking versus another attacker,
 current card costs 1/2/3, reductions/increases, a distinct additional skill orb
 price, free activation and specified-cost floors. It checks live offers and
 forged direct declarations as well as saved-context replay. No protected record
 is overwritten by this proof.
+
+The repaired proof passes 72 matrix scenarios plus four stored-threshold mutation
+controls. A stored threshold of 3 permits a current cost-2 Counter despite the
+printed threshold of 2. The same proof accepts exactly two fresh, validated
+`--stored-rules` records for later actual readback verification; offline rebuilt
+fixture runs do not claim production application. The forged-candidate control
+also exposed and repairs a direct-activation bypass: live Counter prohibitions
+are now rechecked before any payment, independently of the saved candidate list.
