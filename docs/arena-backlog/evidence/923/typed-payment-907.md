@@ -121,9 +121,9 @@ reference. No database refresh or live application is included in that proof.
 
 The [online check](../907/typed-payment-2026-10-19/online-sources.md) confirms
 BT3-070's erratum and records official Fusion material-before-skill-cost timing.
-Current VM energy payment still precedes material selection: this is an explicit
-preexisting procedural limitation, not certified by the typed-authority proof.
-The next bounded #907 task repairs that checkpoint. BT11-013's current printed
+At #1066, VM energy payment still preceded material selection: an explicit
+preexisting procedural limitation, not certified by that typed-authority proof.
+The #1067 follow-up below repairs that checkpoint. BT11-013's current printed
 20,000 power, cost5/Red3 and Saiyan trait are in the new fixture; #926's historical
 35,000 fixture remains a separate preservation control.
 
@@ -142,3 +142,30 @@ current rows. This matrix makes no BT3-070 production-row claim. The #897
 starter control completed 16/16 with exact prior game records; see the
 [preservation receipt](../907/typed-payment-2026-10-19/README.md). This does not
 establish per-skill coverage or additional-pair qualification.
+
+## #1067 follow-up: Fusion checkpoint and reference application
+
+This section supersedes the earlier “current VM” and unverified-application
+statements for the narrow cases below; it does not rewrite the dated inventory
+or claim the remaining #929/#930 acceptance is complete.
+
+| Case | Current evidence boundary |
+| --- | --- |
+| Fusion material/additional-cost order | Official §22-13-4-4/-4-1 disproves the old energy-at-declaration expectation; #1067 repairs the checkpoint. |
+| Dynamic cost and pending material Autos | Both-seat stored-record scenarios cover discounts becoming true/false after materials and Autos waiting through payment, including failure. Synthetic support fixtures are engineering interaction probes, not invented catalog rulings. |
+| X / saved resource selection | Typed X is charged at the checkpoint; stale saved resource choices cannot silently replan or become free. |
+| Potara / Absorb / Counter | Existing #926/#929/#930 focused proofs remain the required preservation controls. No blanket claim of full printed-card coverage follows. |
+| BT11-013 front #10/#20/#30 | All three actual rows refreshed as current payment-v1 compiler drafts; exported #10 payment exercised through the loader and replay. |
+| BT3-070 front #0/#10 | Both actual rows refreshed as current payment-v1 compiler drafts. The old #0 ops already had onto-self; only its description omitted that binding. Prior Absorb scenario remains semantic evidence, separate from live row application. |
+| P-360 front/back #0/#10/#20 | Six actual rows refreshed, including the typed back-face grant price. Front #10's any-of/rest behavior was already in its ops; the refreshed renderer makes it explicit. |
+| Human review | All 11 applied rows remain unconfirmed. No protected record changed. |
+| Fully authoritative stored admission | Union material contracts and once-per-turn fields still depend on runtime text and remain explicit blockers. |
+| Deck qualification | The BT6 additional pair remains unqualified under #897. |
+
+See the [#1067 receipt](../907/fusion-checkpoint-2026-10-19/README.md),
+[exact reference exports and row hashes](../907/fusion-checkpoint-2026-10-19/application-receipt.json),
+and [fresh official/forum source evidence](../907/fusion-checkpoint-2026-10-19/online-sources.md).
+Next single implementation: typed Fusion material selection, including the
+existing granted permission, under #907. Other residual matrix items remain open.
+Integrated focused proofs, typecheck and lint passed; all 16 frozen starter
+games and 75 executable programs match #1066 exactly.

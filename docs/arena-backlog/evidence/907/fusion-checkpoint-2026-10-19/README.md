@@ -64,3 +64,95 @@ The selected BT6 Gogeta / Br Fusion versus BT6 Paragus / Broly recovery lists
 remain the one additional pair. No additional pair, AI-strength change or paid
 provider work is included. #897 stays open until its complete inputs, semantic
 coverage, stored-mode matches and qualification/application evidence are delivered.
+
+## Separate progress measures for the reference export
+
+| Measure | Evidence and limit |
+| --- | --- |
+| Parsed | All 11 refreshed required records have no unread compiler clauses; native Deflect is separate. |
+| Stored/loaded | All 11 records are present, source-current, payment-v1 valid and accepted by the actual loader. |
+| Fully authoritative admission | Four stored skills retain explicit runtime-text dependencies: BT11-013/front/10, BT3-070/front/0, P-360/front/10 and P-360/back/20. The strict corpus gate still blocks them. |
+| Human reviewed | 0 confirmed by this operation; all 11 remain compiler drafts. |
+| Verified/exercised | Named payment and interaction scenarios only. Loading a record does not prove all its semantics. |
+| Deck-qualified | No additional deck qualified by this increment; the selected BT6 pair still needs its recorded repairs and inputs. |
+
+The next single action under #907 is to carry **Fusion's material selection
+contract** through compilation, storage, loading and replay, including the
+existing granted-Fusion permission. Preserve distinct Potara/Absorb procedures
+and the delivered Counter/source behavior. Trigger predicates/bindings, use
+limits, Counter's resource path and remaining indexed Union scenarios retain
+their explicit ownership and are not silently included in this bounded repair.
+
+## Reproduction
+
+Offline commands require no database credentials:
+
+```sh
+env -u DATABASE_URL npx tsx scripts/verify/typed-payment-907.ts --reference-records docs/arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/reference-records.json
+env -u DATABASE_URL npx tsx scripts/verify/keyword-action-costs-926.ts
+env -u DATABASE_URL npx tsx scripts/verify/union-counter-929.ts
+env -u DATABASE_URL npx tsx scripts/verify/union-sources-930.ts
+env -u DATABASE_URL npx tsx scripts/arena-corpus-freeze.mts --mode compiler --check --pairs 4 --max-moves 3000 --seed-base 897000 --out /tmp/fusion-starters.json
+python3 docs/arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/compare-controls.py /tmp/fusion-starters.json /tmp/fusion-preservation.json
+```
+
+The reference-records option replaces the BT11-013 fixture with the exact
+exported catalog definition and its three stored records; other synthetic
+interaction/control fixtures remain labeled. It does not refresh or confirm
+anything. The application receipt records the guarded write already performed;
+re-running an application is separate from reproducing these offline proofs.
+
+## Review and expectation ledger
+
+- **Exposed old misread:** energy-before-materials assertions in #926/#907 are
+  explicitly replaced by the official material-first sequence. The old evidence
+  artifacts remain unchanged.
+- **Exposed old misread:** the new saved Burst redirect scenario found that the
+  mover ignored an already-selected cost replacement from Deck. The narrow fix
+  honors the supplied cost route; automatic replacement discovery is unchanged.
+- **Pre-merge implementation regression prevented:** independent review found
+  that the first deferred-cost implementation omitted X at its new checkpoint.
+  The final path carries and charges X, with both-seat positive/negative proof.
+- **Intentional compatibility retirement:** the existing Aegis #595 check failed
+  on starting main too, in its explicitly legacy `oldAdditional` resume block.
+  The owner's no-legacy decision replaces that single expectation with an
+  explicit rebuild refusal and unchanged rejected-state assertion. All current
+  Aegis behavior assertions are retained and pass. No compatibility fallback or
+  runtime Aegis rewrite was added.
+- #929/#930 runners now answer the deferred resource `chooseMode` prompt; their
+  existing outcome assertions remain unchanged.
+- Old pending Fusion frames without the new payment cursor require rebuilding.
+  Resources cannot be silently paid twice or charged using the former ordering.
+
+Implementation/review used the cheaper workhorse agents; source research used
+Luna. Independent review supplied the X and obsolete-save corrections. The
+source note needed a coordinator clarification distinguishing the FAQ's movement
+wording from the controlling manual and spelling out the printed Red3 cost.
+No worker ran a full test suite, build or database command.
+
+Known limits remain explicit: Fusion action-price programs touching the player's
+own material areas are still refused by #926's `materialIndependent` boundary;
+a material/payment search beyond 4096 steps produces a #907 unsupported diagnostic.
+The existing Counter windows are preserved, not recertified against every FAQ
+formulation. This is a payment-order repair, not a whole Union rewrite.
+
+Integrated code revision: `fd8ac39d04602ea52f095566333c8e4ccbaf3c5c`.
+Focused #907 (including exact exported BT11-013 rows), #926, #929, #930 and
+Aegis #595 checks passed on the coordinator's integrated tree; Auto #549 passed
+on the worker's same implementation. Typecheck and lint passed, with only the
+five unchanged prototype lint warnings. The refresh-tool proof passed before
+application. No full suite/build was run, as the owner requested.
+
+Changed #897/#907/#923 metadata and source paths were checked against the live
+open issues using the repository parser. The global check's previously recorded
+`917.md` missing-stage problem is unrelated; no global pass is claimed.
+
+The [frozen starter pack](starter-compiler-pack.json) completed **16/16** games:
+A–A 4/4, A–B both seats 8/8, B–B 4/4; zero illegal, interrupted, limited,
+crashed or other outcomes. [Exact comparison](control-preservation.json) preserves
+all complete game records/trace hashes, all 75 executable programs and manifests,
+catalog/definitions, lists, seeds, move cap, policy, ruleset and errata against
+#1066's pack. No expectation was rebaselined. The tested runtime is the integrated
+revision above; subsequent changes are evidence/documentation only. The controls
+remain compiler-mode evidence, not a claim about all production stored programs
+or per-skill exercise. The selected BT6 pair remains unqualified.
