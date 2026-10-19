@@ -1,0 +1,132 @@
+{
+  "format": "potara-identity-907-verification-v1",
+  "nodeVersion": "v24.19.0",
+  "finalCandidateCommit": "84fcc4a8a71c9c762e7ca6289756001b0a43e15d",
+  "checks": [
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/potara-identity-907.ts --stored-records docs/arena-backlog/evidence/907/potara-identity-2026-10-19/proposed-record.json --out docs/arena-backlog/evidence/907/potara-identity-2026-10-19/proposed-proof.json",
+      "sourceCommit": "84fcc4a8a71c9c762e7ca6289756001b0a43e15d",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "authority-proof-verified.log",
+      "logSha256": "2e5e9f2aa3aa5599cc3032fb242f4ed22598657e31cc6bddbfd2d980bc6c4d0e",
+      "cases": 76
+    },
+    {
+      "command": "npm run typecheck",
+      "sourceCommit": "84fcc4a8a71c9c762e7ca6289756001b0a43e15d",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "typecheck-verified.log",
+      "logSha256": "bb7e1de4f1201488c25d2ea97d3ba65589e1b860bd0f494ea3ca514f1eccd419"
+    },
+    {
+      "command": "npm run lint",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "lint-final.log",
+      "logSha256": "1c625cf0e258fe0ea1a8b263f875474059d75d3ecb3402e455c550188128b4fd",
+      "warnings": 5,
+      "errors": 0
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/union-exact-sets-925.ts",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "exact-925-final.log",
+      "logSha256": "e791bb829f66ad155175403969fe5f17230ebd001a3d72a012179e617a6e00de",
+      "originalOracleChanged": false
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/union-potara-927.ts",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "stack-927-final.log",
+      "logSha256": "de7f979f271f16a20e8b586757902a5f05e9fb0eb10780ae152fd2d2d7499947",
+      "originalOracleChanged": false
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/union-counter-929.ts",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "counter-929-final.log",
+      "logSha256": "a05d2fb995ee73a8264085eb0ef5ca50f14250aff69d85e9731b4e8735cbe9be",
+      "originalOracleChanged": false
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/union-sources-930.ts",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "sources-930-final.log",
+      "logSha256": "273eda3643b462e748cbeccdbccf9e32cdf772ffebb354ec8bdace91883c4afa",
+      "originalOracleChanged": false
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/keyword-action-costs-926.ts",
+      "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+      "result": "known baseline failure",
+      "exitCode": 1,
+      "logFile": "costs-926-final.log",
+      "logSha256": "6f3370c247aa015cfb4e26e82510085593636fd1d04b16a6452272f9873cb5b9",
+      "originalOracleChanged": false
+    },
+    {
+      "command": "env -u DATABASE_URL npx tsx scripts/verify/potara-record-907.mts",
+      "sourceCommit": null,
+      "result": "pass",
+      "exitCode": 0,
+      "logFile": "migration-proof.log",
+      "logSha256": "0d92e66f81e98fc07d2920d4ab655695c96971829747ebf2f8ea22c059e7e872",
+      "scope": "Earlier first coherent integrated source; PGlite transaction/stale/digest/catalog/race/replay proof, not a final-head rerun."
+    }
+  ],
+  "focusedFinalLint": {
+    "result": "pass",
+    "files": [
+      "scripts/verify/potara-identity-907.ts",
+      "src/lib/arena/vm/program.ts"
+    ],
+    "scope": "Reported final two-file lint; full lint at 205cc4d0 has five existing warnings."
+  },
+  "target": {
+    "key": "BT2-012/front/0",
+    "id": 10297,
+    "beforeVersion": 1,
+    "proposedVersion": 2,
+    "source": "compiler",
+    "status": "draft"
+  },
+  "excludedActualRows": [
+    10298,
+    10299
+  ],
+  "proposalDigest": "0abeab213937eb646d2211188767c97de8c70e27d8bf3be4816a5433542017da",
+  "allowedChanges": [
+    "cost.version",
+    "cost.readable",
+    "cost.potara",
+    "usage",
+    "validity",
+    "version",
+    "updated_at"
+  ],
+  "preservation": "Existing cost body, effect, condition, trigger, printed source, reads, pattern, review/source/status and private fields preserved. Other rows untouched.",
+  "previewReplay": {
+    "result": "identical digest",
+    "sourceCommit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+    "finalCompilerUnchanged": true,
+    "logSha256": "1d42eb86fe4adfc717170c90d31f81db5a5cb94291f06bb8777be3448c9c08a7"
+  },
+  "scope": "Exact proposed target through real loader/VM. Companions are compiled support fixtures; typed grant is synthetic. No whole-card/deck or strength qualification.",
+  "independentReview": "Researcher cleared production contracts, saved-source occurrence handling, typed material authority and proof. Final ordinary-play addition is bounded coverage; no rule change.",
+  "approval": "Pending explicit owner approval; proposal not applied.",
+  "liveDatabaseWrites": 0,
+  "fullSuiteRun": false,
+  "buildRun": false,
+  "evidenceMethod": "Recorded completed runs only; this documentation task reran no tests. Source pins and focused lint outcome supplied by integration owner; log hashes computed from existing local logs."
+}
