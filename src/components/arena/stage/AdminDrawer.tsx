@@ -9,6 +9,7 @@ import { narrate } from "@/lib/arena/narration";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import type { CardView } from "@/lib/arena/view";
 import type { FlagLine } from "@/lib/arena/review-store";
+import { cardHref } from "@/lib/arena/rule-card";
 
 /** The shield in the board's top bar: only ever rendered for an admin. */
 export function AdminShield({ onOpen, className = "" }: { onOpen: () => void; className?: string }) {
@@ -285,8 +286,12 @@ export function AdminDrawer({
           <ul className="arena-admin-reads" data-arena-admin="reads">
             {readings.map((c) => (
               <li key={c.cardId} className={c.referee ? "arena-admin-ref" : ""}>
-                <b>{c.name}</b>
-                <span>{c.referee ? "Not fully compiled — Claude rules on this card's remaining text when it resolves." : c.reading || "no effect of its own"}</span>
+                <b>
+                  <Link href={cardHref(c.cardId)} title="Open this card’s rules">
+                    {c.name}
+                  </Link>
+                </b>
+                <span>{c.referee ? "Not fully read — the engine stops or skips this skill." : c.reading || "no effect of its own"}</span>
               </li>
             ))}
           </ul>

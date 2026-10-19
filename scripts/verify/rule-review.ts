@@ -8,7 +8,8 @@
 import assert from "node:assert/strict";
 import { skillRecords } from "../../src/lib/arena/draft";
 import type { CardDef } from "../../src/lib/arena/types";
-import { FLAG_PREFIX, approvalProblem, rulesReturnHref, builderHref, findOnce, flagExplanation, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
+import { FLAG_PREFIX, approvalProblem, rulesReturnHref, builderHref, findOnce, flagText, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
+import { cardHref, comboChips, flagNotice, playHref, shortDay } from "../../src/lib/arena/rule-card";
 import type { Cond, CostRecord, Op } from "../../src/lib/arena/vm/script";
 import { parsePath } from "../../src/lib/arena/lang/path";
 
@@ -144,13 +145,14 @@ assert.equal(findOnce("Draw 2 cards.", "draw 2"), null, "exact case unless asked
 
 // ── the Wrong verdict's words ──────────────────────────────────────────────
 {
-  const once = flagExplanation({ tag: "DO", path: "ops[1]", reason: "wrong timing or duration", note: "  lasts for the battle,\n not the turn " }, null);
+  const once = flagText({ tag: "DO", path: "ops[1]", reason: "wrong timing or duration", note: "  lasts for the battle,\n not the turn " });
   assert.equal(once, `${FLAG_PREFIX} · DO ops[1] · wrong timing or duration — lasts for the battle, not the turn`, "the clause and the reason first, then the note");
-  assert.equal(isFlagged(once), true);
-  const kept = flagExplanation({ tag: "WHEN", path: "trigger[0]", reason: "something else" }, "Claude: the owner's earlier words");
-  assert.ok(kept.endsWith("\n\nClaude: the owner's earlier words"), "an earlier explanation is kept under the flag");
+  assert.equal(isFlagged(null, once), true, "review_flag is the flag");
+  assert.equal(isFlagged(once), true, "the old explanation prefix still reads as flagged");
+  assert.equal(isFlagged("Claude: something", "flagged in claude.ai review"), true, "a flag from the MCP connector counts too");
   assert.equal(isFlagged("Claude: something"), false);
   assert.equal(isFlagged(null), false);
+  assert.equal(isFlagged(null, ""), false);
 }
 
 assert.equal(builderHref(42), "/arena/rules/build/42", "Teach it and Fix it open the block builder (#469)");
@@ -166,5 +168,35 @@ for (const href of ["https://evil.invalid/arena/rules", "//evil.invalid/arena/ru
 assert.equal(approvalProblem({ status: "draft", unread: [] }), null);
 assert.ok(approvalProblem({ status: "draft", unread: ["unknown cost"] }));
 for (const status of ["open", "confirmed", "corrected"]) assert.ok(approvalProblem({ status, unread: [] }));
+
+// ── the Card rules page's pure helpers (Rules PR 3, `src/lib/arena/rule-card.ts`) ──
+{
+  // Links: a skill, its editor, and the queue it came from riding as one encoded parameter.
+  assert.equal(cardHref("BT6-010"), "/arena/rules/card/BT6-010");
+  assert.equal(cardHref("BT6-010", { skill: 12, edit: true }), "/arena/rules/card/BT6-010?skill=12&edit=1");
+  const withQueue = cardHref("T_CLO_01", { q: "deck=3&state=open" });
+  assert.equal(new URL(withQueue, "https://t.invalid").searchParams.get("q"), "deck=3&state=open", "the queue survives as the q parameter");
+  assert.equal(playHref("BT6-010", 12), "/arena/rules/card/BT6-010/play?rule=12");
+  assert.equal(playHref("BT6-010", 12, "b 1"), "/arena/rules/card/BT6-010/play?rule=12&board=b+1");
+
+  // The combo qualification is chips in reading order, never the stored JSON.
+  assert.deepEqual(comboChips({ version: 1, timing: "battleEnd", subject: "self", origins: ["hand"], turn: "opponent" }), ["opponent’s turn", "at the end of the battle", "comboed from hand", "with this card"]);
+  assert.deepEqual(comboChips({ version: 1, timing: "entry", subject: "self", origins: null, turn: "any", viaSkillOf: "Gogeta" }), ["either turn", "when it enters by combo", "comboed from any area", "with this card", "using Gogeta’s skill"]);
+  assert.deepEqual(comboChips(null), []);
+  assert.ok(comboChips({ version: 1, timing: "entry", subject: "self", origins: ["hand", "drop"], turn: "controller" }).includes("comboed from hand or the Drop"));
+
+  // A flag: its words, its day, and whether the rule moved on since.
+  const at = new Date("2026-10-04T10:00:00Z");
+  const flag = `${FLAG_PREFIX} · WHEN · wrong timing or duration — lasts for the battle`;
+  const fresh = flagNotice(flag, at, new Date(at.getTime() + 20));
+  assert.deepEqual(fresh, { text: "WHEN · wrong timing or duration — lasts for the battle", on: "2026-10-04", changedSince: false }, "the in-app Wrong touches updated_at in the same write: that is not a change");
+  assert.equal(flagNotice(flag, at, new Date("2026-10-19T09:00:00Z"))?.changedSince, true, "a save after the flag is a change");
+  const mcp = flagNotice("2026-10-04 me@example.invalid: reads any end of battle", null, "2026-10-04T18:00:00Z");
+  assert.deepEqual(mcp, { text: "me@example.invalid: reads any end of battle", on: "2026-10-04", changedSince: false });
+  assert.equal(flagNotice("2026-10-04 me@example.invalid: x", null, "2026-10-06T00:00:00Z")?.changedSince, true, "a connector flag dated only by its day counts a later day as a change");
+  assert.equal(flagNotice("some flag with no date", null, "2026-10-06T00:00:00Z")?.changedSince, false, "an undated flag is never said to have been answered");
+  assert.equal(flagNotice(null, null, "2026-10-06T00:00:00Z"), null);
+  assert.equal(shortDay("2026-10-04T00:00:00Z"), "4 Oct");
+}
 
 console.log("rule review: span logic, queue order and the Wrong verdict hold");

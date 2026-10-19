@@ -21,12 +21,22 @@ import type { Skill } from "../types";
  */
 export function readsAsNothingSilently(skill: Skill, script: Script): boolean {
   if (script.ops.length || script.unsupported.length) return false;
-  if (skill.keyword) return false;
+  return !emptyOnPurpose(skill);
+}
+
+/**
+ * The line reads as nothing **because that is right**: a keyword skill, a
+ * bracketed reminder, a deck-building restriction, or no effect text at all.
+ * `ruleHealth` (rules-store.ts) calls this too, so "done with an empty program"
+ * and "silent blank" can never disagree about the same line.
+ */
+export function emptyOnPurpose(skill: Skill): boolean {
+  if (skill.keyword) return true;
   const text = skill.effect.replace(/\s+/g, " ").trim();
-  if (!text) return false;
-  if (/^[(（].*[)）]\.?$/.test(text)) return false;
-  if (/\b(?:include|included)\b.*\bin your deck\b|\bin your deck\b.*\bas you like\b/i.test(text)) return false;
-  return true;
+  if (!text) return true;
+  if (/^[(（].*[)）]\.?$/.test(text)) return true;
+  if (/\b(?:include|included)\b.*\bin your deck\b|\bin your deck\b.*\bas you like\b/i.test(text)) return true;
+  return false;
 }
 
 /**

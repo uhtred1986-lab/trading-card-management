@@ -18,6 +18,8 @@ export interface DraftFired {
   count: number;
   /** Card names of the first two, first fired first. */
   names: string[];
+  /** …and their card ids, in the same order: the names link to the Card rules page. */
+  ids?: string[];
 }
 
 /** The draft rules among `fired`: the ones nobody has checked yet. Open rules cannot be played, confirmed/corrected ones are checked. */
@@ -31,8 +33,8 @@ export async function draftAmong(db: Db, fired: FiredSkill[]): Promise<DraftFire
   // Keep the order the game fired them in.
   const order = new Map(fired.map((f, i) => [`${f.cardId}\u0000${f.skillIndex}`, i]));
   rows.sort((a, b) => (order.get(`${a.cardId}\u0000${a.skillIndex}`) ?? 0) - (order.get(`${b.cardId}\u0000${b.skillIndex}`) ?? 0));
-  const names = [...new Set(rows.map((r) => r.name))].slice(0, 2);
-  return { count: rows.length, names };
+  const firstTwo = [...new Map(rows.map((r) => [r.cardId, r.name] as const))].slice(0, 2);
+  return { count: rows.length, names: firstTwo.map(([, name]) => name), ids: firstTwo.map(([id]) => id) };
 }
 
 export async function draftFiredInGame(db: Db, gameId: number): Promise<DraftFired> {

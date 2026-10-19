@@ -109,7 +109,7 @@ for (const d of deckRows) {
   deckPermApplied += t.permanentApplied;
   console.log(line(`deck ${d.id} ${d.name}`.slice(0, 26), t));
 }
-console.log(`\ndecks combined: ${pct(deckCompiled, deckSkills)} of ${deckSkills} resolved skills compile; the rest are put to the referee at runtime.`);
+console.log(`\ndecks combined: ${pct(deckCompiled, deckSkills)} of ${deckSkills} resolved skills compile; the rest are not fully read: the engine stops or skips the skill.`);
 console.log(`                ${pct(deckPermCompiled, deckPerm)} of ${deckPerm} [Permanent] skills compile, and ${pct(deckPermApplied, deckPerm)} emit a standing effect.`);
 console.log(`                The gap between those two is skills that read cleanly and then do nothing (see arena:gaps).`);
 

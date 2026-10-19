@@ -10,7 +10,9 @@
  * own file so verify-db.mts only gains one line.
  */
 import assert from "node:assert/strict";
-import { and, eq, inArray } from "drizzle-orm";
+import fs from "node:fs";
+import path from "node:path";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import type { Db } from "../src/db/index.ts";
 import { catalogIds, draftCards, reviewOpenRule, reviewOpenRules, skillRecords } from "../src/lib/arena/draft.ts";
@@ -40,7 +42,7 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   const rules = await db.select().from(schema.cardRules).where(inArray(schema.cardRules.cardId, all));
   const idOf = (cardId: string) => rules.find((r) => r.cardId === cardId)!.id;
   const [draftA, draftB, elsewhere] = [idOf("BT18-783"), idOf("BT18-784"), idOf("BT18-785")];
-  const statusOf = async (id: number) => (await db.select({ s: schema.cardRules.status, v: schema.cardRules.version, e: schema.cardRules.explanation }).from(schema.cardRules).where(eq(schema.cardRules.id, id)))[0];
+  const statusOf = async (id: number) => (await db.select({ s: schema.cardRules.status, v: schema.cardRules.version, e: schema.cardRules.explanation, f: schema.cardRules.reviewFlag }).from(schema.cardRules).where(eq(schema.cardRules.id, id)))[0];
 
   // ── the queue ─────────────────────────────────────────────────────────────
   assert.deepEqual(await recentFired(db, 999_999), { gameId: null, fired: [] }, "a deck no game played has fired nothing");
@@ -75,7 +77,8 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   const receipt = await flagWrong(db, draftA, { tag: "DO", path: "ops[1]", reason: "wrong target", note: "only Battle Cards in rest mode" }, "owner");
   assert.ok(receipt);
   const flagged = await statusOf(draftA);
-  assert.equal(flagged.e, `${FLAG_PREFIX} · DO ops[1] · wrong target — only Battle Cards in rest mode`, "the clause and the reason first, then the note, in `explanation`");
+  assert.equal(flagged.f, `${FLAG_PREFIX} · DO ops[1] · wrong target — only Battle Cards in rest mode`, "the clause and the reason first, then the note, in `review_flag`");
+  assert.equal(flagged.e, null, "the explanation is left alone");
   assert.deepEqual([flagged.s, flagged.v], ["draft", v0], "the rule stays a draft, program and version untouched");
   const [note] = await db.select().from(schema.arenaFeedback).where(eq(schema.arenaFeedback.id, receipt.feedbackId));
   assert.deepEqual([note.kind, note.cardId, note.noteId, note.reportedBy, note.status], ["rule", "BT18-783", draftA, "owner", "open"], "and a note waits for the computer");
@@ -90,19 +93,42 @@ export async function verifyRuleReviewDb(db: Db): Promise<void> {
   assert.deepEqual(protectedBatch.rules.map((r) => r.id), [draftB], "workbench bulk approval excludes reported mismatches on the server");
   await undoConfirmed(db, protectedBatch);
   await unflagWrong(db, receipt);
-  assert.equal((await statusOf(draftA)).e, null, "Undo puts the explanation back as it was");
+  assert.equal((await statusOf(draftA)).f, null, "Undo puts the flag back as it was");
   const [closed] = await db.select().from(schema.arenaFeedback).where(eq(schema.arenaFeedback.id, receipt.feedbackId));
   assert.deepEqual([closed.status, closed.resolution], ["wontfix", "taken back on the phone"], "the note is closed, not deleted");
   assert.equal((await queue()).some((x) => x.id === draftA), true, "and the draft is back in the queue");
 
-  // An earlier explanation survives a flag, and an Undo never erases words written since.
-  await db.update(schema.cardRules).set({ explanation: "Claude: the earlier words" }).where(eq(schema.cardRules.id, draftA));
+  // The explanation is never touched; an earlier flag survives a new one, and an Undo never erases words written since.
+  await db.update(schema.cardRules).set({ explanation: "Claude: the earlier words", reviewFlag: "flagged in claude.ai review" }).where(eq(schema.cardRules.id, draftA));
   const again = await flagWrong(db, draftA, { tag: "WHEN", path: "trigger[0]", reason: "something else" });
-  assert.ok((await statusOf(draftA)).e?.endsWith("\n\nClaude: the earlier words"), "the earlier explanation is kept under the flag");
-  await db.update(schema.cardRules).set({ explanation: "fixed on the computer since" }).where(eq(schema.cardRules.id, draftA));
+  assert.ok((await statusOf(draftA)).f?.endsWith("\nflagged in claude.ai review"), "the earlier flag is kept under the new one");
+  assert.equal((await statusOf(draftA)).e, "Claude: the earlier words", "the explanation stays as it was");
+  assert.equal((await queue()).some((x) => x.id === draftA), false, "a flag from claude.ai review also keeps a draft out of the phone queue");
+  await db.update(schema.cardRules).set({ reviewFlag: "fixed on the computer since" }).where(eq(schema.cardRules.id, draftA));
   assert.deepEqual(await unflagWrong(db, again!), { restored: false }, "a late Undo leaves words written since alone");
-  assert.equal((await statusOf(draftA)).e, "fixed on the computer since");
+  assert.equal((await statusOf(draftA)).f, "fixed on the computer since");
+  await db.update(schema.cardRules).set({ explanation: null, reviewFlag: null }).where(eq(schema.cardRules.id, draftA));
+  // A flag the old way (prefix in the explanation) is still a flag until the migration has moved it.
+  await db.update(schema.cardRules).set({ explanation: `${FLAG_PREFIX} · DO ops[0] · wrong target` }).where(eq(schema.cardRules.id, draftA));
+  assert.equal((await queue()).some((x) => x.id === draftA), false, "the old prefix still hides the draft");
   await db.update(schema.cardRules).set({ explanation: null }).where(eq(schema.cardRules.id, draftA));
+
+  // ── The data migration that moved the old explanation-prefix flags into review_flag ──
+  {
+    const migration = fs.readFileSync(path.resolve("drizzle/0061_review_flag_from_wrong.sql"), "utf8");
+    const old = `${FLAG_PREFIX} · DO ops[1] · wrong target — only Battle Cards\n\nClaude: the earlier words`;
+    await db.update(schema.cardRules).set({ explanation: old, reviewFlag: null }).where(eq(schema.cardRules.id, draftA));
+    await db.update(schema.cardRules).set({ explanation: old, reviewFlag: "already flagged in claude.ai" }).where(eq(schema.cardRules.id, draftB));
+    await db.update(schema.cardRules).set({ explanation: "Claude: no flag here", reviewFlag: null }).where(eq(schema.cardRules.id, elsewhere));
+    await db.execute(sql.raw(migration));
+    const got = async (id: number) => (await statusOf(id));
+    assert.equal((await got(draftA)).f, `${FLAG_PREFIX} · DO ops[1] · wrong target — only Battle Cards`, "the old flag moved: its first line");
+    assert.equal((await got(draftA)).e, old, "…and the explanation is never edited");
+    assert.equal((await got(draftB)).f, "already flagged in claude.ai", "a row that already has a review_flag keeps it");
+    assert.deepEqual([(await got(elsewhere)).f, (await got(elsewhere)).e], [null, "Claude: no flag here"], "an ordinary explanation is not a flag");
+    assert.equal((await queue()).some((x) => x.id === draftA), false, "migrated, the draft is still out of the phone queue");
+    await db.update(schema.cardRules).set({ explanation: null, reviewFlag: null }).where(inArray(schema.cardRules.id, [draftA, draftB, elsewhere]));
+  }
 
   // ── Confirm all N+1, and its Undo ─────────────────────────────────────────
   const elsewhereFlag = await flagWrong(db, elsewhere, { tag: "DO", path: "ops[0]", reason: "reads it differently" });

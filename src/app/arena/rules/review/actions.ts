@@ -3,17 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { currentUser, isArenaAdmin, requireSl } from "@/lib/auth";
-import { reviewOpenRule } from "@/lib/arena/draft";
 import { parsePath } from "@/lib/arena/lang/path";
 import { WRONG_REASONS, type ClauseTag, type WrongReason } from "@/lib/arena/rule-review";
-import { flagWrong, reviewItemById, sameWordingIds, unflagWrong, type FlagReceipt, type ReviewItem } from "@/lib/arena/rule-review-store";
-import { confirmAllAction } from "../../actions";
+import { flagWrong, unflagWrong, type FlagReceipt } from "@/lib/arena/rule-review-store";
 
 /**
- * The phone review queue's own writes (#472). Reads right, its Undo and the
- * Undo of Confirm all call the workbench's actions directly; these are the
- * writes that had no action yet. Each checks `isArenaAdmin()` itself — the
- * page shows a non-admin the queue read-only, but an action is a public
+ * The Card rules page's "Wrong" and its Undo. Every other write the page makes
+ * goes through the workbench's existing actions unchanged (`confirmRuleAction`,
+ * `reopenRuleAction`, `saveRuleAction`…). Each checks `isArenaAdmin()` itself:
+ * the page shows a non-admin the card read-only, but an action is a public
  * endpoint and does not trust the page.
  */
 
@@ -22,11 +20,11 @@ const TAGS: (ClauseTag | "UNREAD")[] = ["WHEN", "COST", "IF", "DO", "UNREAD"];
 
 function revalidate() {
   revalidatePath("/arena/rules");
-  revalidatePath("/arena/rules/review");
+  revalidatePath("/arena/rules/card/[cardId]", "page");
   revalidatePath("/arena/feedback");
 }
 
-/** Wrong: the clause and the reason, and an optional note, onto the row's `explanation`. The rule stays a draft. */
+/** Wrong: the clause and the reason, and an optional note, into the row's one flag (`review_flag`). The rule stays as it is. */
 export async function flagWrongAction(id: number, raw: { tag: unknown; path: unknown; reason: unknown; note: unknown }): Promise<{ error: string | null; receipt: FlagReceipt | null }> {
   await requireSl();
   if (!(await isArenaAdmin())) return { error: NOT_ADMIN, receipt: null };
@@ -58,31 +56,4 @@ export async function unflagWrongAction(receipt: FlagReceipt): Promise<{ error: 
   await unflagWrong(db, { ruleId: receipt.ruleId, feedbackId: receipt.feedbackId, written: receipt.written, previous: typeof receipt.previous === "string" ? receipt.previous : null });
   revalidate();
   return { error: null };
-}
-
-/**
- * Confirm all N+1: `confirmAllAction` with the row's pattern, narrowed to the
- * unflagged drafts of it (`sameWordingIds`), so a draft someone flagged as
- * wrong is not confirmed behind their back. Returns the rule ids it aimed at,
- * so the phone can mark the ones in its queue.
- */
-export async function confirmSameWordingAction(id: number): Promise<{ error: string | null; confirmed: number; batchId: number | null; ids: number[] }> {
-  await requireSl();
-  if (!(await isArenaAdmin())) return { error: NOT_ADMIN, confirmed: 0, batchId: null, ids: [] };
-  const same = await sameWordingIds(db, id);
-  if (!same) return { error: "this rule is not a draft with a pattern to confirm", confirmed: 0, batchId: null, ids: [] };
-  const res = await confirmAllAction({ pattern: same.pattern, ruleIds: same.ids });
-  revalidatePath("/arena/rules/review");
-  return { ...res, ids: same.ids };
-}
-
-/** Ask Claude: the sync's drafting (`draft.ts`) for this one open skill; what comes back is a draft to check. */
-export async function askClaudeAction(id: number, keep: { decks: string[]; firedIn: number | null }): Promise<{ error: string | null; item: ReviewItem | null }> {
-  await requireSl();
-  if (!(await isArenaAdmin())) return { error: "only an arena admin can ask Claude for a draft", item: null };
-  const r = await reviewOpenRule(db, id);
-  revalidate();
-  const decks = Array.isArray(keep?.decks) ? keep.decks.filter((d): d is string => typeof d === "string").slice(0, 50) : [];
-  const item = await reviewItemById(db, id, { decks, firedIn: Number.isInteger(keep?.firedIn) ? keep.firedIn : null });
-  return { error: r.drafted ? null : `Claude could not draft it: ${r.why ?? "no program came back"}`, item };
 }

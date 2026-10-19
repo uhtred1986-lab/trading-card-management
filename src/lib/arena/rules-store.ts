@@ -30,6 +30,9 @@ import { reviewVersion } from "./rule-review-version";
 import type { Rule } from "./lang/ast";
 import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
 import { programProblem } from "./vm/script-schema";
+import { emptyOnPurpose, readsAsNothingSilently } from "./compile/silent";
+import { DEFAULT_GAME } from "@/lib/catalog/games";
+import { FLAG_PREFIX } from "./rule-review";
 
 import { comboScriptProblem, type ComboQualification } from "./vm/combo-qualification";
 import { compileComboQualification } from "./text/triggers";
@@ -57,7 +60,7 @@ export interface CompilerDiff {
 }
 
 /** The program the engine runs: the hoisted condition, if any, wrapped back around the steps. */
-export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
+export function programOf(row: Pick<RuleRow, "ops"> & { cond?: unknown }): Op[] {
   const ops = (row.ops as Op[]) ?? [];
   return row.cond ? [{ op: "if", cond: row.cond as Cond, then: ops }] : ops;
 }
@@ -109,24 +112,36 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
 }
 
 /**
+ * The typed records a row must carry before the engine will run it — Sparking
+ * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
+ * material (#907) — each in its own validator's words, or nothing. A gap here is
+ * an out-of-date record that rebuilding the rule writes, not a clause the engine
+ * cannot do: `ruleHealth` reports it as `needsRebuild`, never as a health.
+ */
+export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown }): string[] {
+  const gaps: string[] = [];
+  const validityGap = validityProblem(row.validity);
+  if (validityGap) gaps.push(validityGap);
+  const usageGap = usageProblem(row.usage);
+  if (usageGap) gaps.push(usageGap);
+  const comboGap = comboContractGap(row);
+  if (comboGap) gaps.push(comboGap);
+  const paymentGap = costRecordProblem(row.cost);
+  if (paymentGap) gaps.push(paymentGap);
+  else if ((row.cost as CostRecord).readable === false) gaps.push("the stored skill payment is unreadable");
+  gaps.push(...materialContractGaps(row));
+  return gaps;
+}
+
+/**
  * The rule record's review status does not answer what the rules engine can
  * execute. Keep this check bounded to gaps the runtime already names. The
  * interpreter remains authoritative for contextual questions during a game.
  */
 export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed"> & { combo?: unknown; usage?: unknown; validity?: unknown }): RuntimeSupport {
-  const unsupported = [...(row.unread ?? [])];
-  const validityGap = validityProblem(row.validity);
-  if (validityGap) unsupported.push(validityGap);
-  const usageGap = usageProblem(row.usage);
-  if (usageGap) unsupported.push(usageGap);
-  const comboGap = comboContractGap(row);
-  if (comboGap) unsupported.push(comboGap);
-  const paymentGap = costRecordProblem(row.cost);
-  if (paymentGap) unsupported.push(paymentGap);
-  else if ((row.cost as CostRecord).readable === false) unsupported.push("the stored skill payment is unreadable");
+  const unsupported = [...(row.unread ?? []), ...recordContractGaps(row)];
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
-  unsupported.push(...materialContractGaps(row));
   const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
 
   // An Auto's action or X price is paid by the VM's own planner (#549,
@@ -244,23 +259,29 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
   return rulesFromRows(await loadRules(db, Object.keys(defs)), defs);
 }
 
+/**
+ * The skills a card's printed text needs a `card_rules` row for, one per skill
+ * line. A native keyword line needs none. The single definition: `rulesFromRows`
+ * (what games load) and `cardHealthOf` (what the screens show) both read it.
+ */
+export function expectedSkills(front: string | null | undefined, back: string | null | undefined): { side: Side; skillIndex: number; printed: string; effect: string }[] {
+  const out: { side: Side; skillIndex: number; printed: string; effect: string }[] = [];
+  for (const [side, text] of [["front", front], ["back", back]] as const) {
+    const lines = skillLines(text);
+    for (const skill of parseSkills(text)) {
+      if (!skill.effect.trim() && !needsPaymentRecord(skill)) continue; // native keyword lines need no compiler row
+      out.push({ side, skillIndex: skill.index, printed: lines[Math.floor(skill.index / 10)] ?? skill.raw, effect: skill.effect });
+    }
+  }
+  return out;
+}
+
 /** `rulesFor`'s reading of rows already fetched — for a caller that fetches them beside the cards rather than after (`games.ts`'s `loadGame`). */
 export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): Record<string, CardScripts> {
   const out: Record<string, CardScripts> = {};
   const expected = new Map<string, { cardId: string; side: Side; skillIndex: number; printed: string; effect: string }>();
   for (const [cardId, def] of Object.entries(defs)) {
-    for (const side of ["front", "back"] as const) {
-      const text = side === "front" ? def.skill : def.back?.skill;
-      const lines = skillLines(text);
-      for (const skill of parseSkills(text)) {
-        if (!skill.effect.trim() && !needsPaymentRecord(skill)) continue; // native keyword lines need no compiler row
-        expected.set(`${cardId}#${side}#${skill.index}`, {
-          cardId, side, skillIndex: skill.index,
-          printed: lines[Math.floor(skill.index / 10)] ?? skill.raw,
-          effect: skill.effect,
-        });
-      }
-    }
+    for (const e of expectedSkills(def.skill, def.back?.skill)) expected.set(`${cardId}#${e.side}#${e.skillIndex}`, { cardId, ...e });
   }
   const seen = new Set<string>();
   for (const row of rows) {
@@ -299,6 +320,146 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     base.complete = false;
     base.unsupported.push(`no current rule record for printed skill ${skill.skillIndex}: ${skill.effect}`);
     out[key] = base;
+  }
+  return out;
+}
+
+// ── rule health: the one answer to "is this skill done?" ────────────────────
+
+/** Worst first. What the screens, the header counts and the progress page all speak. */
+export const RULE_HEALTHS = ["text-only", "incomplete", "unchecked", "done"] as const;
+export type RuleHealth = (typeof RULE_HEALTHS)[number];
+
+/** The columns `ruleHealth` reads. A row from `card_rules` has all of them. */
+export type HealthRow = Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed" | "status" | "skillIndex">
+  & { source?: string | null; cond?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; reviewFlag?: string | null; compilerDiff?: unknown };
+
+export interface RuleHealthReport {
+  health: RuleHealth;
+  /** Why, in plain words. Empty when there is nothing to say. */
+  reasons: string[];
+  /** Things worth knowing that do not change the health ("try it in play"). */
+  hints: string[];
+  /**
+   * An out-of-date typed record (`recordContractGaps`: validity, usage, combo
+   * qualification, payment or material), so the engine refuses the skill until the
+   * rule is rebuilt. Reported beside the health and never as one: on the owner's
+   * decks every card needs a rebuild today, and counting it would make every card
+   * incomplete.
+   */
+  needsRebuild: boolean;
+}
+
+const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/**
+ * One skill row, classified. Order matters:
+ *
+ * 1. `open`, or a program that reads as nothing without saying so → `text-only`
+ *    (the engine does nothing with the text; keyword lines, bracketed reminders
+ *    and deck-building restrictions are empty on purpose and are not silent).
+ * 2. A `review_flag`, a `compiler_diff`, or anything `runtimeSupportOfRow` says the
+ *    engine cannot carry out (leaving out the out-of-date typed records,
+ *    `recordContractGaps`, which are `needsRebuild`) → `incomplete`.
+ * 3. A keyword or deck-building line with no program → `done`.
+ * 4. `draft` → `unchecked`; `confirmed`/`corrected` → `done`.
+ *
+ * `runtimeSupportOfRow(...).unknown` ("play target depends on the board") is a
+ * hint, not a gap.
+ */
+export function ruleHealth(row: HealthRow): RuleHealthReport {
+  const records = new Set(recordContractGaps(row));
+  const needsRebuild = records.size > 0;
+  const support = runtimeSupportOfRow(row);
+  const gaps = support.unsupported.filter((g) => !records.has(g));
+  const hints = support.unknown.length ? ["Try it in play: whether it can play its target depends on the board."] : [];
+  const unread = (row.unread ?? []).slice(0, 3).map((c) => `Not read: ${flatLine(String(c)).slice(0, 140)}`);
+  const report = (health: RuleHealth, reasons: string[]): RuleHealthReport => ({ health, reasons, hints, needsRebuild });
+
+  if (row.status === "open") return report("text-only", ["The engine does nothing with this text yet.", ...unread]);
+
+  const program = programOf(row);
+  const skill = parseSkills(row.printed).find((s) => s.index === row.skillIndex % 10);
+  // "This skill does nothing" is a person's answer (`blankRule`), not a silent blank.
+  const ownerBlanked = row.status === "corrected" && row.source === "user";
+  if (skill && !ownerBlanked && readsAsNothingSilently(skill, { ops: program, unsupported: row.unread ?? [] })) {
+    return report("text-only", ["The rule reads as nothing, so the engine does nothing with this text."]);
+  }
+
+  const reasons: string[] = [];
+  if (row.reviewFlag) reasons.push(`Marked wrong: ${flatLine(row.reviewFlag.split("\n")[0]).slice(0, 160)}`);
+  if (row.compilerDiff) reasons.push("The compiler now reads this differently from the saved rule.");
+  const unreadSet = new Set(row.unread ?? []);
+  for (const g of gaps) reasons.push(unreadSet.has(g) ? `Not read: ${flatLine(g).slice(0, 140)}` : `The engine cannot carry this out: ${flatLine(g).slice(0, 160)}`);
+  if (reasons.length) return report("incomplete", reasons);
+
+  const onPurpose = row.kind.toLowerCase() === "keyword" || (!!skill && emptyOnPurpose(skill));
+  if (onPurpose && program.length === 0) return report("done", ["The engine plays this line itself."]);
+  if (row.status === "draft") return report("unchecked", ["Read by the compiler; nobody has checked it yet."]);
+  return report("done", []);
+}
+
+/** A card takes its worst skill; a card with nothing to check is done. */
+export function cardHealth(skills: readonly RuleHealth[]): RuleHealth {
+  let worst = RULE_HEALTHS.length - 1;
+  for (const h of skills) worst = Math.min(worst, RULE_HEALTHS.indexOf(h));
+  return RULE_HEALTHS[worst];
+}
+
+/**
+ * A card's printed skills against its rule rows: for each skill the card prints, the row that
+ * answers it, or null when there is none (no row, or one whose stored `printed` line is no
+ * longer the printed line, as `rulesFromRows` decides). Rows that answer no printed skill are
+ * ignored, as games ignore them.
+ */
+export function currentRowsOf<T extends { side: string; skillIndex: number; printed: string }>(
+  card: { skill: string | null | undefined; backSkill: string | null | undefined },
+  rows: T[],
+): { row: T | null }[] {
+  const byKey = new Map(rows.map((r) => [`${r.side === "back" ? "back" : "front"}#${r.skillIndex}`, r]));
+  return expectedSkills(card.skill, card.backSkill).map((e) => {
+    const row = byKey.get(`${e.side}#${e.skillIndex}`);
+    return { row: row && row.printed === e.printed ? row : null };
+  });
+}
+
+/**
+ * A card from its printed text and its rule rows. A printed skill with no current row is
+ * `text-only`: the engine has nothing to play.
+ */
+export function cardHealthOf(
+  card: { skill: string | null | undefined; backSkill: string | null | undefined },
+  rows: (HealthRow & { side: string })[],
+): { health: RuleHealth; missing: number; skills: RuleHealth[] } {
+  const skills: RuleHealth[] = [];
+  let missing = 0;
+  for (const { row } of currentRowsOf(card, rows)) {
+    if (!row) { missing++; skills.push("text-only"); continue; }
+    skills.push(ruleHealth(row).health);
+  }
+  return { health: cardHealth(skills), missing, skills };
+}
+
+export type HealthCounts = Record<RuleHealth, number> & { needsRebuild: number };
+export const emptyHealthCounts = (): HealthCounts => ({ "text-only": 0, incomplete: 0, unchecked: 0, done: 0, needsRebuild: 0 });
+
+/** Skills per health, over the whole table or over some cards (the header's numbers). */
+export async function healthCounts(db: Db, cardIds?: string[]): Promise<HealthCounts> {
+  const out = emptyHealthCounts();
+  if (cardIds && !cardIds.length) return out;
+  const found = await db
+    .select({
+      kind: cardRules.kind, unread: cardRules.unread, ops: cardRules.ops, cost: cardRules.cost, trigger: cardRules.trigger, printed: cardRules.printed,
+      status: cardRules.status, skillIndex: cardRules.skillIndex, source: cardRules.source, cond: cardRules.cond, combo: cardRules.combo,
+      usage: cardRules.usage, validity: cardRules.validity, reviewFlag: cardRules.reviewFlag, compilerDiff: cardRules.compilerDiff,
+    })
+    .from(cardRules)
+    .innerJoin(cards, eq(cards.id, cardRules.cardId))
+    .where(and(REVIEWABLE_CARD, cardIds ? inArray(cardRules.cardId, [...new Set(cardIds)]) : undefined));
+  for (const r of found) {
+    const h = ruleHealth(r);
+    out[h.health]++;
+    if (h.needsRebuild) out.needsRebuild++;
   }
   return out;
 }
@@ -391,7 +552,8 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
         unread: [],
         compilerDiff: null,
         version: sql`${cardRules.version} + 1`,
-        confirmedAt: w.status === "confirmed" ? new Date() : existing.confirmedAt,
+        // A rule edited back to open/draft is no longer approved (it used to keep its stamp, and Progress counted it confirmed).
+        confirmedAt: w.status === "confirmed" ? new Date() : w.status === "corrected" ? existing.confirmedAt : null,
         updatedAt: new Date(),
       })
       .where(and(eq(cardRules.id, existing.id), w.source === "claude" ? inArray(cardRules.status, ["open", "draft"]) : undefined))
@@ -449,10 +611,19 @@ export async function markRuleSeen(db: Db, cardId: string, side: Side, skillInde
     .where(and(eq(cardRules.cardId, cardId), eq(cardRules.side, side), eq(cardRules.skillIndex, skillIndex)));
 }
 
-/** A person accepted the draft as it stands. */
+/**
+ * A person accepted the draft as it stands. That also settles a "Wrong" they
+ * marked earlier: the flag is cleared, or an approved rule would stay
+ * `incomplete` for a mark its own approver has just answered.
+ */
 export async function confirmRule(db: Db, id: number): Promise<void> {
   const reviewable = db.select({ id: cards.id }).from(cards).where(REVIEWABLE_CARD);
-  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.cardId, reviewable)));
+  await db.update(cardRules).set({ status: "confirmed", confirmedAt: new Date(), reviewFlag: null, updatedAt: new Date() }).where(and(eq(cardRules.id, id), inArray(cardRules.cardId, reviewable)));
+}
+
+/** "Yes, it plays right now": the owner answers a flag on a rule that is already approved or corrected, without changing the rule. */
+export async function clearReviewFlag(db: Db, id: number): Promise<void> {
+  await db.update(cardRules).set({ reviewFlag: null, updatedAt: new Date() }).where(eq(cardRules.id, id));
 }
 
 /** Guided review uses the exact displayed record, including edits that do not bump version. */
@@ -716,7 +887,7 @@ export async function confirmMatching(db: Db, f: RuleFilter): Promise<ConfirmBat
     .select({ id: cardRules.id })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
-    .where(and(rulePredicate(f, true), eq(cardRules.status, "draft"), sql`jsonb_array_length(${cardRules.unread}) = 0`, sql`coalesce(${cardRules.explanation}, '') not like 'Wrong (phone review)%'`));
+    .where(and(rulePredicate(f, true), eq(cardRules.status, "draft"), sql`jsonb_array_length(${cardRules.unread}) = 0`, sql`coalesce(${cardRules.explanation}, '') not like 'Wrong (phone review)%'`, sql`${cardRules.reviewFlag} is null`));
   const rules = await db
     .update(cardRules)
     .set({ status: "confirmed", confirmedAt: new Date(), updatedAt: new Date() })
@@ -1020,4 +1191,196 @@ export async function probedRules(db: Db): Promise<WorklistRow[]> {
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(isNotNull(cardRules.probe));
   return rows.map((r) => ({ ...r.rule, name: r.name, setCode: r.setCode }));
+}
+
+// ── the Rules queue: cards, not rows ────────────────────────────────────────
+
+/** Why an Incomplete card is incomplete, as a family the queue groups by (queue.ts `FAMILIES`). */
+export type ReasonFamily = "wrong" | "combo" | "diff" | "fusion" | "review" | "other";
+const FAMILY_ORDER: ReasonFamily[] = ["wrong", "combo", "diff", "fusion", "review", "other"];
+
+/** One skill of a card in the queue: a dot. */
+export interface QueueSkill {
+  health: RuleHealth;
+  /** The `card_rules` row; null where the card prints a skill that has no current row. */
+  ruleId: number | null;
+  family: ReasonFamily | null;
+}
+
+/** A card as the queue lists it: the card, its dots, and the reason of its worst skill. */
+export interface QueueCard {
+  cardId: string;
+  name: string;
+  setCode: string;
+  cardType: string;
+  colors: string[];
+  imageUrl: string | null;
+  health: RuleHealth;
+  /** One per printed skill, front then back. */
+  skills: QueueSkill[];
+  /** The worst skill's reasons in plain words, then its hints; empty when there is nothing to say. */
+  reasons: string[];
+  family: ReasonFamily | null;
+  /** The worst skill's row: where *Open ›* lands. */
+  ruleId: number | null;
+  source: RuleSource | null;
+  wording: string | null;
+  mechanism: string | null;
+  /** Printed skills with no current row (the engine plays them as blank). */
+  missing: number;
+  /** Rows whose payment record predates #1066: `compiler` the compiler can rebuild, `protectedRows` a person approved, `other` a Claude or person draft. */
+  rebuild: { rows: number; compiler: number; protectedRows: number; other: number };
+}
+
+function familyOfRow(row: HealthRow, report: RuleHealthReport): ReasonFamily | null {
+  if (report.health !== "incomplete") return null;
+  const flag = row.reviewFlag ?? "";
+  if (flag.startsWith(FLAG_PREFIX)) return "wrong";
+  const gaps = report.reasons.join(" | ").toLowerCase();
+  if (/combo/.test(gaps)) return "combo";
+  if (row.compilerDiff) return "diff";
+  if (/fusion/.test(gaps)) return "fusion";
+  if (flag) return "review";
+  return "other";
+}
+
+/** The key *Same wording* groups a row under: its compiler pattern, else the shape of its first unread clause. */
+const wordingKey = (r: { pattern?: string | null; unread?: string[] | null }): string | null => r.pattern || (r.unread?.[0] ? clauseShape(r.unread[0]) : null);
+
+/** A card from its catalog row and its `card_rules` rows (the light columns, plus `id`, `side` and `pattern`). Null for a card that prints nothing to check. */
+export function classifyQueueCard(
+  card: { id: string; name: string; setCode: string; cardType: string; colors: string[]; imageUrl: string | null; skill: string | null; backSkill: string | null },
+  rows: (HealthRow & { id: number; side: string; pattern?: string | null })[],
+): QueueCard | null {
+  const matched = currentRowsOf(card, rows);
+  if (matched.length === 0) return null;
+  const rank = (h: RuleHealth) => RULE_HEALTHS.indexOf(h);
+  const skills: QueueSkill[] = [];
+  const rebuild = { rows: 0, compiler: 0, protectedRows: 0, other: 0 };
+  let worst: { row: (typeof rows)[number]; report: RuleHealthReport } | null = null;
+  let missing = 0;
+  for (const { row } of matched) {
+    if (!row) { missing++; skills.push({ health: "text-only", ruleId: null, family: null }); continue; }
+    const report = ruleHealth(row);
+    skills.push({ health: report.health, ruleId: row.id, family: familyOfRow(row, report) });
+    if (report.needsRebuild) {
+      rebuild.rows++;
+      if (row.source === "compiler" && (row.status === "open" || row.status === "draft")) rebuild.compiler++;
+      else if (row.status === "confirmed" || row.status === "corrected") rebuild.protectedRows++;
+      else rebuild.other++;
+    }
+    if (!worst || rank(report.health) < rank(worst.report.health)) worst = { row, report };
+  }
+  const health = cardHealth(skills.map((s) => s.health));
+  // A card's incomplete skills may have different reasons; the one that comes first in the queue's order names the card.
+  const family = health === "incomplete" ? (FAMILY_ORDER.find((f) => skills.some((s) => s.health === "incomplete" && s.family === f)) ?? "other") : null;
+  const w = worst?.row ?? null;
+  const reasons = worst ? [...worst.report.reasons.filter(Boolean), ...worst.report.hints] : ["No rule record for this skill yet."];
+  return {
+    cardId: card.id, name: card.name, setCode: card.setCode, cardType: card.cardType, colors: card.colors, imageUrl: card.imageUrl,
+    health, skills,
+    reasons: health === "done" && !worst?.report.hints.length ? [] : reasons,
+    family,
+    ruleId: w?.id ?? null,
+    source: (w?.source as RuleSource | undefined) ?? null,
+    wording: w && health !== "done" ? wordingKey(w) : null,
+    mechanism: w && w.status === "open" ? mechanismOf(w.unread?.[0] ?? "") : null,
+    missing, rebuild,
+  };
+}
+
+export interface CardQueueFilter {
+  /** Only these cards. Absent is the whole catalog; empty matches nothing. */
+  cardIds?: string[];
+  setCode?: string;
+  /** Card name, id or printed text. */
+  q?: string;
+}
+
+/**
+ * Every card the filter reaches, classified by `ruleHealth` in JS from the light columns. The
+ * catalog scope loads all ~13,500 rule rows once per request, as `healthCounts(db)` does; the page
+ * narrows and pages *after* classifying.
+ */
+export async function loadQueueCards(db: Db, f: CardQueueFilter = {}): Promise<QueueCard[]> {
+  if (f.cardIds && !f.cardIds.length) return [];
+  const q = f.q?.trim();
+  const like = q ? `%${q}%` : null;
+  const where = and(
+    REVIEWABLE_CARD,
+    eq(cards.game, DEFAULT_GAME),
+    f.cardIds ? inArray(cards.id, [...new Set(f.cardIds)]) : undefined,
+    f.setCode ? eq(cards.setCode, f.setCode) : undefined,
+    like ? or(ilike(cards.name, like), ilike(cards.id, like), ilike(cards.skill, like), ilike(cards.backSkill, like)) : undefined,
+  );
+  const [cardRows, ruleRows] = await Promise.all([
+    db
+      .select({ id: cards.id, name: cards.name, setCode: cards.setCode, cardType: cards.cardType, colors: cards.colors, imageUrl: cards.imageUrl, skill: cards.skill, backSkill: cards.backSkill })
+      .from(cards)
+      .where(where),
+    db
+      .select({
+        id: cardRules.id, cardId: cardRules.cardId, side: cardRules.side, pattern: cardRules.pattern,
+        kind: cardRules.kind, unread: cardRules.unread, ops: cardRules.ops, cost: cardRules.cost, trigger: cardRules.trigger, printed: cardRules.printed,
+        status: cardRules.status, skillIndex: cardRules.skillIndex, source: cardRules.source, cond: cardRules.cond, combo: cardRules.combo,
+        usage: cardRules.usage, validity: cardRules.validity, reviewFlag: cardRules.reviewFlag, compilerDiff: cardRules.compilerDiff,
+      })
+      .from(cardRules)
+      .innerJoin(cards, eq(cards.id, cardRules.cardId))
+      .where(where),
+  ]);
+  const byCard = new Map<string, typeof ruleRows>();
+  for (const r of ruleRows) (byCard.get(r.cardId) ?? byCard.set(r.cardId, []).get(r.cardId)!).push(r);
+  const out: QueueCard[] = [];
+  for (const c of cardRows) {
+    const qc = classifyQueueCard(c, byCard.get(c.id) ?? []);
+    if (qc) out.push(qc);
+  }
+  return out;
+}
+
+export interface CardQueueView extends CardQueueFilter {
+  health?: RuleHealth | null;
+  family?: ReasonFamily | "";
+  source?: RuleSource | "";
+  pattern?: string;
+  mech?: string;
+  /** How many decks run a card (or how early a game fired it): more first. */
+  weight?: (cardId: string) => number;
+}
+export interface CardQueuePage {
+  /** The page. */
+  cards: QueueCard[];
+  /** How many the view matches. */
+  total: number;
+  /** Every card in the scope (find and set applied), by health: the tabs' numbers. */
+  counts: Record<RuleHealth, number>;
+  /** Every card the view matches, in queue order: what Next and Previous walk. */
+  matched: QueueCard[];
+  /** The scope's cards, before the health and family narrowing: for the summary strip and the rebuild banner. */
+  scope: QueueCard[];
+}
+
+/** The pure half of `cardQueuePage`: what a view keeps of classified cards, in queue order. */
+export function viewOfQueue(cs: readonly QueueCard[], v: CardQueueView): QueueCard[] {
+  const weight = v.weight ?? (() => 0);
+  return cs
+    .filter(
+      (c) =>
+        (!v.health || c.health === v.health) &&
+        (!v.family || c.family === v.family) &&
+        (!v.source || c.source === v.source) &&
+        (!v.pattern || c.wording === v.pattern) &&
+        (!v.mech || c.mechanism === v.mech),
+    )
+    .sort((a, b) => weight(b.cardId) - weight(a.cardId) || a.name.localeCompare(b.name) || a.cardId.localeCompare(b.cardId));
+}
+
+/** One page of the queue by card: load, classify, then narrow, order and page. */
+export async function cardQueuePage(db: Db, view: CardQueueView, page: { limit: number; offset: number }): Promise<CardQueuePage> {
+  const scope = await loadQueueCards(db, view);
+  const counts: Record<RuleHealth, number> = { "text-only": 0, incomplete: 0, unchecked: 0, done: 0 };
+  for (const c of scope) counts[c.health]++;
+  const matched = viewOfQueue(scope, view);
+  return { cards: matched.slice(page.offset, page.offset + page.limit), total: matched.length, counts, matched, scope };
 }

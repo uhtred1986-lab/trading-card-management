@@ -7,7 +7,7 @@ import { parseRule, printRule, type LangError, type Rule } from "@/lib/arena/lan
 import { clauseOfPath, problemsOf, ruleReading, CLAUSE_WORDS } from "@/lib/arena/lang/blocks";
 import type { RuleClause, RulePath } from "@/lib/arena/lang/path";
 import { RuleBlocks } from "./Blocks";
-import { ProbePane } from "./ProbePane";
+import { keepDraft } from "@/lib/arena/sandbox/draft";
 
 /**
  * The block builder (#469): one skill's rule spelled out as WHEN · COST · IF ·
@@ -17,8 +17,13 @@ import { ProbePane } from "./ProbePane";
  *
  * Two extension points other issues fill in, rendering nothing when absent:
  * `teachTabs` (#473's "In my words" and "Like a card", beside "Blocks") and
- * `tryIt` (#470's Try it → fix it, under the blocks). Until #470 lands, Try it
- * is the existing probe on the **saved** rule, on the rules engine (#161).
+ * `tryIt` (#470's Try it → fix it, under the blocks). The old probe pane that
+ * stood in for Try it is gone (Rules PR 3): Try it is the one test tool.
+ *
+ * On the Card rules page the builder is *embedded* (a side column on a computer,
+ * a full-screen sheet on a phone): its bar sticks to the foot of that container
+ * instead of the screen, Discard and a finished save call back instead of
+ * navigating, and `playHref` adds "Play-test this edit ▶".
  */
 export interface TeachTab {
   key: string;
@@ -35,10 +40,13 @@ export interface RuleBuilderProps {
   tryIt?: (p: { ruleId: number; rule: Rule; onFix: (path: RulePath) => void }) => ReactNode;
   /** The card the skill is printed on, pinned at the top, with the clause the engine could not read marked. */
   card?: { cardId: string; name: string; printed: string; unread: string[] };
-  /** Boards the saved rule can be probed on, until `tryIt` replaces the probe. */
-  scenarios?: { key: string; title: string }[];
   /** Where Cancel and a finished save go. */
   backHref?: string;
+  /** Embedded in the Card rules page: Discard and a finished save call these instead of navigating. */
+  onDiscard?: () => void;
+  onSaved?: () => void;
+  /** The sandbox for this rule: the builder keeps its unsaved rule for it and links there. */
+  playHref?: string;
   /** False when the server will refuse a save (not an admin): the button says so rather than failing. */
   canSave?: boolean;
 }
@@ -48,7 +56,8 @@ const primary = "tap rounded-xl bg-ki-500 px-4 py-2 text-sm font-bold text-space
 
 const EMPTY_RULE: Rule = { kind: "auto", trigger: [], cost: null, cond: null, ops: [] };
 
-export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, card, scenarios, backHref = `/arena/rules?rule=${ruleId}`, canSave = true }: RuleBuilderProps) {
+export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, card, backHref = `/arena/rules?rule=${ruleId}`, onDiscard, onSaved, playHref, canSave = true }: RuleBuilderProps) {
+  const embedded = !!(onDiscard || onSaved);
   const start = initialRule ?? EMPTY_RULE;
   const [rule, setRule] = useState<Rule>(start);
   const [focus, setFocus] = useState<RulePath | null>(focusPath ?? null);
@@ -94,6 +103,7 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
     run(async () => {
       const res = await saveRuleAction(ruleId, rule, null);
       if (res.error) setError(res.error);
+      else if (onSaved) onSaved();
       else setSaved(true);
     });
   };
@@ -116,13 +126,13 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
     );
 
   return (
-    <div className="min-w-0 space-y-3 pb-40 sm:pb-24">
+    <div className={`min-w-0 space-y-3 ${embedded ? "pb-2" : "pb-40 sm:pb-24"}`}>
       <div className="rounded-xl border border-space-700 bg-space-900/60 p-3 text-sm text-space-200">
         <p className="font-semibold">Correct → Test → Save and return</p>
         <p>Change the interpretation below, compare the test results with what you expect, then save the correction. Discard leaves the saved rule unchanged. Test judgments save separately.</p>
       </div>
       {card && (
-        <div className="sticky top-0 z-10 sm:top-16 -mx-4 border-b border-space-700 bg-space-950/95 px-4 py-2 backdrop-blur">
+        <div className={`sticky top-0 z-10 -mx-4 border-b border-space-700 bg-space-950/95 px-4 py-2 backdrop-blur ${embedded ? "" : "sm:top-16"}`}>
           <div className="text-[11px] text-space-400">
             {card.name} · <span className="font-mono">{card.cardId}</span>
           </div>
@@ -187,18 +197,7 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
 
       {teach && teach.render({ ruleId, clause, onRule: (r) => (setRule(r), setTab("blocks")) })}
 
-      {tryIt
-        ? tryIt({ ruleId, rule, onFix: (path) => (setFocus(path), setTab("blocks")) })
-        : scenarios &&
-          scenarios.length > 0 && (
-            <details className="rounded-xl border border-space-700 bg-space-900/60 p-3">
-              <summary className="cursor-pointer text-sm font-semibold text-space-100">Try it</summary>
-              <p className="mt-1 text-[11px] text-space-400">Runs the <b>saved</b> rule, not the one being built, on the legacy engine (#161). Save first to try a change.</p>
-              <div className="mt-2">
-                <ProbePane ruleId={ruleId} scenarios={scenarios} />
-              </div>
-            </details>
-          )}
+      {tryIt?.({ ruleId, rule, onFix: (path) => (setFocus(path), setTab("blocks")) })}
 
       <details className="rounded-xl border border-space-700 bg-space-900/40 p-3 text-sm text-space-300">
         <summary className="cursor-pointer">Need a rule the editor cannot express?</summary>
@@ -206,11 +205,22 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
         <Link href="/arena/feedback" target="_blank" className="tap mt-2 inline-flex underline">Report missing support (opens a new tab)</Link>
       </details>
 
-      <div className="fixed inset-x-0 bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] z-20 border-t border-space-700 bg-space-950/95 px-4 py-3 backdrop-blur sm:bottom-0">
-        <div className="mx-auto flex max-w-3xl items-center gap-2">
-          <Link href={backHref} className={btn}>
-            Discard
-          </Link>
+      <div className={`pb-[max(0.75rem,env(safe-area-inset-bottom))] z-20 border-t border-space-700 bg-space-950/95 px-4 py-3 backdrop-blur ${embedded ? "sticky -mx-4 bottom-0" : "fixed inset-x-0 bottom-0 sm:bottom-0"}`}>
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
+          {onDiscard ? (
+            <button type="button" className={btn} onClick={onDiscard}>
+              Discard
+            </button>
+          ) : (
+            <Link href={backHref} className={btn}>
+              Discard
+            </Link>
+          )}
+          {playHref && ruleId > 0 && (
+            <Link href={playHref} className={btn} onClick={() => keepDraft(ruleId, rule)}>
+              Play-test this edit ▶
+            </Link>
+          )}
           <div className="min-w-0 flex-1 text-[11px]" aria-live="polite">
             {pending ? (
               <span className="text-space-400">saving…</span>
@@ -227,7 +237,7 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
             ) : null}
           </div>
           <button type="button" className={primary} disabled={pending || !canSave || problems.length > 0 || tab === "text"} onClick={save}>
-            Save correction
+            {embedded ? "Save" : "Save correction"}
           </button>
         </div>
       </div>
