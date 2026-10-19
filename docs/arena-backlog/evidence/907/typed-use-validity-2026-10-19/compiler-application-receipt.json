@@ -1,0 +1,521 @@
+{
+  "phase": "compiler",
+  "applied": true,
+  "beforeReadAt": "2026-10-19T13:39:16.242Z",
+  "afterReadAt": "2026-10-19T13:40:57.588Z",
+  "catalogDefsHash": "34cc39691649c47fd362a49a69c56b2b653bd2e040cdfe80cd84f514cb456929",
+  "changed": [
+    {
+      "key": "BT6-001/back/0",
+      "id": 10741,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-001/front/0",
+      "id": 10739,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-001/front/10",
+      "id": 10740,
+      "beforeVersion": 3,
+      "afterVersion": 4,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-003/front/0",
+      "id": 4099,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-003/front/10",
+      "id": 4100,
+      "beforeVersion": 4,
+      "afterVersion": 5,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-003/front/20",
+      "id": 4101,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-004/front/0",
+      "id": 6344,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-004/front/10",
+      "id": 6345,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-004/front/20",
+      "id": 6346,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-005/front/0",
+      "id": 5768,
+      "beforeVersion": 7,
+      "afterVersion": 8,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-006/front/0",
+      "id": 7052,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-006/front/10",
+      "id": 7053,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-007/front/0",
+      "id": 4163,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-007/front/10",
+      "id": 4164,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-007/front/20",
+      "id": 4165,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-008/front/0",
+      "id": 3095,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-008/front/10",
+      "id": 3096,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-008/front/20",
+      "id": 3097,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-009/front/0",
+      "id": 6458,
+      "beforeVersion": 7,
+      "afterVersion": 8,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-010/front/0",
+      "id": 2994,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-010/front/10",
+      "id": 2995,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-011/front/0",
+      "id": 1358,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-012/front/0",
+      "id": 11888,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-012/front/10",
+      "id": 11889,
+      "beforeVersion": 4,
+      "afterVersion": 5,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-012/front/20",
+      "id": 11890,
+      "beforeVersion": 4,
+      "afterVersion": 5,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-013/front/0",
+      "id": 13406,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-013/front/10",
+      "id": 13407,
+      "beforeVersion": 4,
+      "afterVersion": 5,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-014/front/0",
+      "id": 3778,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-014/front/20",
+      "id": 3779,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-014/front/30",
+      "id": 3780,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-014/front/40",
+      "id": 3781,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-015/front/10",
+      "id": 7852,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-015/front/30",
+      "id": 7854,
+      "beforeVersion": 2,
+      "afterVersion": 3,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/back/0",
+      "id": 3653,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/back/10",
+      "id": 3654,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/back/20",
+      "id": 3655,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/front/0",
+      "id": 3650,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/front/10",
+      "id": 3651,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-053/front/20",
+      "id": 3652,
+      "beforeVersion": 3,
+      "afterVersion": 4,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-059/front/20",
+      "id": 10335,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-060/front/10",
+      "id": 6025,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-060/front/20",
+      "id": 6026,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-061/front/10",
+      "id": 13500,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-061/front/20",
+      "id": 13501,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-061/front/30",
+      "id": 13502,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-062/front/0",
+      "id": 9331,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-062/front/10",
+      "id": 9332,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-063/front/0",
+      "id": 5269,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-063/front/10",
+      "id": 5270,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-064/front/0",
+      "id": 10243,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-064/front/10",
+      "id": 10244,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-065/front/0",
+      "id": 6224,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-065/front/10",
+      "id": 6225,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-066/front/0",
+      "id": 11581,
+      "beforeVersion": 7,
+      "afterVersion": 8,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-067/front/0",
+      "id": 6996,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-067/front/10",
+      "id": 6997,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-068/front/0",
+      "id": 3939,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-068/front/10",
+      "id": 3940,
+      "beforeVersion": 6,
+      "afterVersion": 7,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-069/front/0",
+      "id": 503,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "BT6-070/front/0",
+      "id": 6899,
+      "beforeVersion": 7,
+      "afterVersion": 8,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "P-136/front/0",
+      "id": 6080,
+      "beforeVersion": 1,
+      "afterVersion": 2,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "P-136/front/10",
+      "id": 6081,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    },
+    {
+      "key": "P-136/front/20",
+      "id": 6082,
+      "beforeVersion": 5,
+      "afterVersion": 6,
+      "status": "draft",
+      "source": "compiler"
+    }
+  ],
+  "unchangedRawRows": [
+    "BT6-001/back/10",
+    "BT6-012/front/30",
+    "BT6-013/front/20",
+    "BT6-015/front/20"
+  ],
+  "protectedProgramsAndReviewFieldsPreserved": true,
+  "humanConfirmationsAdded": 0
+}
