@@ -89,3 +89,23 @@ permissions, Counter failure and granted-family residuals. Additional actual
 rows, card lines and application writes require explicit scope; there is no
 three-row refresh assumption. No tests, games or database access were performed
 for this feasibility audit.
+
+## Returned source occurrence: narrow review finding
+
+A newly added proof moved the paid Potara source Hand→Drop→Hand while its
+material choice was pending, then expected failed-entry cleanup to Drop it again.
+That expectation confuses a returned new occurrence with the original incoming
+card. Manual3-1-4 treats each area change as a new card; its listed Battle/Unison/
+Combo exceptions do not cover Hand→Drop→Hand. Section9-3-1 preserves resolution
+of the already activated effect independently of its source, not reacquisition
+of that new card. Potara22-13-5-4-2 names the card that activated the skill; it
+does not specify following a new returned hand occurrence. That new occurrence
+therefore remains in hand, with no entry and no refund of the paid cost.
+
+This differs from an **unchanged incoming hand card** whose chosen material
+left and returned before resolution: the incoming occurrence still exists, so
+its failed-entry Drop rule remains applicable. The explicit return-to-hand
+replacement exception remains separately preserved. The proposed correction
+only gates typed Potara failed-entry movement on the captured source occurrence;
+it supplies no new Fusion or other-family ruling. No exact card-specific FAQ
+for the round trip was located; the general manual identity rule is the basis.

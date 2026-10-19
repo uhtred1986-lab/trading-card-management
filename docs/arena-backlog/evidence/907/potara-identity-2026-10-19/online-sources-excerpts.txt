@@ -37,3 +37,31 @@ Official manual Potara
        22-13-5-4-2-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
 
                    returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
+
+Manual area identity
+3-1-4. Other than the exceptions below, when a card is moved from one area to another area, unless otherwise specified, the card is treated as a
+
+       new card in a new area. Effects that were applied to the card in the original area are not carried over to the new area.
+
+   3-1-4-1. When a card is moved from a Battle Area or Unison Area to a Battle Area, Unison Area, or Combo Area, unless otherwise specified,
+
+             effects that were applied to the card in the original area are carried over to the new area.
+
+   3-1-4-2. When a card is moved from a Combo Area to a Battle Area, unless otherwise specified, effects that were applied to the card in the original
+
+             area are carried over to the new area.
+
+   3-1-4-3. If a single skill applies a continuous effect that causes a card in an area to move to the Leader Area, Battle Area, Unison Area, or Combo
+
+             Area, the effect applies in the original area, then the card is considered a new card in a new area, with the effect still applied.
+
+             Example: If an effect reads "use 1 card in a combo with its skills negated for the battle," and a card moves from the Drop Area to the
+
+             Combo Area, the effect that negates skills will applied to the target card in the Drop Area, and after the card is placed in the Combo Area,
+
+             the effect will still apply and the card's skills will still be negated until the end of the battle.
+
+Manual independent source
+9-3-1. Activated effects that have occurred are considered independent of their source. If the area in which such an effect’s source is placed is later
+
+       changed, this change does not affect the resolution of that effect.(23-3)
