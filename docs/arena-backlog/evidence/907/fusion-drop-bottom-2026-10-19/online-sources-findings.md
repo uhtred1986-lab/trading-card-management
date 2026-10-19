@@ -72,8 +72,9 @@ existing labelled printed-power rule; this slice supplies no new power ruling.
 
 “In any order” gives the owner an actual choice for two Drop materials. General
 3-1-5 additionally assigns ordering of simultaneously placed cards to their
-owner, and3-1-5-1 requires declaring order for open→secret placement when that
-order can be determined. No extra shuffle is printed or implied. A single Drop
+owner. Under3-1-5-1, when that owner can determine the order for open→secret
+placement, the opponent cannot confirm the order; the bottom-order choice must
+remain private. No extra shuffle is printed or implied. A single Drop
 material in a mixed pair has no two-card bottom-order choice.
 
 Material movement finishes before the remaining Fusion skill cost is determined
