@@ -1235,6 +1235,7 @@ export interface SkillPrice {
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
+  absorb?: AbsorbProcedure;
   /** Executable resource cost. Missing/unknown contracts require regeneration. */
   payment: SkillPayment;
   condition: Cond | null;
@@ -1273,6 +1274,7 @@ export interface XCost {
 export interface CostRecord {
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
+  absorb?: AbsorbProcedure;
   version: 1;
   /** Whether the compiler/editor accounted for the whole price. Text is display only. */
   readable: boolean;
@@ -1304,6 +1306,8 @@ export interface SkillPayment {
 
 /** The supported §22-13-4 procedure. Extensions are typed standing permissions,
  * scoped by their own records; their presence here never grants permission. */
+/** Identity/area only: material and arrival selectors remain authoritative typed ops. */
+export interface AbsorbProcedure { version: 1; variant: "Absorb"; area: "battle"; }
 export interface EvolutionBase {
   version: 1;
   variant: "EX-Evolve";
@@ -1430,6 +1434,8 @@ export interface ScriptFrame {
   /** Captured identity survives successful Fusion payment and source changes. */
   fusionIdentity?: Pick<Script, "kind" | "price">;
   evolutionIdentity?: Pick<Script, "kind" | "price">;
+  absorbIdentity?: Pick<Script, "kind" | "price" | "ops">;
+  absorbSourceEpoch?: number;
   evolutionSourceEpoch?: number;
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;

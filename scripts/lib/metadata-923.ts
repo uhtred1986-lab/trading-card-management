@@ -1,3 +1,4 @@
+import { ABSORB_REBUILD } from "../../src/lib/arena/vm/absorb-procedure";
 /** Exact eleven #923 records: additive metadata only, never a compiler refresh. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -56,7 +57,7 @@ export function metadata923Plan(input: Metadata923Row[]) {
     for (const [field, value] of Object.entries({ usage, validity })) if (before[field] != null) assert.equal(metadata923Hash(before[field]), metadata923Hash(value), `existing authored ${field} differs; never overwrite`);
     const after: Metadata923Row = { ...before, usage, validity };
     assert.equal(metadata923ProgramHash(after), metadata923ProgramHash(before), "program body must be preserved");
-    assert.deepEqual(runtimeSupportOfRow({ kind: String(before.kind), printed: String(before.printed), trigger: before.trigger, unread: before.unread, ops: before.ops, cost: before.cost, usage, validity, combo: before.combo } as Parameters<typeof runtimeSupportOfRow>[0]).unsupported, [], "metadata does not establish runtime admission");
+    assert.deepEqual(runtimeSupportOfRow({ kind: String(before.kind), printed: String(before.printed), trigger: before.trigger, unread: before.unread, ops: before.ops, cost: before.cost, usage, validity, combo: before.combo } as Parameters<typeof runtimeSupportOfRow>[0]).unsupported, key === "BT3-070/front/0" ? [ABSORB_REBUILD] : [], "metadata does not establish runtime admission");
     const changed = ["usage", "validity"].filter(k => metadata923Hash(before[k]) !== metadata923Hash(after[k]));
     if (changed.length) assert.equal(before.version, target.version, "partially changed next-version snapshot requires new review");
     return { before, usage, validity, changed, publicTarget: {

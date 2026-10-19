@@ -1,3 +1,4 @@
+import { ABSORB_REBUILD, isAbsorbSkill, absorbEffectProblem } from "./absorb-procedure";
 import { evolutionBaseProblem, needsEvolutionContract, EVOLUTION_REBUILD } from "./evolution-base";
 /** Record-owned Fusion identity; native keyword declarations remain ruleset-owned. */
 import type { Skill } from "../types";
@@ -17,12 +18,31 @@ export function evolutionIdentityProblem(script: Pick<Script, "kind" | "price"> 
   if (script?.kind !== "keyword") return EVOLUTION_REBUILD;
   return skillPriceProblem(script.price) ?? evolutionBaseProblem(script.price?.evolution);
 }
+/** Identity is joint with the complete bounded recorded cost and effect programs. */
+export function absorbIdentityProblem(script: Pick<Script, "kind" | "price" | "ops"> | undefined, required = false): string | null {
+  if (!required && script?.price?.absorb === undefined) return null;
+  if (script?.kind !== "keyword" || script.price?.absorb === undefined) return ABSORB_REBUILD;
+  return skillPriceProblem(script.price) ?? absorbEffectProblem(script.ops);
+}
+export function absorbLineProblem(line: { script?: Script; skill: Skill; keyword?: { name: string } }, required = false): string | null {
+  if (!required && line.script?.price?.absorb === undefined && !isAbsorbSkill(line.skill)) return null;
+  return absorbIdentityProblem(line.script, true) ?? (line.skill.kind !== "keyword" || !isAbsorbSkill(line.skill) || line.keyword?.name !== "Union" ? ABSORB_REBUILD : null);
+}
+/** JSON-safe structural equality for two captures of the same executable record. */
+export function sameAbsorbIdentity(a: unknown, b: unknown): boolean {
+  const ordered = (v: unknown): unknown => Array.isArray(v) ? v.map(ordered) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, ordered(x)])) : v;
+  return JSON.stringify(ordered(a)) === JSON.stringify(ordered(b));
+}
 /** Printed Fusion can identify a missing migration, never supply executable identity. */
 export function recordedSkillIdentity(skill: Skill, script: Script | undefined): Skill {
   const known = ["keyword", "auto", "permanent", "activate:main", "activate:battle", "activate:main/battle", "counter:play", "counter:attack", "counter:battle card attack", "counter:counter"];
   const kind = script?.kind && known.includes(script.kind) ? script.kind : skill.kind;
   // A blocked record cannot become a native hook through its displayed tags.
   if (script?.unsupported.length) return { ...skill, kind, keyword: null, tags: [] };
+  if (script?.price?.absorb !== undefined || script?.price?.fusion === undefined && script?.price?.evolution === undefined && isAbsorbSkill(skill)) {
+    const gap = absorbIdentityProblem(script, true); if (gap) throw new NotYet(gap, "#907");
+    return { ...skill, kind: "keyword", keyword: { name: "Union", variant: "Absorb" }, tags: [] };
+  }
   if (script?.price?.fusion !== undefined || script?.price?.evolution === undefined && isFusionSkill(skill)) {
     const gap = fusionIdentityProblem(script, true); if (gap) throw new NotYet(gap, "#907");
     return { ...skill, kind: "keyword", keyword: { name: "Union", variant: "Fusion" }, tags: [] };

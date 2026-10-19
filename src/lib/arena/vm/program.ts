@@ -534,7 +534,7 @@ const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
 function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
   if (!text) return NO_KEYWORDS;
-  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined))
+  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined || s.price?.absorb !== undefined))
     return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
   if (!names) {

@@ -1,5 +1,6 @@
+import { isAbsorbSkill } from "./vm/absorb-procedure";
 import { needsEvolutionContract } from "./vm/evolution-base";
-import { fusionIdentityProblem, evolutionIdentityProblem } from "./vm/skill-identity";
+import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem } from "./vm/skill-identity";
 import { validityProblem, type ValidityRecord } from "./vm/validity";
 import { usageProblem, type UsageRecord } from "./vm/usage";
 /**
@@ -89,6 +90,10 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
   }
   if ((row.cost as CostRecord | null)?.evolution !== undefined || parseSkills(row.printed).some(needsEvolutionContract)) {
     const gap = evolutionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
+    if (gap) unsupported.push(gap);
+  }
+  if ((row.cost as CostRecord | null)?.absorb !== undefined || parseSkills(row.printed).some(isAbsorbSkill)) {
+    const gap = absorbIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: row.ops as Op[] }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -544,6 +549,11 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   const evolveCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
   if (evolveCost?.evolution !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(needsEvolutionContract)) {
     const gap = evolutionIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(evolveCost) ? undefined : priceFromCostRecord(evolveCost!) }, true);
+    if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
+  }
+  const absorbCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
+  if (absorbCost?.absorb !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isAbsorbSkill)) {
+    const gap = absorbIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(absorbCost) ? undefined : priceFromCostRecord(absorbCost!), ops: w.ops }, true);
     if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;

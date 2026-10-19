@@ -1,3 +1,4 @@
+import { isAbsorbSkill, ABSORB_REBUILD } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
 import { needsEvolutionContract, EVOLUTION_REBUILD } from "../vm/evolution-base";
 import { compileValidity, validityProblem } from "../vm/validity";
@@ -451,6 +452,7 @@ function compileSkillText(skill: Skill): Script {
         || (isFusionSkill(line) && (line.oncePerTurn || line.limit !== null || line.bond !== null || line.sparking !== null || line.tags.length !== 1))) {
         return { ops: [], unsupported: ["unsupported granted Union identity or use-limit metadata"] };
       }
+      if (isAbsorbSkill(line)) return { ops: [], unsupported: ["granted typed Union-Absorb procedure is not supported (#907)"] };
       if (isFusionSkill(line) && !compileFusionMaterials(line)) return { ops: [], unsupported: ["unsupported granted Fusion material description"] };
       if (line.oncePerTurn || line.limit !== null || line.sparking !== null) return { ops: [], unsupported: ["granted Union use ceilings/Sparking require a typed grant contract; this grant is unsupported (#907)"] };
       return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2], unionVariant: line.keyword?.name === "Union" && line.keyword.variant === "Potara" ? "Potara" : "Fusion", price: compileSkillPrice(line) }], unsupported: [] };
@@ -872,7 +874,9 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
     // a context built from card text — `rulesFor` reads the row instead — and
     // it is what keeps `npm test` and the probe playing prices at all now that
     // the engine no longer compiles one mid-game.
-    bySkill[sk.index] = { ...script, price: compileSkillPrice(sk) };
+    const price = compileSkillPrice(sk);
+    if (isAbsorbSkill(sk) && !price.absorb) script.unsupported.push(ABSORB_REBUILD);
+    bySkill[sk.index] = { ...script, price };
     unsupported.push(...script.unsupported);
   }
   return { bySkill, complete: unsupported.length === 0, unsupported };
