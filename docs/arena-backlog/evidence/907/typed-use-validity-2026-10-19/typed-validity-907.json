@@ -1,0 +1,900 @@
+{
+  "recordMode": "offline-rebuilt-fixture",
+  "inputHashes": {
+    "catalog": "55693eea0d06e0a54abeece46ed79519346945247c6caabea1ac4a40e28c015e",
+    "physical": "bad88e2aa52d282d6689e58e5b1f20f182248fdd8b2f0f712f67522fc73fcc8b",
+    "actualExport": null
+  },
+  "parsed": 4,
+  "executable": 4,
+  "reviewed": false,
+  "qualified": false,
+  "pairGames": 0,
+  "scenarios": [
+    "p1 BT6-003 Drop=2 from=hand qualifies=false",
+    "p1 BT6-003 Drop=2 from=drop qualifies=false",
+    "p1 BT6-003 Drop=3 from=hand qualifies=true",
+    "p1 BT6-003 Drop=3 from=drop qualifies=false",
+    "p1 BT6-003 pending validity falls below threshold",
+    "p1 BT6-003 below-to-above has no retroactive trigger",
+    "p1 BT6-003 activated effect independent of later Drop count",
+    "p1 BT6-004 Drop=1 from=hand qualifies=false",
+    "p1 BT6-004 Drop=1 from=drop qualifies=false",
+    "p1 BT6-004 Drop=2 from=hand qualifies=true",
+    "p1 BT6-004 Drop=2 from=drop qualifies=true",
+    "p1 BT6-004 pending validity falls below threshold",
+    "p1 BT6-004 below-to-above has no retroactive trigger",
+    "p1 BT6-004 activated effect independent of later Drop count",
+    "p1 BT6-008 Drop=1 from=hand qualifies=false",
+    "p1 BT6-008 Drop=1 from=drop qualifies=false",
+    "p1 BT6-008 Drop=2 from=hand qualifies=true",
+    "p1 BT6-008 Drop=2 from=drop qualifies=true",
+    "p1 BT6-008 pending validity falls below threshold",
+    "p1 BT6-008 below-to-above has no retroactive trigger",
+    "p1 BT6-008 activated effect independent of later Drop count",
+    "p1 BT6-007 manual Drop=2, Rest Mode cost preserved",
+    "p1 BT6-007 manual Drop=3, Rest Mode cost preserved",
+    "p1 actual stored validity mutation sparking=1",
+    "p1 actual stored validity mutation sparking=null",
+    "p1 typed Sparking static validity control",
+    "p2 BT6-003 Drop=2 from=hand qualifies=false",
+    "p2 BT6-003 Drop=2 from=drop qualifies=false",
+    "p2 BT6-003 Drop=3 from=hand qualifies=true",
+    "p2 BT6-003 Drop=3 from=drop qualifies=false",
+    "p2 BT6-003 pending validity falls below threshold",
+    "p2 BT6-003 below-to-above has no retroactive trigger",
+    "p2 BT6-003 activated effect independent of later Drop count",
+    "p2 BT6-004 Drop=1 from=hand qualifies=false",
+    "p2 BT6-004 Drop=1 from=drop qualifies=false",
+    "p2 BT6-004 Drop=2 from=hand qualifies=true",
+    "p2 BT6-004 Drop=2 from=drop qualifies=true",
+    "p2 BT6-004 pending validity falls below threshold",
+    "p2 BT6-004 below-to-above has no retroactive trigger",
+    "p2 BT6-004 activated effect independent of later Drop count",
+    "p2 BT6-008 Drop=1 from=hand qualifies=false",
+    "p2 BT6-008 Drop=1 from=drop qualifies=false",
+    "p2 BT6-008 Drop=2 from=hand qualifies=true",
+    "p2 BT6-008 Drop=2 from=drop qualifies=true",
+    "p2 BT6-008 pending validity falls below threshold",
+    "p2 BT6-008 below-to-above has no retroactive trigger",
+    "p2 BT6-008 activated effect independent of later Drop count",
+    "p2 BT6-007 manual Drop=2, Rest Mode cost preserved",
+    "p2 BT6-007 manual Drop=3, Rest Mode cost preserved",
+    "p2 actual stored validity mutation sparking=1",
+    "p2 actual stored validity mutation sparking=null",
+    "p2 typed Sparking static validity control"
+  ],
+  "targets": [
+    {
+      "cardId": "BT6-003",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 4099,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "b19085f9f6ecc348e1f29c0e59614de156d6fd8161fca899c40bf10a064f84c9",
+        "printedHash": "8d50f85292a5cb9c65cd8a347dc7622eee0ba1ebe90352c84764032f032feb30"
+      },
+      "rebuilt": {
+        "cardId": "BT6-003",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] [Sparking 3] When you play this card from your hand, look at up to 7 cards from the top of your deck, choose up to 1 red <Vegeta: Br> card among them and play it in Rest Mode, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "playedFromHand"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 3
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Vegeta: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 red <Vegeta: Br> card among them"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "rest"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→play→shuffle",
+        "reads": "look at the top 7, choose up to 1 red <Vegeta: Br> card of the cards looked at, play the chosen cards in rest mode, shuffle",
+        "source": "compiler",
+        "status": "draft"
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "cardId": "BT6-004",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 6344,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "7fcfd063a113de3d267d44be7ac24bcd43c4bc68bb0de5c49d72413361ad0004",
+        "printedHash": "0fe1d50fae1798622c6c139d7b2f6c7d9870919f6ec3b6798aa907efd5a36643"
+      },
+      "rebuilt": {
+        "cardId": "BT6-004",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] [Sparking 2] (This skill takes effect when you have 2 or more cards in your Drop Area.) When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 <Gogeta: Br> card or red <Vegeta: Br> card among them and add it to your hand, shuffle your deck, then if you added a card to your hand, choose 1 card from your hand and place it in your Drop Area.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 2
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 5,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "anyOf": [
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Gogeta: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  {
+                    "colors": [
+                      "Red"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Vegeta: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                ]
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 <Gogeta: Br> card or red <Vegeta: Br> card among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "did",
+              "what": "addToHand"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c1",
+                "reason": "choose 1 card from your hand"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c1"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle→if:did[choose→moveTo]",
+        "reads": "look at the top 5, choose up to 1 <Gogeta: Br> card or red <Vegeta: Br> card of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to drop",
+        "source": "compiler",
+        "status": "draft"
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "cardId": "BT6-007",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 4163,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "e158b78ae895dec923f033d18fc5bbd659fbe7e713f448ef13810840793b5cad",
+        "printedHash": "899d39db7d2ada541a43360f816243a2ef3568e244b0b0b94fa798b71e4998f7"
+      },
+      "rebuilt": {
+        "cardId": "BT6-007",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Activate: Main] [Sparking 3] Switch this card to Rest Mode: Look at up to 7 cards from the top of your deck, choose up to 1 red <Son Goku: Br> card among them and play it, then shuffle your deck.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 3
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Switch this card to Rest Mode",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "switchMode",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "mode": "rest"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Son Goku: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 red <Son Goku: Br> card among them"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→play→shuffle",
+        "reads": "look at the top 7, choose up to 1 red <Son Goku: Br> card of the cards looked at, play the chosen cards, shuffle",
+        "source": "compiler",
+        "status": "draft"
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "cardId": "BT6-008",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 3095,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "ab0107245a596611417ec2651bca59f543c19e1661d2bce7447790328fbd7f84",
+        "printedHash": "478462896da584da1bcc9c8358bcd95173d323f1fd208ba9dbc0ce66e53d1022"
+      },
+      "rebuilt": {
+        "cardId": "BT6-008",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] [Sparking 2] (This skill takes effect when you have 2 or more cards in your Drop Area.) When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 <Gogeta: Br> card or red <Son Goku: Br> card among them and add it to your hand, shuffle your deck, then if you added a card to your hand, choose 1 card from your hand and place it in your Drop Area.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 2
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 5,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "anyOf": [
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Gogeta: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  {
+                    "colors": [
+                      "Red"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Son Goku: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                ]
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 <Gogeta: Br> card or red <Son Goku: Br> card among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "did",
+              "what": "addToHand"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c1",
+                "reason": "choose 1 card from your hand"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c1"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle→if:did[choose→moveTo]",
+        "reads": "look at the top 5, choose up to 1 <Gogeta: Br> card or red <Son Goku: Br> card of the cards looked at, move the chosen cards to hand, shuffle, if you added a card to your hand: choose 1 card in your hand, move the chosen cards to drop",
+        "source": "compiler",
+        "status": "draft"
+      },
+      "appliedToDatabase": false
+    }
+  ]
+}

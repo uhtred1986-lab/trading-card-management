@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {cardDefFrom} from '../../src/lib/arena/load.ts';
 import {skillRecords} from '../../src/lib/arena/draft.ts';
+import {fusionMaterialsProblem} from '../../src/lib/arena/vm/fusion-materials.ts';
 import {zeroCostRecord} from '../../src/lib/arena/vm/skill-payment.ts';
 import {sem,normPrinted} from '../lib/refresh-ids.ts';
 const base='docs/arena-backlog/evidence/';
@@ -28,25 +29,60 @@ for(const old of current){
  if(!['draft','open'].includes(old.status)||old.source!=='compiler')reasons.push('not eligible compiler-owned open/draft');
  if(normPrinted(fresh.printed)!==normPrinted(old.printed))reasons.push('source not current');
  if(fresh.unread.length)reasons.push('fresh unread');
- if(['BT6-060/front/10','BT6-061/front/10'].includes(key))reasons.push('known Counter energy-cost qualifier requires separate semantic proof');
  const upgradedCost=old.cost==null ? zeroCostRecord() : {version:1,readable:true,...old.cost};
  let metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity,cost:fresh.cost})===sem({...old,cost:upgradedCost});
  let reviewedRepair:string|null=null;
- if(key==='BT6-060/front/20'&&!metadataOnly){
+ if(['BT6-060/front/20','BT6-059/front/20'].includes(key)&&!metadataOnly){
+   const positiveBarrier=key==='BT6-059/front/20';
    const repaired=structuredClone(old);
    assert.equal(repaired.ops[0].op,'choose');
-   assert.equal(repaired.ops[0].reason,"Choose up to 1 of your opponent's Battle Cards ignoring [Barrier]");
+   assert.equal(repaired.ops[0].reason,positiveBarrier?"choose up to 1 of your opponent's Battle Cards with [Barrier] ignoring [Barrier]":"Choose up to 1 of your opponent's Battle Cards ignoring [Barrier]");
    assert.equal(repaired.ops[0].sel.ignoreBarrier,undefined);
    repaired.ops[0].sel.ignoreBarrier=true;
-   repaired.ops[0].reason="Choose up to 1 of your opponent's Battle Cards";
-   assert.equal(repaired.reads,"choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards");
-   repaired.reads="choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], KO the chosen cards";
+   repaired.ops[0].reason=positiveBarrier?"choose up to 1 of your opponent's Battle Cards with [Barrier]":"Choose up to 1 of your opponent's Battle Cards";
+   assert.equal(repaired.reads,`choose up to 1 Battle Card${positiveBarrier?" with [Barrier]":""} in your opponent's Battle Area, KO the chosen cards`);
+   repaired.reads=`choose up to 1 Battle Card${positiveBarrier?" with [Barrier]":""} in your opponent's Battle Area ignoring [Barrier], KO the chosen cards`;
    metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity})===sem({...repaired,cost:upgradedCost});
    assert.ok(metadataOnly,'Barrier repair must be the only extra change');
-   reviewedRepair='Existing compiler omitted printed ignoring [Barrier]; both-seat actual-program usage proof covers Barrier target';
+   reviewedRepair='Existing compiler omitted printed ignoring [Barrier]; both-seat actual-program proof covers Barrier target and retained positive target properties';
+ }
+ if(['BT6-053/front/10','BT6-053/back/0'].includes(key)&&!metadataOnly){
+   const repaired=structuredClone(old), back=old.side==='back';
+   assert.deepEqual(repaired.ops,[]); assert.equal(repaired.cond,null);
+   assert.deepEqual(repaired.unread,["You can't add cards from your life to your hand "+(back?'during your turn':'for the duration of the turn')]);
+   assert.deepEqual(fresh.ops,[{op:'forbid',what:'addLifeToHand',side:'you',until:back?'game':'turn'}]);
+   assert.deepEqual(fresh.cond,back?{kind:'isTurnPlayer'}:null);
+   assert.equal(fresh.pattern,back?'if:isTurnPlayer[forbid:addLifeToHand]':'forbid:addLifeToHand');
+   assert.match(fresh.reads,/add cards from life to hand/);
+   repaired.ops=fresh.ops; repaired.cond=fresh.cond; repaired.unread=[];
+   repaired.pattern=fresh.pattern; repaired.reads=fresh.reads;
+   metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity})===sem({...repaired,cost:upgradedCost});
+   assert.ok(metadataOnly,'Life prohibition must be the only extra change');
+   reviewedRepair='Exact Paragus prohibition previously unread; both-seat Life-lock/official Broly Q7 continuation and actual damage proofs';
+ }
+ if(['BT6-060/front/10','BT6-061/front/10'].includes(key)&&!metadataOnly){
+   const repaired=structuredClone(old);
+   assert.deepEqual(repaired.ops,[{op:'forbid',side:'opponent',what:'activateCounter',until:'game'}]);
+   repaired.ops[0].filter={costMin:2};
+   assert.equal(repaired.reads,"if this card is attacking: your opponent can't activate [Counter] skills");
+   assert.match(fresh.reads,/energy cost of 2 or more/);
+   repaired.reads=fresh.reads;
+   metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity})===sem({...repaired,cost:upgradedCost});
+   assert.ok(metadataOnly,'Counter card-cost bound must be the only extra change');
+   reviewedRepair='Existing compiler dropped printed Counter cost>=2 bound; both-seat current-card-cost, skill-price and live-refusal proofs';
+ }
+ if(['BT6-012/front/0','BT6-013/front/0','BT6-015/front/10'].includes(key)&&!metadataOnly){
+   const fusion=fresh.cost?.fusion; assert.ok(fusion); assert.equal(fusionMaterialsProblem(fusion),null);
+   assert.equal(fresh.kind,'keyword'); assert.equal(fusion.samePower,true);
+   assert.equal(fusion.activation,'hand'); assert.equal(fusion.base,'hand');
+   assert.deepEqual(fusion.needs.map(n=>({name:n.name,colors:n.filter.colors})),[{name:'Son Goku: Br',colors:['Red']},{name:'Vegeta: Br',colors:['Red']}]);
+   const repaired={...old,cost:{...upgradedCost,fusion}};
+   metadataOnly=sem({...fresh,usage:old.usage,validity:old.validity})===sem(repaired);
+   assert.ok(metadataOnly,'Typed Fusion contract must be the only extra change');
+   reviewedRepair='Previously delivered typed Fusion material contract plus persisted keyword kind; exact three frozen both-seat payment/play/draw and identity proofs';
  }
  if(!metadataOnly)reasons.push('other semantic/reading difference requires separate review');
- const record={key,id:old.id,version:old.version,status:old.status,source:old.source,metadataOnly:metadataOnly&&!reviewedRepair,reviewedRepair,reasons};
+ const record={key,id:old.id,version:old.version,status:old.status,source:old.source,metadataOnly:metadataOnly&&!reviewedRepair,reviewedRepair,reasons,...(reviewedRepair?{beforeProgram:{cost:old.cost,cond:old.cond,ops:old.ops,unread:old.unread,reads:old.reads},afterProgram:{cost:fresh.cost,cond:fresh.cond,ops:fresh.ops,unread:fresh.unread,reads:fresh.reads,usage:fresh.usage,validity:fresh.validity}}:{})};
  if(reasons.length)held.push(record);else plan.push(record);
 }
 const out={before:beforePath,plan,held,protectedUnchanged:[...protectedKeys],note:'No human confirmation or pair qualification; frozen original inputs remain unchanged'};

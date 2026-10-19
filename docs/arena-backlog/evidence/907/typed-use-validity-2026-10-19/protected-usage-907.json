@@ -1,0 +1,17 @@
+{
+  "recordMode": "approved-metadata-preview",
+  "previewDigest": "0a46676c2d9d7149968ab3fdc0d6e8b517e77b2121a6d2af97c075b937e192cf",
+  "targets": [
+    "BT6-001/back/10"
+  ],
+  "checks": [
+    "p1/post-payment-true",
+    "p1/opponent-turn-false",
+    "p1/missing-count-false",
+    "p2/post-payment-true",
+    "p2/opponent-turn-false",
+    "p2/missing-count-false"
+  ],
+  "qualified": false,
+  "pairGames": 0
+}

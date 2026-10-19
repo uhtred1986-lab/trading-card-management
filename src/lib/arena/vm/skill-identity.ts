@@ -16,7 +16,7 @@ export function recordedSkillIdentity(skill: Skill, script: Script | undefined):
   const known = ["keyword", "auto", "permanent", "activate:main", "activate:battle", "activate:main/battle", "counter:play", "counter:attack", "counter:battle card attack", "counter:counter"];
   const kind = script?.kind && known.includes(script.kind) ? script.kind : skill.kind;
   // A blocked record cannot become a native hook through its displayed tags.
-  if (script?.unsupported.length) return { ...skill, kind, keyword: undefined, tags: [] };
+  if (script?.unsupported.length) return { ...skill, kind, keyword: null, tags: [] };
   if (script?.price?.fusion !== undefined || isFusionSkill(skill)) {
     const gap = fusionIdentityProblem(script, true); if (gap) throw new NotYet(gap, "#907");
     return { ...skill, kind: "keyword", keyword: { name: "Union", variant: "Fusion" }, tags: [] };

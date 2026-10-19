@@ -51,7 +51,7 @@ function take(s: VmState, action: Action): VmState {
   assert.deepEqual(a, b, "saved-context action replay stays deterministic"); return a.state as VmState;
 }
 function fresh(attacker: PlayerId): VmState {
-  const defender = attacker === "p1" ? "p2" : "p1";
+  const defender: PlayerId = attacker === "p1" ? "p2" : "p1";
   let s = RULES.createGame(ctx, { seed: 907, p1: { name: "One", leader: "L-RED", main: fifty("V1") }, p2: { name: "Two", leader: "L-RED", main: fifty("V1") } }).state as VmState;
   s = take(s, { type: "chooseFirst", player: s.chooser, first: defender });
   for (const player of [defender, attacker]) s = take(s, { type: "mulligan", player, redraw: false });

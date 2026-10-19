@@ -40,7 +40,7 @@ const front = rows.find(r => r.cardId === "BT6-053" && r.side === "front" && r.s
 const back = rows.find(r => r.cardId === "BT6-053" && r.side === "back" && r.skillIndex === 0)!;
 assert.deepEqual(front.unread, []); assert.deepEqual(back.unread, []);
 assert.deepEqual(front.ops, [{ op: "forbid", what: "addLifeToHand", side: "you", until: "turn" }]);
-assert.equal(back.cond?.kind, "isTurnPlayer");
+assert.deepEqual(back.cond, { kind: "isTurnPlayer" });
 for (const r of [front, back]) {
   const rule: Rule = { kind: r.kind, trigger: r.trigger as Rule["trigger"], usage: r.usage as Rule["usage"], validity: r.validity as Rule["validity"], cost: r.cost as Rule["cost"], cond: r.cond as Rule["cond"], ops: r.ops as Rule["ops"] };
   assert.equal(rule.cost?.version, 1);

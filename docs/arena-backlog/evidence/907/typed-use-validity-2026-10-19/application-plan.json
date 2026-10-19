@@ -1,0 +1,1950 @@
+{
+  "before": "docs/arena-backlog/evidence/907/combo-qualifications-2026-10-19/stored-rules-after-combo.json",
+  "plan": [
+    {
+      "key": "BT6-001/back/0",
+      "id": 10741,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-001/front/0",
+      "id": 10739,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-001/front/10",
+      "id": 10740,
+      "version": 3,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-003/front/0",
+      "id": 4099,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-003/front/10",
+      "id": 4100,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-003/front/20",
+      "id": 4101,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-004/front/0",
+      "id": 6344,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-004/front/10",
+      "id": 6345,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-004/front/20",
+      "id": 6346,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-005/front/0",
+      "id": 5768,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-006/front/0",
+      "id": 7052,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-006/front/10",
+      "id": 7053,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-007/front/0",
+      "id": 4163,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-007/front/10",
+      "id": 4164,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-007/front/20",
+      "id": 4165,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-008/front/0",
+      "id": 3095,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-008/front/10",
+      "id": 3096,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-008/front/20",
+      "id": 3097,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-009/front/0",
+      "id": 6458,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-010/front/0",
+      "id": 2994,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-010/front/10",
+      "id": 2995,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-011/front/0",
+      "id": 1358,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-012/front/0",
+      "id": 11888,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Previously delivered typed Fusion material contract plus persisted keyword kind; exact three frozen both-seat payment/play/draw and identity proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null,
+          "fusion": {
+            "version": 1,
+            "needs": [
+              {
+                "name": "Son Goku: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "name": "Vegeta: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            ],
+            "samePower": true,
+            "activation": "hand",
+            "base": "hand",
+            "extensions": [
+              "unionFusionAreas",
+              "unionFusionWarp"
+            ]
+          }
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": "",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-012/front/10",
+      "id": 11889,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-012/front/20",
+      "id": 11890,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-013/front/0",
+      "id": 13406,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Previously delivered typed Fusion material contract plus persisted keyword kind; exact three frozen both-seat payment/play/draw and identity proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null,
+          "fusion": {
+            "version": 1,
+            "needs": [
+              {
+                "name": "Son Goku: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "name": "Vegeta: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            ],
+            "samePower": true,
+            "activation": "hand",
+            "base": "hand",
+            "extensions": [
+              "unionFusionAreas",
+              "unionFusionWarp"
+            ]
+          }
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": "",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-013/front/10",
+      "id": 13407,
+      "version": 4,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-014/front/0",
+      "id": 3778,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-014/front/20",
+      "id": 3779,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-014/front/30",
+      "id": 3780,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-014/front/40",
+      "id": 3781,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-015/front/10",
+      "id": 7852,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Previously delivered typed Fusion material contract plus persisted keyword kind; exact three frozen both-seat payment/play/draw and identity proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": {
+          "orbs": {
+            "Red": 4
+          },
+          "text": "draw 2 cards",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "n": 2,
+              "op": "draw"
+            }
+          ],
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "draw 2 cards",
+          "orbs": {
+            "Red": 4
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "draw",
+              "n": 2
+            }
+          ],
+          "fusion": {
+            "version": 1,
+            "needs": [
+              {
+                "name": "Son Goku: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "name": "Vegeta: Br",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            ],
+            "samePower": true,
+            "activation": "hand",
+            "base": "hand",
+            "extensions": [
+              "unionFusionAreas",
+              "unionFusionWarp"
+            ]
+          }
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "reads": "",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-015/front/30",
+      "id": 7854,
+      "version": 2,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-053/back/0",
+      "id": 3653,
+      "version": 1,
+      "status": "open",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Exact Paragus prohibition previously unread; both-seat Life-lock/official Broly Q7 continuation and actual damage proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "You can't add cards from your life to your hand during your turn"
+        ],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "isTurnPlayer"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "addLifeToHand",
+            "side": "you",
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "reads": "if it is your turn: you can't add cards from life to hand",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-053/back/10",
+      "id": 3654,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-053/back/20",
+      "id": 3655,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-053/front/0",
+      "id": 3650,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-053/front/10",
+      "id": 3651,
+      "version": 1,
+      "status": "open",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Exact Paragus prohibition previously unread; both-seat Life-lock/official Broly Q7 continuation and actual damage proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your life and add it to your hand",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "life",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your life"
+            },
+            {
+              "op": "moveTo",
+              "to": "hand",
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "You can't add cards from your life to your hand for the duration of the turn"
+        ],
+        "reads": ""
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 1 card from your life and add it to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 1 card from your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "addLifeToHand",
+            "side": "you",
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "reads": "you can't add cards from life to hand for the turn",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-053/front/20",
+      "id": 3652,
+      "version": 3,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-059/front/20",
+      "id": 10335,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Existing compiler omitted printed ignoring [Barrier]; both-seat actual-program proof covers Barrier target and retained positive target properties",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [
+                  "Barrier"
+                ],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "characters": [],
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "characterOrTrait": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "notNamesIncluding": [],
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "choose up to 1 of your opponent's Battle Cards with [Barrier] ignoring [Barrier]"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "choose up to 1 Battle Card with [Barrier] in your opponent's Battle Area, KO the chosen cards"
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [
+                  "Barrier"
+                ],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "ignoreBarrier": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with [Barrier]"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "choose up to 1 Battle Card with [Barrier] in your opponent's Battle Area ignoring [Barrier], KO the chosen cards",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-060/front/10",
+      "id": 6025,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Existing compiler dropped printed Counter cost>=2 bound; both-seat current-card-cost, skill-price and live-refusal proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": {
+          "sel": {
+            "special": "self"
+          },
+          "kind": "inBattle",
+          "role": "attacker"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "side": "opponent",
+            "what": "activateCounter",
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "reads": "if this card is attacking: your opponent can't activate [Counter] skills"
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "inBattle",
+          "sel": {
+            "special": "self"
+          },
+          "role": "attacker"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "activateCounter",
+            "side": "opponent",
+            "until": "game",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 2,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "if this card is attacking: your opponent can't activate [Counter] skills of card with an energy cost of 2 or more",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-060/front/20",
+      "id": 6026,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Existing compiler omitted printed ignoring [Barrier]; both-seat actual-program proof covers Barrier target and retained positive target properties",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "characters": [],
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "characterOrTrait": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "notNamesIncluding": [],
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards ignoring [Barrier]"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards"
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "ignoreBarrier": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], KO the chosen cards",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-061/front/10",
+      "id": 13500,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": false,
+      "reviewedRepair": "Existing compiler dropped printed Counter cost>=2 bound; both-seat current-card-cost, skill-price and live-refusal proofs",
+      "reasons": [],
+      "beforeProgram": {
+        "cost": null,
+        "cond": {
+          "sel": {
+            "special": "self"
+          },
+          "kind": "inBattle",
+          "role": "attacker"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "side": "opponent",
+            "what": "activateCounter",
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "reads": "if this card is attacking: your opponent can't activate [Counter] skills"
+      },
+      "afterProgram": {
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "inBattle",
+          "sel": {
+            "special": "self"
+          },
+          "role": "attacker"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "activateCounter",
+            "side": "opponent",
+            "until": "game",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 2,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        ],
+        "unread": [],
+        "reads": "if this card is attacking: your opponent can't activate [Counter] skills of card with an energy cost of 2 or more",
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      }
+    },
+    {
+      "key": "BT6-061/front/20",
+      "id": 13501,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-061/front/30",
+      "id": 13502,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-062/front/0",
+      "id": 9331,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-062/front/10",
+      "id": 9332,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-063/front/0",
+      "id": 5269,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-063/front/10",
+      "id": 5270,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-064/front/0",
+      "id": 10243,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-064/front/10",
+      "id": 10244,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-065/front/0",
+      "id": 6224,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-065/front/10",
+      "id": 6225,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-066/front/0",
+      "id": 11581,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-067/front/0",
+      "id": 6996,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-067/front/10",
+      "id": 6997,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-068/front/0",
+      "id": 3939,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-068/front/10",
+      "id": 3940,
+      "version": 6,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-069/front/0",
+      "id": 503,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "BT6-070/front/0",
+      "id": 6899,
+      "version": 7,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "P-136/front/0",
+      "id": 6080,
+      "version": 1,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "P-136/front/10",
+      "id": 6081,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    },
+    {
+      "key": "P-136/front/20",
+      "id": 6082,
+      "version": 5,
+      "status": "draft",
+      "source": "compiler",
+      "metadataOnly": true,
+      "reviewedRepair": null,
+      "reasons": []
+    }
+  ],
+  "held": [
+    {
+      "key": "BT6-001/back/10",
+      "id": 10742,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "metadataOnly": false,
+      "reviewedRepair": null,
+      "reasons": [
+        "protected user correction",
+        "not eligible compiler-owned open/draft",
+        "fresh unread",
+        "other semantic/reading difference requires separate review"
+      ]
+    },
+    {
+      "key": "BT6-012/front/30",
+      "id": 11891,
+      "version": 4,
+      "status": "corrected",
+      "source": "user",
+      "metadataOnly": false,
+      "reviewedRepair": null,
+      "reasons": [
+        "protected user correction",
+        "not eligible compiler-owned open/draft",
+        "other semantic/reading difference requires separate review"
+      ]
+    },
+    {
+      "key": "BT6-013/front/20",
+      "id": 13408,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "metadataOnly": false,
+      "reviewedRepair": null,
+      "reasons": [
+        "protected user correction",
+        "not eligible compiler-owned open/draft",
+        "other semantic/reading difference requires separate review"
+      ]
+    },
+    {
+      "key": "BT6-015/front/20",
+      "id": 7853,
+      "version": 5,
+      "status": "corrected",
+      "source": "user",
+      "metadataOnly": false,
+      "reviewedRepair": null,
+      "reasons": [
+        "protected user correction",
+        "not eligible compiler-owned open/draft",
+        "other semantic/reading difference requires separate review"
+      ]
+    }
+  ],
+  "protectedUnchanged": [
+    "BT6-001/back/10",
+    "BT6-012/front/30",
+    "BT6-013/front/20",
+    "BT6-015/front/20"
+  ],
+  "note": "No human confirmation or pair qualification; frozen original inputs remain unchanged"
+}

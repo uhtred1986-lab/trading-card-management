@@ -122,7 +122,7 @@ for (const owner of ["p1", "p2"] as const) {
     }
     // A valid event cannot activate after a different pending effect lowers the Drop count.
     {
-      const b = board(owner, id, threshold); let result = arrive(b.saved, b.source, false); assert.equal(result.saved.state.pending.length, 1);
+      const b = board(owner, id, threshold); const result = arrive(b.saved, b.source, false); assert.equal(result.saved.state.pending.length, 1);
       drops(result.saved, owner, threshold - 1); const events: GameEvent[] = []; run(result.saved.ctx, game, result.saved.state, events);
       assert.ok(!events.some((e) => e.type === "skill" && e.card === b.source)); assert.ok(result.saved.state.sides[owner].zones.deck.includes(b.candidate));
       checks.push(`${owner} ${id} pending validity falls below threshold`);

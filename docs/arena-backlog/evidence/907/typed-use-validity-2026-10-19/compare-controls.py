@@ -1,4 +1,4 @@
-"""Exact frozen gameplay; only independently enumerated usage/validity metadata migrates."""
+"""Exact frozen gameplay; only independently enumerated kind/usage/validity metadata migrates."""
 import copy, hashlib, json, sys
 from pathlib import Path
 root = Path(__file__).resolve().parents[5]
@@ -20,10 +20,11 @@ for card, saved in expected.items():
         assert len(keys) == 1, (card, index, keys)
         key = keys[0]
         once, limit = limited.get(key, (False, None))
+        program['kind'] = manifest[key]['kind']
         program['usage'] = dict(version=1, oncePerTurn=once, limit=limit)
         program['validity'] = dict(version=1, sparking=5 if key == 'BT5-023/front/10' else None)
         migrations.append(key)
-assert expected == b['programs']['scripts'], 'Executable change outside exact typed usage/validity migration'
+assert expected == b['programs']['scripts'], 'Executable change outside exact typed kind/usage/validity migration'
 after = {r['key']: r for r in b['programs']['manifest']}
 assert manifest.keys() == after.keys()
 for key, before in manifest.items():
@@ -39,6 +40,6 @@ receipt = dict(baseline=str(baseline.relative_to(root)), baselineSHA256=hashlib.
            'seeds/move limits/protocol','policy/ruleset/errata','summary/measures','all existing executable fields'],
     migratedPrograms=migrations, limitedPrograms=limited, sparkingPrograms={'BT5-023/front/10':5},
     versionChanges=changes, outcomes=b['summary'], gameplayExpectationChanges=[],
-    note='Only explicit usage/validity v1 metadata added. Compiler controls do not certify actual production records or per-skill exercise.')
+    note='Only persisted kind plus explicit usage/validity v1 metadata added. Compiler controls do not certify actual production records or per-skill exercise.')
 Path(sys.argv[2]).write_text(json.dumps(receipt,indent=2)+'\n')
 print(f'All 16 exact game traces preserved; {len(migrations)} metadata-only program migrations.')

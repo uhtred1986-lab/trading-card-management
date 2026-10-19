@@ -9,6 +9,8 @@ import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../src/lib/are
 import { parseSkills, skillLines } from "../src/lib/arena/text/cards";
 import { whiteCellPlayedSubjectFilter } from "../src/lib/arena/text/triggers";
 import { needsPaymentRecord } from "../src/lib/arena/vm/skill-payment";
+import { fusionIdentityProblem } from "../src/lib/arena/vm/skill-identity";
+import type { Script } from "../src/lib/arena/vm/script";
 import type { CardDef, Skill } from "../src/lib/arena/types";
 
 export type ProgramMode = "compiler" | "stored";
@@ -65,10 +67,11 @@ export function normalizeRows(exports: ExportedRule[]): { rows: RuleRow[]; malfo
 }
 
 /** Boundaries where the match still obtains meaningful metadata from printed text. */
-function textDependencies(sk: Skill): string[] {
+function textDependencies(sk: Skill, script: Script | undefined): string[] {
   const fields: string[] = [];
   if (sk.keyword && !(sk.keyword.name === "Union" && sk.keyword.variant === "Fusion") && ["Union", "Over Realm", "Evolve", "Swap", "Arrival", "Aegis", "Revive", "Successor", "Rejuvenate", "Z-Awaken", "Z-Stack"].includes(sk.keyword.name)) fields.push(`keyword.${sk.keyword.name} activation/material contract`);
-  if (sk.keyword?.name === "Union" && sk.keyword.variant === "Fusion") fields.push("keyword.Union activation identity/timing");
+  if (sk.keyword?.name === "Union" && sk.keyword.variant === "Fusion"
+    && !(script?.kind === "keyword" && script.price?.fusion && fusionIdentityProblem(script) === null)) fields.push("keyword.Union activation identity/timing");
   const activated = sk.kind.startsWith("activate:") || needsPaymentRecord(sk);
   if (!activated && Object.values(sk.energyCost).some(Boolean)) fields.push("cost.orbs");
   if (!activated && sk.energyEither.length) fields.push("cost.either");
@@ -108,7 +111,7 @@ export function programProvenance(defs: Record<string, CardDef>, mode: ProgramMo
       const row = found.length === 1 ? found[0] : undefined;
       const current = !requiredRow ? "native" : mode === "compiler" ? "generated" : !found.length ? "missing" : found.length > 1 ? "duplicate" : row!.printed !== printed ? "stale" : "current";
       const blockers: string[] = [];
-      if (mode === "stored") blockers.push(...textDependencies(sk).map((field) => `${field} is derived from printed text at runtime, not the stored executable contract`));
+      if (mode === "stored") blockers.push(...textDependencies(sk, scripts[programKey]?.bySkill[sk.index]).map((field) => `${field} is derived from printed text at runtime, not the stored executable contract`));
       if (mode === "stored" && requiredRow) {
         if (current !== "current") blockers.push(`stored record ${current}`);
         if (row && current === "current") {

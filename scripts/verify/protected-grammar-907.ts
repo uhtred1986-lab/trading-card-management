@@ -27,7 +27,8 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const rows = Object.values(defs).flatMap(d => skillRecords(d).map(r => ({ ...r, status: "draft", source: "compiler" } as RuleRow)));
 const rec = rows.find(r => r.cardId === target.id && r.skillIndex === 20)!;
 assert.deepEqual(rec.unread, []);
-assert.deepEqual(rec.ops.map(o => o.op), ["forbid", "forbid", "permit"]);
+assert.ok(Array.isArray(rec.ops));
+assert.deepEqual(rec.ops.map((o: { op: string }) => o.op), ["forbid", "forbid", "permit"]);
 const ctx: EngineContext = clone({ ...CTX, defs, scripts: rulesFromRows(clone(rows), defs) });
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 for (const seat of ["p1", "p2"] as const) for (const [leader, refused] of [["MONO907", false], ["MULTI907", true], ["BLUE907", true], ["EARTH907", true]] as const) {
