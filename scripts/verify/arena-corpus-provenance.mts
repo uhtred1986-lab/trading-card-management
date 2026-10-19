@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { programProvenance, normalizeRows, type ExportedRule } from "../arena-corpus-provenance.mts";
 import { freeze } from "../arena-corpus-freeze.mts";
 import { skillRecords } from "../../src/lib/arena/draft";
+import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { CTX, DEFS, IMPL, card, stagedG, findG, zoneOf } from "./harness";
 import { loadSnapshot } from "../arena-deck-audit.mts";
 
@@ -44,7 +45,10 @@ assert.equal(loaded.manifest[0].freshness, "current");
 assert.equal(loaded.manifest[0].executable, true);
 DEFS[def.id] = def;
 const staged = stagedG({ battle: [def.id] });
-const context = { ...CTX, scripts: { ...CTX.scripts, ...loaded.scripts } };
+// Materialize supporting harness records too: spreading its compiler Proxy loses
+// native leader scripts, which now require explicit payment records.
+const supportRows = Object.values(DEFS).flatMap(skillRecords).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as RuleRow[];
+const context = { ...CTX, scripts: { ...rulesFromRows(supportRows, DEFS), ...loaded.scripts } };
 const action = IMPL.legalActions(context, staged).find((entry) => entry.action.type === "activate" && entry.action.card === findG(staged, "p1", "battle", def.id))!.action;
 const before = zoneOf(staged, "p1", "hand").length;
 const after = IMPL.apply(context, JSON.parse(JSON.stringify(staged)), action).state;

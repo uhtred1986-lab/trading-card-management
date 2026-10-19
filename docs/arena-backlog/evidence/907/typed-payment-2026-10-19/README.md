@@ -42,3 +42,18 @@ behavior and never replace a failed expectation silently.
 Compiler delivery and stored-row application are separate. This work does not
 refresh a database, confirm a draft, import Testing & stats results or claim AI
 strength or whole-deck qualification.
+
+## Review findings and expectation ledger
+
+- The first focused Auto-cost run exposed a true integration regression: missing
+  payment metadata threw `IllegalAction` instead of the existing typed interrupted
+  outcome. The Auto boundary now reports the rebuild diagnostic through its
+  existing interruption path; the original assertion is retained.
+- Full payment validation exposed old synthetic `all([])` predicates in the
+  Auto-cost fixture. The authoring schema already refused empty conjunctions.
+  Those fixture constants now use the equivalent valid predicate “Life count
+  >= 0”; all payment/outcome assertions remain unchanged. This is fixture/schema
+  drift, not a card ruling or a silently replaced expected outcome.
+- The old #1065 “stored action program ignored for empty printed cost” expectation
+  documented a defect. #907 replaces that blocker with a stored-authority proof;
+  the historical baseline artifact remains unchanged.
