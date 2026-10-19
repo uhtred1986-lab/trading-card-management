@@ -14,13 +14,13 @@
  *      qualified deck (and itself), each deal played from both seats under explicit seeds and a move cap,
  *      reported as completed / illegal / interrupted / limited, apart from each other
  *
- * A deck is **admitted** only when it qualifies AND none of its matches was illegal or interrupted.
+ * A deck is **admitted** only when it qualifies and every scheduled match completed (at least one).
  * Compiling is never counted as support; an open issue or a clean parse is not a pass.
  *
  *   npx tsx scripts/arena-corpus-freeze.mts                       # starters A and B: summary
  *   npx tsx scripts/arena-corpus-freeze.mts --check               # assert: starters admitted, no illegal game, replay equal
  *   npx tsx scripts/arena-corpus-freeze.mts --out pack.json       # the replayable pack (canonical JSON)
- *   flags: --pairs N (seed pairs per matchup, default 3), --max-moves N (default 3000), --runtime <sha>
+ *   flags: --mode compiler|stored (inferred from --stored-rules), --pairs N (seed pairs per matchup, default 3), --max-moves N (default 3000), --runtime <sha>
  *          (engine revision; default git HEAD), --seed-base N (default 897000)
  *
  * Beyond the starters (run by the COORDINATOR, who may read the live data; this task never does):
@@ -28,7 +28,7 @@
  *   --catalog cat.json     { "source":{url,retrieved,...}, "cards":[CatalogCard...] } covering those decks
  *                          (the same shape as the committed snapshot; `arena-deck-audit.mts --live
  *                          --write-snapshot` writes one)
- *   --stored-rules r.json  rows of `card_rules` for the deck cards: [{card_id,side,skill_index,status,trigger,unread}]
+ *   --stored-rules r.json  complete exported `card_rules` records, in snake_case or camelCase (all executable fields plus source/version/status)
  *   --starters=false       leave the two starter controls out
  *   Keep a pack built from private decks out of public GitHub issues (it names the cards).
  *
@@ -51,12 +51,13 @@ import { DBS_FILES } from "../src/lib/arena/rulesets/dbs";
 import { canonicalJson, makeReplayBundle, replayHash, type ReplayBundleRecord } from "../src/lib/arena/replay-core";
 import { localPolicy } from "../src/lib/arena/policy/combat";
 import type { CatalogCard } from "../src/lib/catalog/deckplanet";
+import { programProvenance, fileHash, treeHash, hashOf, type ProgramMode, type ExportedRule } from "./arena-corpus-provenance.mts";
 import type { CardDef, PlayerId, Skill } from "../src/lib/arena/types";
 
 const OWNER_SPECIFIED_COSTS_PATH = "docs/arena-backlog/evidence/655/owner-specified-costs-2026-10-13.json";
 const SNAPSHOT_PATH = "docs/arena-backlog/evidence/649/catalog-subset-2026-10-13.json";
 const OWNER_SPECIFIED_COSTS: Record<string, string> = (JSON.parse(readFileSync(OWNER_SPECIFIED_COSTS_PATH, "utf8")) as { specifiedCosts: Record<string, string> }).specifiedCosts;
-export const FORMAT = 1;
+export const FORMAT = 2;
 
 /**
  * The runtime gaps #825 named (PR #834 fixed the compiler and engine; the stored `card_rules` rows still need
@@ -75,7 +76,7 @@ export const NAMED_GAPS: { key: string; card: string; face: "front" | "back"; sk
 ];
 
 interface Candidate { key: string; name: string; source: string; leader: string; main: string[]; z: string[]; problems: string[] }
-interface StoredRule { card_id: string; side: string; skill_index: number; status: string; trigger?: unknown; unread?: unknown }
+
 interface SkillRecord { index: number; kind: string; read: boolean; unread: string[]; silent: boolean; structural: string | null; auditTier: string }
 interface CardRecord { id: string; name: string; copies: number; missingInputs: string[]; faces: { face: "front" | "back"; skills: SkillRecord[] }[] }
 
@@ -138,11 +139,11 @@ interface DeckVerdict {
   legality: { status: string; illegal: string[]; warnings: string[] };
   cards: CardRecord[];
   blockers: string[];
-  namedGaps: { key: string; what: string; issue: 825; currentReading: "clean" | "blocked"; stored: "verified-refreshed" | "not-refreshed" | "unverified-offline" }[];
+  namedGaps: { key: string; what: string; issue: 825; currentReading: "clean" | "blocked"; stored: "current" | "blocked" | "unverified-offline" }[];
   qualified: boolean;
 }
 
-function qualify(c: Candidate, catalog: CatalogCard[], stored: StoredRule[] | null): { verdict: DeckVerdict; defs: Record<string, CardDef> } {
+function qualify(c: Candidate, catalog: CatalogCard[], mode: ProgramMode, provenance: ReturnType<typeof programProvenance>): { verdict: DeckVerdict; defs: Record<string, CardDef> } {
   const byId = new Map(catalog.map((x) => [x.id, x]));
   const counts = new Map<string, number>();
   for (const id of [c.leader, ...c.main, ...c.z]) counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -160,9 +161,9 @@ function qualify(c: Candidate, catalog: CatalogCard[], stored: StoredRule[] | nu
     for (const m of r.missingInputs) blockers.push(`${r.id}: missing input ${m}`);
     for (const f of r.faces) for (const s of f.skills) {
       const at = `${r.id}/${f.face}/${s.index}`;
-      if (!s.read) blockers.push(`${at}: unread (${s.unread.join(" | ").slice(0, 120)})`);
-      if (s.silent) blockers.push(`${at}: reads as nothing, silently${KNOWN_SILENT.has(keyOf(r.id, f.face, s.index)) ? " (KNOWN_SILENT)" : ""}`);
-      if (s.structural) blockers.push(`${at}: ${s.structural}`);
+      if (mode === "compiler" && !s.read) blockers.push(`${at}: unread (${s.unread.join(" | ").slice(0, 120)})`);
+      if (mode === "compiler" && s.silent) blockers.push(`${at}: reads as nothing, silently${KNOWN_SILENT.has(keyOf(r.id, f.face, s.index)) ? " (KNOWN_SILENT)" : ""}`);
+      if (mode === "compiler" && s.structural) blockers.push(`${at}: ${s.structural}`);
     }
   }
   const namedGaps: DeckVerdict["namedGaps"] = [];
@@ -170,14 +171,19 @@ function qualify(c: Candidate, catalog: CatalogCard[], stored: StoredRule[] | nu
     const r = cards.find((x) => x.id === g.card);
     if (!r) continue;
     const sk = r.faces.find((f) => f.face === g.face)?.skills.find((s) => s.index === g.skill);
-    const clean = !!sk && sk.read && !sk.silent && !sk.structural;
-    const row = stored?.find((s) => s.card_id === g.card && s.side === g.face && s.skill_index === g.skill);
-    const state = !stored ? "unverified-offline" : row && row.status !== "open" && row.status !== "draft" && !(Array.isArray(row.unread) && row.unread.length) ? "verified-refreshed" : "not-refreshed";
+    const clean = mode === "stored" ? provenance.manifest.find((s) => s.key === g.key)?.executable === true : !!sk && sk.read && !sk.silent && !sk.structural;
+    const skill = provenance.manifest.find((s) => s.key === g.key);
+    const state = mode === "compiler" ? "unverified-offline" : skill?.freshness === "current" && skill.executable ? "current" : "blocked";
     namedGaps.push({ key: g.key, what: g.what, issue: 825, currentReading: clean ? "clean" : "blocked", stored: state });
     if (!clean) blockers.push(`${g.key}: named gap #825 still reads blocked`);
-    if (state !== "verified-refreshed") blockers.push(`${g.key}: named gap #825, stored rule ${state} (needs the owner's refresh; pass --stored-rules)`);
+    if (mode === "stored" && state !== "current") blockers.push(`${g.key}: named gap #825 stored record ${state}`);
   }
-  const rows: LegalityCard[] = [...new Set(c.main)].map((id) => legalityRow(byId.get(id)!, "main", c.main.filter((x) => x === id).length)).filter(Boolean);
+  if (mode === "stored") {
+    blockers.push(...provenance.malformed);
+    for (const skill of provenance.manifest.filter((s) => counts.has(s.cardId))) for (const problem of skill.blockers) blockers.push(`${skill.key}: ${problem}`);
+    for (const key of provenance.unexpectedRows) if (counts.has(key.split("/")[0])) blockers.push(`${key}: unexpected stored skill`);
+  }
+  const rows: LegalityCard[] = [...new Set(c.main)].filter((id) => byId.has(id)).map((id) => legalityRow(byId.get(id)!, "main", c.main.filter((x) => x === id).length)).filter(Boolean);
   const lg = byId.has(c.leader) ? legality([legalityRow(byId.get(c.leader)!, "leader", 1), ...rows.filter((r) => byId.has(r.cardId))], "dbs") : null;
   const verdict: DeckVerdict = {
     key: c.key, name: c.name, source: c.source, deck: { leader: c.leader, main: c.main, z: c.z },
@@ -191,18 +197,14 @@ function qualify(c: Candidate, catalog: CatalogCard[], stored: StoredRule[] | nu
   return { verdict, defs };
 }
 
-interface Game { pair: string; seed: number; p1: string; p2: string; policySeed: number; over: boolean; winnerSeat: PlayerId | "draw" | null; reason: string | null; moves: number; turn: number; stopKind: DuelResult["stopKind"]; stopped: string | null; trace: string }
-type Class = "completed" | "illegal" | "interrupted" | "limited" | "other";
-const classOf = (g: Game): Class => (g.over ? "completed" : g.stopKind === "illegal" ? "illegal" : g.stopKind === "interrupted" ? "interrupted" : g.stopKind === "limit" ? "limited" : "other");
+interface Game { pair: string; seed: number; p1: string; p2: string; policySeed: number; over: boolean; winnerSeat: PlayerId | "draw" | null; reason: string | null; moves: number; turn: number; stopKind: DuelResult["stopKind"] | "crashed"; stopped: string | null; trace: string }
+type Class = "completed" | "illegal" | "interrupted" | "limited" | "crashed" | "other";
+const classOf = (g: Game): Class => (g.over ? "completed" : g.stopKind === "illegal" ? "illegal" : g.stopKind === "interrupted" ? "interrupted" : g.stopKind === "limit" ? "limited" : g.stopKind === "crashed" ? "crashed" : "other");
 
-async function bundleFor(defs: Record<string, CardDef>, catalog: CatalogCard[], runtime: string): Promise<ReplayBundleRecord> {
-  const scripts: Record<string, ReturnType<typeof compileCard>> = {};
+export async function bundleFor(defs: Record<string, CardDef>, catalog: CatalogCard[], runtime: string, scripts: ReturnType<typeof programProvenance>["scripts"]): Promise<ReplayBundleRecord> {
   const art: Record<string, { front: string | null; back: string | null }> = {};
   for (const id of Object.keys(defs).sort()) {
-    const def = defs[id];
     const c = catalog.find((x) => x.id === id)!;
-    scripts[id] = compileCard(def, "front");
-    if (def.back) scripts[`${id}#back`] = compileCard(def, "back");
     art[id] = { front: c.imageUrl, back: c.backImageUrl };
   }
   const b = await makeReplayBundle({ defs, scripts, art, rulesetFiles: DBS_FILES, runtime });
@@ -212,22 +214,32 @@ async function bundleFor(defs: Record<string, CardDef>, catalog: CatalogCard[], 
 async function playGame(bundle: ReplayBundleRecord, runtime: string, a: DeckVerdict, b: DeckVerdict, pair: string, seed: number, policySeed: number, maxMoves: number): Promise<Game> {
   const policy = localPolicy();
   const input = (d: DeckVerdict) => ({ name: d.name, leader: d.deck.leader, main: d.deck.main, ...(d.deck.z.length ? { z: d.deck.z } : {}) });
+  try {
   const r = await playDuel({ bundle: { ...bundle, decks: { p1: input(a), p2: input(b) } } as ReplayBundleRecord, interpreterRevision: runtime, gameSeed: seed, policySeed, testSeat: "p1", test: policy, baseline: policy, maxMoves });
   const winnerSeat = !r.over ? null : r.winner === "draw" ? "draw" : r.winner === "test" ? "p1" : "p2";
   return { pair, seed, p1: a.key, p2: b.key, policySeed, over: r.over, winnerSeat, reason: r.reason, moves: r.moves, turn: r.turn, stopKind: r.stopKind, stopped: r.stopped ? r.stopped.replace(/\s+/g, " ").slice(0, 240) : null, trace: r.trace };
+  } catch (error) {
+    return { pair, seed, p1: a.key, p2: b.key, policySeed, over: false, winnerSeat: null, reason: null, moves: 0, turn: 0, stopKind: "crashed", stopped: String(error).slice(0, 240), trace: "" };
+  }
 }
 
-export async function freeze(opts: { catalog: { source: { url: string; retrieved: string }; cards: CatalogCard[] }; extra?: Parameters<typeof candidatesFrom>[1]; starters?: boolean; stored?: StoredRule[] | null; runtime: string; pairs: number; maxMoves: number; seedBase: number; catalogPath: string }) {
+export async function freeze(opts: { catalog: { source: { url: string; retrieved: string }; cards: CatalogCard[] }; extra?: Parameters<typeof candidatesFrom>[1]; starters?: boolean; stored?: ExportedRule[] | null; mode?: ProgramMode; runtime: string; pairs: number; maxMoves: number; seedBase: number; catalogPath: string }) {
   const { catalog } = opts;
   const verdicts: DeckVerdict[] = [];
   const allDefs: Record<string, CardDef> = {};
-  for (const c of candidatesFrom(catalog.cards, opts.extra ?? [], opts.starters ?? true)) {
-    const { verdict, defs } = qualify(c, catalog.cards, opts.stored ?? null);
+  const mode = opts.mode ?? (opts.stored ? "stored" : "compiler");
+  const candidates = candidatesFrom(catalog.cards, opts.extra ?? [], opts.starters ?? true);
+  for (const c of candidates) for (const id of [c.leader, ...c.main, ...c.z]) {
+    const card = catalog.cards.find((row) => row.id === id);
+    if (card && !allDefs[id]) allDefs[id] = inspectCard(card, 1).def;
+  }
+  const provenance = programProvenance(allDefs, mode, opts.stored ?? null);
+  for (const c of candidates) {
+    const { verdict } = qualify(c, catalog.cards, mode, provenance);
     verdicts.push(verdict);
-    Object.assign(allDefs, defs);
   }
   const qualified = verdicts.filter((v) => v.qualified);
-  const bundle = await bundleFor(allDefs, catalog.cards, opts.runtime);
+  const bundle = await bundleFor(allDefs, catalog.cards, opts.runtime, provenance.scripts);
   const games: Game[] = [];
   for (let i = 0; i < qualified.length; i++) {
     for (let j = i; j < qualified.length; j++) {
@@ -243,28 +255,34 @@ export async function freeze(opts: { catalog: { source: { url: string; retrieved
     }
   }
   const tally = (gs: Game[]) => {
-    const t: Record<Class, number> = { completed: 0, illegal: 0, interrupted: 0, limited: 0, other: 0 };
+    const t: Record<Class, number> = { completed: 0, illegal: 0, interrupted: 0, limited: 0, crashed: 0, other: 0 };
     for (const g of gs) t[classOf(g)]++;
     return { games: gs.length, ...t };
   };
   const decks = verdicts.map((v) => {
     const mine = games.filter((g) => g.p1 === v.key || g.p2 === v.key);
     const t = tally(mine);
-    const admitted = v.qualified && t.games > 0 && t.illegal === 0 && t.interrupted === 0 && t.other === 0;
+    const admitted = v.qualified && t.games > 0 && t.completed === t.games;
     return { ...v, matches: t, admitted, status: admitted ? "admitted" : v.qualified ? "held: play check failed" : "held: not qualified" };
   });
   const pairs = [...new Set(games.map((g) => g.pair))].map((pair) => ({ pair, ...tally(games.filter((g) => g.pair === pair)) }));
   const interruptions = games.filter((g) => classOf(g) !== "completed").map((g) => ({ class: classOf(g), pair: g.pair, seed: g.seed, p1: g.p1, p2: g.p2, policySeed: g.policySeed, detail: g.stopped, regressionPin: "to pin: add this seed/pair to the scenario or policy proof that owns the window" }));
   const body = {
     format: FORMAT,
+    mode,
     issue: 897,
     parent: 900,
     engineRevision: opts.runtime,
+    versions: { engine: opts.runtime, sourceHead: execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(), engineSourceHash: treeHash("src/lib/arena"), ruleset: bundle.rulesetHash, policy: treeHash("src/lib/arena/policy"), errata: fileHash("src/lib/catalog/errata.ts"), loader: fileHash("src/lib/arena/rules-store.ts"), runner: hashOf([fileHash("scripts/arena-corpus-freeze.mts"), fileHash("scripts/arena-corpus-provenance.mts")]) },
+    inputs: { catalogSource: catalog.source, catalogCards: catalog.cards.filter((c) => c.id in allDefs).sort((a, b) => a.id.localeCompare(b.id)), defs: allDefs, ownerSpecifiedCosts: OWNER_SPECIFIED_COSTS, ownerSpecifiedCostsHash: hashOf(OWNER_SPECIFIED_COSTS) },
+    programs: { scripts: provenance.scripts, hash: hashOf(provenance.scripts), manifest: provenance.manifest, manifestHash: provenance.manifestHash },
     catalog: { path: opts.catalogPath, url: catalog.source.url, retrieved: catalog.source.retrieved, cardsHash: await replayHash(catalog.cards.filter((c) => c.id in allDefs).sort((a, b) => (a.id < b.id ? -1 : 1))) },
     hashes: { bundle: bundle.hash, ruleset: bundle.rulesetHash, catalog: bundle.catalogHash, programs: bundle.programsHash },
     protocol: { policy: "localPolicy() both seats", seedBase: opts.seedBase, seedPairsPerMatchup: opts.pairs, maxMoves: opts.maxMoves, seats: "each deal played with the decks swapped between p1 and p2 (a mirror once)", ownerSpecifiedCosts: OWNER_SPECIFIED_COSTS_PATH },
-    storedRules: opts.stored ? `${opts.stored.length} rows supplied` : "not checked (offline run)",
-    evidence: { namedGaps: "#825 (open): compiler/engine on main via PR #834, evidence docs/arena-backlog/evidence/825/; stored-row refresh needs the owner's approval, so a deck with a named-gap card is held", readings: "scripts/arena-readings.mts --silent and arena-deck-audit tiers" },
+    storedRules: { checked: mode === "stored", exactExport: provenance.exports, exactExportHash: provenance.exportsHash, normalizedRows: provenance.rows, normalizedRowsHash: provenance.rowsHash, malformed: provenance.malformed, unexpectedRows: provenance.unexpectedRows },
+    qualificationEvidence: "admitted means all scheduled matches completed; semantic skill coverage is not measured",
+    measures: { expectedSkills: { total: provenance.manifest.length, meaning: "expected skills on both faces, including native skills" }, fullyParsedSkills: { total: Object.values(allDefs).flatMap((def) => inspectCard(catalog.cards.find((c) => c.id === def.id)!, 1).record.faces.flatMap((face) => face.skills)).filter((s) => s.read && !s.silent && !s.structural).length, denominator: provenance.manifest.length, meaning: "fresh compiler diagnostics only; semantic correctness not established" }, executableSkills: { total: provenance.manifest.filter((s) => s.executable).length, denominator: provenance.manifest.length }, verifiedSemanticCases: "not measured by matches", exercisedSkills: "not measured; deck membership is not execution coverage", humanReview: provenance.manifest.filter((s) => s.requiredRow).map((s) => ({ key: s.key, ...s.humanReview })) },
+    evidence: { namedGaps: "#825: historical compiler/application receipts do not prove current exported records; see per-skill provenance", readings: "scripts/arena-readings.mts --silent and arena-deck-audit tiers" },
     decks,
     pairs,
     /** Every game with its explicit seeds and trace hash: replaying a seed must reproduce the trace. */
@@ -280,17 +298,23 @@ async function main() {
   const catalogPath = flag("--catalog") ?? SNAPSHOT_PATH;
   const catalog = catalogPath === SNAPSHOT_PATH ? loadSnapshot() : (JSON.parse(readFileSync(catalogPath, "utf8")) as ReturnType<typeof loadSnapshot>);
   const extra = flag("--decks") ? JSON.parse(readFileSync(flag("--decks")!, "utf8")) : [];
-  const stored = flag("--stored-rules") ? (JSON.parse(readFileSync(flag("--stored-rules")!, "utf8")) as StoredRule[]) : null;
+  const stored = flag("--stored-rules") ? (JSON.parse(readFileSync(flag("--stored-rules")!, "utf8")) as ExportedRule[]) : null;
+  const requestedMode = flag("--mode");
+  if (requestedMode && !["compiler", "stored"].includes(requestedMode)) throw new Error("--mode must be compiler or stored");
   const opts = {
+    mode: requestedMode as ProgramMode | undefined,
     catalog, extra, stored, runtime, catalogPath,
     starters: !process.argv.includes("--starters=false"),
     pairs: Number(flag("--pairs") ?? 3), maxMoves: Number(flag("--max-moves") ?? 3000), seedBase: Number(flag("--seed-base") ?? 897000),
   };
+  if (!Number.isInteger(opts.pairs) || opts.pairs < 0 || !Number.isInteger(opts.maxMoves) || opts.maxMoves < 0 || !Number.isSafeInteger(opts.seedBase)) throw new Error("pairs/move limit must be nonnegative integers and seed base a safe integer");
   const pack = await freeze(opts);
   if (process.argv.includes("--check")) {
     const again = await freeze({ ...opts, pairs: 1 });
-    const first = new Map(pack.interruptions.map((i) => [`${i.pair}/${i.seed}`, i]));
-    for (const i of again.interruptions) if (!first.has(`${i.pair}/${i.seed}`)) throw new Error(`replay differs: ${i.pair}/${i.seed} stopped on the re-run only`);
+    for (const game of again.games) {
+      const first = pack.games.find((g) => g.pair === game.pair && g.seed === game.seed && g.p1 === game.p1 && g.p2 === game.p2);
+      if (!first || canonicalJson(first) !== canonicalJson(game)) throw new Error(`replay differs: ${game.pair}/${game.seed}/${game.p1}/${game.p2}`);
+    }
     const replayed = again.decks.map((d) => d.key).join() === pack.decks.map((d) => d.key).join() && again.hashes.bundle === pack.hashes.bundle;
     if (!replayed) throw new Error("two builds of the same inputs disagree on the bundle");
     if (pack.summary.illegal) throw new Error(`${pack.summary.illegal} illegal game(s): ${JSON.stringify(pack.interruptions.filter((i) => i.class === "illegal"))}`);
