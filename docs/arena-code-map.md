@@ -434,8 +434,8 @@ records how the rules engine was built and what it was held to at the time; the 
   2026): one closed grammar for a card's rule — WHEN / COST / IF / THEN — printed and parsed
   from `OP_SCHEMA`/`COND_SCHEMA` plus the `SELECTOR_FIELDS`/`FILTER_FIELDS` tables in
   `lang/ast.ts`, so **adding an operation is still one interpreter case and one schema row**
-  and the grammar follows. Client-safe; the workbench's *Show as text* imports it into the
-  browser. The promise it rests on is an equality — `parse(print(x))` is `x`, over every op,
+  and the grammar follows. Client-safe; the browser imports it (the Rules language reference,
+  `reference/Language.tsx`, and the rule editor's chips do). The promise it rests on is an equality — `parse(print(x))` is `x`, over every op,
   condition, selector, filter, keyword, every compiled program and every drafter record, and
   the doc's own examples (`scripts/verify/lang.ts`, in `npm test`) — so the printer never has
   a choice of forms and the parser is the generous one. A filter is printed in its own words
@@ -462,7 +462,7 @@ records how the rules engine was built and what it was held to at the time; the 
   each of the rest waits on (#137); `modifyAttr` reaches a card, a player and the battle
   in progress (#275).
   **The game's words are the only words** (`rulesets/words.ts`, since 12 Sep 2026): the
-  language's parser, the workbench's chip editor (`optionsFor`), the referee's prompt
+  language's parser, the rule editor's chip editor (`optionsFor`), the referee's prompt
   (`effectLanguage`) and `validateRule` read the areas, durations, sides, keyword names and
   the moments a WHEN may name off that `Vocabulary` rather than each keeping a copy, so a zone
   deleted from `zones.rules` is gone from all of them at once — which is what
@@ -484,8 +484,7 @@ records how the rules engine was built and what it was held to at the time; the 
   Playwright-free stand-in for rendering the page: every declaration is accounted for exactly
   once, printing by file matches `printDefinitions` over the whole set, and every anchor id
   (`trigger-played`, `cost-energy`, `keyword-Awaken`, …) is unique — the same ids
-  `/arena/rules/reference#keywords` and the workbench's own WHEN/COST chips (`RuleRecord.tsx`'s
-  `DeclarationLinks`) link to. `/arena/rules/reference#keywords` itself now shows `keywords.rules`'s own
+  `/arena/rules/reference#keywords` and the rule editor's own WHEN/COST chips link to. `/arena/rules/reference#keywords` itself now shows `keywords.rules`'s own
   `text:` rather than `glossary.ts`'s `meaning` — the two were copied equal at Stage 3 and
   `game-page.ts` asserts they still are, so the page and the record it explains can never quietly
   drift apart. Editing the definition from the app is out of scope, the owner's decision until the
@@ -493,7 +492,7 @@ records how the rules engine was built and what it was held to at the time; the 
 - **The specified-cost baseline is a column a person writes** (`cards.specified_cost`, issue #255,
   owner's decision of 13 Sep 2026): the deckplanet feed carries no cost orbs at all, so the coloured
   half of an X-cost card's price is entered by hand in the language's orb notation (`{u}{u}` = two
-  blue) from the rules record on the workbench, or seeded by a migration on a ruling (0034 enters
+  blue) from the rules record on the Card rules page (`CardRules.tsx`), or seeded by a migration on a ruling (0034 enters
   BT19-039 as `{u}{u}`). `cardDefFrom` reads it onto `CardDef.specifiedCost` through
   `parseSpecifiedCost` (`src/lib/arena/specified-cost.ts`), and nothing else in the engine changed.
   **The hazard:** `sync:catalog` upserts every card column, so the upsert `coalesce`s this one like
@@ -710,15 +709,16 @@ records how the rules engine was built and what it was held to at the time; the 
   within the `arena.reviewBudget` setting). A row a person confirmed or corrected is never
   rewritten by a script: the compiler's newer reading lands beside it as `compiler_diff`. The
   effect language is defined once, in `OP_SCHEMA` and `COND_SCHEMA` (`vm/script-schema.ts`): the
-  validator, the plain reading, the referee's prompt and the workbench's chip editor read them, so
-  a new operation or condition kind is one interpreter case and one row. The workbench has one
-  queue over the records, `/arena/rules` (`lib/arena/queue.ts` is its query string): *Cards in* (all
+  validator, the plain reading, the referee's prompt and the rule editor's chip editor read them, so
+  a new operation or condition kind is one interpreter case and one row. The Rules queue is one
+  queue over the records, `/arena/rules`, listed by card (Rules PR 2; `lib/arena/queue.ts` is its query string, `queue-cards.ts` its rows): a health tab (`?health=`: Text only · Incomplete · Read, not checked · Done, `ruleHealth`), *Cards in* (all
   decks, whoever owns them, #364 · one deck · the whole catalog, 200 rows a page · `?game=<id>`, what
   that game fired, `lib/arena/fired.ts`), a state, and *Group by* (same wording · reason · set).
-  `/arena/rules/all` and `/patterns` redirect into it.
+  `/arena/rules/all`, `/patterns` and `/progress` redirect into it.
   The record is WHEN / COST / IF / DO as chips — reorderable, nested programs, modal options and
-  conditions included — with a JSON view of the same program, Confirm / Correct by hand / Explain
-  to Claude / does nothing, and history. **Confirm all drafts in view** confirms exactly what the
+  conditions included — with a JSON view of the same program, in the rule editor (`FullRuleBuilder`)
+  opened from a skill on the Card rules page. A skill's actions there are Approve / Wrong… / Ask
+  Claude / Edit rule. **Confirm all drafts in view** (`ConfirmAll`, in `Groups`) confirms exactly what the
   *filter* matches (not the rows on screen); the rows it moved are kept on the `arena_feedback`
   row as `{id, version}` pairs so **Undo** puts back exactly those and leaves anything edited since
   alone. `npm run arena:draft` fills the table; the catalog sync drafts every new or changed card.
@@ -761,7 +761,7 @@ records how the rules engine was built and what it was held to at the time; the 
   difference no cause names fails the suite, and `npx tsx scripts/verify-arena.ts --explain` prints
   both engines' readings of every differing rule. `arena:probe --all --engine rules` and
   `arena:reprobe --engine rules` need the database and were not run by the port.
-- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the workbench): you say
+- **Explaining a card** (`src/lib/arena/ai/clarify.ts`, from any record on the Card rules page): you say
   what a card does in plain words; Claude returns a program in the effect language, saved as the
   card's **draft** rule (`source: claude`, for you to confirm), and a markdown work item for
   teaching `compile.ts` the *wording*, kept as `card_rules.brief` and shown on the record and on

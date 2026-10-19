@@ -489,7 +489,7 @@ that would turn this refusal back into a parsing job.
 **Where a baseline is known, it was entered by hand** (issue #255, owner's
 decision of 13 Sep 2026): `cards.specified_cost`, one column on `cards`, in the
 language's orb notation (`{u}{u}` = two blue), written from the rules record on
-the workbench (`/arena/rules` → the record's *specified cost* box, which reads
+the Card rules page (`/arena/rules/card/[cardId]` → the skill's *specified cost* box, which reads
 *Incomplete — specified cost unknown* on every X-cost card without one) or
 seeded by a migration on a ruling (0034 enters BT19-039 as `{u}{u}`). The
 column reaches the engine through `cardDefFrom` → `parseSpecifiedCost`

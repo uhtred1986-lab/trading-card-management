@@ -162,20 +162,26 @@ The following tables are generated from the reviewed local checkout. “Keep/dom
 | `arena/rules/ConfirmAll.tsx` | ConfirmAll | Keep/domain; consume shared primitives |
 | `arena/rules/FullRuleBuilder.tsx` | FullRuleBuilder | Keep/domain; consume shared primitives |
 | `arena/rules/Groups.tsx` | Groups | Keep/domain; consume shared primitives |
-| `arena/rules/ProbePane.tsx` | ProbePane | Keep/domain; consume shared primitives |
 | `arena/rules/ReferenceDrawer.tsx` | ReferenceDrawer | Keep/domain; consume shared primitives |
 | `arena/rules/RuleBuilder.tsx` | RuleBuilder | Keep/domain; consume shared primitives |
 | `arena/rules/RuleExplanationPanel.tsx` | RuleExplanationPanel | Keep/domain; consume shared primitives |
-| `arena/rules/RuleExplanationPreview.tsx` | PREVIEW_RULE, RuleExplanationPreview | Keep/domain; consume shared primitives |
 | `arena/rules/RuleReading.tsx` | RuleReading | Keep/domain; consume shared primitives |
-| `arena/rules/RuleRecord.tsx` | ACTION_BAR_ID, RuleRecord | Keep/domain; consume shared primitives |
-| `arena/rules/RuleReview.tsx` | RuleReview | Keep/domain; consume shared primitives |
 | `arena/rules/SelectLink.tsx` | SelectLink | Keep/domain; consume shared primitives |
 | `arena/rules/TeachPanels.tsx` | InMyWords, InMyWordsView, LikeACard, LikeACardView, teachTabs | Keep/domain; consume shared primitives |
-| `arena/rules/Workbench.tsx` | Glyph, Workbench, StateSegments, Choice, chipClass | Keep/domain; consume shared primitives |
 | `arena/rules/WorkbenchKeys.tsx` | FIND_ID, WorkbenchKeys | Keep/domain; consume shared primitives |
 | `arena/rules/tryit/TryItPanel.tsx` | TryItPanel, TryItBoards | Keep/domain; consume shared primitives |
 | `arena/rules/tryit/sheets.tsx` | WrongSheet, BoardSheet | Keep/domain; consume shared primitives |
+| `arena/rules/CardQueue.tsx` | HealthDot, HealthTabs, HealthLegend, QueueRow, SummaryBar, chipClass | Keep/domain; consume shared primitives |
+| `arena/rules/CardRules.tsx` | CardRules | Keep/domain; consume shared primitives |
+| `arena/rules/FlagSheet.tsx` | FlagSheet | Keep/domain; consume shared primitives |
+| `arena/rules/RebuildBanner.tsx` | RebuildBanner | Keep/domain; consume shared primitives |
+| `arena/rules/SkillEditor.tsx` | SkillEditor | Keep/domain; consume shared primitives |
+| `arena/rules/SkillPanel.tsx` | SkillPanel, HealthChip, provenanceLine | Keep/domain; consume shared primitives |
+| `arena/rules/Sparkline.tsx` | Sparkline | Keep/domain; consume shared primitives |
+| `arena/rules/reference/Keywords.tsx` | KeywordsReference | Keep/domain; consume shared primitives |
+| `arena/rules/reference/Language.tsx` | LanguageReference | Keep/domain; consume shared primitives |
+| `arena/rules/reference/Ruleset.tsx` | RulesetReference | Keep/domain; consume shared primitives |
+| `arena/rules/tryit/SandboxPlay.tsx` | SandboxPlay | Keep/domain; consume shared primitives |
 | `arena/session/LocalArena.tsx` | LocalArena | Keep/domain; consume shared primitives |
 | `arena/session/LocalMatchSetup.tsx` | localDeckChoices, LocalMatchSetup | Keep/domain; consume shared primitives |
 | `arena/session/OnlineArenaStage.tsx` | OnlineArenaStage | Keep/domain; consume shared primitives |
@@ -228,16 +234,20 @@ This includes internal previews and administration pages; these are not all prop
 | `/arena` | arena/ArenaHeader, arena/PlayPicker, arena/GamesList, arena/Invitations |
 | `/arena/preview` | Inline/server composition; use common presentation on migration |
 | `/arena/review` | arena/ReviewScreen |
-| `/arena/rules/all` | Inline/server composition; use common presentation on migration |
-| `/arena/rules/build/[id]` | arena/rules/FullRuleBuilder |
-| `/arena/rules/build/preview` | arena/rules/RuleBuilder, arena/rules/RuleRecord |
-| `/arena/rules/game` | Inline/server composition; use common presentation on migration |
-| `/arena/rules/keywords` | Inline/server composition; use common presentation on migration |
-| `/arena/rules/language` | Inline/server composition; use common presentation on migration |
-| `/arena/rules` | arena/rules/ConfirmAll, arena/ArenaHeader, arena/rules/Groups, arena/rules/SelectLink, arena/rules/WorkbenchKeys, arena/rules/Workbench |
-| `/arena/rules/patterns` | Inline/server composition; use common presentation on migration |
-| `/arena/rules/review` | arena/rules/RuleReview |
-| `/arena/rules/review/preview` | arena/rules/RuleExplanationPreview |
+| `/arena/rules/all` | Redirect into the Rules queue (`/arena/rules`, Whole catalog scope); no component |
+| `/arena/rules/build/[id]` | Redirect to the card page (`/arena/rules/card/[cardId]`) with its editor open; no component |
+| `/arena/rules/game` | Redirect to `/arena/rules/reference#ruleset`; no component |
+| `/arena/rules/keywords` | Redirect to `/arena/rules/reference#keywords`; no component |
+| `/arena/rules/language` | Redirect to `/arena/rules/reference#language`; no component |
+| `/arena/rules` | arena/ArenaHeader, arena/rules/CardQueue, arena/rules/Groups, arena/rules/RebuildBanner, arena/rules/SelectLink, arena/rules/Sparkline, arena/rules/WorkbenchKeys |
+| `/arena/rules/patterns` | Redirect into the Rules queue (same-wording grouping); no component |
+| `/arena/rules/review` | Redirect into the Rules queue; no component |
+| `/arena/rules/card/[cardId]` | arena/rules/CardRules |
+| `/arena/rules/card/[cardId]/play` | arena/rules/tryit/SandboxPlay |
+| `/arena/rules/card/preview` | arena/rules/CardRules |
+| `/arena/rules/play-preview` | arena/rules/tryit/SandboxPlay |
+| `/arena/rules/progress` | Redirect to the Rules queue summary strip (`/arena/rules?health=...`); no component |
+| `/arena/rules/reference` | arena/rules/reference/Keywords, arena/rules/reference/Language, arena/rules/reference/Ruleset |
 | `/arena/setup-preview` | LeaderLibrary, arena/session/local-board |
 | `/arena/testing` | arena/ArenaHeader, arena/testing/TestingPortal |
 | `/arena/testing/runs/[id]` | arena/ArenaHeader |
