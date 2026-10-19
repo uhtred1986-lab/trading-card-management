@@ -56,10 +56,20 @@ changes, wrong digest and replay refuse the entire update. Private snapshots
 remain outside registered worktrees. The PGlite migration proof verifies those
 boundaries without contacting Neon.
 
-**Application is not approved or performed.** Deploy reviewed code first, then
-apply only the exact approved proposal and verify its actual readback. Prior
-nineteen-row metadata approvals, the applied Absorb identity update and the
-separately applied Potara identity update authorize none of these four program repairs.
+**Applied on 19 October 2026** after the owner explicitly approved digest
+`f3b8068dc937ebedfd0c4eb0181ca91fdbb7a2c19e0a33e4304803aa2cadf0af`
+and PR #1085 deployed at `ca988c9eb856ae0c84c54f27accfc61ffe6600d0`.
+The [application receipt](application.json) records the guarded script's successful
+four-row write, verified app database, exact versions/statuses and full-field
+readback comparison. Full private before/after snapshots are retained outside
+the repository in an owner-only directory; only hashes and safe fields are published.
+Every stored field matches the approved plan, including all private fields;
+only the planned changes, version increments and transaction timestamp differ.
+[Actual records](actual-records.json) equal the approved proposed records.
+[Actual proof](actual-proof.json) runs the unchanged verifier against that export:
+116 cases pass. [Actual verification receipt](actual-verification.json) records
+commands, source and artifact hashes. Absorb and Potara were not reapplied.
+The earlier verification receipt below remains the pre-application historical record.
 
 ## Validation status
 

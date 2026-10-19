@@ -10,10 +10,11 @@ authority. PR #1083's typed Absorb contract is deployed; its separately approved
 one-record update is applied and verified. PR #1084 adds distinct typed Potara
 identity/materials for BT2-012/front/0 through the existing Union machinery.
 Its separately approved rule10297 v1→v2 update is applied, with 76 actual-record
-scenarios passing on the deployed source. PR #1085 next implements the
+scenarios passing on the deployed source. Deployed PR #1085 implements the
 shared EX23-36/P-519 conditioned Fusion Drop-to-bottom permission, retaining
 materials-before-remaining-price and private bottom order. Its four-record
-program-repair proposal is separate and not yet approved/applied.
+program repair is separately approved and applied; full-field readback matches
+the approved plan and 116 actual-record scenarios pass.
 
 #897 is closed after deployed #1071 and guarded record application. The actual
 stored BT6 Gogeta / Br Fusion versus Paragus / Broly pair completed 16/16 frozen
