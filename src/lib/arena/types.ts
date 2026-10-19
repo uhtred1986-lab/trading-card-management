@@ -1371,6 +1371,8 @@ export interface LegalAction {
   cost?: ActionCost;
   battleActivation?: BattleActivationSummary;
   counterResponse?: CounterResponseSummary;
+  /** A proven positive-power choice for the current own battle card; masked by the policy boundary. */
+  battlePowerTarget?: string;
   /** The engine's exact current resource projection for this legal choice.
    * `energyRest` names the cards the payment plan will rest (including legal
    * 20-19 payers); `markers` are Energy markers spent and `costMarkers` are
