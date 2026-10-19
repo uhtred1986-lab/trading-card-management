@@ -5,6 +5,8 @@ import type { PolicyRng } from "../../src/lib/arena/policy/rng";
 export interface DefenseProtocol {
   format: "arena-defense-protocol-v1";
   id: string;
+  /** Current engine source revision; documentation-only freeze commits may follow. */
+  runtimeRevision: string;
   /** Two exact two-deck packs: four ordered fixtures each. Paths stay private. */
   corpora: { key: string; path: string; sha256: string; mode: "compiler" | "stored"; decks: [string, string]; seedBase: number }[];
   deals: 20;
@@ -13,7 +15,7 @@ export interface DefenseProtocol {
   policySeedBase: number;
   privacyEvery: number;
   baseline: { key: string; version: string; sha256: string };
-  gate: { pairs: 160; decisivePairs: 20; pairWinCiLowGreaterThan: 0.5; perFixturePairCiUpperAtLeast: 0.5; completionRate: 1; illegal: 0; privacyFailures: 0 };
+  gate: { pairs: 160; decisivePairs: 20; pairWinCiLowGreaterThan: 0.5; perFixturePairCiUpperAtLeast: 0.5; completionRate: 1; illegal: 0; privacyFailures: 0; guardTrips: 0 };
 }
 export interface DefenseJob {
   index: number; key: string; fixture: string; corpus: string; p1: string; p2: string; k: number; candidateSeat: "p1" | "p2";
@@ -38,9 +40,11 @@ export interface DefenseRecord {
   /** A crash has no invented result, move count, trace or timings. */
   result: DuelResult | null;
   errorSha256: string | null;
-  checks: DefenseChecks;
+  checks: DefenseChecks | null;
 }
 export interface DefenseJournal {
   format: "arena-defense-journal-v1"; requestId: string; freezeSha256: string; runner: ManifestRunner;
-  shard: { index: number; count: number }; records: DefenseRecord[]; sha256: string;
+  shard: { index: number; count: number }; records: DefenseRecord[];
+  /** Durable BEGIN: an uncompleted attempt is consumed and converted to a crash on resume. */
+  inflight: { job: DefenseJob; startedAt: string } | null; sha256: string;
 }
