@@ -62,9 +62,9 @@ function take(s: Saved, action: Action): Saved {
 function stage(s: Saved, p: PlayerId, def: string, area: string): string { const id = s.state.sides[p].zones.deck.find(id => s.state.cards[id].cardId === "V1")!; assert.ok(id, "unused generic fixture copy"); s.state.cards[id].cardId = def; assert.ok(moveCard(s.state, game, id, area, { owner: p }).ok); return id; }
 function board(p: PlayerId, ctx = context()) {
   let s: Saved = { ctx, state: RULES.createGame(ctx, { seed: 923, p1: { name: "P1", leader: "L-RED", main: fifty("V1") }, p2: { name: "P2", leader: "L-BLUE", main: fifty("V1") } }).state as VmState };
-  const foe = p === "p1" ? "p2" : "p1";
+  const foe: PlayerId = p === "p1" ? "p2" : "p1";
   for (const a of [{ type: "chooseFirst", player: s.state.chooser, first: p }, { type: "mulligan", player: p, redraw: false }, { type: "mulligan", player: foe, redraw: false }, { type: "charge", player: p, card: null }] as Action[]) s = take(s, a);
-  for (const who of [p, foe]) for (const area of ["hand", "energy"]) for (const id of [...s.state.sides[who].zones[area]]) moveCard(s.state, game, id, "deck", { owner: who });
+  for (const who of [p, foe] as PlayerId[]) for (const area of ["hand", "energy"]) for (const id of [...s.state.sides[who].zones[area]]) moveCard(s.state, game, id, "deck", { owner: who });
   const source = stage(s, p, "BT3-070", "battle"), a = stage(s, p, "A14923", "drop"), b = stage(s, p, "A15923", "drop"), energy = stage(s, p, "G923", "energy");
   const top = stage(s, p, "TOP923", "hand"); moveCard(s.state, game, top, "deck", { owner: p });
   return { s, source, a, b, energy, top, p };
@@ -99,7 +99,7 @@ for (const p of ["p1", "p2"] as const) {
     if (bad === "wrongController") { moveCard(b.s.state, game, b.a, "hand", { owner: p }); stage(b.s, p === "p1" ? "p2" : "p1", "A14923", "drop"); }
     if (bad === "wrongEnergy") b.s.state.cards[b.energy].cardId = "V1";
     if (bad === "battleTiming") {
-      const foe = p === "p1" ? "p2" : "p1";
+      const foe: PlayerId = p === "p1" ? "p2" : "p1";
       for (const a of [{ type: "endMain", player: p }, { type: "charge", player: foe, card: null }, { type: "endMain", player: foe }, { type: "charge", player: p, card: null }] as Action[]) b.s = take(b.s, a);
       b.s = take(b.s, { type: "attack", player: p, attacker: b.s.state.sides[p].zones.leader[0], target: b.s.state.sides[foe].zones.leader[0] });
     }
@@ -113,8 +113,13 @@ for (const p of ["p1", "p2"] as const) {
   const changedArrival = finish(take(altered.s, offer(altered.s, altered.source)!.action)); assert.ok(changedArrival.state.sides[p].zones.battle.includes(six)); assert.ok(changedArrival.state.sides[p].zones.deck.includes(altered.top)); cases.push(`${p}/stored-arrival-selector`);
   const decline = board(p), rng = decline.s.state.rngState; const declined = finish(take(decline.s, offer(decline.s, decline.source)!.action), true);
   assert.ok(declined.state.cards[decline.source].under.includes(decline.a)); assert.ok(declined.state.sides[p].zones.deck.includes(decline.top)); assert.notDeepEqual(declined.state.rngState, rng, "declining arrival keeps paid material costs and printed shuffle"); cases.push(`${p}/optional-decline`);
-  for (const bad of ["missing", "kind", "area", "incompatiblePlay", "unknownPrice"] as const) {
-    const ctx = context(r => { const c = r.cost as CostRecord; if (bad === "missing") delete c.absorb; if (bad === "kind") r.kind = "auto"; if (bad === "area") (c.absorb as unknown as {area:string}).area = "hand"; if (bad === "incompatiblePlay") r.ops = [{ op: "draw", n: 1 }]; if (bad === "unknownPrice") c.program = [{ op: "unknown" } as never]; });
+  for (const bad of ["missing", "kind", "area", "incompatiblePlay", "unknownPrice", "printedPrice", "printedEffect", "namedPrice", "priceEachNamed", "effectEachNamed"] as const) {
+    const ctx = context(r => { const c = r.cost as CostRecord; if (bad === "missing") delete c.absorb; if (bad === "kind") r.kind = "auto"; if (bad === "area") (c.absorb as unknown as {area:string}).area = "hand"; if (bad === "incompatiblePlay") r.ops = [{ op: "draw", n: 1 }]; if (bad === "unknownPrice") c.program = [{ op: "unknown" } as never]; if (bad === "printedPrice") { const op = c.program![0]; assert.equal(op.op, "choose"); if (op.op === "choose") op.sel.printed = true; }
+      if (bad === "printedEffect") { const op = (r.ops as import("../../src/lib/arena/vm/script").Op[])[0]; if (op.op === "choose") op.sel.printed = true; }
+      if (bad === "namedPrice") { const op = c.program![0]; if (op.op === "choose") op.namedSet = true; }
+      if (bad === "priceEachNamed") c.condition = { kind: "eachNamed", sel: { side: "you", area: "hand" } };
+      if (bad === "effectEachNamed") r.cond = { kind: "eachNamed", sel: { side: "you", area: "hand" } };
+ });
     const b = board(p, ctx); b.s.ctx.defs["BT3-070"].skill = "[Triple Strike]"; assert.equal(offer(b.s, b.source), undefined); assert.equal(hasKeyword(b.s.ctx, game, b.s.state, b.source, "Strike"), false); cases.push(`${p}/blocked-${bad}`);
   }
   const base = board(p); stage(base.s, p, "A14923", "drop"); const pending = take(base.s, offer(base.s, base.source)!.action);
@@ -154,7 +159,7 @@ void (async () => {
     const existing = copy(reference); if (bad === "kind") existing.kind = "auto"; else delete (existing.cost as CostRecord).absorb;
     let wrote = false;
     const db = { query: { cardRules: { findFirst: async () => existing } }, update: () => { wrote = true; throw Error("unexpected write"); } };
-    await assert.rejects(() => saveRule(db as unknown as Parameters<typeof saveRule>[0], { cardId: existing.cardId, side: existing.side, skillIndex: existing.skillIndex, source: "user", status: "corrected", ops: existing.ops as Rule["ops"], cost: existing.cost }), /Union-Absorb/);
+    await assert.rejects(() => saveRule(db as unknown as Parameters<typeof saveRule>[0], { cardId: existing.cardId, side: "front", skillIndex: existing.skillIndex, source: "user", status: "corrected", ops: existing.ops as Rule["ops"], cost: existing.cost }), /Union-Absorb/);
     assert.equal(wrote, false);
   }
 const outAt = process.argv.indexOf("--out"); if (outAt >= 0) { assert.ok(process.argv[outAt + 1]); writeFileSync(process.argv[outAt + 1], JSON.stringify({ format: "absorb-identity-923-v1", target: "BT3-070/front/0", input: storedAt >= 0 ? "provided stored target" : "offline proposed exact v9 body plus marker", cases, support: "compiled public companion fixtures", passed: true }, null, 2) + "\n"); }

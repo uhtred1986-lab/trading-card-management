@@ -1,4 +1,4 @@
-import { absorbEffectProblem } from "../vm/absorb-procedure";
+import { absorbEffectProblem, absorbTextFallback, ABSORB_REBUILD } from "../vm/absorb-procedure";
 import { validityProblem } from "../vm/validity";
 import { usageProblem } from "../vm/usage";
 import { comboQualificationProblem } from "../vm/combo-qualification";
@@ -67,7 +67,7 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
   }
   if (isObject(rule.cost) && rule.cost.absorb !== undefined) {
     if (kind !== "keyword") return { field: "kind", message: "a typed Absorb procedure requires recorded keyword kind (#907)" };
-    const bad = absorbEffectProblem(rule.ops as import("../vm/script").Op[]);
+    const bad = absorbTextFallback(rule.cond) ? ABSORB_REBUILD : absorbEffectProblem(rule.ops as import("../vm/script").Op[]);
     if (bad) return { field: "ops", message: bad };
   }
   if (isObject(rule.cost) && rule.cost.evolution !== undefined && kind !== "keyword")

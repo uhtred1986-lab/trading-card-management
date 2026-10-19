@@ -82,7 +82,7 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
 
 /** Structural material/grant failures always block drafts too. Other support
  * diagnostics retain the loader's existing draft/review policy. */
-function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "ops">): string[] {
+function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "ops"> & { cond?: unknown }): string[] {
   const unsupported: string[] = [];
   if ((row.cost as CostRecord | null)?.fusion !== undefined || parseSkills(row.printed).some(isFusionSkill)) {
     const gap = fusionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
@@ -93,7 +93,7 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
     if (gap) unsupported.push(gap);
   }
   if ((row.cost as CostRecord | null)?.absorb !== undefined || parseSkills(row.printed).some(isAbsorbSkill)) {
-    const gap = absorbIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: row.ops as Op[] }, true);
+    const gap = absorbIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -123,7 +123,7 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
  * an out-of-date record that rebuilding the rule writes, not a clause the engine
  * cannot do: `ruleHealth` reports it as `needsRebuild`, never as a health.
  */
-export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown }): string[] {
+export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
   const validityGap = validityProblem(row.validity);
   if (validityGap) gaps.push(validityGap);
@@ -143,7 +143,7 @@ export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | 
  * execute. Keep this check bounded to gaps the runtime already names. The
  * interpreter remains authoritative for contextual questions during a game.
  */
-export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed"> & { combo?: unknown; usage?: unknown; validity?: unknown }): RuntimeSupport {
+export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed"> & { combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): RuntimeSupport {
   const unsupported = [...(row.unread ?? []), ...recordContractGaps(row)];
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
@@ -553,7 +553,7 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   }
   const absorbCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
   if (absorbCost?.absorb !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isAbsorbSkill)) {
-    const gap = absorbIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(absorbCost) ? undefined : priceFromCostRecord(absorbCost!), ops: w.ops }, true);
+    const gap = absorbIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(absorbCost) ? undefined : priceFromCostRecord(absorbCost!), ops: programOf({ops: w.ops, cond: w.cond}) }, true);
     if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;

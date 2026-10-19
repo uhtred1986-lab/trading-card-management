@@ -9,15 +9,23 @@ export function absorbProcedureProblem(value: unknown): string | null {
   return !a || typeof a !== "object" || Array.isArray(a) || Object.keys(a).some(k => !["version", "variant", "area"].includes(k)) || a.version !== 1 || a.variant !== "Absorb" || a.area !== "battle" ? ABSORB_REBUILD : null;
 }
 const keys = (value: object, allowed: string[]) => Object.entries(value).every(([k, v]) => v === undefined || allowed.includes(k));
+/** Reject only primitives whose VM implementation reparses displayed material text. */
+export function absorbTextFallback(value: unknown, selector = false): boolean {
+  if (Array.isArray(value)) return value.some(v => absorbTextFallback(v, selector));
+  if (!value || typeof value !== "object") return false;
+  const node = value as Record<string, unknown>;
+  if (selector && node.printed === true || node.op === "choose" && node.namedSet === true || node.kind === "eachNamed") return true;
+  return Object.entries(node).some(([key, child]) => absorbTextFallback(child, key === "sel" || key === "underHost"));
+}
 /** Existing typed price programs are the material authority; the strict host
  * independently refuses any action price it cannot charge completely. */
-export function absorbPriceProblem(ops: Op[] | null | undefined): string | null {
-  return ops !== null && (!Array.isArray(ops) || programProblem(ops)) ? ABSORB_REBUILD : null;
+export function absorbPriceProblem(ops: Op[] | null | undefined, condition?: unknown): string | null {
+  return absorbTextFallback(condition) || absorbTextFallback(ops) || ops !== null && (!Array.isArray(ops) || programProblem(ops)) ? ABSORB_REBUILD : null;
 }
 /** Every recorded arrival must be an Absorb play onto the activating source.
  * Conditions, selection areas and material filters retain their existing ops. */
 export function absorbEffectProblem(ops: Op[] | undefined): string | null {
-  if (!Array.isArray(ops) || programProblem(ops)) return ABSORB_REBUILD;
+  if (!Array.isArray(ops) || programProblem(ops) || absorbTextFallback(ops)) return ABSORB_REBUILD;
   let plays = 0, bad = false;
   const walk = (value: unknown): void => {
     if (Array.isArray(value)) { for (const item of value) walk(item); return; }

@@ -494,7 +494,7 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const fusion = compileFusionMaterials(skill);
   const evolution = compileEvolutionBase(skill);
   const absorbEffect = isAbsorbSkill(skill) ? compileSkill(skill) : null;
-  const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
+  const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
     readable: costIsOnlyOrbs(skill.cost) || condition !== null || !!program?.length || x !== null,

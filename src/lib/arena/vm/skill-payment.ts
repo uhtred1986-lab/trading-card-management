@@ -53,7 +53,7 @@ export function skillPriceProblem(value: unknown, depth = 0, path = "price"): st
   if (Object.keys(p!).some((key) => !["payment", "condition", "ops", "x", "payWith", "fusion", "evolution", "absorb"].includes(key))) return "unknown typed skill price field; regenerate rules and rebuild saved matches/exports";
   if (Object.keys(p!.payment).some((key) => !["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost"].includes(key))) return "unknown typed skill payment field; regenerate rules and rebuild saved matches/exports";
   if ([p!.fusion, p!.evolution, p!.absorb].filter(v => v !== undefined).length > 1) return "contradictory typed keyword identity";
-  if (p!.absorb !== undefined) { const bad = absorbProcedureProblem(p!.absorb) ?? absorbPriceProblem(p!.ops); if (bad) return bad; }
+  if (p!.absorb !== undefined) { const bad = absorbProcedureProblem(p!.absorb) ?? absorbPriceProblem(p!.ops, p!.condition); if (bad) return bad; }
   if (p!.evolution !== undefined) { const bad = evolutionBaseProblem(p!.evolution); if (bad) return bad; }
   if (p!.fusion !== undefined) {
     const problem = fusionMaterialsProblem(p!.fusion);
