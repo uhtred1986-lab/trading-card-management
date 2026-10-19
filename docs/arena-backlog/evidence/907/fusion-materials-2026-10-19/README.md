@@ -18,3 +18,13 @@ The owner requested essential checks only, no legacy compatibility and online
 rules/errata/forum research. #897 remains open; the selected BT6 Gogeta / Br Fusion
 versus BT6 Paragus / Broly recovery pair remains unqualified. No AI-strength work
 or additional deck pair is included.
+
+## Application boundary
+
+The former loader accepts an extra material field but drops it, continuing to
+interpret printed material text. New records will therefore be applied only
+after the typed implementation deploys. The reference application will use the
+supported guarded refresh command for exact changed keys, followed by readback
+and offline replay proof. It will not confirm drafts or refresh unrelated rows.
+The refresh tool's focused exclusion/atomic-apply/recheck proof passed on the
+starting tree. Application is pending, not implied by this draft.
