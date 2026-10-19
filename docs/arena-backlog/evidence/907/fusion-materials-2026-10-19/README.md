@@ -90,9 +90,13 @@ or AI-strength test was run, per the owner's instruction.
 A–A 4, A–B both seats 8, B–B 4; zero illegal, interrupted, limited, crashed or
 other outcomes. [Exact comparison](control-preservation.json) preserves all 16
 complete game records/trace hashes, all 75 programs/manifests, catalog, lists,
-seeds, move limits, policy, ruleset, errata and runner against the prior frozen
-controls. Engine/loader source changes are pinned separately; no expectation
-was rebaselined. These are compiler-mode controls, not proof of production
+seeds, move limits, policy, ruleset and errata against the prior frozen
+controls. Engine/loader/provenance source changes are pinned separately; no expectation
+was rebaselined. The old comparison stopped on the changed runner hash because
+that hash includes the intentionally changed provenance module; all game/program
+and input equality assertions had already passed. The new comparison retains
+those exact assertions and records the provenance revision explicitly. The match
+runner itself is unchanged. These are compiler-mode controls, not proof of production
 stored-program qualification or every skill's exercise.
 
 ## Stored application is separate from deployment
@@ -149,7 +153,7 @@ env -u DATABASE_URL npx tsx scripts/verify/union-exact-sets-925.ts
 env -u DATABASE_URL npx tsx scripts/verify/union-counter-929.ts
 env -u DATABASE_URL npx tsx scripts/verify/union-sources-930.ts
 env -u DATABASE_URL npx tsx scripts/arena-corpus-freeze.mts --mode compiler --check --pairs 4 --max-moves 3000 --seed-base 897000 --out /tmp/material-starters.json
-python3 docs/arena-backlog/evidence/907/fusion-checkpoint-2026-10-19/compare-controls.py /tmp/material-starters.json /tmp/material-preservation.json
+python3 docs/arena-backlog/evidence/907/fusion-materials-2026-10-19/compare-controls.py /tmp/material-starters.json /tmp/material-preservation.json
 ```
 
 The new material proof also accepts `--reference-records <export.json>` with
