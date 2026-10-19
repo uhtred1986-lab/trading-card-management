@@ -30,6 +30,12 @@ fallback. Other native Union families retain their distinct contracts.
 
 ## One-record application boundary
 
+[Deployment receipt](deployment-receipt.json): PR #1083 merged as `51d6fe97`;
+the production deployment is READY and GitHub's Vercel status is successful.
+Its merge tree matches the reviewed PR head. The grouped batch caused one
+application deployment; the merged remote branch is deleted. This does not
+apply the proposed database record.
+
 `scripts/arena-absorb-record-907.mts` defaults to dry-run. The proposed target is
 physical rule **6416**, **BT3-070/front/0**, **v9 → v10**, source `compiler`,
 status `draft`. Only `cost.absorb`, version and update time may change. The tool

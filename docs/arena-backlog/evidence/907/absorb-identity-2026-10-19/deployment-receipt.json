@@ -1,0 +1,17 @@
+{
+  "format": "absorb-identity-907-deployment-v1",
+  "verifiedAt": "2026-10-19T16:37:28.814087+00:00",
+  "pullRequest": "https://github.com/uhtred1986-lab/trading-card-management/pull/1083",
+  "reviewedHead": "5c0cb137f77bfae5230343fd867619efa3c649b1",
+  "mergeCommit": "51d6fe973c4846711d7f7c730f29fc571022ef45",
+  "mergeTreeMatchesReviewedHead": true,
+  "deploymentId": "dpl_2D1U6tFw3jbwBAz8R9LssnNaemH1",
+  "deploymentUrl": "https://trading-card-management-opnovkm3f-gullet-cove.vercel.app",
+  "deploymentState": "READY",
+  "githubVercelStatus": "success",
+  "applicationDeployments": 1,
+  "remoteBranchDeleted": true,
+  "liveRuleWrite": false,
+  "approval": "separate cost.absorb approval pending",
+  "remainingApplication": "BT3-070/front/0 compiler draft6416 v9\u2192v10; exact reviewed digest512b924aaa08b28a217bd87ef4491be19e37e4292a7563b7493cdc8b8c2f4a8b"
+}
