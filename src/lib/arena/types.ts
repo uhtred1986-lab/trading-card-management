@@ -1311,14 +1311,7 @@ export interface Payer {
   colors: Color[];
 }
 
-export interface EngineContext extends GameContext {
-  /**
-   * When set, a skill whose text did not compile stops the game and asks the
-   * referee (Claude) for a program in the effect language. Without it — tests,
-   * fuzzing, a hot-seat game with no API key — such a skill is logged and skipped.
-   */
-  referee?: boolean;
-}
+export type EngineContext = GameContext;
 
 export interface DeckInput {
   name: string;

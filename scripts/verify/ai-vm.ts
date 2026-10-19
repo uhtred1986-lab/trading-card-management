@@ -38,7 +38,7 @@ import { registerProvider, resetProviders } from "../../src/lib/ai/providers";
 import { createAnthropicApiProvider } from "../../src/lib/ai/providers/anthropic-api";
 import type { AiProvider, AiRequest } from "../../src/lib/ai/types";
 import { NO_SETTINGS, setSettingsLoader } from "../../src/lib/ai/settings";
-import { EFFECT_LANGUAGE, ruleOnCard } from "../../src/lib/arena/ai/opponent";
+import { EFFECT_LANGUAGE } from "../../src/lib/arena/ai/opponent";
 import { clarifyRule, type RuleToClarify } from "../../src/lib/arena/ai/clarify";
 import { claudeTeacher } from "../../src/lib/arena/ai/teach";
 import { InterruptedGameReviewError, reviewGame } from "../../src/lib/arena/ai/review";
@@ -538,20 +538,6 @@ function toCombo(s: VmState): VmState {
         assert.deepEqual([other.req.provider, other.req.model], ["anthropic-api", "claude-haiku-4-5"], "an unset slot keeps its default");
         assert.equal(alt.requests.length, 3, "the slot's provider answered exactly the three slotted decisions");
         setSettingsLoader(null);
-      }
-
-      // ruleOnCard (the referee).
-      {
-        const wire = wired({ program: "[]", why: "nothing happens" });
-        const r = await ruleOnCard(stubDb(), { cardId: "V1", cardName: "V1", text: "[Auto] x", unsupported: ["x"] }, "situation");
-        assert.equal(r.valid, true);
-        const b = wire[0].body;
-        assert.equal(b.model, "claude-opus-5");
-        assert.equal(b.max_tokens, 4000);
-        assert.deepEqual(b.thinking, { type: "adaptive" });
-        assert.equal(b.output_config.effort, "medium");
-        assert.ok(b.output_config.format);
-        assert.deepEqual(b.system, [{ type: "text", text: EFFECT_LANGUAGE, cache_control: LONG }]);
       }
 
       // clarifyRule: the stub db answers the card read; the `[]` program saves no rule, so only the brief update runs.

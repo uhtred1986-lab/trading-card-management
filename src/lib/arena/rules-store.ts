@@ -440,6 +440,33 @@ export function cardHealthOf(
   return { health: cardHealth(skills), missing, skills };
 }
 
+/**
+ * The health of each given card, for a badge on the card page and the deck view: two queries
+ * however many cards, the same classifier as the queue (`cardHealthOf`). Only original-game
+ * cards the arena reads (no Fusion World, no energy markers) get an entry.
+ */
+export async function cardHealthsFor(db: Db, cardIds: string[]): Promise<Map<string, RuleHealth>> {
+  const out = new Map<string, RuleHealth>();
+  const ids = [...new Set(cardIds)];
+  if (!ids.length) return out;
+  const [cs, found] = await Promise.all([
+    db.select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(and(inArray(cards.id, ids), eq(cards.game, "dbs"), REVIEWABLE_CARD)),
+    db
+      .select({
+        cardId: cardRules.cardId, side: cardRules.side,
+        kind: cardRules.kind, unread: cardRules.unread, ops: cardRules.ops, cost: cardRules.cost, trigger: cardRules.trigger, printed: cardRules.printed,
+        status: cardRules.status, skillIndex: cardRules.skillIndex, source: cardRules.source, cond: cardRules.cond, combo: cardRules.combo,
+        usage: cardRules.usage, validity: cardRules.validity, reviewFlag: cardRules.reviewFlag, compilerDiff: cardRules.compilerDiff,
+      })
+      .from(cardRules)
+      .where(inArray(cardRules.cardId, ids)),
+  ]);
+  const byCard = new Map<string, typeof found>();
+  for (const r of found) (byCard.get(r.cardId) ?? byCard.set(r.cardId, []).get(r.cardId)!).push(r);
+  for (const c of cs) out.set(c.id, cardHealthOf(c, byCard.get(c.id) ?? []).health);
+  return out;
+}
+
 export type HealthCounts = Record<RuleHealth, number> & { needsRebuild: number };
 export const emptyHealthCounts = (): HealthCounts => ({ "text-only": 0, incomplete: 0, unchecked: 0, done: 0, needsRebuild: 0 });
 

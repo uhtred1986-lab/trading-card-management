@@ -107,7 +107,7 @@ export function previewGameplan(input: {
   // The engine clones in apply today. Clone at this boundary too: a future
   // implementation cannot accidentally modify the loaded row's state.
   let state = structuredClone(input.state);
-  const ctx = { ...input.ctx, referee: false };
+  const ctx = { ...input.ctx };
   const result: GameplanPreview = { steps: [], next: [], stopped: null };
   if (input.actions.length < 1 || input.actions.length > 2) return { ...result, stopped: "Choose one or two moves." };
   if (state.prompt.kind !== "main" || state.prompt.player !== player) return { ...result, stopped: "Plan is available on your Main Phase." };

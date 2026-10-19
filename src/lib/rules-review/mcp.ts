@@ -29,6 +29,8 @@ export interface McpDeps {
   /** The verified token's SL address: deck scope and the "who" of a confirmation. */
   email?: string;
   fetch?: typeof fetch;
+  /** Called after a tool changed a `card_rules` row (`confirm_rule`, `flag_rule`): the route expires the `rules-health` cache. */
+  onRuleWrite?: () => void;
 }
 
 const WRITE_TOOLS = new Set(["record_ruling", "comment_ruling", "confirm_rule", "flag_rule"]);
@@ -260,10 +262,16 @@ async function callTool(name: string, args: Record<string, unknown>, deps: McpDe
       return deckReviewQueue(deps, args);
     case "get_card_review":
       return getCardReview(deps, args);
-    case "confirm_rule":
-      return confirmRule(deps, args);
-    case "flag_rule":
-      return flagRule(deps, args);
+    case "confirm_rule": {
+      const out = await confirmRule(deps, args);
+      deps.onRuleWrite?.();
+      return out;
+    }
+    case "flag_rule": {
+      const out = await flagRule(deps, args);
+      deps.onRuleWrite?.();
+      return out;
+    }
     case "comment_ruling": {
       const token = env.GITHUB_ISSUES_TOKEN;
       if (!token) throw new Error("GITHUB_ISSUES_TOKEN is not configured");

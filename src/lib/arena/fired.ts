@@ -31,8 +31,7 @@ export async function firedInGame(db: Db, gameId: number): Promise<FiredSkill[]>
   if (!a || !b) return [];
   const engine = RULES;
   const defs = await defsForCards(db, [...new Set([...a.cardIds, ...b.cardIds])]);
-  // The referee is off: a replay must not ask Claude anything; every ruling is in the log.
-  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs), referee: false };
+  const ctx: EngineContext = { defs, scripts: await rulesFor(db, defs) };
 
   const seen = new Set<string>();
   const out: FiredSkill[] = [];

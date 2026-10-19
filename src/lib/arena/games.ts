@@ -11,7 +11,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import type { Db } from "@/db";
-import { hasAnthropic } from "@/lib/ai/client";
 import { arenaGames, cards as cardsTable } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { seedFrom } from "./vm/rng";
@@ -203,7 +202,6 @@ async function contextFor(db: Db, state: EngineState, mode: string, gameId: numb
   if (reuse && reused?.arenaGameId === gameId && (reused.rulesBundleHash ?? null) === (bundle?.hash ?? null) && ids.every((id) => id in reuse.ctx.defs)) return { ctx: reuse.ctx, art: reuse.art };
   if (bundle) {
     const ctx = await pinnedContext(bundle);
-    ctx.referee = hasAnthropic() && mode !== "hotseat";
     ctx.arenaGameId = gameId;
     return { ctx, art: bundle.payload.art };
   }
@@ -215,7 +213,7 @@ async function contextFor(db: Db, state: EngineState, mode: string, gameId: numb
     art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
   }
   // The rules the engine plays by come from `card_rules`, not from a compile.
-  const ctx = { defs, scripts: rulesFromRows(ruleRows, defs), referee: hasAnthropic() && mode !== "hotseat" } as PinnedContext;
+  const ctx = { defs, scripts: rulesFromRows(ruleRows, defs) } as PinnedContext;
   ctx.arenaGameId = gameId;
   return { ctx, art };
 }
@@ -278,7 +276,6 @@ export async function startGame(
   const bundle = await makeReplayBundle({ defs, scripts, art });
   await persistReplayBundle(db, bundle);
   const ctx = await pinnedContext(bundle);
-  ctx.referee = hasAnthropic() && mode !== "hotseat";
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
   const { state, events } = RULES.createGame(ctx, { seed, p1: a.input, p2: b.input });
   const [row] = await db

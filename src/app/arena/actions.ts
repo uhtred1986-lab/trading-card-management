@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { expireTagsFromAction } from "@/lib/cache/tags";
+import { expireRulesHealth } from "@/lib/cache/rules-health";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
@@ -176,6 +177,8 @@ const RULES_ADMINS_ONLY = "only an admin can change a card's rule";
 async function noteRule(id: number, note: string, resolution: string | null) {
   const row = await ruleById(db, id);
   await db.insert(arenaFeedback).values({ kind: "rule", cardId: row?.cardId ?? null, skillIndex: row?.skillIndex ?? null, note, resolution });
+  // Every rule-writing action ends here: the classified catalog queue reads the rows just written.
+  expireRulesHealth();
   revalidatePath("/arena/rules");
   revalidatePath("/arena/feedback");
 }
@@ -361,6 +364,7 @@ export async function confirmAllAction(rawFilter: unknown): Promise<{ error: str
     .insert(arenaFeedback)
     .values({ kind: "rule", note: `confirmed ${batch.rules.length} draft${batch.rules.length === 1 ? "" : "s"}: ${filterInWords(filter)}`, batch })
     .returning({ id: arenaFeedback.id });
+  expireRulesHealth();
   revalidatePath("/arena/rules");
   return { error: null, confirmed: batch.rules.length, batchId: row?.id ?? null };
 }
@@ -378,6 +382,7 @@ export async function undoConfirmAction(batchId: number): Promise<{ error: strin
     .update(arenaFeedback)
     .set({ batch: null, resolution: `undone: ${reverted} back to draft${kept ? `, ${kept} left as they were changed since` : ""}` })
     .where(eq(arenaFeedback.id, batchId));
+  expireRulesHealth();
   revalidatePath("/arena/rules");
   return { error: null, reverted, kept };
 }
@@ -406,6 +411,7 @@ export async function rebuildCardAction(cardId: string): Promise<{ error: string
   if (s.cards === 0) return { error: "the arena only plays the original game's cards", rebuilt: 0, added: 0, left: 0 };
   const rows = await db.select().from(cardRules).where(eq(cardRules.cardId, cardId));
   const left = rows.filter((r) => ruleHealth(r).needsRebuild).length;
+  expireRulesHealth();
   revalidatePath("/arena/rules");
   revalidatePath(`/arena/rules/card/${cardId}`);
   return { error: null, rebuilt: s.updated + s.diffed, added: s.inserted, left };
