@@ -184,7 +184,7 @@ See the [receipt](../907/fusion-materials-2026-10-19/README.md) and
 | Existing accepted behavior | Original #541/#925 material/outcome assertions are retained. Their new resource-prompt harness answers are separated from the two repaired #1067 runtime regressions. #926/#929/#930 retain distinct procedure/payment/Counter controls. |
 | Source correction | Manual requires Battle Cards, so Fusion no longer accepts Unison materials. EX23-36/P-519 print Drop-to-bottom permissions with no located equal-power waiver; those support clauses remain unimplemented. BT17-082 is Absorb-specific. |
 | Remaining authority | Native keyword identity/timing dispatch, use limits, trigger qualification, other Union variants and indexed support gaps are not certified by this slice. Old records/saves require explicit rebuilds. |
-| Application and decks | Reference-row application follows deployment and has its own receipt. The selected public BT6 pair's 28 catalog cards/67 rows are frozen without writes; four corrected rows remain protected. The pair remains unqualified. |
+| Application and decks | Post-deployment application refreshed exactly BT11-013/front/10 and P-360/back/0; both remain drafts and actual exports pass material/payment replay proofs. Nine reference rows are unchanged. The selected public BT6 pair's 28 catalog cards/67 rows are frozen without writes; four corrected rows remain protected. The pair remains unqualified. |
 
 No completed match is treated as proof every skill executed. Compiler delivery,
 source freshness, human review, runtime proof, exercised cases and deck qualification
