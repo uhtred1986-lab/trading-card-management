@@ -53,6 +53,46 @@ const partial = { ...rows[0] }; delete partial.cost;
 assert.ok(normalizeRows([partial]).malformed.length, "incomplete export cannot masquerade as full rows");
 const flagged = programProvenance(defs, "stored", [{ ...rows[0], status: "confirmed", reviewFlag: "suspected misread" }, rows[1]]);
 assert.equal(flagged.manifest[0].humanReview?.confirmed, false);
+
+// The per-turn ceiling is an executable record field, even when the stored
+// author deliberately differs from the display tag. Missing metadata blocks.
+const usageDef = card("PROVENANCE-USAGE", { skill: "[Activate: Main][Once per turn] Draw 1 card." });
+const usageRows = skillRecords(usageDef).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as ExportedRule[];
+const usageDefs = { [usageDef.id]: usageDef };
+const currentUsage = programProvenance(usageDefs, "stored", usageRows);
+assert.equal(currentUsage.manifest[0].executable, true);
+assert.equal(currentUsage.scripts[usageDef.id].bySkill[0].usage?.oncePerTurn, true);
+assert.ok(!currentUsage.manifest[0].blockers.some((s) => /oncePerTurn.*printed text/.test(s)));
+const changedUsage = structuredClone(usageRows);
+(changedUsage[0].usage as Record<string, unknown>).oncePerTurn = false;
+const changedUsageReport = programProvenance(usageDefs, "stored", changedUsage);
+assert.equal(changedUsageReport.manifest[0].executable, true);
+assert.equal(changedUsageReport.manifest[0].differsFromCompiler, true);
+assert.equal(changedUsageReport.scripts[usageDef.id].bySkill[0].usage?.oncePerTurn, false);
+const oldUsage = structuredClone(usageRows); delete oldUsage[0].usage;
+const oldUsageReport = programProvenance(usageDefs, "stored", oldUsage);
+assert.equal(oldUsageReport.manifest[0].executable, false);
+assert.ok([...oldUsageReport.malformed, ...oldUsageReport.manifest[0].blockers].some((s) => /typed skill usage.*regenerate/.test(s)));
+assert.ok(normalizeRows([{ ...usageRows[0], usage: { version: 1, oncePerTurn: "true", limit: null } }]).malformed.length);
+// Sparking is executable validity, not a catalog reminder re-read by the VM.
+const sparkDef = card("PROVENANCE-SPARK", { skill: "[Auto][Sparking 3] When this card is played, draw 1 card." });
+const sparkRows = skillRecords(sparkDef).map(r => ({ ...r, status: "draft", source: "compiler", version: 1 })) as ExportedRule[];
+const sparkDefs = { [sparkDef.id]: sparkDef };
+const currentSpark = programProvenance(sparkDefs, "stored", sparkRows);
+assert.equal(currentSpark.manifest[0].executable, true);
+assert.equal(currentSpark.scripts[sparkDef.id].bySkill[0].validity?.sparking, 3);
+assert.ok(!currentSpark.manifest[0].blockers.some(s => /sparking.*printed text/.test(s)));
+const changedSpark = structuredClone(sparkRows);
+(changedSpark[0].validity as Record<string, unknown>).sparking = null;
+const changedSparkReport = programProvenance(sparkDefs, "stored", changedSpark);
+assert.equal(changedSparkReport.manifest[0].executable, true);
+assert.equal(changedSparkReport.manifest[0].differsFromCompiler, true);
+assert.equal(changedSparkReport.scripts[sparkDef.id].bySkill[0].validity?.sparking, null);
+const oldSpark = structuredClone(sparkRows); delete oldSpark[0].validity;
+const oldSparkReport = programProvenance(sparkDefs, "stored", oldSpark);
+assert.equal(oldSparkReport.manifest[0].executable, false);
+assert.ok([...oldSparkReport.malformed, ...oldSparkReport.manifest[0].blockers].some(s => /validity.*regenerate/.test(s)));
+assert.ok(normalizeRows([{ ...sparkRows[0], validity: { version: 1, sparking: "3" } }]).malformed.length);
 const snake = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`), value])));
 assert.deepEqual(programProvenance(defs, "stored", snake).scripts, current.scripts, "supported export naming preserves loaded program");
 assert.throws(() => programProvenance(defs, "compiler", rows), /stored mode/);

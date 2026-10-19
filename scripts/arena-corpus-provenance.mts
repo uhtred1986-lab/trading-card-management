@@ -75,7 +75,7 @@ function textDependencies(sk: Skill): string[] {
   if (!activated) for (const [key, value] of Object.entries({ marker: sk.markerCost, burst: sk.burst, spiritBoost: sk.spiritBoost })) {
     if (value !== null) fields.push(`cost.${key}`);
   }
-  for (const [key, value] of Object.entries({ oncePerTurn: sk.oncePerTurn || null, limit: sk.limit, bond: sk.bond, sparking: sk.sparking })) {
+  for (const [key, value] of Object.entries({ bond: sk.bond })) {
     if (value !== null) fields.push(key);
   }
   if (sk.kind === "auto") {

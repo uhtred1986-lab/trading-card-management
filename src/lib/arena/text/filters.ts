@@ -807,6 +807,7 @@ function parseOneFilter(text: string): CardFilter {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\[[^\]]*\]/g, " ");
   if (/\bmono-?colou?r\b|\bmono-(red|blue|green|yellow|black|white)\b/.test(lower)) f.monoColor = true;
+  if (/\b(?:red|blue|green|yellow|black|white) and no other colou?rs?\b/.test(colourText)) f.monoColor = true;
   // "**Non-multicolor** energy" (BT8-122) is the opposite of "multicolor": the
   // word boundary between the hyphen and "multicolor" used to match, so the
   // card read as asking for the multicoloured energy it excludes. A card has

@@ -156,6 +156,10 @@ export function splitClauses(text: string): string[] {
  * readings of 40-odd [Awaken] lines already treat as outside the offer.
  */
 export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
+  // BT6-015: these are properties of the same Leader, not new clauses with
+  // an anonymous "it". Fold the equivalent colour phrase before splitting.
+  text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
+    (_, leader: string, description: string, color: string) => `${leader} is mono-${color} ${description}`);
   const out: string[] = [];
   const joins: boolean[] = [];
   let nextJoined = false;
