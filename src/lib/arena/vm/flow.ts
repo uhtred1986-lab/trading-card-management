@@ -1,5 +1,6 @@
+import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
-import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, sameAbsorbIdentity } from "./skill-identity";
+import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, sameAbsorbIdentity, potaraIdentityProblem } from "./skill-identity";
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
 import { lifeToHandForbidden } from "./life-movement";
 import { requireUsage, usageProblem } from "./usage";
@@ -1222,7 +1223,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
     }
@@ -1234,6 +1235,11 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       const gap = absorbIdentityProblem(frame.absorbIdentity, true); if (gap) throw new NotYet(gap, "#907");
       if (!Number.isSafeInteger(frame.absorbSourceEpoch)) throw new NotYet("rebuild this saved Absorb source occurrence (#907)", "#907");
       for (const line of [frame.keywordPrice?.line, frame.keywordCost?.line]) if (line && (!sameAbsorbIdentity(frame.absorbIdentity, { kind: line.script?.kind, price: line.script?.price, ops: line.script?.ops }))) throw new NotYet("rebuild inconsistent saved Absorb identity/price (#907)", "#907");
+    }
+    if (frame.potaraIdentity || sourceScript?.price?.potara !== undefined || containsPotaraPlay(frame.ops) || [frame.keywordPrice?.line, frame.keywordCost?.line].some(line => line && (line.script?.price?.potara !== undefined || isPotaraSkill(line.skill)))) {
+      const gap = potaraIdentityProblem(frame.potaraIdentity, true) ?? (potaraPrintedSelector(frame.ops) ? POTARA_REBUILD : null); if (gap) throw new NotYet(gap, "#907");
+      if (!Number.isSafeInteger(frame.potaraSourceEpoch)) throw new NotYet("rebuild this saved Potara source occurrence (#907)", "#907");
+      for (const line of [frame.keywordPrice?.line, frame.keywordCost?.line]) if (line && !sameAbsorbIdentity(frame.potaraIdentity, {kind: line.script?.kind, price: line.script?.price})) throw new NotYet("rebuild inconsistent saved Potara identity/price (#907)", "#907");
     }
     // Activated effects carry the executable usage they began with (9-6-11).
     // Do not rediscover a copied skill after its granting effect has gone.

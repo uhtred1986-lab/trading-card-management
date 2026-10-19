@@ -1,3 +1,4 @@
+import { POTARA_REBUILD, isPotaraSkill, potaraMaterialsProblem, potaraPrintedSelector } from "./potara-materials";
 import { ABSORB_REBUILD, isAbsorbSkill, absorbEffectProblem } from "./absorb-procedure";
 import { evolutionBaseProblem, needsEvolutionContract, EVOLUTION_REBUILD } from "./evolution-base";
 /** Record-owned Fusion identity; native keyword declarations remain ruleset-owned. */
@@ -17,6 +18,15 @@ export function evolutionIdentityProblem(script: Pick<Script, "kind" | "price"> 
   if (!required && script?.price?.evolution === undefined) return null;
   if (script?.kind !== "keyword") return EVOLUTION_REBUILD;
   return skillPriceProblem(script.price) ?? evolutionBaseProblem(script.price?.evolution);
+}
+export function potaraIdentityProblem(script: (Pick<Script, "kind" | "price"> & {ops?: Script["ops"]}) | undefined, required = false): string | null {
+  if (!required && script?.price?.potara === undefined) return null;
+  if (script?.kind !== "keyword") return POTARA_REBUILD;
+  return skillPriceProblem(script.price) ?? potaraMaterialsProblem(script.price?.potara) ?? (potaraPrintedSelector(script.ops) ? POTARA_REBUILD : null);
+}
+export function potaraLineProblem(line: { script?: Script; skill: Skill; keyword?: {name: string} }, required = false): string | null {
+  if (!required && line.script?.price?.potara === undefined && !isPotaraSkill(line.skill)) return null;
+  return potaraIdentityProblem(line.script, true) ?? (!isPotaraSkill(line.skill) || line.skill.kind !== "keyword" || line.keyword?.name !== "Union" ? POTARA_REBUILD : null);
 }
 /** Identity is joint with the complete bounded recorded cost and effect programs. */
 export function absorbIdentityProblem(script: Pick<Script, "kind" | "price" | "ops"> | undefined, required = false): string | null {
@@ -39,6 +49,10 @@ export function recordedSkillIdentity(skill: Skill, script: Script | undefined):
   const kind = script?.kind && known.includes(script.kind) ? script.kind : skill.kind;
   // A blocked record cannot become a native hook through its displayed tags.
   if (script?.unsupported.length) return { ...skill, kind, keyword: null, tags: [] };
+  if (script?.price?.potara !== undefined || script?.price?.fusion === undefined && script?.price?.evolution === undefined && script?.price?.absorb === undefined && isPotaraSkill(skill)) {
+    const gap = potaraIdentityProblem(script, true); if (gap) throw new NotYet(gap, "#907");
+    return { ...skill, kind: "keyword", keyword: { name: "Union", variant: "Potara" }, tags: [] };
+  }
   if (script?.price?.absorb !== undefined || script?.price?.fusion === undefined && script?.price?.evolution === undefined && isAbsorbSkill(skill)) {
     const gap = absorbIdentityProblem(script, true); if (gap) throw new NotYet(gap, "#907");
     return { ...skill, kind: "keyword", keyword: { name: "Union", variant: "Absorb" }, tags: [] };

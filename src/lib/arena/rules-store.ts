@@ -1,6 +1,7 @@
+import { isPotaraSkill } from "./vm/potara-materials";
 import { isAbsorbSkill } from "./vm/absorb-procedure";
 import { needsEvolutionContract } from "./vm/evolution-base";
-import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem } from "./vm/skill-identity";
+import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, potaraIdentityProblem } from "./vm/skill-identity";
 import { validityProblem, type ValidityRecord } from "./vm/validity";
 import { usageProblem, type UsageRecord } from "./vm/usage";
 /**
@@ -94,6 +95,10 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
   }
   if ((row.cost as CostRecord | null)?.absorb !== undefined || parseSkills(row.printed).some(isAbsorbSkill)) {
     const gap = absorbIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
+    if (gap) unsupported.push(gap);
+  }
+  if ((row.cost as CostRecord | null)?.potara !== undefined || parseSkills(row.printed).some(isPotaraSkill)) {
+    const gap = potaraIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -554,6 +559,11 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   const absorbCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
   if (absorbCost?.absorb !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isAbsorbSkill)) {
     const gap = absorbIdentityProblem({ kind: kind as import("./types").Skill["kind"], price: costRecordProblem(absorbCost) ? undefined : priceFromCostRecord(absorbCost!), ops: programOf({ops: w.ops, cond: w.cond}) }, true);
+    if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
+  }
+  const potaraCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
+  if (potaraCost?.potara !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isPotaraSkill)) {
+    const gap = potaraIdentityProblem({kind: kind as import("./types").Skill["kind"], price: costRecordProblem(potaraCost) ? undefined : priceFromCostRecord(potaraCost!), ops: programOf({ops: w.ops, cond: w.cond})}, true);
     if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;

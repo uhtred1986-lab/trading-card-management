@@ -1,0 +1,67 @@
+Official BT2-012 FAQ (Q2 concerns the separate attack Auto, outside primary scope)
+BT2-012Repeated Force Vegito Q1. You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card? A1. The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not. Q2. What does “each ＜Son Goku＞ and ＜Vegeta＞ in your Drop Area” mean? A2. It means the total number of ＜Son Goku＞ and ＜Vegeta＞ in your Drop Area.
+
+Official manual Potara
+22-13-5. [Union-Potara]
+
+   22-13-5-1. [Union-Potara] is described as follows: “[Union-Potara] skill cost : <Character Name A> and <Character Name B>.” Here, “<Character
+
+             Name A> and <Character Name B>” are the conditions for the [Union-Potara] skill.
+
+   22-13-5-2. [Union-Potara] can be activated by paying the skill cost and choosing one of each specified character’s Battle Card in your Battle Area.
+
+             If the player can’t choose all of the specified Battle Cards, they can’t activate [Union-Potara].
+
+     22-13-5-2-1. Some card text reads “you can choose Battle Cards in one of your areas when choosing cards to use with this card's [Union-
+
+               Potara] skill.” These skills expand the conditions that can be fulfilled when choosing cards for a given keyword skill.
+
+       22-13-5-2-1-1. When using such a skill to choose Battle Cards from an expanded range of areas, if the skill resolution would cause the card
+
+                   that activated [Union-Potara] to be played, first move any Battle Cards in that area to the Battle Area, and then resolve the keyword
+
+                   skill normally. Furthermore, any area movement triggers resulting from the chosen Battle Card moving to a different area are not
+
+                   made pending, nor does counter timing occur.
+
+   22-13-5-3. [Union-Potara] can only be activated from a player’s hand.
+
+   22-13-5-4. To resolve the effects of [Union-Potara], the card that activated the skill is played by placing it on top of the two Battle Cards chosen
+
+             in 22-13-5-2, which can be in any order.
+
+     22-13-5-4-1. All continuous effects affecting the power of the played Battle Cards carry over.
+
+     22-13-5-4-2. If a card that activated [Union-Potara] fails to enter play, it is placed in its owner’s Drop Area.
+
+       22-13-5-4-2-1. As an exception to the above rule, if a skill states that a card is “returned to its owner's hand instead of being played,” cards
+
+                   returned to a player’s hand by such a skill are not placed in their owner’s Drop Area.
+
+Manual area identity
+3-1-4. Other than the exceptions below, when a card is moved from one area to another area, unless otherwise specified, the card is treated as a
+
+       new card in a new area. Effects that were applied to the card in the original area are not carried over to the new area.
+
+   3-1-4-1. When a card is moved from a Battle Area or Unison Area to a Battle Area, Unison Area, or Combo Area, unless otherwise specified,
+
+             effects that were applied to the card in the original area are carried over to the new area.
+
+   3-1-4-2. When a card is moved from a Combo Area to a Battle Area, unless otherwise specified, effects that were applied to the card in the original
+
+             area are carried over to the new area.
+
+   3-1-4-3. If a single skill applies a continuous effect that causes a card in an area to move to the Leader Area, Battle Area, Unison Area, or Combo
+
+             Area, the effect applies in the original area, then the card is considered a new card in a new area, with the effect still applied.
+
+             Example: If an effect reads "use 1 card in a combo with its skills negated for the battle," and a card moves from the Drop Area to the
+
+             Combo Area, the effect that negates skills will applied to the target card in the Drop Area, and after the card is placed in the Combo Area,
+
+             the effect will still apply and the card's skills will still be negated until the end of the battle.
+
+Manual independent source
+9-3-1. Activated effects that have occurred are considered independent of their source. If the area in which such an effect’s source is placed is later
+
+       changed, this change does not affect the resolution of that effect.(23-3)

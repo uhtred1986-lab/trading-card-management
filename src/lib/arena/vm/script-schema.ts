@@ -1,3 +1,4 @@
+import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
 import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
@@ -1842,6 +1843,10 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     if (o.op === "permit" && o.what === "unionLine") {
       if (!["Fusion", "Potara"].includes(String(o.unionVariant))) return `${step}: missing typed Union grant identity; regenerate rules and rebuild saved matches/exports`;
+      if (o.unionVariant === "Potara") {
+        const problem = potaraMaterialsProblem((o.price as {potara?: unknown}).potara);
+        if (problem) return `${step}: ${problem}`;
+      }
       if (o.unionVariant === "Fusion") {
         const problem = fusionMaterialsProblem((o.price as { fusion?: unknown }).fusion);
         if (problem) return `${step}: ${problem}`;

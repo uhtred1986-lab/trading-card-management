@@ -393,6 +393,7 @@ export function printCost(cost: CostRecord): string {
   if (cost.marker !== null) items.push(`${cost.marker >= 0 ? "+" : ""}${cost.marker} marker`);
   if (cost.burst !== null) items.push(`burst ${cost.burst}`);
   if (cost.spiritBoost !== null) items.push(`spiritBoost ${cost.spiritBoost}`);
+  if (cost.potara !== undefined) items.push(`POTARA ${JSON.stringify(JSON.stringify(cost.potara))}`);
   if (cost.absorb !== undefined) items.push(`ABSORB ${JSON.stringify(JSON.stringify(cost.absorb))}`);
   if (cost.evolution !== undefined) items.push(`EVOLUTION ${JSON.stringify(JSON.stringify(cost.evolution))}`);
   if (cost.fusion !== undefined) items.push(`FUSION ${JSON.stringify(JSON.stringify(cost.fusion))}`);

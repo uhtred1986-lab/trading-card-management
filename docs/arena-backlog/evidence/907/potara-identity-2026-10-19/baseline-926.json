@@ -1,0 +1,28 @@
+{
+  "format": "potara-907-existing-baseline-failure-v1",
+  "baselineCommit": "51d6fe973c4846711d7f7c730f29fc571022ef45",
+  "baselineWorktreeHasOnlyDocumentationChanges": true,
+  "runtimeAndVerifierMatchBaseline": true,
+  "nodeVersion": "v24.19.0",
+  "command": "env -u DATABASE_URL ./node_modules/.bin/tsx scripts/verify/keyword-action-costs-926.ts",
+  "exitCode": 1,
+  "scope": "existing BT31-149 Fusion refusal-category assertion; not a Potara activation",
+  "assertionLine": 344,
+  "failedAssertion": "it is refused as unread",
+  "precedingNotOfferedAssertionPassed": true,
+  "expectedRefusalKind": "unread",
+  "actualContainsUnread": false,
+  "oracleChanged": false,
+  "complete926PassClaimed": false,
+  "baselineLogSha256": "921f71a05d287abefd71eceb34148e82e6fac13bc12da4e7f81169c169ed9539",
+  "verifierSha256": "febe7e81bd1d82c2347f127f09ce654283d2cee69ab5668d82666db5d8dad9ee",
+  "candidateComparison": {
+    "commit": "205cc4d0c551626b95f0390acd8cf4b5810e1ef7",
+    "command": "env -u DATABASE_URL npx tsx scripts/verify/keyword-action-costs-926.ts",
+    "exitCode": 1,
+    "logSha256": "6f3370c247aa015cfb4e26e82510085593636fd1d04b16a6452272f9873cb5b9",
+    "sameAssertionLine": 344,
+    "oracleChanged": false,
+    "classification": "Existing refusal-category mismatch; activation remains correctly refused. Not a complete 926 pass."
+  }
+}

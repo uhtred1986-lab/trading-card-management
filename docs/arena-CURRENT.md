@@ -6,10 +6,11 @@ Last updated: 19 October 2026
 
 Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 #897 corpus qualification is complete; persisted executable rules remain the
-authority. Preserve delivered Union behaviour and address the remaining typed
-Union-Absorb boundary in #923 through the existing machinery. PR #1083 records
-its native identity and source occurrence; its one-record application remains
-separate from code delivery and requires a new exact approval.
+authority. PR #1083's typed Absorb contract is deployed; its separately approved
+one-record update is applied and verified. PR #1084 adds distinct typed Potara
+identity/materials for BT2-012/front/0 through the existing Union machinery.
+Its one-record proposal remains separate from code delivery and needs exact
+approval after deployment.
 
 #897 is closed after deployed #1071 and guarded record application. The actual
 stored BT6 Gogeta / Br Fusion versus Paragus / Broly pair completed 16/16 frozen
@@ -40,13 +41,21 @@ records. The [#825 application receipt](arena-backlog/evidence/825/metadata-2026
 and [#923 application receipt](arena-backlog/evidence/923/metadata-2026-10-19/application-receipt.json)
 record the distinct approvals and exact snapshots. #825's bounded reconciliation
 is complete, with its final actual-record evidence recorded. #923 remains open:
-BT3-070 front #0's stored v9 still lacks Absorb identity. The
-[bounded #1083 contract and proposal](arena-backlog/evidence/907/absorb-identity-2026-10-19/README.md)
-preserve its existing typed material/effect programs and add only `cost.absorb`.
-The previous eleven-row approval does not authorize that new field or another
-refresh. Its [actual admission](arena-backlog/evidence/923/metadata-2026-10-19/actual-admission.json)
-and [reference material/payment proof](arena-backlog/evidence/923/metadata-2026-10-19/actual-reference-records.json)
-retain that distinction.
+BT3-070 front #0 is now v10 with recorded Absorb identity. Its
+[separate application](arena-backlog/evidence/907/absorb-identity-2026-10-19/application-receipt.json)
+preserves all original bodies and private review fields; the exact actual record
+passes 66 scenarios on the deployed engine. The earlier eleven-row metadata
+application is complete and must not be repeated.
+
+The [bounded Potara proposal](arena-backlog/evidence/907/potara-identity-2026-10-19/README.md)
+adds only identity/material and admission metadata to rule10297, BT2-012/front/0,
+v1→v2. Its 76 proposed-record scenarios pass, including ordinary seven-energy
+play alongside native five-energy Potara. The other two stored Vegito records
+are excluded. Original #925/#927/#929/#930 controls pass; #926 retains an
+independently reproduced baseline refusal-category assertion failure. This is
+not a whole-card, whole-deck or complete Union certification. After deployment,
+apply only the exact proposal if approved, then verify its actual readback.
+Other indexed #923/#930 acceptance remains open.
 
 Earlier #1066–#1068 deliveries are historical checkpoints, not pending drafts:
 [typed activated payment](arena-backlog/evidence/907/typed-payment-2026-10-19/README.md),

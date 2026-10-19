@@ -1,0 +1,54 @@
+{
+  "format": "potara-identity-official-audit-v1",
+  "scope": "BT2-012/front/0 only; no implementation/application",
+  "sources": [
+    {
+      "card": "BT2-012",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT2-012",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT2-012",
+      "status": 200,
+      "bytes": 134186,
+      "sha256": "68949a19ae4dc5d6f239ea0fee77d4d80fb07431c8fe29dc5c90b14eef7bbcac",
+      "retrievedUTC": "2026-10-19T16:16:29.409234+00:00",
+      "accessLimits": null,
+      "reuseForPotara": "Same-day saved retrieval; original byte/hash verified for Potara feasibility audit; no second fetch."
+    },
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "finalURL": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedUTC": "2026-10-19T13:07:11.288512+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again.",
+      "reuseForPotara": "Same-day saved retrieval; original byte/hash verified for Potara feasibility audit; no second fetch."
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedUTC": "2026-10-19T13:07:20.944547+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again.",
+      "reuseForPotara": "Same-day saved retrieval; original byte/hash verified for Potara feasibility audit; no second fetch."
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedUTC": "2026-10-19T13:07:25.624300+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again.",
+      "reuseForPotara": "Same-day saved retrieval; original byte/hash verified for Potara feasibility audit; no second fetch."
+    }
+  ],
+  "coordinatorSafeFreezeSha256": "c544a9d70a808883d6b8c60cbb495653ea1e43b4a512933a2909e9468a10ede6",
+  "specificErrataMatches": 0,
+  "communityRulingUsed": false,
+  "accessLimits": null
+}

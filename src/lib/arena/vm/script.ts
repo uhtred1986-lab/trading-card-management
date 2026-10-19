@@ -1236,6 +1236,7 @@ export interface SkillPrice {
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
   absorb?: AbsorbProcedure;
+  potara?: PotaraMaterials;
   /** Executable resource cost. Missing/unknown contracts require regeneration. */
   payment: SkillPayment;
   condition: Cond | null;
@@ -1275,6 +1276,7 @@ export interface CostRecord {
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
   absorb?: AbsorbProcedure;
+  potara?: PotaraMaterials;
   version: 1;
   /** Whether the compiler/editor accounted for the whole price. Text is display only. */
   readable: boolean;
@@ -1315,6 +1317,12 @@ export interface EvolutionBase {
   base: { area: "battle"; side: "you"; filter: CardFilter };
 }
 
+/** Material slots and source permission optins; no equal-power requirement. */
+export interface PotaraMaterials {
+  version: 1; variant: "Potara"; activation: "hand"; base: "battle"; samePower: false;
+  needs: FusionMaterials["needs"];
+  extensions: ("unionEnergy" | "unionFusionWarp" | "unionSourceUnder" | "unionSourceOpponentBattle")[];
+}
 export interface FusionMaterials {
   version: 1;
   needs: { name: string; filter: CardFilter }[];
@@ -1436,6 +1444,8 @@ export interface ScriptFrame {
   evolutionIdentity?: Pick<Script, "kind" | "price">;
   absorbIdentity?: Pick<Script, "kind" | "price" | "ops">;
   absorbSourceEpoch?: number;
+  potaraIdentity?: Pick<Script, "kind" | "price">;
+  potaraSourceEpoch?: number;
   evolutionSourceEpoch?: number;
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;

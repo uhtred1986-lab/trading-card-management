@@ -1,3 +1,5 @@
+import { compilePotaraMaterials } from "./potara-materials";
+import { isPotaraSkill, POTARA_REBUILD } from "../vm/potara-materials";
 import { isAbsorbSkill, ABSORB_REBUILD } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
 import { needsEvolutionContract, EVOLUTION_REBUILD } from "../vm/evolution-base";
@@ -42,6 +44,7 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
+  if (isPotaraSkill(skill) && !compilePotaraMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [POTARA_REBUILD] };
   if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read = narrowHiddenChoices(compileSkillText(skill));
