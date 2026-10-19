@@ -1,4 +1,4 @@
-import { fusionLineProblem, evolutionLineProblem, absorbLineProblem } from "./skill-identity";
+import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineProblem } from "./skill-identity";
 /**
  * #926: the printed action price of a keyword move — what [Union-Fusion],
  * [Union-Potara] and the [Evolve] family print before the colon beside their
@@ -108,7 +108,7 @@ function readable(line: ActivationLine, ops: Op[]): void {
 }
 
 const priceFrame = (line: ActivationLine, player: PlayerId, ops: Op[], cost?: KeywordCost): ScriptFrame => ({
-  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) } } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, ...(cost ? { keywordCost: cost } : {}),
+  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) } } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, ...(cost ? { keywordCost: cost } : {}),
 });
 
 /** Pay the energy half with `charge` and then the whole action price, on a copy; true when every instruction can complete. */
@@ -155,7 +155,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const ops = keywordActionPrice(cost.line);
   if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -168,6 +168,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
 export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.keywordCost!;
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
+  if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);
   try {
     if (cost.fusion && cost.fusion.stage !== "action") {
@@ -397,7 +398,7 @@ function samePayment(a: VmPayment, b: VmPayment): boolean {
 /** Old pending Fusion saves already charged energy at declaration. They cannot
  * be repaired by guessing whether a cost was paid; require a rebuilt match. */
 export function assertCurrentFusion(cost: KeywordCost, evolution = false): void {
-  const gap = fusionLineProblem(cost.line, !!cost.fusion) ?? evolutionLineProblem(cost.line, evolution) ?? absorbLineProblem(cost.line);
+  const gap = fusionLineProblem(cost.line, !!cost.fusion) ?? evolutionLineProblem(cost.line, evolution) ?? absorbLineProblem(cost.line) ?? potaraLineProblem(cost.line);
   if (gap) throw new NotYet(gap, "#907");
   if ((cost.line.script?.price?.fusion !== undefined || isFusionPayment(cost.line)) && !cost.fusion)
     throw new NotYet("rebuild this saved match: obsolete Union-Fusion payment checkpoint", "#907");

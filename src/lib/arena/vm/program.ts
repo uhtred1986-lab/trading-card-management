@@ -1,3 +1,4 @@
+import { isPotaraSkill, requirePotaraMaterials } from "./potara-materials";
 import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
 import { recordedSkillIdentity } from "./skill-identity";
@@ -534,7 +535,7 @@ const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
 function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
   if (!text) return NO_KEYWORDS;
-  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined || s.price?.absorb !== undefined))
+  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined || s.price?.absorb !== undefined || s.price?.potara !== undefined))
     return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
   if (!names) {
@@ -648,9 +649,10 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
     if (typeof p.line !== "string" || !p.line) throw new IllegalAction("malformed typed Union grant display source; regenerate rules and rebuild saved matches/exports");
     if (p.unionVariant !== "Fusion" && p.unionVariant !== "Potara") throw new IllegalAction("missing typed Union grant identity; regenerate rules and rebuild saved matches/exports");
     if (p.unionVariant === "Fusion") requireFusionMaterials(p.price);
+    else requirePotaraMaterials(p.price);
     // The template contains no material/cost text. Grant identity and executable
     // facts come from the permission; line remains display/source evidence only.
-    const parsed = parseSkills(p.unionVariant === "Fusion" ? "[union-fusion]" : p.line);
+    const parsed = parseSkills(p.unionVariant === "Fusion" ? "[union-fusion]" : "[union-potara]");
     const sk = parsed[0];
     if (parsed.length !== 1 || sk.keyword?.name !== "Union" || sk.keyword.variant !== p.unionVariant) throw new IllegalAction("malformed typed Union grant identity; regenerate rules and rebuild saved matches/exports");
     out.push({ ...sk, usage: { version: 1, oncePerTurn: false, limit: null }, validity: { version: 1, sparking: null }, sparking: null, oncePerTurn: false, limit: null, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
@@ -667,16 +669,16 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
  * [Union-Potara] is only activated from there (22-13-5-3). Not asked of the
  * cards themselves - they are no Battle Card until `namedCandidates` tests them.
  */
-export function unionPotaraExtras(ctx: EngineContext, game: GameDefinition, state: VmState, master: PlayerId, card: string): string[] {
+export function unionPotaraExtras(ctx: EngineContext, game: GameDefinition, state: VmState, master: PlayerId, card: string, material?: import("./script").PotaraMaterials): string[] {
   const at = findCard(state, card);
   if (at?.zone !== "hand" || at.owner !== master) return [];
   const out = new Set<string>();
-  for (const p of permissions(ctx, game, state, "unionSourceUnder")) {
+  for (const p of material && !material.extensions.includes("unionSourceUnder") ? [] : permissions(ctx, game, state, "unionSourceUnder")) {
     if (p.master !== master || !permitted(ctx, game, state, p.filter, card)) continue;
     const test = p.source ? predicateOf(p.source, game) : () => true;
     for (const host of state.sides[master].zones.unison ?? []) if (test(attrsNow(ctx, game, state, host))) for (const id of state.cards[host].under) out.add(id);
   }
-  if (permissions(ctx, game, state, "unionSourceOpponentBattle").some((p) => p.master === master && p.target === card)) {
+  if ((!material || material.extensions.includes("unionSourceOpponentBattle")) && permissions(ctx, game, state, "unionSourceOpponentBattle").some((p) => p.master === master && p.target === card)) {
     for (const id of state.sides[other(master)].zones.battle ?? []) if (state.cards[id].owner === master) out.add(id);
   }
   return [...out];
@@ -1625,7 +1627,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         && permissions(ctx, game, state, c.what).some((p) => p.master === frame.master && p.target === card);
       // BT22-035 / BT22-140: another way to pay this card's [Aegis] that can be paid now.
       if (c.what === "aegisAlt") return aegisAlternatives(ctx, game, state, frame).length > 0;
-      if (c.what === "unionFusionAreas" || c.what === "unionFusionWarp") {
+      if (c.what === "unionEnergy" || c.what === "unionFusionAreas" || c.what === "unionFusionWarp") {
+        const potara = potaraOf(ctx, game, state, frame);
+        if (potara && !potara.extensions.includes(c.what as import("./script").PotaraMaterials["extensions"][number])) return false;
         const material = fusionOf(ctx, game, state, frame);
         if (material && !material.extensions.includes(c.what)) return false;
       }
@@ -1684,15 +1688,17 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
  * line cannot be paid.
  */
 export function namedCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, picked: string[], samePower = true): string[] {
-  const sk = frame.keywordPrice?.line.skill ?? lineOf(ctx, state, frame, game);
-  if (!sk) return [];
-  const fusion = fusionOf(ctx, game, state, frame);
+  const potara = potaraOf(ctx, game, state, frame);
+  const sk = frame.keywordPrice?.line.skill ?? (potara ? undefined : lineOf(ctx, state, frame, game));
+  if (!sk && !potara) return [];
+  const fusion = potara ? undefined : fusionOf(ctx, game, state, frame);
+  if (potara) samePower = false;
   if (fusion) samePower = fusion.samePower;
   // #925: each printed name carries only its own qualifiers (colour, type,
   // cost, power), so the combined description (`asPrinted`) must not narrow
   // the pool first — it would pool the union of every name's words.
   // #927: a [Union-Potara] also takes the cards a [Permanent] adds as sources.
-  const extras = sk.keyword?.name === "Union" && sk.keyword.variant === "Potara" && frame.card ? unionPotaraExtras(ctx, game, state, frame.master, frame.card) : [];
+  const extras = potara && frame.card ? unionPotaraExtras(ctx, game, state, frame.master, frame.card, potara) : [];
   const ids = resolveSelector(ctx, game, state, frame, { ...sel, printed: undefined });
   const pool = [...ids, ...extras.filter((id) => !ids.includes(id))].map((id) => {
     const def = ctx.defs[state.cards[id].cardId];
@@ -1701,19 +1707,29 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     const now = attrsNow(ctx, game, state, id);
     const attrs: Attrs = def && def.power != null ? { ...now, power: def.power } : now;
     // 22-13-4-2, 22-13-5-2: "the specified character's Battle Cards" - an Extra, Leader or token that prints the name is no material.
-    const battle = !!def && (fusion ? ["BATTLE", "Z-BATTLE"] : ["BATTLE", "Z-BATTLE", "UNISON", "Z-UNISON"]).includes(def.type);
+    const battle = !!def && (fusion || potara ? ["BATTLE", "Z-BATTLE"] : ["BATTLE", "Z-BATTLE", "UNISON", "Z-UNISON"]).includes(def.type);
     return { id, characters: def?.characters ?? [], power: def?.power ?? 0, attrs, battle };
   });
-  const needs = (fusion?.needs ?? unionNeeds(sk)).map((n) => {
+  const needs = (potara?.needs ?? fusion?.needs ?? unionNeeds(sk!)).map((n) => {
     const test = predicateOf(n.filter, game);
     return { name: n.name, accepts: (c: { attrs: Attrs; battle: boolean }) => c.battle && test(c.attrs) };
   });
   return namedSetCandidates(needs, pool, picked, samePower);
 }
 
+/** The Potara slots survive source/display changes after activation. */
+export function potaraOf(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): import("./script").PotaraMaterials | undefined {
+  if (frame.potaraIdentity) return requirePotaraMaterials(frame.potaraIdentity.price);
+  const captured = frame.keywordPrice?.line ?? frame.keywordCost?.line;
+  if (captured) return isPotaraSkill(captured.skill) ? requirePotaraMaterials(captured.script?.price) : undefined;
+  const sk = lineOf(ctx, state, frame, game); if (!sk || !isPotaraSkill(sk)) return undefined;
+  const price = isGrantedLine(sk.index) ? (sk as Skill & {price?: import("./script").SkillPrice}).price : skillsShowing(ctx, state, frame.card).scripts.bySkill[sk.index]?.price;
+  return requirePotaraMaterials(price);
+}
 /** A pending activation owns its captured executable contract across save/reload.
  * Before declaration, read the loaded script (or typed granting permission). */
 function fusionOf(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): import("./script").FusionMaterials | undefined {
+  if (frame.potaraIdentity) return undefined;
   const captured = frame.keywordPrice?.line;
   if (captured) return isFusionSkill(captured.skill) ? requireFusionMaterials(captured.script?.price) : undefined;
   const sk = lineOf(ctx, state, frame, game);

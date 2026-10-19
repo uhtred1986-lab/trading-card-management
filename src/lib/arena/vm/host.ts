@@ -574,7 +574,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // skill then resolves normally. Once bound, a material that has not moved since
         // (`stood`) is still where it was chosen from, whatever the permission now says.
         if (declared && union === "Union-Potara" && materials.length && sourceAt?.zone === "hand" && sourceAt.owner === opts.player) {
-          const extras = unionPotaraExtras(ctx, game, state, opts.player, source);
+          const extras = unionPotaraExtras(ctx, game, state, opts.player, source, frame.potaraIdentity?.price?.potara);
           if (materials.every((m) => inBattle(m) || extras.includes(m))) {
             for (const m of materials) if (!inBattle(m, dest)) moveTo(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
           }
@@ -582,6 +582,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
         const stood = bound.length === watch.length && watch.every((id, i) => bound[i].card === id && bound[i].zoneEpoch === epoch(id));
         const ready = stood
+          && (!frame.potaraIdentity || sourceAt?.zone === "hand" && sourceAt.owner === frame.master && epoch(source) === frame.potaraSourceEpoch)
           && (!frame.absorbIdentity || opts.onto === frame.card && inBattle(frame.card) && epoch(frame.card) === frame.absorbSourceEpoch)
           && (union === "Union-Absorb" ? true : sourceAt?.zone === "hand" && sourceAt.owner === opts.player)
           && (union === "Union-Fusion" || (!!opts.onto && (declared ? union === "Union-Absorb" ? inBattle(opts.onto) : materials.every((m) => inBattle(m, dest)) : true)));

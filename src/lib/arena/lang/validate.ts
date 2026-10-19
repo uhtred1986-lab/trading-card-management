@@ -70,6 +70,7 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
     const bad = absorbTextFallback(rule.cond) ? ABSORB_REBUILD : absorbEffectProblem(rule.ops as import("../vm/script").Op[]);
     if (bad) return { field: "ops", message: bad };
   }
+  if (isObject(rule.cost) && rule.cost.potara !== undefined && kind !== "keyword") return { field: "kind", message: "a typed Potara price requires recorded keyword kind (#907)" };
   if (isObject(rule.cost) && rule.cost.evolution !== undefined && kind !== "keyword")
     return { field: "kind", message: "a typed EX-Evolve price requires recorded keyword kind (#907)" };
   if (isObject(rule.cost) && rule.cost.fusion !== undefined && kind !== "keyword")
