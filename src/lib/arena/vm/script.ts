@@ -1338,6 +1338,8 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Existing card_rules.kind, persisted into executable contexts; required for typed Fusion. */
+  kind?: Skill["kind"];
   usage?: import("./usage").UsageRecord;
   validity?: import("./validity").ValidityRecord;
   combo?: import("./combo-qualification").ComboQualification;
@@ -1416,6 +1418,8 @@ export interface ScriptFrame {
   /** #729: a [Swap]'s printed action price, paid on the strict host after its energy and before the swap. Additive: older states never carry one. */
   swapCost?: import("./swap-costs").SwapCost;
   /** #926: a [Union]/[Evolve] move's printed action price — on its `DO` frame until `payActionPrice` (`keywordPrice`), then on the strict frame paying it (`keywordCost`). Fusion includes its remaining resource cost; older saves require rebuilding. */
+  /** Captured identity survives successful Fusion payment and source changes. */
+  fusionIdentity?: Pick<Script, "kind" | "price">;
   keywordPrice?: import("./keyword-costs").KeywordCost;
   keywordCost?: import("./keyword-costs").KeywordCost;
   /** #730: a 21-11 [Unique] choice (which same-named card stays) and its departures, on the rules engine. Additive: older states never carry one. */

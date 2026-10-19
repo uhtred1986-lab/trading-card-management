@@ -239,7 +239,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     for (const skill of grantedLines(ctx, game, state, card)) {
       const keyword = keywordMoveOf(game, skill);
       if (!keyword || !families.has(familyOf(keyword.offer as string))) continue;
-      out.push({ card, skillIndex: skill.index, skill, script: { ops: [], unsupported: [], price: skill.price, usage: skill.usage as import("./usage").UsageRecord, validity: skill.validity as import("./validity").ValidityRecord }, kind: keyword.offer as string, keyword });
+      out.push({ card, skillIndex: skill.index, skill, script: { kind: skill.kind, ops: [], unsupported: [], price: skill.price, usage: skill.usage as import("./usage").UsageRecord, validity: skill.validity as import("./validity").ValidityRecord }, kind: keyword.offer as string, keyword });
     }
   }
   return out;
@@ -925,7 +925,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and

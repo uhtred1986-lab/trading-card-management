@@ -39,7 +39,7 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
-  if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
+  if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read = narrowHiddenChoices(compileSkillText(skill));
   // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
   // first, whichever way the rest of the effect reads.
@@ -64,7 +64,7 @@ export function compileSkill(skill: Skill): Script {
   const usage = compileUsage(skill);
   const validity = compileValidity(skill);
   const gap = usageProblem(usage) ?? validityProblem(validity);
-  const result = { ...refuseUnmatchedComboEntry(skill, held), usage, validity, ...(gap ? { unsupported: [...held.unsupported, gap] } : {}) };
+  const result = { ...refuseUnmatchedComboEntry(skill, held), kind: skill.kind, usage, validity, ...(gap ? { unsupported: [...held.unsupported, gap] } : {}) };
   const combo = compileComboQualification(skill);
   return combo ? { ...result, combo, trigger: triggersOf(skill).filter((t) => combo.timing !== "entry" || t !== "comboed") } : result;
 }

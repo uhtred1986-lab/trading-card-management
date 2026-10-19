@@ -10,7 +10,7 @@ import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { addEffect } from "../../src/lib/arena/vm/effects";
-import { describeScript, type Op } from "../../src/lib/arena/vm/script";
+import { describeScript, type Cond, type Op } from "../../src/lib/arena/vm/script";
 import { attrsNow, forbids } from "../../src/lib/arena/vm/program";
 import { IllegalAction } from "../../src/lib/arena/vm/common";
 import { CTX, DEFS, card, fifty } from "./harness";
@@ -99,7 +99,7 @@ for (const owner of ["p1", "p2"] as const) for (const sourceCard of targets) for
   if (attacking && scenario.card === "C2907") {
     const changed = clone(ctx);
     const mutate = (ops: Op[]): void => { for (const op of ops) { if (op.op === "forbid" && op.what === "activateCounter" && op.filter) op.filter.costMin = 3; if (op.op === "if") { mutate(op.then); if (op.else) mutate(op.else); } } };
-    mutate(changed.scripts[sourceCard].bySkill[10].ops);
+    mutate(changed.scripts![sourceCard].bySkill[10].ops);
     assert.equal(forbids(changed, game, clone(s), "activateCounter", { player: defender, card: candidate, skillKind: "counter:attack" }), false, "stored threshold3 governs without display threshold2 override");
     const changedWindow = RULES.apply(changed, beforeAttack, attack).state as VmState;
     assert.ok(RULES.legalActions(changed, clone(changedWindow)).some(l => l.action.type === "counter" && l.action.card === candidate));
@@ -111,15 +111,15 @@ for (const owner of ["p1", "p2"] as const) for (const sourceCard of targets) for
 }
 for (const id of targets) {
   const row = rows.find(r => r.cardId === id && r.skillIndex === 10)!;
-  assert.deepEqual(row.unread, []); assert.equal(row.cond?.kind, "inBattle");
+  assert.deepEqual(row.unread, []); assert.equal((row.cond as Cond | null)?.kind, "inBattle");
   assert.match(row.reads ?? "", /energy cost.{0,20}2/, "human reading exposes the bound rather than claiming every Counter");
-  const op = row.ops[0]; assert.equal(op.op, "forbid"); if (op.op === "forbid") assert.equal(op.filter?.costMin, 2);
+  const op = (row.ops as Op[])[0]; assert.equal(op.op, "forbid"); if (op.op === "forbid") assert.equal(op.filter?.costMin, 2);
 }
 for (const id of targets) {
   const qualified = { ...defs[id], skill: defs[id].skill!.replace("with energy costs of 2 or more", "with an unimplemented qualification") };
   assert.ok(skillRecords(qualified).find(r => r.skillIndex === 10)!.unread.length, "unimplemented trailing Counter qualification cannot become a blanket ban");
 }
-const sourceForReading = rows.find(r => r.cardId === targets[0] && r.skillIndex === 10)!.ops[0];
+const sourceForReading = (rows.find(r => r.cardId === targets[0] && r.skillIndex === 10)!.ops as Op[])[0];
 assert.equal(sourceForReading.op, "forbid");
 if (sourceForReading.op === "forbid") {
   const reading = describeScript([{ ...sourceForReading, counterKind: "play", otherCards: true, unless: { kind: "life", side: "you", atMost: 2 } }]);

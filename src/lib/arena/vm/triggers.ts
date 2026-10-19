@@ -1,3 +1,4 @@
+import { recordedSkillIdentity } from "./skill-identity";
 import { noSparking, withValidity, sparkingIsValid, validityProblem } from "./validity";
 import { unlimitedUsage, withUsage, requireUsage } from "./usage";
 import { needsPaymentRecord } from "./skill-payment";
@@ -485,6 +486,7 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   const copies = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === id && e.copied);
   const executable = (sk: Skill, scripts: CardScripts): Skill => {
     const script = scripts.bySkill[sk.index];
+    sk = recordedSkillIdentity(sk, script);
     const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
     const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
     if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");

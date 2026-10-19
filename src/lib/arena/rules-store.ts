@@ -1,3 +1,4 @@
+import { fusionIdentityProblem } from "./vm/skill-identity";
 import { validityProblem, type ValidityRecord } from "./vm/validity";
 import { usageProblem, type UsageRecord } from "./vm/usage";
 /**
@@ -76,10 +77,10 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
 
 /** Structural material/grant failures always block drafts too. Other support
  * diagnostics retain the loader's existing draft/review policy. */
-function materialContractGaps(row: Pick<RuleRow, "printed" | "cost" | "ops">): string[] {
+function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "ops">): string[] {
   const unsupported: string[] = [];
-  if (parseSkills(row.printed).some(isFusionSkill)) {
-    const gap = fusionMaterialsProblem((row.cost as CostRecord | null)?.fusion);
+  if ((row.cost as CostRecord | null)?.fusion !== undefined || parseSkills(row.printed).some(isFusionSkill)) {
+    const gap = fusionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -279,8 +280,8 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     const support = runtimeSupportOfRow(row);
     const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
-      ? { ops: [], unsupported: row.unread, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
-      : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
+      ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
+      : { kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
     base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
@@ -342,8 +343,9 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   // it out check their program with no X bound, as this does). Filters are
   // stored whole (`completeFilters`).
   const w: RuleWrite = { ...given, ops: completeFilters(given.ops), cond: given.cond ? completeFilters(given.cond) : given.cond, ...(given.cost !== undefined ? { cost: completeFilters(given.cost === null ? zeroCostRecord() : given.cost) } : {}) };
-  if (parseSkills(existing?.printed ?? w.printed ?? "").some(isFusionSkill)) {
-    const problem = fusionMaterialsProblem(((w.cost ?? existing?.cost) as CostRecord | undefined)?.fusion);
+  if (((w.cost ?? existing?.cost) as CostRecord | undefined)?.fusion !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isFusionSkill)) {
+    const effectiveCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
+    const problem = kind !== "keyword" ? "contradictory recorded Union-Fusion identity (#907)" : fusionMaterialsProblem(effectiveCost?.fusion);
     if (problem) throw new Error(`${w.cardId} [${w.skillIndex}]: ${problem}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;

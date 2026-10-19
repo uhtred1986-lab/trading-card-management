@@ -1,3 +1,4 @@
+import { fusionIdentityProblem } from "./skill-identity";
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
 import { lifeToHandForbidden } from "./life-movement";
 import { requireUsage, usageProblem } from "./usage";
@@ -1220,7 +1221,10 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    const sourceScript = frame.skillIndex !== undefined ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
+      const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
+    }
     // Activated effects carry the executable usage they began with (9-6-11).
     // Do not rediscover a copied skill after its granting effect has gone.
     if (frame.skillIndex !== undefined && !frame.replacing && !frame.standingGrantId && !frame.taxGate) {

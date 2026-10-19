@@ -1,4 +1,4 @@
-import { requireFusionMaterials } from "./fusion-materials";
+import { fusionLineProblem } from "./skill-identity";
 /**
  * #926: the printed action price of a keyword move — what [Union-Fusion],
  * [Union-Potara] and the [Evolve] family print before the colon beside their
@@ -107,7 +107,7 @@ function readable(line: ActivationLine, ops: Op[]): void {
 }
 
 const priceFrame = (line: ActivationLine, player: PlayerId, ops: Op[], cost?: KeywordCost): ScriptFrame => ({
-  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, ...(cost ? { keywordCost: cost } : {}),
+  ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) } } : {}), usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, ...(cost ? { keywordCost: cost } : {}),
 });
 
 /** Pay the energy half with `charge` and then the whole action price, on a copy; true when every instruction can complete. */
@@ -395,8 +395,8 @@ function samePayment(a: VmPayment, b: VmPayment): boolean {
 /** Old pending Fusion saves already charged energy at declaration. They cannot
  * be repaired by guessing whether a cost was paid; require a rebuilt match. */
 export function assertCurrentFusion(cost: KeywordCost): void {
-  if (isFusionPayment(cost.line)) {
-    try { requireFusionMaterials(cost.line.script?.price); } catch { throw new NotYet("rebuild this saved match: missing or malformed typed Fusion material contract v1", "#907"); }
-  }
-  if (isFusionPayment(cost.line) && !cost.fusion) throw new NotYet("rebuild this saved match: obsolete Union-Fusion payment checkpoint", "#907");
+  const gap = fusionLineProblem(cost.line, !!cost.fusion);
+  if (gap) throw new NotYet(gap, "#907");
+  if ((cost.line.script?.price?.fusion !== undefined || isFusionPayment(cost.line)) && !cost.fusion)
+    throw new NotYet("rebuild this saved match: obsolete Union-Fusion payment checkpoint", "#907");
 }

@@ -1,3 +1,4 @@
+import { recordedSkillIdentity } from "./skill-identity";
 import { NotYet } from "./errors";
 import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
 /**
@@ -53,7 +54,7 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides } from "./common";
+import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides, programsOf } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -427,7 +428,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = skillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null);
+  if (game.attributes.keywords) base.keywords = skillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"));
   // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
   if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, game, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
@@ -529,8 +530,10 @@ function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] }
  */
 const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
-function printedKeywordNames(text: string | null): readonly string[] {
+function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
   if (!text) return NO_KEYWORDS;
+  if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined))
+    return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
   if (!names) {
     if (KEYWORD_NAMES.size >= 20_000) KEYWORD_NAMES.clear();

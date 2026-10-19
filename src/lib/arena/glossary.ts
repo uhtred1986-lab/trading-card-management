@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Record-owned Union-Fusion identity (#907)",
+    body: "A valid versioned cost.fusion contract and the existing recorded keyword kind identify Union-Fusion; runtime display tags do not choose its activation or hooks. The compiler and loader project the persisted kind into executable scripts. Missing or contradictory Fusion identity requires regeneration and match rebuilding. Blocked records cannot gain another keyword through their display, including keyword filters. Captured Fusion payment lines and effect frames retain and validate the same identity after JSON reload; an activated effect does not rediscover its current source eligibility. Native bare keywords remain ruleset-owned, and other paid keyword variants retain their named admission boundaries. Exact BT6-012, BT6-013 and BT6-015 Fusion proofs do not overwrite protected records or qualify the pair."
+  },
+  {
     title: "Counter restrictions bounded by current card energy cost (#907)",
     body: "BT6-060 and BT6-061 prohibit the opponent's Counter skills only while this card is attacking and only when the Counter card's current energy cost is 2 or more (1-2-4/5, 9-9-1). The stored forbid filter carries that bound and the human reading exposes it. Card-cost reductions/increases and the remaining specified-cost floor apply; additional skill orbs and waived payment do not change the card information. Unknown trailing qualifications stay unread. Both live offers and direct activation recheck the prohibition, so a stale or forged candidate list cannot bypass it. Compiler proof is not actual-record application or pair qualification."
   },
