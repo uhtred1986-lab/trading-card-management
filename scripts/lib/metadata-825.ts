@@ -13,7 +13,6 @@ import { compileValidity, validityProblem } from "../../src/lib/arena/vm/validit
 import { comboScriptProblem } from "../../src/lib/arena/vm/combo-qualification";
 import { costRecordProblem, zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { runtimeSupportOfRow } from "../../src/lib/arena/rules-store";
-import type { RuleRow } from "../../src/lib/arena/rules-store";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import type { CardDef } from "../../src/lib/arena/types";
 export const METADATA_825_REFERENCE = "docs/arena-backlog/evidence/825/metadata-2026-10-19";
@@ -61,7 +60,7 @@ export function metadata825Plan(input: Metadata825Row[]) {
     assert.equal(costRecordProblem(cost), null); assert.equal(metadata825Hash(cost), metadata825Hash(zeroCostRecord()), "only the exact zero Auto price is permitted");
     const after: Metadata825Row = { ...before, cost, usage, validity, combo };
     assert.equal(metadata825ProgramHash(after), metadata825ProgramHash(before), "program body must be preserved");
-    assert.deepEqual(runtimeSupportOfRow({ kind: String(before.kind), printed: String(before.printed), trigger: before.trigger, unread: before.unread, ops: before.ops, cost, usage, validity, combo } as RuleRow).unsupported, [], "metadata does not establish runtime admission");
+    assert.deepEqual(runtimeSupportOfRow({ kind: String(before.kind), printed: String(before.printed), trigger: before.trigger, unread: before.unread, ops: before.ops, cost, usage, validity, combo } as Parameters<typeof runtimeSupportOfRow>[0]).unsupported, [], "metadata does not establish runtime admission");
     const changed = ["cost", "usage", "validity", "combo"].filter(k => metadata825Hash(before[k]) !== metadata825Hash(after[k]));
     if (changed.length) assert.equal(before.version, target.version, "partially changed next-version snapshot requires new review");
     return { before, cost, usage, validity, combo, changed, publicTarget: {
