@@ -1,3 +1,4 @@
+import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
 import { requireUsage, usageProblem } from "./usage";
 import { comboScriptProblem } from "./combo-qualification";
 /**
@@ -791,7 +792,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   for (const item of state.pending) {
     if (item.kind === "hook") continue;
     const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
-    const gap = usageProblem(sk?.usage);
+    const gap = usageProblem(sk?.usage) ?? validityProblem(sk?.validity);
     if (gap) {
       interruptGame(ctx, game, state, ev, { sourceCard: item.card, skillIndex: item.skillIndex,
         trigger: item.trigger, issue: "#907", detail: gap });
@@ -849,6 +850,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s [Bond ${skill.bond}] condition does not hold, so its skill does not activate` });
     return true;
   }
+  if (skill?.kind === "auto" && !sparkingIsValid(state, next.master, skill.validity)) {
+    if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s Sparking validity no longer holds, so its skill does not activate` });
+    return true;
+  }
   // #741: the queue was swept before the order was asked; this is the same
   // rule for the one taken off it, in case a use was spent in between.
   if (skill && usesLeft(state, next.master, next.card, skill) === 0) {
@@ -866,6 +871,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     skillIndex: next.skillIndex,
     usage: skill?.usage as import("./usage").UsageRecord,
+    validity: skill?.validity as import("./validity").ValidityRecord,
   };
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
@@ -1216,11 +1222,13 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const sourceScript = frame.skillIndex !== undefined ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     // Activated effects carry the executable usage they began with (9-6-11).
     // Do not rediscover a copied skill after its granting effect has gone.
-    if (frame.skillIndex !== undefined && !frame.replacing && !frame.standingGrantId && !frame.taxGate)
+    if (frame.skillIndex !== undefined && !frame.replacing && !frame.standingGrantId && !frame.taxGate) {
       requireUsage(frame.usage);
+      requireValidity(frame.validity);
+    }
     for (const captured of [frame.autoCost?.skill, frame.counterCost?.skill, frame.reviveCost?.skill,
       frame.keywordPrice?.line.skill, frame.keywordCost?.line.skill, frame.swapCost?.line.skill]) {
-      if (captured) requireUsage(captured.usage);
+      if (captured) { requireUsage(captured.usage); requireValidity(captured.validity); }
     }
     if (sourceScript?.combo !== undefined || frame.trigger && ["comboUsed", "comboed"].includes(frame.trigger)) {
       const gap = comboScriptProblem(sourceScript)

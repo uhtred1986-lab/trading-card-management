@@ -48,6 +48,7 @@ export function ruleViewOf(rule: ProbeRule): Rule {
   return {
     kind: rule.kind,
     trigger: rule.trigger as Rule["trigger"],
+    ...(rule.validity !== undefined ? { validity: rule.validity } : {}),
     ...(rule.usage !== undefined ? { usage: rule.usage } : {}),
     ...(rule.combo ? { combo: rule.combo } : {}),
     cost,

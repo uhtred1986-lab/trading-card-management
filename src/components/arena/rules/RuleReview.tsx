@@ -266,7 +266,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
               <p className="whitespace-pre-wrap text-base leading-relaxed text-space-50">{item.printed}</p>
             </section>
             {!text.blank && !explaining && <>
-              <RuleReading title="Current interpretation" rule={{ kind: item.tag, trigger: item.trigger, usage: item.usage, combo: item.combo, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />
+              <RuleReading title="Current interpretation" rule={{ kind: item.tag, trigger: item.trigger, usage: item.usage, validity: item.validity, combo: item.combo, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />
               {admin && <button type="button" disabled={pending || explaining || !!approvalProblem(item) || !item.reviewVersion} onClick={right} className={approvalBtn}>Approve current interpretation</button>}
             </>}
             {admin ? <RuleExplanationPanel key={item.id} id={item.id} version={item.reviewVersion ?? ""} actions={explanationActions} initial={item.pendingExplanation} onWorking={setExplaining}
@@ -275,7 +275,7 @@ function Queue({ items: initial, scope, backHref, reviewHref = "/arena/rules/rev
             <button type="button" disabled={pending} onClick={skip} className={`${actBtn} border border-space-600 text-space-100`}>Review later / next skill</button>
             <details className="space-y-3 rounded-xl border border-space-700 p-3">
               <summary className="tap cursor-pointer font-semibold text-space-300">More details and manual corrections</summary>
-              {!text.blank && explaining && <RuleReading title="Previous interpretation" rule={{ kind: item.tag, trigger: item.trigger, usage: item.usage, combo: item.combo, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />}
+              {!text.blank && explaining && <RuleReading title="Previous interpretation" rule={{ kind: item.tag, trigger: item.trigger, usage: item.usage, validity: item.validity, combo: item.combo, cost: item.cost, cond: item.cond, ops: item.ops } as Rule} />}
             <nav aria-label="Compare this skill" className="grid grid-cols-2 gap-2">
               <button type="button" aria-pressed={step === "printed"} onClick={() => setStep("printed")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "printed" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>1. Printed on card</button>
               <button type="button" aria-pressed={step === "interpretation"} onClick={() => setStep("interpretation")} className={`tap rounded-xl border p-2 text-sm text-space-100 ${step === "interpretation" ? "border-ki-500 bg-ki-500/15 ring-1 ring-ki-500" : "border-space-600"}`}>2. Interpretation</button>

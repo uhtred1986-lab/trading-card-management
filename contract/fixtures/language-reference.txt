@@ -4667,6 +4667,14 @@
       "is": "the printed skill tag, in WHEN — read-only"
     },
     {
+      "written": "USAGE \"{\\\"version\\\":1,\\\"oncePerTurn\\\":true,\\\"limit\\\":null}\"",
+      "is": "versioned executable use ceilings; explicit unlimited uses false and null"
+    },
+    {
+      "written": "VALIDITY \"{\\\"version\\\":1,\\\"sparking\\\":3}\"",
+      "is": "versioned Sparking validity; explicit no requirement uses sparking:null"
+    },
+    {
       "written": "$t,  $looked MINUS $kept",
       "is": "cards bound by an earlier step"
     },

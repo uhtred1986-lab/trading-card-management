@@ -1173,7 +1173,7 @@ export function problemsOf(rule: Rule, kind: string): Problem[] {
   });
   const whole = validateRule(rule, kind);
   if (whole) {
-    const clause: RuleClause = whole.field === "rule" || whole.field === "kind" || whole.field === "combo" || whole.field === "usage" ? "trigger" : whole.field;
+    const clause: RuleClause = whole.field === "rule" || whole.field === "kind" || whole.field === "combo" || whole.field === "usage" || whole.field === "validity" ? "trigger" : whole.field;
     if (!out.some((p) => clauseOf(p.path) === clause)) out.push({ path: clause, message: whole.message });
   }
   return out;
@@ -1208,6 +1208,7 @@ export interface Block {
 }
 
 export interface RuleBlocks {
+  validity?: Rule["validity"];
   usage?: Rule["usage"];
   combo?: Rule["combo"];
   kind: string;
@@ -1264,6 +1265,7 @@ function costBlock(item: CostItem): Block {
 export function blocksOf(rule: Rule): RuleBlocks {
   return {
     kind: rule.kind,
+    ...(rule.validity !== undefined ? { validity: rule.validity } : {}),
     ...(rule.usage !== undefined ? { usage: rule.usage } : {}),
     ...(rule.combo != null ? { combo: rule.combo } : {}),
     trigger: rule.trigger.map((t, i) => ({ path: `trigger[${i}]`, clause: "trigger" as const, what: "trigger" as const, key: t, slots: [] })),
@@ -1294,6 +1296,7 @@ function nodeOf(b: Block): unknown {
 export function ruleFromBlocks(b: RuleBlocks): Rule {
   return {
     kind: b.kind,
+    ...(b.validity !== undefined ? { validity: b.validity } : {}),
     ...(b.usage !== undefined ? { usage: b.usage } : {}),
     ...(b.combo != null ? { combo: b.combo } : {}),
     trigger: b.trigger.map((t) => t.key) as Rule["trigger"],

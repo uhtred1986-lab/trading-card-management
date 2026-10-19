@@ -1,3 +1,4 @@
+import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { triggersOf } from "../gaps";
 import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
@@ -38,7 +39,7 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
-  if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { ops: [], usage: compileUsage(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
+  if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read = narrowHiddenChoices(compileSkillText(skill));
   // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
   // first, whichever way the rest of the effect reads.
@@ -61,8 +62,9 @@ export function compileSkill(skill: Skill): Script {
   // is the nearest thing the language has to that.
   const held = skill.kind === "permanent" && !triggeredPermanent(skill) ? { ...caused, ops: holdForGame(caused.ops) } : caused;
   const usage = compileUsage(skill);
-  const gap = usageProblem(usage);
-  const result = { ...refuseUnmatchedComboEntry(skill, held), usage, ...(gap ? { unsupported: [...held.unsupported, gap] } : {}) };
+  const validity = compileValidity(skill);
+  const gap = usageProblem(usage) ?? validityProblem(validity);
+  const result = { ...refuseUnmatchedComboEntry(skill, held), usage, validity, ...(gap ? { unsupported: [...held.unsupported, gap] } : {}) };
   const combo = compileComboQualification(skill);
   return combo ? { ...result, combo, trigger: triggersOf(skill).filter((t) => combo.timing !== "entry" || t !== "comboed") } : result;
 }
@@ -447,7 +449,7 @@ function compileSkillText(skill: Skill): Script {
         return { ops: [], unsupported: ["unsupported granted Union identity or use-limit metadata"] };
       }
       if (isFusionSkill(line) && !compileFusionMaterials(line)) return { ops: [], unsupported: ["unsupported granted Fusion material description"] };
-      if (line.oncePerTurn || line.limit !== null) return { ops: [], unsupported: ["granted Union use ceilings require a typed grant contract; this grant is unsupported (#907)"] };
+      if (line.oncePerTurn || line.limit !== null || line.sparking !== null) return { ops: [], unsupported: ["granted Union use ceilings/Sparking require a typed grant contract; this grant is unsupported (#907)"] };
       return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2], unionVariant: line.keyword?.name === "Union" && line.keyword.variant === "Potara" ? "Potara" : "Fusion", price: compileSkillPrice(line) }], unsupported: [] };
     }
   }

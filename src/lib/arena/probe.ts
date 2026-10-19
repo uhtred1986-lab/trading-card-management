@@ -42,11 +42,12 @@ export type { BoardKnobs, KnobValue, ProbeFamily, ProbeOutcome, ProbeRule, Probe
  * — the row's hoisted condition already wrapped back around its steps, which
  * is `programOf` in the store; the probe never reads the table itself.
  */
-export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown; combo?: unknown; usage?: unknown; cond?: unknown }, def: CardDef, program: Op[]): ProbeRule {
+export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }, def: CardDef, program: Op[]): ProbeRule {
 
   return {
     ...(row.cond !== undefined ? { hoisted: row.cond != null } : {}),
     price: priceFromCostRecord(row.cost as CostRecord),
+    ...(row.validity !== undefined ? { validity: row.validity as ProbeRule["validity"] } : {}),
     ...(row.usage !== undefined ? { usage: row.usage as ProbeRule["usage"] } : {}),
     ...(row.combo != null ? { combo: row.combo as ProbeRule["combo"] } : {}),
     def,
@@ -174,7 +175,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
   // (`rulesFor`), and an [Auto] answers to it rather than to its printed
   // text. An untraced run reads the printed text, as every stored digest was
   // taken.
-  const trigger = { ...(rule.usage !== undefined ? { usage: rule.usage } : {}), ...(rule.trigger.length ? { trigger: rule.trigger as Trigger[] } : {}), ...(rule.combo ? { combo: rule.combo } : {}) };
+  const trigger = { ...(rule.validity !== undefined ? { validity: rule.validity } : {}), ...(rule.usage !== undefined ? { usage: rule.usage } : {}), ...(rule.trigger.length ? { trigger: rule.trigger as Trigger[] } : {}), ...(rule.combo ? { combo: rule.combo } : {}) };
   scripts[key] = {
     bySkill: { [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread, price, ...trigger } : { ops, unsupported: [], price, ...trigger } },
     complete: !rule.open,

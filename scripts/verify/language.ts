@@ -13,6 +13,9 @@ import { languageReference } from "../../src/lib/arena/lang/reference";
 import { SELECTOR_FLAGS } from "../../src/lib/arena/lang/parse";
 import { negateAs } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
+import { unlimitedUsage } from "../../src/lib/arena/vm/usage";
+import { noSparking } from "../../src/lib/arena/vm/validity";
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { expandMacros, opsIn, rulesetFor } from "../../src/lib/arena/rulesets";
 import { whenMoments } from "../../src/lib/arena/rulesets/words";
@@ -319,7 +322,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   const sparse = { colors: ["Red"], traits: ["Saiyan"] } as unknown as CardFilter;
   assert.equal(matches(DEFS.V1, sparse), false, "V1 is red but not a Saiyan");
   assert.equal(matches({ ...DEFS.V1, traits: ["Saiyan"] }, sparse), true);
-  const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [] } }, complete: true, unsupported: [] } } };
+  const ctx = { defs: DEFS, scripts: { KILLER: { bySkill: { 0: { ops: [{ op: "choose", sel: { side: "opponent", area: "battle", count: 1, filter: sparse }, as: "t" }, { op: "ko", target: { var: "t" } }], unsupported: [], usage: unlimitedUsage(), validity: noSparking(), price: zeroSkillPrice() } }, complete: true, unsupported: [] } } };
   const s = stagedG({ hand: ["KILLER"], energy: ["V1"], oppBattle: ["V-BLUE", "V1"] });
   const r = IMPL.apply(ctx as never, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "KILLER") });
   assert.notEqual(r.state.prompt.kind, "gameOver");
@@ -336,7 +339,7 @@ import type { CardFilter, SchemaOp } from "./harness";
 // layer's two halves (a number while the card is in play, a list in every
 // area).
 {
-  const rule = (name: string, ops: unknown) => ({ defs: DEFS, scripts: { [name]: { bySkill: { 0: { ops, unsupported: [] } }, complete: true, unsupported: [] } } }) as never;
+  const rule = (name: string, ops: unknown) => ({ defs: DEFS, scripts: { [name]: { bySkill: { 0: { ops, unsupported: [], usage: unlimitedUsage(), validity: noSparking(), price: zeroSkillPrice() } }, complete: true, unsupported: [] } } }) as never;
   const yourBattle = { sel: { side: "you", area: "battle", count: 99 } };
 
   // Resolving: an [Auto] that pumps your Battle Cards when it is played.

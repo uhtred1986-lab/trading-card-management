@@ -308,6 +308,8 @@ function refLiterals(): RefLiteral[] {
     { written: SPECIAL_TARGETS.map((s) => `[${s}]`).join("  "), is: "a special target" },
     { written: "[Blocker]   [Strike x: 3]   [Empower color: Red, x: 2]", is: `a keyword skill, with its parameters — one of the ${v.keywordNames.length} keywords the parser knows (/arena/rules/keywords)` },
     { written: "[auto]   [activate:main]   [counter:attack]   [permanent]", is: "the printed skill tag, in WHEN — read-only" },
+    { written: 'USAGE "{\\"version\\":1,\\"oncePerTurn\\":true,\\"limit\\":null}"', is: "versioned executable use ceilings; explicit unlimited uses false and null" },
+    { written: 'VALIDITY "{\\"version\\":1,\\"sparking\\":3}"', is: "versioned Sparking validity; explicit no requirement uses sparking:null" },
     { written: "$t,  $looked MINUS $kept", is: "cards bound by an earlier step" },
     { written: `${v.sides.join(" · ")}   |   ${v.areas.join(" · ")}   |   ${v.durations.join(" · ")}`, is: "a side, a zone, a duration" },
     { written: `"…"   null   true   [Red, Blue]`, is: "a text, an absent value, a flag, a list" },

@@ -173,6 +173,11 @@ class Parser {
       try { usage = JSON.parse(this.string()); } catch { this.fail("a usage contract must be valid JSON"); }
       this.endOfLine();
     }
+    let validity: Rule["validity"];
+    if (this.eatKw("VALIDITY")) {
+      try { validity = JSON.parse(this.string()); } catch { this.fail("a validity contract must be valid JSON"); }
+      this.endOfLine();
+    }
     let combo: Rule["combo"];
     if (this.eatKw("COMBO")) {
       try { combo = JSON.parse(this.string()); } catch { this.fail("a combo qualification must be valid JSON"); }
@@ -187,7 +192,7 @@ class Parser {
     const ops = this.ops();
     this.skipNl();
     if (this.tok.kind !== "eof") this.fail("there is more here than a rule", []);
-    return { kind, trigger, ...(usage !== undefined ? { usage } : {}), ...(combo !== undefined ? { combo } : {}), cost, cond, ops };
+    return { kind, trigger, ...(validity !== undefined ? { validity } : {}), ...(usage !== undefined ? { usage } : {}), ...(combo !== undefined ? { combo } : {}), cost, cond, ops };
   }
 
   private endOfLine(): void {

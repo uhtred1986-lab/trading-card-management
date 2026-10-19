@@ -27,6 +27,7 @@ import type { Requirement, SkillKind, Trigger } from "../types";
 export interface Rule {
   kind: string;
   usage?: import("../vm/usage").UsageRecord;
+  validity?: import("../vm/validity").ValidityRecord;
   trigger: Trigger[];
   combo?: import("../vm/combo-qualification").ComboQualification | null;
   cost: CostRecord | null;
@@ -43,7 +44,7 @@ export interface Rule {
 export interface LangError {
   line: number;
   col: number;
-  /** The clause the error is in: "WHEN", "COST", "IF", "THEN". */
+  /** The clause the error is in: "WHEN", "USAGE", "VALIDITY", "COMBO", "COST", "IF", "THEN". */
   clause: string;
   message: string;
   /** What could have stood there, when the parser knows. */

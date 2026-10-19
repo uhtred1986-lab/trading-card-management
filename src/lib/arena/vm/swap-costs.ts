@@ -101,7 +101,7 @@ function swapPriceFinishes(ctx: EngineContext, game: GameDefinition, state: VmSt
     if (err instanceof IllegalAction && !(err instanceof NotYet)) return false;
     throw err;
   }
-  const frame: ScriptFrame = { ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, swapCost: { line } };
+  const frame: ScriptFrame = { ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, swapCost: { line } };
   return canFinishAutomaticPrice(ctx, game, clone, proving(game, frame));
 }
 
@@ -121,7 +121,7 @@ export function assertSwapPricePayable(ctx: EngineContext, game: GameDefinition,
 export function queueSwapCost(state: VmState, player: PlayerId, line: ActivationLine): void {
   const ops = swapActionPrice(line);
   if (!ops) throw new IllegalAction("this [Swap] has no action price to pay");
-  state.programs.unshift({ ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, swapCost: { line } });
+  state.programs.unshift({ ops, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord, swapCost: { line } });
 }
 
 /**

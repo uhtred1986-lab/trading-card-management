@@ -86,6 +86,7 @@ export async function buildRecord(db: Db, selected: WorklistRow, decks: string[]
     // are editable now, so the sentences are made in the browser from whatever
     // is in the box at the time.
     trigger: (selected.trigger ?? []) as Trigger[],
+    validity: selected.validity as import("@/lib/arena/lang/ast").Rule["validity"],
     usage: selected.usage as import("@/lib/arena/lang/ast").Rule["usage"],
     combo: selected.combo as import("@/lib/arena/lang/ast").Rule["combo"],
     cost: (selected.cost as CostRecord | null) ?? null,

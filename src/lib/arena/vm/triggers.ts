@@ -1,3 +1,4 @@
+import { noSparking, withValidity, sparkingIsValid, validityProblem } from "./validity";
 import { unlimitedUsage, withUsage, requireUsage } from "./usage";
 import { needsPaymentRecord } from "./skill-payment";
 /**
@@ -348,6 +349,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
       requireUsage(sk.usage);
+      if (!sparkingIsValid(state, master, sk.validity)) continue;
       if (sk.kind === "auto" && ["comboUsed", "comboed"].includes(match.trigger) && !combo)
         throw new NotYet(comboQualificationProblem(combo)!, "#907");
       // A qualified hand-return must become pending at the movement, not
@@ -484,7 +486,12 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   const executable = (sk: Skill, scripts: CardScripts): Skill => {
     const script = scripts.bySkill[sk.index];
     const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
-    return withUsage(sk, script?.usage ?? (native ? unlimitedUsage() : undefined));
+    const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
+    if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");
+    if (bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null))
+      throw new NotYet("apply Sparking to native keyword identity; this qualified keyword remains unsupported", "#907");
+    return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
+      script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
   };
   if (!copies.length) return { ...own, skills: own.skills.map((sk) => executable(sk, own.scripts)) };
   const skills = own.skills.slice();

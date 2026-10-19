@@ -77,6 +77,8 @@ export interface CardDef {
 export interface Skill {
   /** Runtime executable usage, attached from the stored script rather than display tags. */
   usage?: unknown;
+  /** Runtime Sparking validity from the executable record. */
+  validity?: unknown;
   /** Index within the card face's text, stable across games. */
   index: number;
   kind: SkillKind;

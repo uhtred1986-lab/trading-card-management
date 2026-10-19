@@ -34,6 +34,7 @@ const targetKeys = targets.map(([cardId, side, skillIndex]) => key({ cardId, sid
 const defs: Record<string, CardDef> = { ...DEFS,
   GOKU907: card("GOKU907", { characters: ["Son Goku: Br"], colors: ["Red"] }),
   BROLY907: card("BROLY907", { characters: ["Broly: Br"], power: 15000 }),
+  BARRIER907: card("BARRIER907", { energyCost: 1, power: 20000, skill: "[Barrier]" }),
   TARGET907: card("TARGET907", { energyCost: 1, power: 20000 }),
   PRICE907: card("PRICE907", { energyCost: 0, skill: "[Auto][Once per turn] Choose 1 card from your hand and place it in your Drop Area: When this card is played, draw 1 card." }),
   OPTIONAL907: card("OPTIONAL907", { energyCost: 0, skill: "[Auto][Once per turn] When this card is played, you may draw 1 card." }),
@@ -131,7 +132,7 @@ for (const owner of ["p1", "p2"] as const) {
     const source = id === "BT6-001" || id === "BT6-053" ? saved.state.sides[owner].zones.leader[0] : stage(saved, owner, id);
     if (side === "back") saved.state.cards[source].flipped = true;
     stage(saved, owner, "GOKU907", "hand"); const broly = stage(saved, owner, "BROLY907");
-    const target = stage(saved, other, "TARGET907"); saved.state.cards[target].mode = "rest";
+    const target = stage(saved, other, id === "BT6-060" ? "BARRIER907" : "TARGET907"); saved.state.cards[target].mode = "rest";
     const before = attrsNow(saved.ctx, game, saved.state, source).power;
     const row = rowOf(id, side, index);
     let result: { saved: Saved; events: GameEvent[] };
@@ -158,7 +159,7 @@ for (const owner of ["p1", "p2"] as const) {
       assert.equal(saved.state.cards[source].mode, "rest", "spent attack Auto cannot ready the same copy again");
       assert.ok(!second.events.some((e) => e.type === "skill" && e.card === source && e.skill === index));
     }
-    checks.push(`${owner} ${id}/${side}/${index} full payoff, spend and reuse refusal`);
+    checks.push(`${owner} ${id}/${side}/${index} full payoff, spend and reuse refusal${id === "BT6-060" ? "; printed ignoring Barrier repairs old stored selector omission" : ""}`);
   }
   // A copied Once-per-turn effect stays independent after the copy source vanishes.
   {

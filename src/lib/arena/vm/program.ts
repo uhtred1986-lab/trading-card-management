@@ -638,7 +638,7 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
     if (p.target !== card || !permitted(ctx, game, state, p.filter, card)) continue;
     // This native grant operation currently declares only an unlimited Union
     // line. Limited old/manual grants are unsupported, never read as unlimited.
-    if (typeof p.line === "string" && parseSkills(p.line).some((sk) => sk.oncePerTurn || sk.limit !== null))
+    if (typeof p.line === "string" && parseSkills(p.line).some((sk) => sk.oncePerTurn || sk.limit !== null || sk.sparking !== null))
       throw new NotYet("execute a granted Union use ceiling without a typed grant contract; rebuild the grant", "#907");
     if (typeof p.line !== "string" || !p.line) throw new IllegalAction("malformed typed Union grant display source; regenerate rules and rebuild saved matches/exports");
     if (p.unionVariant !== "Fusion" && p.unionVariant !== "Potara") throw new IllegalAction("missing typed Union grant identity; regenerate rules and rebuild saved matches/exports");
@@ -648,7 +648,7 @@ export function grantedLines(ctx: EngineContext, game: GameDefinition, state: Vm
     const parsed = parseSkills(p.unionVariant === "Fusion" ? "[union-fusion]" : p.line);
     const sk = parsed[0];
     if (parsed.length !== 1 || sk.keyword?.name !== "Union" || sk.keyword.variant !== p.unionVariant) throw new IllegalAction("malformed typed Union grant identity; regenerate rules and rebuild saved matches/exports");
-    out.push({ ...sk, usage: { version: 1, oncePerTurn: false, limit: null }, oncePerTurn: false, limit: null, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
+    out.push({ ...sk, usage: { version: 1, oncePerTurn: false, limit: null }, validity: { version: 1, sparking: null }, sparking: null, oncePerTurn: false, limit: null, raw: p.line, index: grantedLineIndex(out.length), price: p.price });
   }
   return out;
 }
