@@ -1,0 +1,70 @@
+{
+  "scope": "Backlog preparation only: BT6-053/front/10 and back/0 Life-to-hand prohibitions. No compiler or engine change delivered.",
+  "retrievalMethod": "Public urllib.request through configured network; hashes cover exact raw response bytes including denied Reddit response. Existing same-day official responses reused with their original retrieval timestamps. No tests/database/private sources.",
+  "sources": [
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedAt": "2026-10-19T12:11:12.061550+00:00"
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedAt": "2026-10-19T12:11:20.498901+00:00"
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedAt": "2026-10-19T12:11:09.786289+00:00"
+    },
+    {
+      "key": "BT6-053",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-053",
+      "status": 200,
+      "bytes": 133590,
+      "sha256": "33ac1b4c14467a9debbdb1dabd26663150f4287918d7f8f3cc0f3f7dd3b622c1",
+      "retrievedAt": "2026-10-19T12:11:13.757235+00:00"
+    },
+    {
+      "key": "life-lock-search-0",
+      "url": "https://html.duckduckgo.com/html/?q=DBS%20Paragus%20Father%20Demon%20life%20hand%20own%20turn%20damage%20ruling",
+      "status": 200,
+      "bytes": 36485,
+      "sha256": "fb159aad26dd3348c3819c168b83b28c7894cec8db4bacd1851edbea59ca211e",
+      "retrievedAt": "2026-10-19T12:27:19.644682+00:00"
+    },
+    {
+      "key": "life-lock-search-1",
+      "url": "https://html.duckduckgo.com/html/?q=site%3Areddit.com/r/DBS_CardGame%20Paragus%20life%20damage%20critical",
+      "status": 200,
+      "bytes": 34869,
+      "sha256": "4d1d9548e398bbf60ced4ced386b6540f940ce010ff1ff28031ad797c5be3418",
+      "retrievedAt": "2026-10-19T12:27:19.520093+00:00"
+    },
+    {
+      "key": "life-lock-forum",
+      "url": "https://www.reddit.com/r/DBS_CardGame/comments/eb6jx3/defending_father_paragus/",
+      "status": 403,
+      "bytes": 1522,
+      "sha256": "258e32ad04784684748c6c83dc2d85976a20dc7548b4991683de7f0bde90b4b9",
+      "retrievedAt": "2026-10-19T12:27:27.947522+00:00"
+    },
+    {
+      "key": "life-lock-specific-search",
+      "url": "https://html.duckduckgo.com/html/?q=%22Paragus%22%20%22life%22%20%22can%E2%80%99t%22%20%22damage%22",
+      "status": 200,
+      "bytes": 9459,
+      "sha256": "059cfbc43f0cbe90cf6eefb8585382dbb3a8609d66f5e4dda39a81903cef91ce",
+      "retrievedAt": "2026-10-19T12:27:28.537491+00:00"
+    }
+  ]
+}
