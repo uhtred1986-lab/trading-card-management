@@ -29,6 +29,34 @@ VM or policy. #897 stays open for its remaining deck-qualification acceptance.
 The focused `union-counter-929.ts` and `union-sources-930.ts` proofs passed at
 starting main. No underlying engine source changes are intended in this slice.
 
+## Reproduction and interpretation
+
+```sh
+env -u DATABASE_URL npx tsx scripts/verify/arena-corpus-provenance.mts
+env -u DATABASE_URL npx tsx scripts/arena-corpus-freeze.mts --mode compiler --check --pairs 4 --max-moves 3000 --seed-base 897000 --out /tmp/starter-baseline.json
+```
+
+Stored execution uses the same runner with `--mode stored --stored-rules
+<complete-export.json>`, plus the matching `--catalog` and `--decks` inputs.
+The input is an array of complete application camelCase or database snake_case
+records, including source text, kind, cost, trigger, condition, operations,
+unread diagnostics, source, status and version. Incomplete exports are refused.
+Supplying rows selects stored mode if mode is omitted; combining rows with
+explicit compiler mode is an error. No freshly compiled program fills a missing
+stored record. Fresh compilation is retained only as comparison evidence.
+
+Keep outputs built from private lists or exports private. The pack embeds exact
+input data and rule records as well as hashes. Production export/application and
+Testing & stats import are separate actions, not implied by a successful run.
+
+Source freshness compares every expected front/back skill with its printed source;
+status independently records human review. A protected/manual program differing
+from fresh compilation is not stale merely because it differs. Support admission
+checks the loaded program and known metadata boundaries. Typed orb/either/marker/
+burst/spirit-boost costs omitted by the loader, and text-derived activation or
+trigger constraints, remain named blockers. Completing matches is recorded apart
+from semantic verification and skill execution coverage.
+
 ## Frozen control preservation
 
 `main-preservation.json` compares the original #1030 pack with the unchanged

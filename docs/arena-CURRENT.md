@@ -11,9 +11,13 @@ reference family: explicit Fusion/Potara/Absorb procedures, shared machinery and
 typed support modifiers. Preserve delivered Union behaviour and reconcile its
 remaining acceptance in #923 before implementing fixes again.
 
-#897 already has a compiler-based starter corpus/runner (#1030); its remaining
-stored-program provenance and admission gaps must be fixed before it certifies
-production records. #899's defensive valuation is implemented (#1026); fresh
+#897 already has a compiler-based starter corpus/runner (#1030); the
+#897 baseline/provenance slice now separates stored execution through the match
+loader, records exact inputs and refuses stale/missing/unsupported records. It does
+not certify production records or whole-deck semantics. The two compiler starter
+controls preserve 16/16 completed traces. The additional pair is BT6 Gogeta / Br
+Fusion versus BT6 Paragus / Broly recovery, with exact lists and input/semantic
+blockers pinned in [the baseline receipt](arena-backlog/evidence/897/baseline-2026-10-19/README.md). #899's defensive valuation is implemented (#1026); fresh
 strength holdouts remain. #929/#930 have implementations, #932 is closed after
 final integrated validation, and #825 needs per-target application reconciliation. The plan and issue
 bodies distinguish these from new code work.
