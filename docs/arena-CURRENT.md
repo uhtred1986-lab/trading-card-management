@@ -9,8 +9,11 @@ Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 authority. PR #1083's typed Absorb contract is deployed; its separately approved
 one-record update is applied and verified. PR #1084 adds distinct typed Potara
 identity/materials for BT2-012/front/0 through the existing Union machinery.
-Its one-record proposal remains separate from code delivery and needs exact
-approval after deployment.
+Its one-record proposal remains separate from code delivery: #1084 is deployed,
+while exact record approval/application is pending. PR #1085 next implements the
+shared EX23-36/P-519 conditioned Fusion Drop-to-bottom permission, retaining
+materials-before-remaining-price and private bottom order. Its four-record
+program-repair proposal is separate and not yet approved/applied.
 
 #897 is closed after deployed #1071 and guarded record application. The actual
 stored BT6 Gogeta / Br Fusion versus Paragus / Broly pair completed 16/16 frozen
@@ -53,9 +56,12 @@ v1→v2. Its 76 proposed-record scenarios pass, including ordinary seven-energy
 play alongside native five-energy Potara. The other two stored Vegito records
 are excluded. Original #925/#927/#929/#930 controls pass; #926 retains an
 independently reproduced baseline refusal-category assertion failure. This is
-not a whole-card, whole-deck or complete Union certification. After deployment,
-apply only the exact proposal if approved, then verify its actual readback.
-Other indexed #923/#930 acceptance remains open.
+not a whole-card, whole-deck or complete Union certification. Its production deployment is READY. Apply only the exact proposal if approved,
+then verify its actual readback. The next
+[Drop-to-bottom batch](arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/README.md)
+freezes two activation/support pairs; their existing support records are still
+open/unread until a separately approved compiler repair. Other indexed #923/#930
+acceptance remains open.
 
 Earlier #1066–#1068 deliveries are historical checkpoints, not pending drafts:
 [typed activated payment](arena-backlog/evidence/907/typed-payment-2026-10-19/README.md),

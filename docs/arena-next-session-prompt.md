@@ -8,9 +8,11 @@ with no new difficulty/default promotion. The separately approved eight #825 and
 applied and read back. #825's bounded reconciliation is complete. #1083's typed
 Absorb contract is deployed and its separately approved rule6416 v9→v10 update
 is applied, with exact preservation and 66 actual-record scenarios passing.
-PR #1084 adds typed Potara for BT2-012/front/0 (rule10297 only); its 76 proposed
-scenarios pass. Deploy, obtain the exact proposal approval and verify the actual
-readback before claiming application. See
+Deployed PR #1084 adds typed Potara for BT2-012/front/0 (rule10297 only); its 76 proposed
+scenarios pass. Obtain the exact proposal approval and verify the actual readback before
+claiming application. PR #1085 groups EX23-36/P-519 Drop-to-bottom permission,
+strict payment and ordering privacy; its four-record compiler repair requires
+a separate exact approval/application. See
 `docs/arena-backlog/evidence/907/potara-identity-2026-10-19/README.md`.
 The unchanged #926 verifier has a reproduced baseline refusal-category failure;
 retain that limitation. Do not repeat the completed nineteen metadata writes.
