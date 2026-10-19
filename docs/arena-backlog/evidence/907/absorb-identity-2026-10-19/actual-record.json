@@ -1,0 +1,278 @@
+[
+  {
+    "id": 6416,
+    "card_id": "BT3-070",
+    "side": "front",
+    "skill_index": 0,
+    "printed": "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Choose up to 1 <Android 13> with an energy cost of 7 from your deck and play it on top of this card. Then, shuffle your deck.",
+    "kind": "keyword",
+    "trigger": [],
+    "cost": {
+      "orbs": {
+        "Green": 1
+      },
+      "text": "choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card",
+      "burst": null,
+      "absorb": {
+        "area": "battle",
+        "variant": "Absorb",
+        "version": 1
+      },
+      "either": [],
+      "marker": null,
+      "program": [
+        {
+          "as": "c0",
+          "op": "choose",
+          "sel": {
+            "area": "drop",
+            "side": "you",
+            "upTo": false,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "android 14"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "1 <android 14> card from your drop area, to place under this card"
+        },
+        {
+          "op": "moveTo",
+          "to": "under",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "as": "c1",
+          "op": "choose",
+          "sel": {
+            "area": "drop",
+            "side": "you",
+            "upTo": false,
+            "count": 1,
+            "filter": {
+              "z": null,
+              "type": null,
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [
+                "android 15"
+              ],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            }
+          },
+          "reason": "1 <android 15> card from your drop area, to place under this card"
+        },
+        {
+          "op": "moveTo",
+          "to": "under",
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "version": 1,
+      "readable": true,
+      "condition": null,
+      "spiritBoost": null
+    },
+    "cond": null,
+    "ops": [
+      {
+        "as": "c0",
+        "op": "choose",
+        "sel": {
+          "area": "deck",
+          "side": "you",
+          "upTo": true,
+          "count": 1,
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [],
+            "faceUp": false,
+            "traits": [],
+            "costMax": 7,
+            "costMin": 7,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [
+              "Android 13"
+            ],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "reason": "Choose up to 1 <Android 13> with an energy cost of 7 from your deck"
+      },
+      {
+        "op": "play",
+        "onto": {
+          "sel": {
+            "special": "self"
+          }
+        },
+        "using": "Union-Absorb",
+        "target": {
+          "var": "c0"
+        },
+        "counterWindow": true
+      },
+      {
+        "op": "shuffle"
+      }
+    ],
+    "unread": [],
+    "reads": "choose up to 1 <Android 13> card with an energy cost of 7 in your deck, play the chosen cards through a [Counter: Play] window on top of this card, shuffle",
+    "pattern": "choose→play→shuffle",
+    "source": "compiler",
+    "status": "draft",
+    "version": 10,
+    "combo": null,
+    "usage": {
+      "limit": null,
+      "version": 1,
+      "oncePerTurn": false
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    }
+  }
+]

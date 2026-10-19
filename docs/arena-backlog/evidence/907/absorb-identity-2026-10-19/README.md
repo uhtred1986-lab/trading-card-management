@@ -56,12 +56,16 @@ The live row was still the expected v9 draft. A final offline replay of the full
 private snapshot produces the identical proposal bytes. Private fields are
 represented only by a snapshot hash in this public preview.
 
-**Application status:** not approved or applied for this increment. The previous
-eleven-row metadata approval does not authorize this new cost identity field.
-Deploy the reviewed contract before applying this proposal: older engines do
-not understand the new cost field. Application and actual-readback proof must
-be recorded separately; a deployment alone does not migrate this row.
-
+**Application status:** separately approved and applied after deployment.
+The [application receipt](application-receipt.json) records one write, rule6416
+v9→v10, with the exact reviewed digest. Full private-field comparison confirms
+only `cost.absorb`, version and update time changed. All original costs,
+programs, conditions, readings, usage/validity, source/status and private review
+fields remain exact; no human confirmation was added. The [actual stored
+record](actual-record.json) passes all **66 scenarios** on deployed source
+`51d6fe973c4846711d7f7c730f29fc571022ef45` (research worktree has documentation-only
+commits). [Actual proof](actual-proof.json) uses this provided record with no
+target compiler fallback. The earlier eleven-row approval was not reused.
 ## Essential verification
 
 Source tree: `4b1bd2d226253e62b9e98e18b7a8e08c4848332c`. The final source and
@@ -100,7 +104,8 @@ continuation metadata. No contract fixture emission is needed.
 
 ## Remaining scope
 
-Potara native authority needs its own exact current row/source freeze. Other
+PR #1084 separately records [Potara native authority](../potara-identity-2026-10-19/README.md)
+for one frozen target; its proposal needs its own approval and actual readback. Other
 indexed #923/#930 support clauses and #929 composition proofs remain open.
 Existing semantic controls are preservation evidence, not a claim that all
 Absorb records or the 229-card Union inventory have been migrated or qualified.

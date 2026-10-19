@@ -1,0 +1,31 @@
+{
+  "format": "absorb-record-907-application-v1",
+  "readAt": "2026-10-19T17:05:27.891Z",
+  "approvalDigest": "512b924aaa08b28a217bd87ef4491be19e37e4292a7563b7493cdc8b8c2f4a8b",
+  "id": 6416,
+  "key": "BT3-070/front/0",
+  "beforeVersion": 9,
+  "afterVersion": 10,
+  "source": "compiler",
+  "status": "draft",
+  "writes": 1,
+  "onlyChangedFields": [
+    "cost.absorb",
+    "version",
+    "updated_at"
+  ],
+  "fullPrivateFieldComparisonPassed": true,
+  "costProgramPreserved": true,
+  "effectsAndReviewPreserved": true,
+  "humanConfirmationsAdded": 0,
+  "beforeSnapshotSha256": "3bee2f990ba42f549c6087516be97d4b18f79ad6bab95f6c77cea47724c4fbae",
+  "afterSnapshotSha256": "a62c9c0b5f0ed8aff8b0be08f07fc59efac0987c5d4c9137b1042ab76a68767e",
+  "actualProof": {
+    "sourceCommit": "51d6fe973c4846711d7f7c730f29fc571022ef45",
+    "worktreeCommit": "9d94a320ca7c00f5f702b2ebea99d77c06874113",
+    "worktreeDelta": "documentation only",
+    "cases": 66,
+    "result": "pass",
+    "logSha256": "db2864e67cdca8cb2d7a23fd81022457c6600cc662273ca0c651c9ea01d95136"
+  }
+}

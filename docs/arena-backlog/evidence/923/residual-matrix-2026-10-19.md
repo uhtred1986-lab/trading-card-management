@@ -149,19 +149,24 @@ explicit compiled support; these are not eleven-card or whole-deck execution
 claims. [Safe stored export](metadata-2026-10-19/actual-stored-export.json) and
 [preflight](metadata-2026-10-19/preflight.json) retain the bounded application pins.
 
-## Next single action
+## Latest bounded deliveries and next single action
 
-PR #1083 implements the remaining **BT3-070 front#0 typed Absorb identity**
-using its existing payment/material/effect programs and Union engine.
-[Its separate receipt and proposal](../907/absorb-identity-2026-10-19/README.md)
-distinguish compiler delivery and proposed-record proof from live application.
-The one-record addition needs its own exact approval; the eleven-row
-usage/validity approval does not authorize it. After deployment and approval,
-apply only rule6416 v9→v10, export its actual readback and rerun the focused proof.
-No further eleven-row refresh is justified. Potara native authority and other
-indexed acceptance remain independent residuals. No further write is authorized
-by this document. Keep #923/#929/#930 open until their full indexed acceptance is
-actually met.
+PR #1083's [Absorb contract and application](../907/absorb-identity-2026-10-19/README.md)
+close the native identity gap for the exact BT3-070/front/0 reference only.
+The owner separately approved digest512b924a…; rule6416 is now v10, with all
+existing bodies/private fields preserved and 66 actual-record cases passing
+on the deployed engine. The older ten-of-eleven admission result above remains
+a dated pre-identity observation, not today's blocker for that exact row.
+
+PR #1084's [Potara contract and proposal](../907/potara-identity-2026-10-19/README.md)
+cover only BT2-012/front/0 rule10297 v1→v2. Its 76 proposed cases include native
+five-energy entry and ordinary seven-energy play; other two stored lines remain
+excluded. Original #925/#927/#929/#930 controls pass. The original #926 diagnostic
+assertion fails identically on deployed baseline; no full #926 pass is claimed.
+After deployment and exact approval, apply only that one-record proposal and
+verify the actual readback. The proposal is not applied yet. No repeat nineteen-
+row migration, whole-card/deck qualification or broad catalog refresh follows.
+Keep #923/#929/#930 open for their remaining indexed acceptance.
 
 Audit method: read current merged source, existing committed verifiers/receipts,
 and public GitHub bodies/comments for #923/#929/#930/#934 on19October. The first

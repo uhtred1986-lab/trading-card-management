@@ -5,11 +5,16 @@
 #897's bounded BT6 pair qualification is complete. #1073 typed defensive policy
 is deployed; #899's frozen 320-game comparison completed inconclusively (162–158),
 with no new difficulty/default promotion. The separately approved eight #825 and eleven #923 metadata writes are
-applied and read back. #825's bounded reconciliation is complete; #923's next
-boundary is typed BT3-070 Union-Absorb authority. PR #1083 implements the stored
-contract; its exact one-row application needs separate approval/readback. See
-`docs/arena-backlog/evidence/907/absorb-identity-2026-10-19/README.md`; do not repeat
-the completed eleven-row metadata refresh.
+applied and read back. #825's bounded reconciliation is complete. #1083's typed
+Absorb contract is deployed and its separately approved rule6416 v9→v10 update
+is applied, with exact preservation and 66 actual-record scenarios passing.
+PR #1084 adds typed Potara for BT2-012/front/0 (rule10297 only); its 76 proposed
+scenarios pass. Deploy, obtain the exact proposal approval and verify the actual
+readback before claiming application. See
+`docs/arena-backlog/evidence/907/potara-identity-2026-10-19/README.md`.
+The unchanged #926 verifier has a reproduced baseline refusal-category failure;
+retain that limitation. Do not repeat the completed nineteen metadata writes.
+Keep #907/#923/#929/#930 open for their remaining indexed acceptance.
 #581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its
 two-engine descriptions and dated open/blocked lists; it does not override current

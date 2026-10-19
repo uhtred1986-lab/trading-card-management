@@ -4,7 +4,7 @@
   "baselineWorktreeHasOnlyDocumentationChanges": true,
   "runtimeAndVerifierMatchBaseline": true,
   "nodeVersion": "v24.19.0",
-  "command": "env -u DATABASE_URL npx tsx scripts/verify/keyword-action-costs-926.ts",
+  "command": "env -u DATABASE_URL ./node_modules/.bin/tsx scripts/verify/keyword-action-costs-926.ts",
   "exitCode": 1,
   "scope": "existing BT31-149 Fusion refusal-category assertion; not a Potara activation",
   "assertionLine": 344,
