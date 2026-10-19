@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { DeckDiscovery, DeckFacts } from "@/components/DeckDiscovery";
 import type { DiscoveryDeck } from "@/lib/decks/discovery";
+import { cardHref } from "@/lib/arena/rule-card";
 import { MatchSetup } from "./MatchSetup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckPreviewSheet } from "./DeckPreviewSheet";
@@ -239,7 +240,7 @@ function Readiness({ deck }: { deck: PlayDeck }) {
               {r.openCards.map((c, i) => (
                 <span key={c.id}>
                   {i > 0 && ", "}
-                  <Link href={`/arena/rules?deck=${deck.id}&state=open&q=${encodeURIComponent(c.id)}`} className="underline hover:text-space-50">
+                  <Link href={cardHref(c.id, { q: `deck=${deck.id}&state=open` })} className="underline hover:text-space-50">
                     {c.name}
                   </Link>
                 </span>
@@ -250,7 +251,7 @@ function Readiness({ deck }: { deck: PlayDeck }) {
           </p>
           <p className="mt-1 text-space-300 sm:hidden">The engine would play them as blank. Check them here, then this deck unlocks.</p>
           {/* The phone's rule review (#472), scoped to this deck: open skills first. */}
-          <Link href={`/arena/rules/review?deck=${deck.id}`} className="tap mt-2 flex w-full items-center justify-center rounded-lg border border-loss/70 bg-loss/15 px-3 text-sm font-bold text-space-50 hover:bg-loss/25">
+          <Link href={r.openCards[0] ? cardHref(r.openCards[0].id, { q: `deck=${deck.id}&state=open` }) : `/arena/rules?deck=${deck.id}&state=open`} className="tap mt-2 flex w-full items-center justify-center rounded-lg border border-loss/70 bg-loss/15 px-3 text-sm font-bold text-space-50 hover:bg-loss/25">
             Review {r.open} card{r.open === 1 ? "" : "s"} now
           </Link>
         </div>

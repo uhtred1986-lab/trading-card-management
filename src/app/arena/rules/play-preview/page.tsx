@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /**
  * Dev-only: the play-test sandbox on a synthetic card, with no database
  * behind it, so it can be opened and shot in a session that keeps off Neon
- * (the way `/arena/rules/build/preview` shows the builder). Production
+ * (the way `/arena/rules/card/preview` shows the card page). Production
  * answers 404. `?card=draw` (an [Auto] on attack) or `ko` (an [Activate:
  * Main]); `?board=<key>` picks a board. The "pretend edit" buttons stand in
  * for the builder's unsaved rule.
@@ -30,7 +30,7 @@ export default async function PlayPreviewPage({ searchParams }: { searchParams: 
   return (
     <div className="space-y-3">
       <PageHeader title="Play-test" eyebrow="Development preview" description={`Synthetic fixture: ${fixture}. Nothing is saved and no database is read.`} />
-      <SandboxPlay ruleId={null} fixture={fixture} boardKey={q.board ?? null} backHref="/arena/rules/build/preview" edits={(EDITS[fixture] ?? []).map((e) => ({ label: e.label, rule: ruleFromSource(e.source) }))} />
+      <SandboxPlay ruleId={null} fixture={fixture} boardKey={q.board ?? null} backHref="/arena/rules/card/preview" edits={(EDITS[fixture] ?? []).map((e) => ({ label: e.label, rule: ruleFromSource(e.source) }))} />
     </div>
   );
 }

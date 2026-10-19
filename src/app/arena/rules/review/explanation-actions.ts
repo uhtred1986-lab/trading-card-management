@@ -14,7 +14,7 @@ export async function reopenReviewedRuleAction(id: number, context: { decks: str
   try {
     const item = await reopenReviewedRule(db, id, context);
     revalidatePath("/arena/rules");
-    revalidatePath("/arena/rules/review");
+    revalidatePath("/arena/rules/card/[cardId]", "page");
     return { error: null, item };
   } catch (error) { return { error: error instanceof Error ? error.message : "Could not reopen this interpretation.", item: null }; }
 }
@@ -36,7 +36,7 @@ export async function approveExplanationAction(id: number, proposalId: number, t
   try {
     await approveRuleExplanation(db, id, proposalId, token);
     revalidatePath("/arena/rules");
-    revalidatePath("/arena/rules/review");
+    revalidatePath("/arena/rules/card/[cardId]", "page");
     return { error: null };
   } catch (error) { return { error: error instanceof Error ? error.message : "The proposal could not be approved." }; }
 }

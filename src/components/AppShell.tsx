@@ -7,7 +7,7 @@ import { BottomTabs } from "./BottomTabs";
 import { ThemePicker } from "./ThemePicker";
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { HeaderNav } from "./HeaderNav";
-import { isArenaShell, isFullBleed } from "@/lib/navigation";
+import { isArenaShell, isCardRulesPage, isFullBleed } from "@/lib/navigation";
 import { useMatchOnScreen } from "@/lib/match-screen";
 
 /**
@@ -47,7 +47,7 @@ export function AppShell({ children, isSl, skin }: { children: React.ReactNode; 
 
   // Arena pages use their own phone header. Focused review tasks keep their own way back.
   const shell = isArenaShell(pathname);
-  const focused = pathname === "/arena/rules/review" || /^\/arena\/rules\/build\/\d+$/.test(pathname);
+  const focused = isCardRulesPage(pathname);
 
   // The tree keeps its shape when a board claims the screen (`matchOnScreen`): the header and the tabs
   // give way to null in their own slots, so the page under them — and the match it holds — is not
