@@ -12,6 +12,16 @@ import { Sheet, isGhostAction, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
 import { CenterPrompt } from "./CenterPrompt";
 
+/** One answer made of cards, drawn as a thumbnail button in a centred prompt (a combo card, a card to charge, a card to choose). */
+export interface CentreOption {
+  key: string;
+  action: Action;
+  cards: CardView[];
+  label: string;
+  /** What choosing it does, e.g. "+5,000 power → 15,000". */
+  note: string | null;
+}
+
 export function PromptPanel({
   view,
   decision,
@@ -48,6 +58,7 @@ export function PromptPanel({
   onNext,
   attacksRemaining = 0,
   defendOptions = [],
+  centre = null,
 }: {
   view: BoardView;
   decision?: Snapshot["decision"];
@@ -87,6 +98,8 @@ export function PromptPanel({
   onNext: () => void;
   attacksRemaining?: number;
   defendOptions?: { card: CardView; action: Action | null; label: string; detail: string | null; cost: string | null; reason: string | null; impact: string | null }[];
+  /** Set when this prompt is drawn in the middle of the screen (`centred-decision.ts`): the cards it offers, and the answer Escape gives. */
+  centre?: { options: CentreOption[]; escape: Action | null } | null;
 }) {
   // This board lets a card be dragged (rd-03), so the hint says so; the
   // engine's own hint is the classic board's and stays as written.
@@ -136,6 +149,8 @@ export function PromptPanel({
     `${view.them.name} is thinking…`
   ) : (refusalText ?? (isTargeting ? (
     attackConfirmation ? `Review the attack: ${attackConfirmation.attacker.name} → ${attackConfirmation.target.name}.` : "Choose what to attack — tap a glowing target, or Pass to cancel."
+  ) : chargeLine && centre ? (
+    "Charge a card from your hand (+1 energy), or pass."
   ) : chargeLine ? (
     <>
       <span className="[@media(pointer:fine)]:hidden">Choose a card, then Charge it or Pass below.</span>
@@ -174,7 +189,7 @@ export function PromptPanel({
   const panel = (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
-        <div className={`w-full space-y-1 text-xs leading-snug text-space-100 ${detailOpen ? "" : "max-lg:hidden"}`} data-decision-summary id="arena-decision-detail">
+        <div className={`w-full space-y-1 text-xs leading-snug text-space-100 ${detailOpen ? "" : centre ? "hidden" : "max-lg:hidden"}`} data-decision-summary id="arena-decision-detail">
           <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>
           <div className={phoneStyles.decisionDetails}>
           {view.battle && <p data-battle-stakes>Attack {view.battle.attackPower.toLocaleString("en")} · Defense {view.battle.guardPower.toLocaleString("en")} — {view.battle.stakes ? "If nothing else changes: " : ""}{stakesSummary(view.battle)}</p>}
@@ -186,7 +201,7 @@ export function PromptPanel({
       {!playing && !view.over && !overOutcome && (
         <button
           type="button"
-          className="arena-iconbtn tap -my-1 -ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full lg:hidden"
+          className={`arena-iconbtn tap -my-1 -ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${centre ? "" : "lg:hidden"}`}
           aria-expanded={detailOpen}
           aria-controls="arena-decision-detail"
           aria-label={detailOpen ? "Hide the details of this decision" : "Show the details of this decision: the step, the stakes and the public rules"}
@@ -205,7 +220,7 @@ export function PromptPanel({
       ) : (
         <p className={`min-w-0 flex-1 text-sm font-semibold leading-snug lg:text-[17px] ${bad ? "text-loss" : "text-space-50"} ${inlineBare.length > 1 ? "max-lg:basis-[calc(100%-3.25rem)]" : ""}`}>
           {!playing && !view.over && !overOutcome && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-space-300 lg:hidden" data-turn-phase>{phaseWord} phase · {ownsTurn ? "Your turn" : `${view.them.name}’s turn`}</span>}
-          <span className={(phaseLevel && !bad) || view.prompt.kind === "payCost" ? undefined : "line-clamp-3"}>{defenceBrief ? null : line}</span>
+          <span className={(phaseLevel && !bad) || view.prompt.kind === "payCost" || centre ? undefined : "line-clamp-3"}>{defenceBrief ? null : line}</span>
         </p>
       )}
 
@@ -239,8 +254,8 @@ export function PromptPanel({
       )}
       {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
         <div className="w-full" data-defend-step={view.prompt.kind}>
-          <DefenceBrief view={view} kind={view.prompt.kind as "counter" | "blocker" | "combo"} />
-          {defendOptions.length > 0 && <div className="max-h-[24dvh] space-y-1.5 overflow-y-auto" aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
+          <DefenceBrief view={view} kind={view.prompt.kind as "counter" | "blocker" | "combo"} thumbs={!!centre} />
+          {defendOptions.length > 0 && <div className={centre ? "space-y-1.5" : "max-h-[24dvh] space-y-1.5 overflow-y-auto"} aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
             {defendOptions.map((option, i) => (
               <div key={`${option.card.id}:${i}`} className={`rounded-xl border ${option.reason ? "border-loss/50 bg-loss/5" : "border-space-600 bg-space-900/90"} p-2`} data-defend-card={option.card.id}>
                 {option.action ? <button type="button" disabled={busy} onClick={() => onSend(option.action!)} className="tap flex min-h-11 w-full items-center gap-2 text-left" data-defend-action>
@@ -255,6 +270,23 @@ export function PromptPanel({
             ))}
           </div>}
         </div>
+      )}
+      {centre && centre.options.length > 0 && (
+        <ul className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Cards you can choose" data-centre-options>
+          {centre.options.slice(0, 24).map((option) => (
+            <li key={option.key} className="min-w-0">
+              <button type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap flex min-h-11 w-full flex-col items-center gap-1 rounded-xl border border-space-600 bg-space-900/90 p-2 text-center hover:border-ki-500/60 disabled:opacity-50" data-centre-option data-action-type={option.action.type}>
+                <span className="flex justify-center gap-1">
+                  {option.cards.slice(0, 3).map((card) => card.imageUrl
+                    ? <Image key={card.id} src={card.imageUrl} alt="" width={56} height={78} unoptimized className="h-[78px] w-14 rounded object-cover" />
+                    : <span key={card.id} className="block h-[78px] w-14 rounded bg-space-700" aria-hidden />)}
+                </span>
+                <span className="block w-full break-words text-xs font-bold leading-tight text-space-50">{option.label}</span>
+                {option.note && <span className="block w-full break-words text-[11px] font-semibold leading-tight text-space-100">{option.note}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {inlineBare.map(({ i, l }, index) => {
         const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
@@ -308,7 +340,13 @@ export function PromptPanel({
     </section>
   );
   // Which energy pays for a move is asked in the middle of the screen (owner, 19 Oct 2026).
-  return view.prompt.kind === "payCost" && view.prompt.player === view.you.player && !playing ? <CenterPrompt label="Pay for the move">{panel}</CenterPrompt> : panel;
+  if (view.prompt.kind === "payCost" && view.prompt.player === view.you.player && !playing) return <CenterPrompt label="Pay for the move" peek>{panel}</CenterPrompt>;
+  // Every other question the game is waiting on is centred too (owner, 19 Oct 2026; `centred-decision.ts`).
+  if (centre) {
+    const escape = centre.escape;
+    return <CenterPrompt key={`${view.prompt.kind}|${view.prompt.question}`} label={view.prompt.question} pillLabel={view.prompt.question} peek onEscape={escape ? () => onSend(escape) : undefined}>{panel}</CenterPrompt>;
+  }
+  return panel;
 }
 
 /** The step the defender is on, as three dots with the current one lit; the words are for screen readers. */
@@ -321,11 +359,13 @@ const DEFENCE_STEPS = ["counter", "blocker", "combo"] as const;
  * "tied: attacker wins ties" arithmetic and the stakes sentence stay in the decision details above
  * (and for SLs): a player needs "add power or take the hit", not the rulebook.
  */
-function DefenceBrief({ view, kind }: { view: BoardView; kind: (typeof DEFENCE_STEPS)[number] }) {
+function DefenceBrief({ view, kind, thumbs = false }: { view: BoardView; kind: (typeof DEFENCE_STEPS)[number]; thumbs?: boolean }) {
   const b = view.battle;
   if (!b) return null;
   const known = [view.them.leader, view.them.unison, ...view.them.battle, view.you.leader, view.you.unison, ...view.you.battle];
-  const nameOf = (id: string) => known.find((c) => c?.id === id)?.name ?? "A card";
+  const cardOf = (id: string) => known.find((c) => c?.id === id) ?? null;
+  const nameOf = (id: string) => cardOf(id)?.name ?? "A card";
+  const face = (id: string, caption: string) => { const c = cardOf(id); return c && <figure className="flex min-w-0 flex-1 items-center gap-2">{c.imageUrl ? <Image src={c.imageUrl} alt="" width={44} height={62} unoptimized className="h-[62px] w-11 shrink-0 rounded object-cover" /> : <span className="block h-[62px] w-11 shrink-0 rounded bg-space-700" aria-hidden />}<figcaption className="min-w-0 text-xs leading-tight text-space-100"><span className="block text-[10px] font-bold uppercase tracking-wide">{caption}</span><b className="block break-words text-sm text-space-50">{c.name}</b></figcaption></figure>; };
   const attacker = nameOf(b.attacker);
   const mine = view.you.leader?.id === b.guard ? "your Leader" : view.you.unison?.id === b.guard ? "your Unison" : nameOf(b.guard);
   const holding = b.guardPower > b.attackPower;
@@ -343,6 +383,7 @@ function DefenceBrief({ view, kind }: { view: BoardView; kind: (typeof DEFENCE_S
       <p className="min-w-0 break-words text-sm font-semibold leading-snug text-space-50" data-defence-line>
         {attacker} attacks {mine} — {ask}.
       </p>
+      {thumbs && <div className="flex items-center gap-2" data-clash-faces>{face(b.attacker, "Attacker")}{face(b.guard, "Defending")}</div>}
       <div className="flex items-center gap-2" data-combo-meter aria-label={`Your ${b.guardPower.toLocaleString("en")} against ${b.attackPower.toLocaleString("en")}`}>
         {cell("You", b.guardPower, holding)}
         <span className="shrink-0 font-mono text-[10px] font-bold tracking-widest text-space-400" aria-hidden>VS</span>

@@ -660,6 +660,21 @@ input[type="number"] {
   box-shadow: 0 10px 40px color-mix(in srgb, var(--tb) 50%, transparent);
   animation: arena-turnbar 1.3s ease-out forwards;
 }
+/* The blur behind the turn bar. The radius is fixed; only the veil's opacity animates, so nothing re-rasterises per frame. */
+.arena-turnveil {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-space-950) 28%, transparent);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+  animation: arena-turnfade 1.3s ease-out forwards;
+}
+.arena-turnveil-hold {
+  animation-name: arena-turnfade-in;
+}
+@media (min-width: 1024px) {
+  .arena-turnbanner .arena-turnbanner-inner { padding: 1.6rem 2rem 1.9rem; }
+}
 .arena-turnbanner-inner {
   padding: 0.9rem 1rem 1.1rem;
   text-align: center;
@@ -3620,11 +3635,13 @@ html:is([data-skin="anime"], [data-skin="namek"], [data-skin="korin"]) body::bef
   /* The turn banner still shows for its whole duration, but it fades instead
      of sweeping: no transform, no slide. */
   .arena-turnbanner,
+  .arena-turnveil,
   .arena-turnbanner-inner {
     animation-name: arena-turnfade;
     transform: none;
   }
   .arena-turnbanner-hold,
+  .arena-turnveil-hold,
   .arena-turnbanner-hold .arena-turnbanner-inner {
     animation-name: arena-turnfade-in;
   }

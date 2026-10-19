@@ -39,14 +39,16 @@ export function TurnBanner({ call, view, lighting, ms, holdUntilTap }: { call: T
   const side = yours ? view.you : view.them;
   return (
     <div className="pointer-events-none fixed inset-0 z-40 grid place-items-center overflow-hidden" aria-hidden data-turn-banner={yours ? "you" : "them"}>
+      {/* The board blurs behind the bar: a fixed blur radius under a veil whose opacity is all that animates (`docs/arena-turn-presence-spec.md` §3.2). */}
+      <div key={`veil-${call.key}`} className={`arena-turnveil ${holdUntilTap ? "arena-turnveil-hold" : ""}`} style={{ animationDuration: `${ms}ms` }} data-turn-veil />
       <div
         key={call.key}
-        className={`arena-turnbanner ${holdUntilTap ? "arena-turnbanner-hold" : ""}`}
+        className={`relative arena-turnbanner ${holdUntilTap ? "arena-turnbanner-hold" : ""}`}
         style={{ "--tb": sideTint(side, yours, view, lighting), animationDuration: `${ms}ms` } as React.CSSProperties}
       >
         <div className="arena-turnbanner-inner" style={{ animationDuration: `${ms}ms` }}>
-          <p className="arena-turnbanner-text arena-impact max-w-[88vw] select-none truncate text-4xl font-black uppercase italic tracking-tight sm:text-6xl lg:text-7xl">{turnWords(yours, side.name)}</p>
-          <p className="arena-turnbanner-sub select-none text-xs font-black uppercase tracking-[0.5em] sm:text-sm">Turn {call.turn}</p>
+          <p className="arena-turnbanner-text arena-impact mx-auto max-w-[94vw] select-none text-balance break-words text-4xl font-black uppercase italic leading-[1.05] tracking-tight sm:text-6xl lg:text-8xl xl:text-9xl">{turnWords(yours, side.name)}</p>
+          <p className="arena-turnbanner-sub select-none text-xs font-black uppercase tracking-[0.5em] sm:text-sm lg:text-lg">Turn {call.turn}</p>
         </div>
       </div>
     </div>
