@@ -16,8 +16,9 @@ approved and applied, with exact full-field preservation and 116 actual-record
 scenarios passing. See
 `docs/arena-backlog/evidence/907/potara-identity-2026-10-19/README.md` and
 `docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/README.md`.
-The unchanged #926 verifier has a reproduced baseline refusal-category failure;
-retain that limitation. Do not repeat the completed nineteen metadata writes.
+The #926 refusal-category gap is repaired by the bounded
+[unread Fusion diagnostic fix](arena-backlog/evidence/907/unread-fusion-diagnostic-2026-10-19/README.md);
+the unchanged original verifier passes. Retain the earlier failure receipts as history. Do not repeat the completed nineteen metadata writes.
 Keep #907/#923/#929/#930 open for their remaining indexed acceptance.
 #581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its

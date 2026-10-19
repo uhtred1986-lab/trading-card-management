@@ -1,0 +1,78 @@
+{
+  "format": "unread-fusion-diagnostic-907-v1",
+  "baselineCommit": "d343114e32dbde6b48802ff67e48e2ceef049b50",
+  "nodeVersion": "v24.19.0",
+  "baseline": {
+    "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/keyword-action-costs-926.ts",
+    "exitCode": 1,
+    "failedAssertion": "it is refused as unread",
+    "line": 344,
+    "logSha256": "6f3370c247aa015cfb4e26e82510085593636fd1d04b16a6452272f9873cb5b9"
+  },
+  "original926VerifierUnchanged": true,
+  "original926VerifierSha256": "febe7e81bd1d82c2347f127f09ce654283d2cee69ab5668d82666db5d8dad9ee",
+  "sourceSha256": {
+    "src/lib/arena/vm/activate.ts": "d3e5074d82044d8fac286a79a7e79231d364cf60105b04813b33960e2d42f938",
+    "src/lib/arena/glossary.ts": "223c55d97be047109fca39ca78699bb05232bdf9f0015918be867ce7daf51aed",
+    "scripts/verify/fusion-identity-907.ts": "6bc32c753cd9a1908865b0aabd1d1d7c181b61de56f92cede909ee3f87e3cfce"
+  },
+  "checks": [
+    {
+      "name": "original926",
+      "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/keyword-action-costs-926.ts",
+      "exitCode": 0,
+      "logSha256": "670431a8461b7e61695a56fb675463e6cdce364c0ced25df3daf2eacf379417f"
+    },
+    {
+      "name": "fusionIdentity42",
+      "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/fusion-identity-907.ts --out <identity-proof.json>",
+      "exitCode": 0,
+      "logSha256": "b5e3754fce63005e5776ee987b6f8b8fd2c975223f004814ae8595ef45325d8a"
+    },
+    {
+      "name": "typedPayment",
+      "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/typed-payment-907.ts",
+      "exitCode": 0,
+      "logSha256": "5340f6448844d9078b2959d1829b8a4c6f8c94d8f4adc65875cdf941a4cf7604"
+    },
+    {
+      "name": "actualDropBottom116",
+      "command": "env -u DATABASE_URL node_modules/.bin/tsx scripts/verify/fusion-drop-bottom-930.ts --stored-records docs/arena-backlog/evidence/907/fusion-drop-bottom-2026-10-19/actual-records.json --out <drop-bottom-control.json>",
+      "exitCode": 0,
+      "logSha256": "ece09802e20b49d34cf5a29a0a495dc4f906d8d24cb1ccad561822ea35e96249"
+    },
+    {
+      "name": "focusedLint",
+      "command": "env -u DATABASE_URL node_modules/.bin/eslint src/lib/arena/vm/activate.ts src/lib/arena/glossary.ts scripts/verify/fusion-identity-907.ts",
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "routeTypeGeneration",
+      "command": "env -u DATABASE_URL node_modules/.bin/next typegen",
+      "exitCode": 0,
+      "logSha256": "adba4af9194e10e47dda75ff0fd0f8c2b756474896d0eba5612799c527ff372a"
+    },
+    {
+      "name": "typecheck",
+      "command": "env -u DATABASE_URL npm run typecheck",
+      "exitCode": 0,
+      "logSha256": "bb7e1de4f1201488c25d2ea97d3ba65589e1b860bd0f494ea3ca514f1eccd419"
+    }
+  ],
+  "artifacts": {
+    "identity-proof.json": "284b6b56efe72aaf759c37261e70f422d9b64254a13bce0d85b833cd6088cf0d",
+    "drop-bottom-control.json": "6a2c72e0a3364ee8fbc3f6ef2bc444e4a3685d2b8521635dbece119cc1de2098"
+  },
+  "identityCases": 42,
+  "newIdentityCases": 8,
+  "actualDropBottomCases": 116,
+  "independentReview": "No blockers; activation-local recovery validates stored identity and retains original unsupported script. Native suppression and hidden information stay protected.",
+  "databaseWrites": 0,
+  "fullSuiteRun": false,
+  "localBuildRun": false,
+  "catalogSweepRun": false,
+  "newGamesRun": 0,
+  "scope": "Diagnostics for blocked valid stored Fusion identities only; no compiler/record contract/payment change or whole-card/deck qualification.",
+  "environmentRepair": "Initial typecheck found stale untracked Next route validators for a removed preview page. Moved generated type directories outside the repository, ran next typegen, then typecheck passed; no source/config change or local build."
+}
