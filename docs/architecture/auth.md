@@ -36,7 +36,7 @@ what exists today; what is still to come is at the end.*
 | Collection, cards, decks, add, scan, leaders, cart, wants, dashboard | everyone's (owner filter on the collection) | **their own only** |
 | AI features (deck analysis, wizard, scan, "Build a deck with Claude", cart explainer) | yes | yes, on their own decks and cards |
 | Arena: play, 1 v 1, report a bug | yes | yes, with their own decks; games whose first deck is theirs, and their 1 v 1 seats |
-| Settings (sync, AI providers, locations, users & access), arena rules workbench, rule review, feedback, debug, set review, cart shipping settings | yes | no — `/me` instead of Settings |
+| Settings (sync, AI providers, locations, users & access), the arena Rules screens (`/arena/rules`, the card page, sandbox, reference), rule review, feedback, debug, set review, cart shipping settings | yes | no — `/me` instead of Settings |
 
 **Owner names are the boundary.** Every lot, deck, scan batch and want carries an `owner` name. A
 player's is `players.owner`; an SL's is their `sl_accounts.owner`, else `BASIC_AUTH_USER`, else their

@@ -24,7 +24,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `legal` out on first read; `applyToGame` takes a game the caller already loaded and is
   still guarded by its `version`.
 - **Rule health** (`ruleHealth`, `cardHealth`, `cardHealthOf` in `src/lib/arena/rules-store.ts`): the one answer to "is this skill done?". Per skill row it returns `text-only` (open, or a program that reads as nothing without saying so, via `compile/silent.ts`), `incomplete` (a `review_flag`, a `compiler_diff`, or anything `runtimeSupportOfRow` says the engine cannot carry out), `unchecked` (a clean compiler draft) or `done`, plus plain-words reasons, hints ("try it in play": `unknown` support) and `needsRebuild` (a typed record — validity, usage, combo qualification, payment or material — is out of date, per `recordContractGaps`; reported beside the health, never as one). A card takes its worst skill, and a printed skill with no current row is `text-only`. The header counts (`healthCounts`) and the progress page read it; `readiness.ts` (seven deck states, only `open` blocks a deck) and the MCP `confirmBlocker` keep their own rules. The flag is one column: the phone's "Wrong" and claude.ai's `flag_rule` both write `card_rules.review_flag` (the old `explanation` prefix is still read as a fallback; migration 0061 moved the existing ones).
-- **Rules progress** (`/arena/rules/progress`, `src/lib/arena/rules-progress.ts`): deck-first, owner decision 18 Oct 2026 — how many cards in the eligible decks (dbs, not testing, owner-scoped; main + Z + leader, both faces) are `done` by rule health. One snapshot a day lands in `rules_progress_snapshots` when the page is opened (no cron); its columns keep their old names (`confirmed_cards` = done cards, `read_skills` = unchecked skills, `unread_skills` = text-only, `flagged` = incomplete).
+- **The Rules screens** (Rules PR 6a; `/arena/rules` the queue by card, `/arena/rules/card/[cardId]` the card page, `/arena/rules/card/[cardId]/play` the sandbox, `/arena/rules/reference` the reference): one queue, one card page, one sandbox, one reference. What was delivered, and what remains, is in `docs/arena-rules-screens-review.md`.
+- **Rules progress** (the summary strip of `/arena/rules`, `src/lib/arena/rules-progress.ts`; `/arena/rules/progress` redirects there, Rules PR 2): deck-first, owner decision 18 Oct 2026 — how many cards in the eligible decks (dbs, not testing, owner-scoped; main + Z + leader, both faces) are `done` by rule health. One snapshot a day lands in `rules_progress_snapshots` when the Rules queue is opened (no cron); its columns keep their old names (`confirmed_cards` = done cards, `read_skills` = unchecked skills, `unread_skills` = text-only, `flagged` = incomplete).
 - **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/reference#keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
@@ -288,7 +289,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
   prop.** Doc: `docs/arena-code-map.md`.
 - **The Card rules page** (`/arena/rules/card/[cardId]`, Rules PR 3; replaces the phone review of
-  #472, the full-screen builder and the workbench's record pane — `/arena/rules/review` and
+  #472, the full-screen builder and the workbench's record pane (both components removed) — `/arena/rules/review` and
   `/arena/rules/build/[id]` redirect). One card, a panel per printed skill in printed order, each
   with its `ruleHealth`, the printed line, "The engine reads" (the row's `reads`, and the combo
   qualification as chips — `comboChips`, never JSON), the health reasons in plain words, Try it
@@ -321,7 +322,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   selector, ref, amount, mode or filter by name and path, and `validateRule`/`validateProgram`
   answer with it. A *partial* filter is accepted and stored whole (`completeFilters`, applied by
   `readRule` and `saveRule`), and `describeFilter`/`printFilter` read one without crashing.
-  `saveRule` re-validates every write, so no writer — workbench, Explain to Claude, the
+  `saveRule` re-validates every write, so no writer — the Card rules page, Explain to Claude, the
   referee's drafts — can skip the gate.
 - **The board talks to a session, not to the server** (`src/components/arena/session/`, #648 / O3-01):
   `ArenaStage` takes an `ArenaSession` (`contract.ts`) — `act`, `watch` (snapshots in, connection

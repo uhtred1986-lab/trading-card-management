@@ -206,7 +206,7 @@ normalises that).
 
 ### 3.4 Migration
 
-One-off script `scripts/arena-migrate-scripts.mts`, run once, kept in the repo:
+One-off script `scripts/arena-migrate-scripts.mts`, run once (deleted in Rules PR 6a; the migration it wrote stands):
 
 - every `card_scripts` row → `card_rules` with `status: corrected`, `source: user` if
   `explanation` is set and `meaning` reads like the owner's words, else `source: claude`;

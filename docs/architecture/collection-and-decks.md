@@ -22,7 +22,7 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   every path that creates a deck — keep that true for new ones. A deck's owner also gates
   *visibility* (`listDecks`/`getDeck` take an `OwnerScope`); a deck id that isn't yours answers
   `not_found`. A deck with no owner is visible to SLs only. Deck transfer between logins and the
-  workbench's rule-coverage pages are deliberately out of scope.
+  Rules screens' rule-coverage pages are deliberately out of scope.
 - **The shopping list is per owner** (`want_list.owner`, migration 0043): one row per owner and
   card; an SL also sees the wants from before lists were per owner.
 - **Deck legality is a flag, never a block** (`src/lib/decks/legality.ts`): a deck saves in any

@@ -27,7 +27,7 @@ Google at `/login` (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `
 more SLs in `sl_accounts`); signed `dbs-session` cookie, `src/lib/auth/core.ts`. **Players** join with a
 one-time code from Settings → Users & access (`/join?c=CODE`, 24 h, single use) and stay signed in on
 that device (`dbs-player` cookie, re-checked against `player_devices` every request). Players see only
-their own cards and decks and nothing SL-only (`isSlOnlyPath`: Settings, the arena workbench, review,
+their own cards and decks and nothing SL-only (`isSlOnlyPath`: Settings, the arena Rules screens (`/arena/rules`), review,
 debug, set review). Basic Auth still works beside it during the move — the `BASIC_AUTH_USER`/
 `BASIC_AUTH_PASSWORD` pair (an SL) and `app_users` rows (players, or SLs when listed in `ARENA_ADMINS`),
 also via `/password-login`. With Google set up, a signed-out page goes to `/login`; without it the Basic
@@ -115,7 +115,7 @@ The Data sources and Architecture sections moved out of this file unchanged (iss
 | Sign-in and access: Google for SLs, join codes for players, guards, private collections, the admin page | `docs/architecture/auth.md` |
 | The provider-neutral AI layer (API vs subscription, swapping vendors): contract, routing, ledger | `docs/architecture/ai-providers.md` |
 | Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
-| The arena: engines, compiler, rules language, rulesets, workbench, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
+| The arena: engines, compiler, rules language, rulesets, Rules screens, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
 | Original feature spec (written before Fusion World) | `dbs-tcg-app-feature-summary.md` |
 
 Large docs: `docs/arena-history-lessons.md` (199 KB) and `docs/arena-code-map.md` (69 KB) — grep, don't read whole.
