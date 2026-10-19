@@ -1,0 +1,59 @@
+{
+  "format": "absorb-identity-907-verification-v1",
+  "verifiedAt": "2026-10-19T16:32:40.808831+00:00",
+  "sourceCommit": "4b1bd2d226253e62b9e98e18b7a8e08c4848332c",
+  "nodeVersion": "v24.19.0",
+  "proposedTarget": "BT3-070/front/0",
+  "proposedDigest": "512b924aaa08b28a217bd87ef4491be19e37e4292a7563b7493cdc8b8c2f4a8b",
+  "actualWrite": false,
+  "humanConfirmationsAdded": 0,
+  "checks": {
+    "proposedExactTargetAuthority": {
+      "passed": true,
+      "cases": 66,
+      "bothSeats": true,
+      "contextAndStateReloaded": true,
+      "targetFallback": false,
+      "companions": "explicit compiled public fixtures"
+    },
+    "originalUnionCounter929": "passed on final source; original assertions",
+    "originalUnionSources930": "passed on final source; original assertions",
+    "originalTypedPayment907": "passed on final source; original assertions",
+    "historicalMetadata923": "PGlite passed; ten admit and unchanged Absorb requires rebuild",
+    "oneRecordAtomicWriter": "PGlite passed; full raw-row/catalog source races and replay refused; exact private-field preservation",
+    "finalProposalReplay": "identical public preview bytes",
+    "projectedReferenceAdmission": {
+      "authoritativeTargets": 11,
+      "actualUnchangedTargets": 10,
+      "proposedTargets": 1,
+      "actualApplication": false
+    },
+    "typecheck": "passed",
+    "lint": {
+      "passed": true,
+      "errors": 0,
+      "existingPrototypeWarnings": 5,
+      "finalChangedFiles": "focused lint passed"
+    },
+    "publicSnapshotShapeChanged": false
+  },
+  "independentReview": {
+    "researchCommit": "a5597323",
+    "sourcePins": [
+      "6192e614",
+      "e44f1fe4",
+      "52ffeea8"
+    ],
+    "tooling": "full raw-row and catalog CAS, public/private output boundaries and exact source/body preservation reviewed",
+    "remainingBlockers": []
+  },
+  "notRun": [
+    "full npm test",
+    "full verify-arena",
+    "local production build",
+    "new match campaign",
+    "paid calls",
+    "catalog sweep"
+  ],
+  "applicationRequirement": "Deploy reviewed engine, obtain separate exact approval, then guarded one-row apply and actual readback proof. Previous nineteen metadata approvals do not cover cost.absorb."
+}

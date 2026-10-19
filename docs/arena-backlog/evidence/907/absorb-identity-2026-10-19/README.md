@@ -44,10 +44,53 @@ or version changes refuse the write. An already applied record cannot be
 replayed. Public previews contain hashes and the narrow field change; private
 snapshots stay outside the repository.
 
+The [live dry-run proposal](proposal.json) binds digest
+`512b924aaa08b28a217bd87ef4491be19e37e4292a7563b7493cdc8b8c2f4a8b`.
+The live row was still the expected v9 draft. A final offline replay of the full
+private snapshot produces the identical proposal bytes. Private fields are
+represented only by a snapshot hash in this public preview.
+
 **Application status:** not approved or applied for this increment. The previous
 eleven-row metadata approval does not authorize this new cost identity field.
-Final focused verification and a concrete reviewed preview will be recorded
-before requesting that separate approval.
+Deploy the reviewed contract before applying this proposal: older engines do
+not understand the new cost field. Application and actual-readback proof must
+be recorded separately; a deployment alone does not migrate this row.
+
+## Essential verification
+
+Source tree: `4b1bd2d226253e62b9e98e18b7a8e08c4848332c`. The final source and
+tooling bytes match those checked; later receipt/backlog edits are documentation.
+[Verification receipt](verification.json) records scope and review pins.
+
+- `absorb-identity-923.ts --stored-records proposed-record.json`: **66 passing
+  cases**, both seats with context/state restored for every action. The exact
+  [one proposed record](proposed-record.json) is required, with no target
+  compiler fallback. [Case receipt](proposed-proof.json) covers authoritative
+  cost/material/arrival mutations, display tags, Main/Battle timing, source
+  areas, saved identities/price lines and leave/return occurrences. Missing
+  both old context metadata and post-payment capture refuses explicitly.
+  Authoring round-trip preserves the Absorb contract; only the already redundant
+  selector default `upTo:false` is normalized for that comparison.
+- Original `union-counter-929.ts`, `union-sources-930.ts` and
+  `typed-payment-907.ts` pass with their existing assertions on the final source.
+  These preserve delivered Fusion/Potara/Absorb procedures and modifier controls;
+  they are not complete printed-record proofs for every Union card.
+- `absorb-record-907.mts` passes its PGlite stale-row/private-field/catalog-race,
+  exact preservation, digest and replay checks. CLI guards refuse output/input
+  collisions, public/private collisions and offline application.
+- Historical `metadata-923.mts` passes without changing its archived proposal
+  format/digest: ten original records admit, while the unchanged v9 Absorb record
+  explicitly requires its separate identity migration.
+- [Projected admission](projected-admission.json): **11/11** strict authoritative
+  reference targets, replacing only6416 with the proposal and retaining ten
+  actual records. This is an offline projection, not a live application receipt.
+- Typecheck passes. Full lint passes with zero errors and five existing
+  prototype warnings; final changed files also pass focused lint. Independent
+  source/rules and migration-tool review report no remaining blockers.
+
+The live dry-run reads the exact rule/catalog and writes nothing. Public
+Snapshot shape is unchanged; this increment adds typed price JSON and internal
+continuation metadata. No contract fixture emission is needed.
 
 ## Remaining scope
 

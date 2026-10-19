@@ -151,13 +151,17 @@ claims. [Safe stored export](metadata-2026-10-19/actual-stored-export.json) and
 
 ## Next single action
 
-Bound the remaining **BT3-070 front#0 typed Absorb activation/material identity
-contract** under #907, preserving its accepted printed cost/effect and existing
-Union engine. No further eleven-row refresh or recompilation is justified:
-metadata admission is complete. Potara native authority and other indexed
-acceptance remain independent residuals. No further write or implementation is
-authorized by this document. Keep #923/#929/#930 open until their full indexed
-acceptance is actually met.
+PR #1083 implements the remaining **BT3-070 front#0 typed Absorb identity**
+using its existing payment/material/effect programs and Union engine.
+[Its separate receipt and proposal](../907/absorb-identity-2026-10-19/README.md)
+distinguish compiler delivery and proposed-record proof from live application.
+The one-record addition needs its own exact approval; the eleven-row
+usage/validity approval does not authorize it. After deployment and approval,
+apply only rule6416 v9→v10, export its actual readback and rerun the focused proof.
+No further eleven-row refresh is justified. Potara native authority and other
+indexed acceptance remain independent residuals. No further write is authorized
+by this document. Keep #923/#929/#930 open until their full indexed acceptance is
+actually met.
 
 Audit method: read current merged source, existing committed verifiers/receipts,
 and public GitHub bodies/comments for #923/#929/#930/#934 on19October. The first

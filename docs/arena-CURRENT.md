@@ -7,7 +7,9 @@ Last updated: 19 October 2026
 Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 #897 corpus qualification is complete; persisted executable rules remain the
 authority. Preserve delivered Union behaviour and address the remaining typed
-Union-Absorb boundary in #923 through the existing machinery.
+Union-Absorb boundary in #923 through the existing machinery. PR #1083 records
+its native identity and source occurrence; its one-record application remains
+separate from code delivery and requires a new exact approval.
 
 #897 is closed after deployed #1071 and guarded record application. The actual
 stored BT6 Gogeta / Br Fusion versus Paragus / Broly pair completed 16/16 frozen
@@ -38,9 +40,11 @@ records. The [#825 application receipt](arena-backlog/evidence/825/metadata-2026
 and [#923 application receipt](arena-backlog/evidence/923/metadata-2026-10-19/application-receipt.json)
 record the distinct approvals and exact snapshots. #825's bounded reconciliation
 is complete, with its final actual-record evidence recorded. #923 remains open:
-BT3-070 front #0 still needs typed Union-Absorb identity/material authority;
-the eleven applied metadata updates do not remove that residual or authorize
-another refresh. Its [actual admission](arena-backlog/evidence/923/metadata-2026-10-19/actual-admission.json)
+BT3-070 front #0's stored v9 still lacks Absorb identity. The
+[bounded #1083 contract and proposal](arena-backlog/evidence/907/absorb-identity-2026-10-19/README.md)
+preserve its existing typed material/effect programs and add only `cost.absorb`.
+The previous eleven-row approval does not authorize that new field or another
+refresh. Its [actual admission](arena-backlog/evidence/923/metadata-2026-10-19/actual-admission.json)
 and [reference material/payment proof](arena-backlog/evidence/923/metadata-2026-10-19/actual-reference-records.json)
 retain that distinction.
 
