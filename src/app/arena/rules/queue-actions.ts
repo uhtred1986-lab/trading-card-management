@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { currentScope, isArenaAdmin, requireSl } from "@/lib/auth";
+import { expireRulesHealth } from "@/lib/cache/rules-health";
 import { rebuildPlanFor, rebuildScope, type RebuildPlan } from "@/lib/arena/queue-cards";
 import type { Scope } from "@/lib/arena/queue";
 
@@ -26,13 +27,14 @@ export async function rebuildDryRunAction(scope: Scope): Promise<{ error: string
  * Re-run the compiler for the cards of this scope whose payment record predates #1066. Only rows
  * the compiler owns are rewritten (`draftCards`); approved and corrected rows are listed, never
  * touched. `card_rules` is in no cache tag (`src/lib/cache/tags.ts`: catalog, prices, meta), so
- * only the page is revalidated.
+ * only the page is revalidated, plus the `rules-health` cache of the classified catalog.
  */
 export async function rebuildCardsAction(scope: Scope): Promise<{ error: string | null; rebuilt?: number; remaining?: number; updated?: number; protectedRows?: number }> {
   await requireSl();
   if (!(await isArenaAdmin())) return { error: ADMINS_ONLY };
   try {
     const r = await rebuildScope(db, scopeOf(scope), await currentScope());
+    expireRulesHealth();
     revalidatePath("/arena/rules");
     return { error: null, rebuilt: r.rebuilt, remaining: r.remaining, updated: r.updated, protectedRows: r.plan.protectedRows };
   } catch (e) {

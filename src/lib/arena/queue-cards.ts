@@ -17,6 +17,7 @@ import { firedInGame } from "./fired";
 import { defaultGroup, defaultHealth, type Queue, type Scope } from "./queue";
 import { countsOf } from "./queue";
 import { draftCards } from "./draft";
+import { catalogQueueCards } from "@/lib/cache/rules-health";
 import { loadQueueCards, viewOfQueue, type QueueCard, type RuleHealth } from "./rules-store";
 
 export interface ScopeDeck {
@@ -92,7 +93,13 @@ export interface LoadedQueue {
 
 export async function loadQueue(db: Db, qu: Queue, owner: OwnerScope): Promise<LoadedQueue> {
   const resolved = await resolveScope(db, qu.scope, owner);
-  const scopeCards = await loadQueueCards(db, { cardIds: resolved.cardIds, setCode: qu.set || undefined, q: qu.q || undefined });
+  // The whole catalog is classified once and cached (cache/rules-health.ts); Find and Set narrow it in memory.
+  // Decks and games are small and read fresh. In the cached list Find matches the name and the id.
+  let scopeCards: QueueCard[];
+  if (resolved.cardIds === undefined) {
+    const needle = qu.q.toLowerCase();
+    scopeCards = (await catalogQueueCards()).filter((c) => (!qu.set || c.setCode === qu.set) && (!needle || c.name.toLowerCase().includes(needle) || c.cardId.toLowerCase().includes(needle)));
+  } else scopeCards = await loadQueueCards(db, { cardIds: resolved.cardIds, setCode: qu.set || undefined, q: qu.q || undefined });
   const counts = countsOf(scopeCards);
   // An unread mechanism is a property of a text-only card, so asking for one asks for that tab.
   const health = qu.health ?? (qu.mech ? "text-only" : defaultHealth(counts));
