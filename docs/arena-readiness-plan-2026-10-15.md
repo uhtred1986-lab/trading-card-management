@@ -2,6 +2,12 @@
 
 The owner asked for a visible playable built-in opponent, a prepared Claude API comparison campaign and an unread-rule audit. GitHub now has three milestones, twelve issues and a complete affected-card index. The owner subsequently requested **one consolidated unread-rule issue** and approved **$20 pilot / $100 total including pilot**. No paid comparison calls were made during planning.
 
+**Historical 15 October snapshot.** The [current rules delivery plan](arena-rules-delivery.md)
+and [current state](arena-CURRENT.md) supersede the dispatch order and pending-work
+claims below. In particular #1030 delivered the starter corpus tool, #1026 fixed
+the tactical defense case, and #898 is closed. Keep the original counts as dated
+evidence. The approved $20 pilot / $100 inclusive campaign cap remains unchanged.
+
 ## What the inspection found
 
 The non-LLM opponent already exists. `localPolicy()` and the browser Worker play prepared Masters decks without provider tokens. Arena home exposes that flow through a small “Play on this device” text link rather than a primary opponent choice. Existing offline/recovery work is delivered; #793’s owner-waived physical-phone check stays waived. Make the shipped opponent discoverable before claiming a new difficulty.

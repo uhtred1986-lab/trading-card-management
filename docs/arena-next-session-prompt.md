@@ -1,10 +1,12 @@
 # Continuing the arena rules programme
 
-**Current queue — 11 Oct 2026:** read `docs/arena-delivery-plan.md` and tracking issue
-[#581](https://github.com/uhtred1986-lab/trading-card-management/issues/581) for priorities,
-dependencies and hot-file order. `docs/arena-playability-review.md` records the grounded
-phone/card-review design and named correctness findings. The older stage narrative below is
-architectural history; its dated open/blocked lists do not override the reconciled queue.
+**Current queue — 19 Oct 2026:** read `docs/arena-CURRENT.md`, then
+`docs/arena-rules-delivery.md` and [#907](https://github.com/uhtred1986-lab/trading-card-management/issues/907)
+for rules/AI priorities and bounded exits. #581 is complete. Union is the first
+reference family; reuse its delivered implementations and audit remaining evidence.
+The older module/stage narrative below is architectural history, including its
+two-engine descriptions and dated open/blocked lists; it does not override current
+code or the reconciled queue. Other UI work retains its own current tracker.
 
 Written 9 Sep 2026, after Stage 1, fourteen increments of Stage 2 and three
 rounds of parallel work merged; §1a's module map refreshed 20 Sep 2026, after
