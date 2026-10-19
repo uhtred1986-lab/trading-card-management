@@ -1,0 +1,18 @@
+[
+  {
+    "card": "BT31-142",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT31-142",
+    "status": 200,
+    "bytes": 130547,
+    "sha256": "60c073a0810b8c10704308645520a4693dbfe4b184cd52ab6da00f44c2b45018",
+    "retrievedUTC": "2026-10-19T14:04:02.560933+00:00"
+  },
+  {
+    "card": "DB1-019",
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=DB1-019",
+    "status": 200,
+    "bytes": 130608,
+    "sha256": "577629f257895d81bce1baa9bd74f760c12ca770f0003c2817858f23241039f8",
+    "retrievedUTC": "2026-10-19T14:04:03.883284+00:00"
+  }
+]

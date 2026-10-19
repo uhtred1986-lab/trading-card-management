@@ -1,0 +1,34 @@
+{
+  "recordMode": "actual-stored-readback",
+  "actualExportHash": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687",
+  "scenarios": [
+    "p1 real front cost before lock and repeat refusal",
+    "p1 combined energy/Life price refused before charge",
+    "p1 isolated back lock, player scope and routed destination",
+    "p1 frozen Broly blocked Life addition still upgrades",
+    "p1 blocked skill damage has no actual events and Life-down terminates",
+    "p1 expiry and opponent-turn Life movement allowed",
+    "p1 native battle critical=false actual accounting",
+    "p1 native battle critical=true actual accounting",
+    "p2 real front cost before lock and repeat refusal",
+    "p2 combined energy/Life price refused before charge",
+    "p2 isolated back lock, player scope and routed destination",
+    "p2 frozen Broly blocked Life addition still upgrades",
+    "p2 blocked skill damage has no actual events and Life-down terminates",
+    "p2 expiry and opponent-turn Life movement allowed",
+    "p2 native battle critical=false actual accounting",
+    "p2 native battle critical=true actual accounting"
+  ],
+  "count": 16,
+  "targets": [
+    "BT6-053/front/10",
+    "BT6-053/back/0"
+  ],
+  "parsed": 2,
+  "executable": 2,
+  "humanReviewed": false,
+  "appliedToDatabase": false,
+  "qualified": false,
+  "pairGames": 0,
+  "residual": "Existing pre-damage announcement checkpoint remains separate; actual damage events require actual Life removal."
+}

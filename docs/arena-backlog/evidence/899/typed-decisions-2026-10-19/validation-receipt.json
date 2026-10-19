@@ -1,0 +1,80 @@
+{
+  "issue": 899,
+  "baseCommit": "ebaebac8dfcdd902703c77c277d5574e36d4683e",
+  "reviewedHeadBeforeEvidenceCommit": "34121096ffa9290660042177ab66c410da26c618",
+  "sourceSHA256": {
+    "src/lib/arena/vm/decision-summary.ts": "0d6d96c5cd7b458f531476b282341dbc83be072c058f3cf4ac7766265240ca5d",
+    "src/lib/arena/vm/battle.ts": "c64117ae28ec3665fd769c5d7321bccbd2cc5aeb01634d9fb5bbc6e1be0a7f44",
+    "src/lib/arena/policy/boundary.ts": "e18131f56c54c9c85b566bcfae5c63145cae522429aa5c12dd0e05af0afdf624",
+    "src/lib/arena/policy/contract.ts": "61972f5a56d9358a8623d1fd9f916048d0ac88cf96177848ca4a567f37a492a2",
+    "src/lib/arena/policy/combat.ts": "c8d063a8b8711db2d8c96ec78eed65ab1818dc32cdd771ec23934195c599a61d",
+    "src/lib/arena/policy/choices.ts": "5f8f9b6d02f58540989367e99b95d341d33184ca82f9891da36b51f9af37dc45",
+    "src/lib/arena/types.ts": "4edf86fee80c749b6247374a7b3bc36937ba710be461fa0adac360ce841322d4"
+  },
+  "policyVersions": {
+    "combat": 3,
+    "choices": 2
+  },
+  "checks": {
+    "typecheck": "passed",
+    "lint": {
+      "exitCode": 0,
+      "errors": 0,
+      "existingWarnings": 5
+    },
+    "projection": {
+      "passed": 42
+    },
+    "typedReader": "passed, including mixed total/lasting subset",
+    "actualTarget": {
+      "passed": 3,
+      "whiteActivationSelectedByPolicy": true,
+      "niagaraActivationDeclaredToIsolateModeAndTarget": true,
+      "jsonReplay": "passed",
+      "cosmeticTwins": "passed"
+    },
+    "defensive": {
+      "acceptable": 18,
+      "total": 18,
+      "privacyPositions": 60,
+      "finalMergedSourceRerun": true
+    },
+    "tactical": {
+      "acceptable": 12,
+      "total": 12,
+      "privacyPositions": 36,
+      "finalMergedSourceRerun": true
+    },
+    "contract": {
+      "positions": 420,
+      "seats": 2,
+      "hiddenPermutations": 1056,
+      "menuRoundTrips": 1409,
+      "compoundRoundTrips": 24
+    },
+    "combat": {
+      "positions": 422,
+      "hiddenPermutations": 844,
+      "maxWork": 296,
+      "workLimit": 4096
+    },
+    "choices": {
+      "positions": 2337,
+      "hiddenPermutations": 708,
+      "maxWork": 9,
+      "workLimit": 4096,
+      "fallbacks": 0
+    }
+  },
+  "numericRankingWeightsChanged": false,
+  "fullSuiteRun": false,
+  "localProductionBuildRun": false,
+  "ownerEssentialTestsOnly": true,
+  "strategicHoldoutsConsumed": 0,
+  "promotion": false,
+  "databaseMigration": false,
+  "databaseWriteFor899": false,
+  "snapshotShapeChanged": false,
+  "originalFrozen897InputsChanged": false,
+  "onlineSources": "online-sources.md"
+}

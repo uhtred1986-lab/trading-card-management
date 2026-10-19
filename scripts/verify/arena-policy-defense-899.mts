@@ -33,7 +33,7 @@ const niagara: CardDef = { id: "DB1-019", name: raw.name as string, type: raw.ca
 const cards = [...TACTICAL_CARDS, niagara];
 const defs = Object.fromEntries(cards.map((c) => [c.id, c]));
 const compiled = rulesFromCompiler(defs);
-const scripts = Object.fromEntries(cards.map((c) => { assert.ok(compiled[c.id]?.complete, `${c.id} compiles`); return [c.id, compiled[c.id]]; }));
+const scripts = Object.fromEntries(cards.flatMap(c => [c.id, ...(c.back ? [`${c.id}#back`] : [])].map(id => { assert.ok(compiled[id]?.complete, `${id} compiles`); return [id, compiled[id]]; })));
 const base = await makeReplayBundle({ defs, scripts, art: Object.fromEntries(cards.map((c) => [c.id, { front: `/art/${c.id}.png`, back: null }])), rulesetFiles: DBS_FILES, runtime: REVISION });
 const bundle = { ...base, decks: { p1: { name: "attacker", leader: "SD5-01", main: Array<string>(50).fill("SD5-03") }, p2: { name: "defender", leader: "BT31-116", main: Array<string>(50).fill("BT31-132") } } };
 const opening = await mainPhaseMatch(bundle, SEED, REVISION);

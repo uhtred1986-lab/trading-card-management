@@ -1,0 +1,1333 @@
+{
+  "recordMode": "actual-stored-readback",
+  "inputHashes": {
+    "catalog": "55693eea0d06e0a54abeece46ed79519346945247c6caabea1ac4a40e28c015e",
+    "physical": "bad88e2aa52d282d6689e58e5b1f20f182248fdd8b2f0f712f67522fc73fcc8b",
+    "actualExport": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687"
+  },
+  "parsedTargets": 11,
+  "executableFreshTargets": 10,
+  "protectedUnread": "BT6-001/back/10",
+  "reviewed": false,
+  "verifiedScenarios": [
+    "p1 BT6-001/front/0 full payoff, spend and reuse refusal",
+    "p1 BT6-003/front/10 full payoff, spend and reuse refusal",
+    "p1 BT6-004/front/10 full payoff, spend and reuse refusal",
+    "p1 BT6-007/front/10 full payoff, spend and reuse refusal",
+    "p1 BT6-008/front/10 full payoff, spend and reuse refusal",
+    "p1 BT6-015/front/30 full payoff, spend and reuse refusal",
+    "p1 BT6-053/back/20 full payoff, spend and reuse refusal",
+    "p1 BT6-060/front/20 full payoff, spend and reuse refusal; printed ignoring Barrier repairs old stored selector omission",
+    "p1 BT6-061/front/20 full payoff, spend and reuse refusal",
+    "p1 BT6-062/front/0 full payoff, spend and reuse refusal",
+    "p1 captured copied Once-per-turn survives source disappearance",
+    "p1 optional Auto skill cost paid=false",
+    "p1 optional Auto skill cost paid=true",
+    "p1 optional/false effect consumes activated use",
+    "p1 stored unlimited mutation",
+    "p1 stored Limit2 mutation and master/copy boundaries",
+    "p2 BT6-001/front/0 full payoff, spend and reuse refusal",
+    "p2 BT6-003/front/10 full payoff, spend and reuse refusal",
+    "p2 BT6-004/front/10 full payoff, spend and reuse refusal",
+    "p2 BT6-007/front/10 full payoff, spend and reuse refusal",
+    "p2 BT6-008/front/10 full payoff, spend and reuse refusal",
+    "p2 BT6-015/front/30 full payoff, spend and reuse refusal",
+    "p2 BT6-053/back/20 full payoff, spend and reuse refusal",
+    "p2 BT6-060/front/20 full payoff, spend and reuse refusal; printed ignoring Barrier repairs old stored selector omission",
+    "p2 BT6-061/front/20 full payoff, spend and reuse refusal",
+    "p2 BT6-062/front/0 full payoff, spend and reuse refusal",
+    "p2 captured copied Once-per-turn survives source disappearance",
+    "p2 optional Auto skill cost paid=false",
+    "p2 optional Auto skill cost paid=true",
+    "p2 optional/false effect consumes activated use",
+    "p2 stored unlimited mutation",
+    "p2 stored Limit2 mutation and master/copy boundaries"
+  ],
+  "exercisedTargets": [
+    "BT6-001/front/0",
+    "BT6-003/front/10",
+    "BT6-004/front/10",
+    "BT6-007/front/10",
+    "BT6-008/front/10",
+    "BT6-015/front/30",
+    "BT6-053/back/20",
+    "BT6-060/front/20",
+    "BT6-061/front/20",
+    "BT6-062/front/0"
+  ],
+  "pairQualified": false,
+  "targets": [
+    {
+      "key": "BT6-001/front/0",
+      "old": {
+        "id": 10739,
+        "version": 2,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "f7bfc175769692fd5d43a42dad9011a979e3f31d97edfbfbbadc5e1e8f28fb47",
+        "printedHash": "b4fd11e8f13c27c6152039a41204c0a711b532c1d1f2d9b9b567caba2851c36f"
+      },
+      "rebuilt": {
+        "id": 10739,
+        "cardId": "BT6-001",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Activate: Main] [Once per turn] Choose 1 red <Son Goku: Br> card or red <Vegeta: Br> card from your hand and place it in your Drop Area: Draw 2 cards, then choose up to 1 card in your life and add it to your hand.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 red <Son Goku: Br> card or red <Vegeta: Br> card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1,
+                "filter": {
+                  "z": null,
+                  "type": null,
+                  "names": [],
+                  "token": false,
+                  "colors": [
+                    "Red"
+                  ],
+                  "faceUp": false,
+                  "traits": [],
+                  "costMax": null,
+                  "costMin": null,
+                  "notType": null,
+                  "keywords": [],
+                  "namesAll": [],
+                  "notNames": [],
+                  "notToken": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "monoColor": false,
+                  "notColors": [],
+                  "notTraits": [],
+                  "skillKind": null,
+                  "skillLess": false,
+                  "characters": [
+                    "Son Goku: Br",
+                    "Vegeta: Br"
+                  ],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "multiColor": false,
+                  "noKeywords": false,
+                  "unreadable": false,
+                  "notKeywords": [],
+                  "charactersAll": [],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "notCharacters": [],
+                  "namesIncluding": [],
+                  "onlyCharacters": false,
+                  "costAboveEnergy": false,
+                  "costBelowEnergy": false,
+                  "characterOrTrait": false,
+                  "costAtMostEnergy": false,
+                  "energyOfOpponent": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostMin": null,
+                  "costAtLeastEnergy": false,
+                  "nameInSkillTextOf": null,
+                  "notNamesIncluding": [],
+                  "specifiedCostNone": false,
+                  "charactersIncluding": [],
+                  "originallySkillLess": false,
+                  "notCharactersIncluding": []
+                }
+              },
+              "reason": "Choose 1 red <Son Goku: Br> card or red <Vegeta: Br> card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "n": 2,
+            "op": "draw"
+          },
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "life",
+              "side": "you",
+              "upTo": true,
+              "count": 1
+            },
+            "reason": "choose up to 1 card in your life"
+          },
+          {
+            "op": "moveTo",
+            "to": "hand",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 3,
+        "reads": "draw 2, choose up to 1 card in your Life Area, move the chosen cards to hand",
+        "pattern": "draw→choose→moveTo",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-003/front/10",
+      "old": {
+        "id": 4100,
+        "version": 4,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "4a173ca6e19cd9e282b3b3889af6cd8645512f29a7343e28584fe921840b12ff",
+        "printedHash": "9138db6b983a94aa5e032203354f46358a2354b56374a6b4da1a285492801c56"
+      },
+      "rebuilt": {
+        "id": 4100,
+        "cardId": "BT6-003",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Once per turn] This card gets +10000 power and can attack Battle Cards in Active Mode for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": 10000,
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "permit",
+            "what": "attackActive",
+            "until": "turn",
+            "filter": {
+              "z": null,
+              "type": "BATTLE",
+              "names": [],
+              "token": false,
+              "colors": [],
+              "faceUp": false,
+              "traits": [],
+              "costMax": null,
+              "costMin": null,
+              "notType": null,
+              "keywords": [],
+              "namesAll": [],
+              "notNames": [],
+              "notToken": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "monoColor": false,
+              "notColors": [],
+              "notTraits": [],
+              "skillKind": null,
+              "skillLess": false,
+              "characters": [],
+              "markersMax": null,
+              "markersMin": null,
+              "multiColor": false,
+              "noKeywords": false,
+              "unreadable": false,
+              "notKeywords": [],
+              "charactersAll": [],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "notCharacters": [],
+              "namesIncluding": [],
+              "onlyCharacters": false,
+              "costAboveEnergy": false,
+              "costBelowEnergy": false,
+              "characterOrTrait": false,
+              "costAtMostEnergy": false,
+              "energyOfOpponent": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "costAtLeastEnergy": false,
+              "nameInSkillTextOf": null,
+              "notNamesIncluding": [],
+              "specifiedCostNone": false,
+              "charactersIncluding": [],
+              "originallySkillLess": false,
+              "notCharactersIncluding": []
+            },
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 5,
+        "reads": "this card +10000 power for the turn, this card can attack battle card in Active Mode for the turn",
+        "pattern": "power→permit",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-004/front/10",
+      "old": {
+        "id": 6345,
+        "version": 1,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "5c78239c2d946b0a22aa317c03242a82172206ebce97bd03068665f2f5d6214b",
+        "printedHash": "11fa0e991eb24cdc19b201191e9a2180b1c9596ba52c9dec9bb2c18f9534bb47"
+      },
+      "rebuilt": {
+        "id": 6345,
+        "cardId": "BT6-004",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] [Once per turn] This card gets +5000 power for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": 5000,
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 2,
+        "reads": "this card +5000 power for the turn",
+        "pattern": "power",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-007/front/10",
+      "old": {
+        "id": 4164,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "17241c3e531bd618bcabeb4da6ab7205e72f404624d603f6a582c8ab3c8d739f",
+        "printedHash": "29d60774b28eb61ef042c07afb8112ec846b50ffc896522138ba17fbd51207eb"
+      },
+      "rebuilt": {
+        "id": 4164,
+        "cardId": "BT6-007",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] [Once per turn] Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and it gets -10000 power for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              },
+              "ignoreBarrier": true
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": -10000,
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 7,
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], the chosen cards -10000 power for the turn",
+        "pattern": "choose→power",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-008/front/10",
+      "old": {
+        "id": 3096,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "614cee40f0386e9f2f7e5c1eb4ecc5270b0338c04c80d4f8b39b38e82dd41068",
+        "printedHash": "d1f77bbd1287595413581501a84d83d141b2bb518bf271319671157f02b1bc32"
+      },
+      "rebuilt": {
+        "id": 3096,
+        "cardId": "BT6-008",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] [Once per turn] Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and it gets -5000 power for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              },
+              "ignoreBarrier": true
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": -5000,
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 7,
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], the chosen cards -5000 power for the turn",
+        "pattern": "choose→power",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-015/front/30",
+      "old": {
+        "id": 7854,
+        "version": 2,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "a74d913a889bd7ab8399693c93e896278f5b77a7583a00e074af165049a58650",
+        "printedHash": "839bc3cdc3ccec4e9d671669ecaf32aed933ccf9c82c45a31e0f9eab8153985c"
+      },
+      "rebuilt": {
+        "id": 7854,
+        "cardId": "BT6-015",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto][once per turn] When this card attacks a Battle Card, switch this card to Active Mode.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": {
+          "sel": {
+            "area": "battle",
+            "side": "opponent"
+          },
+          "kind": "inBattle",
+          "role": "guard"
+        },
+        "ops": [
+          {
+            "op": "switchMode",
+            "mode": "active",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 3,
+        "reads": "if any of the cards in your opponent's Battle Area is being attacked: switch this card to active mode",
+        "pattern": "if:inBattle[switchMode]",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-053/back/20",
+      "old": {
+        "id": 3655,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "f94223302be649f825f1f5ae82ec58fe8e391d2ee645de65b436c28e1c4daae3",
+        "printedHash": "edaf1e49cc5362e63a9c515e4476397bdf966c9053238ea2fa4004a75d29abcb"
+      },
+      "rebuilt": {
+        "id": 3655,
+        "cardId": "BT6-053",
+        "side": "back",
+        "skillIndex": 20,
+        "printed": "[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 <Broly: Br> card in your Battle Area and it gets +5000 power for the duration of the turn.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "you",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "Choose up to 1 <Broly: Br> card in your Battle Area"
+          },
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": 5000,
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 6,
+        "reads": "choose up to 1 <Broly: Br> card in your Battle Area, the chosen cards +5000 power for the turn",
+        "pattern": "choose→power",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-060/front/20",
+      "old": {
+        "id": 6026,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "57600dd4660a3f1f19c6ad4c50b2137d68072f8683c94e3df3d30bf85a22143f",
+        "printedHash": "5670108c0b7f1248d6930667549be6d0b61822fb24fa8d5be5bf683013b1d774"
+      },
+      "rebuilt": {
+        "id": 6026,
+        "cardId": "BT6-060",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and KO it.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              },
+              "ignoreBarrier": true
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 6,
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], KO the chosen cards",
+        "pattern": "choose→ko",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-061/front/20",
+      "old": {
+        "id": 13501,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "2a9f7e57b8bc21c0fe98e352ae20e3b0da1c6cf9899b7acb4df226952d2ee2e6",
+        "printedHash": "b006ea3fe91ae024335aa7515327bec26892a7a15e2025a7a94a3745d3e18fc6"
+      },
+      "rebuilt": {
+        "id": 13501,
+        "cardId": "BT6-061",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards and KO it.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 6,
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards",
+        "pattern": "choose→ko",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    },
+    {
+      "key": "BT6-062/front/0",
+      "old": {
+        "id": 9331,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "ce753c52c9df66a98ae981547f5348641905061ecec01144be5d275095a73c72",
+        "printedHash": "a767e6c901d381a1235dd80affc6268f68bdec3e41461af7592b8ec815f922a2"
+      },
+      "rebuilt": {
+        "id": 9331,
+        "cardId": "BT6-062",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and KO it.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "cost": {
+          "orbs": {},
+          "text": "Choose 1 card from your hand and place it in your Drop Area",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": [
+            {
+              "as": "c0",
+              "op": "choose",
+              "sel": {
+                "area": "hand",
+                "side": "you",
+                "upTo": false,
+                "count": 1
+              },
+              "reason": "Choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "to": "drop",
+              "reveal": true,
+              "target": {
+                "var": "c0"
+              }
+            }
+          ],
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "battle",
+              "side": "opponent",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": "BATTLE",
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": 3,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 6,
+        "reads": "choose up to 1 Battle Card with an energy cost of 3 or less in your opponent's Battle Area, KO the chosen cards",
+        "pattern": "choose→ko",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": null,
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": true
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        }
+      },
+      "appliedToDatabase": false
+    }
+  ]
+}

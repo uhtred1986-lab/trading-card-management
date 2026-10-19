@@ -25,7 +25,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   still guarded by its `version`.
 - **Rule health** (`ruleHealth`, `cardHealth`, `cardHealthOf` in `src/lib/arena/rules-store.ts`): the one answer to "is this skill done?". Per skill row it returns `text-only` (open, or a program that reads as nothing without saying so, via `compile/silent.ts`), `incomplete` (a `review_flag`, a `compiler_diff`, or anything `runtimeSupportOfRow` says the engine cannot carry out), `unchecked` (a clean compiler draft) or `done`, plus plain-words reasons, hints ("try it in play": `unknown` support) and `needsRebuild` (the payment record predates typed payments; reported beside the health, never as one). A card takes its worst skill, and a printed skill with no current row is `text-only`. The header counts (`healthCounts`) and the progress page read it; `readiness.ts` (seven deck states, only `open` blocks a deck) and the MCP `confirmBlocker` keep their own rules. The flag is one column: the phone's "Wrong" and claude.ai's `flag_rule` both write `card_rules.review_flag` (the old `explanation` prefix is still read as a fallback; migration 0061 moved the existing ones).
 - **Rules progress** (`/arena/rules/progress`, `src/lib/arena/rules-progress.ts`): deck-first, owner decision 18 Oct 2026 — how many cards in the eligible decks (dbs, not testing, owner-scoped; main + Z + leader, both faces) are `done` by rule health. One snapshot a day lands in `rules_progress_snapshots` when the page is opened (no cron); its columns keep their old names (`confirmed_cards` = done cards, `read_skills` = unchecked skills, `unread_skills` = text-only, `flagged` = incomplete).
-- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
+- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/reference#keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
   `docs/arena-code-map.md`.
@@ -71,6 +71,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
   otherwise, and proves no leak, permutation invariance and round trips on the #641/#642 fixtures.
+  Typed defensive decision facts (#899) are projected by `vm/decision-summary.ts` from the exact
+  offered executable skill, then passed through this boundary. `battleActivation` carries total
+  current-battle power, its turn-duration subset and leading draws; `counterResponse` carries the
+  selected Counter kind, true/false/unknown attack negation and resolved alternative-price route.
+  `battlePowerTarget` connects a supported boost to an eligible own battler and mode. The combat
+  policy reads these facts rather than displayed English. Unknown paths and hidden-dependent
+  predicates provide no positive effect summary; continuation facts do not trust captured IDs.
   The online Claude opponent (`ai/`) does not use the contract itself, but **its free choices are
   this layer's** (#645): the "cannot go wrong" shortcuts — one legal move, the coin flip, mulligan,
   charge, Z-Energy, [Empower] markers — are pure functions in `policy/shortcuts.ts` over the

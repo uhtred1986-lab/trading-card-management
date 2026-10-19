@@ -1,0 +1,440 @@
+{
+  "runner": {
+    "id": "arena-policy-strategy",
+    "version": "827-real-card-tactics-v1",
+    "gitCommit": "34121096ffa9290660042177ab66c410da26c618",
+    "dirtyTreeSha256": "8a783d99a78233a56ab82cc517c854b6239491b9155d7bd1f191f1092d554155"
+  },
+  "protocol": {
+    "id": "827-real-card-tactics",
+    "revision": "printed-skill-lines-v1"
+  },
+  "scope": "three tactical scenarios plus last-life negative control; no deck or whole-family pass",
+  "seed": 827,
+  "setups": [
+    {
+      "key": "wc-a03-turn-buff-vs-combo",
+      "recipeId": "bt31-116-white-cell-reveal-evolve",
+      "sha256": "ffdd4f247dfd382e8de2d92b092d1e344b55891074a1526da6eefd5dc1909637"
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike",
+      "recipeId": "sd15-01-pride-of-the-saiyans-starter-control",
+      "sha256": "8a7745ce4f97572a5215cb38bd46422a419e32d0286fd0fbb9278c0d88285a65"
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike",
+      "recipeId": "sd5-01-crimson-saiyan-starter-control",
+      "sha256": "ffdf4490349e6699934c69b805d5edbd63ae65463e515aeabbe4dc8010e679b7"
+    },
+    {
+      "key": "ai-10-decline-last-life-price",
+      "recipeId": "sd5-01-crimson-saiyan-starter-control",
+      "sha256": "8db24bab3a3646e473e0e170d04e65adf8113cf1dfe719dd8e4c421c43f2d583"
+    }
+  ],
+  "sourceHashes": {
+    "fixture": "2769d4c7b172a8f5abca054ff296948cf1d5dfb279f491c9b112fd126bed3fc7",
+    "scenario": "c23b7cdbe8484a7085f4bb5e2fa30b1371f8068460784775e57b279b572dd168",
+    "heuristic": "c8d063a8b8711db2d8c96ec78eed65ab1818dc32cdd771ec23934195c599a61d",
+    "main": "2fe50e2ae75a9c18bd108e6a83d530d19eaa635d2f27f791b2d90ab66534dcd1",
+    "search": "b8276657659f17be8221c618638ef3ea64e4a1f672c5bd1c35435cbd27060432"
+  },
+  "independentOracleLines": 7,
+  "privacyPositions": 36,
+  "records": [
+    {
+      "key": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policy": "heuristic-v2",
+      "seed": 827,
+      "seat": "p2",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "BT31-142"
+      ],
+      "comboCards": 0,
+      "energySpent": 2,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    },
+    {
+      "key": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policy": "search-v3-d2",
+      "seed": 827,
+      "seat": "p2",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "BT31-142"
+      ],
+      "comboCards": 0,
+      "energySpent": 2,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    },
+    {
+      "key": "wc-a03-turn-buff-vs-combo",
+      "portalScenarioId": "wc-a03",
+      "policy": "search-v3-d3",
+      "seed": 827,
+      "seat": "p2",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "BT31-142"
+      ],
+      "comboCards": 0,
+      "energySpent": 2,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policy": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 4,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "attack",
+      "activatedCards": [],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policy": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 4,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "attack",
+      "activatedCards": [],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-01-dual-attack-double-strike",
+      "portalScenarioId": "ai-01",
+      "policy": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 4,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "attack",
+      "activatedCards": [],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 2,
+      "life": 8,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policy": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01",
+        "SD5-04"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 1,
+      "life": 2,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policy": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01",
+        "SD5-04"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 1,
+      "life": 2,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-10-restand-for-triple-strike",
+      "portalScenarioId": "ai-10",
+      "policy": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 5,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01",
+        "SD5-04"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 1,
+      "life": 2,
+      "focusPreserved": true,
+      "winner": "p1",
+      "stop": null
+    },
+    {
+      "key": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policy": "heuristic-v2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 2,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 0,
+      "life": 1,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    },
+    {
+      "key": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policy": "search-v3-d2",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 2,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 0,
+      "life": 1,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    },
+    {
+      "key": "ai-10-decline-last-life-price",
+      "portalScenarioId": "ai-10",
+      "policy": "search-v3-d3",
+      "seed": 827,
+      "seat": "p1",
+      "horizonSteps": 2,
+      "initialPolicyRng": {
+        "p1": {
+          "v": 1,
+          "seed": 82701,
+          "n": 0
+        },
+        "p2": {
+          "v": 1,
+          "seed": 82702,
+          "n": 0
+        }
+      },
+      "outcome": "pass",
+      "objective": true,
+      "firstAction": "activate",
+      "activatedCards": [
+        "SD5-01"
+      ],
+      "comboCards": 0,
+      "energySpent": 0,
+      "battles": 0,
+      "life": 1,
+      "focusPreserved": true,
+      "winner": null,
+      "stop": null
+    }
+  ]
+}

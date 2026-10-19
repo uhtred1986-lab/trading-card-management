@@ -17,10 +17,10 @@ export function ReferenceDrawer({ fixingHref }: { fixingHref: string }) {
   const first = useRef<HTMLAnchorElement>(null);
 
   const entries: ReferenceEntry[] = [
-    { label: "Keywords", hint: "Card meaning, engine support and known limitations", href: "/arena/rules/keywords" },
+    { label: "Keywords", hint: "Card meaning, engine support and known limitations", href: "/arena/rules/reference#keywords" },
     { label: "How to fix a card", hint: "Correcting a rule record, step by step", href: fixingHref, external: true },
-    { label: "Advanced: engine declarations", hint: "The rules declarations a game is loaded from", href: "/arena/rules/game" },
-    { label: "Advanced: technical rule language", hint: "The grammar a card's rule is written in", href: "/arena/rules/language" },
+    { label: "Advanced: engine declarations", hint: "The rules declarations a game is loaded from", href: "/arena/rules/reference#ruleset" },
+    { label: "Advanced: technical rule language", hint: "The grammar a card's rule is written in", href: "/arena/rules/reference#language" },
   ];
 
   useEffect(() => {

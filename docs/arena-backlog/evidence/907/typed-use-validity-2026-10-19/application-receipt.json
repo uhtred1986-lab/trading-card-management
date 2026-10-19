@@ -1,0 +1,44 @@
+{
+  "pullRequest": "https://github.com/uhtred1986-lab/trading-card-management/pull/1071",
+  "mergeCommit": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+  "deploymentId": "dpl_KSTNxR7obumi7cbeaG5SuoBBzSn5",
+  "productionReadyAt": "2026-10-19T13:38:44.108000+00:00",
+  "preflight": {
+    "readAt": "2026-10-19T13:39:16.242Z",
+    "publicRowsHash": "c1f20b3f3e81a2492ac97975290322558471795495b6815a2faa892ebd164ce7",
+    "catalogDefsHash": "34cc39691649c47fd362a49a69c56b2b653bd2e040cdfe80cd84f514cb456929",
+    "compilerTargets": 63,
+    "protectedTargets": 4,
+    "approvedDigest": "0a46676c2d9d7149968ab3fdc0d6e8b517e77b2121a6d2af97c075b937e192cf",
+    "runtimeSourceHash": "1109bd6d9b1ba92b15613c87cd224166746e864b2bb7983ebef2ee62433f6e2b"
+  },
+  "compilerReceipt": "compiler-application-receipt.json",
+  "protectedReceipt": "protected-application-receipt.json",
+  "compilerRecordsRefreshed": 63,
+  "protectedMetadataOnly": 4,
+  "protectedProgramsAndReviewFieldsPreserved": true,
+  "all67VersionsIncrementedExactlyOnceInThisBatch": true,
+  "humanConfirmationsAdded": 0,
+  "originalFrozenInputsUnchanged": true,
+  "actualExportSHA256": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687",
+  "pairQualification": {
+    "pack": "actual-stored-pair-pack.json",
+    "manifest": "actual-stored-pair-manifest.json",
+    "games": 16,
+    "completed": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "crashed": 0,
+    "other": 0,
+    "deterministicReplayCheck": "passed",
+    "admitted": [
+      "bt6-gogeta-br-fusion",
+      "bt6-paragus-broly-recovery"
+    ],
+    "testingImportReceipt": "testing-import-receipt.json",
+    "testingRunId": 1,
+    "coverageProgressChanged": false,
+    "unexercisedSkillsRemainUnverified": true
+  }
+}
