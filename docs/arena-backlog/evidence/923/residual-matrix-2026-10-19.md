@@ -64,7 +64,7 @@ because the 15 October matrix still says unsupported.
 
 | Indexed card / face / skill | Current evidence classification |
 |---|---|
-| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Current readback preserves applied row v4 exactly; missing usage/validity is the only loader-admission gap. The offline metadata-only projection admits its unchanged typed Fusion grant; no new gameplay proof is claimed. |
+| P-360 back#0 | **Supported with bounded fixture proof:** granted Fusion, typed grant price/materials and saved contexts in #930/#1066/#1068. Current readback preserves applied row v4 exactly; the approved metadata-only application restores loader admission. Existing actual-export Fusion material/payment proofs pass; no new grant behavior is claimed. |
 | BT17-082 back#0 | **Unread/unproved support family:** substitution from under the Leader for Namekian Absorb payments; not Fusion and not identical to BT14-079's existing cost. |
 | EX23-36 front#20; P-519 front#20 | **Unsupported indexed permission:** conditioned specified Drop materials go to deck bottom. Fresh official text does not print an equal-power waiver. Existing Warp/Drop-to-Warp contracts do not establish this destination. |
 | BT28-079 back#0; BT31-042 front#0; BT31-043 front#20; EX23-11 front#10; EX23-29 front#10; EX25-11 front#10; SD19-04 front#20 | **Unverified exact indexed reductions:** standing/next-use conditions, payer, expiry and qualifying variant must be mapped to existing typed cost primitives and specific proof. The dated unread labels alone do not establish that current code is still wrong. |
@@ -127,20 +127,42 @@ contract from printed text at runtime; metadata admission does not close that
 separate authority gap. Potara is outside these eleven rows. The additional
 native Deflect manifest line is not a twelfth stored target.
 
+## Approved application and actual admission
+
+The owner explicitly approved the separate eleven-row digest
+`75e82837c5c2b9f4cbc881719c45c38fffcea6d6d9eda593ebce400ab730bdaa`.
+The [application receipt](metadata-2026-10-19/application-receipt.json) records
+exactly eleven writes and the 15:33:45 UTC readback. Independent offline raw-field
+comparison confirms only usage, validity, version and update timestamp changed;
+all costs, combo contracts, programs, readings, source/status and private fields
+remain exact. All eleven remain compiler drafts; no human confirmation occurred.
+The separately approved #825 eight-row scope is not included here.
+
+[Actual admission](metadata-2026-10-19/actual-admission.json) confirms normalization
+and real loader admission for all eleven, with ten fully authoritative target
+records. BT3-070 front#0 retains its native Union-Absorb activation/material
+text dependency. [Actual reference export](metadata-2026-10-19/actual-reference-records.json)
+passes both existing `fusion-materials-907.ts --reference-records` and
+`typed-payment-907.ts --reference-records` proofs. Their exact target scopes are
+nine material records and three payment records respectively, with other lines
+explicit compiled support; these are not eleven-card or whole-deck execution
+claims. [Safe stored export](metadata-2026-10-19/actual-stored-export.json) and
+[preflight](metadata-2026-10-19/preflight.json) retain the bounded application pins.
+
 ## Next single action
 
-Prepare an **exact eleven-row guarded usage/validity-only migration proposal**,
-with full raw-row/catalog identity guards, stale/replay refusal and a public
-approval digest. Preserve all existing valid costs, Fusion/grant metadata and
-effect/review bodies; no blanket refresh/recompile is justified. Retain
-BT3-070 front#0's native Absorb authority residual independently under #907.
-No database write is authorized by this document, and the separate eight-row
-#825 proposal/approval is unchanged. Keep #923/#929/#930 open until their full
-indexed acceptance is actually met.
+Bound the remaining **BT3-070 front#0 typed Absorb activation/material identity
+contract** under #907, preserving its accepted printed cost/effect and existing
+Union engine. No further eleven-row refresh or recompilation is justified:
+metadata admission is complete. Potara native authority and other indexed
+acceptance remain independent residuals. No further write or implementation is
+authorized by this document. Keep #923/#929/#930 open until their full indexed
+acceptance is actually met.
 
 Audit method: read current merged source, existing committed verifiers/receipts,
 and public GitHub bodies/comments for #923/#929/#930/#934 on19October. The first
 three have no comments and no blocked/owner-ruling labels. The followup uses the
-coordinator's read-only snapshot and pure offline compiler/loader inspection.
-No code was changed, no tests/games/database query or ongoing holdout result was
-used by this audit.
+coordinator's read-only snapshots, approved application receipts and pure offline
+raw-field comparison. No code was changed and no tests/games/database query or
+ongoing holdout result was used by this independent audit. Runtime proof outcomes
+above are the coordinator's separately collected actual-export results.

@@ -1,8 +1,8 @@
-# #825: additive metadata proposal — 19 October 2026
+# #825: approved metadata application — 19 October 2026
 
 The eight previously delivered #825 programs exist in the current readback, but
-lack the typed metadata required by today's runtime. This slice proposes a
-metadata migration. **Application and owner approval are pending.** It does not
+lacked the typed metadata required by today's runtime. The owner explicitly
+approved the exact digest and the guarded eight-row application completed. It does not
 rewrite #834, establish whole-card/deck coverage or claim whole-deck readiness.
 
 ## Preserved delivery and exact scope
@@ -18,7 +18,7 @@ missed it. That dated audit is not evidence that today's programs are absent.
 The coordinator's 19 October curated readback identifies these exact records.
 All have readable triggers/effects; missing typed metadata is a separate boundary.
 
-| Card / face / skill | Rule ID | Current version | Status retained | Proposed version |
+| Card / face / skill | Rule ID | Before version | Status retained | Applied version |
 |---|---:|---:|---|---:|
 | BT29-029 / back / 0 | 8932 | 6 | draft | 7 |
 | BT3-090 / front / 0 | 4054 | 7 | draft | 8 |
@@ -86,7 +86,7 @@ existing casual rules or deck policy.
 
 Worker implementation commits `1e3df41c` and `e838c13d` have completed independent
 read-only review. The worker reports these essential checks passed at the final
-source; coordinator integration/readback remains separate:
+source; the later actual application/readback is recorded below:
 
 - `scripts/verify/metadata-825.mts`: PGlite proves eight-row metadata-only writes,
   private-field preservation, catalog changes before/after the verified read,
@@ -99,15 +99,26 @@ source; coordinator integration/readback remains separate:
 - Targeted lint passed. No full suite/build or production database was used for
   these worker checks.
 
-Other lines/cards remain explicitly compiled support fixtures. This is proposed
-stored-target execution, not post-write actual-export proof or whole-deck
-qualification. No runtime effect/compiler implementation was changed.
+Other lines/cards remain explicitly compiled support fixtures. This preparation proof used proposed
+stored-target execution. The separate post-write actual-export proof is recorded
+below; neither establishes whole-deck qualification. No runtime effect/compiler implementation was changed.
 
-No production write, confirmation change, owner approval digest or post-write
-actual-export result is claimed here. After a reviewed preview and approval,
-record the atomic application/readback and actual-target replay separately.
-Affected-deck readiness remains a separate check; these eight records do not
-qualify an entire deck or certify every printed skill.
+## Approved application and actual readback
+
+The owner explicitly approved digest
+`8284223ff78d2ced9cfa6aafa9f71919194bb041294010412c16cf57922dbcf5`.
+The coordinator applied exactly eight rows and read them back at 15:32:07 UTC.
+[Application receipt](application-receipt.json), [safe actual export](actual-stored-export.json)
+and [preflight](preflight.json) retain the approved scope and source pins.
+Independent offline comparison confirms every other raw field and all catalog
+identities remained exact; both confirmed statuses and private review fields
+were preserved. No program replacement or human confirmation occurred.
+
+The actual-export `qualified-movement-evolve-825.ts --stored-targets` proof
+passed all original assertions plus 11 stored cases. Exactly eight named target
+rows came from the actual readback; other card lines remain explicit compiled
+support fixtures. This completes the bounded #825 reconciliation, not whole-deck
+qualification. No VM/compiler implementation or rule interpretation changed.
 
 ## Named-deck readiness: recorded, still blocked
 
@@ -132,5 +143,6 @@ four target lines admit. No database write occurred.
 All four variants remain blocked, with separate native Evolve/Over Realm/Swap
 text dependencies also recorded by the coordinator. This completes the bounded
 readiness-reporting step; it does not qualify any deck or authorize a general
-135-row refresh. Owner approval/application/readback of the exact eight-row
-proposal is still pending.
+135-row refresh. The exact eight-row application and actual-target proof are complete; this
+readiness report remains explicitly blocked and does not authorize a general
+refresh.

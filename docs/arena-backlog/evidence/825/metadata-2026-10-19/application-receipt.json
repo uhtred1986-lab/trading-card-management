@@ -1,0 +1,113 @@
+{
+  "format": "metadata-825-application-v1",
+  "ownerApproval": {
+    "scope": "exact 8 records; metadata only",
+    "digest": "8284223ff78d2ced9cfa6aafa9f71919194bb041294010412c16cf57922dbcf5",
+    "source": "explicit owner reply in this conversation on 19 October 2026"
+  },
+  "applied": true,
+  "written": 8,
+  "readbackAt": "2026-10-19T15:32:07.473Z",
+  "fullRawComparisonPassed": true,
+  "catalogEngineSourcesUnchanged": true,
+  "programsReplaced": 0,
+  "statusesChanged": 0,
+  "humanConfirmationsAdded": 0,
+  "privateFieldsPreserved": true,
+  "protectedConfirmedRowsPreserved": 2,
+  "targets": [
+    {
+      "key": "BT29-029/back/0",
+      "id": 8932,
+      "fromVersion": 6,
+      "toVersion": 7,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "a12f229dfda485fe51c945a970703eb55b52d370e52849f89fa5fd0b103300e5",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-090/front/0",
+      "id": 4054,
+      "fromVersion": 7,
+      "toVersion": 8,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "32702c81b85684302badb091a5bff285168d385c38e23465cecd6930295808f2",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-096/front/10",
+      "id": 12431,
+      "fromVersion": 7,
+      "toVersion": 8,
+      "status": "confirmed",
+      "source": "compiler",
+      "programSha256": "c0a63def9b8e4e6c914f76ccb7cd7109f7b493229d0a0b64704bdf86f6373476",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-098/front/10",
+      "id": 10565,
+      "fromVersion": 7,
+      "toVersion": 8,
+      "status": "confirmed",
+      "source": "compiler",
+      "programSha256": "18e02e10e2092a4a93ecf9477b704be31c1fdd8515eba4dce008a3fa0b9498a6",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT3-112/front/10",
+      "id": 12988,
+      "fromVersion": 2,
+      "toVersion": 3,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "b70c2dca51452b8237d7fbcf5054216b9452b7a2c8e5974a01143b3a8f4dfd57",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT7-040/front/10",
+      "id": 12685,
+      "fromVersion": 6,
+      "toVersion": 7,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "10ab9c2c8440876dd679fd9858eb7fe88e658dc178a2056b4cb044584a9387fb",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT7-083/front/10",
+      "id": 12960,
+      "fromVersion": 6,
+      "toVersion": 7,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "1b2ac48507ecc997df413708166c90a3d6fefbfaaeb1b75b84b65857a1512c1d",
+      "allOtherRawFieldsPreserved": true
+    },
+    {
+      "key": "BT7-086/front/10",
+      "id": 8230,
+      "fromVersion": 6,
+      "toVersion": 7,
+      "status": "draft",
+      "source": "compiler",
+      "programSha256": "588070e1ac124134b2483cd799d0e2623fed954562952db59e3f0eebe8da6228",
+      "allOtherRawFieldsPreserved": true
+    }
+  ],
+  "beforePrivateFileSha256": "90483f87b4ba935ca059c1884dfacf76aef78fc9f6aff4d569bc97ce98c8ec94",
+  "afterPrivateFileSha256": "7e541d5c07d128c0155acaa04942d517f1e3751801abee0e4c67c98b36593410",
+  "allowlistedExportSha256": "e1129cf174ffd7e63b3faeeb4e191fb1f40c573c6859aab1be133556b715d5d8",
+  "actualStoredProof": {
+    "result": "passed",
+    "runnerRevision": "cb3ab4c4fe984c3067d10a7ee0c0ca3c3d042ad4",
+    "vmSourceMatches": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+    "command": "npx tsx scripts/verify/qualified-movement-evolve-825.ts --stored-targets <actual-stored-export.json>",
+    "exactTargetRows": 8,
+    "originalAssertionsPreserved": true,
+    "additionalStoredCases": 11,
+    "otherCardLines": "explicit compiler support fixtures"
+  }
+}
