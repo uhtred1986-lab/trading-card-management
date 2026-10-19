@@ -1,0 +1,37 @@
+[
+  {
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-060",
+    "retrieved": "2026-10-19T12:36:13.320836+00:00",
+    "httpStatus": 200,
+    "bytes": 138085,
+    "sha256": "507fcd680b4be3d7cba31a357b0d5bb9eff59d14b446e1ecfe784eacfcb0ef40"
+  },
+  {
+    "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT6-061",
+    "retrieved": "2026-10-19T12:36:14.321070+00:00",
+    "httpStatus": 200,
+    "bytes": 131843,
+    "sha256": "0ec96357a67d85262a2e88aa22f132ab1f8f440485c1b32dfea7e30f65724469"
+  },
+  {
+    "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+    "retrieved": "2026-10-19T12:36:23.741482+00:00",
+    "httpStatus": 200,
+    "bytes": 2941038,
+    "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706"
+  },
+  {
+    "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+    "retrieved": "2026-10-19T12:36:26.319388+00:00",
+    "httpStatus": 200,
+    "bytes": 1365863,
+    "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001"
+  },
+  {
+    "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+    "retrieved": "2026-10-19T12:36:26.824701+00:00",
+    "httpStatus": 200,
+    "bytes": 356382,
+    "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696"
+  }
+]
