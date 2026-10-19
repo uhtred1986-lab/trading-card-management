@@ -193,7 +193,7 @@ export function RuleBuilder({ ruleId, initialRule, focusPath, teachTabs, tryIt, 
           scenarios.length > 0 && (
             <details className="rounded-xl border border-space-700 bg-space-900/60 p-3">
               <summary className="cursor-pointer text-sm font-semibold text-space-100">Try it</summary>
-              <p className="mt-1 text-[11px] text-space-400">Runs the <b>saved</b> rule, not the one being built, on the legacy engine (#161). Save first to try a change.</p>
+              <p className="mt-1 text-[11px] text-space-400">Runs the <b>saved</b> rule, not the one being built, on the rules engine. Save first to try a change.</p>
               <div className="mt-2">
                 <ProbePane ruleId={ruleId} scenarios={scenarios} />
               </div>

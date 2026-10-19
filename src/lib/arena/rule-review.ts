@@ -276,19 +276,23 @@ export interface WrongVerdict {
 }
 
 /**
- * The words a Wrong verdict leaves in `card_rules.explanation`: the clause and
- * the reason first, then the note — and whatever the row said before, kept
- * underneath so a flag never erases an earlier explanation.
+ * The words a Wrong verdict leaves in `card_rules.review_flag` — the one flag
+ * (the MCP connector's `flag_rule` writes the same column): the clause and the
+ * reason first, then the note. Used to prefix `explanation` before the flags
+ * were merged; `isFlagged` still reads that old form.
  */
-export function flagExplanation(v: WrongVerdict, previous: string | null): string {
+export function flagText(v: WrongVerdict): string {
   const note = v.note?.trim().replace(/\s+/g, " ").slice(0, 500);
-  const head = `${FLAG_PREFIX} · ${v.tag}${v.path ? ` ${v.path}` : ""} · ${v.reason}${note ? ` — ${note}` : ""}`;
-  return previous?.trim() ? `${head}\n\n${previous}` : head;
+  return `${FLAG_PREFIX} · ${v.tag}${v.path ? ` ${v.path}` : ""} · ${v.reason}${note ? ` — ${note}` : ""}`;
 }
 
-/** A draft someone has already flagged from the phone waits for the computer, not in the queue again. */
-export function isFlagged(explanation: string | null | undefined): boolean {
-  return !!explanation?.startsWith(FLAG_PREFIX);
+/**
+ * A draft someone has already flagged waits for the computer, not in the queue
+ * again. `review_flag` first; the old `explanation` prefix is the fallback for
+ * rows the data migration has not reached.
+ */
+export function isFlagged(explanation: string | null | undefined, reviewFlag?: string | null): boolean {
+  return !!reviewFlag || !!explanation?.startsWith(FLAG_PREFIX);
 }
 
 /** Where "Teach it" and "Fix it in the builder" go: the block builder (#469). */

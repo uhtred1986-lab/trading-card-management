@@ -286,7 +286,7 @@ export function AdminDrawer({
             {readings.map((c) => (
               <li key={c.cardId} className={c.referee ? "arena-admin-ref" : ""}>
                 <b>{c.name}</b>
-                <span>{c.referee ? "Not fully compiled — Claude rules on this card's remaining text when it resolves." : c.reading || "no effect of its own"}</span>
+                <span>{c.referee ? "Not fully read — the engine stops or skips this skill." : c.reading || "no effect of its own"}</span>
               </li>
             ))}
           </ul>

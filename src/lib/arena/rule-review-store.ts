@@ -4,8 +4,8 @@
  * actions unchanged — Reads right is `confirmRuleAction`, Undo of it is
  * `reopenRuleAction`, Confirm all is `confirmAllAction` and its Undo
  * `undoConfirmAction` — so this module adds only what had no action yet: a
- * Wrong verdict, which is words on the row (`explanation`) and a feedback note,
- * and its Undo. No column is added for either (the issue: no schema change).
+ * Wrong verdict, which is words in the row's one flag (`review_flag`, the column
+ * the MCP connector's `flag_rule` writes too) and a feedback note, and its Undo.
  *
  * Takes `db` as an argument, like `rules-store.ts`, so `verify-db.mts` runs it
  * on PGlite.
@@ -15,7 +15,7 @@ import type { Db } from "@/db";
 import { arenaFeedback, arenaGames, cardRules, cards } from "@/db/schema";
 import { SKILL_LABELS } from "./beats";
 import { firedInGame, type FiredSkill } from "./fired";
-import { flagExplanation, isFlagged, orderQueue, type WrongVerdict } from "./rule-review";
+import { flagText, isFlagged, orderQueue, type WrongVerdict } from "./rule-review";
 import type { RuleRow } from "./rules-store";
 import type { StoredProbe } from "./rules-store";
 import type { Cond, CostRecord, Op } from "./vm/script";
@@ -111,12 +111,12 @@ export async function draftsByPattern(db: Db, patterns: string[]): Promise<Map<s
   const keys = [...new Set(patterns.filter(Boolean))];
   if (!keys.length) return out;
   const rows = await db
-    .select({ id: cardRules.id, pattern: cardRules.pattern, explanation: cardRules.explanation })
+    .select({ id: cardRules.id, pattern: cardRules.pattern, explanation: cardRules.explanation, reviewFlag: cardRules.reviewFlag })
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(and(REVIEWABLE_CARD, eq(cardRules.status, "draft"), inArray(cardRules.pattern, keys)));
   for (const r of rows) {
-    if (!r.pattern || isFlagged(r.explanation)) continue;
+    if (!r.pattern || isFlagged(r.explanation, r.reviewFlag)) continue;
     out.set(r.pattern, [...(out.get(r.pattern) ?? []), r.id]);
   }
   return out;
@@ -159,7 +159,7 @@ export async function reviewQueue(db: Db, o: { cardIds: string[]; ruleIds?: numb
     .from(cardRules)
     .innerJoin(cards, eq(cards.id, cardRules.cardId))
     .where(and(REVIEWABLE_CARD, inArray(cardRules.cardId, ids), inArray(cardRules.status, ["open", "draft"]), o.ruleIds ? (o.ruleIds.length ? inArray(cardRules.id, o.ruleIds) : eq(cardRules.id, -1)) : undefined));
-  const live = rows.filter((r) => o.flaggedOnly ? isFlagged(r.rule.explanation) : r.rule.status === "open" || !isFlagged(r.rule.explanation));
+  const live = rows.filter((r) => o.flaggedOnly ? isFlagged(r.rule.explanation, r.rule.reviewFlag) : r.rule.status === "open" || !isFlagged(r.rule.explanation, r.rule.reviewFlag));
   const siblings = await draftsByPattern(
     db,
     live.filter((r) => r.rule.status === "draft").map((r) => r.rule.pattern ?? ""),
@@ -217,38 +217,42 @@ async function pendingExplanations(db: Db, rules: RuleRow[]): Promise<Map<number
 /** What Undo needs to take a Wrong verdict back exactly. */
 export interface FlagReceipt {
   ruleId: number;
+  /** The `review_flag` the row had before (an MCP flag, say); Undo puts it back. */
   previous: string | null;
+  /** What the verdict wrote into `review_flag`. */
   written: string;
   feedbackId: number;
 }
 
 /**
- * Wrong: the clause and the reason go into `explanation` (the earlier words
- * kept beneath), a note goes to the feedback list for the computer, and the
- * rule itself — status, program, version — is not touched. It stays a draft.
+ * Wrong: the clause and the reason go into `review_flag` (the one flag; an
+ * earlier flag from claude.ai review is kept beneath), a note goes to the
+ * feedback list for the computer, and the rule itself — status, program,
+ * version, explanation — is not touched. It stays a draft.
  */
 export async function flagWrong(db: Db, ruleId: number, v: WrongVerdict, reportedBy: string | null = null): Promise<FlagReceipt | null> {
-  const [row] = await db.select({ explanation: cardRules.explanation, cardId: cardRules.cardId, skillIndex: cardRules.skillIndex, printed: cardRules.printed, reads: cardRules.reads }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, ruleId)));
+  const [row] = await db.select({ reviewFlag: cardRules.reviewFlag, cardId: cardRules.cardId, skillIndex: cardRules.skillIndex, printed: cardRules.printed, reads: cardRules.reads }).from(cardRules).innerJoin(cards, eq(cards.id, cardRules.cardId)).where(and(REVIEWABLE_CARD, eq(cardRules.id, ruleId)));
   if (!row) return null;
-  const written = flagExplanation(v, row.explanation);
-  await db.update(cardRules).set({ explanation: written, updatedAt: new Date() }).where(eq(cardRules.id, ruleId));
+  const head = flagText(v);
+  const written = row.reviewFlag?.trim() ? `${head}\n${row.reviewFlag}`.slice(0, 1000) : head;
+  await db.update(cardRules).set({ reviewFlag: written, updatedAt: new Date() }).where(eq(cardRules.id, ruleId));
   const [fb] = await db
     .insert(arenaFeedback)
-    .values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, noteId: ruleId, reportedBy, note: `${written.split("\n")[0]}: ${row.printed}`, resolution: row.reads || null })
+    .values({ kind: "rule", cardId: row.cardId, skillIndex: row.skillIndex, noteId: ruleId, reportedBy, note: `${head}: ${row.printed}`, resolution: row.reads || null })
     .returning({ id: arenaFeedback.id });
-  return { ruleId, previous: row.explanation, written, feedbackId: fb.id };
+  return { ruleId, previous: row.reviewFlag, written, feedbackId: fb.id };
 }
 
 /**
- * Undo of Wrong: the explanation goes back to what it was — only if it still
+ * Undo of Wrong: `review_flag` goes back to what it was — only if it still
  * says what the flag wrote, so an undo never erases words added since — and
  * the feedback note is closed, not deleted, saying it was taken back.
  */
 export async function unflagWrong(db: Db, r: FlagReceipt): Promise<{ restored: boolean }> {
   const back = await db
     .update(cardRules)
-    .set({ explanation: r.previous, updatedAt: new Date() })
-    .where(and(eq(cardRules.id, r.ruleId), eq(cardRules.explanation, r.written)))
+    .set({ reviewFlag: r.previous, updatedAt: new Date() })
+    .where(and(eq(cardRules.id, r.ruleId), eq(cardRules.reviewFlag, r.written)))
     .returning({ id: cardRules.id });
   await db
     .update(arenaFeedback)
@@ -256,4 +260,3 @@ export async function unflagWrong(db: Db, r: FlagReceipt): Promise<{ restored: b
     .where(and(eq(arenaFeedback.id, r.feedbackId), eq(arenaFeedback.noteId, r.ruleId)));
   return { restored: back.length > 0 };
 }
-

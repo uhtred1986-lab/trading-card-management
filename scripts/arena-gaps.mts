@@ -19,7 +19,8 @@ import type { CostRecord } from "../src/lib/arena/draft";
 import { emitsStatic } from "./lib/emits-static";
 import { MECHANISMS, PHRASING_ONLY, clauseShape, mechanismNeeds, mechanismOf } from "../src/lib/arena/gaps";
 import { deckInputFor } from "../src/lib/arena/load";
-import { programOf, type RuleRow } from "../src/lib/arena/rules-store";
+import { programOf, ruleHealth, type RuleRow } from "../src/lib/arena/rules-store";
+import { costRecordProblem } from "../src/lib/arena/vm/skill-payment";
 
 const dbsIds = new Set((await db.select({ id: cardsTable.id }).from(cardsTable).where(eq(cardsTable.game, DEFAULT_GAME))).map((r) => r.id));
 let rows: RuleRow[] = (await db.select().from(cardRules)).filter((r) => dbsIds.has(r.cardId));
@@ -133,8 +134,13 @@ const orphans = rows.filter((r) => r.kind === "auto" && r.status !== "open" && !
 group("[Auto] skills read but no trigger ever fires them — the engine waits for a moment it does not know about:", orphans, (r) => clauseShape(/\b(?:when|at the (?:end|beginning|start))\b[^,.]*/i.exec(r.printed)?.[0] ?? "(names no moment)").slice(0, 70), 20);
 
 // [Activate]/[Counter] skills that read but are never offered: the price before the colon is not something the engine can charge.
-const costReadable = (c: CostRecord | null) => !c || !c.text || !!c.condition || !!c.program;
-const unpayable = rows.filter((r) => (r.kind.startsWith("activate") || r.kind.startsWith("counter")) && r.status !== "open" && !costReadable(r.cost as CostRecord | null));
+// A current payment record that says `readable: false` is exactly that; a record that predates typed payments
+// (#1066) is a different problem, "needs rebuild", counted on its own line. Both come from `ruleHealth`'s check,
+// not a private copy of the cost shape.
+const payKind = (r: RuleRow) => r.kind.startsWith("activate") || r.kind.startsWith("counter");
+const unpayable = rows.filter((r) => payKind(r) && r.status !== "open" && !costRecordProblem(r.cost) && (r.cost as CostRecord).readable === false);
+const rebuild = rows.filter((r) => payKind(r) && r.status !== "open" && ruleHealth(r).needsRebuild).length;
+if (rebuild) console.log(`${rebuild} [Activate]/[Counter] skills still carry a payment record from before typed payments (#1066); the engine refuses them until their rules are rebuilt.\n`);
 group("[Activate]/[Counter] skills read but are never offered, because the engine cannot read the price and will not waive one:", unpayable, (r) => clauseShape((r.cost as CostRecord).text).slice(0, 70), 20);
 
 // [Permanent] skills that read but emit no standing effect: the static layer has no kind for what they say.

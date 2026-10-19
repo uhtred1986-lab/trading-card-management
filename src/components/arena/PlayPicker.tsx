@@ -156,7 +156,7 @@ export function PlayPicker({
         {isLocked ? (
           <>
             {/* Computer: Rules is one click away. */}
-            <Link href={`/arena/rules?deck=${deck.id}&seg=open`} className="tap hidden w-full items-center justify-center rounded-lg bg-loss px-4 py-3 text-sm font-bold uppercase tracking-wider text-space-950 sm:flex">
+            <Link href={`/arena/rules?deck=${deck.id}&state=open`} className="tap hidden w-full items-center justify-center rounded-lg bg-loss px-4 py-3 text-sm font-bold uppercase tracking-wider text-space-950 sm:flex">
               Fix {deck.ready.open} card{deck.ready.open === 1 ? "" : "s"} to play
             </Link>
             {/* Phone: Rules is made for the computer, so move to a deck that can be played. */}
@@ -239,7 +239,7 @@ function Readiness({ deck }: { deck: PlayDeck }) {
               {r.openCards.map((c, i) => (
                 <span key={c.id}>
                   {i > 0 && ", "}
-                  <Link href={`/arena/rules?deck=${deck.id}&seg=open&q=${encodeURIComponent(c.id)}`} className="underline hover:text-space-50">
+                  <Link href={`/arena/rules?deck=${deck.id}&state=open&q=${encodeURIComponent(c.id)}`} className="underline hover:text-space-50">
                     {c.name}
                   </Link>
                 </span>

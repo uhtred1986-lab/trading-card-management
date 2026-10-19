@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { skillRecords } from "../../src/lib/arena/draft";
 import type { CardDef } from "../../src/lib/arena/types";
-import { FLAG_PREFIX, approvalProblem, rulesReturnHref, builderHref, findOnce, flagExplanation, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
+import { FLAG_PREFIX, approvalProblem, rulesReturnHref, builderHref, findOnce, flagText, isFlagged, orderQueue, reviewText, type ReviewRecord, type ReviewText } from "../../src/lib/arena/rule-review";
 import type { Cond, CostRecord, Op } from "../../src/lib/arena/vm/script";
 import { parsePath } from "../../src/lib/arena/lang/path";
 
@@ -144,13 +144,14 @@ assert.equal(findOnce("Draw 2 cards.", "draw 2"), null, "exact case unless asked
 
 // ── the Wrong verdict's words ──────────────────────────────────────────────
 {
-  const once = flagExplanation({ tag: "DO", path: "ops[1]", reason: "wrong timing or duration", note: "  lasts for the battle,\n not the turn " }, null);
+  const once = flagText({ tag: "DO", path: "ops[1]", reason: "wrong timing or duration", note: "  lasts for the battle,\n not the turn " });
   assert.equal(once, `${FLAG_PREFIX} · DO ops[1] · wrong timing or duration — lasts for the battle, not the turn`, "the clause and the reason first, then the note");
-  assert.equal(isFlagged(once), true);
-  const kept = flagExplanation({ tag: "WHEN", path: "trigger[0]", reason: "something else" }, "Claude: the owner's earlier words");
-  assert.ok(kept.endsWith("\n\nClaude: the owner's earlier words"), "an earlier explanation is kept under the flag");
+  assert.equal(isFlagged(null, once), true, "review_flag is the flag");
+  assert.equal(isFlagged(once), true, "the old explanation prefix still reads as flagged");
+  assert.equal(isFlagged("Claude: something", "flagged in claude.ai review"), true, "a flag from the MCP connector counts too");
   assert.equal(isFlagged("Claude: something"), false);
   assert.equal(isFlagged(null), false);
+  assert.equal(isFlagged(null, ""), false);
 }
 
 assert.equal(builderHref(42), "/arena/rules/build/42", "Teach it and Fix it open the block builder (#469)");

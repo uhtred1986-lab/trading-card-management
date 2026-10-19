@@ -7,25 +7,24 @@ import { loadProgress, recordAndReadSnapshots, type CardBucket, type CardProgres
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Rules progress" };
 
-const LABEL: Record<CardBucket, string> = { confirmed: "Confirmed", read: "Read (draft)", unread: "Unread", flagged: "Flagged", missing: "No rules" };
+const LABEL: Record<CardBucket, string> = { done: "Done", unchecked: "Read, not checked", incomplete: "Incomplete", "text-only": "Text only" };
 const CHIP: Record<CardBucket, string> = {
-  confirmed: "bg-emerald-500/15 text-emerald-300",
-  read: "bg-sky-500/15 text-sky-300",
-  unread: "bg-amber-500/15 text-amber-300",
-  flagged: "bg-rose-500/15 text-rose-300",
-  missing: "bg-space-700/60 text-space-300",
+  done: "bg-emerald-500/15 text-emerald-300",
+  unchecked: "bg-sky-500/15 text-sky-300",
+  incomplete: "bg-amber-500/15 text-amber-300",
+  "text-only": "bg-rose-500/15 text-rose-300",
 };
-const ORDER: CardBucket[] = ["confirmed", "read", "unread", "flagged", "missing"];
-const RANK: Record<CardBucket, number> = { flagged: 0, unread: 1, missing: 2, read: 3, confirmed: 4 };
+const ORDER: CardBucket[] = ["done", "unchecked", "incomplete", "text-only"];
+const RANK: Record<CardBucket, number> = { "text-only": 0, incomplete: 1, unchecked: 2, done: 3 };
 
-function Bar({ d }: { d: { total: number; confirmed: number; read: number; unread: number; flagged: number } }) {
+function Bar({ d }: { d: { total: number } & Record<CardBucket, number> }) {
   const w = (n: number) => `${d.total ? (n / d.total) * 100 : 0}%`;
   return (
-    <div className="flex h-2 w-full overflow-hidden rounded-full bg-space-800" role="img" aria-label={`${d.confirmed} of ${d.total} confirmed`}>
-      <span className="bg-emerald-500" style={{ width: w(d.confirmed) }} />
-      <span className="bg-sky-500" style={{ width: w(d.read) }} />
-      <span className="bg-amber-500" style={{ width: w(d.unread) }} />
-      <span className="bg-rose-500" style={{ width: w(d.flagged) }} />
+    <div className="flex h-2 w-full overflow-hidden rounded-full bg-space-800" role="img" aria-label={`${d.done} of ${d.total} done`}>
+      <span className="bg-emerald-500" style={{ width: w(d.done) }} />
+      <span className="bg-sky-500" style={{ width: w(d.unchecked) }} />
+      <span className="bg-amber-500" style={{ width: w(d.incomplete) }} />
+      <span className="bg-rose-500" style={{ width: w(d["text-only"]) }} />
     </div>
   );
 }
@@ -38,10 +37,10 @@ function Sparkline({ points }: { points: SnapshotRow[] }) {
   const last = points[points.length - 1];
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-12 w-60 max-w-full text-emerald-400" role="img" aria-label={`Confirmed cards over ${points.length} days`} preserveAspectRatio="none">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-12 w-60 max-w-full text-emerald-400" role="img" aria-label={`Done cards over ${points.length} days`} preserveAspectRatio="none">
         <polyline points={xy} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>
-      <span className="text-sm text-space-300">{points[0].date} to {last.date}: {points[0].confirmedCards} to {last.confirmedCards} confirmed</span>
+      <span className="text-sm text-space-300">{points[0].date} to {last.date}: {points[0].confirmedCards} to {last.confirmedCards} done</span>
     </div>
   );
 }
@@ -59,7 +58,7 @@ export default async function RulesProgressPage({ searchParams }: { searchParams
   cards = [...cards].sort((a, b) =>
     sort === "name" ? a.name.localeCompare(b.name) : sort === "status" ? RANK[a.bucket] - RANK[b.bucket] || b.appearances - a.appearances : b.appearances - a.appearances || a.cardId.localeCompare(b.cardId));
   const counts = Object.fromEntries(ORDER.map((b) => [b, progress.cards.filter((c) => c.bucket === b).length])) as Record<CardBucket, number>;
-  const pct = progress.total ? Math.round((progress.confirmed / progress.total) * 100) : 0;
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const href = (q: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ sort: sort === "appearances" ? undefined : sort, status: filter, ...q })) if (v) p.set(k, v);
@@ -70,12 +69,12 @@ export default async function RulesProgressPage({ searchParams }: { searchParams
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Arena rules" title="Rules progress" description="Deck-first: cards in your eligible decks (Dragon Ball Super, not testing; main, Z and leader, both faces) whose every skill is confirmed." />
+      <PageHeader eyebrow="Arena rules" title="Rules progress" description="Deck-first: cards in your eligible decks (Dragon Ball Super, not testing; main, Z and leader, both faces) whose every skill is done: approved, and nothing the engine cannot carry out." />
       <Panel className="space-y-3 p-4">
-        <p className="text-2xl font-semibold">{progress.confirmed} of {progress.total} deck cards fully confirmed <span className="text-base font-normal text-space-300">({pct}%)</span></p>
-        <Bar d={{ total: progress.total, confirmed: progress.confirmed, read: counts.read, unread: counts.unread + counts.missing, flagged: counts.flagged }} />
+        <p className="text-2xl font-semibold">{progress.done} of {progress.total} deck cards done <span className="text-base font-normal text-space-300">({pct}%)</span></p>
+        <Bar d={{ total: progress.total, done: counts.done, unchecked: counts.unchecked, incomplete: counts.incomplete, "text-only": counts["text-only"] }} />
         <p className="text-sm text-space-300">
-          Skills of these cards: {progress.skills.confirmed} confirmed, {progress.skills.owner} owner-authored, {progress.skills.read} read draft, {progress.skills.unread} unread, {progress.skills.flagged} flagged as suspected misreads. A flagged skill never counts as confirmed.
+          Skills of these cards: {progress.skills.done} done, {progress.skills.unchecked} read but not checked, {progress.skills.incomplete} incomplete (flagged, or partly read), {progress.skills["text-only"]} text only (the engine does nothing with them).
         </p>
         <Sparkline points={history} />
       </Panel>
@@ -88,9 +87,9 @@ export default async function RulesProgressPage({ searchParams }: { searchParams
               <li key={d.deckId} className="space-y-1.5 py-2.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <Link href={`/decks/${d.deckId}`} className="font-medium hover:underline">{d.name}</Link>
-                  <span className="text-sm text-space-300">{d.confirmed}/{d.total} confirmed · {d.read} read · {d.unread + d.missing} unread · {d.flagged} flagged</span>
+                  <span className="text-sm text-space-300">{d.done}/{d.total} done · {d.unchecked} not checked · {d.incomplete} incomplete · {d["text-only"]} text only</span>
                 </div>
-                <Bar d={{ ...d, unread: d.unread + d.missing }} />
+                <Bar d={d} />
               </li>
             ))}
           </ul>
