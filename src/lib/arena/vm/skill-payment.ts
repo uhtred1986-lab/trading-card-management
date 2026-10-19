@@ -1,4 +1,4 @@
-import { potaraMaterialsProblem } from "./potara-materials";
+import { potaraMaterialsProblem, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { absorbProcedureProblem, absorbPriceProblem } from "./absorb-procedure";
 import { evolutionBaseProblem } from "./evolution-base";
 import type { Skill } from "../types";
@@ -54,7 +54,7 @@ export function skillPriceProblem(value: unknown, depth = 0, path = "price"): st
   if (Object.keys(p!).some((key) => !["payment", "condition", "ops", "x", "payWith", "fusion", "evolution", "absorb", "potara"].includes(key))) return "unknown typed skill price field; regenerate rules and rebuild saved matches/exports";
   if (Object.keys(p!.payment).some((key) => !["version", "readable", "orbs", "either", "marker", "burst", "spiritBoost"].includes(key))) return "unknown typed skill payment field; regenerate rules and rebuild saved matches/exports";
   if ([p!.fusion, p!.evolution, p!.absorb, p!.potara].filter(v => v !== undefined).length > 1) return "contradictory typed keyword identity";
-  if (p!.potara !== undefined) { const bad = potaraMaterialsProblem(p!.potara); if (bad) return bad; }
+  if (p!.potara !== undefined) { const bad = potaraMaterialsProblem(p!.potara) ?? (potaraPrintedSelector(p!.ops) || potaraPrintedSelector(p!.condition) ? POTARA_REBUILD : null); if (bad) return bad; }
   if (p!.absorb !== undefined) { const bad = absorbProcedureProblem(p!.absorb) ?? absorbPriceProblem(p!.ops, p!.condition); if (bad) return bad; }
   if (p!.evolution !== undefined) { const bad = evolutionBaseProblem(p!.evolution); if (bad) return bad; }
   if (p!.fusion !== undefined) {

@@ -1,4 +1,4 @@
-import { containsPotaraPlay, isPotaraSkill } from "./potara-materials";
+import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
 import { fusionIdentityProblem, evolutionIdentityProblem, absorbIdentityProblem, sameAbsorbIdentity, potaraIdentityProblem } from "./skill-identity";
 import { requireValidity, validityProblem, sparkingIsValid } from "./validity";
@@ -1237,7 +1237,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       for (const line of [frame.keywordPrice?.line, frame.keywordCost?.line]) if (line && (!sameAbsorbIdentity(frame.absorbIdentity, { kind: line.script?.kind, price: line.script?.price, ops: line.script?.ops }))) throw new NotYet("rebuild inconsistent saved Absorb identity/price (#907)", "#907");
     }
     if (frame.potaraIdentity || sourceScript?.price?.potara !== undefined || containsPotaraPlay(frame.ops) || [frame.keywordPrice?.line, frame.keywordCost?.line].some(line => line && (line.script?.price?.potara !== undefined || isPotaraSkill(line.skill)))) {
-      const gap = potaraIdentityProblem(frame.potaraIdentity, true); if (gap) throw new NotYet(gap, "#907");
+      const gap = potaraIdentityProblem(frame.potaraIdentity, true) ?? (potaraPrintedSelector(frame.ops) ? POTARA_REBUILD : null); if (gap) throw new NotYet(gap, "#907");
       if (!Number.isSafeInteger(frame.potaraSourceEpoch)) throw new NotYet("rebuild this saved Potara source occurrence (#907)", "#907");
       for (const line of [frame.keywordPrice?.line, frame.keywordCost?.line]) if (line && !sameAbsorbIdentity(frame.potaraIdentity, {kind: line.script?.kind, price: line.script?.price})) throw new NotYet("rebuild inconsistent saved Potara identity/price (#907)", "#907");
     }

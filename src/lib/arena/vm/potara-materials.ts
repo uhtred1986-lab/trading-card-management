@@ -5,6 +5,13 @@ import { filterProblem } from "./script-schema";
 import { IllegalAction } from "./common";
 export const POTARA_REBUILD = "missing or malformed typed Union-Potara material contract v1; regenerate rules and rebuild saved matches/exports (#907)";
 export const isPotaraSkill = (s: Pick<Skill, "keyword">) => s.keyword?.name === "Union" && s.keyword.variant === "Potara";
+/** namedSet/eachNamed now use typed slots; asPrinted selectors still parse display. */
+export function potaraPrintedSelector(value: unknown, selector = false): boolean {
+  if (Array.isArray(value)) return value.some(v => potaraPrintedSelector(v, selector));
+  if (!value || typeof value !== "object") return false;
+  const node = value as Record<string, unknown>;
+  return selector && node.printed === true || Object.entries(node).some(([key, child]) => potaraPrintedSelector(child, key === "sel" || key === "underHost"));
+}
 export function potaraMaterialsProblem(value: unknown): string | null {
   const p = value as PotaraMaterials | undefined;
   if (!p || typeof p !== "object" || Array.isArray(p) || Object.keys(p).some(k => !["version", "variant", "activation", "base", "needs", "samePower", "extensions"].includes(k))

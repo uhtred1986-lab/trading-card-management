@@ -1,4 +1,4 @@
-import { POTARA_REBUILD, isPotaraSkill, potaraMaterialsProblem } from "./potara-materials";
+import { POTARA_REBUILD, isPotaraSkill, potaraMaterialsProblem, potaraPrintedSelector } from "./potara-materials";
 import { ABSORB_REBUILD, isAbsorbSkill, absorbEffectProblem } from "./absorb-procedure";
 import { evolutionBaseProblem, needsEvolutionContract, EVOLUTION_REBUILD } from "./evolution-base";
 /** Record-owned Fusion identity; native keyword declarations remain ruleset-owned. */
@@ -19,10 +19,10 @@ export function evolutionIdentityProblem(script: Pick<Script, "kind" | "price"> 
   if (script?.kind !== "keyword") return EVOLUTION_REBUILD;
   return skillPriceProblem(script.price) ?? evolutionBaseProblem(script.price?.evolution);
 }
-export function potaraIdentityProblem(script: Pick<Script, "kind" | "price"> | undefined, required = false): string | null {
+export function potaraIdentityProblem(script: (Pick<Script, "kind" | "price"> & {ops?: Script["ops"]}) | undefined, required = false): string | null {
   if (!required && script?.price?.potara === undefined) return null;
   if (script?.kind !== "keyword") return POTARA_REBUILD;
-  return skillPriceProblem(script.price) ?? potaraMaterialsProblem(script.price?.potara);
+  return skillPriceProblem(script.price) ?? potaraMaterialsProblem(script.price?.potara) ?? (potaraPrintedSelector(script.ops) ? POTARA_REBUILD : null);
 }
 export function potaraLineProblem(line: { script?: Script; skill: Skill; keyword?: {name: string} }, required = false): string | null {
   if (!required && line.script?.price?.potara === undefined && !isPotaraSkill(line.skill)) return null;

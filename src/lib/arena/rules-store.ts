@@ -98,7 +98,7 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
     if (gap) unsupported.push(gap);
   }
   if ((row.cost as CostRecord | null)?.potara !== undefined || parseSkills(row.printed).some(isPotaraSkill)) {
-    const gap = potaraIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
+    const gap = potaraIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
     if (gap) unsupported.push(gap);
   }
   const grantGaps = (value: unknown): string[] => {
@@ -563,7 +563,7 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   }
   const potaraCost = (w.cost ?? existing?.cost) as CostRecord | undefined;
   if (potaraCost?.potara !== undefined || parseSkills(existing?.printed ?? w.printed ?? "").some(isPotaraSkill)) {
-    const gap = potaraIdentityProblem({kind: kind as import("./types").Skill["kind"], price: costRecordProblem(potaraCost) ? undefined : priceFromCostRecord(potaraCost!)}, true);
+    const gap = potaraIdentityProblem({kind: kind as import("./types").Skill["kind"], price: costRecordProblem(potaraCost) ? undefined : priceFromCostRecord(potaraCost!), ops: programOf({ops: w.ops, cond: w.cond})}, true);
     if (gap) throw new Error(`${w.cardId} [${w.skillIndex}]: ${gap}`);
   }
   const validity = w.validity !== undefined ? w.validity : existing?.validity;
