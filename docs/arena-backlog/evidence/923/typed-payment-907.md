@@ -111,12 +111,21 @@ Relevant source SHA-256 values at that revision:
 | `scripts/verify/union-sources-930.ts` | `b76d4895294ba1e904632dcd7df398fcf79d59c43f33c21a59815e56dd13a191` |
 | `src/lib/catalog/errata.ts` | `af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0` |
 
-New #907 implementation revision: `ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8`.
-The focused verifier is `scripts/verify/typed-payment-907.ts`, SHA-256
-`7bcecd3b1300d115627beb5d0af35ba503008db4192b0602a6b7d5f85b34972c` at that
-revision. Worker and reviewer runs passed; the coordinator rerun was still
-underway when this matrix was updated. No database refresh or live application
-is included in that proof.
+Runtime implementation and frozen controls: `ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8`.
+The new scenario's current official source attributes were corrected in
+`1ad23a12de4acce64c2948581be2cc525c39f713`; its payment expectations are unchanged.
+Final focused verifier at `e1945ffac5a42422a61633f93aefda1510b975ba`;
+`scripts/verify/typed-payment-907.ts` SHA-256: `a16be9a280502ab1e3ef791fd0ef66646ec6b2daa4370cf41d5d65eed1ceb82a`.
+Worker/reviewer proof and coordinator reruns passed, including the corrected
+reference. No database refresh or live application is included in that proof.
+
+The [online check](../907/typed-payment-2026-10-19/online-sources.md) confirms
+BT3-070's erratum and records official Fusion material-before-skill-cost timing.
+Current VM energy payment still precedes material selection: this is an explicit
+preexisting procedural limitation, not certified by the typed-authority proof.
+The next bounded #907 task repairs that checkpoint. BT11-013's current printed
+20,000 power, cost5/Red3 and Saiyan trait are in the new fixture; #926's historical
+35,000 fixture remains a separate preservation control.
 
 Current issue snapshots read for this matrix:
 
@@ -130,4 +139,6 @@ Current issue snapshots read for this matrix:
 The #1019 receipt also notes BT4-018 unread and BT28-012 source correction.
 Those facts do not establish whether BT3-070 was among refreshed or already
 current rows. This matrix makes no BT3-070 production-row claim. The #897
-starter final control remains outside this document and pending the coordinator.
+starter control completed 16/16 with exact prior game records; see the
+[preservation receipt](../907/typed-payment-2026-10-19/README.md). This does not
+establish per-skill coverage or additional-pair qualification.

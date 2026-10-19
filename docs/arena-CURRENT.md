@@ -22,6 +22,15 @@ strength holdouts remain. #929/#930 have implementations, #932 is closed after
 final integrated validation, and #825 needs per-target application reconciliation. The plan and issue
 bodies distinguish these from new code work.
 
+#1066 delivers authoritative typed activated payment and granted Union prices,
+with explicit rebuild refusal for obsolete records. The focused Union/payment
+proofs pass and all 16 frozen starter traces are preserved. Official online
+sources confirm a remaining Fusion timing gap: energy currently precedes
+materials. The next bounded #907 task is to move skill-cost payment to the
+post-material checkpoint, preserving distinct Potara/Absorb procedures.
+[Payment receipt and sources](arena-backlog/evidence/907/typed-payment-2026-10-19/README.md).
+No production stored-rule application or additional-pair qualification is claimed.
+
 #827 holds later recipe/scenario expansion. #900 owns computer-play acceptance
 (#898 is closed). #906 owns the separate API campaign, still gated on a qualified
 corpus and preflight; the approved $20 pilot / $100 inclusive total is unchanged.

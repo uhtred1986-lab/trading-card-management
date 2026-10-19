@@ -170,6 +170,19 @@ not a prerequisite for delivering the selected decks.
 privacy, legality or budget regression. Negative results close an experiment;
 they do not reopen a completed implementation or justify a difficulty label.
 
+## Rules evidence before interpretation changes
+
+Owner instruction, 19 October: consult current online guidance from the official
+Masters website and relevant public forums when determining behavior or checking
+errata. Read the applicable manual, card text, official errata and card Q&A;
+record exact URLs and retrieval dates alongside durable scenarios. Cross-check
+relevant forum discussions for disputed interactions and missing cases, clearly
+labeling community interpretation separately from official rulings. Do not let
+an old census or a forum answer override a current official correction. If a
+source cannot be retrieved, record that limit instead of claiming it was checked.
+Ask the owner only when a material semantic conflict remains unresolved after
+this research, while continuing independent work.
+
 ## What a batch must report
 
 Use one keyed ledger over identical frozen input bytes. Keep the old and new

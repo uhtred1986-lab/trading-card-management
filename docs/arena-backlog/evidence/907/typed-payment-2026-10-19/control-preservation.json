@@ -1,0 +1,3364 @@
+{
+  "baseline": "docs/arena-backlog/evidence/897/baseline-2026-10-19/starter-compiler-pack.json",
+  "baselineFileSha256": "7e48a4fcc0e2110d9005014df62c91899b671dacbc7796c708823e948627f609",
+  "currentFileSha256": "d9ace4c2998c46a54e9a223e5890260cab0c500845b7302da2bb93b907302c9f",
+  "checks": {
+    "catalogInputsIdentical": true,
+    "protocolIdentical": true,
+    "deckListsIdentical": true,
+    "gameRecordsIdentical": true,
+    "rulesetIdentical": true,
+    "policyIdentical": true,
+    "errataIdentical": true
+  },
+  "previousSummary": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "currentSummary": {
+    "admitted": [
+      "A",
+      "B"
+    ],
+    "candidates": 2,
+    "completed": 16,
+    "crashed": 0,
+    "games": 16,
+    "illegal": 0,
+    "interrupted": 0,
+    "limited": 0,
+    "other": 0,
+    "qualified": [
+      "A",
+      "B"
+    ]
+  },
+  "programChanges": [
+    {
+      "key": "BT1-014/0",
+      "oldHash": "10d50fc2c043f84db4e426acea1d5b8c4aca0c169da33934c8b981fdff930b33",
+      "newHash": "c85998e551c23c5f561d24cff6c5ff351e0b181d8709c4900a86283ec0ea1848",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT1-027/0",
+      "oldHash": "1a3705b87f03f5e133efe7eaec5cbd7e05615fb85b58d36b6108b62d4989d8af",
+      "newHash": "6db01c046d91b0ec2f515d00f47eb81b51a188329b1bb954537f8f6420564879",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT10-008/0",
+      "oldHash": "68157fa7d4cac9ab9f5c17b96a6c7df8d8d911296badea468230ff41367bdba9",
+      "newHash": "4e63aae04a9fd0102f8c4b7bcf5836d030c625b5ec0702dab03a45ad5f8a6099",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "counterKind": "play",
+            "op": "forbid",
+            "otherCards": true,
+            "side": "you",
+            "until": "turn",
+            "what": "activateCounter"
+          }
+        ]
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "counterKind": "play",
+            "op": "forbid",
+            "otherCards": true,
+            "side": "you",
+            "until": "turn",
+            "what": "activateCounter"
+          }
+        ],
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT10-008/10",
+      "oldHash": "8284a4f07c257eca923b19c2667239622511d35bd85a5b496cca46da0ed5ae71",
+      "newHash": "65c164ef34a9d0c524e4f2b69bd6a888220a235fdc995c9ba38957678428a55c",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT11-008/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT11-008/10",
+      "oldHash": "9ceda57c91d9427f0ab1cdb2d4c527a33d0fc80dc88f3697cb4a30a80916c492",
+      "newHash": "4998ce7af23be77553a15b936a85a38411f81afb2f7194fcd99f0d9239f15c7c",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "atLeast": 1,
+          "kind": "count",
+          "sel": {
+            "area": "unison",
+            "filter": {
+              "characterOrTrait": false,
+              "characters": [],
+              "charactersAll": [],
+              "charactersIncluding": [],
+              "colors": [
+                "Red"
+              ],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "costAboveEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costMax": null,
+              "costMin": null,
+              "energyOfOpponent": false,
+              "faceUp": false,
+              "keywords": [],
+              "markersMax": null,
+              "markersMin": null,
+              "monoColor": false,
+              "multiColor": false,
+              "nameInSkillTextOf": null,
+              "names": [],
+              "namesAll": [],
+              "namesIncluding": [],
+              "noKeywords": false,
+              "notCharacters": [],
+              "notCharactersIncluding": [],
+              "notColors": [],
+              "notKeywords": [],
+              "notNames": [],
+              "notNamesIncluding": [],
+              "notToken": false,
+              "notTraits": [],
+              "notType": null,
+              "onlyCharacters": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "originallySkillLess": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "skillKind": null,
+              "skillLess": false,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostNone": false,
+              "token": false,
+              "traits": [],
+              "type": "UNISON",
+              "unreadable": false,
+              "z": null
+            },
+            "side": "you"
+          }
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "atLeast": 1,
+          "kind": "count",
+          "sel": {
+            "area": "unison",
+            "filter": {
+              "characterOrTrait": false,
+              "characters": [],
+              "charactersAll": [],
+              "charactersIncluding": [],
+              "colors": [
+                "Red"
+              ],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "costAboveEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costMax": null,
+              "costMin": null,
+              "energyOfOpponent": false,
+              "faceUp": false,
+              "keywords": [],
+              "markersMax": null,
+              "markersMin": null,
+              "monoColor": false,
+              "multiColor": false,
+              "nameInSkillTextOf": null,
+              "names": [],
+              "namesAll": [],
+              "namesIncluding": [],
+              "noKeywords": false,
+              "notCharacters": [],
+              "notCharactersIncluding": [],
+              "notColors": [],
+              "notKeywords": [],
+              "notNames": [],
+              "notNamesIncluding": [],
+              "notToken": false,
+              "notTraits": [],
+              "notType": null,
+              "onlyCharacters": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "originallySkillLess": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "skillKind": null,
+              "skillLess": false,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostNone": false,
+              "token": false,
+              "traits": [],
+              "type": "UNISON",
+              "unreadable": false,
+              "z": null
+            },
+            "side": "you"
+          }
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT11-011/0",
+      "oldHash": "2982d204a4c2ba6e3b32dfda043f13e0bb3e9e0b5706c2f5b4e2c993660d4601",
+      "newHash": "b8ef7df1f7d14e1af54add93fadbce80ae7172f1b2e0dd673eba5b9a2a670158",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT14-010/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT14-010/10",
+      "oldHash": "37abb5b0edc8251a5d0c4bd9ad7fcd7573f0516e020d5ab6d786cca7c2859438",
+      "newHash": "3dbb42d9a17cfc90a41c126297b4626829d8b7e44567db97e0402bf959d50e8c",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "conds": [
+            {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Red"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            {
+              "atMost": 4,
+              "kind": "life",
+              "side": "you"
+            }
+          ],
+          "kind": "all"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "conds": [
+            {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Red"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            {
+              "atMost": 4,
+              "kind": "life",
+              "side": "you"
+            }
+          ],
+          "kind": "all"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT3-027/0",
+      "oldHash": "13fe9fc51a5a178c12c99b38d6924f41f29f90e3ee7b1c08f038cf54e3c167e5",
+      "newHash": "6966bc2580335c8d1e9dd67085d1984a3de013833132fef8ffca8e89f77e86cb",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-012/0",
+      "oldHash": "d84870d8ab70e5d8c52c9cf920f932b4cf1ced7a07aec17bb09c203c7c48bb8c",
+      "newHash": "c2522303593473ab54591c879fff9880319e932e4ad0b0e82b079721c1dca256",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-077/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "f0835e1dbb5f394476cbc2b60d3100a60b8145bad7743da6994e80758b837f75",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 2
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-077/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-078/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "f0835e1dbb5f394476cbc2b60d3100a60b8145bad7743da6994e80758b837f75",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 2
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-079/0",
+      "oldHash": "724a08c2c159e4b2c2a47913e0c226e23d485fd41183af23a564d393d6e465e1",
+      "newHash": "2595c804886e9e6552abd93b1157542ac9a7e481f635766835d915d342caf0d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "choose 1 card from your hand",
+            "sel": {
+              "area": "hand",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "reveal": true,
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop"
+          }
+        ]
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "choose 1 card from your hand",
+            "sel": {
+              "area": "hand",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "reveal": true,
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop"
+          }
+        ],
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 1
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-081/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "0ffd02e86f5538e7ecfd9608aad9cc044e3f6740e6e7a1bec40dfbe27c44b390",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 3
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-081/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-081/20",
+      "oldHash": "1f8a84b7922ad6e58f808515bc3a2481892f6f79b92ff71ca9e5706e83d7ddc8",
+      "newHash": "f580972525ceb73b51db5d65197dec5c6a82b1397d78510dff1cb8696eb09946",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-084/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "f0835e1dbb5f394476cbc2b60d3100a60b8145bad7743da6994e80758b837f75",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 2
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-084/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-085/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "f0835e1dbb5f394476cbc2b60d3100a60b8145bad7743da6994e80758b837f75",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 2
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-085/10",
+      "oldHash": "0017aea0ba3ad24223fa71c294b3d998ee51a98671111c92434314333d364a8b",
+      "newHash": "73eebb87cb9b1a87b00222a2e7a911f435e71b2219c508e8d638f7c11a5525cc",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-086/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "0ffd02e86f5538e7ecfd9608aad9cc044e3f6740e6e7a1bec40dfbe27c44b390",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 3
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-086/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-086/20",
+      "oldHash": "90ee93f5de7f281488fdbb6647d28635b578b1a70e8d1fb1b06e64b0f6dc8c20",
+      "newHash": "3bc7a158222205fa0ab74901a1791fc872c3f9eec11ae9ad6ef390e6be437b01",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-089/0",
+      "oldHash": "16cbcb0548d41527ba5d01b4b3ba49f81bf814fdd2f004bc20300af4ce581e34",
+      "newHash": "b7d8b0b985f4ba14a80e4e6cc05f77dde161ed45149e26ece49b428a22f00ae4",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-091/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-091/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-096/0",
+      "oldHash": "da0fe5dd84072623cbdd22b764e92e6734fe34c5aa62a5612beaa6f37b35d330",
+      "newHash": "7c4bc297f3ada978c4db8a207e789dd1b9e45830ee1cfce7b5fe2e36930b365e",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-097/0",
+      "oldHash": "e051c723b0bdc2e99eddee64ae04785365b3ed3b77283b54f9cf7d374d733fcd",
+      "newHash": "411a10fd832e7731f1a60c4a2eed56bf0734b0eb0bd68d61f6e0c0fe412f05de",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT4-097/10",
+      "oldHash": "ef6511ab163b65af9f7576f7e8f38372773612b2ab274d496499b9c39dfad9bc",
+      "newHash": "33146ae542893c572dd47b8d2c76a834b0d2630a92cf114a47661c1fc35ef910",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT5-023/0",
+      "oldHash": "e293870664446dfba57afe2f508c3d4113e923cf7866f25941fbda5664e17314",
+      "newHash": "eba27b826af50b6793cc91f1a14d06aff8ef4d7bc71079cc70dcdac7eb70fbf5",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT5-023/10",
+      "oldHash": "e2ca187862ee2f53c034474997b0804c3afa09c19edbea2473261ced4751e77b",
+      "newHash": "fd950dd5331644a68c6f62350ef4015a8e83e40d76e70d88b178f9e74c5c4680",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT6-010/0",
+      "oldHash": "344ece8f3f2c1ba96d7f454edf0974a7032157b42b0a59e6f7babe8cf7edbded",
+      "newHash": "953f3189f1c19f3e123ad76389f39804e33fa34df0a1276b5cb97e44c3f7d751",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT6-010/10",
+      "oldHash": "92d958f882ab759b8aa4579dc342e4c06b43bd84335b2d8a95241e9005e40012",
+      "newHash": "630bb8ed85aa7dd6095149c8cccc0f6691484d3fe5b752d355e5a50f0135f032",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT6-011/0",
+      "oldHash": "d7d7b0e0c103131cb797d5f79d2f3bbed103806794cf621ffa254db3220df8de",
+      "newHash": "1b810544244a4aa97bca3cc4be7239f68df10fa645ab33718cd2f9241a279db8",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT6-025/0",
+      "oldHash": "be47aba148655d4c9ff8bf5141e94872a6f9cb9476896d7507ee59b701c423fe",
+      "newHash": "e4769b7bd2d56f4de93103b13c7ed50b61a5dd6fa4297b21e59667ee3c45827a",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT6-026/0",
+      "oldHash": "a8eb94761c81c2e59e9a9b772143990055e03015bf7b08ba03e8d0a656a86308",
+      "newHash": "9ca076a3ca6913f6524d453ca05b1c1141bd5ccc675db7c1cfd6460f76b011f5",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "BT9-031/0",
+      "oldHash": "2ed8d45098f86a01f11cd7128514d7eaf7c4f1fb6d66e2715df6446845e3be9a",
+      "newHash": "c11e7d6e3dd692909fe371dfbccc0891f4fd403637eeaf520ec239259780c826",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 Extra Card in your hand",
+            "sel": {
+              "area": "hand",
+              "count": 1,
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": "EXTRA",
+                "unreadable": false,
+                "z": null
+              },
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "reveal": true,
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop"
+          }
+        ]
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 Extra Card in your hand",
+            "sel": {
+              "area": "hand",
+              "count": 1,
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": "EXTRA",
+                "unreadable": false,
+                "z": null
+              },
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "reveal": true,
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop"
+          }
+        ],
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "DB1-019/0",
+      "oldHash": "fbf67b1531d51fbf7aa1b4eb323fc81c5680121e6485fc97e0d0446429992f2e",
+      "newHash": "3a31b276b411cf16063ff1489759dc19818b8973994d3151bbec0bb7d7d9675c",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [
+              "saiyan"
+            ],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "filter": {
+            "characterOrTrait": false,
+            "characters": [],
+            "charactersAll": [],
+            "charactersIncluding": [],
+            "colors": [
+              "Red"
+            ],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "costAboveEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costMax": null,
+            "costMin": null,
+            "energyOfOpponent": false,
+            "faceUp": false,
+            "keywords": [],
+            "markersMax": null,
+            "markersMin": null,
+            "monoColor": false,
+            "multiColor": false,
+            "nameInSkillTextOf": null,
+            "names": [],
+            "namesAll": [],
+            "namesIncluding": [],
+            "noKeywords": false,
+            "notCharacters": [],
+            "notCharactersIncluding": [],
+            "notColors": [],
+            "notKeywords": [],
+            "notNames": [],
+            "notNamesIncluding": [],
+            "notToken": false,
+            "notTraits": [],
+            "notType": null,
+            "onlyCharacters": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "originallySkillLess": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "skillKind": null,
+            "skillLess": false,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostNone": false,
+            "token": false,
+            "traits": [
+              "saiyan"
+            ],
+            "type": null,
+            "unreadable": false,
+            "z": null
+          },
+          "kind": "leaderMatches"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "DB2-004/0",
+      "oldHash": "d4be7ebe19039e9d720c14e9626a5aae1c348b87095ec22632ca640598d409b2",
+      "newHash": "bb0a691dda55e5e6ab76fd269b0cfdab492706ff63bdf8bb4afd097f2244441b",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 card in your life",
+            "sel": {
+              "area": "life",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 card in your life",
+            "sel": {
+              "area": "life",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ],
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "DB3-001/0",
+      "oldHash": "bb58616176196b21e78500fb0963f79f36c32469afebed2908369fb139f53f90",
+      "newHash": "ed3c3128e99e065322b038f09d5e1a91a25288b3b4d61585482aeaa54020b9ec",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "conds": [
+            {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Red"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            {
+              "atLeast": 5,
+              "kind": "life",
+              "side": "opponent"
+            }
+          ],
+          "kind": "all"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "conds": [
+            {
+              "filter": {
+                "characterOrTrait": false,
+                "characters": [],
+                "charactersAll": [],
+                "charactersIncluding": [],
+                "colors": [
+                  "Red"
+                ],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "costAboveEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costMax": null,
+                "costMin": null,
+                "energyOfOpponent": false,
+                "faceUp": false,
+                "keywords": [],
+                "markersMax": null,
+                "markersMin": null,
+                "monoColor": false,
+                "multiColor": false,
+                "nameInSkillTextOf": null,
+                "names": [],
+                "namesAll": [],
+                "namesIncluding": [],
+                "noKeywords": false,
+                "notCharacters": [],
+                "notCharactersIncluding": [],
+                "notColors": [],
+                "notKeywords": [],
+                "notNames": [],
+                "notNamesIncluding": [],
+                "notToken": false,
+                "notTraits": [],
+                "notType": null,
+                "onlyCharacters": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "originallySkillLess": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "skillKind": null,
+                "skillLess": false,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostNone": false,
+                "token": false,
+                "traits": [],
+                "type": null,
+                "unreadable": false,
+                "z": null
+              },
+              "kind": "leaderMatches"
+            },
+            {
+              "atLeast": 5,
+              "kind": "life",
+              "side": "opponent"
+            }
+          ],
+          "kind": "all"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "DB3-001/10",
+      "oldHash": "35c12a65ba42037f47c0ad95d147390187a37761ed905df7de67aeb75352a31e",
+      "newHash": "61b6f05556c44adb9a55bd1d2d22178a1b312d2de902229cce31d42bc59f3ca2",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": 1,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "DB3-001/20",
+      "oldHash": "4abe237408e07162efb82cb8a21c95d8a9197839110fb43d47ace301db436193",
+      "newHash": "c52a732ef61815cbda598744443964eb9b094c7a49dfd3a359d7dafe5b134671",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": -4,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-01/0",
+      "oldHash": "02a8dca8bbc33c73787951ee2b2511cf161dd0236e7bab0922b342e4e5777dde",
+      "newHash": "2ad946d7d63f6aa82236cfaae501269ccb2462fc2cd73a3fad1cdeacd22c9de2",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-01/10",
+      "oldHash": "e5b5474e434173b71e4fa5f4ab7236c003ce0c7b45af4422e5509c7e4993cf5a",
+      "newHash": "dbfb8b590c778264448021bf1b8f598e1e4cdf4852cedf2587f1eb77ee38d367",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "conds": [
+            {
+              "atMost": 4,
+              "kind": "life",
+              "side": "you"
+            },
+            {
+              "atLeast": 1,
+              "kind": "count",
+              "sel": {
+                "area": "unison",
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Red"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": 2,
+                  "specifiedCostMin": 2,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "UNISON",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you"
+              }
+            }
+          ],
+          "kind": "any"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "conds": [
+            {
+              "atMost": 4,
+              "kind": "life",
+              "side": "you"
+            },
+            {
+              "atLeast": 1,
+              "kind": "count",
+              "sel": {
+                "area": "unison",
+                "filter": {
+                  "characterOrTrait": false,
+                  "characters": [],
+                  "charactersAll": [],
+                  "charactersIncluding": [],
+                  "colors": [
+                    "Red"
+                  ],
+                  "comboPowerMax": null,
+                  "comboPowerMin": null,
+                  "costAboveEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costMax": null,
+                  "costMin": null,
+                  "energyOfOpponent": false,
+                  "faceUp": false,
+                  "keywords": [],
+                  "markersMax": null,
+                  "markersMin": null,
+                  "monoColor": false,
+                  "multiColor": false,
+                  "nameInSkillTextOf": null,
+                  "names": [],
+                  "namesAll": [],
+                  "namesIncluding": [],
+                  "noKeywords": false,
+                  "notCharacters": [],
+                  "notCharactersIncluding": [],
+                  "notColors": [],
+                  "notKeywords": [],
+                  "notNames": [],
+                  "notNamesIncluding": [],
+                  "notToken": false,
+                  "notTraits": [],
+                  "notType": null,
+                  "onlyCharacters": false,
+                  "originalPowerMax": null,
+                  "originalPowerMin": null,
+                  "originallySkillLess": false,
+                  "powerMax": null,
+                  "powerMin": null,
+                  "powerRel": null,
+                  "skillKind": null,
+                  "skillLess": false,
+                  "specifiedCostMax": 2,
+                  "specifiedCostMin": 2,
+                  "specifiedCostNone": false,
+                  "token": false,
+                  "traits": [],
+                  "type": "UNISON",
+                  "unreadable": false,
+                  "z": null
+                },
+                "side": "you"
+              }
+            }
+          ],
+          "kind": "any"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-01#back/0",
+      "oldHash": "bcbb4990ca7d177b70439026c0baefa65dfdc566895e98f1e91fc493f55a0fea",
+      "newHash": "850d62c741454191f19079e33dd7f4dee5e172811bcbd23fe68052bb26660d66",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-01#back/10",
+      "oldHash": "5488364f40107e03ecdf5574f3191a51aa6e4c2c90bbec2bf8146b22677cfaa5",
+      "newHash": "820b7ef9703616f826a5fea18853ea57a6bfbe4c8c34d27f473b8925062f03a8",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": 1,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-02/0",
+      "oldHash": "f60e2ffea78e4ba0b37d3503e5747ce4644d2b4c17c0b9791e723777888c89ec",
+      "newHash": "4917b62daaa33a897ade635dcb8cafcbf999f510eae437978fa1f13648b5bd86",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-02/10",
+      "oldHash": "a981d8256436b7efe34c8c39860e104bedac50ac4f79bc6a319fe7c3af5df963",
+      "newHash": "d394e60e8402a8c1bf3cba45f777c015628b1006ddf5eb7ef355719263cf0ba8",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": 1,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-02/20",
+      "oldHash": "1ab8fd2c79d8423e7ccd6d37b56707d2eb9cd32236eb7d5525d33650b16f6b1b",
+      "newHash": "2b7900d34ab884d8c0ac296c83a2771749b42873fbf9e0d1d389a5a43d6a61ec",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "atLeast": 3,
+          "kind": "life",
+          "side": "opponent"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "atLeast": 3,
+          "kind": "life",
+          "side": "opponent"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": -6,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-03/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-03/1",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-03/2",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-03/10",
+      "oldHash": "ba294b40e4e83790ed61a453c2a562e5f4aab50000823312ca86ec3a28b9466f",
+      "newHash": "47cc18cc85b1455ca740ea5d3edba5b0469ab791c5a44c721b84ce5c7154bfba",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-03/20",
+      "oldHash": "8f08ab3d42bea88384b5d9f75a9fa0223a1fa485bdc64e17117371cf1c52011f",
+      "newHash": "42337fc470c5d78a97c04235c439dc5d154efc2a9a0b7ff30782163554d3787d",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": 1,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-04/0",
+      "oldHash": "a8ce60f888087db238262fdf31c502a2e5e7de12d3c3acafe71d400530c6e38d",
+      "newHash": "c844532180bd462340575567acc69f6ea9c256cfe8d61688b66c071a0b76a9ea",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "atLeast": 2,
+          "kind": "count",
+          "sel": {
+            "area": "combo",
+            "filter": {
+              "characterOrTrait": false,
+              "characters": [],
+              "charactersAll": [],
+              "charactersIncluding": [],
+              "colors": [
+                "Red"
+              ],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "costAboveEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costMax": null,
+              "costMin": null,
+              "energyOfOpponent": false,
+              "faceUp": false,
+              "keywords": [],
+              "markersMax": null,
+              "markersMin": null,
+              "monoColor": true,
+              "multiColor": false,
+              "nameInSkillTextOf": null,
+              "names": [],
+              "namesAll": [],
+              "namesIncluding": [],
+              "noKeywords": false,
+              "notCharacters": [],
+              "notCharactersIncluding": [],
+              "notColors": [],
+              "notKeywords": [],
+              "notNames": [],
+              "notNamesIncluding": [],
+              "notToken": false,
+              "notTraits": [],
+              "notType": null,
+              "onlyCharacters": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "originallySkillLess": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "skillKind": null,
+              "skillLess": false,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostNone": false,
+              "token": false,
+              "traits": [],
+              "type": "BATTLE",
+              "unreadable": false,
+              "z": null
+            },
+            "side": "you"
+          }
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "atLeast": 2,
+          "kind": "count",
+          "sel": {
+            "area": "combo",
+            "filter": {
+              "characterOrTrait": false,
+              "characters": [],
+              "charactersAll": [],
+              "charactersIncluding": [],
+              "colors": [
+                "Red"
+              ],
+              "comboPowerMax": null,
+              "comboPowerMin": null,
+              "costAboveEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costMax": null,
+              "costMin": null,
+              "energyOfOpponent": false,
+              "faceUp": false,
+              "keywords": [],
+              "markersMax": null,
+              "markersMin": null,
+              "monoColor": true,
+              "multiColor": false,
+              "nameInSkillTextOf": null,
+              "names": [],
+              "namesAll": [],
+              "namesIncluding": [],
+              "noKeywords": false,
+              "notCharacters": [],
+              "notCharactersIncluding": [],
+              "notColors": [],
+              "notKeywords": [],
+              "notNames": [],
+              "notNamesIncluding": [],
+              "notToken": false,
+              "notTraits": [],
+              "notType": null,
+              "onlyCharacters": false,
+              "originalPowerMax": null,
+              "originalPowerMin": null,
+              "originallySkillLess": false,
+              "powerMax": null,
+              "powerMin": null,
+              "powerRel": null,
+              "skillKind": null,
+              "skillLess": false,
+              "specifiedCostMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostNone": false,
+              "token": false,
+              "traits": [],
+              "type": "BATTLE",
+              "unreadable": false,
+              "z": null
+            },
+            "side": "you"
+          }
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Red": 1
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-05/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-05/1",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD15-05/10",
+      "oldHash": "9c719d4140c2f70fb69f1e9939e42d98c09f5baf17b2adccbb49b6875873ccc3",
+      "newHash": "aade1521b39ffcd4d8a2041d5b35dbf9c096f5dda09fc856096d13dd5ab7b6b9",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "atLeast": 2,
+          "kind": "count",
+          "sel": {
+            "area": "energy",
+            "side": "opponent"
+          }
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "atLeast": 2,
+          "kind": "count",
+          "sel": {
+            "area": "energy",
+            "side": "opponent"
+          }
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-01/0",
+      "oldHash": "bbc5c573f630ae6217124783ea1db645290224fe609e23c53a804ded0126a344",
+      "newHash": "3eccb201074ed63875c2fd8da5ceb1a08de1b0467cb88da6d8ee8593dfbdea29",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-01/10",
+      "oldHash": "15250c9752fd6d0f9aea2c63493d8e434f223317d2335e2dc3b6fee4899d307c",
+      "newHash": "f7f9451b1f7918f71f1081ab3821fa21f1a0350db901ae7747be1fe8ad28d614",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": {
+          "atMost": 4,
+          "kind": "life",
+          "side": "you"
+        },
+        "ops": null
+      },
+      "newPrice": {
+        "condition": {
+          "atMost": 4,
+          "kind": "life",
+          "side": "you"
+        },
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-01#back/0",
+      "oldHash": "404835e232daa1ba7aaf8a130c48fee7a25c916324fd824f147004a200043789",
+      "newHash": "164126c75211ab02aeb2cbcd75e2ce900a0657da8811fcad4b68baa262b57a60",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-01#back/10",
+      "oldHash": "e83efb5036fcd839ba9624ad2e81c112f8b2da1806299c7e5d57a703519c7986",
+      "newHash": "94761f38fd77f2e22bb605da0b04745c34d804009c9630a4085132de15064849",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-02/0",
+      "oldHash": "497ae1f94fe82e8daedeab1ae77b7ecdf42168099b17ed998099df40869b5735",
+      "newHash": "cc57365ce0244e0c54d683be3e77e85e90b5e13b7bc175ce9c85b25fb55411db",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-03/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "cbe268d1cf7075033420101889e3ac36e18d43036dd8649375f5364f9410caba",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 4
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-03/10",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-03/20",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "10331c00841ba57266d15ace7c52ac57cc32ecb4c071b8f080004a3ef0e5c7d1",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-03/30",
+      "oldHash": "e6b9dce46c66b2eab647537366694f654f1005bcf45da39b61dec391b2b41853",
+      "newHash": "df014894083c2bbad4f88d818725a0171b501252ae289ba1cf6cdbedb306047a",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-04/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "cbe268d1cf7075033420101889e3ac36e18d43036dd8649375f5364f9410caba",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 4
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-04/10",
+      "oldHash": "761b0670775895ae43dd08301d99f0aaa2045928eacc59aeb5fcd0a18e35d7da",
+      "newHash": "cf4a5e1a3cb5a5c4d6bb019628e29ed088fca3217b9476ad9914b5cb7abb8d83",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 card from your life",
+            "sel": {
+              "area": "life",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ]
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "reason": "Choose 1 card from your life",
+            "sel": {
+              "area": "life",
+              "count": 1,
+              "side": "you",
+              "upTo": false
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ],
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-05/0",
+      "oldHash": "67a5c70c2457b15533f5b9711b4dd15d571b34e6557bd37af8f999aa241da0b9",
+      "newHash": "f0835e1dbb5f394476cbc2b60d3100a60b8145bad7743da6994e80758b837f75",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {
+            "Yellow": 2
+          },
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "SD5-05/10",
+      "oldHash": "137f398bd907a4913888ced02b06ba310cb7c3a31701a411b1be4b57d99fa5b1",
+      "newHash": "c0247a3bb93f20675817b05faca74013d5661343fffcd33bcabd258a18e066fa",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "TB1-023/0",
+      "oldHash": "819bc6cff5a022004244d45a257c3b622abb438986d045e50e3b37b6fb59b27f",
+      "newHash": "e4d65594706add5f2141f7804c50b2643d1be82787ac5a418dfca47093859b0b",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    },
+    {
+      "key": "TB1-055/0",
+      "oldHash": "8f43b1309cf8aadb15253f694c0c7d6125e304b4d3d2df073f557f404ae22973",
+      "newHash": "a70888a740a9bd7a88f87fb36e6cd6369645d2626141b045923363312d8f97ab",
+      "nonPriceFieldsIdentical": true,
+      "oldPrice": {
+        "condition": null,
+        "ops": null
+      },
+      "newPrice": {
+        "condition": null,
+        "ops": null,
+        "payment": {
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "orbs": {},
+          "readable": true,
+          "spiritBoost": null,
+          "version": 1
+        }
+      }
+    }
+  ],
+  "allChangedProgramsPreserveNonPriceFields": true,
+  "oldVersions": {
+    "engine": "3c95759a688b4cb57284763f96ab77d2cc129fc8",
+    "engineSourceHash": "831b6d66895803223e46b3af6d4e238c90e84c4a3492ba409dd206e3b721cca6",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "5709b93438f80b6059e748b8b884ca24d6d4151fbf056074c7f3900c1a38af34",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "08c15620ab773ac2c9c73f7ab97fc790d435cbc2c60014c19cdc607593068d58",
+    "sourceHead": "3c95759a688b4cb57284763f96ab77d2cc129fc8"
+  },
+  "newVersions": {
+    "engine": "ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8",
+    "engineSourceHash": "a4331c7ce1b196832cc6de677a0ad41268ad2edd932a047e647ecb2ef12dab3b",
+    "errata": "af5cc3129c9df4b0e28ed42caebc2a90645046b95cb1e2e1c1e518b3256632d0",
+    "loader": "f5c63310871d73054c90a83f6136d766ed7cc517ca9c7890157ed549cf216fde",
+    "policy": "eaf857c5a536457ed7bb280e84170e7f1526ffa6c4168e8f7a54884f3d6c3b17",
+    "ruleset": "c396bd9571bca3819e487f83c441ff190f6e814cef37584e093bf464ba7a0062",
+    "runner": "4031c53260f0b335b60bb9025b90dfccfa8d0ed260a599b13838b20ccb305169",
+    "sourceHead": "ecd3cfec2f5cd974358a95e5eedf7f9e25754ae8"
+  }
+}
