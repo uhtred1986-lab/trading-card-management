@@ -88,7 +88,44 @@ bounded slice. Additional-pair qualification follows the required repairs.
 ## Validation scope
 
 The owner explicitly requested essential testing only for this increment, including
-workers. The focused provenance proof, frozen starter controls, typecheck, touched
-lint and the two Union preservation suites are the intended gate. Full `npm test`
+workers. The focused provenance proof, typecheck, touched lint, backlog verification and
+the two Union preservation suites passed. The final frozen starter receipt is
+recorded separately below. Full `npm test`
 and production build are not claimed. No database write, Testing & stats import,
 production refresh, migration, paid call or AI-strength change is part of this PR.
+
+## Additional-pair admission outcome
+
+`pair-input-admission.json` is the actual format-2 result from the available
+committed starter catalog, with `--starters=false --decks additional-pair.json
+--mode compiler --pairs 0`. Gogeta has 12 missing unique catalog IDs; Paragus
+has 14. Both decks are refused; zero games were scheduled or completed and
+neither is admitted. This proves missing-input refusal only. It does not
+re-measure the dated recipe compiler gaps or assert that those gaps persist.
+
+## Delegation review
+
+The implementation used a workhorse subagent and a separate focused reviewer; a
+cheaper documentation subagent pinned the recipe lists. Coordinator review needed
+one documentation follow-up for an omitted Cooler application receipt, duplicate
+text cleanup, and chronology clarification. Source paths, hashes and exact lists
+were checked independently. This is the observed review cost of this increment,
+not a general model-quality comparison.
+
+## Final integrated receipt
+
+The format-2 `starter-compiler-pack.json` was generated with the updated runner
+on code commit `3c95759a`, with 4 seed pairs, seed base 897000 and move cap 3000.
+All 16 games completed; zero illegal, interrupted, limited, crashed or other
+outcomes. `--check` compared the repeated games' full records, including traces.
+An independent comparison against unchanged main also found every game record
+identical, with identical catalog/program/ruleset hashes. The historical #1030
+pack remains untouched. A final comment-only correction names #825 application
+receipts accurately; it changes no execution.
+
+Validation passed: the standalone provenance proof, touched ESLint, integrated
+`npm run typecheck`, `verify/backlog.ts`, both focused Union suites, exact control
+comparison, recipe input refusal, source-link/hash checks and `git diff --check`.
+Full suite and build were intentionally omitted under the owner's focused-testing
+instruction. Production records and complete selected-pair semantics remain
+unverified. PR: [#1065](https://github.com/uhtred1986-lab/trading-card-management/pull/1065).

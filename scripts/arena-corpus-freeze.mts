@@ -60,9 +60,9 @@ const OWNER_SPECIFIED_COSTS: Record<string, string> = (JSON.parse(readFileSync(O
 export const FORMAT = 2;
 
 /**
- * The runtime gaps #825 named (PR #834 fixed the compiler and engine; the stored `card_rules` rows still need
- * the owner-approved refresh, `scripts/arena-movement-rule-refresh.mts`). Keyed `card/face/skill`. A deck holding
- * one of these cards is held unless the card's CURRENT reading is clean AND the stored row is proven refreshed.
+ * The historical #825 targets, keyed `card/face/skill`. PR #834 delivered code;
+ * later application receipts must be reconciled individually, not repeated as a batch.
+ * Compiler mode reports fresh readings; stored mode requires current executable rows.
  */
 export const NAMED_GAPS: { key: string; card: string; face: "front" | "back"; skill: number; what: string }[] = [
   { key: "BT29-029/back/0", card: "BT29-029", face: "back", skill: 0, what: "Cooler: qualified Battle-Area-to-hand watcher" },
