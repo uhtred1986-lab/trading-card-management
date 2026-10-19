@@ -1,0 +1,31 @@
+{
+  "state": "pre-run freeze; no holdout attempts consumed",
+  "freezeSHA256": "38831361ad90d52b368861f10768b81d3daa8ed38f56b62db949f5daddc25755",
+  "sourceSHA256": "6b9953ba6ab60cbafd3e78062a90c6b9a054a33eef472b6eacf6c6c6ae7ba945",
+  "nodeVersion": "v24.19.0",
+  "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5",
+  "schedule": {
+    "pairedDeals": 160,
+    "attempts": 320,
+    "fixtures": 8,
+    "shards": 4,
+    "attemptsPerShard": 80
+  },
+  "checks": {
+    "typecheck": "passed",
+    "lint": {
+      "errors": 0,
+      "existingPrototypeWarnings": 5
+    },
+    "noGameEvaluatorSafety": "passed",
+    "exactHistoricalComparatorProof": "passed",
+    "independentSourceReview": "no remaining blocker",
+    "freezeSeedsExactlyMatchAudit": true,
+    "physicalSeatRngSameWithinPair": true
+  },
+  "fullSuiteRun": false,
+  "localProductionBuildRun": false,
+  "ownerEssentialTestsOnly": true,
+  "databaseAccess": false,
+  "paidCalls": 0
+}

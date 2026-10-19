@@ -41,7 +41,7 @@ those decisive pairs. Any demonstrated cell regression (cell upper bound below
 50%) fails the statistical gate. Cells with fewer than 20 decisive pairs remain
 explicitly underpowered; a pooled advantage cannot certify all archetypes.
 All scheduled games must finish with zero illegal answers, execution errors or
-privacy failures. Draw-containing and unfinished pairs remain separate and all
+privacy failures or cycle-guard takeovers. Draw-containing and unfinished pairs remain separate and all
 attempts stay in the denominator. Crashes have no invented move/result metrics.
 Report per-cell, per-archetype and per-seat intervals plus all consumed seeds.
 
@@ -66,3 +66,35 @@ failures get a reproducer and owner rather than silent policy/rule changes.
 
 Preparation/source review, seed-disjointness evidence and immutable freeze are
 recorded before execution; results and the decision follow after all attempts.
+
+
+Historical-control verification passes: import-only reconstruction matches the
+original Git blobs; injected changes to every source/shared dependency refuse;
+all contract runtime declarations consumed by the historical policy are exact.
+Six already-consumed initial defensive windows preserve the original failures:
+4/6 acceptable before versus 6/6 now. JSON, input/RNG purity and hidden twins
+pass. These initial-window controls are not fresh games or whole-horizon results.
+
+
+Pre-run integration includes main `b8899bd7` (the independent Rules sandbox PR).
+It adds sandbox/probe/UI files without changing the VM, policy or card programs.
+The declared interpreter revision is updated before the first holdout and all
+source content is pinned again. The schedule and comparator remain unchanged.
+Execution uses four disjoint shards, exactly 80 attempts each; their registry
+fixes shard ownership and a common stable result-import identity.
+
+
+## Immutable pre-run checkpoint
+
+[Freeze](freeze.json) SHA-256 identity
+`38831361ad90d52b368861f10768b81d3daa8ed38f56b62db949f5daddc25755`
+pins the complete schedule, exact fixtures, both policies, Node version and
+source closure. [Preflight receipt](preflight-receipt.json) records merged-state
+typecheck, lint (five existing warnings), no-game evaluator safety and independent
+review. Preparation played no games. No full suite or local production build was
+run, per owner instruction. No database access or paid calls were made.
+
+The no-game proof covers exact pack/admission refusal, paired physical-seat RNG,
+three/four disjoint shard partitions, duplicate campaign/path/reset rejection,
+and durable BEGIN recovery as an unknown-metric crash without replay. Code,
+protocol and this freeze are committed before any fresh attempt starts.

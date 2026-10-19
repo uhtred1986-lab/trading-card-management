@@ -41,7 +41,8 @@
     "perFixturePairCiUpperAtLeast": 0.5,
     "completionRate": 1,
     "illegal": 0,
-    "privacyFailures": 0
+    "privacyFailures": 0,
+    "guardTrips": 0
   },
-  "runtimeRevision": "2da6ef08e2d33204cb9ef7ba6e403629f0c61759"
+  "runtimeRevision": "b8899bd73864ef506d3c68c6315690bf84baddc5"
 }

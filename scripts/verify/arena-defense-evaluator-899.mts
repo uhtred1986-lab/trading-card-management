@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { prepareDefense, defenseSchedule, shardJobs, saveDefenseJournal, validateDefenseJournal, recoverDefenseInflight, reserveDefenseCampaign, summarizeDefense, classifyDefense, validateDefenseProtocol } from "../lib/arena-defense-evaluation";
 import { defenseFixtures, byteHash } from "../lib/arena-defense-fixtures";
 import { frozenBaselinePin } from "../lib/arena-defense-baseline";
@@ -12,7 +13,7 @@ import type { DefenseProtocol, DefenseJournal, DefenseFreeze, DefenseRecord } fr
 import type { DuelResult } from "./arena-policy-duel";
 const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const directory = mkdtempSync(resolve(tmpdir(), "defense899-nogame-"));
-const protocol: DefenseProtocol = { format: "arena-defense-protocol-v1", id: "defense899-nogame-proof", runtimeRevision: "2da6ef08e2d33204cb9ef7ba6e403629f0c61759",
+const protocol: DefenseProtocol = { format: "arena-defense-protocol-v1", id: "defense899-nogame-proof", runtimeRevision: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   corpora: [
     { key: "starters", path: "docs/arena-backlog/evidence/907/typed-use-validity-2026-10-19/starter-compiler-pack.json", sha256: "592b9d6da5ebf25ed81ea6ec2d5b70dc28db8c77f42b9791733215c93fce0a80", mode: "compiler", decks: ["A", "B"], seedBase: 40899000 },
     { key: "bt6", path: "docs/arena-backlog/evidence/907/typed-use-validity-2026-10-19/actual-stored-pair-pack.json", sha256: "45cbd903986cd483c9d100c73c46073b2290fd67bbb71e26f1132a07f273b69f", mode: "stored", decks: ["bt6-gogeta-br-fusion", "bt6-paragus-broly-recovery"], seedBase: 40899400 },
