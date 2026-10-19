@@ -1,0 +1,1339 @@
+{
+  "source": {
+    "url": "targeted application catalog export for the two public prepared BT6 recipes",
+    "retrieved": "2026-10-19T11:07:31.949Z",
+    "rawRecords": 28,
+    "note": "Only the 28 public recipe cards; no owner deck or replay queried. Application source snapshot, not independent official legality certification."
+  },
+  "cards": [
+    {
+      "id": "BT6-001",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Son Goku and Vegeta",
+      "cardType": "LEADER",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": null,
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": null,
+      "comboPower": null,
+      "skill": "[Activate: Main] [Once per turn] Choose 1 red &lt;Son Goku: Br&gt; card or red &lt;Vegeta: Br&gt; card from your hand and place it in your Drop Area: Draw 2 cards, then choose up to 1 card in your life and add it to your hand.<br>[Awaken] When your life is at 4 or less: You may draw 1 card, then choose up to 1 of your energy, switch it to Active Mode, and flip this card over.",
+      "characters": [
+        "Son Goku: Br",
+        "Vegeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Activate: Main",
+        "Once per turn",
+        "Awaken",
+        "Auto",
+        "Activate: Battle",
+        "Counter",
+        "Double Strike"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": "SSB Gogeta, Fusion Perfected",
+      "backSkill": "[Auto] When this card attacks, draw 1 card.<br>[Activate: Battle][Once per turn] Choose 1 red card from your hand and place it in your Drop Area: If there are 2 or more red &lt;Son Goku: Br&gt; cards and 2 or more red &lt;Vegeta: Br&gt; cards in your Drop Area, and it's your turn, your opponent can't activate [Counter] skills with energy costs of 2 or more for the duration of the turn, and this card gets +5000 power and [Double Strike] for the duration of the turn.",
+      "backPower": 15000,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-001.png",
+      "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-001_b.png",
+      "deckplanetId": 3885,
+      "searchText": "bt6-001 bt6001 son goku and vegeta ssb gogeta, fusion perfected son goku: br vegeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:48.681Z"
+    },
+    {
+      "id": "BT6-003",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Harmonic Energy SSB Son Goku",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "3",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] [Sparking 3] When you play this card from your hand, look at up to 7 cards from the top of your deck, choose up to 1 red &lt;Vegeta: Br&gt; card among them and play it in Rest Mode, then shuffle your deck.<br>[Activate: Main][Once per turn] This card gets +10000 power and can attack Battle Cards in Active Mode for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+      "characters": [
+        "Son Goku: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto",
+        "Sparking 3",
+        "Activate: Main",
+        "Once per turn"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/184012_in_1000x1000.jpg",
+      "backImageUrl": null,
+      "deckplanetId": 4008,
+      "searchText": "bt6-003 bt6003 harmonic energy ssb son goku  son goku: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:56.150Z"
+    },
+    {
+      "id": "BT6-004",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Preemptive Strike SSG Son Goku",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "2",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] [Sparking 2] (This skill takes effect when you have 2 or more cards in your Drop Area.) When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 &lt;Gogeta: Br&gt; card or red &lt;Vegeta: Br&gt; card among them and add it to your hand, shuffle your deck, then if you added a card to your hand, choose 1 card from your hand and place it in your Drop Area.<br>[Activate: Main] [Once per turn] This card gets +5000 power for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+      "characters": [
+        "Son Goku: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto",
+        "Sparking 2",
+        "Activate: Main",
+        "Once per turn"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-004.png",
+      "backImageUrl": null,
+      "deckplanetId": 6553,
+      "searchText": "bt6-004 bt6004 preemptive strike ssg son goku  son goku: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:53.594Z"
+    },
+    {
+      "id": "BT6-005",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Son Goku, Prepping for Fusion",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 &lt;Veku: Br&gt; card or red &lt;Vegeta: Br&gt; card among them and add it to your hand, place the remaining cards at the bottom of your deck in any order, then at the end of the turn, return this card to its owner's hand.",
+      "characters": [
+        "Son Goku: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-005.png",
+      "backImageUrl": null,
+      "deckplanetId": 4818,
+      "searchText": "bt6-005 bt6005 son goku, prepping for fusion  son goku: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:48.681Z"
+    },
+    {
+      "id": "BT6-006",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Support Attack Son Goten",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "2",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 10000,
+      "skill": "[Super Combo] (You can only include up to 4 cards with [Super Combo] in your deck.) <br>[Auto] When you combo with this card, if your Leader Card is red and your life is at 4 or less, draw 1 card.",
+      "characters": [
+        "Son Goten: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Super Combo",
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-006.png",
+      "backImageUrl": null,
+      "deckplanetId": 4787,
+      "searchText": "bt6-006 bt6006 support attack son goten  son goten: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:47:00.021Z"
+    },
+    {
+      "id": "BT6-007",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Harmonic Energy SSB Vegeta",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "3",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Activate: Main] [Sparking 3] Switch this card to Rest Mode: Look at up to 7 cards from the top of your deck, choose up to 1 red &lt;Son Goku: Br&gt; card among them and play it, then shuffle your deck.<br>[Activate: Main] [Once per turn] Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and it gets -10000 power for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+      "characters": [
+        "Vegeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Activate: Main",
+        "Sparking 3",
+        "Once per turn",
+        "Barrier",
+        "Auto"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/184016_in_1000x1000.jpg",
+      "backImageUrl": null,
+      "deckplanetId": 5923,
+      "searchText": "bt6-007 bt6007 harmonic energy ssb vegeta  vegeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:56.150Z"
+    },
+    {
+      "id": "BT6-008",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Preemptive Strike SSG Vegeta",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "2",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] [Sparking 2] (This skill takes effect when you have 2 or more cards in your Drop Area.) When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 &lt;Gogeta: Br&gt; card or red &lt;Son Goku: Br&gt; card among them and add it to your hand, shuffle your deck, then if you added a card to your hand, choose 1 card from your hand and place it in your Drop Area.<br>[Activate: Main] [Once per turn] Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and it gets -5000 power for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+      "characters": [
+        "Vegeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto",
+        "Sparking 2",
+        "Activate: Main",
+        "Once per turn",
+        "Barrier"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-008.png",
+      "backImageUrl": null,
+      "deckplanetId": 7427,
+      "searchText": "bt6-008 bt6008 preemptive strike ssg vegeta  vegeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:57.198Z"
+    },
+    {
+      "id": "BT6-009",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Vegeta, Prepping for Fusion",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 &lt;Veku: Br&gt; card or red &lt;Son Goku: Br&gt; card among them and add it to your hand, place the remaining cards at the bottom of your deck in any order, then at the end of the turn, return this card to its owner's hand.",
+      "characters": [
+        "Vegeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-009.png",
+      "backImageUrl": null,
+      "deckplanetId": 7117,
+      "searchText": "bt6-009 bt6009 vegeta, prepping for fusion  vegeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:55.007Z"
+    },
+    {
+      "id": "BT6-010",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Support Attack Trunks",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "3",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 1,
+      "comboPower": 5000,
+      "skill": "[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.<br>[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the duration of the turn.",
+      "characters": [
+        "Trunks: Youth: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-010.png",
+      "backImageUrl": null,
+      "deckplanetId": 4824,
+      "searchText": "bt6-010 bt6010 support attack trunks  trunks: youth: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:46.594Z"
+    },
+    {
+      "id": "BT6-011",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Bulma, from the Sidelines",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 1000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card, if there is a \u226aSaiyan\u226b card in play in your Battle Area, draw 2 cards, then choose 2 cards from your hand and place them in your Drop Area.",
+      "characters": [
+        "Bulma: Br"
+      ],
+      "traits": [
+        "Earthling"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-011.png",
+      "backImageUrl": null,
+      "deckplanetId": 7416,
+      "searchText": "bt6-011 bt6011 bulma, from the sidelines  bulma: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:53.594Z"
+    },
+    {
+      "id": "BT6-012",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Veku, Contents Under Pressure",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "3",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 15000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Union-Fusion] Red &lt;Son Goku: Br&gt; and red &lt;Vegeta: Br&gt;<br>[Permanent] This card can attack Battle Cards that are in Active Mode.<br>[Auto] When you play this card, you can't play {Veku, Contents Under Pressure} for the duration of the turn.<br>[Activate: Main] Place this card in its owner's Drop Area: If your Leader Card is a red \u226aSaiyan\u226b card, choose up to 1 red &lt;Son Goku: Br&gt; card and 1 red &lt;Vegeta: Br&gt; card from your Drop Area and add them to your hand.",
+      "characters": [
+        "Veku: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Union-Fusion",
+        "Permanent",
+        "Auto",
+        "Activate: Main"
+      ],
+      "rarity": "Rare[R]",
+      "rarityCode": "R",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-012.png",
+      "backImageUrl": null,
+      "deckplanetId": 4854,
+      "searchText": "bt6-012 bt6012 veku, contents under pressure  veku: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:51.989Z"
+    },
+    {
+      "id": "BT6-013",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Veku, the Fragile",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "3",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Union-Fusion] Red &lt;Son Goku: Br&gt; and red &lt;Vegeta: Br&gt;<br>[Auto] When you play this card, you can't play {Veku, the Fragile} for the duration of the turn.<br>[Activate: Main] Place this card in its owner's Drop Area: If your Leader Card is a red \u226aSaiyan\u226b card, choose up to 1 red &lt;Son Goku: Br&gt; card and 1 red &lt;Vegeta: Br&gt; card from your Drop Area and add them to your hand, then choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the duration of the turn.",
+      "characters": [
+        "Veku: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Union-Fusion",
+        "Auto",
+        "Activate: Main"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-013.png",
+      "backImageUrl": null,
+      "deckplanetId": 7425,
+      "searchText": "bt6-013 bt6013 veku, the fragile  veku: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:55.007Z"
+    },
+    {
+      "id": "BT6-014",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "SSB Gogeta, Fusion Onslaught",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "8",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 35000,
+      "comboCost": 1,
+      "comboPower": 10000,
+      "skill": "[EX-Evolve] Choose 2 red cards from your hand and place them in your Drop Area: Red &lt;Gogeta: Br&gt; card with an energy cost of 6.<br>[Double Strike]<br>[Permanent] This card can't be KO'd and can attack Battle Cards that are in Active Mode.<br>[Auto] When a card evolves into this card, if there are no Battle Cards in play in your opponent's Battle Area, choose up to 2 cards in your opponent's life and place them in their Drop Area, and you can't play {SSB Gogeta, Fusion Onslaught} for the duration of the turn.<br>[Auto] When this card attacks a Battle Card, switch this card to Active Mode.",
+      "characters": [
+        "Gogeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "EX-Evolve",
+        "Double Strike",
+        "Permanent",
+        "Auto"
+      ],
+      "rarity": "Super Rare[SR]",
+      "rarityCode": "SR",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-014.png",
+      "backImageUrl": null,
+      "deckplanetId": 6836,
+      "searchText": "bt6-014 bt6014 ssb gogeta, fusion onslaught  gogeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:51.007Z"
+    },
+    {
+      "id": "BT6-015",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Gogeta, Unparalleled Fusion Warrior",
+      "cardType": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "energyCost": "6",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 25000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[double strike]<br>[union-fusion] {r}{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and red <Vegeta: Br><br>[permanent] You can't play this card from any area unless your Leader Card is a \u226aSaiyan\u226b card and it is red and no other color. This card can't be KO'd and can attack Battle Cards that are in Active Mode.<br>[auto][once per turn] When this card attacks a Battle Card, switch this card to Active Mode.",
+      "characters": [
+        "Gogeta: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Double Strike",
+        "Union-Fusion",
+        "Permanent",
+        "Auto",
+        "Once per turn"
+      ],
+      "rarity": "Rare[R]",
+      "rarityCode": "R",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-015.png",
+      "backImageUrl": null,
+      "deckplanetId": 6818,
+      "searchText": "bt6-015 bt6015 gogeta, unparalleled fusion warrior  gogeta: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:48.681Z"
+    },
+    {
+      "id": "BT6-053",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Paragus",
+      "cardType": "LEADER",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": null,
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": null,
+      "comboPower": null,
+      "skill": "[Auto] When this card attacks, if you have any green cards in your Battle Area, draw 1 card.<br>[Activate: Main] Choose 1 card from your life and add it to your hand: You can't add cards from your life to your hand for the duration of the turn.<br>[Awaken] When your life is at 4 or less: You may draw 1 card, then choose up to 1 of your energy, switch it to Active Mode, and flip this card over.",
+      "characters": [
+        "Paragus: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto",
+        "Activate: Main",
+        "Awaken",
+        "Permanent",
+        "Activate: Battle",
+        "Once per turn"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": "Paragus, Father of the Demon",
+      "backSkill": "[Permanent] You can't add cards from your life to your hand during your turn.<br>[Auto] When this card attacks, draw 1 card.<br>[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 &lt;Broly: Br&gt; card in your Battle Area and it gets +5000 power for the duration of the turn.",
+      "backPower": 15000,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-053.png",
+      "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-053_b.png",
+      "deckplanetId": 3767,
+      "searchText": "bt6-053 bt6053 paragus paragus, father of the demon paragus: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:42.995Z"
+    },
+    {
+      "id": "BT6-059",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Energy Barrage Frieza",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "4",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 20000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Double Strike]<br>[Barrier]<br>[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards with [Barrier] ignoring [Barrier] and KO it.",
+      "characters": [
+        "Frieza: Br"
+      ],
+      "traits": [
+        "Frieza Clan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Double Strike",
+        "Barrier",
+        "Auto"
+      ],
+      "rarity": "Rare[R]",
+      "rarityCode": "R",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-059.png",
+      "backImageUrl": null,
+      "deckplanetId": 4878,
+      "searchText": "bt6-059 bt6059 energy barrage frieza  frieza: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:57.198Z"
+    },
+    {
+      "id": "BT6-060",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Broly, Limits Transcended",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "8",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 35000,
+      "comboCost": 1,
+      "comboPower": 10000,
+      "skill": "[Double Strike]<br>[Permanent] During battles where this card is attacking, your opponent can't activate [Counter] skills with energy costs of 2 or more.<br>[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards ignoring [Barrier] and KO it.",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Double Strike",
+        "Permanent",
+        "Counter",
+        "Activate: Battle",
+        "Once per turn",
+        "Barrier"
+      ],
+      "rarity": "Super Rare[SR]",
+      "rarityCode": "SR",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-060.png",
+      "backImageUrl": null,
+      "deckplanetId": 6275,
+      "searchText": "bt6-060 bt6060 broly, limits transcended  broly: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:51.989Z"
+    },
+    {
+      "id": "BT6-061",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Broly, Power Unleashed",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "6",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 25000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Double Strike]<br>[Permanent] During battles where this card is attacking, your opponent can't activate [Counter] skills with energy costs of 2 or more.<br>[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards and KO it.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green &lt;Broly: Br&gt; card with an energy cost of 8 from your hand and play it.",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Double Strike",
+        "Permanent",
+        "Counter",
+        "Activate: Battle",
+        "Once per turn",
+        "Auto"
+      ],
+      "rarity": "Rare[R]",
+      "rarityCode": "R",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-061.png",
+      "backImageUrl": null,
+      "deckplanetId": 4867,
+      "searchText": "bt6-061 bt6061 broly, power unleashed  broly: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:58.955Z"
+    },
+    {
+      "id": "BT6-062",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Broly, Berserker Origins",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "4",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 15000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Activate: Battle][Once per turn] Choose 1 card from your hand and place it in your Drop Area: Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and KO it.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, you may choose 2 cards from your hand and place them in your Drop Area. If you do, choose up to 1 green &lt;Broly: Br&gt; card with an energy cost of 6 from your hand and play it.",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Activate: Battle",
+        "Once per turn",
+        "Auto"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-062.png",
+      "backImageUrl": null,
+      "deckplanetId": 7431,
+      "searchText": "bt6-062 bt6062 broly, berserker origins  broly: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:57.198Z"
+    },
+    {
+      "id": "BT6-063",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Broly, Unrealized Ambition",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card from your hand and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 2 cards from your life and add them to your hand.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green &lt;Broly: Br&gt; card with an energy cost of 4 from your hand and play it.",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-063.png",
+      "backImageUrl": null,
+      "deckplanetId": 4852,
+      "searchText": "bt6-063 bt6063 broly, unrealized ambition  broly: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:55.007Z"
+    },
+    {
+      "id": "BT6-064",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Paragus, Rampage Trigger",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "2",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 5000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card from your hand, choose up to 1 {Broly Control Mechanism} from your deck and activate it, then shuffle your deck.<br>[Activate: Main] Choose this card and 1 card in your Battle Area and place them in their owner's Drop Areas: Choose one-<br>\u30fbChoose up to 1 &lt;Broly: Br&gt; card with an energy cost of 6 or less from your deck and add it to your hand, then shuffle your deck.<br>\u30fbChoose up to 1 &lt;Broly: Br&gt; card from your Drop Area and add it to your hand.",
+      "characters": [
+        "Paragus: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto",
+        "Activate: Main"
+      ],
+      "rarity": "Super Rare[SR]",
+      "rarityCode": "SR",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-064.png",
+      "backImageUrl": null,
+      "deckplanetId": 7407,
+      "searchText": "bt6-064 bt6064 paragus, rampage trigger  paragus: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:47:02.099Z"
+    },
+    {
+      "id": "BT6-065",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Paragus, Deadly Premonition",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 4000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you play this card from your hand, look at up to 5 cards from the top of your deck and choose up to 1 &lt;Broly: Br&gt; card among them and add it to your hand, then shuffle your deck.<br>[Auto] When this card is removed from your Battle Area by a skill and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose up to 1 of your green energy and switch it to Active Mode.",
+      "characters": [
+        "Paragus: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-065.png",
+      "backImageUrl": null,
+      "deckplanetId": 4879,
+      "searchText": "bt6-065 bt6065 paragus, deadly premonition  paragus: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:45.296Z"
+    },
+    {
+      "id": "BT6-066",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Quickshift Angila",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "4",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 20000,
+      "comboCost": 1,
+      "comboPower": 10000,
+      "skill": "[Auto] When you combo with this card, if your Leader Card is green, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+      "characters": [
+        "Angila"
+      ],
+      "traits": [
+        "Slug's Army"
+      ],
+      "eras": [
+        "Lord Slug Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-066.png",
+      "backImageUrl": null,
+      "deckplanetId": 3774,
+      "searchText": "bt6-066 bt6066 quickshift angila  angila",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:53.594Z"
+    },
+    {
+      "id": "BT6-067",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Wings, the Morale Booster",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 5000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Barrier] (This card can't be chosen by the skills of your opponent's cards.)<br>[Permanent] You can only have up to 1 {Wings, the Morale Booster} in play in your Battle Area, and reduce the energy cost of \u226aSlug's Army\u226b cards in your hand by 1.",
+      "characters": [
+        "Wings"
+      ],
+      "traits": [
+        "Slug's Army"
+      ],
+      "eras": [
+        "Lord Slug Saga"
+      ],
+      "keywords": [
+        "Barrier",
+        "Permanent"
+      ],
+      "rarity": "Uncommon[UC]",
+      "rarityCode": "UC",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-067.png",
+      "backImageUrl": null,
+      "deckplanetId": 4856,
+      "searchText": "bt6-067 bt6067 wings, the morale booster  wings",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:51.007Z"
+    },
+    {
+      "id": "BT6-068",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Zeiun, the Loyal",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "2",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 5000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Blocker] (When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card.)<br>[Permanent] If you have a &lt;Lord Slug&gt; card in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.",
+      "characters": [
+        "Zeiun"
+      ],
+      "traits": [
+        "Slug's Army"
+      ],
+      "eras": [
+        "Lord Slug Saga"
+      ],
+      "keywords": [
+        "Blocker",
+        "Permanent"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-068.png",
+      "backImageUrl": null,
+      "deckplanetId": 7436,
+      "searchText": "bt6-068 bt6068 zeiun, the loyal  zeiun",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:53.594Z"
+    },
+    {
+      "id": "BT6-069",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Ties that Bind Ba",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 5000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Activate: Main] Place this card in its owner's Drop Area: Choose up to 1 &lt;Broly: Br&gt; card with an energy cost of 1 in your Drop Area and play it.",
+      "characters": [
+        "Ba: Br"
+      ],
+      "traits": [
+        "Alien"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Activate: Main"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-069.png",
+      "backImageUrl": null,
+      "deckplanetId": 4885,
+      "searchText": "bt6-069 bt6069 ties that bind ba  ba: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:51.007Z"
+    },
+    {
+      "id": "BT6-070",
+      "setCode": "BT6",
+      "game": "dbs",
+      "name": "Goliamite, the New Breed",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "1",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 1000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When you combo with this card during your turn, choose up to 1 of your &lt;Broly: Br&gt; cards and it gets +5000 power for the duration of the turn.",
+      "characters": [
+        "Goliamite: Br"
+      ],
+      "traits": [
+        "Alien"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Auto"
+      ],
+      "rarity": "Common[C]",
+      "rarityCode": "C",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-070.png",
+      "backImageUrl": null,
+      "deckplanetId": 7434,
+      "searchText": "bt6-070 bt6070 goliamite, the new breed  goliamite: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:45.296Z"
+    },
+    {
+      "id": "P-136",
+      "setCode": "P",
+      "game": "dbs",
+      "name": "Overwhelming Energy Broly",
+      "cardType": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": "6",
+      "specifiedCost": null,
+      "zEnergyCost": null,
+      "power": 25000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[double strike] (This card inflicts 2 damage instead of 1 when attacking.)<br>[auto] When you play this card and your Leader Card is a green \u226aFrieza's Army\u226b card, if there are 3 or more Battle Cards in play in your Battle Area, draw cards until you have 6 cards in your hand.<br>[activate: main] {g}, place this card in its owner's Drop Area: Choose up to 1 <Broly: Br> card with an energy cost of 7 from your hand and play it.",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "eras": [
+        "DBS: Broly Saga"
+      ],
+      "keywords": [
+        "Double Strike",
+        "Auto",
+        "Activate: Main"
+      ],
+      "rarity": "Promotion[PR]",
+      "rarityCode": "PR",
+      "limitedTo": 4,
+      "isBanned": false,
+      "isLimited": false,
+      "hasErrata": false,
+      "isHorizontal": false,
+      "backName": null,
+      "backSkill": null,
+      "backPower": null,
+      "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/P-136.png",
+      "backImageUrl": null,
+      "deckplanetId": 5355,
+      "searchText": "p-136 p136 overwhelming energy broly  broly: br",
+      "firstSeenAt": "2026-09-04T12:26:41.854Z",
+      "updatedAt": "2026-10-18T10:46:45.296Z"
+    }
+  ]
+}
