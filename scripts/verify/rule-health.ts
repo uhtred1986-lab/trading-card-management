@@ -58,9 +58,10 @@ const health = (o: Partial<HealthRow>): RuleHealth => ruleHealth(row(o)).health;
   assert.equal(unread.health, "incomplete", "an approved rule with an unread clause is partly read");
   assert.match(unread.reasons.join(" "), /Not read: a clause nobody could read/);
 
+  // A combo wording with no stored qualification is an out-of-date record (#907), not a gap (see below).
   const combo = ruleHealth(row({ status: "confirmed", trigger: ["comboUsed"], ...{ combo: null } }));
-  assert.equal(combo.health, "incomplete", "a combo wording with no stored qualification (#907) is a runtime gap");
-  assert.match(combo.reasons.join(" "), /cannot carry this out/);
+  assert.equal(combo.needsRebuild, true, "a combo wording with no stored qualification (#907) needs a rebuild");
+  assert.equal(combo.health, "done", "…and is not incomplete");
 }
 
 // ── unknown is a hint, not a gap ──────────────────────────────────────────
@@ -93,6 +94,21 @@ const health = (o: Partial<HealthRow>): RuleHealth => ruleHealth(row(o)).health;
   assert.equal(ruleHealth(row({ status: "open", ops: [], unread: ["x"], cost: null })).needsRebuild, true, "an open rule can need it too");
   assert.equal(ruleHealth(row()).needsRebuild, false, "a current record does not");
   assert.equal(ruleHealth(row({ status: "confirmed", cost: null, reviewFlag: "wrong" })).health, "incomplete", "other gaps still count when the record is old");
+}
+
+// ── out-of-date typed records (validity, usage, combo, payment, material) ─
+{
+  const noUsage = ruleHealth(row({ status: "confirmed", usage: undefined }));
+  assert.equal(noUsage.needsRebuild, true, "a row with no skill usage record needs a rebuild");
+  assert.equal(noUsage.health, "done", "…and is not incomplete: a rebuild writes the record");
+  assert.equal(ruleHealth(row({ usage: undefined })).health, "unchecked", "a draft with no usage record is still unchecked");
+  const noValidity = ruleHealth(row({ status: "confirmed", validity: undefined }));
+  assert.equal(noValidity.needsRebuild, true, "a row with no Sparking validity record needs a rebuild");
+  assert.equal(noValidity.health, "done", "…and is not incomplete");
+  const realGap = ruleHealth(row({ status: "confirmed", unread: ["a clause nobody could read"], usage: undefined }));
+  assert.equal(realGap.health, "incomplete", "a real unread clause still makes the rule incomplete");
+  assert.equal(realGap.needsRebuild, true, "…and the missing usage record is reported beside it");
+  assert.equal(ruleHealth(row()).needsRebuild, false, "a current row with every record needs no rebuild");
 }
 
 // ── a card takes its worst skill ──────────────────────────────────────────

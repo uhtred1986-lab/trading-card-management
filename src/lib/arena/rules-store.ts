@@ -110,24 +110,36 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
 }
 
 /**
+ * The typed records a row must carry before the engine will run it — Sparking
+ * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
+ * material (#907) — each in its own validator's words, or nothing. A gap here is
+ * an out-of-date record that rebuilding the rule writes, not a clause the engine
+ * cannot do: `ruleHealth` reports it as `needsRebuild`, never as a health.
+ */
+export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown }): string[] {
+  const gaps: string[] = [];
+  const validityGap = validityProblem(row.validity);
+  if (validityGap) gaps.push(validityGap);
+  const usageGap = usageProblem(row.usage);
+  if (usageGap) gaps.push(usageGap);
+  const comboGap = comboContractGap(row);
+  if (comboGap) gaps.push(comboGap);
+  const paymentGap = costRecordProblem(row.cost);
+  if (paymentGap) gaps.push(paymentGap);
+  else if ((row.cost as CostRecord).readable === false) gaps.push("the stored skill payment is unreadable");
+  gaps.push(...materialContractGaps(row));
+  return gaps;
+}
+
+/**
  * The rule record's review status does not answer what the rules engine can
  * execute. Keep this check bounded to gaps the runtime already names. The
  * interpreter remains authoritative for contextual questions during a game.
  */
 export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed"> & { combo?: unknown; usage?: unknown; validity?: unknown }): RuntimeSupport {
-  const unsupported = [...(row.unread ?? [])];
-  const validityGap = validityProblem(row.validity);
-  if (validityGap) unsupported.push(validityGap);
-  const usageGap = usageProblem(row.usage);
-  if (usageGap) unsupported.push(usageGap);
-  const comboGap = comboContractGap(row);
-  if (comboGap) unsupported.push(comboGap);
-  const paymentGap = costRecordProblem(row.cost);
-  if (paymentGap) unsupported.push(paymentGap);
-  else if ((row.cost as CostRecord).readable === false) unsupported.push("the stored skill payment is unreadable");
+  const unsupported = [...(row.unread ?? []), ...recordContractGaps(row)];
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
-  unsupported.push(...materialContractGaps(row));
   const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
 
   // An Auto's action or X price is paid by the VM's own planner (#549,
@@ -327,15 +339,15 @@ export interface RuleHealthReport {
   /** Things worth knowing that do not change the health ("try it in play"). */
   hints: string[];
   /**
-   * The payment record is obsolete or malformed, so the engine refuses the skill
-   * until the rule is rebuilt. Reported beside the health and never as one: on
-   * the owner's decks every card needs it today, and counting it would make every
-   * card incomplete.
+   * An out-of-date typed record (`recordContractGaps`: validity, usage, combo
+   * qualification, payment or material), so the engine refuses the skill until the
+   * rule is rebuilt. Reported beside the health and never as one: on the owner's
+   * decks every card needs a rebuild today, and counting it would make every card
+   * incomplete.
    */
   needsRebuild: boolean;
 }
 
-const PAYMENT_UNREADABLE = "the stored skill payment is unreadable";
 const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
 
 /**
@@ -345,8 +357,8 @@ const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
  *    (the engine does nothing with the text; keyword lines, bracketed reminders
  *    and deck-building restrictions are empty on purpose and are not silent).
  * 2. A `review_flag`, a `compiler_diff`, or anything `runtimeSupportOfRow` says the
- *    engine cannot carry out (leaving out the payment record, which is
- *    `needsRebuild`) → `incomplete`.
+ *    engine cannot carry out (leaving out the out-of-date typed records,
+ *    `recordContractGaps`, which are `needsRebuild`) → `incomplete`.
  * 3. A keyword or deck-building line with no program → `done`.
  * 4. `draft` → `unchecked`; `confirmed`/`corrected` → `done`.
  *
@@ -354,10 +366,10 @@ const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
  * hint, not a gap.
  */
 export function ruleHealth(row: HealthRow): RuleHealthReport {
-  const paymentGap = costRecordProblem(row.cost);
-  const needsRebuild = !!paymentGap || (row.cost as CostRecord | null)?.readable === false;
+  const records = new Set(recordContractGaps(row));
+  const needsRebuild = records.size > 0;
   const support = runtimeSupportOfRow(row);
-  const gaps = support.unsupported.filter((g) => g !== paymentGap && g !== PAYMENT_UNREADABLE);
+  const gaps = support.unsupported.filter((g) => !records.has(g));
   const hints = support.unknown.length ? ["Try it in play: whether it can play its target depends on the board."] : [];
   const unread = (row.unread ?? []).slice(0, 3).map((c) => `Not read: ${flatLine(String(c)).slice(0, 140)}`);
   const report = (health: RuleHealth, reasons: string[]): RuleHealthReport => ({ health, reasons, hints, needsRebuild });
