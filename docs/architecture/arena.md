@@ -287,12 +287,23 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   board driven entirely by `legalActions()` and one `Snapshot` — no client evaluates a rule.
   **Everything the board says about who is acting reads `live.waiting`, never the `snapshot`
   prop.** Doc: `docs/arena-code-map.md`.
-- **Rule review on the phone** (`/arena/rules/review`, #472): a deck's open and draft skills one at
-  a time, text first. **A span is never guessed** (`src/lib/arena/rule-review.ts`): the record
-  keeps no clause → printed-words link, so only its own text found exactly once on the line is
-  underlined (an `unread` clause or the cost's `text`, or a WHEN/IF/DO reading printed word for
-  word); every other clause is listed under the text. Wrong writes `explanation` (prefix
-  `Wrong (phone review)`), never the program; a flagged draft leaves the queue and Confirm all.
+- **The Card rules page** (`/arena/rules/card/[cardId]`, Rules PR 3; replaces the phone review of
+  #472, the full-screen builder and the workbench's record pane — `/arena/rules/review` and
+  `/arena/rules/build/[id]` redirect). One card, a panel per printed skill in printed order, each
+  with its `ruleHealth`, the printed line, "The engine reads" (the row's `reads`, and the combo
+  qualification as chips — `comboChips`, never JSON), the health reasons in plain words, Try it
+  under it, and Approve / Wrong… / Ask Claude / Edit rule. **A span is never guessed**
+  (`src/lib/arena/rule-review.ts`, still behind the Wrong sheet's clause list): only text found
+  exactly once on the line is tied to a clause. Wrong writes the row's one flag (`review_flag`),
+  never the program; a flag the rule has changed since is answered with *Yes, approve* (which
+  clears it: `confirmRule` and `clearReviewFlag`). The editor (`FullRuleBuilder`) opens in a side
+  column (computer) or a sheet (phone); the sandbox keeps its unsaved rule in `sessionStorage`
+  (`sandbox/draft.ts`) and the editor takes it back. ‹ / › walk the queue carried in `?q=`
+  (`card/queue-cards.ts`). *Rebuild card* is `rebuildCardAction` → `draftCards` for the one
+  card, which never rewrites a confirmed, corrected or Claude-written row. One Claude path:
+  `requestExplanationAction` / `approveExplanationAction`. Pure helpers:
+  `src/lib/arena/rule-card.ts`, proved in `scripts/verify/rule-review.ts`;
+  `/arena/rules/card/preview` shows it on a fixture without a database (dev only).
 - **1 v 1** (mode `versus`, `src/lib/arena/matches.ts`): two people, two devices, one game. A 1 v 1
   belongs to its two seats and nobody else, over as well as playing. Doc: `docs/arena-code-map.md`.
 - **Claude as the arena opponent** (`src/lib/arena/ai/`): your hand, life and decklist are
@@ -327,11 +338,11 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   server-render of the board over it); the click-through half is browser-driven
   (`arena-advance-browser-evidence.mts`, `npm run arena:shots`).
 - **The block builder** (`src/lib/arena/lang/blocks.ts`, `components/arena/rules/Blocks.tsx`,
-  `/arena/rules/build/[id]`, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
+  the Card rules page's editor, #469): a rule spelled out as WHEN · COST · IF · THEN blocks, **generated
   from the schema** — what a clause may hold comes off `OP_SCHEMA`/`COND_SCHEMA`/`whenMoments()`/
   `COST_ITEMS`, each blank's control off its `FieldType`, so a new row needs no builder change. One
-  component for the phone route and the workbench record; every edit goes through a `RulePath`
-  (`lang/path.ts`) into the one `Rule`. Proved by `scripts/verify/blocks.ts`; `/arena/rules/build/preview`
+  component for the phone sheet and the computer's side column; every edit goes through a `RulePath`
+  (`lang/path.ts`) into the one `Rule`. Proved by `scripts/verify/blocks.ts`; `/arena/rules/card/preview`
   shows it on fixtures without a database (dev only).
 - **The probe** (`src/lib/arena/probe.ts`): says what the engine *does* with a rule, not what it
   should. Pure — no database, no network, and **no compiler**: `draft.ts` stays the only module
@@ -359,8 +370,8 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   check with authoring. Empty AI effect fallbacks cannot approve an intentional blank.
   Unsupported candidates become deduplicated coding feedback with a persisted GitHub receipt or
   honest retry state; supported `rule-proposal` staging records are excluded from generic issue
-  sync. Reload resumes a candidate only for its exact original record. `/arena/rules/review/preview`
-  is a guarded dev-only synthetic view for browser review without a database or model call.
+  sync. Reload resumes a candidate only for its exact original record. The Card rules page's
+  dev-only fixture shows the panel without a database or model call.
 
 ## Working efficiently on the arena
 

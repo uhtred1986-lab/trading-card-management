@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { blankRuleAction, confirmRuleAction, explainRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
+import { blankRuleAction, confirmRuleAction, keepMineAction, reopenRuleAction, saveRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import { approvalProblem, builderHref } from "@/lib/arena/rule-review";
+import { cardHref } from "@/lib/arena/rule-card";
 import { keywordPlays } from "@/lib/arena/glossary";
 import { COND_SCHEMA, OP_SCHEMA, costSentence, describeScript, programProblem, validateProgram, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
 import type { Trigger } from "@/lib/arena/types";
@@ -199,13 +200,10 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
   const [textOpen, setTextOpen] = useState(false);
   const [text, setText] = useState("");
   const [textError, setTextError] = useState<{ kind: "parse"; error: LangError } | { kind: "invalid"; field: string; message: string } | null>(null);
-  const [explainOpen, setExplainOpen] = useState(false);
-  const [explanation, setExplanation] = useState("");
+  const explanation = "";
   const [patternWrong, setPatternWrong] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  /** Claude's one question from the last "Ask Claude", when it was not sure. */
-  const [question, setQuestion] = useState<string | null>(null);
   const [orbsOpen, setOrbsOpen] = useState(false);
   const [orbs, setOrbs] = useState(r.specifiedCost?.entered ?? "");
 
@@ -268,24 +266,6 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         if (advance && nav) router.push(nav.after, { scroll: false });
         else router.refresh();
       }
-    });
-  };
-
-  /**
-   * Not `run`: a refusal still refreshes (the brief was written either way),
-   * and Claude's question is kept beside the explanation box, whatever the
-   * outcome, so it can be answered there and asked again.
-   */
-  const askClaude = () => {
-    setError(null);
-    setDone(null);
-    setQuestion(null);
-    start(async () => {
-      const res = await explainRuleAction(r.id, explanation);
-      setQuestion(res.question);
-      if (res.error) setError(res.error);
-      else setDone(res.question ? "Claude's draft is in the block above, but it was not sure — see its question before confirming." : "Claude's draft is in the block above — confirm it if it is right.");
-      router.refresh();
     });
   };
 
@@ -612,9 +592,9 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
               ) : (
                 <>
                   {r.status === "open" ? (
-                    <button type="button" disabled={pending} className={primary} onClick={() => setExplainOpen(true)}>
-                      Draft with Claude
-                    </button>
+                    <Link href={cardHref(r.cardId, { skill: r.id })} className={primary}>
+                      Open the card page
+                    </Link>
                   ) : r.status === "draft" ? (
                     <button type="button" disabled={pending || !!approvalProblem(r)} className={primary} onClick={confirm} title={approvalProblem(r) ?? "Approve this interpretation (c)"}>
                       Approve interpretation
@@ -637,9 +617,6 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
                     <div className="absolute bottom-full right-0 z-30 mb-1 flex w-56 flex-col gap-1 rounded-xl border border-space-600 bg-space-900 p-2 shadow-lg">
                       <button type="button" className={btn} onClick={editText}>Edit technical text</button>
                       <button type="button" className={btn} onClick={() => setEditing(true)}>Edit blocks inline</button>
-                      <button type="button" className={btn} onClick={() => setExplainOpen(!explainOpen)}>
-                        Explain to Claude
-                      </button>
                       <button type="button" className={btn} onClick={openJson}>
                         {jsonOpen ? "Hide" : "Show"} program (JSON)
                       </button>
@@ -718,34 +695,6 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
         </div>
       )}
 
-      {explainOpen && (
-        <div className="space-y-2 rounded-xl border border-space-600 bg-space-950/60 p-3">
-          <label className="block text-[11px] text-space-300">
-            Say what <span className="text-space-100">{r.name}</span> does, as you would to a friend at the table.
-            {mark && (
-              <>
-                {" "}
-                The part the engine could not read is <span className="text-space-100">“{mark}”</span>.
-              </>
-            )}
-          </label>
-          <textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={3} autoFocus className="w-full rounded-md border border-space-600 bg-space-900 p-2 text-xs text-space-100" placeholder="e.g. you pick one of your opponent's Battle Cards that costs 3 or less and put it on the bottom of their deck, but only if your leader is red" />
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={pending || !explanation.trim()} className={primary} onClick={askClaude}>
-              {question ? "Ask Claude again" : "Ask Claude for a program"}
-            </button>
-            <span className="text-[11px] text-space-500">Claude answers in the engine&rsquo;s own step language and writes the brief for the compiler. You still confirm it.</span>
-          </div>
-          {question && (
-            <p className="rounded-lg border-l-2 border-ki-500 bg-space-900/60 p-2 text-[11px] text-space-200" aria-live="polite">
-              <span className="text-ki-300">Claude was not sure and asks: </span>
-              {question}
-              <span className="text-space-500"> — answer it in the box above and ask again.</span>
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="rounded-xl border border-space-700 bg-gradient-to-r from-ki-500/5 to-transparent p-3">
         <h3 className="text-sm font-semibold text-space-100">
           {r.siblings.count ? `${r.siblings.count + 1} cards share this wording` : "No other card phrases this the same way"}
@@ -765,11 +714,6 @@ export function RuleRecord({ nav, ...r }: RecordProps & { nav?: RecordNav }) {
             ))}
             {r.siblings.count > r.siblings.ids.length && <span className="rounded bg-space-800 px-1.5 py-0.5 text-[10px] text-space-400">+{r.siblings.count - r.siblings.ids.length} more</span>}
           </div>
-        )}
-        {r.status === "open" && (
-          <button type="button" className={`${btn} mt-2`} onClick={() => setExplainOpen(true)}>
-            Write the compiler brief
-          </button>
         )}
       </div>
       {r.brief && (
