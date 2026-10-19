@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { expectationsAction, saveExpectationsAction, tryRuleByIdAction } from "@/app/arena/rules/probe-actions";
 import type { Rule } from "@/lib/arena/lang/ast";
 import type { RulePath } from "@/lib/arena/lang/path";
 import type { KnobSpec } from "@/lib/arena/probe-edges";
 import { fixPath, judge, ownLines, type Expectation, type JudgedStatus, type TryResult, type TryRow } from "@/lib/arena/tryit-judge";
+import { keepDraft, sandboxHref } from "@/lib/arena/sandbox/draft";
 import { BoardSheet, WrongSheet } from "./sheets";
 
 /**
@@ -186,6 +188,7 @@ export function TryItBoards({ ruleId, rule, onFix, api }: { ruleId: number; rule
             onForget={() => forget(row.key)}
             onFix={() => onFix(fixPath(row, said[row.key] ?? null))}
             onChange={() => setSheet({ kind: "board", key: row.key })}
+            play={ruleId > 0 ? { href: sandboxHref(ruleId, row.key), keep: () => keepDraft(ruleId, rule) } : null}
           />
         ))}
       </ol>
@@ -238,7 +241,9 @@ function BoardRow({
   onForget,
   onFix,
   onChange,
+  play,
 }: {
+  play: { href: string; keep: () => void } | null;
   row: TryRow;
   said: Expectation | null;
   canChange: boolean;
@@ -316,6 +321,11 @@ function BoardRow({
           <button type="button" className={link} onClick={onChange}>
             Change board
           </button>
+        )}
+        {play && (
+          <Link href={play.href} className={link} onClick={play.keep}>
+            Play this board ▶
+          </Link>
         )}
         <button type="button" className={link} onClick={onToggle} aria-expanded={expanded}>
           {expanded ? "Hide scenario details" : "Show scenario details"}
