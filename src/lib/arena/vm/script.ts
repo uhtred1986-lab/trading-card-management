@@ -11,7 +11,7 @@
  */
 import { skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
-import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
+import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
@@ -1117,7 +1117,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1232,6 +1232,8 @@ export interface PayWith {
 }
 
 export interface SkillPrice {
+  /** #907: compiled Fusion material authority; catalog wording is display only. */
+  fusion?: FusionMaterials;
   /** Executable resource cost. Missing/unknown contracts require regeneration. */
   payment: SkillPayment;
   condition: Cond | null;
@@ -1268,6 +1270,7 @@ export interface XCost {
  * reaches the database) to know what a price looks like.
  */
 export interface CostRecord {
+  fusion?: FusionMaterials;
   version: 1;
   /** Whether the compiler/editor accounted for the whole price. Text is display only. */
   readable: boolean;
@@ -1297,6 +1300,17 @@ export interface SkillPayment {
   spiritBoost: number | null;
 }
 
+/** The supported §22-13-4 procedure. Extensions are typed standing permissions,
+ * scoped by their own records; their presence here never grants permission. */
+export interface FusionMaterials {
+  version: 1;
+  needs: { name: string; filter: CardFilter }[];
+  samePower: boolean;
+  activation: "hand";
+  base: "hand";
+  extensions: ("unionFusionAreas" | "unionFusionWarp")[];
+}
+
 /**
  * The price in words, for the record's COST row. It sits here rather than on
  * the page that used to own it because the workbench now edits the price in
@@ -1316,6 +1330,7 @@ export function costSentence(cost: CostRecord | null): string | null {
   // they are part of what the price *is* — "pay 2 energy or use this card as
   // energy" — rather than something it also requires.
   for (const pw of cost.payWith ?? []) parts.push(`or use ${describeSelector(pw.sel)}${pw.as === "energy" ? "" : ` as {${pw.as}}`} as energy`);
+  if (cost.fusion) parts.push(`Fusion materials: ${cost.fusion.needs.map((n) => describeFilter({ ...n.filter, characters: [n.name] })).join(" and ")}${cost.fusion.samePower ? ", equal printed power" : ", any powers"}; from hand${cost.fusion.extensions.length ? ` with permitted ${cost.fusion.extensions.join(" / ")} extensions` : ""}`);
   if (cost.condition) parts.push(`if ${describeCond(cost.condition)}`);
   if (cost.program) parts.push(describeScript(cost.program));
   else if (cost.text && !cost.condition) parts.push(cost.text);
@@ -2823,7 +2838,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // same way so that a duration expires it the same way.
       case "permit":
         for (const id of h.resolveRef(frame, op.target)) {
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter, line: op.line, price: op.price, source: op.source, n: op.n } });
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter, line: op.line, unionVariant: op.unionVariant, price: op.price, source: op.source, n: op.n } });
         }
         break;
 

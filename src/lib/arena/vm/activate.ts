@@ -553,7 +553,7 @@ export function activationRefusals(
   // offers it is gated by its own `REFUSE` lines here — where the legacy
   // `whyNotActivate` asks its keyword's `case`, after the window — and every
   // other is still the answer it was: a line this engine cannot read yet.
-  if (line.keyword) before.push(...keywordRefusals());
+  if (line.keyword && canResolve(line)) before.push(...keywordRefusals());
   else if (sk.keyword) before.push({ kind: "unread", card });
   // 13-4: a marker skill is used in the Unison Area, once a turn, and never
   // below no markers. The last of the three is the price's own and `planCost`

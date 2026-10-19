@@ -131,7 +131,14 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         const chosen = f.ops.slice(0, f.ip).findLast((o) => o.op === "choose" && o.as === ref.var);
         if (chosen?.op === "choose" && !chosen.sel.upTo && chosen.atMost === undefined && selectedCount(chosen.sel, f.vars[ref.var] ?? [], host.nameOf, undefined, (id) => host.defOf(id).characters) < (chosen.sel.minCount ?? chosen.sel.count ?? 1)) unpaid();
       }
-      if (["moveTo", "switchMode", "hidden", "removeMarker"].includes(op?.op) && !found.length && !("var" in ref && f.vars[ref.var]?.length === 0)) unpaid();
+      // BT31-001: a complete Fusion pair can contain no hand cards. Its
+      // hand partition is then empty, while the following instruction still
+      // owes both outside cards to Warp. This is not an empty material cost.
+      const emptyFusionHandPartition = op?.op === "moveTo" && op.to === "drop"
+        && !!f.keywordPrice?.fusion && "var" in ref && ref.var === "pair" && ref.minus === "pairOutside"
+        && f.vars.pair?.length === 2 && new Set(f.vars.pair).size === 2
+        && f.vars.pairOutside?.length === 2 && f.vars.pair.every((id) => f.vars.pairOutside.includes(id));
+      if (["moveTo", "switchMode", "hidden", "removeMarker"].includes(op?.op) && !found.length && !("var" in ref && f.vars[ref.var]?.length === 0) && !emptyFusionHandPartition) unpaid();
       return found;
     },
     amount: (f, amount) => {

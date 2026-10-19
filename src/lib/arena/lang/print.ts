@@ -393,6 +393,7 @@ export function printCost(cost: CostRecord): string {
   if (cost.marker !== null) items.push(`${cost.marker >= 0 ? "+" : ""}${cost.marker} marker`);
   if (cost.burst !== null) items.push(`burst ${cost.burst}`);
   if (cost.spiritBoost !== null) items.push(`spiritBoost ${cost.spiritBoost}`);
+  if (cost.fusion !== undefined) items.push(`FUSION ${JSON.stringify(JSON.stringify(cost.fusion))}`);
   // "{X}" (20-5). Printed bare when it is payable at anything, with its bounds
   // when the card sets one; `min` always before `max`, so there is one form.
   if (cost.x) items.push(["X", cost.x.min === undefined ? "" : `min ${cost.x.min}`, cost.x.max === undefined ? "" : `max ${cost.x.max}`].filter(Boolean).join(" "));

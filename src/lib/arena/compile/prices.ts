@@ -1,3 +1,4 @@
+import { compileFusionMaterials } from "./fusion-materials";
 import { priceFromCostRecord, zeroCostRecord } from "../vm/skill-payment";
 import { keywordOf, orbsIn } from "../text/cards";
 import type { Color, Skill } from "../types";
@@ -488,12 +489,13 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const condition = priceCondition(skill)?.cond ?? null;
   const program = compileCostProgram(skill)?.ops ?? null;
   const x = priceX(skill);
+  const fusion = compileFusionMaterials(skill);
   return {
     version: 1,
     readable: costIsOnlyOrbs(skill.cost) || condition !== null || !!program?.length || x !== null,
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
     marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
-    condition, program, ...(x ? { x } : {}),
+    condition, program, ...(fusion ? { fusion } : {}), ...(x ? { x } : {}),
   };
 }
 

@@ -67,7 +67,13 @@ function stage(s: VmState, p: PlayerId, id: string, area: "battle" | "energy" | 
   return physical;
 }
 const candidates = (s: VmState): string[] => (s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates : []);
-const choose = (s: VmState, ids: string[], player: PlayerId = "p2") => apply(s, { type: "choose", player, cards: ids });
+const choose = (s: VmState, ids: string[], player: PlayerId = "p2") => {
+  let result = apply(s, { type: "choose", player, cards: ids });
+  // #1067 resources are asked after the material pair; preserve the original
+  // material/outcome assertions while answering that new saved checkpoint.
+  while (result.state.prompt.kind === "chooseMode") result = apply(result.state, { type: "chooseMode", player: result.state.prompt.player, index: 0 });
+  return result;
+};
 const fusion = (s: VmState, id: string) => engine.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === id);
 /** Activate the card's line and pay its {r} (the one red energy), arriving at the first question about the specified cards. */
 function start(s: VmState, id: string): VmState {

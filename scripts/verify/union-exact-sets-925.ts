@@ -138,7 +138,13 @@ function stage(s: VmState, p: PlayerId, id: string, area: Area): string {
   return physical;
 }
 const candidates = (s: VmState): string[] => (s.prompt.kind === "chooseCards" ? s.prompt.choice.candidates : []);
-const choose = (s: VmState, ids: string[], player: PlayerId = "p2") => apply(s, { type: "choose", player, cards: ids });
+const choose = (s: VmState, ids: string[], player: PlayerId = "p2") => {
+  let result = apply(s, { type: "choose", player, cards: ids });
+  // #1067 determines resources after the material pair. Answer its persisted
+  // payment choice before the existing final-board assertions.
+  while (result.prompt.kind === "chooseMode") result = apply(result, { type: "chooseMode", player: result.prompt.player, index: 0 });
+  return result;
+};
 const offer = (s: VmState, id: string) => engine.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === id);
 const refusal = (s: VmState, id: string) => engine.rejectedActions(ctx, s, engine.legalActions(ctx, s)).find((x) => x.action.type === "activate" && x.action.card === id);
 /** p2's first Main Phase under `lead`, with `energy` energy cards of every colour the prices need. */

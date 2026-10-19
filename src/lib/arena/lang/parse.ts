@@ -222,6 +222,11 @@ class Parser {
   }
 
   private costItem(cost: CostRecord): void {
+    if (this.eatKw("FUSION")) {
+      const text = this.string("a typed Fusion material contract as JSON");
+      try { cost.fusion = JSON.parse(text); } catch { this.fail("a Fusion material contract must be valid JSON"); }
+      return;
+    }
     if (this.isPunct("{")) {
       // `{Red}{Red}{any}` is one item; `{Red/Blue}` is an either-orb. Both
       // shapes may sit side by side without a comma, as the cards print them.

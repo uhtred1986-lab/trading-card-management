@@ -11,6 +11,8 @@ import { compileSkillPrice, IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostPro
 import type { Ctx } from "./shared";
 import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
+import { compileFusionMaterials } from "./fusion-materials";
+import { isFusionSkill } from "../vm/fusion-materials";
 
 // ── skills and cards ───────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
+  if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { ops: [], unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read = narrowHiddenChoices(compileSkillText(skill));
   // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
   // first, whichever way the rest of the effect reads.
@@ -431,7 +434,14 @@ function compileSkillText(skill: Skill): Script {
   if (granted) {
     const who = parseTarget(`${granted[1]} cards in your hand`);
     if (who && !who.special && !who.fromVar && !who.upTo && who.side === "you" && who.area === "hand" && !who.filter?.unreadable) {
-      return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2], price: compileSkillPrice(parseSkills(granted[2])[0]) }], unsupported: [] };
+      const lines = parseSkills(granted[2]);
+      const line = lines[0];
+      if (lines.length !== 1 || line.kind !== "keyword" || line.keyword?.name !== "Union"
+        || (isFusionSkill(line) && (line.oncePerTurn || line.limit !== null || line.bond !== null || line.sparking !== null || line.tags.length !== 1))) {
+        return { ops: [], unsupported: ["unsupported granted Union identity or use-limit metadata"] };
+      }
+      if (isFusionSkill(line) && !compileFusionMaterials(line)) return { ops: [], unsupported: ["unsupported granted Fusion material description"] };
+      return { ops: [{ op: "permit", what: "unionLine", target: { sel: who }, until: "game", line: granted[2], unionVariant: line.keyword?.name === "Union" && line.keyword.variant === "Potara" ? "Potara" : "Fusion", price: compileSkillPrice(line) }], unsupported: [] };
     }
   }
   // #930, 22-13-5-2-1: "[Permanent] If you have 4 or more energy, you can choose
