@@ -1,0 +1,62 @@
+{
+  "format": "fusion-drop-bottom-official-audit-v1",
+  "scope": "EX23-36/front/10,20 and P-519/front/10,20; source review only",
+  "sources": [
+    {
+      "card": "EX23-36",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=EX23-36",
+      "status": 200,
+      "bytes": 132225,
+      "sha256": "94374b0f60d5779e55e3f8f56eda1e879c3f2a3c62c40143ce214eb6e905aa48",
+      "retrievedUTC": "2026-10-19T17:08:53.328115+00:00"
+    },
+    {
+      "card": "P-519",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=P-519",
+      "status": 200,
+      "bytes": 132022,
+      "sha256": "d0ddc8f159685bd3f03b4e7e48d5078064d06707b867526cdec7bb162acf3201",
+      "retrievedUTC": "2026-10-19T17:08:52.946843+00:00"
+    },
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "finalURL": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedUTC": "2026-10-19T13:07:11.288512+00:00",
+      "reuse": "Original same-day retrieval bytes independently rehashed for this bounded audit; no new download."
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedUTC": "2026-10-19T13:07:20.944547+00:00",
+      "reuse": "Original same-day retrieval bytes independently rehashed for this bounded audit; no new download."
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedUTC": "2026-10-19T13:07:25.624300+00:00",
+      "reuse": "Original same-day retrieval bytes independently rehashed for this bounded audit; no new download."
+    }
+  ],
+  "exactCardFaqMatches": {
+    "EX23-36": 0,
+    "P-519": 0
+  },
+  "exactErrataMatches": {
+    "EX23-36": 0,
+    "P-519": 0
+  },
+  "authority": "Official card text plus general manual and explicitly analogous area-mixing FAQs; no equal-power waiver or community ruling.",
+  "accessLimits": null
+}
