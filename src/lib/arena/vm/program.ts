@@ -1631,7 +1631,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         const potara = potaraOf(ctx, game, state, frame);
         if (potara && !potara.extensions.includes(c.what as import("./script").PotaraMaterials["extensions"][number])) return false;
         const material = fusionOf(ctx, game, state, frame);
-        if (material && !material.extensions.includes(c.what)) return false;
+        if (material && !material.extensions.some(extension => extension === c.what)) return false;
       }
       return !!card && permissions(ctx, game, state, c.what).some((p) => {
         if (p.master !== frame.master) return false;
