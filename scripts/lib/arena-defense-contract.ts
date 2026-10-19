@@ -26,6 +26,7 @@ export interface DefenseFreeze {
   protocolSha256: string;
   /** Content pins survive a documentation-only commit of this freeze. */
   sourceSha256: string;
+  nodeVersion: string;
   fixtures: ManifestFixture[];
   policies: ManifestPolicy[];
   jobs: DefenseJob[];
@@ -33,7 +34,7 @@ export interface DefenseFreeze {
   protocol: Omit<DefenseProtocol, "corpora"> & { corpora: Omit<DefenseProtocol["corpora"][number], "path">[] };
   sha256: string;
 }
-export interface DefenseChecks { sampled: number; nontrivial: number; failures: number; candidateSamples: number; baselineSamples: number }
+export interface DefenseChecks { sampled: number; nontrivial: number; failures: number; candidateSamples: number; baselineSamples: number; candidateNontrivial: number; baselineNontrivial: number; purityFailures: number }
 export interface DefenseRecord {
   job: DefenseJob;
   classification: "completed" | "draw" | "illegal" | "interrupted" | "limited" | "crashed" | "other";

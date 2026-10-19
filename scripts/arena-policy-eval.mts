@@ -63,6 +63,10 @@ import { mainPolicy, MAIN_POLICY_VERSION } from "../src/lib/arena/policy/main";
 import { combatPolicy, localPolicy, COMBAT_POLICY_VERSION } from "../src/lib/arena/policy/combat";
 import { CHOICE_POLICY_VERSION } from "../src/lib/arena/policy/choices";
 
+if (process.argv.includes("--defense-protocol")) {
+  const { defenseEvaluationMain } = await import("./lib/arena-defense-evaluation");
+  await defenseEvaluationMain(process.argv.slice(2));
+} else {
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -330,3 +334,5 @@ if (json) {
   else if (CHECK) console.log("arena:policy-eval --check: ok");
 }
 process.exit(failures.length ? 1 : 0);
+
+}
