@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** 9-6-3-1-1: a pending cost-free [Auto] still in a secret area may be left undeclared. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -27,7 +28,7 @@ const scripts = rulesFromCompiler(defs);
 function script(id: "H549" | "A549" | "B549", trigger: "played" | "chargeStart", ops: Op[]): void {
   const original = scripts[id].bySkill[0];
   assert.ok(original);
-  scripts[id].bySkill[0] = { ...original, trigger: [trigger], unsupported: [], ops, price: { ...original.price, condition: null, ops: null } };
+  scripts[id].bySkill[0] = { ...original, trigger: [trigger], unsupported: [], ops, price: { ...zeroSkillPrice(), ...original.price, condition: null, ops: null } };
 }
 script("H549", "played", [{ op: "draw", n: 1 }]);
 script("A549", "chargeStart", [{ op: "choose", sel: { side: "you", area: "battle", count: 1 }, as: "returned" }, { op: "moveTo", target: { var: "returned" }, to: "hand" }]);

@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /**
  * The engine interface, and the rules engine's skeleton behind it.
  *
@@ -2771,7 +2772,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const line: ActivationLine = {
       ...real!,
       skill: { ...real!.skill, cost: "{r} or use ≪A-E-RED≫ as energy" },
-      script: { ops: real!.script!.ops, unsupported: [], price: { condition: null, ops: null, payWith } },
+      script: { ops: real!.script!.ops, unsupported: [], price: { ...zeroSkillPrice(), condition: null, ops: null, payWith } },
     };
 
     const bound = boundFor(CTX, DBS, board.r, "p1", line);

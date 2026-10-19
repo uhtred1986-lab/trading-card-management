@@ -1,3 +1,4 @@
+import { skillPriceProblem } from "./skill-payment";
 /** Auto payment planning and its stored checkpoint continuation (#549). */
 import type { EngineContext, GameEvent, PlayerId, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -684,6 +685,8 @@ export function automaticPriceLabel(plan: string | undefined, ops: Op[]): string
 /** Capture payment alternatives before asking; the Auto's master and source
  * stay on the frame even when its price moves the source (9-6 / 9-9). */
 export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, skill: Skill, script: Script): AutomaticCost {
+  const paymentGap = skillPriceProblem(script.price);
+  if (paymentGap) throw new NotYet(`read this Auto's typed skill cost (${paymentGap})`, "#549");
   const ops = script.price?.ops ?? [];
   readableAutomaticPrice(ops);
   const costs = game.actions.activate?.cost;

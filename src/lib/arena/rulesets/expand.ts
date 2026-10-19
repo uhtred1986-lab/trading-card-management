@@ -1,3 +1,4 @@
+import { skillPriceProblem } from "../vm/skill-payment";
 /**
  * A program, lowered to what the interpreter actually runs.
  *
@@ -390,6 +391,8 @@ function argHolds(type: ParamType, v: unknown, def: GameDefinition): boolean {
       return typeof v === "number" && Number.isFinite(v);
     case "boolean":
       return typeof v === "boolean";
+    case "price":
+      return skillPriceProblem(v) === null;
     case "keyword":
       return typeof v === "object" && v !== null && typeof (v as { name?: unknown }).name === "string";
     case "color":

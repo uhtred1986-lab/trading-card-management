@@ -1,3 +1,5 @@
+import { priceFromCostRecord, zeroSkillPrice } from "./vm/skill-payment";
+import type { CostRecord } from "./vm/script";
 /**
  * The probe: what a rule actually does, on a board built for it.
  *
@@ -18,7 +20,7 @@
 import { skillsOf, specifiedCostOf, specifiedCostUnknown } from "./text/cards";
 import { type Action, type CardDef, type Color, type EngineContext, type PlayerId, type Skill, type Trigger } from "./types";
 import { type CardScripts, type Op } from "./vm/script";
-import type { Cond, SkillPrice, XCost } from "./vm/script";
+import type { Cond, SkillPrice } from "./vm/script";
 import { isZ } from "./text/cards";
 import { matches, parseFilter, type CardFilter } from "./text/filters";
 import { resolvePath } from "./lang/path";
@@ -41,10 +43,10 @@ export type { BoardKnobs, KnobValue, ProbeFamily, ProbeOutcome, ProbeRule, Probe
  * is `programOf` in the store; the probe never reads the table itself.
  */
 export function ruleFrom(row: { side: string; skillIndex: number; kind: string; trigger: unknown; status: string; unread: string[]; cost?: unknown; cond?: unknown }, def: CardDef, program: Op[]): ProbeRule {
-  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null; x?: XCost } | null | undefined;
+
   return {
     ...(row.cond !== undefined ? { hoisted: row.cond != null } : {}),
-    price: { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}) },
+    price: priceFromCostRecord(row.cost as CostRecord),
     def,
     side: row.side === "back" ? "back" : "front",
     skillIndex: row.skillIndex,
@@ -88,7 +90,7 @@ const NAMES: Record<string, string> = {
   [THEIR_LEADER]: "Rival Leader",
 };
 
-const NO_PRICE: SkillPrice = { condition: null, ops: null };
+const NO_PRICE: SkillPrice = zeroSkillPrice();
 
 /**
  * The card a `copySkills` rule is measured against (20-18): one of each thing

@@ -32,7 +32,7 @@ const FIXTURES: Record<string, { rule: Rule; card: { cardId: string; name: strin
     rule: {
       kind: "activate:main",
       trigger: [],
-      cost: { text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: { kind: "leaderColor", color: "Red" }, program: null },
+      cost: { version: 1, readable: true, text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: { kind: "leaderColor", color: "Red" }, program: null },
       cond: { kind: "life", side: "you", atMost: 4 },
       ops: [
         { op: "choose", sel: { count: 1, side: "opponent", area: "battle", filter: { ...emptyFilter(), type: "BATTLE", costMax: 3 } }, as: "t" },

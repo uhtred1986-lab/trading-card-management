@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { programProvenance, normalizeRows, type ExportedRule } from "../arena-corpus-provenance.mts";
 import { freeze } from "../arena-corpus-freeze.mts";
 import { skillRecords } from "../../src/lib/arena/draft";
+import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { CTX, DEFS, IMPL, card, stagedG, findG, zoneOf } from "./harness";
 import { loadSnapshot } from "../arena-deck-audit.mts";
 
@@ -44,21 +45,34 @@ assert.equal(loaded.manifest[0].freshness, "current");
 assert.equal(loaded.manifest[0].executable, true);
 DEFS[def.id] = def;
 const staged = stagedG({ battle: [def.id] });
-const context = { ...CTX, scripts: { ...CTX.scripts, ...loaded.scripts } };
+// Materialize supporting harness records too: spreading its compiler Proxy loses
+// native leader scripts, which now require explicit payment records.
+const supportRows = Object.values(DEFS).flatMap(skillRecords).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 })) as RuleRow[];
+const context = { ...CTX, scripts: { ...rulesFromRows(supportRows, DEFS), ...loaded.scripts } };
 const action = IMPL.legalActions(context, staged).find((entry) => entry.action.type === "activate" && entry.action.card === findG(staged, "p1", "battle", def.id))!.action;
 const before = zoneOf(staged, "p1", "hand").length;
 const after = IMPL.apply(context, JSON.parse(JSON.stringify(staged)), action).state;
 assert.equal(zoneOf(after, "p1", "hand").length, before + 3, "reloaded state executes stored Draw 3, printed fresh compiler Draw 1 is never substituted");
 
 const priced = card("PROVENANCE-COST", { skill: "[Activate: Main] {r}: Draw 1 card." });
-const addedPrice = { text: "added stored payment", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: [{ op: "draw", n: 1 }] };
-assert.ok(programProvenance(defs, "stored", [{ ...rows[0], cost: addedPrice }, rows[1]]).manifest[0].blockers.some((s) => s.includes("actionPriceOf")), "runtime ignores a stored action price on an empty printed cost; refuse rather than certify payment authority");
+const addedPrice = { version: 1, readable: true, text: "added stored payment", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: [{ op: "draw", n: 1 }] };
+// #907 repairs the #1065 ignored-price defect: the frozen old blocker is deliberately
+// replaced by a stored-authority proof, not silently rebaselined.
+const addedPayment = programProvenance(defs, "stored", [{ ...rows[0], cost: addedPrice }, rows[1]]);
+assert.equal(addedPayment.manifest[0].executable, true);
+assert.deepEqual(addedPayment.scripts[def.id].bySkill[0].price?.ops, addedPrice.program, "stored payment survives despite empty printed cost");
 const priceRows = skillRecords(priced).map((r) => ({ ...r, status: "draft", source: "compiler", version: 1 }));
 const blockedCost = programProvenance({ [priced.id]: priced }, "stored", priceRows);
-assert.ok(blockedCost.manifest[0].blockers.some((s) => s.includes("cost.orbs")), "stored costs dropped by loader are explicit blockers pending #907");
+assert.equal(blockedCost.manifest[0].executable, true, "activated typed orbs are now honoured by the match loader");
+assert.deepEqual(blockedCost.scripts[priced.id].bySkill[0].price?.payment.orbs, { Red: 1 });
+const obsolete = structuredClone(priceRows);
+delete (obsolete[0].cost as unknown as Record<string, unknown>).version;
+const obsoleteReport = programProvenance({ [priced.id]: priced }, "stored", obsolete);
+assert.equal(obsoleteReport.manifest[0].executable, false);
+assert.ok([...obsoleteReport.malformed, ...obsoleteReport.manifest[0].blockers].some((s) => /typed.*payment|regenerate/.test(s)), "obsolete payment records have an explicit rebuild blocker");
 const native = card("PROVENANCE-NATIVE", { skill: "[Over Realm 3]{1}<br>[Blocker]" });
 const nativeReport = programProvenance({ [native.id]: native }, "stored", []);
-assert.equal(nativeReport.manifest[0].requiredRow, false);
+assert.equal(nativeReport.manifest[0].requiredRow, true, "native activated keywords now require persisted payment records");
 assert.equal(nativeReport.manifest[0].executable, false, "row-free keyword must not bypass printed payment/material boundary");
 assert.equal(nativeReport.manifest[1].executable, true, "ordinary native keyword contract remains identified by pinned ruleset");
 const combo = card("PROVENANCE-TRIGGER", { skill: "[Auto] When this card is used in a combo from your hand, draw 1 card." });

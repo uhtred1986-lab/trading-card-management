@@ -123,9 +123,12 @@ Migrate incrementally within the existing language, loader and VM:
    and policy-visible summaries. Retire alternate interpretation paths as their
    equivalents pass the frozen cases; avoid a wholesale interpreter rewrite.
 
-Do not rewrite every card at once. Preserve old pinned saves with explicit
-format/version compatibility; migrate compiler-owned rows through existing
-guarded tooling and keep owner/Claude corrections protected.
+Do not rewrite every card at once. Owner clarification, 19 October: this is a
+development app and backward compatibility is not required. Use one current
+typed contract; reject obsolete records or saves explicitly with a documented
+rebuild path rather than retaining a printed-text fallback. Rebuild compiler-owned
+rows through existing guarded tooling and keep owner/Claude corrections protected;
+a format break does not authorize silent rewrites or database writes.
 
 **Exit of each slice:** full printed text → persisted/reloaded record → real VM
 proof, plus positive, negative, payment-failure and save/reload cases. Mutating
@@ -166,6 +169,19 @@ not a prerequisite for delivering the selected decks.
 **Exit:** measured tactical and holdout improvement with no per-archetype,
 privacy, legality or budget regression. Negative results close an experiment;
 they do not reopen a completed implementation or justify a difficulty label.
+
+## Rules evidence before interpretation changes
+
+Owner instruction, 19 October: consult current online guidance from the official
+Masters website and relevant public forums when determining behavior or checking
+errata. Read the applicable manual, card text, official errata and card Q&A;
+record exact URLs and retrieval dates alongside durable scenarios. Cross-check
+relevant forum discussions for disputed interactions and missing cases, clearly
+labeling community interpretation separately from official rulings. Do not let
+an old census or a forum answer override a current official correction. If a
+source cannot be retrieved, record that limit instead of claiming it was checked.
+Ask the owner only when a material semantic conflict remains unresolved after
+this research, while continuing independent work.
 
 ## What a batch must report
 

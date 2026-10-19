@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /**
  * The compiler and the interpreter: what a printed line becomes, and what the
  * engine then does with it.
@@ -1707,7 +1708,7 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   const xFromChoice: Script = {
     ops: [{ op: "draw", n: { x: true } }],
     unsupported: [],
-    price: { condition: null, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "discarded", bindX: true }] },
+    price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "discarded", bindX: true }] },
   };
   const ctx = {
     defs: DEFS,

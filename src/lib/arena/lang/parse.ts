@@ -209,7 +209,7 @@ class Parser {
   // ── the price ─────────────────────────────────────────────────────────────
 
   private cost(): CostRecord {
-    const cost: CostRecord = { text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null };
+    const cost: CostRecord = { version: 1, readable: true, text: "", orbs: {}, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null };
     if (this.tok.kind === "newline" || this.tok.kind === "eof") {
       this.endOfLine();
       return cost;
@@ -278,6 +278,10 @@ class Parser {
         this.fail("a card stands in for energy or for one coloured orb", ["energy", "{Red}"]);
       }
       cost.payWith = [...(cost.payWith ?? []), { sel, as }];
+      return;
+    }
+    if (this.eatKw("UNREAD")) {
+      cost.readable = false;
       return;
     }
     if (this.eatKw("TEXT")) {
@@ -436,6 +440,10 @@ class Parser {
         return this.number();
       case "boolean":
         return this.bool();
+      case "price": {
+        const text = this.string("a typed skill price as JSON");
+        try { return JSON.parse(text); } catch { this.fail("a typed skill price must be valid JSON"); }
+      }
       case "keyword":
         return this.keyword();
       case "filter":

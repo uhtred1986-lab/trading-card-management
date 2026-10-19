@@ -1,3 +1,4 @@
+import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 /** #549: persisted priced secret Auto declaration and payment (PGlite only). */
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
@@ -26,7 +27,7 @@ export async function verifyArenaPricedSecretAuto(db: Db): Promise<void> {
   const scripts = rulesFromCompiler(defs);
   const original = scripts.SECRET_PRICE549.bySkill[0];
   assert.ok(original);
-  scripts.SECRET_PRICE549.bySkill[0] = { ...original, trigger: ["played"], unsupported: [], ops: [{ op: "draw", n: 1 }], price: { ...original.price, condition: null, ops: null } };
+  scripts.SECRET_PRICE549.bySkill[0] = { ...original, trigger: ["played"], unsupported: [], ops: [{ op: "draw", n: 1 }], price: { ...zeroSkillPrice(), ...original.price, condition: null, ops: null } };
   const ctx: EngineContext = { ...CTX, defs, scripts };
   let state = engine.createGame(ctx, { seed: 5494, p1: { name: "Alice", leader: "L-RED", main: fifty("V1") }, p2: { name: "Bob", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
   state = engine.apply(ctx, state, { type: "chooseFirst", player: state.chooser, first: "p1" }).state as VmState;

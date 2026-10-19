@@ -16,11 +16,12 @@ import { readableAutomaticPrice } from "./vm/auto-costs";
 import { NotYet } from "./vm/errors";
 import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
-import type { Cond, PayWith, SkillPrice, XCost } from "./vm/script";
+import type { Cond, CostRecord, SkillPrice, XCost } from "./vm/script";
 import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
 import { parseSkills, skillLines } from "./text/cards";
+import { needsPaymentRecord, priceFromCostRecord, costRecordProblem, zeroCostRecord, zeroSkillPrice } from "./vm/skill-payment";
 import { reviewVersion } from "./rule-review-version";
 import type { Rule } from "./lang/ast";
 
@@ -58,14 +59,12 @@ export function programOf(row: Pick<RuleRow, "ops" | "cond">): Op[] {
  * rule that it never compiles card text at game time; the drafter has written
  * both halves to `card_rules.cost` since phase 2, and this hands them over.
  *
- * A row with no `cost` is a skill with **no** price, which is not the same as
- * a skill whose price the compiler could not read \u2014 that one has a `cost`
- * with both halves null, and the engine refuses it rather than resolving an
- * effect it did not charge for.
+ * Every current row carries payment v1, including an explicit zero price.
+ * Obsolete or malformed contracts become a refused price with a keyed support
+ * diagnostic; they never fall back to catalog text or a free activation.
  */
 function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
-  const cost = row.cost as { condition?: Cond | null; program?: Op[] | null; x?: XCost; payWith?: PayWith[] } | null;
-  return { condition: cost?.condition ?? null, ops: cost?.program ?? null, ...(cost?.x ? { x: cost.x } : {}), ...(cost?.payWith?.length ? { payWith: cost.payWith } : {}) };
+  return costRecordProblem(row.cost) ? zeroSkillPrice(false) : priceFromCostRecord(row.cost as CostRecord);
 }
 
 /**
@@ -75,6 +74,9 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
  */
 export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops" | "cost" | "trigger" | "printed">): RuntimeSupport {
   const unsupported = [...(row.unread ?? [])];
+  const paymentGap = costRecordProblem(row.cost);
+  if (paymentGap) unsupported.push(paymentGap);
+  else if ((row.cost as CostRecord).readable === false) unsupported.push("the stored skill payment is unreadable");
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
   const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
@@ -203,7 +205,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
       const text = side === "front" ? def.skill : def.back?.skill;
       const lines = skillLines(text);
       for (const skill of parseSkills(text)) {
-        if (!skill.effect.trim()) continue; // native keyword lines need no compiler row
+        if (!skill.effect.trim() && !needsPaymentRecord(skill)) continue; // native keyword lines need no compiler row
         expected.set(`${cardId}#${side}#${skill.index}`, {
           cardId, side, skillIndex: skill.index,
           printed: lines[Math.floor(skill.index / 10)] ?? skill.raw,
@@ -233,7 +235,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { ops: [], unsupported: row.unread, price, trigger }
       : { ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger };
@@ -245,6 +247,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     if (seen.has(expectedKey)) continue;
     const key = scriptsKey(skill.cardId, skill.side);
     const base = out[key] ?? { bySkill: {}, complete: false, unsupported: [] };
+    base.bySkill[skill.skillIndex] = { ops: [], unsupported: ["no current rule record; regenerate rules and rebuild the match"], price: zeroSkillPrice(false), trigger: [] };
     base.complete = false;
     base.unsupported.push(`no current rule record for printed skill ${skill.skillIndex}: ${skill.effect}`);
     out[key] = base;
@@ -281,6 +284,9 @@ export interface RuleWrite {
  */
 export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   const existing = await db.query.cardRules.findFirst({ where: and(eq(cardRules.cardId, given.cardId), eq(cardRules.side, given.side), eq(cardRules.skillIndex, given.skillIndex)) });
+  if (!existing && given.cost === undefined) {
+    throw new Error(`${given.cardId} [${given.skillIndex}]: a new rule requires explicit typed payment; provide payment v1 or cost:null for intentional zero`);
+  }
   const kind = existing?.kind ?? given.kind ?? "";
   // Every writer of a person's or Claude's program comes through here — the
   // workbench (after `readRule`), Explain to Claude (`clarify`) and the
@@ -290,7 +296,7 @@ export async function saveRule(db: Db, given: RuleWrite): Promise<RuleRow> {
   // handed in; nor is a price the write leaves out (the two writers that leave
   // it out check their program with no X bound, as this does). Filters are
   // stored whole (`completeFilters`).
-  const w: RuleWrite = { ...given, ops: completeFilters(given.ops), cond: given.cond ? completeFilters(given.cond) : given.cond, ...(given.cost !== undefined ? { cost: completeFilters(given.cost) } : {}) };
+  const w: RuleWrite = { ...given, ops: completeFilters(given.ops), cond: given.cond ? completeFilters(given.cond) : given.cond, ...(given.cost !== undefined ? { cost: completeFilters(given.cost === null ? zeroCostRecord() : given.cost) } : {}) };
   const bad = validateRule({ kind, trigger: [], cost: w.cost ?? null, cond: w.cond ?? null, ops: w.ops }, kind);
   if (bad) throw new Error(`${w.cardId} [${w.skillIndex}]: refused to store a rule the engine cannot run — ${bad.message}`);
   // The hoisted condition is part of the program, so the reading has to be of

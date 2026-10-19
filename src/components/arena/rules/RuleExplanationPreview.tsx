@@ -9,7 +9,7 @@ import type { Rule } from "@/lib/arena/lang/ast";
 
 /** Dev-only page supplies synthetic outcomes; never calls a provider or database. */
 export const PREVIEW_RULE: Rule = {
-  kind: "activate:main", trigger: [], cost: { text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
+  kind: "activate:main", trigger: [], cost: { version: 1, readable: true, text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
   cond: null, ops: [{ op: "draw", n: 2 }],
 };
 const item = (id: number, name: string): ReviewItem => ({

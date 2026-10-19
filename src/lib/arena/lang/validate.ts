@@ -1,3 +1,4 @@
+import { costRecordProblem } from "../vm/skill-payment";
 /**
  * Is this rule executable? The structural half of the workbench's Save, and
  * the whole of it on the server, where the rule arrives as JSON from a browser
@@ -17,15 +18,13 @@
  * The moments a WHEN may name are the **game's** (`rulesets/words.ts`, #137),
  * off `triggers.rules`, rather than a constant of the engine's.
  */
-import { OP_SCHEMA, completeFilters, condProblem, programProblem, selectorProblem, type CostRecord } from "../vm/script";
+import { completeFilters, condProblem, programProblem } from "../vm/script";
 import { whenMoments } from "../rulesets/words";
 import type { Rule } from "./ast";
 
-export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
-
-/** What a payer may stand in for, read off the `payWith` op rather than kept as a second colour list (20-19). */
-const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+export type Invalid = { field: "rule" | "kind" | "trigger" | "cost" | "cond" | "ops"; message: string };
 
 /**
  * `kind` is what the row already says; a rule that names another one is
@@ -88,37 +87,5 @@ function bindsX(program: unknown): boolean {
 }
 
 function costProblem(cost: unknown): string | null {
-  if (!isObject(cost)) return "a price is a record of its own, not a sentence";
-  const c = cost as unknown as CostRecord;
-  if (typeof c.text !== "string" || !isObject(c.orbs) || !Array.isArray(c.either)) return "the price is missing the shape a record has";
-  for (const [orb, n] of Object.entries(c.orbs)) if (!Number.isInteger(n) || n < 1) return `${orb} is charged ${JSON.stringify(n)} times`;
-  if (c.either.some((group) => !Array.isArray(group) || group.length < 2)) return "an either-orb needs two colours or more";
-  for (const n of [c.marker, c.burst, c.spiritBoost]) if (n !== null && !Number.isInteger(n)) return "a marker, Burst or Spirit Boost count is a whole number or nothing";
-  if (c.x !== undefined) {
-    if (!isObject(c.x)) return "an X price is a record of its bounds, or none at all";
-    const { min, max } = c.x as { min?: unknown; max?: unknown };
-    for (const n of [min, max]) if (n !== undefined && (typeof n !== "number" || !Number.isInteger(n) || n < 0)) return "an X bound is a whole number, never below zero";
-    if (typeof min === "number" && typeof max === "number" && min > max) return "an X price cannot ask for more than it allows";
-  }
-  // 20-19: each payer is a selector and what it counts as. `selOk` is the same
-  // check an op's own selector gets, so a price cannot smuggle in a shape a
-  // step could not name.
-  if (c.payWith !== undefined) {
-    if (!Array.isArray(c.payWith) || !c.payWith.length) return "a price that names payers names at least one";
-    for (const pw of c.payWith as unknown[]) {
-      if (!isObject(pw)) return "a payer is a selector and what it counts as";
-      const sel = selectorProblem(pw.sel, "cost.payWith.sel");
-      if (sel) return `the price names a payer the engine cannot pick out — ${sel}`;
-      if (typeof pw.as !== "string" || !PAY_AS.includes(pw.as)) return "a payer stands in for energy or for one coloured orb";
-    }
-  }
-  if (c.condition != null) {
-    const bad = condProblem(c.condition, 0, false, "cost.condition");
-    if (bad) return `the price states a condition the engine cannot ask — ${bad}`;
-  }
-  if (c.program != null) {
-    const bad = programProblem(c.program, 0, false, "cost.program");
-    if (bad) return `the price charges a program the engine cannot run — ${bad}`;
-  }
-  return null;
+  return costRecordProblem(cost);
 }

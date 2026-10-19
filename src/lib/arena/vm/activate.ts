@@ -1,3 +1,4 @@
+import { requireSkillPayment } from "./skill-payment";
 /**
  * A skill being used, and the refusal one line is owed (§9-1-2, §4-3).
  *
@@ -85,7 +86,6 @@ import type { EngineContext, GameEvent, Payer } from "../types";
 import { counterKindOf, type Area, type Color, type PlayerId, type Requirement, type Skill } from "../types";
 import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
-import { aegisPriceLine, costIsOnlyOrbs } from "../compile";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
@@ -237,7 +237,7 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     for (const skill of grantedLines(ctx, game, state, card)) {
       const keyword = keywordMoveOf(game, skill);
       if (!keyword || !families.has(familyOf(keyword.offer as string))) continue;
-      out.push({ card, skillIndex: skill.index, skill, script: undefined, kind: keyword.offer as string, keyword });
+      out.push({ card, skillIndex: skill.index, skill, script: { ops: [], unsupported: [], price: skill.price }, kind: keyword.offer as string, keyword });
     }
   }
   return out;
@@ -292,7 +292,8 @@ function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, 
  */
 export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true, onto?: string): BoundAmounts {
   const sk = line.skill;
-  const own = skillOrbs(ctx, game, state, line.card, sk, onto);
+  const payment = requireSkillPayment(line.script?.price);
+  const own = skillOrbs(ctx, game, state, line.card, sk, onto, payment);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
   if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
@@ -302,18 +303,18 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
   }
   return {
     energy: { total, orbs, either: own.either },
-    markers: sk.markerCost ?? 0,
+    markers: payment.marker ?? 0,
     // 22-27-2: [Burst X]'s cards, by the pool the declared price takes them out
     // of. Bound to 0 on a line with no tag, so the price asks nothing of it.
     // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
     // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
     // (#155); bound to 0 everywhere else, so no line in play pays it again.
-    pooled: { [ACTIVATION_ZONES.burst]: sk.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
+    pooled: { [ACTIVATION_ZONES.burst]: payment.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
-    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(sk.spiritBoost ?? 0), by: "Spirit Boost" } },
+    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(payment.spiritBoost ?? 0), by: "Spirit Boost" } },
     payers: payWithPayers(ctx, game, state, player, line),
-    unreadable: chargeablePrice(line) ? null : aegisPriceLine(sk).cost,
+    unreadable: chargeablePrice(line) ? null : "the stored skill payment is unreadable",
   };
 }
 
@@ -451,9 +452,9 @@ function chargeablePrice(line: ActivationLine): boolean {
   // program of its own drafted that cost as an effect, to run after activation
   // and free when it cannot; it is refused as unread until it is rebuilt.
   if (aegis && line.script?.ops.length) return false;
-  if (costIsOnlyOrbs(aegisPriceLine(line.skill).cost)) return true;
-  const price = line.script?.price;
-  if (!price) return false;
+  const payment = requireSkillPayment(line.script?.price);
+  if (!payment.readable) return false;
+  const price = line.script!.price!;
   // 4-3-3: an action price is charged by `resolveActivation` (#458) — on a
   // printed line. A keyword's own move runs its `DO` in place of the record
   // and has nowhere to charge one, so it stays refused. [Aegis] is the
@@ -465,10 +466,7 @@ function chargeablePrice(line: ActivationLine): boolean {
   // (#926): their `DO` pays it where it says `payActionPrice`
   // (`vm/keyword-costs.ts`), on the same strict host.
   if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
-  // 20-5: an X price is chargeable once X is named, which the menu does —
-  // one candidate per payable value (`vm/actions.ts`'s `activation`, #439).
-  if (price.x || price.payWith?.length) return true;
-  return price.condition !== null;
+  return true;
 }
 
 // ── why a line is not offered ───────────────────────────────────────────────
@@ -494,6 +492,7 @@ export function activationRefusals(
   const before: Requirement[] = [];
   const after: Requirement[] = [];
   const { card, skill: sk } = line;
+  const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
   const at = findCard(state, card)?.zone ?? null;
 
@@ -530,15 +529,15 @@ export function activationRefusals(
   // — and in its words, so the first requirement is the same one on both
   // engines. 22-43's [Spirit Boost], whose payment is a moment sixteen cards
   // answer, is still refused rather than charged (#149).
-  if (sk.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < sk.burst) {
-    before.push({ kind: "other", detail: `[Burst ${sk.burst}] needs that many cards in the deck` });
+  if (payment.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < payment.burst) {
+    before.push({ kind: "other", detail: `[Burst ${payment.burst}] needs that many cards in the deck` });
   }
   // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
   // — asked here for the same reason, in the legacy words (#157). The price is
   // `DEFINE COST spiritBoost`'s.
-  if (sk.spiritBoost != null) {
+  if (payment.spiritBoost != null) {
     const unison = zone(state, player, ACTIVATION_ZONES.spiritBoost)[0];
-    if (!unison || (state.cards[unison]?.markers ?? 0) < sk.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
+    if (!unison || (state.cards[unison]?.markers ?? 0) < payment.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
   }
   // The window: a line of a kind this move does not offer is still a candidate,
   // and the answer it is owed names the window it belongs to (7-3-4 against
@@ -559,7 +558,7 @@ export function activationRefusals(
   // 13-4: a marker skill is used in the Unison Area, once a turn, and never
   // below no markers. The last of the three is the price's own and `planCost`
   // words it; the two here are not about the price at all.
-  if (sk.markerCost != null) {
+  if (payment.marker != null) {
     if (at !== ACTIVATION_ZONES.marker) before.push({ kind: "zone", card, area: ACTIVATION_ZONES.marker as Area });
     if (inst?.usedMarkerSkill) before.push({ kind: "oncePerTurn", what: "marker skill" });
   }
@@ -662,7 +661,7 @@ export function usableFrom(script: Script | undefined): Area[] {
 // is asked like any other — [Union-Absorb]'s printed effect has to read — and a
 // line the record does not cover at all ([Overlord], a card no compile saw) is
 // the keyword's `DO` alone.
-const canResolve = (line: ActivationLine): boolean => (!line.skill.effect.trim() || (line.keyword && !line.script) ? true : !!line.script && line.script.unsupported.length === 0);
+const canResolve = (line: ActivationLine): boolean => !!line.script && line.script.unsupported.length === 0;
 
 /**
  * 22-3-3 (#907, BT10-052): "activate {Tragedy Overground}" said by another card's
@@ -716,7 +715,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   return activationsOf(ctx, state, def, card, game).filter((line) => {
     const sk = line.skill;
     if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
-    if (!costIsOnlyOrbs(sk.cost) && !line.script.price?.condition && !line.script.price?.ops?.length) return false;
+    if (!requireSkillPayment(line.script.price).readable) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
@@ -872,6 +871,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">, waived = false): void {
   const { card, skill: sk } = line;
+  const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   // Capture the rule's trigger at the successful activation boundary, before
@@ -880,7 +880,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
   spendUse(state, player, card, sk);
-  if (sk.markerCost != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
+  if (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
   if (!waived) {
@@ -941,12 +941,12 @@ const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${sk
 
 /**
  * The action price (4-3-3) this line charges, or null: the record's price
- * program, read only when the printed cost is more than orbs — the legacy
- * `priceFor(…).ops` behind its `!costIsOrbsOnly` — and never for a keyword's
- * own move, which has no place to charge one.
+ * program. Display wording never decides whether the recorded action is paid.
+ * A keyword's own move pays its action at the point declared in its DO.
  */
 function actionPriceOf(line: ActivationLine): Script["ops"] | null {
-  if (line.keyword || costIsOnlyOrbs(line.skill.cost)) return null;
+  if (line.keyword) return null;
+  requireSkillPayment(line.script?.price);
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
 }

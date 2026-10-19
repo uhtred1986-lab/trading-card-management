@@ -1117,7 +1117,7 @@ export type Op =
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1231,6 +1231,8 @@ export interface PayWith {
 }
 
 export interface SkillPrice {
+  /** Executable resource cost. Missing/unknown contracts require regeneration. */
+  payment: SkillPayment;
   condition: Cond | null;
   ops: Op[] | null;
   /**
@@ -1265,6 +1267,9 @@ export interface XCost {
  * reaches the database) to know what a price looks like.
  */
 export interface CostRecord {
+  version: 1;
+  /** Whether the compiler/editor accounted for the whole price. Text is display only. */
+  readable: boolean;
   text: string;
   orbs: Record<string, number>;
   either: string[][];
@@ -1279,6 +1284,16 @@ export interface CostRecord {
   x?: XCost;
   /** "You can use this card as energy" — cards this price may be paid with instead of energy (20-19). */
   payWith?: PayWith[];
+}
+
+export interface SkillPayment {
+  version: 1;
+  readable: boolean;
+  orbs: Record<string, number>;
+  either: string[][];
+  marker: number | null;
+  burst: number | null;
+  spiritBoost: number | null;
 }
 
 /**
@@ -2807,7 +2822,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // same way so that a duration expires it the same way.
       case "permit":
         for (const id of h.resolveRef(frame, op.target)) {
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter } });
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter, line: op.line, price: op.price, source: op.source, n: op.n } });
         }
         break;
 
