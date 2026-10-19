@@ -1,0 +1,23 @@
+PERFORMANCE RECORDED ONLY: choice policy p95 0.82 ms (limit 10), max 16.9 ms (limit 200)
+arena-policy-choices: named scenarios ok — optional pick takes the most valuable target; optional zero selection: no Life card at low life; required multi-selection: exactly two, the two most valuable; required discard: the two least valuable; priced Auto: the price is paid; printed mode: the KO over the draw; [Offering] as chooseMode: drop a life at 7, keep it at 3; Auto order: the earliest-triggered first; [Empower] carries the maximum; exact payment keeps the colour the hand needs; replaceMove: a Life card to the hand instead of the Drop; replaceMove: a KO substitute (discard instead), paying with the least valuable; typed interruptions (unreadable question, referee, refused pick)
+  coverage (window | layer | rule | decisions | fixtures):
+  | chooseFirst | shortcuts | takes the first turn | 14 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | mulligan | shortcuts | keeps two cards costing 2 or less, else redraws | 28 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | charge | shortcuts | charges the dearest / off-colour card | 163 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | main | main | scored plays, activations, attacks, endMain | 825 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | combo | combat | cheapest sufficient cover when the battle is worth it | 892 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | blocker | combat | least expected loss, ties to not blocking | 40 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvB (SD15/SD5), fixture 647 |
+  | counter | combat | a negating counter against a costlier threat | 46 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | orderPending | choices | earliest-triggered Auto first, never withheld | 1 | order |
+  | chooseCards | choices | compound pick by polarity, value, count, unique names and colour cover | 91 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | chooseMode | choices | best-scored option: prices, [Offering], may, printed modes | 37 | audit AvB (SD15/SD5), audit BvA (SD15/SD5), auto-price, fixture 644, … |
+  | replaceMove | choices | the destination worth most; a substitute is staying put less its price | 2 | replace-life, replace-substitute |
+  | zEnergyFromCombo | shortcuts | keeps the Z-Energy | 183 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), audit BvB (SD15/SD5), … |
+  | optionalCost | choices | pays when the price is below the skill's worth | 2 | contract:optionalCost-life7, contract:optionalCost-life7-dear |
+  | payCost | main | keeps the most of the hand payable (choices: first offered payment when unread) | 14 | audit AvA (SD15/SD5), audit AvB (SD15/SD5), audit BvA (SD15/SD5), fixture 650, … |
+  | offering | choices | drops a life when it costs less than the two cards denied | 2 | contract:offering-life3, contract:offering-life7 |
+  | empowerCarry | shortcuts | carries the maximum | 1 | empower |
+  2337 positions, all answered without the fallback, legal, deterministic and RNG-free; 91 compound picks (19 multi-card, 1 empty); 708 permuted hidden states (708 differing) with identical answers; max choice work 9/4096
+  cost (Node): local policy p50 0.10 / p95 0.82 / max 16.9 ms per decision
+  strength vs the #647 policy (uniform constrained choices), seeded, both seats: synthetic fixtures 5-5 of 10 (95 % CI 24-76 %), life 62 dealt / 58 taken; audit decks 2-2 of 4 (95 % CI 15-85 %), life 25 dealt / 24 taken
+  349.4 s
