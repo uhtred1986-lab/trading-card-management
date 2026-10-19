@@ -1,0 +1,34 @@
+{
+  "readOnly": true,
+  "projectionOnly": true,
+  "application": false,
+  "readAt": "2026-10-19T15:12:02.819Z",
+  "namedDeckVariants": 4,
+  "malformed": 135,
+  "targetKeysInNamedDecks": 4,
+  "targetBlockedBefore": 4,
+  "targetBlockedAfterProposed": 0,
+  "deckSkillBlockerCounts": [
+    {
+      "variant": 1,
+      "before": 42,
+      "afterProposed": 41
+    },
+    {
+      "variant": 2,
+      "before": 38,
+      "afterProposed": 36
+    },
+    {
+      "variant": 3,
+      "before": 43,
+      "afterProposed": 43
+    },
+    {
+      "variant": 4,
+      "before": 40,
+      "afterProposed": 39
+    }
+  ],
+  "wholeDeckQualificationClaim": false
+}

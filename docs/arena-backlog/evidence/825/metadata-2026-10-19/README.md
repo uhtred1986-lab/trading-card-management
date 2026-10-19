@@ -108,3 +108,29 @@ actual-export result is claimed here. After a reviewed preview and approval,
 record the atomic application/readback and actual-target replay separately.
 Affected-deck readiness remains a separate check; these eight records do not
 qualify an entire deck or certify every printed skill.
+
+## Named-deck readiness: recorded, still blocked
+
+The coordinator's read-only 19 October 15:12 UTC audit covers four existing
+named-deck variants, 71 distinct cards and 135 stored rows. Only the
+[public aggregate projection](named-deck-admission-preview.json) is included;
+private deck lists, names and raw rules remain outside the repository.
+
+All 135 rows were rejected by the normalizer for missing/malformed typed
+validity-v1. This describes the metadata rejection, not physically missing rows
+or proof that every effect program is wrong. Four of the eight target lines
+occur in these variants; applying the proposed metadata in memory makes those
+four target lines admit. No database write occurred.
+
+| Anonymous variant | Blocked skills before | After proposed target metadata |
+|---|---:|---:|
+| 1 | 42 | 41 |
+| 2 | 38 | 36 |
+| 3 | 43 | 43 |
+| 4 | 40 | 39 |
+
+All four variants remain blocked, with separate native Evolve/Over Realm/Swap
+text dependencies also recorded by the coordinator. This completes the bounded
+readiness-reporting step; it does not qualify any deck or authorize a general
+135-row refresh. Owner approval/application/readback of the exact eight-row
+proposal is still pending.
