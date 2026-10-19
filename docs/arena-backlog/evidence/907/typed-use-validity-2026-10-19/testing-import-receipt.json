@@ -1,0 +1,14 @@
+{
+  "imported": true,
+  "importer": "src/lib/arena/testing/store.ts#importEvaluationRun",
+  "runId": 1,
+  "replayed": false,
+  "requestId": "f9e4d3aa-25ed-4bfc-81ce-a84bc1eae853",
+  "manifestSHA256": "411ed5c00d4854c65328b65194df028d6fda554f60535f8f6c5423c0abb9d7d7",
+  "manifestFingerprint": "4cd200615eaeb09f43feb140382351c1abd8fc050a2c35e42b55ba554b2968b2",
+  "engineRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+  "results": 16,
+  "coverageProgressChanged": false,
+  "recipeLinksAdded": 0,
+  "humanConfirmationsAdded": 0
+}

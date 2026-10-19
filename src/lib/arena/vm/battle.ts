@@ -631,7 +631,7 @@ interface CounterCandidate {
 type OpenWindow = "attack" | "play" | "counter";
 
 /** The prompt's window word read as one this engine opens. */
-const openWindowOf = (window: Extract<Prompt, { kind: "counter" }>["window"]): OpenWindow => (window === "play" || window === "counter" ? window : "attack");
+export const openWindowOf = (window: Extract<Prompt, { kind: "counter" }>["window"]): OpenWindow => (window === "play" || window === "counter" ? window : "attack");
 
 /** Is this printed line one the window offers? The legacy `counterCandidates`' own `want`. */
 function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: Skill): boolean {
@@ -1031,7 +1031,7 @@ const askingMotion = (state: VmState): ScriptFrame | undefined => (state.program
  * [Invoker]'s `altPayment` body offers for a play stands for its [Counter]
  * too, as the legacy `altCostFor` offers its `invoker` price there (#439).
  */
-function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): VmAltCost | null {
+export function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, player: PlayerId): VmAltCost | null {
   const own = altCostFor(ctx, game, state, card, player, "counter");
   if (own) return own;
   // 5-3 with 4-3-3: an alternative that is an action — "by choosing 1 Hidden

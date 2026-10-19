@@ -29,7 +29,7 @@
  * Policy layer: value imports only from `src/lib/arena/policy/` (checked by
  * `scripts/verify/arena-policy-contract.mts`).
  */
-import type { Action, ActionCost, LegalAction, PlayerId, Prompt } from "../types";
+import type { Action, ActionCost, BattleActivationSummary, CounterResponseSummary, LegalAction, PlayerId, Prompt } from "../types";
 import { aliasIds, type AliasTable, type PolicyObservation } from "./observation";
 import { nextInt, type PolicyRng } from "./rng";
 
@@ -73,6 +73,10 @@ export interface MenuDecision {
   label: string;
   action: Record<string, unknown>;
   cost?: ActionCost;
+  battleActivation?: BattleActivationSummary;
+  counterResponse?: CounterResponseSummary;
+  /** This mode's bounded executable path can power the current own battle card. */
+  battlePowerTarget?: string;
 }
 
 /**
@@ -94,6 +98,8 @@ export interface PickDecision {
   remaining: number | null;
   /** 22-30-3: the picks must between them cover these colours; the engine checks it. */
   cover?: string[];
+  /** The eligible current own battle card the awaiting choice gives positive power. */
+  battlePowerTarget?: string;
 }
 
 export type Decision = MenuDecision | PickDecision;
@@ -189,7 +195,7 @@ export interface DecisionInput {
   /** The engine's legal list, in the engine's words (real instance ids). */
   legal: LegalAction[];
   /** The open `chooseCards` question, when there is one, in real ids. */
-  choice: { reason: string; candidates: string[]; upTo: boolean; remaining: number | null; question: string; cover?: string[] } | null;
+  choice: { reason: string; candidates: string[]; upTo: boolean; remaining: number | null; question: string; cover?: string[]; battlePowerTarget?: string } | null;
   aliases: AliasTable;
 }
 
@@ -222,6 +228,9 @@ export function buildDecisions(input: DecisionInput): { decisions: PolicyDecisio
         label: masked ? `${type} ${Object.values(shown).filter((v) => typeof v === "string" && v.startsWith("?")).join(", ")}`.trim() : legal.label,
         action: shown,
         ...(legal.cost ? { cost: legal.cost } : {}),
+        ...(legal.battleActivation ? { battleActivation: { ...legal.battleActivation, power: { ...legal.battleActivation.power } } } : {}),
+        ...(legal.counterResponse ? { counterResponse: { ...legal.counterResponse } } : {}),
+        ...(legal.battlePowerTarget ? { battlePowerTarget: aliasIds(legal.battlePowerTarget, aliases) } : {}),
       });
     }
     listed.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -230,7 +239,7 @@ export function buildDecisions(input: DecisionInput): { decisions: PolicyDecisio
       const candidates: Record<string, string> = {};
       for (const real of input.choice.candidates) candidates[aliasIds(real, aliases)] = real;
       pick = { candidates, upTo, remaining, question };
-      listed.push({ kind: "pick", id: PICK_ID, reason: aliasedText(reason, aliases), candidates: Object.keys(candidates).sort(), upTo, remaining, ...(cover?.length ? { cover: [...cover] } : {}) });
+      listed.push({ kind: "pick", id: PICK_ID, reason: aliasedText(reason, aliases), candidates: Object.keys(candidates).sort(), upTo, remaining, ...(cover?.length ? { cover: [...cover] } : {}), ...(input.choice.battlePowerTarget ? { battlePowerTarget: aliasIds(input.choice.battlePowerTarget, aliases) } : {}) });
     }
   }
   const unsupported = mine && input.window === "referee" ? "a referee question is answered with a program, not a decision" : undefined;

@@ -143,3 +143,32 @@ programs add only the enumerated kind/usage/validity metadata.
 Production deployment, the 63 compiler refreshes, the four approved protected
 metadata migrations, actual-export proofs, stored-pair games and supported
 Testing & stats import remain separate operational steps.
+
+## Actual deployment, application and qualification — #1071
+
+[#1071](https://github.com/uhtred1986-lab/trading-card-management/pull/1071)
+merged as `c015cc3038abcb6f57872d1d552e661e28bc14e8`. Production was ready
+at 13:38:44 UTC on 19 October 2026. The guarded compiler writer refreshed exactly
+63 records; the separately approved atomic migration updated only metadata on
+the four protected corrections. Full-row comparisons preserve their programs,
+readings, correction status and review fields. No human confirmations were added.
+
+[Actual application receipt](application-receipt.json) pins the deployed revision,
+writer receipts and complete [67-row actual export](stored-rules-after-application.json).
+All 316 named actual-record cases pass, including the four protected records and
+36 combo cases. The usage runner retains an old protected-row negative supporting
+fixture; its rebuild warning describes that fixture, not the actual migrated row.
+
+[The actual stored-program pack](actual-stored-pair-pack.json) admits both frozen
+BT6 decks and completes all 16 both-seat games, with zero illegal, interrupted,
+limited, crashed or other outcomes. Its four deterministic replay checks pass.
+The engine, dirty-source digest, exact catalog/programs, seeds and policy hashes
+are pinned. Original frozen inputs and the 16 historical starter controls remain
+unchanged; completed games do not establish that every skill was exercised.
+
+[Testing & stats receipt](testing-import-receipt.json) records supported importer
+run 1 with exactly 16 results from [the allowlisted manifest](actual-stored-pair-manifest.json).
+No recipe links, coverage progress or human confirmation were added. This closes
+the bounded #897 selected-pair qualification/application acceptance. Next: #899
+policy decision metadata under delivery-plan step 4; strategic holdouts and any
+policy promotion remain separate, predeclared work.

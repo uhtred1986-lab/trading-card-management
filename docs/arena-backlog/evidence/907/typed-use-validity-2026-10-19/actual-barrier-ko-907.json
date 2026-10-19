@@ -1,0 +1,15 @@
+{
+  "recordMode": "actual-stored-readback",
+  "actualExportHash": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687",
+  "targets": [
+    "BT6-059/front/20"
+  ],
+  "checks": [
+    "p1 exact Barrier target pick=true",
+    "p1 exact Barrier target pick=false",
+    "p2 exact Barrier target pick=true",
+    "p2 exact Barrier target pick=false"
+  ],
+  "qualified": false,
+  "pairGames": 0
+}

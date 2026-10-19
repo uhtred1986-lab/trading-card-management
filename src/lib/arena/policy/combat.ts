@@ -49,7 +49,7 @@
  *             guess.
  *   combo     the deficit at the current totals (offence: guard − attack;
  *             defence: attack − guard + 1) is covered by the cheapest set of
- *             the offered combos (and readable "+N power" battle activations)
+ *             the offered combos (and typed power battle activations)
  *             the active energy pays for — exactly enough, never padded against
  *             a response nobody has made — and only when what the battle is
  *             worth exceeds that set's cost. A battle already won, one that
@@ -77,7 +77,7 @@ import { interruptingPolicy } from "./contract";
 /** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
 export { lifeLoss };
 
-export const COMBAT_POLICY_VERSION = 2;
+export const COMBAT_POLICY_VERSION = 3;
 
 export const COMBAT_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -248,52 +248,29 @@ function cheapestCover(resources: readonly Resource[], need: number, energy: num
   return best;
 }
 
-/** "+N power" a battle activation's own line gives the card in this battle, or 0 when it does not say so readably. */
-function pumpOf(line: string, own: CardFacts | null, inBattle: CardFacts | null, isLeader: boolean): number {
-  const m = /\+(\d+) power/i.exec(line);
-  if (!m || !inBattle) return 0;
-  if (/\byour leader\b/i.test(line) && isLeader) return Number(m[1]);
-  if (/\bthis card\b/i.test(line) && own?.id === inBattle.id) return Number(m[1]);
-  return 0;
+/** Facts belong to the exact offered skill; malformed or absent metadata is not a benefit. */
+function battleActivationOf(d: MenuDecision): MenuDecision["battleActivation"] | null {
+  const s = d.battleActivation;
+  if (!s || s.version !== 1 || !Number.isSafeInteger(s.skillIndex) || s.skillIndex < 0 || d.action.skill !== s.skillIndex
+    || !["activate:battle", "activate:main/battle"].includes(s.timing)
+    || !Number.isSafeInteger(s.power?.battle) || s.power.battle < 0 || !Number.isSafeInteger(s.power?.turn) || s.power.turn < 0 || s.power.turn > s.power.battle
+    || !Number.isSafeInteger(s.drawnFirst) || s.drawnFirst < 0) return null;
+  return s;
 }
 
-const COLOURS = ["white", "red", "blue", "green", "yellow", "black", "purple"];
-
-/**
- * "+N power" a defensive activation gives the guard **for the turn** (or "for the
- * duration of the turn"), read off the line's own words (#899): it holds this
- * battle and every later one this turn, unlike a combo or a "for the battle" figure.
- * The line must name the guard's kind ("your white Battle Cards", "your Leader
- * Cards or Battle Cards", "your Leader"); a colour word must be one the guard has.
- */
-function turnPumpOf(line: string, guard: CardFacts | null, target: Battle["target"]): number {
-  const m = /\+(\d+) power/i.exec(line);
-  if (!m || !guard || !/\bfor the (?:duration of the )?turn\b/i.test(line)) return 0;
-  if (target === "leader") return /\byour leader\b/i.test(line) ? Number(m[1]) : 0;
-  if (target !== "battle") return 0;
-  const kind = /\byour (?:(\w+) )?battle cards?\b/i.exec(line) ?? /\bor battle cards?\b/i.exec(line);
-  if (!kind) return 0;
-  const colour = (kind[1] ?? "").toLowerCase();
-  if (COLOURS.includes(colour) && !guard.colors.some((c) => c.toLowerCase() === colour)) return 0;
-  return Number(m[1]);
+function counterResponseOf(d: MenuDecision): MenuDecision["counterResponse"] | null {
+  const s = d.counterResponse;
+  if (!s || s.version !== 1 || !Number.isSafeInteger(s.skillIndex) || s.skillIndex < 0
+    || d.action.skill !== undefined && d.action.skill !== s.skillIndex
+    || !["counter:attack", "counter:battle card attack", "counter:counter", "counter:play"].includes(s.kind)
+    || s.negatesAttack !== null && typeof s.negatesAttack !== "boolean"
+    || !["none", "free", "other"].includes(s.alternativePrice)
+    || !d.action.alt && s.alternativePrice !== "none") return null;
+  return s;
 }
 
-/** Cards the line draws before anything else ("Draw 1 card, then …"): they pay back the card an Extra spends. */
-function drawnFirst(line: string): number {
-  const m = /^\s*(?:\[[^\]]*\]\s*)+draw (\d+) cards?\b/i.exec(line);
-  return m ? Number(m[1]) : 0;
-}
-
-/** The lines of a card's text of one kind ("[Counter: Attack] …", "[Activate: Battle] …"). */
-function linesOf(text: string | null, tag: RegExp): string[] {
-  if (!text) return [];
-  return text.split(/<br\s*\/?>|\n/i).filter((l) => tag.test(l));
-}
-
-/** The seat's own resources at the combo window: the offered combos and the readable pump activations. */
+/** The seat's own resources at the combo window: the offered combos and typed pump activations. */
 function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuDecision[], work: Work): Resource[] {
-  const mine = bt.attacking ? bt.attackerCard : bt.guardCard;
-  const isLeader = !!mine && o.you.leader?.id === mine.id;
   const out: Resource[] = [];
   for (const d of open) {
     if (!work.step()) break;
@@ -306,15 +283,16 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
       const card = findCard(o, d.action.card);
       const used = typeof d.action.card === "string" ? activationsThisTurn(o, o.seat, d.action.card) : null;
       if (used === null || used >= 1) continue;
-      const lines = linesOf(card?.text ?? null, /\[Activate: (Main\/)?Battle\]/i);
-      const turn = bt.attacking ? 0 : Math.max(0, ...lines.map((l) => turnPumpOf(l, bt.guardCard, bt.target)));
-      const power = Math.max(turn, ...lines.map((l) => pumpOf(l, card, mine, isLeader)));
+      const summary = battleActivationOf(d);
+      if (!summary) continue;
+      const turn = bt.attacking ? 0 : summary.power.turn;
+      const power = summary.power.battle;
       if (!power) continue;
       const energy = Math.max(0, (d.cost?.energy ?? 0) + Math.max(0, d.cost?.markers ?? 0));
       // From the hand it spends that card (an Extra), less what it draws first; on the field it costs the activation.
       const fromHand = !!card && (o.you.hand ?? []).some((c) => c.id === card.id);
-      const loss = fromHand ? Math.max(0, COST.handCard - Math.max(0, ...lines.map(drawnFirst))) : COST.activation;
-      out.push({ id: d.id, power, energy, loss, ...(turn >= power ? { turn } : {}) });
+      const loss = fromHand ? Math.max(0, COST.handCard - summary.drawnFirst) : COST.activation;
+      out.push({ id: d.id, power, energy, loss, ...(turn > 0 ? { turn } : {}) });
     }
   }
   return out;
@@ -402,11 +380,6 @@ function withoutCounter(o: PolicyObservation, bt: Battle, work: Work): { loss: n
   return best;
 }
 
-/** A [Counter] line that negates the attack, read off the card's own text. */
-function negatesAttack(card: CardFacts | null): boolean {
-  return linesOf(card?.text ?? null, /\[Counter: (Attack|Battle Card Attack)\]/i).some((l) => /negate the attack/i.test(l));
-}
-
 function counterChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecision[], work: Work): Option | null {
   const decline = open.find((d) => d.type === "counter" && d.action.card === null);
   if (!decline) return null;
@@ -414,7 +387,7 @@ function counterChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecisi
   // answers the opponent's counter, not the attack, and what negating that
   // counter is worth is not read here: declined explicitly (9-7-2-3).
   const offered = open.filter((d) => d.type === "counter" && d.action.card !== null);
-  if (offered.length && offered.every((d) => linesOf(findCard(o, d.action.card)?.text ?? null, /\[Counter: Counter\]/i).length)) {
+  if (offered.length && offered.every((d) => counterResponseOf(d)?.kind === "counter:counter")) {
     return { d: decline, loss: 0, how: "declines: a [Counter: Counter] answer is not weighed" };
   }
   // A play's counter timing (no battle, or one past its declaration): what the play is worth is not read here.
@@ -425,9 +398,10 @@ function counterChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecisi
     if (!work.step()) break;
     if (d.type !== "counter" || d.action.card === null) continue;
     const card = findCard(o, d.action.card);
-    if (!negatesAttack(card)) continue;
+    const summary = counterResponseOf(d);
+    if (summary?.negatesAttack !== true || !["counter:attack", "counter:battle card attack"].includes(summary.kind)) continue;
     const energy = d.cost ? d.cost.energy : Math.max(0, card?.energyCost ?? 0);
-    const extra = d.action.alt && d.cost?.describe !== "free" && !d.cost?.energy ? COST.unknownAlt : 0;
+    const extra = d.action.alt && summary.alternativePrice !== "free" && !d.cost?.energy ? COST.unknownAlt : 0;
     options.push({ d, loss: COST.handCard + COST.energy * energy + extra, how: `counters with ${card?.name ?? "a card"}: negates the attack` });
   }
   return cheapest(options);

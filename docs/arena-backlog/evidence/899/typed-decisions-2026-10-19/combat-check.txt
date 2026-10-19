@@ -1,0 +1,7 @@
+PERFORMANCE RECORDED ONLY: battle policy p95 0.28 ms (limit 5), max 17.3 ms (limit 100)
+arena-policy-combat: named scenarios ok — block a lethal attack; no chump block while life allows; a surviving blocker is used; attacker ties + minimum sufficient defence; offensive combo exactly enough; no combos on a lost battle; Critical and Double Strike change the defence; counter when legal and worth it; battle activation covers a deficit; p1 defends: block and keep the counter, or take the hit; work bound (296 steps at a 14-card hand's first question)
+  staged battles end in 1-4 decisions; 422 battle positions (blocker:p1 2, blocker:p2 24, combo:p1 159, combo:p2 223, counter:p1 10, counter:p2 4), all legal, deterministic and RNG-free; 844 permuted hidden states (844 differing) with identical choices; max work 296/4096 (0 bounded); chose blocker:block, blocker:block-decline, combo:activate, combo:combo, combo:pass, counter:counter, counter:counter-decline
+  cost (Node): battle policy p50 0.04 / p95 0.28 / max 17.3 ms per decision
+  strength, seeded games (synthetic fixtures; 4 per fixture and baseline): vs main646: 13-3 of 16 (win rate 81 %, 95 % CI 57-93 %), life damage 118 dealt / 48 taken; 641 2-2, 644 4-0, 646 4-0, 647 3-1
+  vs shortcuts: 14-2 of 16 (win rate 88 %, 95 % CI 64-97 %), life damage 121 dealt / 35 taken; 641 2-2, 644 4-0, 646 4-0, 647 4-0
+  151.2 s
