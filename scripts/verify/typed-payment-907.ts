@@ -1,5 +1,7 @@
 /** #907: stored payment is authoritative through offers, charges and saved continuations.
  * BT11-013 source: #923 inventory, also frozen in keyword-action-costs-926.ts.
+ * Current official cardlist power is 20000 (19 Oct online check); #926 retains
+ * its historical 35000 fixture. This source correction changes no payment expectation.
  * Generic resource mutations deliberately leave the printed skill unchanged.
  */
 import assert from "node:assert/strict";
@@ -17,7 +19,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 const FUSION = "[deflect]<br>[union-fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[permanent] This card can't be KO'd.<br>[auto] If your Leader Card is red: When this card is played, choose up to 1 of your red Unison Cards, add a marker to it, then choose all of your opponent's Battle Cards and they get -15000 power for the turn.";
 const GRANT = "[permanent] Red <Gogeta: Br> cards in your hand gain the following skill: ・[union-fusion]{r}{u}{2}: <Son Goku: Br> and <Vegeta: Br>.";
 const defs: Record<string, CardDef> = { ...DEFS,
-  "BT11-013": card("BT11-013", { name: "Gogeta, Fusion of the Gods", colors: ["Red"], characters: ["Gogeta: Br"], power: 35000, energyCost: 5, skill: FUSION }),
+  "BT11-013": card("BT11-013", { name: "Gogeta, Fusion of the Gods", colors: ["Red"], characters: ["Gogeta: Br"], power: 20000, energyCost: 5, specifiedCost: { Red: 3 }, traits: ["Saiyan"], skill: FUSION }),
   GOKU907: card("GOKU907", { characters: ["Son Goku: Br"] }),
   VEG907: card("VEG907", { characters: ["Vegeta: Br"] }),
   BLUE907: card("BLUE907", { colors: ["Blue"] }),
