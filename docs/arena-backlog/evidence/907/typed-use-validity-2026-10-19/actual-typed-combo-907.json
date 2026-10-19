@@ -1,0 +1,646 @@
+{
+  "targets": [
+    {
+      "cardId": "BT6-006",
+      "side": "front",
+      "skillIndex": 10,
+      "old": {
+        "id": 7053,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "31bc812e412933667487ac18446c5156683870d12e5f2b1f40bf6467edda557e",
+        "printedHash": "1862982dfc1ce54bbc40aab1fe467b04c6b614154cded0884c59ed4edb479480"
+      },
+      "rebuilt": {
+        "id": 7053,
+        "cardId": "BT6-006",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When you combo with this card, if your Leader Card is red and your life is at 4 or less, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "comboUsed"
+        ],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Red"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            "then": [
+              {
+                "n": 1,
+                "op": "draw"
+              }
+            ]
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 7,
+        "reads": "if your leader is Red: if your life is 4 or less: draw 1",
+        "pattern": "if:leaderMatches[if:life[draw]]",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": {
+          "turn": "any",
+          "timing": "entry",
+          "origins": null,
+          "subject": "self",
+          "version": 1
+        },
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": false
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "programHash": "8d8d98420d76aa85424d827bd315a906c8f501284e3cc6e1e7faf2144c75947e"
+      },
+      "appliedToDatabase": false,
+      "humanReviewed": false
+    },
+    {
+      "cardId": "BT6-010",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 2994,
+        "version": 5,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "7e0c0c7a0c7a70b5e3aa075a0d1d04138f4eefc766bde73ec38c7d1995bd116c",
+        "printedHash": "a792bcdd543f86982cf44ff7afcd7027f5594162951b9de96d7f0b0a13f3b93f"
+      },
+      "rebuilt": {
+        "id": 2994,
+        "cardId": "BT6-010",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] At the end of a battle in which you combo with this card from your hand during your opponent's turn, if your Leader Card is red, play this card in Rest Mode.",
+        "kind": "auto",
+        "trigger": [
+          "comboed"
+        ],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "z": null,
+            "type": null,
+            "names": [],
+            "token": false,
+            "colors": [
+              "Red"
+            ],
+            "faceUp": false,
+            "traits": [],
+            "costMax": null,
+            "costMin": null,
+            "notType": null,
+            "keywords": [],
+            "namesAll": [],
+            "notNames": [],
+            "notToken": false,
+            "powerMax": null,
+            "powerMin": null,
+            "powerRel": null,
+            "monoColor": false,
+            "notColors": [],
+            "notTraits": [],
+            "skillKind": null,
+            "skillLess": false,
+            "characters": [],
+            "markersMax": null,
+            "markersMin": null,
+            "multiColor": false,
+            "noKeywords": false,
+            "unreadable": false,
+            "notKeywords": [],
+            "charactersAll": [],
+            "comboPowerMax": null,
+            "comboPowerMin": null,
+            "notCharacters": [],
+            "namesIncluding": [],
+            "onlyCharacters": false,
+            "costAboveEnergy": false,
+            "costBelowEnergy": false,
+            "characterOrTrait": false,
+            "costAtMostEnergy": false,
+            "energyOfOpponent": false,
+            "originalPowerMax": null,
+            "originalPowerMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostMin": null,
+            "costAtLeastEnergy": false,
+            "nameInSkillTextOf": null,
+            "notNamesIncluding": [],
+            "specifiedCostNone": false,
+            "charactersIncluding": [],
+            "originallySkillLess": false,
+            "notCharactersIncluding": []
+          }
+        },
+        "ops": [
+          {
+            "as": "p0",
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "reason": "play this card in Rest Mode"
+          },
+          {
+            "op": "play",
+            "mode": "rest",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 7,
+        "reads": "if your leader is Red: choose this card, play the chosen cards in rest mode",
+        "pattern": "if:leaderMatches[choose→play]",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": {
+          "turn": "opponent",
+          "timing": "battleEnd",
+          "origins": [
+            "hand"
+          ],
+          "subject": "self",
+          "version": 1
+        },
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": false
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "programHash": "858d17f3ebcd7da2813b50b4ce9a29a7208a882177b067e5f5c2862e8ed5b869"
+      },
+      "appliedToDatabase": false,
+      "humanReviewed": false
+    },
+    {
+      "cardId": "BT6-066",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 11581,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "0545e56c5202d48e103e03787b444fccde1e713d9065fa143dad83e5b7e28a4f",
+        "printedHash": "deb1b8e3c090bce03d98207bdb7b210127c23e06dbe7c42c41656651eecfa6ac"
+      },
+      "rebuilt": {
+        "id": 11581,
+        "cardId": "BT6-066",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you combo with this card, if your Leader Card is green, you may choose 2 cards from your hand and shuffle them into your deck. If you do, draw 2 cards.",
+        "kind": "auto",
+        "trigger": [
+          "comboUsed"
+        ],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "leaderMatches",
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [
+                  "Green"
+                ],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "then": [
+              {
+                "op": "may",
+                "ops": [
+                  {
+                    "as": "c0",
+                    "op": "choose",
+                    "sel": {
+                      "area": "hand",
+                      "side": "you",
+                      "upTo": false,
+                      "count": 2
+                    },
+                    "reason": "you may choose 2 cards from your hand"
+                  },
+                  {
+                    "op": "moveTo",
+                    "to": "deck",
+                    "target": {
+                      "var": "c0"
+                    }
+                  },
+                  {
+                    "op": "shuffle"
+                  }
+                ],
+                "reason": "choose 2 cards from your hand"
+              }
+            ]
+          },
+          {
+            "op": "if",
+            "cond": {
+              "var": "c0",
+              "kind": "chose",
+              "atLeast": 2
+            },
+            "then": [
+              {
+                "n": 2,
+                "op": "draw"
+              }
+            ]
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 8,
+        "reads": "if your leader is Green: you may: choose 2 cards in your hand, move the chosen cards to deck, shuffle, if you took all 2: draw 2",
+        "pattern": "if:leaderMatches[may[choose→moveTo→shuffle]]→if:chose[draw]",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": {
+          "turn": "any",
+          "timing": "entry",
+          "origins": null,
+          "subject": "self",
+          "version": 1
+        },
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": false
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "programHash": "267f400911de039b78d43a876e2d22a43c9988c2283c1334c91f14b61ca97358"
+      },
+      "appliedToDatabase": false,
+      "humanReviewed": false
+    },
+    {
+      "cardId": "BT6-070",
+      "side": "front",
+      "skillIndex": 0,
+      "old": {
+        "id": 6899,
+        "version": 6,
+        "source": "compiler",
+        "status": "draft",
+        "rowHash": "28155ed8b679d398c04f9ff468455347ae8905b5e9bba9ef8812aa593804cd17",
+        "printedHash": "4e52276f5a4f56ceb8873289a48e205f9f21062ebbb07a8cb99e4622964b57ee"
+      },
+      "rebuilt": {
+        "id": 6899,
+        "cardId": "BT6-070",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you combo with this card during your turn, choose up to 1 of your <Broly: Br> cards and it gets +5000 power for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "comboUsed"
+        ],
+        "cost": {
+          "orbs": {},
+          "text": "",
+          "burst": null,
+          "either": [],
+          "marker": null,
+          "program": null,
+          "version": 1,
+          "readable": true,
+          "condition": null,
+          "spiritBoost": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "as": "c0",
+            "op": "choose",
+            "sel": {
+              "area": "play",
+              "side": "you",
+              "upTo": true,
+              "count": 1,
+              "filter": {
+                "z": null,
+                "type": null,
+                "names": [],
+                "token": false,
+                "colors": [],
+                "faceUp": false,
+                "traits": [],
+                "costMax": null,
+                "costMin": null,
+                "notType": null,
+                "keywords": [],
+                "namesAll": [],
+                "notNames": [],
+                "notToken": false,
+                "powerMax": null,
+                "powerMin": null,
+                "powerRel": null,
+                "monoColor": false,
+                "notColors": [],
+                "notTraits": [],
+                "skillKind": null,
+                "skillLess": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "markersMax": null,
+                "markersMin": null,
+                "multiColor": false,
+                "noKeywords": false,
+                "unreadable": false,
+                "notKeywords": [],
+                "charactersAll": [],
+                "comboPowerMax": null,
+                "comboPowerMin": null,
+                "notCharacters": [],
+                "namesIncluding": [],
+                "onlyCharacters": false,
+                "costAboveEnergy": false,
+                "costBelowEnergy": false,
+                "characterOrTrait": false,
+                "costAtMostEnergy": false,
+                "energyOfOpponent": false,
+                "originalPowerMax": null,
+                "originalPowerMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostMin": null,
+                "costAtLeastEnergy": false,
+                "nameInSkillTextOf": null,
+                "notNamesIncluding": [],
+                "specifiedCostNone": false,
+                "charactersIncluding": [],
+                "originallySkillLess": false,
+                "notCharactersIncluding": []
+              }
+            },
+            "reason": "choose up to 1 of your <Broly: Br> cards"
+          },
+          {
+            "op": "power",
+            "until": "turn",
+            "amount": 5000,
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "status": "draft",
+        "source": "compiler",
+        "unread": [],
+        "version": 8,
+        "reads": "choose up to 1 <Broly: Br> card you have in play, the chosen cards +5000 power for the turn",
+        "pattern": "choose→power",
+        "confirmedAt": null,
+        "confirmedBy": null,
+        "confirmNote": null,
+        "reviewFlag": null,
+        "combo": {
+          "turn": "controller",
+          "timing": "entry",
+          "origins": null,
+          "subject": "self",
+          "version": 1
+        },
+        "usage": {
+          "limit": null,
+          "version": 1,
+          "oncePerTurn": false
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "programHash": "67c2311d6483a6423a2d1c37d3f25cb1e41e695b467eaf097a0fd50b651fe7e0"
+      },
+      "appliedToDatabase": false,
+      "humanReviewed": false
+    }
+  ],
+  "inputHashes": {
+    "catalog": "55693eea0d06e0a54abeece46ed79519346945247c6caabea1ac4a40e28c015e",
+    "physicalExport": "bad88e2aa52d282d6689e58e5b1f20f182248fdd8b2f0f712f67522fc73fcc8b",
+    "actualExport": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687"
+  },
+  "recordMode": "actual-stored-readback",
+  "scenarios": [
+    "p1 BT6-006 Red life=4 hand",
+    "p1 BT6-006 Red life=5 hand",
+    "p1 BT6-006 Blue life=4 hand",
+    "p1 BT6-006 Red life=4 battle",
+    "p1 BT6-010 p2 hand Red bounce=false",
+    "p1 BT6-010 p1 hand Red bounce=false",
+    "p1 BT6-010 p2 battle Red bounce=false",
+    "p1 BT6-010 p2 hand Blue bounce=false",
+    "p1 BT6-010 p2 hand Red bounce=true",
+    "p1 BT6-066 Green pay=true",
+    "p1 BT6-066 Green decline",
+    "p1 BT6-066 Red pay=true",
+    "p1 BT6-066 Battle Area opponent turn",
+    "p1 BT6-066 already-pending after hand return",
+    "p1 BT6-070 p1 hand",
+    "p1 BT6-070 p1 battle",
+    "p1 BT6-070 p2 hand",
+    "p1 stored qualification mutation",
+    "p2 BT6-006 Red life=4 hand",
+    "p2 BT6-006 Red life=5 hand",
+    "p2 BT6-006 Blue life=4 hand",
+    "p2 BT6-006 Red life=4 battle",
+    "p2 BT6-010 p1 hand Red bounce=false",
+    "p2 BT6-010 p2 hand Red bounce=false",
+    "p2 BT6-010 p1 battle Red bounce=false",
+    "p2 BT6-010 p1 hand Blue bounce=false",
+    "p2 BT6-010 p1 hand Red bounce=true",
+    "p2 BT6-066 Green pay=true",
+    "p2 BT6-066 Green decline",
+    "p2 BT6-066 Red pay=true",
+    "p2 BT6-066 Battle Area opponent turn",
+    "p2 BT6-066 already-pending after hand return",
+    "p2 BT6-070 p2 hand",
+    "p2 BT6-070 p2 battle",
+    "p2 BT6-070 p1 hand",
+    "p2 stored qualification mutation"
+  ],
+  "scenarioCount": 36,
+  "replay": "every action repeated from saved context/state and compared",
+  "pairQualified": false
+}

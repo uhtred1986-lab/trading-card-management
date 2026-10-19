@@ -24,7 +24,7 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `legal` out on first read; `applyToGame` takes a game the caller already loaded and is
   still guarded by its `version`.
 - **Rules progress** (`/arena/rules/progress`, `src/lib/arena/rules-progress.ts`): deck-first, owner decision 18 Oct 2026 — how many cards in the eligible decks (dbs, not testing, owner-scoped; main + Z + leader, both faces) have every skill confirmed or owner-authored. A row with `card_rules.review_flag` set (written by the audit/MCP) is a suspected misread and never counts as confirmed. One snapshot a day lands in `rules_progress_snapshots` when the page is opened (no cron).
-- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/keywords`): the only
+- **The compiler's glossary** (`src/lib/arena/glossary.ts`, `/arena/rules/reference#keywords`): the only
   written record of what the compiler understands per keyword — part of the compiler, not
   documentation about it (Conventions below: touch the compiler, update the glossary). Doc:
   `docs/arena-code-map.md`.
@@ -70,6 +70,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   and unknown answers. **The policy layer imports nothing outside `policy/`** and names no engine
   state, seed or ambient randomness: `scripts/verify/arena-policy-contract.mts` (`npm test`) fails
   otherwise, and proves no leak, permutation invariance and round trips on the #641/#642 fixtures.
+  Typed defensive decision facts (#899) are projected by `vm/decision-summary.ts` from the exact
+  offered executable skill, then passed through this boundary. `battleActivation` carries total
+  current-battle power, its turn-duration subset and leading draws; `counterResponse` carries the
+  selected Counter kind, true/false/unknown attack negation and resolved alternative-price route.
+  `battlePowerTarget` connects a supported boost to an eligible own battler and mode. The combat
+  policy reads these facts rather than displayed English. Unknown paths and hidden-dependent
+  predicates provide no positive effect summary; continuation facts do not trust captured IDs.
   The online Claude opponent (`ai/`) does not use the contract itself, but **its free choices are
   this layer's** (#645): the "cannot go wrong" shortcuts — one legal move, the coin flip, mulligan,
   charge, Z-Energy, [Empower] markers — are pure functions in `policy/shortcuts.ts` over the

@@ -1,0 +1,66 @@
+{
+  "engineRevision": "c015cc3038abcb6f57872d1d552e661e28bc14e8",
+  "actualExport": "stored-rules-after-application.json",
+  "actualExportSHA256": "d6f2c51c53491aea45fc40685d86eb67446920aebb594dfd45c3484ab9eec687",
+  "receipts": [
+    {
+      "receipt": "actual-barrier-ko-907.json",
+      "sha256": "727b09183f94002c692232df58bd40915234b1b91a82b995e5bf0338a1fb2838",
+      "scenarios": 4,
+      "scope": "actual-stored-readback"
+    },
+    {
+      "receipt": "actual-counter-cost-907.json",
+      "sha256": "64b5d2bb95aa77dd33c3220d25e96e891d1314039e477839b2ba92f37def209c",
+      "scenarios": 76,
+      "scope": "actual readback rows; synthetic Counter controls"
+    },
+    {
+      "receipt": "actual-ex-evolve-907.json",
+      "sha256": "ece273a035d9999fa6ee870dad88edc4dbeb0a8148e16bd9688f1bea8ccd86aa",
+      "scenarios": 60,
+      "scope": "provided actual row; targeted scenarios"
+    },
+    {
+      "receipt": "actual-fusion-identity-907.json",
+      "sha256": "3ee37171c5ea3ee36a411522f03607a53b7d268b338932bceb9c7fdab10230c2",
+      "scenarios": 34,
+      "scope": "provided actual rows; targeted scenarios"
+    },
+    {
+      "receipt": "actual-life-lock-907.json",
+      "sha256": "423e586bd001c85f5df8d94a7ef942a6bcf5c85cb33d2c6e1ae4279fb01efb4b",
+      "scenarios": 16,
+      "scope": "actual-stored-readback"
+    },
+    {
+      "receipt": "actual-protected-usage-907.json",
+      "sha256": "f4b90f256924777de87a77c3f411f1c34eef82ce070016a6dcd7bf52058bce45",
+      "scenarios": 6,
+      "scope": "actual-stored-readback"
+    },
+    {
+      "receipt": "actual-typed-combo-907.json",
+      "sha256": "32e4a3e8703521ad0bed2ff57d74800fee5c0af90f7e7a4139a8dd4ecf8b0e86",
+      "scenarios": 36,
+      "scope": "actual-stored-readback"
+    },
+    {
+      "receipt": "actual-typed-usage-907.json",
+      "sha256": "4555df72364b395ead7b7ee05370a0186f5f839627ce8bcb8bf63b35dc7d458b",
+      "scenarios": 32,
+      "scope": "actual-stored-readback"
+    },
+    {
+      "receipt": "actual-typed-validity-907.json",
+      "sha256": "4a0652255889df92f9c7a2d392fe2d341821acebe8b529bd32f03b90ebe604d8",
+      "scenarios": 52,
+      "scope": "actual-stored-readback"
+    }
+  ],
+  "totalScenarios": 316,
+  "note": "Targeted actual-record scenarios and synthetic negative/preservation controls; no blanket per-skill exercise claim. The ten-target usage fixture retains its original protected-row negative; actual BT6-001/back/10 is separately verified by actual-protected-usage-907.json.",
+  "humanConfirmationsAdded": 0,
+  "pairGames": 0,
+  "pairQualified": false
+}

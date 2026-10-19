@@ -1,0 +1,364 @@
+{
+  "seed": 899,
+  "privacyPositions": 60,
+  "lines": {
+    "white-cell-beneficial": {
+      "activation": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 2,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 1
+      },
+      "combo": {
+        "survived": false,
+        "battles": 2,
+        "energySpent": 0,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": false,
+        "battles": 1,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    },
+    "white-cell-unnecessary": {
+      "activation": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 2,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 1
+      },
+      "combo": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 0,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    },
+    "white-cell-unaffordable": {
+      "combo": {
+        "survived": false,
+        "battles": 2,
+        "energySpent": 0,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": false,
+        "battles": 1,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    },
+    "sd15-niagara-beneficial": {
+      "activation": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 1,
+        "handDelta": -1,
+        "combos": 0,
+        "activations": 1
+      },
+      "combo": {
+        "survived": false,
+        "battles": 2,
+        "energySpent": 1,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": false,
+        "battles": 1,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    },
+    "sd15-niagara-unnecessary": {
+      "activation": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 1,
+        "handDelta": -1,
+        "combos": 0,
+        "activations": 1
+      },
+      "combo": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 1,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": true,
+        "battles": 2,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    },
+    "sd15-niagara-unaffordable": {
+      "combo": {
+        "survived": false,
+        "battles": 2,
+        "energySpent": 1,
+        "handDelta": -1,
+        "combos": 1,
+        "activations": 0
+      },
+      "pass": {
+        "survived": false,
+        "battles": 1,
+        "energySpent": 0,
+        "handDelta": 0,
+        "combos": 0,
+        "activations": 0
+      }
+    }
+  },
+  "records": [
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 1,
+      "variant": "white-cell-beneficial",
+      "policy": "heuristic-combat-v3",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 1,
+      "variant": "white-cell-beneficial",
+      "policy": "search-v3-d2",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 1,
+      "variant": "white-cell-beneficial",
+      "policy": "search-v3-d3",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "white-cell-unnecessary",
+      "policy": "heuristic-combat-v3",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "white-cell-unnecessary",
+      "policy": "search-v3-d2",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "white-cell-unnecessary",
+      "policy": "search-v3-d3",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "white-cell-unaffordable",
+      "policy": "heuristic-combat-v3",
+      "first": "combo",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "white-cell-unaffordable",
+      "policy": "search-v3-d2",
+      "first": "combo",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "white-cell-unaffordable",
+      "policy": "search-v3-d3",
+      "first": "combo",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 0,
+      "activations": 1,
+      "variant": "sd15-niagara-beneficial",
+      "policy": "heuristic-combat-v3",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 0,
+      "activations": 1,
+      "variant": "sd15-niagara-beneficial",
+      "policy": "search-v3-d2",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 0,
+      "activations": 1,
+      "variant": "sd15-niagara-beneficial",
+      "policy": "search-v3-d3",
+      "first": "activate",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "sd15-niagara-unnecessary",
+      "policy": "heuristic-combat-v3",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "sd15-niagara-unnecessary",
+      "policy": "search-v3-d2",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": true,
+      "battles": 2,
+      "energySpent": 0,
+      "handDelta": 0,
+      "combos": 0,
+      "activations": 0,
+      "variant": "sd15-niagara-unnecessary",
+      "policy": "search-v3-d3",
+      "first": "pass",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "sd15-niagara-unaffordable",
+      "policy": "heuristic-combat-v3",
+      "first": "combo",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "sd15-niagara-unaffordable",
+      "policy": "search-v3-d2",
+      "first": "combo",
+      "accepted": true
+    },
+    {
+      "survived": false,
+      "battles": 2,
+      "energySpent": 1,
+      "handDelta": -1,
+      "combos": 1,
+      "activations": 0,
+      "variant": "sd15-niagara-unaffordable",
+      "policy": "search-v3-d3",
+      "first": "combo",
+      "accepted": true
+    }
+  ]
+}

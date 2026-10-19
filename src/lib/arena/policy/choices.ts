@@ -59,7 +59,7 @@ import { answerFor, type DecisionWindow, type MenuDecision, type PickDecision, t
 import { cardValue, lifeLoss } from "./main";
 import type { CardFacts, PolicyObservation } from "./observation";
 
-export const CHOICE_POLICY_VERSION = 1;
+export const CHOICE_POLICY_VERSION = 2;
 
 export const CHOICE_LIMITS = {
   /** Candidates of a card pick considered (by canonical id). */
@@ -311,16 +311,15 @@ function scoreOption(o: PolicyObservation, window: string, question: string, d: 
     const mine = !skill || skill.owner === o.seat;
     return { d, score: (mine ? 1 : 0.5) - price, how: `does it (${l.slice(0, 50)})` };
   }
-  // #899: "Leader Cards" / "Battle Cards" for a power figure given in a battle the seat's own card guards:
-  // the kind the guard is, which the printed order alone (Leader first) would not pick.
-  const kindOf = /^(leader|battle) cards?$/i.exec(l)?.[1].toLowerCase();
-  if (kindOf && o.battle && o.turnPlayer !== o.seat && /\+\d+ power/i.test(clauseAfter(skill?.text ?? "", question).slice(0, 120))) {
-    const guardIsLeader = o.you.leader?.id === o.battle.guard;
-    const guardIsMine = guardIsLeader || o.you.battle.some((c) => c.id === o.battle!.guard);
-    if (guardIsMine) return { d, score: effectWorth(l) + (kindOf === "leader" === guardIsLeader ? 2 : 0), how: `mode: ${l} (${kindOf === "leader" === guardIsLeader ? "the guard's kind" : "not the guard's kind"})` };
-  }
   // A printed mode (20-2).
   return { d, score: effectWorth(l) - (priceOf(l, o) ?? 0), how: `mode: ${l.slice(0, 60)}` };
+}
+
+/** A typed positive-power choice may protect only the seat's current public battler. */
+function ownBattler(o: PolicyObservation): string | null {
+  if (!o.battle) return null;
+  const id = o.turnPlayer === o.seat ? o.battle.attacker : o.battle.guard;
+  return o.you.leader?.id === id || o.you.battle.some(c => c.id === id) ? id : null;
 }
 
 function bestOption(input: PolicyInput, work: Work): ChoiceResult | null {
@@ -331,6 +330,13 @@ function bestOption(input: PolicyInput, work: Work): ChoiceResult | null {
   const skill = resolvingSkill(o);
   // The engine's printed order (its option index) is the tie-break: "the first printed option".
   const ordered = [...open].sort((a, b) => Number(a.action.index ?? a.action.pay === false) - Number(b.action.index ?? b.action.pay === false) || byId(a, b));
+  const battler = ownBattler(o);
+  for (const d of decisions.window === "chooseMode" && battler ? ordered : []) {
+    if (!d.battlePowerTarget) continue;
+    if (!work.step()) break;
+    if (d.type === "chooseMode" && d.battlePowerTarget === battler)
+      return { id: d.id, how: "mode: typed power applies to the current battler", work: work.n, considered: ordered.length, bounded: work.spent };
+  }
   let best: Scored | null = null;
   let considered = 0;
   for (const d of ordered) {
@@ -369,6 +375,8 @@ function pickChoice(input: PolicyInput, pick: PickDecision, work: Work): ChoiceR
     const where = locate(o, id, reason);
     located.push({ id, where, value: where.card ? cardValue(where.card) : 1 });
   }
+  const battler = ownBattler(o);
+  const typedTarget = battler && pick.battlePowerTarget === battler ? located.find(c => c.id === battler) : undefined;
   const opponent: PlayerId = o.seat === "p1" ? "p2" : "p1";
   const owners = located.map((c) => c.where.owner ?? (/opponent'?s/i.test(reason) ? opponent : o.seat));
   const theirs = owners.filter((p) => p !== o.seat).length > owners.length / 2;
@@ -378,7 +386,8 @@ function pickChoice(input: PolicyInput, pick: PickDecision, work: Work): ChoiceR
   // Does choosing more help the seat? Hurting the opponent or helping itself does; paying from its own cards does not.
   let generous: boolean;
   let why: string;
-  if (theirs) { generous = !(HELP.test(clause) && !HARM.test(clause)); why = generous ? "targets the opponent's most valuable" : "gives the opponent its least valuable"; }
+  if (typedTarget) { generous = true; why = "applies typed power to the current battler"; }
+  else if (theirs) { generous = !(HELP.test(clause) && !HARM.test(clause)); why = generous ? "targets the opponent's most valuable" : "gives the opponent its least valuable"; }
   // 21-11 (#730): the copy chosen is the one that stays in play; the rest go to the Drop.
   else if (/^\[unique\] \(21-11\)/i.test(reason)) { generous = true; why = "[Unique] (21-11): keeps its most valuable copy"; }
   else if (lifeToHand) { generous = o.you.life - owed > 3; why = generous ? "takes a Life card while life allows" : "keeps its life"; }
@@ -398,6 +407,7 @@ function pickChoice(input: PolicyInput, pick: PickDecision, work: Work): ChoiceR
   const names = new Set<string>();
   const fits = (c: Candidate) => !chosen.includes(c) && !(unique && c.where.card && names.has(c.where.card.name));
   const take = (c: Candidate) => { chosen.push(c); if (c.where.card) names.add(c.where.card.name); };
+  if (typedTarget && count > 0) take(typedTarget);
   // 22-30-3: cover each colour first, then fill.
   for (const colour of pick.cover ?? []) {
     if (chosen.length >= count || chosen.some((c) => c.where.card?.colors.includes(colour))) continue;
