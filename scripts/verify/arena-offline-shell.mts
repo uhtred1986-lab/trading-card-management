@@ -12,7 +12,7 @@
  *   4. Online routing: signed-in pages, API bodies, RSC payloads, redirects, POSTs and the shell list
  *      itself pass through and never enter any cache.
  *   5. Offline routing: the shell page and its files come from the cache (query strings such as
- *      `?dpl=` ignored), `/` and `/arena*` redirect to the shell, any other page gets the notice.
+ *      `?dpl=` ignored), `/arena*` redirects to the shell (never `/`), a failure while the browser is online is retried and never redirected, any other page gets the notice.
  *   6. Activation keeps the current and the newest previous complete shell, drops older and partial
  *      shells and old art caches, keeps the pack store's caches, and never calls `clients.claim`;
  *      `?shell=<version>` opens the kept previous shell.
@@ -72,7 +72,7 @@ function basic(r: Response, redirected = false): Response {
 type Route = { status?: number; body?: string; type?: string; redirect?: string };
 type Call = { url: string; init: RequestInit | undefined };
 
-function makeWorker(version: string | null, caches: FakeCaches, routes: () => Record<string, Route>, online: () => boolean) {
+function makeWorker(version: string | null, caches: FakeCaches, routes: () => Record<string, Route>, online: () => boolean, browserOnline: () => boolean | undefined = online) {
   const handlers: Record<string, (e: unknown) => void> = {};
   const calls: Call[] = [];
   const spies = { skipWaiting: 0, claim: 0 };
@@ -95,7 +95,8 @@ function makeWorker(version: string | null, caches: FakeCaches, routes: () => Re
     skipWaiting: () => { spies.skipWaiting++; return Promise.resolve(); },
     clients: { claim: () => { spies.claim++; return Promise.resolve(); } },
   };
-  const ctx = vm.createContext({ self, caches, fetch, Response, URL, Set, Promise, JSON, Date, Array, Error, TypeError, console });
+  const navigator = { get onLine() { return browserOnline(); } };
+  const ctx = vm.createContext({ self, navigator, caches, fetch, Response, URL, Set, Promise, JSON, Date, Array, Error, TypeError, console });
   vm.runInContext(SOURCE, ctx, { filename: "public/sw.js" });
   const lifecycle = async (t: "install" | "activate") => {
     let p: Promise<unknown> = Promise.resolve();
@@ -211,7 +212,7 @@ await check("4. signed-in pages, API bodies, RSC, redirects, POSTs and shell.jso
 });
 
 // 5. offline routing
-await check("5. offline: the shell and its files come from the cache; /, /arena and /arena/* redirect to it; other pages get the notice", async () => {
+await check("5. offline: the shell and its files come from the cache; /arena and /arena/* redirect to it (not /); other pages get the notice", async () => {
   online = false;
   assert.match(await text(await w1.request(SHELL_PATH, { mode: "navigate" })), /shell one/);
   assert.match(await text(await w1.request(`${SHELL_PATH}?from=launch`, { mode: "navigate" })), /shell one/);
@@ -221,15 +222,46 @@ await check("5. offline: the shell and its files come from the cache; /, /arena 
   // or Turbopack's worker bootstrap loses its `#params=` (found by the browser proof).
   const forWorker = await w1.request(`${b1.files[0]}#params=%5B%5D`);
   assert.ok(forWorker !== "pass" && forWorker.url === "", "a static file is answered by a constructed response (no URL)");
-  for (const p of ["/", "/arena", "/arena/local", "/arena/42"]) {
+  for (const p of ["/arena", "/arena/local", "/arena/42"]) {
     const r = await w1.request(p, { mode: "navigate" });
     assert.ok(r !== "pass" && r.status === 302 && r.headers.get("location") === `${ORIGIN}${SHELL_PATH}`, `${p} → shell`);
   }
+  const home = await w1.request("/", { mode: "navigate" });
+  assert.ok(home !== "pass" && home.status === 503 && !home.headers.get("location"), "/ is never sent to the shell, even offline");
   const notice = await w1.request("/collection", { mode: "navigate" });
   assert.ok(notice !== "pass" && notice.status === 503);
   assert.match(await notice.text(), /href="\/arena\/offline"/);
   assert.equal(await w1.request("/api/cards"), "pass", "an API call offline is still the browser's to fail");
   online = true;
+});
+
+// 5b. the 19 Oct 2026 bug: a failed fetch with the browser ONLINE is not offline mode
+await check("5b. a navigation that fails while the browser reports online is retried, then shown a notice - never the shell", async () => {
+  let net = true;
+  let reported: boolean | undefined = true;
+  const w = makeWorker(V1, caches, () => b1.routes, () => net, () => reported);
+  // One blip: the retry succeeds and the player gets the real page.
+  let fails = 1;
+  const flaky = makeWorker(V1, caches, () => b1.routes, () => fails-- <= 0, () => true);
+  const ok = await flaky.request("/arena", { mode: "navigate" });
+  assert.ok(ok !== "pass" && ok.status !== 302 && ok.status !== 503, "a single failed fetch is retried, not redirected");
+  // A sustained failure while online: notice with a retry link and the shell as a choice, no redirect.
+  net = false;
+  for (const p of ["/", "/arena", "/arena/local", "/arena/42"]) {
+    const r = await w.request(p, { mode: "navigate" });
+    assert.ok(r !== "pass" && r.status === 503 && !r.headers.get("location"), `${p}: online + fetch failure is not redirected`);
+    const body = await r.text();
+    assert.match(body, new RegExp(`href="${p}"`), `${p}: offers Try again`);
+    assert.match(body, /href="\/arena\/offline"/, `${p}: the shell stays a choice`);
+  }
+  // An environment that does not know (no navigator.onLine) is treated as online too.
+  reported = undefined;
+  const unknown = await w.request("/arena", { mode: "navigate" });
+  assert.ok(unknown !== "pass" && unknown.status === 503, "unknown connectivity is not offline");
+  // Truly offline (the browser says so): the shell, as before.
+  reported = false;
+  const off = await w.request("/arena", { mode: "navigate" });
+  assert.ok(off !== "pass" && off.status === 302 && off.headers.get("location") === `${ORIGIN}${SHELL_PATH}`, "browser offline -> shell");
 });
 
 // 3. failed installs
