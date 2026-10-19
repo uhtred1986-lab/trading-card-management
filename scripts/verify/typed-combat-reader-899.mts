@@ -26,6 +26,14 @@ const drawA = battle(), drawB = battle({ ...facts, drawnFirst: 0 });
 for (const input of [drawA, drawB]) input.decisions.decisions = menu(input).filter(d => d.id === activation.id || d.type === "pass");
 assert.equal(combatChoice(drawA)?.id, activation.id); assert.equal(combatChoice(drawB)?.id, activation.id);
 assert.equal(combatChoice(drawB)!.loss - combatChoice(drawA)!.loss, 1, "typed leading draw uses the existing hand-card loss weight");
+const mixed = battle({ ...facts, power: { battle: 10000, turn: 3000 } });
+const lasting = battle();
+for(const input of [mixed,lasting]) {
+  input.decisions.decisions=menu(input).filter(d=>d.id===activation.id||d.type==="pass");
+  assert.ok(input.observation.battle);
+  for(const card of input.observation.them.battle)if(card.mode==="active")card.power=input.observation.battle.guardPower+4000;
+}
+assert.ok(combatChoice(mixed)!.loss>combatChoice(lasting)!.loss,"lasting subset below total still exposes the defender to the next attacker; it is neither omitted nor double counted");
 const targetChoice = clone(base); assert.ok(targetChoice.observation.battle);
 const battler = targetChoice.observation.battle.guard, guard = targetChoice.observation.you.battle.find(c => c.id === battler)!;
 assert.ok(guard); const stronger = { ...clone(guard), id: "stronger-eligible", energyCost: 30, power: 100000, name: "Tempting other card" };
