@@ -33,10 +33,10 @@ Incrementally expand verified Masters deck play and improve the local opponent w
 
 ## Order and exit
 
-Follow [Current rules delivery plan](https://github.com/uhtred1986-lab/trading-card-management/blob/main/docs/arena-rules-delivery.md). One active shared semantic family at a time; one writer for shared compiler/VM/policy boundaries. Start each increment with its frozen scope and finish condition. Full-catalog support is a continuing goal, not the exit condition of each repair.
+Follow [19 October delivery plan](https://github.com/uhtred1986-lab/trading-card-management/blob/da783ddb4436129283584f2214ff445d708fb4c5/docs/arena-rules-delivery.md). One active shared semantic family at a time; one writer for shared compiler/VM/policy boundaries. Start each increment with its frozen scope and finish condition. Full-catalog support is a continuing goal, not the exit condition of each repair.
 
 - [ ] Each delivered increment has reviewed skill/interaction and match evidence, with application and validation states explicit.
 - [ ] Claimed policy improvement passes fresh predeclared strength/privacy/performance gates.
 - [ ] Canonical issue bodies and repository copies agree. No completed issue is reopened solely because a later card uses the same keyword.
 
-[Original acceptance/history](https://github.com/uhtred1986-lab/trading-card-management/blob/main/docs/arena-backlog/evidence/rules-reliability-2026-10-19/issues-before.json)
+[Original acceptance/history](https://github.com/uhtred1986-lab/trading-card-management/blob/da783ddb4436129283584f2214ff445d708fb4c5/docs/arena-backlog/evidence/rules-reliability-2026-10-19/issues-before.json)
