@@ -106,15 +106,16 @@ function summarize(ctx: EngineContext, game: GameDefinition, state: VmState, fra
   };
   return walk(frame.ops) && number(facts.battle) && number(facts.turn) && number(facts.drawnFirst) ? facts : null;
 }
-function readable(script: Script | undefined): script is Script { return !!script && script.unsupported.length === 0; }
+function readable(script: Script | undefined): script is Script { return !!script && Array.isArray(script.ops) && Array.isArray(script.unsupported) && script.unsupported.length === 0; }
 
 /** Projection is called only for the actor's already offered moves. No scripts or instance IDs escape. */
 export function defensiveSummary(ctx: EngineContext, game: GameDefinition, state: VmState, legal: LegalAction, seat: PlayerId): Pick<LegalAction, "battleActivation" | "counterResponse"> {
   const action = legal.action;
-  if (action.player !== seat || !state.battle || (action.type !== "activate" && action.type !== "counter") || !action.card) return {};
-  const ownBattle = [state.battle.attacker, state.battle.guard].find(id => findCard(state, id)?.owner === seat) ?? null;
+  if (action.player !== seat || (action.type !== "activate" && action.type !== "counter") || !action.card) return {};
+  const ownBattle = state.battle ? [state.battle.attacker, state.battle.guard].find(id => findCard(state, id)?.owner === seat) ?? null : null;
   const showing = skillsShowing(ctx, state, action.card);
   if (action.type === "activate") {
+    if (!ownBattle) return {};
     const script = showing.scripts.bySkill[action.skill];
     if (!readable(script) || (script.kind !== "activate:battle" && script.kind !== "activate:main/battle")) return {};
     const facts = summarize(ctx, game, state, { ops: script.ops, ip: 0, vars: {}, card: action.card, master: seat, skillIndex: action.skill }, ownBattle);
@@ -144,14 +145,14 @@ export function battlePowerChoices(ctx: EngineContext, game: GameDefinition, sta
   if (!readable(script) || (script.kind !== "activate:battle" && script.kind !== "activate:main/battle")) return {};
   const target = [state.battle.attacker, state.battle.guard].find(id => findCard(state, id)?.owner === seat);
   if (!target) return {};
+  // A captured suffix alone cannot prove how an earlier variable/condition
+  // was obtained. Require a bounded original path, then allow only bindings
+  // established by the remaining visible choice; never trust saved IDs.
+  if (!summarize(ctx, game, state, { ops: script.ops, ip: 0, vars: {}, card: frame.card, master: seat, skillIndex: frame.skillIndex }, target)) return {};
   const op = frame.ops[frame.ip];
-  const suffix = (ops: Op[], clear?: string) => {
-    const vars = Object.fromEntries(Object.entries(frame.vars).map(([key, ids]) => [key, [...ids]]));
-    if (clear) delete vars[clear];
-    return summarize(ctx, game, state, { ...frame, ops, ip: 0, vars }, target);
-  };
+  const suffix = (ops: Op[]) => summarize(ctx, game, state, { ...frame, ops, ip: 0, vars: {} }, target);
   if (state.prompt.kind === "chooseCards" && op?.op === "choose" && frame.awaiting === op.as && state.prompt.choice.candidates.includes(target)) {
-    const facts = suffix(frame.ops.slice(frame.ip), op.as);
+    const facts = suffix(frame.ops.slice(frame.ip));
     return facts && facts.battle > 0 && facts.powerVars.has(op.as) ? { target } : {};
   }
   if (state.prompt.kind === "chooseMode" && op?.op === "chooseMode" && op.modes.length <= 8) {
