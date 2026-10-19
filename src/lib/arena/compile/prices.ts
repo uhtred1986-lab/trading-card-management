@@ -1,3 +1,4 @@
+import { isAbsorbSkill, absorbPriceProblem, absorbEffectProblem } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
 import { compileFusionMaterials } from "./fusion-materials";
 import { priceFromCostRecord, zeroCostRecord } from "../vm/skill-payment";
@@ -492,12 +493,14 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const x = priceX(skill);
   const fusion = compileFusionMaterials(skill);
   const evolution = compileEvolutionBase(skill);
+  const absorbEffect = isAbsorbSkill(skill) ? compileSkill(skill) : null;
+  const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
     readable: costIsOnlyOrbs(skill.cost) || condition !== null || !!program?.length || x !== null,
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
     marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
-    condition, program, ...(fusion ? { fusion } : {}), ...(evolution ? { evolution } : {}), ...(x ? { x } : {}),
+    condition, program, ...(fusion ? { fusion } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
   };
 }
 

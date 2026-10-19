@@ -1,0 +1,58 @@
+{
+  "format": "absorb-identity-official-sources-v1",
+  "scope": "BT3-070/front/0 primary; BT2-012/front/0 Potara feasibility only, not selected implementation/application",
+  "sources": [
+    {
+      "card": "BT3-070",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-070",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT3-070",
+      "status": 200,
+      "bytes": 131598,
+      "sha256": "5bdedc6fb6973c02e349601030dba23d8dc03b7e290112ff6b7aa57a1a5365de",
+      "retrievedUTC": "2026-10-19T16:15:29.852903+00:00",
+      "accessLimits": null
+    },
+    {
+      "key": "manual",
+      "url": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "finalURL": "https://www.dbs-cardgame.com/pdf/rulemanual.pdf?ver_4.00",
+      "status": 200,
+      "bytes": 2941038,
+      "sha256": "e1d1ddac037833bee4dd4e7ac8d3efe96f0fdfbffb91cada673b31fc38d77706",
+      "retrievedUTC": "2026-10-19T13:07:11.288512+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again."
+    },
+    {
+      "key": "faq",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/card_faq.php",
+      "status": 200,
+      "bytes": 1365863,
+      "sha256": "75233787a3b2d245ff4fc34971c3a78e8402e12d29b4ee8d73b96e3315362001",
+      "retrievedUTC": "2026-10-19T13:07:20.944547+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again."
+    },
+    {
+      "key": "errata",
+      "url": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+      "status": 200,
+      "bytes": 356382,
+      "sha256": "0ae8e4f719e4b263ec4ec85cbf14b6bf423d7021417ae109760c93be8897b696",
+      "retrievedUTC": "2026-10-19T13:07:25.624300+00:00",
+      "reuse": "Same-day saved official retrieval; byte count/hash verified again for this Absorb audit; not fetched again."
+    },
+    {
+      "card": "BT2-012",
+      "url": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT2-012",
+      "finalURL": "https://www.dbs-cardgame.com/us-en/cardlist/?search=true&free=BT2-012",
+      "status": 200,
+      "bytes": 134186,
+      "sha256": "68949a19ae4dc5d6f239ea0fee77d4d80fb07431c8fe29dc5c90b14eef7bbcac",
+      "retrievedUTC": "2026-10-19T16:16:29.409234+00:00",
+      "accessLimits": null
+    }
+  ],
+  "authority": "Official Masters sources. Cardlist text must be read with its linked binding errata. No community opinion is used as a ruling.",
+  "accessLimits": "All fresh card pages returned HTTP200. Same-day manual/FAQ/errata original bytes rehashed successfully. Full external HTML/PDF remain outside repository; no DB contact."
+}

@@ -6,7 +6,10 @@
 is deployed; #899's frozen 320-game comparison completed inconclusively (162–158),
 with no new difficulty/default promotion. The separately approved eight #825 and eleven #923 metadata writes are
 applied and read back. #825's bounded reconciliation is complete; #923's next
-boundary is typed BT3-070 Union-Absorb authority, not another metadata refresh.
+boundary is typed BT3-070 Union-Absorb authority. PR #1083 implements the stored
+contract; its exact one-row application needs separate approval/readback. See
+`docs/arena-backlog/evidence/907/absorb-identity-2026-10-19/README.md`; do not repeat
+the completed eleven-row metadata refresh.
 #581 is complete. Reuse delivered Union machinery and the linked receipts.
 The older module/stage narrative below is architectural history, including its
 two-engine descriptions and dated open/blocked lists; it does not override current

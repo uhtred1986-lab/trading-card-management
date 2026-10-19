@@ -582,6 +582,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
         const stood = bound.length === watch.length && watch.every((id, i) => bound[i].card === id && bound[i].zoneEpoch === epoch(id));
         const ready = stood
+          && (!frame.absorbIdentity || opts.onto === frame.card && inBattle(frame.card) && epoch(frame.card) === frame.absorbSourceEpoch)
           && (union === "Union-Absorb" ? true : sourceAt?.zone === "hand" && sourceAt.owner === opts.player)
           && (union === "Union-Fusion" || (!!opts.onto && (declared ? union === "Union-Absorb" ? inBattle(opts.onto) : materials.every((m) => inBattle(m, dest)) : true)));
         if (!ready) {

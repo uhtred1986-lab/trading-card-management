@@ -1,0 +1,73 @@
+{
+  "format": "absorb-reference-projected-admission-v1",
+  "scope": "one proposed identity addition; ten unchanged actual records",
+  "actualWrite": false,
+  "targets": [
+    {
+      "key": "BT11-013/front/10",
+      "rowVersion": 5,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "BT11-013/front/20",
+      "rowVersion": 4,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "BT11-013/front/30",
+      "rowVersion": 7,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "BT3-070/front/0",
+      "rowVersion": 10,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "BT3-070/front/10",
+      "rowVersion": 8,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/front/0",
+      "rowVersion": 3,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/front/10",
+      "rowVersion": 9,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/front/20",
+      "rowVersion": 5,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/back/0",
+      "rowVersion": 5,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/back/10",
+      "rowVersion": 3,
+      "executable": true,
+      "blockers": []
+    },
+    {
+      "key": "P-360/back/20",
+      "rowVersion": 8,
+      "executable": true,
+      "blockers": []
+    }
+  ]
+}

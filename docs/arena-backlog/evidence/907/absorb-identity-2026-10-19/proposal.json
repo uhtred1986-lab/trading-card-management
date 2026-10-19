@@ -1,0 +1,27 @@
+{
+  "format": "absorb-record-907-preview-v1",
+  "key": "BT3-070/front/0",
+  "id": 6416,
+  "beforeVersion": 9,
+  "afterVersion": 10,
+  "source": "compiler",
+  "status": "draft",
+  "snapshotSha256": "3bee2f990ba42f549c6087516be97d4b18f79ad6bab95f6c77cea47724c4fbae",
+  "catalogSha256": "0ffe5927dabe2f1e562705c390dcef63480fab2aedb94d6d5c0d811e4ea064e3",
+  "beforeCostSha256": "2b573d82ea00faeab5b4f3a4318452c95f92b9df56acb4f4fcd07dc70ad90399",
+  "afterCostSha256": "8115b4c8f0aa7f21ca154153bc925148ac8d7bf40ffb231503d37ccb854d198b",
+  "addedIdentity": {
+    "version": 1,
+    "variant": "Absorb",
+    "area": "battle"
+  },
+  "allowedChangedFields": [
+    "cost.absorb",
+    "version",
+    "updated_at"
+  ],
+  "preserved": "All existing cost fields and material program, effects, conditions, triggers, readings, usage, validity, status and private review fields",
+  "humanConfirmationsAdded": 0,
+  "digest": "512b924aaa08b28a217bd87ef4491be19e37e4292a7563b7493cdc8b8c2f4a8b",
+  "mode": "dry-run"
+}
