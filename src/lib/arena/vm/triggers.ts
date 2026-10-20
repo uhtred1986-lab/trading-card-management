@@ -370,6 +370,19 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
           if (!predicateOf(first.cond.sel.filter, game)(subjectInfo)) continue;
         }
       }
+      // "When your <filter> is KO'd" (#1120): a KO that does not meet the
+      // trigger condition is not a trigger (9-6), so it must not become pending
+      // and use up [Once per turn]. The compiled record is a lone IF on the
+      // KO'd card's filter (`special: "subject"`), read here, never from names.
+      // The filter is read from the KO'd card as it stands, as the IF would.
+      if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed") && match.subject && state.cards[match.subject]) {
+        const ops = showing.scripts.bySkill[sk.index]?.ops;
+        const first = ops?.[0];
+        if (ops?.length === 1 && first?.op === "if" && !first.else && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter
+          && (first.cond.atLeast ?? 1) <= 1 && !first.cond.atMost) {
+          if (!predicateOf(first.cond.sel.filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
+        }
+      }
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
       // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is
