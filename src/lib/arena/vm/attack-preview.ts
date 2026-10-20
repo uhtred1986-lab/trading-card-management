@@ -87,7 +87,7 @@ export function attackPreviews(ctx: EngineContext, game: GameDefinition, state: 
       if (after.rngState !== state.rngState || result.events.some((event) => UNCERTAIN_EVENTS.has(event.type))) {
         unknown("The attack reaches a hidden or variable outcome before the response."); return;
       }
-      if (after.pending.length || after.programs.length || !after.battle ||
+      if (after.pending.length || after.programs.length || !after.battle || ["chooseCards", "orderPending", "chooseMode", "payCost"].includes(after.prompt.kind) ||
           after.flow.at(-1)?.phase !== "battle") {
         unknown("A skill or choice is still resolving after the attack declaration."); return;
       }
