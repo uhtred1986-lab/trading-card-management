@@ -391,9 +391,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       if (whiteCell) {
         if (!match.subject || !state.cards[match.subject]) continue;
         const attrs = attrsNow(ctx, game, state, match.subject);
-        // General CardFilter costMin reads the printed energyCost. This
-        // Auto's "energy cost" is the current cost after 20-21 adjustments.
-        if (!predicateOf(whiteCell, game)({ ...attrs, energyCost: attrs.costOf })) continue;
+        // A cost filter reads the printed energyCost (owner ruling, #1097):
+        // 20-21 adjustments and [Permanent] increases change what is paid, not this.
+        if (!predicateOf(whiteCell, game)(attrs)) continue;
       }
       // Qualification is captured before pending is created. It travels in the
       // executable context through reload/replay, never through display wording.
