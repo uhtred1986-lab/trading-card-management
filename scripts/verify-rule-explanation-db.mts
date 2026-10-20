@@ -13,11 +13,12 @@ import type { Rule } from "../src/lib/arena/lang/ast.ts";
 import { ruleReading } from "../src/lib/arena/rule-reading.ts";
 import { RULES } from "../src/lib/arena/vm/index.ts";
 import type { Action, CardDef, EngineContext } from "../src/lib/arena/types.ts";
+import { typedRecords } from "./verify/records.ts";
 
 export async function verifyRuleExplanationDb(db: Db) {
   await db.insert(cards).values({ id: "BT18-EXPLAIN836", setCode: "BT18", name: "Explanation fixture", cardType: "BATTLE", rarity: "Common[C]", rarityCode: "C", searchText: "explanation fixture", skill: "[Activate: Main] {R}{1}: If your life is 4 or less, draw 2 cards." });
   const first = await saveRule(db, { cardId: "BT18-EXPLAIN836", side: "front", skillIndex: 0, kind: "activate:main", printed: "[Activate: Main] {R}{1}: If your life is 4 or less, draw 2 cards.",
-    source: "compiler", status: "draft", trigger: [], cost: null, cond: null, ops: [{ op: "draw", n: 1 }] });
+    source: "compiler", status: "draft", trigger: [], ...typedRecords(), cost: null, cond: null, ops: [{ op: "draw", n: 1 }] });
   const get = async () => (await db.select().from(cardRules).where(eq(cardRules.id, first.id)))[0];
   const rule: Rule = { kind: "activate:main", trigger: [],
     cost: { version: 1, readable: true, text: "", orbs: { Red: 1, any: 1 }, either: [], marker: null, burst: null, spiritBoost: null, condition: null, program: null },
