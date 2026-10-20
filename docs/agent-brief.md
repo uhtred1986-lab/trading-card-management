@@ -51,29 +51,17 @@ hoc `UPDATE`s.
 **The environment's `DATABASE_URL` is not this app's database.** The Claude Code on the web
 environment is shared with the owner's other projects, and its `DATABASE_URL` (and
 `NEON_PROJECT_ID`) belong to the gullet-cove-dm app — no `cards`, `decks` or `card_rules` there.
-Take this app's **pooled** URL from the Vercel project instead (`VERCEL_TOKEN` is in the
-environment), keep it in the session scratchpad, and never commit, print or paste it:
+Take this app's **pooled** URL from the Vercel project instead (`VERCEL_TOKEN` is in the environment), into a file in the
+session scratchpad, never the repo:
 
 ```bash
-OUT="$SCRATCH/card-db.env"   # the session scratchpad, not the repo
-T=$(curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects?limit=50" \
-  | python3 -c "import json,sys;p=[p for p in json.load(sys.stdin)['projects'] if p['name']=='trading-card-management'][0];print(p['id'],p['accountId'])")
-set -- $T
-ID=$(curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v10/projects/$1/env?teamId=$2" \
-  | python3 -c "import json,sys;print([e['id'] for e in json.load(sys.stdin)['envs'] if e['key']=='DATABASE_URL'][0])")
-curl -sS --retry 3 -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v1/projects/$1/env/$ID?teamId=$2" \
-  | python3 -c "import json,sys;print(\"DATABASE_URL='%s'\" % json.load(sys.stdin)['value'])" > "$OUT"
-chmod 600 "$OUT"
-set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this sandbox
+node scripts/card-db-env.mjs "$SCRATCH/card-db.env"   # never prints the value; mode 600; retries 3x; checks -pooler + eu-central-1
+set -a; . "$SCRATCH/card-db.env"; set +a; export DB_DRIVER=neon-http   # only in the shell command that needs it
 ```
 
-- **Quote the value** (the snippet does): the URL contains `&`, and an unquoted `. file`
-  backgrounds half the line and echoes the password into the transcript.
-- The host must be `ep-…-pooler…eu-central-1…`. Prove it is the right database before trusting
-  it: `select to_regclass('public.card_rules')` must not be null.
-- `api.vercel.com` through the agent proxy sometimes drops mid-request — `--retry 3`, or rerun.
-- Only that variable, only in the one shell command that needs it; don't `export` it into a file
-  under the repo or into `.env.local`.
+- Never commit, print or paste the URL. The file is quoted because it contains `&`; never `export` it into a file under the repo or into `.env.local`.
+- Prove it is the right database: `select to_regclass('public.card_rules')` must not be null (`rules:batch` and
+  `rules:snapshot` check this themselves). Rules-review batches: skill `rules-review-batch`.
 
 ## Running things (the habits that cost most when missed)
 
