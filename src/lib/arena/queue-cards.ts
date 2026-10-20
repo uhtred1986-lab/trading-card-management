@@ -154,17 +154,18 @@ export function planRebuild(cs: readonly QueueCard[]): RebuildPlan {
   };
 }
 
-/** How many cards `settlePlan` compiles to tell a rebuild that helps from one that changes nothing (two batches of the drafter). */
-const SETTLE_LIMIT = 800;
+/** How many cards `settlePlan` compiles to tell a rebuild that helps from one that changes nothing (small scopes only; larger lists show the plain banner). */
+const SETTLE_LIMIT = 50;
 
 /**
  * Split `rebuildable` into the cards a rebuild would change and the ones it cannot (`stuck`):
- * runs the compiler, writes nothing (`cardsRebuildWouldChange`). Bounded to `SETTLE_LIMIT` cards;
- * past that the rest are assumed changeable and are settled as the first ones leave the list.
+ * runs the compiler, writes nothing (`cardsRebuildWouldChange`). Only done for at most `SETTLE_LIMIT` rebuildable cards;
+ * above that the plan is returned as it is (no stuck split).
  */
 export async function settlePlan(db: Db, plan: RebuildPlan): Promise<RebuildPlan> {
-  if (plan.rebuildable.length === 0) return plan;
-  const look = plan.rebuildable.slice(0, SETTLE_LIMIT);
+  // Compiling is not free: only a small list is looked at (a deck scope), never the whole catalog's thousands.
+  if (plan.rebuildable.length === 0 || plan.rebuildable.length > SETTLE_LIMIT) return plan;
+  const look = plan.rebuildable;
   const changes = await cardsRebuildWouldChange(db, look);
   const stuck = look.filter((id) => !changes.has(id));
   if (stuck.length === 0) return plan;
