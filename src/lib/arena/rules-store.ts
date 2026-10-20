@@ -81,8 +81,6 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
   return costRecordProblem(row.cost) ? zeroSkillPrice(false) : priceFromCostRecord(row.cost as CostRecord);
 }
 
-/** Structural material/grant failures always block drafts too. Other support
- * diagnostics retain the loader's existing draft/review policy. */
 /** What a printed line says about the typed records it needs: a function of the text alone, so it is kept per text. */
 interface PrintedFacts { combo: boolean; fusion: boolean; evolution: boolean; absorb: boolean; potara: boolean }
 const PRINTED_FACTS_LIMIT = 20_000;
@@ -107,6 +105,8 @@ export function printedFacts(printed: string): PrintedFacts {
   return hit;
 }
 
+/** Structural material/grant failures always block drafts too. Other support
+ * diagnostics retain the loader's existing draft/review policy. */
 function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "ops"> & { cond?: unknown }): string[] {
   const unsupported: string[] = [];
   const facts = printedFacts(row.printed);
