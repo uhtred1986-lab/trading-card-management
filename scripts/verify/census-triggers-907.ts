@@ -88,16 +88,16 @@ const rowOf = (id: string) => skillRecords(DEFS[id]).find((r) => r.kind === "aut
 
 // ── 3. "during your turn, when you combo with this card" ────────────────────
 {
-  const turn = (text: string): Cond => {
+  // #1070: whose turn a combo moment answers on is the typed combo qualification (`combo.turn`), checked where the
+  // combo enters, not an `isTurnPlayer` condition wrapped around the program.
+  const turn = (text: string): string => {
     const s = clean(text);
-    const top = s.ops[0];
-    assert.equal(top.op, "if", text);
-    return (top as Extract<typeof top, { op: "if" }>).cond;
+    assert.ok(s.combo, text);
+    assert.notEqual(s.ops[0]?.op, "if", `${text}: no turn condition is left in the program`);
+    return s.combo!.turn;
   };
-  const yours = turn("[Auto] During your turn, when you Combo with this card, choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and KO it.");
-  assert.deepEqual(yours, { kind: "isTurnPlayer" });
-  const theirs = turn("[Auto] During your opponent's turn, when you Combo with this card, choose up to 1 of your Battle Cards and switch it to Active Mode.");
-  assert.deepEqual(theirs, { kind: "isTurnPlayer", who: "opponent" });
+  assert.equal(turn("[Auto] During your turn, when you Combo with this card, choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and KO it."), "controller");
+  assert.equal(turn("[Auto] During your opponent's turn, when you Combo with this card, choose up to 1 of your Battle Cards and switch it to Active Mode."), "opponent");
   clean("[Auto] During your turn, when you combo with this card, if your Leader Card is blue, choose up to 1 of your energy and switch it to Active Mode.");
   clean("[Auto] During your turn, when you combo with this card, if your opponent has 3 or less energy, choose up to 1 of your opponent's Battle Cards ignoring [Barrier] with 30000 or more power and KO it.");
   clean("[Auto] During your turn, when you combo with a card that has an energy cost of 2 or more, draw 1 card.");

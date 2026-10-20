@@ -19,6 +19,8 @@ import { probe, scenariosFor, type ProbeRule } from "../../src/lib/arena/probe";
 import { edgeScenarios, keyOf, ruleViewOf, splitKey } from "../../src/lib/arena/probe-edges";
 import { expectationMismatches, fixPath, judge, ownLines, probeRuleOf, tryRule, type Expectation, type TryResult, type TryRow } from "../../src/lib/arena/tryit";
 import type { CardDef } from "../../src/lib/arena/types";
+import { unlimitedUsage } from "../../src/lib/arena/vm/usage";
+import { noSparking } from "../../src/lib/arena/vm/validity";
 
 const def = (id: string, name: string, skill: string, o: Partial<CardDef> = {}): CardDef => ({
   id,
@@ -39,7 +41,10 @@ const def = (id: string, name: string, skill: string, o: Partial<CardDef> = {}):
 function rule(src: string): Rule {
   const p = parseRule(src);
   if (!p.ok) throw new Error(`${p.error.message}\n${src}`);
-  return p.value;
+  // #1071: the engine reads usage and Sparking validity from the stored record and interrupts the
+  // game without them. A stored row always carries both (the drafter writes them), so a rule
+  // staged by hand gets the explicit "no ceiling, no Sparking" pair, as sandbox/fixture.ts does.
+  return { usage: unlimitedUsage(), validity: noSparking(), ...p.value };
 }
 
 const row = (r: TryResult, title: string): TryRow => {
@@ -257,6 +262,9 @@ const FIXTURES: [string, string][] = [
       skillIndex: rec.skillIndex,
       kind: rec.kind,
       trigger: rec.trigger,
+      usage: rec.usage, // #1071: the drafted record carries them; the probe needs them to play the skill
+      validity: rec.validity,
+      ...(rec.combo ? { combo: rec.combo } : {}),
       ops: rec.cond ? [{ op: "if", cond: rec.cond, then: rec.ops }] : rec.ops,
       open: rec.unread.length > 0,
       unread: rec.unread,

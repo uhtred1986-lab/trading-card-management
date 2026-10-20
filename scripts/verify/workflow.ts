@@ -51,6 +51,7 @@ import {
   zoneOf,
 } from "./harness";
 import type { Beat, Beats, EngineState, PlayerId, RejectedAction, Requirement } from "./harness";
+import { typedRecords } from "./records";
 
 // No keyword gap is left here: [Barrier] is done (#154), its rejection reason
 // too (#152), and [Swap] is a keyword move since #157.
@@ -264,16 +265,14 @@ import type { Beat, Beats, EngineState, PlayerId, RejectedAction, Requirement } 
     // than handing the player an effect the engine never charged for. Before
     // this change the engine would have compiled the price here and offered it,
     // which is what makes this the assertion the move is worth.
+    // #1066: that gap is now named instead of refused quietly: the legal-action reader will not guess a price, so
+    // it throws the missing payment record rather than offering the effect free. (usage/validity are present, so
+    // the price is the only thing missing; the scripts stay lazy, so the Leader's own records are still read.)
     const priceless: typeof CTX = {
       defs: CTX.defs,
-      scripts: { ...CTX.scripts, PRICED: { bySkill: { [sk.index]: { ops: [{ op: "draw", n: 1 }], unsupported: [] } }, complete: true, unsupported: [] } },
+      scripts: new Proxy(CTX.scripts!, { get: (target, key: string) => (key === "PRICED" ? { bySkill: { [sk.index]: { ops: [{ op: "draw", n: 1 }], unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] } : Reflect.get(target, key)) }),
     };
-    assert.ok(!IMPL.legalActions(priceless, s).some((l) => l.action.type === "activate" && l.action.card === priced), "a readable effect whose price the record does not carry is not offered for free");
-    const why = IMPL.rejectedActions(priceless, s, IMPL.legalActions(priceless, s)).find((r) => r.action.type === "activate" && (r.action as { card?: string }).card === priced);
-    assert.ok(
-      why?.why.some((w) => w.kind === "unread"),
-      `and the refusal says the text is unread: ${JSON.stringify(why?.why)}`,
-    );
+    assert.throws(() => IMPL.legalActions(priceless, s), /missing or unsupported typed skill payment v1/, "a readable effect whose price the record does not carry is never offered for free");
   }
 
   // 9-1-5 in both its shapes. A negated skill is off the menu — that part was

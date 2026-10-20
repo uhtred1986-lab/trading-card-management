@@ -7,6 +7,7 @@ import { priceFromCostRecord, zeroSkillPrice } from "../../src/lib/arena/vm/skil
  *
  * Part of `npm test`; run from `scripts/verify-arena.ts`, which fixes the order.
  */
+import { typedRecords } from "./records";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -25,6 +26,9 @@ function ruleFor(def: CardDef, index = 0): ProbeRule {
     skillIndex: rec.skillIndex,
     kind: rec.kind,
     trigger: rec.trigger,
+    usage: rec.usage, // #1071: the drafted records ride on the row too
+    validity: rec.validity,
+    ...(rec.combo ? { combo: rec.combo } : {}),
     ops: rec.cond ? [{ op: "if", cond: rec.cond, then: rec.ops }] : rec.ops,
     open: rec.unread.length > 0,
     unread: rec.unread,
@@ -137,6 +141,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     open: true,
     unread: ["do something nobody has taught the compiler"],
     price: { ...zeroSkillPrice(), condition: null, ops: null },
+    ...typedRecords(),
   };
   const r = probe(open, scenariosFor(open)[0]);
   // It fires and does nothing: that is the answer, not a failure.
@@ -260,6 +265,7 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
     open: false,
     unread: [],
     price: { ...zeroSkillPrice(), condition: null, ops: null },
+    ...typedRecords(),
   };
   const blocker = probe(kw, scenariosFor(kw)[0]);
   assert.equal(blocker.outcome, "fired");
@@ -330,7 +336,8 @@ const said = (r: ProbeRun) => [...r.result, ...r.applied, ...r.log].join(" | ");
       digests[`${def.id}#${rec.skillIndex}`] = { outcome: r.outcome, digest: r.digest };
     }
   }
-  assert.ok(Object.values(digests).every((r) => r.outcome !== "error"), "the probe never errors on a fixture card: the staging is built from the definition");
+  const errored = Object.entries(digests).filter(([, r]) => r.outcome === "error").map(([k]) => k);
+  assert.deepEqual(errored, [], "the probe never errors on a fixture card: the staging is built from the definition");
   const file = path.join(process.cwd(), "contract", "probe-digests.json");
   const text = JSON.stringify(digests, null, 2) + "\n";
   if (process.argv.includes("--emit")) {

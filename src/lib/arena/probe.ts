@@ -1,4 +1,6 @@
-import { priceFromCostRecord, zeroSkillPrice } from "./vm/skill-payment";
+import { needsPaymentRecord, priceFromCostRecord, zeroSkillPrice } from "./vm/skill-payment";
+import { unlimitedUsage } from "./vm/usage";
+import { noSparking } from "./vm/validity";
 import type { CostRecord } from "./vm/script";
 /**
  * The probe: what a rule actually does, on a board built for it.
@@ -94,6 +96,8 @@ const NAMES: Record<string, string> = {
 };
 
 const NO_PRICE: SkillPrice = zeroSkillPrice();
+/** The probe's own props are records too: since #1071 the engine interrupts a skill with no usage or Sparking validity record. */
+const PROP_RECORDS = { usage: unlimitedUsage(), validity: noSparking() };
 
 /**
  * The card a `copySkills` rule is measured against (20-18): one of each thing
@@ -104,8 +108,8 @@ const NO_PRICE: SkillPrice = zeroSkillPrice();
 const SOURCE_SKILLS = "[Blocker]\n[Permanent] This card gets +3000 power.\n[Auto] When this card attacks, draw 1 card.";
 const SOURCE_PROGRAMS: CardScripts = {
   bySkill: {
-    10: { ops: [{ op: "power", target: { sel: { special: "self" } }, amount: 3000, until: "game" }], unsupported: [], price: NO_PRICE },
-    20: { ops: [{ op: "draw", n: 1 }], unsupported: [], trigger: ["attacks"], price: NO_PRICE },
+    10: { ops: [{ op: "power", target: { sel: { special: "self" } }, amount: 3000, until: "game" }], unsupported: [], price: NO_PRICE, ...PROP_RECORDS },
+    20: { ops: [{ op: "draw", n: 1 }], unsupported: [], trigger: ["attacks"], price: NO_PRICE, ...PROP_RECORDS },
   },
   complete: true,
   unsupported: [],
@@ -164,7 +168,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
   ])
     defs[d.id] = d;
   const scripts: Record<string, CardScripts> = {
-    [KILLER]: { bySkill: { 0: { ops: KO_PROGRAM, unsupported: [], price: NO_PRICE } }, complete: true, unsupported: [] },
+    [KILLER]: { bySkill: { 0: { ops: KO_PROGRAM, unsupported: [], price: NO_PRICE, ...PROP_RECORDS } }, complete: true, unsupported: [] },
     [SOURCE]: SOURCE_PROGRAMS,
   };
   const key = rule.side === "back" ? `${rule.def.id}#back` : rule.def.id;
@@ -176,8 +180,26 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
   // text. An untraced run reads the printed text, as every stored digest was
   // taken.
   const trigger = { ...(rule.validity !== undefined ? { validity: rule.validity } : {}), ...(rule.usage !== undefined ? { usage: rule.usage } : {}), ...(rule.trigger.length ? { trigger: rule.trigger as Trigger[] } : {}), ...(rule.combo ? { combo: rule.combo } : {}) };
+  // #1066/#1071: the engine reads every activation line and every [Auto] of a card on the board from a stored record
+  // and refuses a skill that has none, so a card with another skill beside the one being tried would make the whole
+  // board unreadable. The others are staged as present but inert: a blocked record (`unsupported`) is not played,
+  // answers to no moment and offers no move, which is what the probe wants of them. A bare native keyword needs no
+  // record (the engine plays it itself) and is left alone.
+  const others: Record<number, CardScripts["bySkill"][number]> = {};
+  for (const sk of skillsOf(rule.def, rule.side)) {
+    if (sk.index === rule.skillIndex) continue;
+    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
+    if (native) continue;
+    // A keyword line that prints only its orbs ([Field], [Aegis red/blue] {1}) is the keyword's own move, whose program
+    // the ruleset declares: its record is just the stored payment, so it is staged as that and keeps playing.
+    const orbsOnlyKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.replace(/\{[^}]*\}|[\s,]/g, "");
+    others[sk.index] = orbsOnlyKeyword
+      ? { ops: [], unsupported: [], kind: sk.kind, ...PROP_RECORDS,
+        price: { payment: { version: 1, readable: true, orbs: { ...sk.energyCost }, either: sk.energyEither.map((g) => [...g]), marker: sk.markerCost, burst: sk.burst, spiritBoost: sk.spiritBoost }, condition: null, ops: null } }
+      : { ops: [], unsupported: ["not the rule under test"], kind: sk.kind, price: NO_PRICE, ...PROP_RECORDS };
+  }
   scripts[key] = {
-    bySkill: { [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread, price, ...trigger } : { ops, unsupported: [], price, ...trigger } },
+    bySkill: { ...others, [rule.skillIndex]: rule.open ? { ops: [], unsupported: rule.unread, kind: rule.kind as Skill["kind"], price, ...trigger } : { ops, unsupported: [], kind: rule.kind as Skill["kind"], price, ...trigger } },
     complete: !rule.open,
     unsupported: rule.open ? rule.unread : [],
   };

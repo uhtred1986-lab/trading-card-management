@@ -1,4 +1,5 @@
 import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
+import { typedRecords } from "./records";
 /** Independent manual 22-34-3 / 5-8-4 expectations; synthetic rules, no catalog claim. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
@@ -42,7 +43,7 @@ scripts.ACTION624.bySkill[0].price!.ops = [
   { op: "choose", sel: { side: "opponent", area: "battle", count: 1 }, as: "extra624" },
   { op: "moveTo", target: { var: "extra624" }, to: "drop", cause: "cost" },
 ];
-scripts.DISCOUNT624.bySkill[0] = { unsupported: [], ops: [{ op: "if", cond: { kind: "count", sel: { side: "you", area: "hand" }, atLeast: 2 }, then: [{ op: "costModifier", target: { sel: { side: "you", areas: ["drop"], filter: { ...emptyFilter(), names: ["TWO624"] } } }, what: "skill", amount: 1 }] }] };
+scripts.DISCOUNT624.bySkill[0] = { unsupported: [], ...typedRecords(), ops: [{ op: "if", cond: { kind: "count", sel: { side: "you", area: "hand" }, atLeast: 2 }, then: [{ op: "costModifier", target: { sel: { side: "you", areas: ["drop"], filter: { ...emptyFilter(), names: ["TWO624"] } } }, what: "skill", amount: 1 }] }] };
 scripts.AUTO624.bySkill[0] = { ...scripts.AUTO624.bySkill[0], unsupported: [], trigger: ["droppedFromHand"], ops: [{ op: "draw", n: 1 }] };
 scripts.GENERIC624.bySkill[0] = { ...scripts.GENERIC624.bySkill[0], unsupported: [], trigger: ["played"], ops: [{ op: "draw", n: 1 }], price: { ...zeroSkillPrice(), ...scripts.GENERIC624.bySkill[0].price, condition: null, ops: [
   { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "generic624" },
@@ -378,7 +379,7 @@ for (const counter of [true, false]) {
 {
   const a = fixture(); assert.ok(moveCard(a.s, game, a.rev, "drop", { owner: "p1" }).ok);
   const showing = skillsShowing(ctx, a.s, a.rev); const skill = showing.skills.find((sk) => sk.index === 0)!; const script = showing.scripts.bySkill[0];
-  const frame: ScriptFrame = { ops: keywordProgram(game, game.keywords.Revive, skill), ip: 0, vars: { legacyBinding624: [a.cards[0]] }, card: a.rev, master: "p1", trigger: "koed", subject: a.rev, skillIndex: 0 };
+  const frame: ScriptFrame = { ops: keywordProgram(game, game.keywords.Revive, skill), ip: 0, vars: { legacyBinding624: [a.cards[0]] }, card: a.rev, master: "p1", trigger: "koed", subject: a.rev, skillIndex: 0, usage: skill.usage as ScriptFrame["usage"], validity: skill.validity as ScriptFrame["validity"] };
   const autoCost = prepareAutomaticCost(ctx, game, a.s, frame, skill, script);
   a.s.programs.unshift({ ...frame, ops: script.price?.ops ?? [], autoCost }); run(ctx, game, a.s, []);
   const opened = mode(a.s, 0); let s = opened.state; assert.equal(rests(s), 1); assert.equal(s.prompt.kind, "chooseCards");

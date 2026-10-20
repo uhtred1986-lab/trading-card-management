@@ -124,6 +124,7 @@ import { VM_BASE_DEFS_459 } from "./vm-base-corpus-459";
 import { FILTER_CORPUS_459, FILTER_MATCHES_459, fixedFilterMatch459 } from "./vm-filters-459";
 import { FIXED_CARD_COSTS_459, FIXED_PRICES_459 } from "./vm-costs-459";
 import FIXED_SCRIPT_SEEN_459 from "./vm-scripts-459.json";
+import { typedRecords } from "./records";
 
 const DECKS = { seed: 11, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
@@ -954,11 +955,11 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     fire(CTX, pinned, old, { event: "comboUsed", card: oldCombo, controller: "p1", args: { to: "combo" } });
     assert.deepEqual(old.pending, [], "an old pinned DSL invented a new entry trigger");
     moved(CTX, pinned, old, [], oldCombo, "drop", { owner: "p1" });
-    assert.deepEqual(
-      (old.pending as VmState["pending"]).map((p) => ({ card: p.card, trigger: p.trigger })),
-      [{ card: oldCombo, trigger: "comboed" }],
-      "a pinned card whose moment names its source did not answer from outside play (9-1-3-1)",
-    );
+    // #1070: the record of this Auto is typed - trigger `comboUsed` plus an entry qualification - so a save pinned to a
+    // DSL with no entry declaration has nothing that answers at the Drop either (the text reading that used to answer
+    // there as `comboed` is gone, and the owner removed legacy-save compatibility on 19 Oct). It must stay silent,
+    // never invent a different moment for it.
+    assert.deepEqual((old.pending as VmState["pending"]).map((p) => ({ card: p.card, trigger: p.trigger })), [], "an old pinned DSL answers nothing at the Drop for a typed entry record");
   }
 
   // ── the matcher answers about declarations, and says nothing else ────────
@@ -1173,7 +1174,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     type Stage = { vars?: Record<string, string[]>; x?: number; master?: PlayerId };
     /** The harness's rules, with one card's [Permanent] record replaced — `CTX.scripts` compiles on read, so this is a view over it rather than a copy. */
     const withRecord = (cardId: string, ops: Op[]) => {
-      const record = { bySkill: { 0: { ops, unsupported: [] } }, complete: true, unsupported: [] };
+      const record = { bySkill: { 0: { ops, unsupported: [], ...typedRecords() } }, complete: true, unsupported: [] };
       const scripts = new Proxy(CTX.scripts, { get: (base, key) => (key === cardId ? record : Reflect.get(base, key)) });
       return { ...CTX, scripts } as typeof CTX;
     };
@@ -2772,7 +2773,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const line: ActivationLine = {
       ...real!,
       skill: { ...real!.skill, cost: "{r} or use ≪A-E-RED≫ as energy" },
-      script: { ops: real!.script!.ops, unsupported: [], price: { ...zeroSkillPrice(), condition: null, ops: null, payWith } },
+      script: { ops: real!.script!.ops, unsupported: [], price: { ...zeroSkillPrice(), payment: { ...zeroSkillPrice().payment!, orbs: { Red: 1 } }, condition: null, ops: null, payWith } }, // #1066: the {r} is the stored payment, not the printed text
     };
 
     const bound = boundFor(CTX, DBS, board.r, "p1", line);

@@ -1,5 +1,7 @@
 import "./battle-cleanup-replacement-gap-609";
 /** Fixed §8-5 cleanup expectations on the rules engine; synthetic wording is intentional. */
+import { unlimitedUsage } from "../../src/lib/arena/vm/usage";
+import { noSparking } from "../../src/lib/arena/vm/validity";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CTX, DEFS, card, fifty, rulesFromCompiler, skillRecords } from "./harness";
@@ -56,6 +58,10 @@ const reload = (s: VmState): VmState => JSON.parse(JSON.stringify(s));
   const fixture = JSON.parse(readFileSync(new URL("../../docs/arena-backlog/evidence/609/old-main-cleanup-pause.json", import.meta.url), "utf8")) as
     { state: VmState; spent1: string; spent2: string; attacker: string };
   const old = fixture.state;
+  // The pause was saved before #1071: its frames carry no typed usage / Sparking records, which the engine now
+  // requires of every running skill. Stamp the pair END609 would have had (no ceiling, no Sparking) — what a
+  // rebuild of the saved match writes — so this still proves the grouped cleanup resumes without re-moving cards.
+  for (const frame of old.programs) if (frame.skillIndex !== undefined) { frame.usage ??= unlimitedUsage(); frame.validity ??= noSparking(); }
   assert.equal(old.battle?.endCombo?.stage, "cleanup");
   assert.equal(old.prompt.kind, "chooseCards");
   assert.ok(old.sides.p1.zones.drop.includes(fixture.spent1));

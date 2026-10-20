@@ -61,7 +61,7 @@ function proposalShapeProblem(json: unknown): string | null {
   const completeKeys = ["kind", "trigger", "cost", "cond", "ops"];
   if (keysProblem(json, completeKeys) || !completeKeys.every((key) => Object.hasOwn(json as object, key))) return "A complete rule must contain exactly kind, trigger, cost, cond and ops.";
   const cost = (json as Rule).cost;
-  if (cost && (keysProblem(cost, ["text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"]) ||
+  if (cost && (keysProblem(cost, ["version", "readable", "text", "orbs", "either", "marker", "burst", "spiritBoost", "condition", "program", "x", "payWith"]) ||
       keysProblem(cost.orbs, ["any", ...COLORS]) ||
       (Array.isArray(cost.either) && cost.either.some((group) => !Array.isArray(group) || group.some((color) => !(COLORS as readonly unknown[]).includes(color)))) ||
       (cost.x && keysProblem(cost.x, ["min", "max"])) ||

@@ -239,9 +239,7 @@
               "kind": "permanent",
               "category": "passive",
               "text": "[Permanent] Your Battle Cards resonate with the will of the universe.",
-              "tags": [
-                "Permanent"
-              ],
+              "tags": [],
               "zone": "battle",
               "owner": "p1",
               "controller": "p1",

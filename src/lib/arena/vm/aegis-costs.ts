@@ -95,7 +95,7 @@ export function queueAegisCost(game: GameDefinition, state: VmState, player: Pla
   if (!line.keyword) throw new RulesetBroken(game.id, "Aegis activation has no keyword declaration");
   const program = aegisPrograms(game, line.keyword, line.skill);
   state.programs.unshift({
-    ops: program.payment, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex,
+    ops: program.payment, ip: 0, vars: {}, card: line.card, master: player, skillIndex: line.skillIndex, usage: line.skill.usage as import("./usage").UsageRecord, validity: line.skill.validity as import("./validity").ValidityRecord,
     ...(x !== undefined ? { x } : {}),
     aegisCost: { line, costs, effect: [...program.effect, ...(line.script?.ops ?? []), ...keywordAfterProgram(game, line.keyword, line.skill)], stage: "colors" },
   });

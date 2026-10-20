@@ -52,7 +52,9 @@ const defs: Record<string, CardDef> = { ...DEFS,
   GREEN933: card("GREEN933", { colors: ["Green"] }),
   ...Object.fromEntries(Object.entries(SKILL_PLAYS).map(([id, skill]) => [id, card(id, { energyCost: 0, skill })])),
 };
-const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => [r, id] as const).filter(([r]) => r.kind !== "keyword").map(([r, id]) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
+// #1071: the printed [EX-Evolve] line is a keyword row that carries the typed base; dropping keyword rows (as this
+// once did for native keywords) leaves the card with an unread EX-Evolve and no activation.
+const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => [r, id] as const).map(([r, id]) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
 const roundtrip = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
@@ -140,11 +142,18 @@ for (const seat of ["p1", "p2"] as const) for (const target of Object.keys(PRINT
     const bad = fresh(seat); const c3 = stage(bad, seat, target, "hand"); stage(bad, seat, `BASE4-${PRINTED[target].who}`, "battle"); energy(bad, seat, 3);
     assert.equal(legalOf(bad, c3, "activate"), undefined, `${tag}: an invalid base stays refused`);
   }
-  // 2b. Control: the line as printed (the 3-energy condition and the draw as a cost) is refused as unread
-  // today with or without the restriction — a gap of the keyword's price, not of this rule.
+  // 2b. Control: the line as printed (the 3-energy condition and the draw as a cost), with and without the
+  // restriction. It used to be refused as unread; the keyword's price condition and program are stored now
+  // (#1066), so it is offered and charged: the condition holds with 3 energy, the draw is paid, the base goes under.
   for (const id of [`${target}-FULL`, `${target}-FREE`]) {
-    const s = fresh(seat); const c = stage(s, seat, id, "hand"); stage(s, seat, `BASE3-${PRINTED[target].who}`, "battle"); energy(s, seat, 3);
-    assert.equal(legalOf(s, c, "activate"), undefined, `${id}: the printed EX-Evolve price is not chargeable yet`);
+    const s = fresh(seat); const c = stage(s, seat, id, "hand"); const base = stage(s, seat, `BASE3-${PRINTED[target].who}`, "battle"); energy(s, seat, 3);
+    const hand = zone(s, seat, "hand").length;
+    const ev = legalOf(s, c, "activate"); assert.ok(ev, `${id}: the printed EX-Evolve is offered with its price stored`);
+    const done = finish(take(s, ev.action), base);
+    assert.ok(zone(done, seat, "battle").includes(c), `${id}: it evolved onto the base`); assert.deepEqual(done.cards[c].under, [base]);
+    assert.equal(zone(done, seat, "hand").length, hand, `${id}: the card left the hand and the price's draw replaced it`);
+    const poor = fresh(seat); const c2 = stage(poor, seat, id, "hand"); stage(poor, seat, `BASE3-${PRINTED[target].who}`, "battle"); energy(poor, seat, 2);
+    assert.equal(legalOf(poor, c2, "activate"), undefined, `${id}: two energy cannot pay the three red orbs`);
   }
   // 3. A plain skill play — from hand, Drop and Warp, and "on top of" with no evolving — does nothing to it.
   for (const [src, area] of [["HAND933", "hand"], ["DROP933", "drop"], ["WARP933", "warp"], ["TOP933", "hand"]] as const) {
