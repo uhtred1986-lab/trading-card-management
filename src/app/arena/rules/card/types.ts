@@ -16,6 +16,10 @@ export interface SkillView {
   /** "Auto", "Activate: Main"… */
   kindLabel: string;
   health: RuleHealth;
+  /** "deck-building" when the whole line is a deck-building clause: the panel labels it so instead of by health (#1146). */
+  category: "deck-building" | null;
+  /** The deck-building clauses the line carries, in words (a mixed line's too). */
+  deckBuilding: string[];
   reasons: string[];
   hints: string[];
   needsRebuild: boolean;

@@ -13,9 +13,12 @@ const CHIP: Record<RuleHealth, { label: string; cls: string }> = {
   done: { label: "Done", cls: "ds-status-success" },
 };
 
+/** A line that is only a deck-building clause (#1146): its own label, in place of a health. */
+export const DECK_BUILDING_CHIP = { label: "Deck-building", cls: "ds-badge-neutral ring-1 ring-inset ring-space-600" };
+
 /** The four-way health as a chip: a word as well as a colour, so it never relies on hue alone. */
-export function HealthChip({ health, big = false }: { health: RuleHealth; big?: boolean }) {
-  const c = CHIP[health];
+export function HealthChip({ health, big = false, category = null }: { health: RuleHealth; big?: boolean; category?: "deck-building" | null }) {
+  const c = category === "deck-building" ? DECK_BUILDING_CHIP : CHIP[health];
   return <span className={`inline-flex items-center rounded-full font-bold ${big ? "px-3 py-1.5 text-sm" : "px-2.5 py-0.5 text-[13px]"} ${c.cls}`}>{c.label}</span>;
 }
 
@@ -76,8 +79,9 @@ export function SkillPanel({ skill: s, admin, busy, editing, actions: a, ask, tr
   const canApprove = admin && s.status === "draft" && !approvalProblem({ status: s.status, unread: s.unread });
   const flag = s.flag;
   // The flag has its own notice below; its line in the reasons would say it twice.
-  const reasons = flag ? s.reasons.filter((r) => !r.startsWith("Marked wrong:")) : s.reasons;
-  const plain = [...reasons, ...s.hints];
+  // A deck-building line says what it is in its own section below, so the health reasons would repeat it.
+  const reasons = s.category ? [] : flag ? s.reasons.filter((r) => !r.startsWith("Marked wrong:")) : s.reasons;
+  const plain = [...reasons, ...(s.category ? [] : s.hints)];
   return (
     <section className={`ds-panel flex flex-col gap-4 ${editing ? "ring-2 ring-ki-400" : ""}`} aria-label={`Skill ${s.n}`} id={s.ruleId ? `skill-${s.ruleId}` : undefined}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -85,7 +89,7 @@ export function SkillPanel({ skill: s, admin, busy, editing, actions: a, ask, tr
         <span className="text-[11px] font-bold uppercase tracking-wider text-space-400">
           [{s.kindLabel}] · {s.side === "back" ? "awakened side" : "front"}
         </span>
-        <HealthChip health={s.health} />
+        <HealthChip health={s.health} category={s.category} />
         {s.needsRebuild && s.ruleId != null && <span className="ds-status-warning rounded-full px-2.5 py-0.5 text-[13px] font-bold">needs rebuild</span>}
         {s.ruleId != null && <span className="ml-auto text-xs text-space-400">{provenanceLine(s)}</span>}
       </div>
@@ -95,7 +99,24 @@ export function SkillPanel({ skill: s, admin, busy, editing, actions: a, ask, tr
         <Printed text={s.printed} mark={mark} />
       </div>
 
-      {s.ruleId != null && (
+      {s.deckBuilding.length > 0 && (
+        <div data-testid="deck-building">
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-space-400">{s.category ? "Deck-building rule" : "Also a deck-building rule"}</div>
+          <ul className="space-y-1">
+            {s.deckBuilding.map((w) => (
+              <li key={w} className="rounded-lg bg-space-800 px-3 py-2 text-[15px] font-semibold text-space-50">
+                {w.charAt(0).toUpperCase() + w.slice(1)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[13px] text-space-300">
+            {s.category ? "The engine plays nothing for this: it takes the deck it is given. " : "The rest of the line is a game rule, read below. "}
+            Deck legality checks the clause and flags a deck that breaks it; it never blocks one.
+          </p>
+        </div>
+      )}
+
+      {s.ruleId != null && s.category !== "deck-building" && (
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-space-400">The engine reads</div>
           <p className={`text-[15px] font-semibold ${s.reads ? "text-space-50" : "text-loss"}`}>{s.reads || "Nothing yet: the engine plays this skill as blank."}</p>
@@ -194,7 +215,7 @@ export function SkillPanel({ skill: s, admin, busy, editing, actions: a, ask, tr
         </p>
       )}
 
-      {s.ruleId != null && !(flag?.changedSince && admin) && (
+      {s.ruleId != null && s.category !== "deck-building" && !(flag?.changedSince && admin) && (
         <div className="flex flex-wrap items-center gap-2">
           {s.status === "draft" ? (
             <button type="button" className={primary} disabled={busy || !canApprove} onClick={flag ? a.approveFlagged : a.approve} title={approvalProblem({ status: s.status, unread: s.unread }) ?? undefined}>

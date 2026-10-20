@@ -21,6 +21,7 @@ import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
 import { compileFusionMaterials } from "./fusion-materials";
 import { isFusionSkill } from "../vm/fusion-materials";
+import { deckBuildingOfSkill } from "./silent";
 
 // ── skills and cards ───────────────────────────────────────────────────────
 
@@ -44,6 +45,17 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
+  // A deck-building clause is not a rule of play (6-1; #1146): take it out and compile what is left of the
+  // line. A line that is nothing else reads as empty, on purpose, and says so by having nothing unread.
+  const deck = deckBuildingOfSkill(skill);
+  if (deck.rules.some((r) => r.kind !== "keyword")) {
+    if (!deck.rest) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: deck.unread };
+    return compileSkillWithoutDeckBuilding({ ...skill, effect: `${deck.rest}.` });
+  }
+  return compileSkillWithoutDeckBuilding(skill);
+}
+
+function compileSkillWithoutDeckBuilding(skill: Skill): Script {
   if (isPotaraSkill(skill) && !compilePotaraMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [POTARA_REBUILD] };
   if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };

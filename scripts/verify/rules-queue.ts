@@ -112,10 +112,52 @@ const cls = (c: ReturnType<typeof card>, rows: ReturnType<typeof row>[]) => clas
   assert.deepEqual([byClaude.rebuild.compiler, byClaude.rebuild.other], [0, 1], "a Claude draft is not the compiler's to rewrite");
 }
 
+// ── deck-building clauses are their own category (#1146) ──────────────────
+{
+  const openRow = (printed: string, over: Partial<HealthRow> = {}) =>
+    row({ printed, kind: "permanent", status: "open", ops: [], trigger: [], pattern: null, unread: [printed.replace(/^\[[^\]]*\]\s*/, "").replace(/\.$/, "")], ...over });
+  const deckCard = (id: string, printed: string) => card(id, id, printed);
+
+  for (const [id, printed] of [
+    ["BT18-003", "[Permanent] You can only include 1 copy of this card in your Z-Deck."],
+    ["BT13-149", "[Permanent] You can include up to 7 copies of this card in your deck."],
+    ["BT13-122", "[Permanent] You can only include up to 7 ≪Dark Dragon Ball≫ cards in your deck."],
+    ["BT25-007", "[Permanent] You can include as many copies of this card in your Z-Deck as you like."],
+    ["EX24-01", "[permanent] You can only include Z-Unisons in your Z-Deck."],
+    ["BT31-116", "[Permanent] You can't include non-white Extra in your deck."],
+  ] as const) {
+    const q = cls(deckCard(id, printed), [openRow(printed)]);
+    assert.equal(q.category, "deck-building", `${id} is Deck-building`);
+    assert.notEqual(q.health, "text-only", `${id} is not Text only`);
+    assert.deepEqual(q.skills.map((s) => s.category), ["deck-building"]);
+    assert.ok(q.deckBuilding.length === 1 && q.deckBuilding[0].length > 0, `${id} says what it restricts`);
+  }
+
+  // The stored row does not matter: even a draft with a leftover unread clause is read from the printed line.
+  const stale = cls(deckCard("BT18-003", "[Permanent] You can only include 1 copy of this card in your Z-Deck."), [openRow("[Permanent] You can only include 1 copy of this card in your Z-Deck.", { status: "draft", unread: ["x"] })]);
+  assert.equal(stale.category, "deck-building");
+
+  // A line that is not deck-building keeps its health; a mixed line's game half keeps its own.
+  const text = "[Permanent] You can't include non-≪Villainous≫ cards in your deck, and treat ≪Villainous≫ cards in your hand as if they have no specified cost.";
+  const mixed = cls(deckCard("P-434", text), [openRow(text)]);
+  assert.equal(mixed.health, "text-only", "the game half is still unread");
+  assert.equal(mixed.category, null, "a mixed line is not the deck-building category");
+  assert.equal(mixed.deckBuilding.length, 1, "…but its clause is still said");
+  const ordinary = cls(card("A-9"), [row({ status: "open", ops: [], unread: ["draw 1 card"] })]);
+  assert.equal(ordinary.health, "text-only");
+  assert.equal(ordinary.category, null);
+
+  // A card with a deck-building clause and a skill still to do stays in that skill's health.
+  const both = cls(card("B-1", "B-1", `${ATTACK}<br>[Permanent] You can only include 1 copy of this card in your Z-Deck.`), [row({ status: "draft" }), openRow("[Permanent] You can only include 1 copy of this card in your Z-Deck.", { skillIndex: 10 })]);
+  assert.equal(both.health, "unchecked");
+  assert.equal(both.category, null, "the card is waiting on its other skill");
+  assert.deepEqual(both.skills.map((s) => s.category), [null, "deck-building"]);
+}
+
 // ── the view: narrowing, order, grouping ──────────────────────────────────
 {
   const mk = (id: string, name: string, health: QueueCard["health"], extra: Partial<QueueCard> = {}): QueueCard => ({
-    cardId: id, name, setCode: id.split("-")[0], cardType: "BATTLE", colors: [], imageUrl: null, health, skills: [{ health, ruleId: 1, family: null }],
+    cardId: id, name, setCode: id.split("-")[0], cardType: "BATTLE", colors: [], imageUrl: null, health, skills: [{ health, ruleId: 1, family: null, category: null }], category: null, deckBuilding: [],
     reasons: [], family: null, ruleId: 1, source: "compiler", wording: null, mechanism: null, missing: 0, rebuild: { rows: 0, compiler: 0, protectedRows: 0, other: 0 }, claudeFix: 0, ...extra,
   });
   const cs = [
