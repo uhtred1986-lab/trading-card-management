@@ -99,10 +99,10 @@ set -a; . "$SCRATCH/card-db.env"; set +a; export DB_DRIVER=neon-http   # only in
 
 ## Screens
 
-- **Don't break existing layouts and don't overload screens.** For every screen you touch, shoot
-  it before (`origin/main`) and after, at 1440 and 390 wide, with `npm run arena:shots` or `scripts/lib/cdp.mts` (Playwright is not a
-  dependency; Chrome is found by `findChrome()`, `/opt/pw-browsers` in a cloud session; never
-  `playwright install`). Compare them yourself. Tool paths verified on Windows: `docs/arena-agent-tools.md`.
+- **Don't break existing layouts and don't overload screens.** For every screen you touch, run
+  `npm run shots:compare -- <routes or arena fixtures>`: `origin/main` vs your checkout at 1440 and 390,
+  diff PNGs and a report, no database or dev server of your own (skill `screen-proof`). Tool paths
+  verified on Windows: `docs/arena-agent-tools.md`.
 - **Board work (M16):** attach the board screenshots from contract fixtures (#343) beside the
   reference frame in `docs/arena-redesign/`, both skins, phone and desktop.
 - Pages that read the database can't be shot without one. Say so, and name the frames the owner
