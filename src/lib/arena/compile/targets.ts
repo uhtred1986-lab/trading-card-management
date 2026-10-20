@@ -858,6 +858,9 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     ))
   ) {
     count = Number(m[1]);
+  } else if (/\bone of (?:your|their|the|these|those)\b/.test(t)) {
+    // "Choose one of your <Saibaiman> cards" (EB1-10) is a count spelled as a word: one card, not the plural's "all of them".
+    count = 1;
   } else if (/\bcards\b|\benergy\b/.test(t)) {
     // A plural with no number means all of them: "your Battle Cards get +5000 power".
     count = 99;

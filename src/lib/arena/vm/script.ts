@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { skillsOf, sumReachable } from "../text/cards";
+import { canCombo, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
@@ -1508,6 +1508,14 @@ export interface ScriptFrame {
    */
   saveVarsAs?: string;
   /**
+   * #1117 (4-3-3, 5-8-2-2): set on a price's frame when a step of the price did
+   * not really happen — a KO the card was spared, a card that did not join the
+   * combo. The price is then unpaid: the frame does not hand its names on, the
+   * effect behind it is dropped, and nothing is announced. What counts is what
+   * happened, never the attempt.
+   */
+  priceUnpaid?: string;
+  /**
    * The other end of `saveVarsAs`: this frame is a skill's effect, queued
    * behind its action price (4-3-3), and `key` is what that price saves its
    * names under. The price finishing is what hands them on and announces the
@@ -1727,6 +1735,31 @@ function substituteFrame(h: ScriptHost, id: string, r: ReplacementResult): Scrip
   return { ops: r.ops ?? [], ip: 0, vars: {}, card: r.source ?? id, master: r.master ?? h.masterOf(id), subject: id, replacing: id, ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}), ...(r.optional ? { offered: true as const } : {}) };
 }
 
+/**
+ * #1117 (4-3-3): a price's choice offers only the cards its next step can really
+ * act on — the payer cannot stop halfway, so a card the KO would skip or that
+ * cannot join the combo is no candidate. The same reading as
+ * `canPayPriceProgram`'s, asked while the price is paid. Every other choice, and
+ * every frame that is no activation price, is unconstrained.
+ */
+function priceTargetFits(h: ScriptHost, frame: ScriptFrame, variable: string, id: string): boolean {
+  if (!frame.saveVarsAs) return true;
+  const master = frame.master;
+  const later = frame.ops.slice(frame.ip + 1);
+  const on = (name: "ko" | "comboFrom") => later.some((o) => o.op === name && "var" in o.target && o.target.var === variable);
+  if (on("ko")) {
+    if (h.areaOf(id) !== "battle" || h.forbids("beKOd", { card: id }) || h.forbids("beKOdBySkill", { player: master, card: id })) return false;
+    if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) return false;
+    if (!h.replacementsFor(id, "ko", { actor: master, requestedTo: "drop" }).every((c) => c.optional)) return false;
+  }
+  if (on("comboFrom")) {
+    const b = h.battle();
+    if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) return false;
+    if (h.areaOf(id) === "combo" || !canCombo(h.defOf(id)) || h.forbids("combo", { player: master, card: id })) return false;
+  }
+  return true;
+}
+
 /** The name a `choose … sumTo` binds one card to while it reads that card's measure through `amount`. */
 const SUM_ONE = "__one";
 
@@ -1787,6 +1820,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // Might} … and place this card under the chosen card: **Add a marker to
       // the chosen card**." Handing the names on is what makes that one skill
       // rather than two.
+      if (frame.saveVarsAs && frame.priceUnpaid) {
+        h.priceUnpaid(frame.saveVarsAs, frame.priceUnpaid);
+        return "done";
+      }
       if (frame.saveVarsAs) {
         h.saveVars(frame.saveVarsAs, { ...frame.vars });
         // 20-5: and the X a `bindX` choose bound, for the prices that are a
@@ -2083,11 +2120,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "reveal": {
+        // #1117 (owner ruling 20 Oct 2026): as an [Activate] price the payer picks
+        // which matching card is shown — a choice step first, then the reveal of
+        // what was picked. The card stays where it is either way (20-11-2).
+        if (frame.saveVarsAs && !op.sel.fromVar && !op.sel.special && !(op.sel.count && op.sel.count >= 99)) {
+          frame.ops = [...frame.ops.slice(0, frame.ip), { op: "choose", sel: op.sel, as: op.as, reason: `${h.nameOf(frame.card)}: choose a card to reveal` } as Op, { ...op, sel: { fromVar: op.as, ...(op.sel.upTo ? { upTo: true as const } : {}) } }, ...frame.ops.slice(frame.ip + 1)];
+          continue;
+        }
         // 20-11-2: revealing shows the cards to both players and leaves them
         // where they are. The log is how the other player gets to see them.
         // Shown to the master alone (`audience: "you"`, 20-11) is a look:
         // bound the same, logged nowhere.
         const shown = h.resolveSelector(frame, op.sel);
+        if (frame.saveVarsAs && op.sel.fromVar && !shown.length && !op.sel.upTo) frame.priceUnpaid ??= "there was no card to reveal";
         frame.vars[op.as] = shown;
         if (shown.length && op.audience !== "you") h.note(`revealed ${shown.map((id) => h.nameOf(id)).join(", ")}`);
         break;
@@ -2210,7 +2255,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.
@@ -2307,14 +2352,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
           if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
             frame.moveLoop.index++;
             continue;
           }
           // 20-14: the same thing spelled out on the card rather than keyworded.
           if (h.forbids("beKOdBySkill", { player: master, card: id })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
             frame.moveLoop.index++;
             continue;
           }
+          // #1117: a price's KO is paid by a card that really goes to the Drop; a card that is no Battle Card pays nothing.
+          if (frame.saveVarsAs && h.areaOf(id) !== "battle") frame.priceUnpaid ??= `${h.nameOf(id)} is not a Battle Card that can be KO'd`;
           if (h.areaOf(id) === "battle") {
             let replaced: ReplacementResult | null | undefined;
             if (frame.awaiting === "replaceMove") {
@@ -2345,6 +2394,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (h.zone(h.ownerOf(id), "drop").length > before) (frame.did ??= {}).ko = true;
+            // #1117: the price is paid by this card standing in the Drop, not by the attempt: anything that kept it
+            // out (a replacement taken instead, a ban raised since the choice) leaves the price unpaid. A discard a
+            // replacement made instead puts another card there, which is why the card itself is asked after.
+            if (frame.saveVarsAs && !h.zone(h.ownerOf(id), "drop").includes(id)) frame.priceUnpaid ??= `${h.nameOf(id)} was not KO'd`;
             if (deferred) {
               frame.moveLoop.index++;
               h.interrupt(substituteFrame(h, id, replaced!), frame);
@@ -2625,10 +2678,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-7-2: a combo card needs a battle to join, on the side of the
         // player whose skill this is.
         const b = h.battle();
-        if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) break;
+        if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) {
+          if (frame.saveVarsAs) frame.priceUnpaid ??= "there is no battle to use a card in a combo";
+          break;
+        }
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.areaOf(id) === "combo") continue;
+          if (h.areaOf(id) === "combo") {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} is already in a Combo Area`;
+            continue;
+          }
           h.move(id, "combo", master, { reason: "combo", reveal: true, ...(frame.card ? { source: frame.card } : {}) });
+          // #1117: a price's combo is paid by a card that really stands in the Combo Area now.
+          if (frame.saveVarsAs && h.areaOf(id) !== "combo") frame.priceUnpaid ??= `${h.nameOf(id)} did not join the combo`;
           if (op.negated) h.negateAll(id);
           // 5-7-5-3: a card placed in a Combo Area is a combo entry for its own [Auto]s, whoever placed it (BT7-030 asks
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).

@@ -7,7 +7,7 @@
  * `rules-review-2026-10-20/batch-3.md` section 3 — and the stored reading in the deck audit; the energy cost and
  * colours of the card itself are not evidence here). The line is compiled from that text, not hand-built.
  *
- * Also: `play`, KO, `comboFrom`, shuffle and reveal stay refused with their reasons (the follow-up owns them).
+ * Also: `play` stays refused with its reason; KO, `comboFrom`, shuffle and reveal became payable in #1117 (`activate-prices-1117.ts`).
  * Rules engine only; nothing reads the database.
  */
 import assert from "node:assert/strict";
@@ -124,10 +124,6 @@ assert.deepEqual(compileSkill(parseSkills(ONE_STAR)[0]).unsupported, []);
   assert.equal(activationPriceProblem([choose("c0"), place({ under: undefined, target: { var: "c0" } })]), null, "no host named: this card is the host");
   assert.match(activationPriceProblem([choose("c0"), place({ target: { sel: { side: "you", area: "hand" } } })]) ?? "", /for a card the price did not choose/, "a moved card named by a bare selector");
   assert.match(activationPriceProblem([place({ to: "play" })]) ?? "", /cannot charge moveTo play/, "play stays refused");
-  assert.match(activationPriceProblem([choose("c0"), { op: "ko", target: { var: "c0" } } as Op]) ?? "", /does not support ko as a cost/, "KO as a price stays refused");
-  assert.match(activationPriceProblem([choose("c0"), { op: "comboFrom", target: { var: "c0" } } as unknown as Op]) ?? "", /does not support comboFrom as a cost/, "comboFrom stays refused");
-  assert.match(activationPriceProblem([{ op: "shuffle" } as Op]) ?? "", /does not support shuffle as a cost/, "shuffle stays refused");
-  assert.match(activationPriceProblem([{ op: "reveal", sel: { side: "you", area: "hand", count: 1 } } as unknown as Op]) ?? "", /does not support reveal as a cost/, "reveal stays refused");
 }
 
 // ── a fixed host: "place 1 card from your hand under this card" (BT2-068, BT4-058 — 55 stored rows) ──
