@@ -11,7 +11,14 @@
  *   npm run arena:rule -- BT3-096 "when this card evolves it is played from the Combo Area"
  *   npm run arena:rule -- BT3-096 --skill 10 "…"
  *   npm run arena:rule -- BT3-096 --clause "evolve it into this card" "…"
+ *   npm run arena:rule -- BT3-096 --skill 10 --side back "…"   # one face only
+ *   npm run arena:rule -- BT12-122 --skill 20 --side back --clear # undo a ruling put on the wrong row
+ *   npm run arena:rule -- BT3-096 --dry-run "…"                   # list the rows, write nothing
  *   npm run arena:rule -- --list            # every rule that carries a ruling
+ *
+ * `--skill N` alone matches that index on *both* faces of a leader; add
+ * `--side front|back` to pick one. `--clear` needs both, so it can only ever
+ * empty the one row it names.
  *
  * With no `--skill` it rules on every skill of the card, and `--clause` picks
  * the one whose unread text says that. A ruling on a card the compiler reads
@@ -43,12 +50,25 @@ const flag = (name: string): string | null => {
 };
 const skillArg = flag("skill");
 const clauseArg = flag("clause");
-const positional = argv.filter((a, i) => !a.startsWith("--") && !(i > 0 && argv[i - 1].startsWith("--")));
+const sideArg = flag("side");
+const clear = argv.includes("--clear");
+const dryRun = argv.includes("--dry-run");
+const VALUED = new Set(["--skill", "--clause", "--side"]);
+const positional = argv.filter((a, i) => !a.startsWith("--") && !(i > 0 && VALUED.has(argv[i - 1])));
 const [cardId, ...rest] = positional;
-const explanation = rest.join(" ").trim();
+const explanation = clear ? null : rest.join(" ").trim();
 
-if (!cardId || !explanation) {
-  console.error('Usage: npm run arena:rule -- <cardId> [--skill N] [--clause "…"] "<the ruling>"');
+if (!cardId || (!clear && !explanation)) {
+  console.error('Usage: npm run arena:rule -- <cardId> [--skill N] [--side front|back] [--clause "…"] [--dry-run] "<the ruling>"');
+  console.error("       npm run arena:rule -- <cardId> --skill N --side front|back --clear [--dry-run]");
+  process.exit(1);
+}
+if (sideArg != null && sideArg !== "front" && sideArg !== "back") {
+  console.error(`--side must be front or back, not "${sideArg}".`);
+  process.exit(1);
+}
+if (clear && (skillArg == null || sideArg == null || clauseArg != null || rest.length)) {
+  console.error("--clear empties one row's ruling: give --skill N and --side front|back, and no ruling text or --clause.");
   process.exit(1);
 }
 
@@ -60,18 +80,21 @@ if (!card) {
 
 const skillIndex = skillArg == null ? null : Number(skillArg);
 const targets = (await loadRules(db, [cardId])).filter(
-  (r) => (skillIndex == null || r.skillIndex === skillIndex) && (!clauseArg || r.unread.some((u) => u.toLowerCase().includes(clauseArg.toLowerCase())) || r.printed.toLowerCase().includes(clauseArg.toLowerCase())),
+  (r) => (skillIndex == null || r.skillIndex === skillIndex) && (sideArg == null || r.side === sideArg) && (!clauseArg || r.unread.some((u) => u.toLowerCase().includes(clauseArg.toLowerCase())) || r.printed.toLowerCase().includes(clauseArg.toLowerCase())),
 );
 
 if (!targets.length) {
-  console.error(`${cardId} has no rule${skillIndex == null ? "" : ` #${skillIndex}`}${clauseArg ? ` mentioning "${clauseArg}"` : ""} to rule on. Run \`npm run arena:draft -- --card ${cardId}\` first.`);
+  console.error(`${cardId} has no rule${skillIndex == null ? "" : ` #${skillIndex}`}${sideArg ? ` on the ${sideArg}` : ""}${clauseArg ? ` mentioning "${clauseArg}"` : ""} to rule on. Run \`npm run arena:draft -- --card ${cardId}\` first.`);
   process.exit(1);
 }
 
 for (const t of targets) {
-  await db.update(cardRules).set({ explanation, updatedAt: new Date() }).where(and(eq(cardRules.id, t.id)));
-  console.log(`${t.cardId} #${t.skillIndex} [${t.status}]  ${t.unread[0] ?? (t.reads || "reads cleanly")}`);
+  if (!dryRun) await db.update(cardRules).set({ explanation, updatedAt: new Date() }).where(and(eq(cardRules.id, t.id)));
+  console.log(`${t.cardId} ${t.side} #${t.skillIndex} [${t.status}]  ${t.unread[0] ?? (t.reads || "reads cleanly")}`);
+  if (clear) console.log(`  was: ${t.explanation ?? "(no ruling)"}`);
 }
-console.log(`\nRuling recorded on ${targets.length} rule${targets.length === 1 ? "" : "s"}: ${explanation}`);
+const what = clear ? "Ruling cleared" : `Ruling recorded`;
+console.log(`\n${dryRun ? "Dry run, nothing written. Would be: " : ""}${what} on ${targets.length} rule${targets.length === 1 ? "" : "s"}${clear ? "." : `: ${explanation}`}`);
+if (dryRun || clear) process.exit(0);
 console.log("The program that follows from it is attached on /arena/rules.");
 process.exit(0);
