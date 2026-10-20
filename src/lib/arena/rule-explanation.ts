@@ -8,6 +8,9 @@ import { COLORS } from "./vm/script-schema";
 import { parseSkills } from "./text/cards";
 import { costText } from "./compile/prices";
 import { activationPriceProblem } from "./vm/activation-price-support";
+import { unlimitedUsage } from "./vm/usage";
+import { zeroCostRecord } from "./vm/skill-payment";
+import { noSparking } from "./vm/validity";
 
 /** These fees come from the printed skill at runtime, not from card_rules.cost. */
 export function printedPrice(printed: string, kind: string, skillIndex = 0) {
@@ -89,7 +92,11 @@ export function explainDecision(raw: unknown, kind: string, printed: string, ski
     const rule = checked.rule;
     if (kind === "keyword") return { kind: "question", meaning: answer.meaning, question: "This keyword uses the engine's native activation, payment and resolution. An ordinary THEN program cannot replace that lifecycle. Review the keyword's native rule and Try it before approving a change." };
     if (!rule.ops.length) return { kind: "invalid", error: "The response contains no effect steps. An intentional blank must be set explicitly in the manual builder." };
-    const support = runtimeSupportOfRow({ ...rule, printed, unread: [] });
+    // A proposal is exactly kind/trigger/cost/cond/ops (`proposalShapeProblem`); the skill's use ceiling and Sparking
+    // requirement stay on the stored row, which `saveRule` keeps and re-checks. Without these neutral stand-ins the
+    // #907 record gaps would mark every proposal unsupported for a field it is not allowed to carry. `cost: null` is
+    // an intentional free price, as `saveRule` stores it (`zeroCostRecord`); the native-fee checks below still apply.
+    const support = runtimeSupportOfRow({ usage: unlimitedUsage(), validity: noSparking(), ...rule, cost: rule.cost ?? zeroCostRecord(), printed, unread: [] });
     if (support.unsupported.length) return { kind: "unsupported", missing: support.unsupported, meaning: answer.meaning, proposed: printRule(rule) };
     if (support.unknown.length) return { kind: "question", meaning: answer.meaning, question: `Runtime support still needs manual capability review: ${support.unknown.join("; ")}. Use the rule builder / Try it to review the concrete board and target; rephrasing alone cannot clear this guard. No approval is available here yet.` };
     const price = printedPrice(printed, kind, skillIndex);

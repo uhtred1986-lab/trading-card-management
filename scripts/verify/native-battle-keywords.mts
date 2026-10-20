@@ -2,8 +2,8 @@
  * Unlike compiler-backed harness checks, these use the actual empty stored-row path. */
 import assert from "node:assert/strict";
 import { CTX, DEFS, fifty } from "./harness.ts";
+import { recordsWithPrice } from "./records.ts";
 import { RULES } from "../../src/lib/arena/vm/index.ts";
-import { rulesFromRows } from "../../src/lib/arena/rules-store.ts";
 import type { CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types.ts";
 import type { VmState } from "../../src/lib/arena/vm/state.ts";
 
@@ -11,9 +11,12 @@ const real: Record<string,CardDef>={
  "BT7-081":{...DEFS.V1,id:"BT7-081",name:"Cabba, Undisguised Rage",type:"BATTLE",power:5000,skill:"[Blocker] <br>[Revenge]"},
  "BT27-093":{...DEFS.V1,id:"BT27-093",name:"SS4 Vegito, Barrage",type:"Z-BATTLE",power:30000,skill:"[Deflect][Triple Attack]"},
 };
-const ctx:EngineContext={...CTX,defs:{...DEFS,...real},scripts:{...CTX.scripts,...rulesFromRows([],real)}};
-// Do not accidentally inherit compiler-generated bare programs from the harness.
-for(const id of Object.keys(real)) delete ctx.scripts![id];
+// `CTX.scripts` is a lazy compiler-backed Proxy: spreading it copies nothing, which left the harness leader without
+// its stored record (a keyword line with no typed payment, #1066). Overlay it instead and hide only the real cards,
+// so they take the actual empty stored-row path while everything else keeps its compiled records.
+const hidden=new Set(Object.keys(real));const own:Record<string,never>={};
+const scripts=new Proxy(own as Record<string,never>,{get:(t,k)=>typeof k!=="string"?undefined:k in t?(t as Record<string,never>)[k]:hidden.has(k.split("#")[0])?undefined:CTX.scripts![k]}) as unknown as NonNullable<EngineContext["scripts"]>;
+const ctx:EngineContext={...CTX,defs:{...DEFS,...real},scripts};
 function atMain():VmState {
  let s=RULES.createGame(ctx,{seed:823,p1:{name:"You",leader:"L-RED",main:fifty("V1")},p2:{name:"Other",leader:"L-BLUE",main:fifty("V-BLUE")}}).state;
  const actions=[{type:"chooseFirst",player:s.chooser,first:"p1"},{type:"mulligan",player:"p1",redraw:false},{type:"mulligan",player:"p2",redraw:false},{type:"charge",player:"p1",card:null},{type:"endMain",player:"p1"},{type:"charge",player:"p2",card:null},{type:"endMain",player:"p2"},{type:"charge",player:"p1",card:null}] as const;
@@ -46,11 +49,14 @@ function finish(s:VmState):VmState {
  assert(!s.outcome,"bare Revenge has no missing-record interruption");s=finish(JSON.parse(JSON.stringify(s)));
  assert(s.sides.p1.zones.drop.includes(attacker),"Revenge KOs the attacking Battle Card at battle end");
 }
-// An explicitly unread stored program must not be bypassed by the native path.
+// An explicitly unread stored program must not be bypassed by the native path. Since #1071 a blocked record
+// has no native keyword hooks (`vm/skill-identity.ts`: "a blocked record cannot become a native hook through its
+// displayed tags"), so the displayed [Triple Attack] is inert: one attack rests the attacker, where the native
+// path (above) keeps it active until the third.
 {
- const scripts=ctx.scripts!;scripts["BT27-093"]={bySkill:{1:{ops:[],unsupported:["unread extension"]}},complete:false,unsupported:["unread extension"]};
+ const scripts=ctx.scripts!;scripts["BT27-093"]={bySkill:{1:{ops:[],unsupported:["unread extension"],...recordsWithPrice()}},complete:false,unsupported:["unread extension"]};
  const s=atMain();const attacker=stage(s,"p1","BT27-093");
  const after=RULES.apply(ctx,s,{type:"attack",player:"p1",attacker,target:s.sides.p2.zones.leader[0]}).state;
- assert.equal(after.outcome?.kind,"interrupted");delete scripts["BT27-093"];
+ assert(!after.outcome,"an unread record is inert, not a crash");assert.equal(finish(after).cards[attacker].mode,"rest","no Triple Attack from the displayed tag of an unread record");delete scripts["BT27-093"];
 }
-console.log("native battle keywords: stored-row Triple Attack/Revenge, reload and unread refusal passed");
+console.log("native battle keywords: stored-row Triple Attack/Revenge, reload and unread-record inertness passed");

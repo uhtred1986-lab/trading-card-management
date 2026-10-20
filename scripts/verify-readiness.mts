@@ -13,6 +13,8 @@ import { startGame } from "../src/lib/arena/games.ts";
 import { joinMatch, openMatch } from "../src/lib/arena/matches.ts";
 import { loadRules, rulesFromRows, runtimeSupportOfRow } from "../src/lib/arena/rules-store.ts";
 import { defsForCards } from "../src/lib/arena/load.ts";
+import { zeroCostRecord } from "../src/lib/arena/vm/skill-payment.ts";
+import { typedRecords } from "./verify/records.ts";
 
 export async function verifyReadiness(db: Db): Promise<void> {
   const card = (id: string, name: string, cardType = "BATTLE", skill: string | null = null, backSkill: string | null = null) => ({ id, setCode: "BT18", name, cardType, skill, backName: backSkill ? `${name} Awakened` : null, backSkill, rarity: "Common[C]", rarityCode: "C", searchText: `${id} ${name}`.toLowerCase() });
@@ -33,7 +35,7 @@ export async function verifyReadiness(db: Db): Promise<void> {
   ]);
   const front = "[Auto] When this card is played, draw 1 card.";
   const attack = "[Auto] When this card attacks, draw 1 card.";
-  const rule = (cardId: string, status: string, skillIndex = 0, printed = front, extra: Record<string, unknown> = {}) => ({ cardId, side: "front", skillIndex, printed, kind: "auto", status, source: "compiler", trigger: printed.includes("attacks") ? ["attacks"] : ["played"], ...extra });
+  const rule = (cardId: string, status: string, skillIndex = 0, printed = front, extra: Record<string, unknown> = {}) => ({ cardId, side: "front", skillIndex, printed, kind: "auto", status, source: "compiler", trigger: printed.includes("attacks") ? ["attacks"] : ["played"], ...typedRecords(), cost: zeroCostRecord(), ...extra });
   await db.insert(schema.cardRules).values([
     rule("BT18-900", "confirmed"),
     { ...rule("BT18-900", "confirmed", 0, front), side: "back", printed: attack },
@@ -147,61 +149,61 @@ export async function verifyReadiness(db: Db): Promise<void> {
 
   const actionPrice = [{ op: "draw", n: 1 }];
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "activate:main", unread: [], ops: [], cost: { program: actionPrice }, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "activate:main", unread: [], ops: [], cost: { ...zeroCostRecord(), program: actionPrice }, trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "a printed Activate action price is supported and must not be rejected by the Auto limitation",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { program: actionPrice }, trigger: ["played"] } as never).unsupported,
+    runtimeSupportOfRow({ ...typedRecords(), kind: "auto", unread: [], ops: [], cost: { ...zeroCostRecord(), program: actionPrice }, trigger: ["played"] } as never).unsupported,
     ["the rules engine cannot pay Auto action price containing draw yet — #549 builds it"],
     "an Auto action price the VM's planner cannot plan is not reported supported, and says why (#804)",
   );
   // #804: a price the planner does plan (a hand card to the Drop, BT9-031) is supported.
   const handToDrop = [{ op: "choose", sel: { side: "you", area: "hand", count: 1, filter: { type: "EXTRA" } }, as: "c0" }, { op: "moveTo", target: { var: "c0" }, to: "drop" }];
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { program: handToDrop }, trigger: ["comboed"] } as never),
+    runtimeSupportOfRow({ combo: { version: 1, timing: "battleEnd", subject: "self", origins: null, turn: "any" }, ...typedRecords(), kind: "auto", unread: [], ops: [], cost: { ...zeroCostRecord(), program: handToDrop }, trigger: ["comboed"] } as never),
     { unsupported: [], unknown: [] },
     "an Auto action price the VM's planner plans is supported (#804)",
   );
-  assert.deepEqual(runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { x: { min: 1 } }, trigger: ["played"] } as never), { unsupported: [], unknown: [] }, "a readable Auto X price is supported (#804)");
+  assert.deepEqual(runtimeSupportOfRow({ ...typedRecords(), kind: "auto", unread: [], ops: [], cost: { ...zeroCostRecord(), x: { min: 1 } }, trigger: ["played"] } as never), { unsupported: [], unknown: [] }, "a readable Auto X price is supported (#804)");
   assert.ok(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: { x: { min: 3, max: 1 } }, trigger: ["played"] } as never).unsupported.some((reason) => reason.includes("bounds of this Auto's X cost")),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "auto", unread: [], ops: [], cost: { ...zeroCostRecord(), x: { min: 3, max: 1 } }, trigger: ["played"] } as never).unsupported.some((reason) => reason.includes("bounds of this Auto's X cost")),
     "an Auto X price with unreadable bounds stays refused with its reason (#804)",
   );
   assert.ok(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: null, trigger: [] } as never).unsupported.some((reason) => reason.includes("WHEN trigger")),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "auto", unread: [], ops: [], cost: zeroCostRecord(), trigger: [] } as never).unsupported.some((reason) => reason.includes("WHEN trigger")),
     "an Auto with no readable WHEN is not reported supported",
   );
   assert.ok(
-    runtimeSupportOfRow({ kind: "auto", unread: [], ops: [], cost: null, trigger: ["flippedFaceUp"] } as never).unsupported.some((reason) => reason.includes("does not emit flippedFaceUp")),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "auto", unread: [], ops: [], cost: zeroCostRecord(), trigger: ["flippedFaceUp"] } as never).unsupported.some((reason) => reason.includes("does not emit flippedFaceUp")),
     "a readable Auto WHEN whose event is not emitted stays unsupported",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "counter:counter", unread: [], ops: [{ op: "negate", what: "counter" }], cost: null, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "counter:counter", unread: [], ops: [{ op: "negate", what: "counter" }], cost: zeroCostRecord(), trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "#809: a native Counter: Counter is supported and needs no Auto WHEN trigger",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "counter:play", unread: [], ops: [], cost: null, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "counter:play", unread: [], ops: [], cost: zeroCostRecord(), trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "a Counter row with no Auto WHEN is not falsely rejected",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫.", unread: [], ops: [{ op: "gains", traits: ["Saiyan"] }], cost: null, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫.", unread: [], ops: [{ op: "gains", traits: ["Saiyan"] }], cost: zeroCostRecord(), trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "a Permanent identity gain implemented by the rules VM is runtime-supported",
   );
   assert.ok(
-    runtimeSupportOfRow({ kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫ in all areas.", unread: [], ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "traits", values: ["Saiyan"] }], cost: null, trigger: [] } as never).unsupported.some((reason) => reason.includes("missing its source-validity marker")),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫ in all areas.", unread: [], ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "traits", values: ["Saiyan"] }], cost: zeroCostRecord(), trigger: [] } as never).unsupported.some((reason) => reason.includes("missing its source-validity marker")),
     "a confirmed-style legacy all-area row is not reported supported when its compiled op lost the qualifier",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫ in all areas.", unread: [], ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "traits", values: ["Saiyan"], allAreas: true }], cost: null, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "permanent", printed: "[Permanent] This card gains ≪Saiyan≫ in all areas.", unread: [], ops: [{ op: "modifyAttr", target: { sel: { special: "self" } }, attr: "traits", values: ["Saiyan"], allAreas: true }], cost: zeroCostRecord(), trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "a current all-area identity row keeps its source-validity marker",
   );
   assert.deepEqual(
-    runtimeSupportOfRow({ kind: "permanent", unread: [], ops: [{ op: "negateKeyword", keyword: "Blocker" }], cost: null, trigger: [] } as never),
+    runtimeSupportOfRow({ ...typedRecords(), kind: "permanent", unread: [], ops: [{ op: "negateKeyword", keyword: "Blocker" }], cost: zeroCostRecord(), trigger: [] } as never),
     { unsupported: [], unknown: [] },
     "a Permanent keyword negation implemented by the rules VM is runtime-supported",
   );
