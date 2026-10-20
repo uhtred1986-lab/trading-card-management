@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sandboxFixtureSeedAction, sandboxJudgeAction, sandboxSeedAction, type SandboxSeedResult } from "@/app/arena/rules/sandbox-actions";
+import { sandboxFixtureSeedAction, sandboxJudgeAction, sandboxSeedAction, searchSetupCardsAction, type SandboxSeedResult } from "@/app/arena/rules/sandbox-actions";
+import { SetupSheet, type SetupSearch } from "./SetupPanel";
+import { searchFixtureCards } from "@/lib/arena/sandbox/fixture";
+import { isEmptySetup, sanitizeSetup, setupKey, type BoardSetup } from "@/lib/arena/sandbox/setup";
 import { ArenaStage } from "@/components/arena/stage/ArenaStage";
 import { draftKey } from "@/lib/arena/sandbox/draft";
 import { createSandboxSession, replayMoves, type JournalEntry, type SandboxSeed, type SandboxSession } from "@/lib/arena/sandbox/session";
@@ -46,6 +49,23 @@ function readDraft(key: string): unknown {
   }
 }
 
+/** What the owner set up for this rule, and the names the panel was shown for its cards (cosmetic). */
+function readSetup(key: string): { setup: BoardSetup; names: Record<string, string> } {
+  try {
+    const raw = sessionStorage.getItem(key);
+    const parsed = raw ? (JSON.parse(raw) as { setup?: unknown; names?: Record<string, string> }) : null;
+    return { setup: sanitizeSetup(parsed?.setup), names: parsed?.names && typeof parsed.names === "object" ? parsed.names : {} };
+  } catch {
+    return { setup: {}, names: {} };
+  }
+}
+
+/** The skill as the card prints it: the index is `line * 10 + sub`, so 11 is the second part of the first line. */
+export function skillLabel(index: number): string {
+  const sub = index % 10;
+  return `skill ${Math.floor(index / 10) + 1}${sub > 0 ? String.fromCharCode(96 + sub) : ""}`;
+}
+
 const card = "rounded-xl border border-space-700/70 bg-space-900/50 p-3";
 const heading = "text-[10px] font-semibold uppercase tracking-wide text-space-500";
 const btn = "tap inline-flex min-h-11 items-center justify-center gap-1 whitespace-normal rounded-lg border px-3 text-[14px] font-semibold disabled:opacity-50";
@@ -68,12 +88,21 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
   const [verdict, setVerdict] = useState<{ state: "idle" | "asking" | "saving" | "saved"; text?: string }>({ state: "idle" });
   const [should, setShould] = useState<Should>("fire");
   const [note, setNote] = useState("");
+  const [setup, setSetup] = useState<BoardSetup>({});
+  const [setupNames, setSetupNames] = useState<Record<string, string>>({});
+  const [showSetup, setShowSetup] = useState(false);
   const current = useRef<SandboxSession | null>(null);
+  const sKey = setupKey(ruleId, fixture);
+
+  const search: SetupSearch = useCallback(
+    (query, leadersOnly) => (fixture !== undefined ? Promise.resolve({ error: null, hits: searchFixtureCards(query, leadersOnly) }) : searchSetupCardsAction(query, leadersOnly)),
+    [fixture],
+  );
 
   const fetchSeed = useCallback(
-    async (draft: unknown, boardTo: string | null): Promise<SandboxSeedResult> => {
+    async (draft: unknown, boardTo: string | null, board: BoardSetup): Promise<SandboxSeedResult> => {
       try {
-        return fixture !== undefined ? await sandboxFixtureSeedAction(fixture, draft, boardTo) : await sandboxSeedAction(ruleId ?? 0, draft, boardTo);
+        return fixture !== undefined ? await sandboxFixtureSeedAction(fixture, draft, boardTo, board) : await sandboxSeedAction(ruleId ?? 0, draft, boardTo, board);
       } catch (e) {
         return { error: e instanceof Error ? e.message : String(e), seed: null, card: null };
       }
@@ -103,7 +132,11 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
       setError(null);
       setNotice(null);
       const draft = readDraft(key);
-      const made = await fetchSeed(draft, boardTo);
+      // Reset and Replay keep the owner's setup: it waits in sessionStorage, like the draft.
+      const kept = readSetup(sKey);
+      setSetup(kept.setup);
+      setSetupNames(kept.names);
+      const made = await fetchSeed(draft, boardTo, kept.setup);
       if (made.error || !made.seed) {
         setError(made.error ?? "No board.");
         setBusy(false);
@@ -121,8 +154,19 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
       }
       setBusy(false);
     },
-    [attach, fetchSeed, key],
+    [attach, fetchSeed, key, sKey],
   );
+
+  const applySetup = (next: BoardSetup, names: Record<string, string>) => {
+    try {
+      if (isEmptySetup(next)) sessionStorage.removeItem(sKey);
+      else sessionStorage.setItem(sKey, JSON.stringify({ setup: next, names }));
+    } catch {
+      /* storage can be blocked: the setup then lasts for this Reset only */
+    }
+    setShowSetup(false);
+    void start("fresh", board);
+  };
 
   useEffect(() => {
     // The first board is staged once, from the browser-only draft: an external storage synchronisation.
@@ -176,6 +220,11 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
   const played = entries.some((e) => e.actor === "p1");
 
   return (
+    <div className="space-y-3">
+      <Link href={backHref} className="tap inline-flex min-h-11 items-center gap-1 rounded-lg border border-space-600 px-3 text-[14px] font-semibold text-space-200 hover:bg-space-800">
+        <span aria-hidden="true">‹</span> Back to card
+      </Link>
+      {showSetup && <SetupSheet value={setup} names={setupNames} search={search} onApply={applySetup} onClose={() => setShowSetup(false)} />}
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="min-w-0">
         {session && snapshot ? (
@@ -190,7 +239,7 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
           <h2 className={heading}>What is tested</h2>
           {info && (
             <p className="mt-1 text-[14px] font-semibold leading-snug text-space-100">
-              {info.name} <span className="font-normal text-space-400">· skill {info.skillIndex + 1}</span>
+              {info.name} <span className="font-normal text-space-400">· {skillLabel(info.skillIndex)}</span>
             </p>
           )}
           {info?.printed && <p className="mt-1 text-[12px] text-space-300">{info.printed}</p>}
@@ -214,7 +263,7 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
           <p className="mt-2 text-[12px] text-space-400">
             Opponent: <span className="font-semibold text-space-200">Local AI</span> — the same policy the offline match uses.
           </p>
-          {seed && seed.waitsFor.length > 0 && <p className="mt-1 text-[12px] text-space-400">This board is set up for you to {seed.waitsFor.join(", then ")}.</p>}
+          {seed && seed.waitsFor.length > 0 && <p className="mt-1 text-[12px] text-space-400">On this board: {seed.waitsFor.join(", then ")}.</p>}
           {seed && (
             <details className="mt-2 text-[11px] text-space-400">
               <summary className="cursor-pointer">How the board is built</summary>
@@ -235,6 +284,14 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
             {notice && <p>{notice}</p>}
           </section>
         )}
+
+        <section className={card}>
+          <h2 className={heading}>Set up the board</h2>
+          <p className="mt-1 text-[12px] text-space-400">{isEmptySetup(setup) ? "The board is as the probe builds it." : "Your setup is kept for Reset and Replay."}</p>
+          <button type="button" className={`${btn} mt-2 w-full border-space-600 text-space-200 hover:bg-space-800`} disabled={busy || !seed} onClick={() => setShowSetup(true)}>
+            {isEmptySetup(setup) ? "Set up the board…" : "Change the setup…"}
+          </button>
+        </section>
 
         <section className={card}>
           <h2 className={heading}>Your edit</h2>
@@ -342,6 +399,7 @@ export function SandboxPlay({ ruleId, fixture, boardKey, backHref, edits, skin, 
           )}
         </section>
       </aside>
+    </div>
     </div>
   );
 }

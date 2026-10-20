@@ -18,6 +18,7 @@
  * | `count` (atMost n)        | n and n + 1                                  |
  * | `life`                    | the threshold, and one past it               |
  * | `isTurnPlayer`            | your turn and theirs                         |
+ * | `did` `may` / `chose`     | the offer taken, and the offer declined (an answer, not a board) |
  * | `all` / `any` / `not`     | the pairs of its parts, the rest held so the part decides |
  * | anything else             | no pair; `edgeNotes` says so                  |
  *
@@ -80,6 +81,13 @@ export function conditionSites(view: Rule): { path: RulePath; cond: Cond }[] {
 // ── the knobs ───────────────────────────────────────────────────────────────
 
 export type KnobKind = "count" | "life" | "turn";
+
+/**
+ * Conditions that read an *answer* of the player's rather than the board: "if you do" after a `may`, and "if you
+ * chose". They have no number to set; the board is the same and the probe either takes the offer or declines it.
+ * (Another `did` — "if you drew", "if you KO'd" — reads what a step managed to do, which no answer controls.)
+ */
+export const isAnswerCond = (cond: Cond): boolean => cond.kind === "chose" || (cond.kind === "did" && cond.what === "may");
 
 /** One thing the "Change board" sheet can set: a condition leaf the probe knows how to stage. */
 export interface KnobSpec {
@@ -161,6 +169,8 @@ export function knobWords(view: Rule, path: RulePath, value: KnobValue): string 
   if (cond.kind === "count") return cardsWords(cond.sel, typeof value === "number" ? value : 0);
   if (cond.kind === "life") return `${cond.side === "opponent" ? "your opponent's" : "your"} life at ${value}`;
   if (cond.kind === "isTurnPlayer") return value === "opponent" ? "the opponent's turn" : "your turn";
+  if (cond.kind === "did") return value === "decline" ? "you decline the offer" : "you take the offer";
+  if (cond.kind === "chose") return value === "decline" ? "you pass on the choice (where it is optional)" : "you make the choice";
   return `${path} = ${value}`;
 }
 
@@ -187,6 +197,9 @@ function setting(cond: Cond, path: RulePath, want: boolean): BoardKnobs | null {
       const mine = (cond.who ?? "you") === "you";
       return { [path]: mine === want ? "you" : "opponent" };
     }
+    case "did":
+    case "chose":
+      return isAnswerCond(cond) ? { [path]: want ? "take" : "decline" } : null;
     case "not":
       return setting(cond.cond, childPath(path, "cond"), !want);
     case "all":
@@ -212,6 +225,8 @@ function pairsOf(cond: Cond, path: RulePath): [BoardKnobs, BoardKnobs][] {
   switch (cond.kind) {
     case "count":
     case "life":
+    case "did":
+    case "chose":
     case "isTurnPlayer": {
       const met = setting(cond, path, true);
       const unmet = setting(cond, path, false);
@@ -244,7 +259,7 @@ export function edgeNotes(view: Rule): string[] {
   const leaf = (cond: Cond) => {
     if (cond.kind === "all" || cond.kind === "any") cond.conds.forEach(leaf);
     else if (cond.kind === "not") leaf(cond.cond);
-    else if (!["count", "life", "isTurnPlayer"].includes(cond.kind)) kinds.add(cond.kind);
+    else if (!["count", "life", "isTurnPlayer"].includes(cond.kind) && !isAnswerCond(cond)) kinds.add(cond.kind);
   };
   for (const site of conditionSites(view)) leaf(site.cond);
   return [...kinds].map((k) => `no edge board for ${k} yet`);
@@ -267,7 +282,7 @@ export function decodeKnobs(text: string): BoardKnobs {
     const eq = part.lastIndexOf("=");
     if (eq < 1) continue;
     const raw = part.slice(eq + 1);
-    out[part.slice(0, eq)] = raw === "you" || raw === "opponent" ? raw : Number(raw);
+    out[part.slice(0, eq)] = raw === "you" || raw === "opponent" || raw === "take" || raw === "decline" ? raw : Number(raw);
   }
   return out;
 }

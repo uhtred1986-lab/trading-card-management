@@ -588,8 +588,8 @@
     "digest": "b02ca72c"
   },
   "PRICED#0": {
-    "outcome": "notOffered",
-    "digest": "95489e0a"
+    "outcome": "fired",
+    "digest": "3b908289"
   },
   "PUMP#0": {
     "outcome": "fired",
@@ -776,8 +776,8 @@
     "digest": "4616d25d"
   },
   "TITHE#0": {
-    "outcome": "notOffered",
-    "digest": "7dea9ca0"
+    "outcome": "fired",
+    "digest": "e87b65c3"
   },
   "TOUGH#0": {
     "outcome": "fired",
