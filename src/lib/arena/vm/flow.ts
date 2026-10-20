@@ -568,7 +568,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
     // two places a player is about to be asked to act (9-6-6).
     // 20-13-4: and none in a skipped phase.
-    if (!top.skipped) {
+    // 8-1-3 → 8-1-4 → 8-1-5 (#1139): the attack's "when this card attacks"
+    // Autos pend at the declaration, the guard's side gets counter timing, and
+    // only then does the checkpoint resolve them — so none runs between
+    // `battleDeclare` and `battleCounterAttack`.
+    const noCheckpointYet = top.phase === "battle" && name === "battleDeclare";
+    if (!top.skipped && !noCheckpointYet) {
       const checkpointResult = checkpoint(ctx, game, state, ev);
       if (checkpointResult === "wait") return;
       if (checkpointResult) continue;
