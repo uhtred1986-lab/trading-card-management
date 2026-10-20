@@ -585,8 +585,8 @@ assert.deepEqual(ultimates.keywordRules.find((r) => r.keyword === "Ultimate"), {
   const redExtra = deck(cell, row("X-RED", "main", 4, { cardType: "EXTRA", colors: ["Red"] }));
   assert.equal(redExtra.status, "illegal");
   assert.equal(redExtra.flags["main:X-RED"]?.severity, "illegal");
-  assert.match(redExtra.flags["main:X-RED"].label, /BT31-116.*can't include non-white Extra Cards/);
-  assert.ok(redExtra.issues.some((i) => i.cardId === "X-RED" && /BT31-116/.test(i.message)), "names the Leader's rule and the offending card");
+  assert.match(redExtra.flags["main:X-RED"].label, /Leader's rule: can't include non-white Extra Cards/);
+  assert.ok(redExtra.issues.some((i) => /BT31-116\) can't include non-white Extra Cards: X-RED \(X-RED\)/.test(i.message)), "names the Leader's rule and the offending card: " + JSON.stringify(redExtra.issues));
   const whiteExtra = deck(cell, row("X-WHITE", "main", 4, { cardType: "EXTRA", colors: ["White"] }));
   assert.equal(whiteExtra.flags["main:X-WHITE"], undefined);
   assert.ok(!whiteExtra.issues.some((i) => /BT31-116/.test(i.message)));

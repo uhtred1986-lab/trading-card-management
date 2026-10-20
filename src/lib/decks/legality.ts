@@ -118,11 +118,19 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   const RULES = info.deck;
   const issues: DeckIssue[] = [];
   const flags: Record<string, DeckFlag> = {};
-  const flag = (r: LegalityCard, severity: IssueSeverity, label: string) => {
+  const flag = (r: LegalityCard, severity: IssueSeverity, label: string, quiet = false) => {
     const key = `${r.zone}:${r.cardId}`;
     // Keep the most severe reason when a card breaks more than one rule.
     if (!flags[key] || (flags[key].severity === "warning" && severity !== "warning")) flags[key] = { severity, label };
-    issues.push({ severity, message: `${r.name} (${r.cardId}): ${label}.`, cardId: r.cardId });
+    if (!quiet) issues.push({ severity, message: `${r.name} (${r.cardId}): ${label}.`, cardId: r.cardId });
+  };
+  /** One issue for a rule many cards break: the rule once, then the cards ("Cell (BT31-116) can't include …: Goku (X-1), …"). */
+  const breaking = (rule: string, offenders: LegalityCard[], label: string) => {
+    const seen = new Set<string>();
+    const unique = offenders.filter((r) => !seen.has(r.cardId) && !!seen.add(r.cardId));
+    if (!unique.length) return;
+    for (const r of unique) flag(r, "illegal", label, true);
+    issues.push({ severity: "illegal", message: `${rule}: ${unique.map((r) => `${r.name} (${r.cardId})`).join(", ")}.` });
   };
   const count = (zone: string) => rows.filter((r) => r.zone === zone).reduce((n, r) => n + r.quantity, 0);
   const leaderCount = count("leader");
@@ -201,14 +209,12 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
         const who = `${leader.name} (${leader.cardId})`;
         if (rule.kind === "exclude") {
           const reachesZ = rule.filters.some((f) => f.types?.some((t) => t.startsWith("Z-")));
-          for (const r of inDeck) {
-            if (r.zone === "z" && !reachesZ) continue;
-            if (!rule.filters.some((f) => matchesCardFilter(r, f))) continue;
-            if (rule.except && matchesCardFilter(r, rule.except)) continue;
-            flag(r, "illegal", `against the Leader's rule: ${who} ${rule.words}`);
-          }
+          const offenders = inDeck.filter(
+            (r) => (r.zone !== "z" || reachesZ) && rule.filters.some((f) => matchesCardFilter(r, f)) && !(rule.except && matchesCardFilter(r, rule.except)),
+          );
+          breaking(`${who} ${rule.words}`, offenders, `against the Leader's rule: ${rule.words}`);
         } else if (rule.kind === "only") {
-          for (const r of inDeck) if (r.zone === rule.zone && !matchesCardFilter(r, rule.filter)) flag(r, "illegal", `against the Leader's rule: ${who} allows ${rule.words}`);
+          breaking(`${who} allows ${rule.words}`, inDeck.filter((r) => r.zone === rule.zone && !matchesCardFilter(r, rule.filter)), `against the Leader's rule: ${rule.words}`);
         }
       }
     }
@@ -221,9 +227,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
         seen.add(key);
         const members = inDeck.filter((r) => matchesCardFilter(r, rule.filter));
         const used = members.reduce((sum, r) => sum + r.quantity, 0);
-        if (used <= rule.max) continue;
-        issues.push({ severity: "illegal", message: `${used} cards against ${holder.name} (${holder.cardId}): ${rule.words}.` });
-        for (const m of members) flag(m, "illegal", `over the limit of ${holder.name} (${holder.cardId}): ${rule.words}`);
+        if (used > rule.max) breaking(`${used} cards against ${holder.name} (${holder.cardId}): ${rule.words}`, members, `over the limit of ${holder.name} (${holder.cardId}): ${rule.words}`);
       }
     }
   }

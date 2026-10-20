@@ -330,9 +330,9 @@ function readClause(piece: string, continuation: boolean): { rule: DeckBuildingR
     const words = `can't include ${fs.map(describeCardFilter).join(", or ")}${except ? `, except for ${describeCardFilter(except)}` : ""}`;
     return { rule: { kind: "exclude", filters: fs, except, zone, words }, rest };
   }
-  const copies = /^(?:(as many) copies|(?:up to )?(\d+) cop(?:y|ies)) of this card$/i.exec(body);
+  const copies = /^(?:(as many) copies of this card|(any number) of this card|(?:up to )?(\d+) cop(?:y|ies) of this card)$/i.exec(body);
   if (copies) {
-    const max = copies[1] ? null : Number(copies[2]);
+    const max = copies[1] || copies[2] ? null : Number(copies[3]);
     const words = max === null ? `any number of copies of this card ${inZone(zone)}` : `up to ${max} cop${max === 1 ? "y" : "ies"} of this card ${inZone(zone)}`;
     return { rule: { kind: "copies", max, zone, words }, rest };
   }
