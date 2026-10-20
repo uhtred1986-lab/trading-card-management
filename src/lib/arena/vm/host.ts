@@ -73,7 +73,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
@@ -238,6 +238,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // 0-2-4-1: a card already in that mode does not switch, and an event for
       // a change that did not happen is a beat the board plays over nothing.
       if (inst.mode === mode) return false;
+      // 20-14: "can't switch to Active Mode" (BT5-101 Time Magic) holds against
+      // every skill's switch, [Dual Attack]'s stand and an Auto's included
+      // (BT5-101's Q&A) - this is the one place a skill's switch lands. Asked
+      // of the card alone and without the hooks, so [Servant]'s Charge-Phase
+      // hook does not stop its own card standing by a skill.
+      if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) return false;
       inst.mode = mode;
       // 1-10-1: a skill doing the switching is part of the moment — `by:
       // skill`, or the keyword whose skill it is (`by: Alliance`, 22-32-3) —
