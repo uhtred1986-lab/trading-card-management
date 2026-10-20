@@ -505,7 +505,21 @@ assert.deepEqual(ultimates.keywordRules.find((r) => r.keyword === "Ultimate"), {
   assert.deepEqual(x("[Permanent] You can't include cards with energy costs of 5 or more in your deck.").filters, [{ cost: { min: 5 } }]); // P-086
   assert.deepEqual(x("[Permanent] You can't include Extra Cards with energy costs of 2 or more in your deck.").filters, [{ cost: { min: 2 }, types: ["EXTRA"] }]); // BT13-001
   assert.deepEqual(x("[Permanent] You can't include cards with energy costs of 6 or more, or multicolor cards in your deck.").filters, [{ cost: { min: 6 } }, { multicolor: true }]); // P-269, SD21-01
-  assert.deepEqual(x("[Permanent] You can't include cards that don't have ≪Universe≫ as part of their special traits in your deck.").filters, [{ notTraits: ["Universe"] }]); // EX03-25
+  assert.deepEqual(x("[Permanent] You can't include cards that don't have ≪Universe≫ as part of their special traits in your deck.").filters, [{ notTraitParts: ["Universe"] }]);
+  // Live printed texts (public catalog strings).
+  assert.deepEqual(x("[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.").filters, [{ notTraitParts: ["Universe"] }]); // EX03-25
+  assert.equal(parseDeckBuilding("[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.").rest, "", "the relative clause is part of the description");
+  assert.deepEqual(x("[Permanent] You cannot include non-≪Universe 7≫ cards in your deck.").filters, [{ notTraits: ["Universe 7"] }]); // TB1-050
+  assert.deepEqual(x("[Permanent] You can't include non-≪World Tournament≫ Battle Cards or multicolor cards in your deck.").filters, [{ notTraits: ["World Tournament"], types: ["BATTLE"] }, { multicolor: true }]); // P-269
+  const bt6027 = parseDeckBuilding("[Permanent] You can't include Extra Cards with energy costs of 4 or more in your deck, and this card can't attack."); // BT6-027
+  assert.deepEqual(bt6027.rules.map((r) => (r as Extract<DeckBuildingRule, { kind: "exclude" }>).filters), [[{ cost: { min: 4 }, types: ["EXTRA"] }]]);
+  assert.equal(bt6027.rest, "this card can't attack", "the game half is not swallowed");
+  // An exclude or only that would match every card is never emitted.
+  for (const text of ["[Permanent] You can't include cards in your deck.", "[Permanent] You can't include cards in your deck that look odd.", "[Permanent] You can only include cards in your Z-Deck."]) {
+    const r = parseDeckBuilding(text);
+    assert.deepEqual(r.rules, [], text);
+    assert.equal(r.unread.length, 1, `${text} is unread`);
+  }
   assert.deepEqual(x("[Permanent] You cannot include cards with energy costs of 6 or more in your deck.").filters, [{ cost: { min: 6 } }]); // TB1-050, TB2-065
   assert.equal(x("[Permanent] You can't include non-white Extra in your deck.").words, "can't include non-white Extra Cards");
 
@@ -602,6 +616,13 @@ assert.deepEqual(ultimates.keywordRules.find((r) => r.keyword === "Ultimate"), {
   const u7Vegeta = row("U7V", "main", 4, { traits: ["Universe 7"], characters: ["Vegeta"] });
   const u6 = row("U6", "main", 4, { traits: ["Universe 6"], characters: ["Hit"] });
   const xd = deck(xd1, u7, u7Vegeta, u6);
+  // EX03-25: a trait that contains ≪Universe≫ is enough.
+  const ex03 = leader("EX03-25", "[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.");
+  const uni = deck(ex03, row("UN7", "main", 4, { traits: ["Universe 7"] }), row("UN11", "main", 4, { traits: ["Universe 11"] }), row("SAI", "main", 4, { traits: ["Saiyan"] }));
+  assert.equal(uni.flags["main:UN7"], undefined);
+  assert.equal(uni.flags["main:UN11"], undefined);
+  assert.equal(uni.flags["main:SAI"]?.severity, "illegal", "a non-Universe card is flagged");
+  assert.ok(!uni.issues.some((i) => /EX03-25/.test(i.message) && /UN7|UN11/.test(i.message)));
   assert.equal(xd.flags["main:U7"]?.severity, "illegal");
   assert.equal(xd.flags["main:U7V"], undefined, "a non-Universe-6 <Vegeta> is accepted");
   assert.equal(xd.flags["main:U6"], undefined);
