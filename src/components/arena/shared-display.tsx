@@ -104,12 +104,15 @@ export function StepBanner({ step, hold = false, ms = 1000, playing = false, cue
 
   if (!shown) return null;
   return (
-    // A compact chip under the top bar, not a scene in the middle of the board:
-    // phases come often, and the cards stay visible while it names the phase.
-    <div className="pointer-events-none fixed inset-x-0 top-[3.75rem] z-30 flex justify-center px-2" aria-hidden data-step-banner={shown.text}>
-      <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-notice arena-impact select-none rounded-full px-4 py-1.5 text-base font-black uppercase italic tracking-wide text-space-50 sm:text-xl">
-        {shown.text}
-      </p>
+    // Like the turn banner (TurnPresence.tsx): the board blurs behind a bar that spans the screen. The veil's
+    // blur radius is fixed and only its opacity animates; nothing takes a pointer.
+    <div className="pointer-events-none fixed inset-0 z-30 grid place-items-center overflow-hidden" aria-hidden data-step-banner={shown.text}>
+      <div key={`veil-${shown.key}`} className="arena-turnveil" style={{ animationDuration: `${ms}ms` }} data-step-veil />
+      <div className="arena-stepbar relative w-full px-4 py-3 text-center lg:py-6">
+        <p key={shown.key} style={{ animationDuration: `${ms}ms` }} className="arena-banner arena-impact mx-auto max-w-[94vw] select-none text-balance break-words text-3xl font-black uppercase italic leading-[1.05] tracking-wide text-space-50 sm:text-5xl lg:text-7xl">
+          {shown.text}
+        </p>
+      </div>
     </div>
   );
 }
