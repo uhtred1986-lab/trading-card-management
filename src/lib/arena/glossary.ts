@@ -562,7 +562,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Once per turn]",
     section: "22-11",
     meaning: "The skill may be activated and resolved once in a turn. Two cards with the same skill each get their own once.",
-    engine: "Counted on the copy, so two copies with the same line each get their own once. A used line is refused, and on the rules engine a pending [Auto] whose once is spent fails to activate rather than resolving again (22-11-4/5, #741). A copy that changes area is a new card (3-1-4), so its count starts again on the rules engine (#746); a Battle/Unison move into Battle, Unison or Combo, and Combo into Battle, carries it (3-1-4-1/3-1-4-2, which the manual words as carrying effects applied to the card — a reading, not a stated ruling). [Limit X] is not reset by a move.",
+    engine: "Counted on the copy, so two copies with the same line each get their own once. A used line is refused, and on the rules engine a pending [Auto] whose once is spent fails to activate rather than resolving again (22-11-4/5, #741). A copy that changes area is a new card (3-1-4), so its count starts again on the rules engine (#746); a Battle/Unison move into Battle, Unison or Combo, and Combo into Battle, carries it (3-1-4-1/3-1-4-2, which the manual words as carrying effects applied to the card — a reading, not a stated ruling). [Limit X] is not reset by a move. “When your <filter> is KO'd” (BT3-082 back 10, #1120) is qualified before it is pended: a KO of a card that does not match the filter is no trigger (9-6) and does not use the once, read from the compiled record (a lone IF on the KO'd card's filter), never from names.",
   },
   {
     tag: "[Limit X]",
