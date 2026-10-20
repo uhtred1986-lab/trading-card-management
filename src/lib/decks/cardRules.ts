@@ -138,6 +138,9 @@ export interface DeckCardFilter {
   notColors?: string[];
   traits?: string[];
   notTraits?: string[];
+  /** "that have ≪Universe≫ as part of their special traits": a trait that CONTAINS the name as whole words (Universe 6, Universe 11). */
+  traitParts?: string[];
+  notTraitParts?: string[];
   characters?: string[];
   notCharacters?: string[];
   /** Carries this bracketed keyword at the head of a text block. */
@@ -190,15 +193,15 @@ export function parseCardDescription(raw: string): DeckCardFilter | null {
   }
   const lacks = /\bthat (?:do not|does not|don't|doesn't) have (≪[^≫]+≫) as part of (?:their|its) special traits?\b/i.exec(t);
   if (lacks) {
-    f.notTraits = [bare(lacks[1])];
+    f.notTraitParts = [bare(lacks[1])];
     t = t.replace(lacks[0], " ");
   }
   const has = /\bthat (?:have|has) (≪[^≫]+≫) as part of (?:their|its) special traits?\b/i.exec(t);
   if (has) {
-    f.traits = [bare(has[1])];
+    f.traitParts = [bare(has[1])];
     t = t.replace(has[0], " ");
   }
-  let any = !!(f.cost || f.notTraits || f.traits);
+  let any = !!(f.cost || f.notTraitParts || f.traitParts);
   type ListKey = "traits" | "notTraits" | "characters" | "notCharacters" | "types" | "colors" | "notColors";
   const push = (key: ListKey, v: string) => {
     (f[key] ??= []).push(v);
@@ -220,7 +223,7 @@ export function parseCardDescription(raw: string): DeckCardFilter | null {
       if (neg) return null;
       push("types", TYPE_WORDS[low]);
     } else if (low === "card" || low === "cards") {
-      // the noun
+      continue; // the noun; "cards" alone names nothing, so it is no description
     } else return null;
     any = true;
   }
@@ -233,6 +236,8 @@ export function describeCardFilter(f: DeckCardFilter): string {
   for (const c of f.notColors ?? []) parts.push(`non-${c.toLowerCase()}`);
   for (const c of f.colors ?? []) parts.push(c.toLowerCase());
   if (f.multicolor) parts.push("multicolor");
+  for (const t of f.notTraitParts ?? []) parts.push(`non-≪${t}≫ (a trait containing it)`);
+  for (const t of f.traitParts ?? []) parts.push(`≪${t}≫ (a trait containing it)`);
   for (const t of f.notTraits ?? []) parts.push(`non-≪${t}≫`);
   for (const t of f.traits ?? []) parts.push(`≪${t}≫`);
   for (const c of f.notCharacters ?? []) parts.push(`non-<${c}>`);
@@ -256,12 +261,21 @@ export interface DeckCardFacts {
 const norm = (s: string) => bare(s).toLowerCase();
 const hasAny = (have: string[] | undefined, want: string[]) => (have ?? []).some((h) => want.some((w) => norm(h) === norm(w)));
 
+/** A trait that contains one of the names as whole words: "Universe" is part of "Universe 7" and "Universe 11". */
+const hasPart = (have: string[] | undefined, want: string[]) =>
+  (have ?? []).some((h) => want.some((w) => new RegExp(`(?:^|\\s)${norm(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`).test(norm(h))));
+
+/** A filter that names nothing matches every card: such a clause is never emitted (it would flag every deck). */
+const isEmptyFilter = (f: DeckCardFilter) => Object.values(f).every((v) => v === undefined || (Array.isArray(v) && v.length === 0));
+
 export function matchesCardFilter(card: DeckCardFacts, f: DeckCardFilter): boolean {
   const colours = card.colors.filter((c) => c.toLowerCase() !== "colorless");
   if (f.types && !f.types.includes(card.cardType.toUpperCase())) return false;
   if (f.colors && !hasAny(colours, f.colors)) return false;
   if (f.notColors && hasAny(colours, f.notColors)) return false;
   if (f.multicolor && colours.length < 2) return false;
+  if (f.traitParts && !hasPart(card.traits, f.traitParts)) return false;
+  if (f.notTraitParts && hasPart(card.traits, f.notTraitParts)) return false;
   if (f.traits && !hasAny(card.traits, f.traits)) return false;
   if (f.notTraits && hasAny(card.traits, f.notTraits)) return false;
   if (f.characters && !hasAny(card.characters, f.characters)) return false;
@@ -318,6 +332,12 @@ function readClause(piece: string, continuation: boolean): { rule: DeckBuildingR
     except = f;
     tail = tail.slice(exc[0].length);
   }
+  // "cards in your deck that don't have ≪Universe≫ as part of their special trait": the relative clause follows the zone.
+  const rel = /^\s*(that (?:(?:do not|does not|don't|doesn't) have|have|has) ≪[^≫]+≫ as part of (?:their|its) special traits?)/i.exec(tail);
+  if (rel) {
+    body = `${body} ${rel[1]}`;
+    tail = tail.slice(rel[0].length);
+  }
   const rest = tail.replace(/^\s*,?\s*(?:and\s+)?/i, "").trim();
   if (refuse) {
     if (/^this card\b/i.test(body)) return "unreadable";
@@ -325,7 +345,7 @@ function readClause(piece: string, continuation: boolean): { rule: DeckBuildingR
     const guarded = body.replace(/(\d+) or (less|more)/gi, "$1 OR$2");
     const items = guarded.split(/\s*,\s*(?:or\s+)?|\s+or\s+/i).map((s) => s.replace(/ OR(less|more)/g, " or $1").trim()).filter(Boolean);
     const filters = items.map(parseCardDescription);
-    if (!filters.length || filters.some((f) => !f)) return "unreadable";
+    if (!filters.length || filters.some((f) => !f || isEmptyFilter(f))) return "unreadable";
     const fs = filters as DeckCardFilter[];
     const words = `can't include ${fs.map(describeCardFilter).join(", or ")}${except ? `, except for ${describeCardFilter(except)}` : ""}`;
     return { rule: { kind: "exclude", filters: fs, except, zone, words }, rest };
@@ -345,7 +365,7 @@ function readClause(piece: string, continuation: boolean): { rule: DeckBuildingR
   }
   if (only) {
     const f = parseCardDescription(body);
-    if (!f) return "unreadable";
+    if (!f || isEmptyFilter(f)) return "unreadable";
     return { rule: { kind: "only", filter: f, zone, words: `only ${describeCardFilter(f)} ${inZone(zone)}` }, rest };
   }
   return "unreadable";
