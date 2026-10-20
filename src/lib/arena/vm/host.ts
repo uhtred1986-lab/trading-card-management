@@ -653,7 +653,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           // #1015: a play a skill makes names its cause; a declared play (5-5-2) does not.
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
-        if (played) (frame.did ??= {}).play = true;
+        if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
         // 22-13-5-4: [Union-Potara]'s materials all go under the card in the play
         // itself (`resolvePlay`'s `under`), so a play that failed moved none of them.
         if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
