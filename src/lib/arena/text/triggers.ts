@@ -139,6 +139,8 @@ export function comboEntryFromHand(sk: Skill): boolean {
  *  - "when you combo with this card **from an Energy Area using {X}'s skill**" (BT7-030): the Energy
  *    Area, and only a combo that the named card's skill made (`viaSkillOf`, the card whose skill
  *    moved it, kept beside the origin on the battle);
+ *  - "when you combo with this card **from the Battle Area**" (BT5-013, BT5-062, BT5-005, SD2-04; #1137):
+ *    only a combo whose card came out of a Battle Area, not one from the hand (`comboOrigins` says `battle`);
  *  - "when you combo with this card from your hand **with an <Android 18> card in battle**"
  *    (BT8-030): the hand is `comboEntryFromHand`'s too; the company (`company`) is a condition the
  *    compiler puts on the program (a card of yours in the battle), because it is about the board when
@@ -161,6 +163,7 @@ export function comboEntryQualifier(sk: Skill): ComboEntryQualifier | null {
   if (/^when this card in your (?:deck or hand|hand or deck) is used in a combo\b/.test(head)) return { origins: ["deck", "hand"] };
   const via = /^when you combo with this card from an? energy area using (\{\d+\})['’]s skill\s*(?:,|$)/.exec(head);
   if (via) return { origins: ["energy"], viaSkillOf: masked.unmask(via[1]).replace(/^\{|\}$/g, "") };
+  if (/^when you combo with this card from the battle area\s*(?:,|$)/.test(head)) return { origins: ["battle"] };
   const company = /^when you combo with this card from your hand with (?:an?|1) (<[^>]+> card) in battle\s*(?:,|$)/.exec(head);
   if (company) return { origins: ["hand"], company: company[1] };
   return null;
