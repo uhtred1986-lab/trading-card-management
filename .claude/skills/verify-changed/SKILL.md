@@ -12,7 +12,9 @@ description: Use before committing, before pushing, or whenever you need to chec
   them (or read them), plus the rule table for what imports cannot show (Server Function files run
   `verify/guards.ts`, schema and migrations run the db checks). A path nothing claims runs the
   cheap fallback: `verify-rules`, `verify-arena`, `verify/guards`.
-- **Before each push:** `npm run checks -- full`. Typecheck, lint, every entry of `npm test`, then the build.
+- **Once on the final combined head, before merge (the coordinator):** `npm run checks -- full`:
+  typecheck, lint, every entry of `npm test`, then the build. Skip the build when the diff is not
+  build-sensitive. Policy and when to run what: `docs/agent-brief.md` → "Checking a change".
 - `npm run checks -- quick` is typecheck plus lint of the changed files only. `npm run checks -- <paths>`
   checks exactly those paths.
 
@@ -24,8 +26,7 @@ the same command; a rerun is as cheap as the failing part.
 
 - `no rule for N path(s)`: those paths ran the fallback; fine for assets and config.
 - `N further importing script(s) not run`: a file everything imports (a glossary, a types module) reaches
-  more than 12 scripts, and only the nearest 12 ran. Run `full` before pushing.
+  more than 12 scripts, and only the nearest 12 ran. Run `full` once before merge.
 - A step that never prints is slow, not hung (`verify-arena` and the policy proofs take minutes).
 
-Run it in the foreground, without `| tail`. In a cloud session the SessionStart hook already puts Node 24
-first and unsets the shared `DATABASE_URL`.
+Run it in the foreground, without `| tail` (more habits: the brief).

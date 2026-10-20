@@ -1,183 +1,100 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+Loaded every turn, so it holds only what every task needs. Depth lives in `docs/`; the index below
+says which file to open before touching which area. Read the one you need, not all.
 
 ## What this is
 
-A single-user Next.js companion app for Bandai's two **Dragon Ball Super Card Game** products:
-the original game (legacy BT1–BT25 plus the current Masters line) and **Fusion World**. Collection
-tracking with market values, virtual vs. built decks with a reservation system, Claude-powered deck
-analysis and card scanning, TCGplayer pricing, and a read-only CardTrader integration with a cart
-optimiser. `dbs-tcg-app-feature-summary.md` is the original feature spec, written before Fusion
-World was added.
+A single-user Next.js companion app for Bandai's two **Dragon Ball Super Card Game** products: the
+original game (legacy BT1–BT25 plus the Masters line, `game = "dbs"`) and **Fusion World**
+(`"fusion"`). Collection tracking with market values, virtual vs. built decks with a reservation
+system, Claude-powered deck analysis and card scanning, TCGplayer pricing, a read-only CardTrader
+integration with a cart optimiser, and the **arena** (an engine that plays `dbs` decks by the
+Masters rule manual). `dbs-tcg-app-feature-summary.md` is the original spec (before Fusion World).
 
-**The two games are one app, kept apart by a `game` column** (`"dbs" | "fusion"`, see
-`src/lib/catalog/games.ts`): it lives on `card_sets`, is denormalised onto `cards`, and is chosen
-once per deck. Everything game-specific — catalog source, TCGplayer category, deck rules, how the
-model is told which game it is looking at — is in `GAME_INFO`, so a query only ever needs the id.
-Lists default to **both** games with a `GameFilter` chip row; nothing is mixed within a deck.
-The **arena is the exception**: its engine reads the Masters rule manual and only plays `dbs`
-decks (owner's decision, 4 Sep 2026).
+- **The two games are kept apart by `game`** (`src/lib/catalog/games.ts`, `GAME_INFO`): on
+  `card_sets`, denormalised onto `cards`, chosen once per deck. Nothing is mixed within a deck;
+  lists default to both with a `GameFilter` chip row. Only the arena is `dbs`-only.
+- Owner is in Austria: display currency EUR; TCGplayer prices are USD, converted at the ECB rate in
+  `fx_rates`. Price paid is entered in EUR.
+- **Auth** (`docs/architecture/auth.md`): SLs (admins) sign in with Google at `/login`; players join
+  with a one-time code (`/join?c=CODE`). HTTP Basic Auth still works beside it (`BASIC_AUTH_*`,
+  `app_users`, `/password-login`) until it is removed. With nothing configured (local dev) the app
+  runs open and everyone is an SL. `/api/sync/*` and `/api/ai/agent-sdk` skip the proxy and check
+  their own bearer secret; the manifest, `/icons/*` and `/sw.js` are exempt.
+- **Deploys:** only `main` builds on Vercel (`vercel.json`); a production deploy runs the migrations
+  (`scripts/vercel-build.mjs`). Functions are pinned to `fra1`, next to the Neon database in
+  `eu-central-1`; keep them together. Env names: `.env.example`; AI provider variables:
+  `docs/architecture/ai-providers.md`.
 
-Owner is in Austria: the display currency is EUR; TCGplayer prices are USD and converted at the
-ECB rate stored in `fx_rates`. Price paid is entered in EUR.
+## Safety
 
-**Auth is the gullet-cove-dm sign-in** (`docs/architecture/auth.md`). **SLs** (admins) sign in with
-Google at `/login` (`AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SL_EMAILS` for the owners;
-more SLs in `sl_accounts`); signed `dbs-session` cookie, `src/lib/auth/core.ts`. **Players** join with a
-one-time code from Settings → Users & access (`/join?c=CODE`, 24 h, single use) and stay signed in on
-that device (`dbs-player` cookie, re-checked against `player_devices` every request). Players see only
-their own cards and decks and nothing SL-only (`isSlOnlyPath`: Settings, the arena Rules screens (`/arena/rules`), review,
-debug, set review). Basic Auth still works beside it during the move — the `BASIC_AUTH_USER`/
-`BASIC_AUTH_PASSWORD` pair (an SL) and `app_users` rows (players, or SLs when listed in `ARENA_ADMINS`),
-also via `/password-login`. With Google set up, a signed-out page goes to `/login`; without it the Basic
-popup appears as before; with nothing set (local dev) the app runs open and everyone is an SL. An SL
-with no `sl_accounts` row acts under `BASIC_AUTH_USER`. `/api/sync/*` and `/api/ai/agent-sdk` skip the
-proxy and check their own bearer secret. The web-app manifest, `/icons/*` and `/sw.js` are exempt too —
-the browser fetches them without credentials, so behind auth the app cannot be installed at all.
-The arena's engine internals (REF badge, "Engine reads", raw ids and log, `/arena/[id]/debug`) show only to an SL: `isArenaAdmin()` (`src/lib/auth/index.ts`).
+- **Neon is one database for production, preview and dev, with a spend limit: stay off it.**
+  `npm test` runs on PGlite. An agent session does not run `db:*`, `sync:*`, `arena:diff`,
+  `arena:playthrough`, `arena:reprobe` or `arena:specified`; if an acceptance bullet can only be
+  proved against the database, the PR says which and the owner runs it. Live reads and the owner's
+  own data tasks: `docs/agent-brief.md` → "Data".
+- **The cloud environment's `DATABASE_URL` is another app's database.** The SessionStart hook unsets
+  it; fetch this app's URL as the brief shows. Never print, commit or paste a URL or secret.
+- **Migrations are additive, from `db:generate` only** (never hand-written SQL). A pushed branch has
+  migrated nothing; only a production deploy of `main` does.
+- **Paid calls** (Anthropic API, `ai:smoke`, image or voice generation) only when the owner asks for
+  them in the chat.
+- No new npm dependency, destructive migration, production/Vercel setting change or Neon write
+  without the owner's say-so in the issue or chat.
 
-**Previews are off (only `main` deploys), so the next note matters only if that is reverted.
-Vercel's own deployment protection is ON for Preview** (verified 6 Sep 2026: a preview URL
-redirects to `vercel.com/sso-api`). A preview therefore needs a Vercel login *as well as* Basic
-Auth, which makes preview URLs awkward to open on a phone — a Cloudflare tunnel to a local
-`npm run build && npm start` is the quicker way to test on a device.
+## Hard rules (detail in the docs below)
 
-**Neon is one database with a spend limit, so development keeps off it** (owner's instruction,
-14 Sep 2026). Three things follow. `vercel.json` (`git.deploymentEnabled`) deploys **`main` only** —
-no branch gets a preview any more. The orchestrator validates each proposed PR locally and reviews
-its acceptance evidence before merging; GitHub test, BugBot and acceptance-review workflows were
-removed on the owner's instruction of 11 Oct 2026. Production builds use
-`scripts/vercel-build.mjs`, which runs the migrations on
-*production* deploys only, and `scripts/vercel-ignore-build.mjs` skips a production deploy whose
-changed files are all under `docs/`, `.github/`, `.claude/` or root-level `*.md` (any git error
-builds), and still skips agent-branch previews as a fallback.
-`npm test` never touches Neon (PGlite). And an agent session does not run the scripts that need
-`DATABASE_URL` — `arena:diff`, `arena:playthrough`, `arena:reprobe`, `arena:specified`,
-`db:check`, `db:migrate`, `sync:*` — unless the issue's acceptance cannot be met any other way;
-it says which acceptance bullet it could not verify instead, and the owner runs that one.
-Reading live data when the owner asks (the rule review, a question about their decks) is allowed;
-the environment's own `DATABASE_URL` is **another app's** database, so take this app's pooled URL
-from Vercel as `docs/agent-brief.md` → "When the owner asks for live data" shows.
-
-
-## Working efficiently in this repo
-
-**Working one issue as an agent, or coordinating several: read `docs/agent-brief.md` first** —
-branching, data, the habits that stall sessions, the PR, and the coordinator's review-and-merge loop.
-
-A `SessionStart` hook runs `npm ci` when `node_modules` is stale; a `Cannot find module` error from a
-`verify-*` or `arena:*` script means it did not run — run `npm ci` by hand. Detail:
-`docs/architecture/db.md`. For arena work start with the `arena-work` skill and
-`docs/arena-tooling.md`; grep the long `docs/arena-*.md` files, don't read them whole. Never run
-`sync:catalog`/`sync:prices` just to inspect state. For pure rule logic,
-`npx tsx scripts/verify-rules.ts` and `npx tsx scripts/verify-arena.ts` are faster than `npm test`;
-run the full suite before finalizing.
+- **Every Server Function, page and route checks who is asking itself** (`requireSl`/`requireSignedIn`,
+  `requireSlPage`/`requireSignedInPage`, `routeViewer`), and every read of lots, decks or wants takes
+  `currentScope()`; `scripts/verify/guards.ts` fails `npm test` on a missing guard. `auth.md`
+- **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing
+  refused; a built deck reserves only its owner's copies. `collection-and-decks.md`
+- **Legality is a flag, never a block**: `legality(rows, game)` labels, it never refuses.
+- **Stamp `owned_cards.owner` and `decks.owner`** on every path that creates them.
+- **Errata are fixed in `errata.ts`, never by UPDATE**; keep `coalesce` on `image_url` and
+  `cards.specified_cost` in the catalog upsert, or a sync erases them. `catalog-and-sync.md`
+- **Catalog, price and meta reads are cached until the next sync** (`src/lib/cache/`): a new writer
+  of a cached table must expire its tag.
+- **Raw SQL reads go through `rows()`; bind arrays with `textArray()`.** `db.md`
+- **Rules are records**: the engine never compiles card text at game time; a confirmed rule is
+  never rewritten by a script. `arena.md`
+- **Touch the compiler, update the glossary** (`src/lib/arena/glossary.ts`) in the same commit: any
+  change to what the engine understands or does with card text (files in scope: `src/lib/arena/text/*`,
+  `compile.ts`, `compile/*`, `vm/*`, `lang/*`). Nothing catches a description that has gone untrue.
+- Money is integer cents + currency code (`formatCents`), never float euros. Card ids are the
+  catalog's (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
+- Phone and desktop from the start: `BottomTabs` on phones, `HeaderNav` from `sm`; card grids are 2
+  columns on phones; `tap` class for 44 px targets.
 
 ## Commands
 
 ```powershell
-npm run dev            # Dev server (port 3000, or 3001 if taken)
-npm run build          # Production build
-npm run typecheck      # tsc --noEmit
-npm run lint           # ESLint
-npm run checks         # typecheck, lint and only the tests the changed files reach; `-- full` before a push (skill verify-changed)
-npm test               # verify-rules.ts (pure) + verify-arena.ts on both engines (docs/arena-tooling.md) + verify-db.mts (PGlite)
-npm run db:generate    # Generate a migration after editing src/db/schema.ts
-npm run db:migrate     # Apply migrations (also run on every *production* Vercel deploy via scripts/vercel-build.mjs)
-npm run sync:catalog   # Import both games' catalogs from deckplanet + Fusion World art from Bandai (~50 s),
-                       # then draft arena rules for every new or changed card and ask Claude about the
-                       # skills the compiler could not read (--no-review, --budget N)
-npm run db:check       # Can this machine reach the database, and over which driver?
-npm run db:migrate:http # db:migrate for a sandbox that allows HTTPS only (see DB_DRIVER below)
-npm run sync:prices    # Import TCGplayer products + today's prices from tcgcsv (both categories),
-                       # the USD→EUR rate, and TCGplayer art for prints still without any (~35 s)
+npm run dev            # port 3000 (3001 if taken)
+npm run checks         # typecheck + lint + only the tests the changed files reach (skill verify-changed)
+npm run typecheck | lint | build
+npm test               # rules, arena (both engines), db on PGlite; needs no database or network
+npm run db:generate    # after editing src/db/schema.ts
+npm run shots:compare -- /collection /decks   # before/after screenshots (skill screen-proof)
 ```
 
-`npm test` needs no database or network; everything else needs `DATABASE_URL` in `.env.local`
-(except `android:test`, which needs Docker — and is not run: no native Android app is planned,
-owner 13 Oct 2026). The `arena:*` scripts, `contract:emit`, `android:test`
-and the rest of the arena tooling are listed with their flags in `docs/architecture/arena.md`;
-`docs/arena-tooling.md` explains what each proves — read it before changing the compiler or the
-engine. There is no test framework, only `assert` scripts run with `tsx`.
+Which check, when, and by whom: `docs/agent-brief.md` → "Checking a change". There is no test
+framework, only `assert` scripts run with `tsx`. Arena tooling and its scripts: `docs/arena-tooling.md`.
 
 ## Where the detail lives — open before touching the area
 
-The Data sources and Architecture sections moved out of this file unchanged (issue #382).
-
 | Touching… | Read |
 |---|---|
-| Working one issue as an agent (habits, proof, PR) | `docs/agent-brief.md` |
-| Finding a symbol's definition/references, or inspecting network/offline/workers/storage in a browser (Windows-verified, no Playwright) | `docs/arena-agent-tools.md` |
-| Reviewing open rules / assumptions with the owner in claude.ai (skill `skills/dbs-rules-review/`, MCP connector at `/api/mcp`, `npm run rules:skill-pack`) | `docs/arena-tooling.md` §5c, `docs/architecture/auth.md` "The MCP connector" |
-| Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, card images, leader faces, errata, prices, the optimiser | `docs/architecture/catalog-and-sync.md` |
-| Ownership, reservations, deck legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
+| Working one issue (branching, data, proof, PR), or coordinating agents | `docs/agent-brief.md` |
+| Catalog import, deckplanet/Bandai/TCGplayer/CardTrader/FX sources, images, errata, prices, optimiser | `docs/architecture/catalog-and-sync.md` |
+| Ownership, reservations, legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
-| Sign-in and access: Google for SLs, join codes for players, guards, private collections, the admin page | `docs/architecture/auth.md` |
-| The provider-neutral AI layer (API vs subscription, swapping vendors): contract, routing, ledger | `docs/architecture/ai-providers.md` |
-| Server actions, raw SQL (`rows()`, `textArray()`), the SessionStart hook | `docs/architecture/db.md` |
-| The arena: engines, compiler, rules language, rulesets, Rules screens, UI, opponent, probe, arena scripts | `docs/architecture/arena.md`, then `docs/arena-tooling.md` and `docs/arena-code-map.md` |
-| Original feature spec (written before Fusion World) | `dbs-tcg-app-feature-summary.md` |
+| AI providers (API vs subscription, routing, ledger, the agent-sdk route, `AI_AGENT_SDK`) | `docs/architecture/ai-providers.md` |
+| Sign-in and access: Google, join codes, guards, private collections, admin page, MCP connector | `docs/architecture/auth.md` |
+| Server actions, raw SQL, `DB_DRIVER`, the SessionStart hook | `docs/architecture/db.md` |
+| The arena: engines, compiler, rules language, Rules screens, UI, scripts | skill `arena-work`, then `docs/architecture/arena.md`, `docs/arena-tooling.md`, `docs/arena-code-map.md` |
+| Symbol lookup, browser network/offline inspection (Windows-verified, no Playwright) | `docs/arena-agent-tools.md` |
+| Reviewing open rules with the owner (MCP connector `/api/mcp`) | `docs/arena-tooling.md` §5c, `skills/dbs-rules-review/`; a batch against `card_rules`: skill `rules-review-batch` |
+| Screens changed (proof) | skill `screen-proof` |
 
-Large docs: `docs/arena-history-lessons.md` (199 KB) and `docs/arena-code-map.md` (69 KB) — grep, don't read whole.
-
-## Hard rules (detail in the docs above)
-
-- **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing refused; a built deck reserves only its owner's copies. `collection-and-decks.md`
-- **Every Server Function, page and route checks who is asking itself** (`requireSl`/`requireSignedIn`, `requireSlPage`/`requireSignedInPage`, `routeViewer`), and every read of lots, decks or wants takes `currentScope()`; `scripts/verify/guards.ts` fails `npm test` on a missing guard. `auth.md`
-- **Legality is a flag, never a block**: `legality(rows, game)` labels, it never refuses. `collection-and-decks.md`
-- **Errata are fixed in `errata.ts`, never by UPDATE**: the catalog upsert overwrites `skill`. `catalog-and-sync.md`
-- **Keep `coalesce` on `image_url` and `cards.specified_cost`** in the catalog upsert, or a sync erases them. `catalog-and-sync.md`
-- **Stamp `owned_cards.owner` and `decks.owner`** on every path that creates them. `collection-and-decks.md`
-- **Catalog, price and meta reads are cached until the next sync** (`src/lib/cache/`): a new writer of a cached table must expire its tag. `catalog-and-sync.md`
-- **Raw SQL reads go through `rows()`; bind arrays with `textArray()`.** `db.md`
-- **Rules are records**: the engine never compiles card text at game time; a confirmed rule is never rewritten by a script. `arena.md`
-- **The two games are kept apart by `game`**; the arena only plays `dbs` decks.
-
-## Environment
-
-`.env.local` (gitignored) holds `DATABASE_URL` (Neon, pooled), `ANTHROPIC_API_KEY`,
-`CARDTRADER_API_TOKEN`, `CARDTRADER_ENABLED`. `CRON_SECRET` and `XIMILAR_API_KEY` are optional.
-The same variables must exist in Vercel's project settings for the deployment. See `.env.example`.
-`APP_ANTHROPIC_API_KEY` is the same Anthropic key under a second name, read when the first is absent:
-Claude Code on the web reserves `ANTHROPIC_API_KEY` for its own session and refuses to store it.
-`DB_DRIVER=neon-http` sends queries to Neon over HTTPS instead of Postgres TCP — for sandboxes
-(Claude Code on the web is one) that let 443 out and nothing on 5432; the HTTP driver has no
-interactive transactions, so it is for the scripts, not the app server. The `arena:*` scripts
-tolerate a missing `.env.local`, so an environment that provides the variables itself needs none.
-
-**AI providers** (`docs/architecture/ai-providers.md`): `AI_PROVIDER` (anthropic-api, anthropic-agent-sdk, openrouter; default anthropic-api),
-`CLAUDE_CODE_OAUTH_TOKEN` (Claude plan token from `claude setup-token`), `APP_CLAUDE_CODE_OAUTH_TOKEN` (alias, read when the first is absent),
-`CLAUDE_CODE_OAUTH_TOKEN_CREATED` (YYYY-MM-DD, for token expiry tracking), `OPENROUTER_API_KEY` (API key for OpenRouter),
-`OPENROUTER_APP_URL` (optional attribution). `npm run ai:smoke` is one paid call per capability (the owner's to run).
-The Claude plan on Vercel runs through one route, `/api/ai/agent-sdk`, guarded by `AI_AGENT_SDK_SECRET` and exempt from Basic Auth in `src/proxy.ts` (#518).
-**Important:** `AI_AGENT_SDK=1` must **not** be set in Vercel until the route PR is merged and its size (`npm run ai:trace-sizes`, under 250 MB) has been measured.
-
-The Neon database is in **`eu-central-1`** (AWS Frankfurt), so `vercel.json` pins functions to
-**`fra1`**, the Vercel region co-located with it. That pin used to live only in the Vercel dashboard,
-where nothing in the repo recorded it and nothing would catch it drifting back to the `iad1`
-default — which would put the Atlantic in the middle of every database round-trip.
-
-## Conventions
-
-- Phone and desktop layouts from the start: `BottomTabs` on phones, `HeaderNav` from `sm` up;
-  card grids are 2 columns on phones. Use the `tap` class on controls for 44 px targets.
-- Money is integer cents + currency code; format with `formatCents`. Never float euros.
-- Card numbers are the catalog's ids (`BT18-020`); print ids add a suffix (`BT18-020_SPR`).
-- Keep `npm run typecheck`, `npm run lint` and `npm test` clean before committing.
-- **Touch the compiler, update the glossary** (`src/lib/arena/glossary.ts`). Any change to what the
-  engine understands or does with card text belongs there in the same commit: a keyword taught to
-  `keywordOf`, a keyword the engine starts or stops playing itself, an approximation fixed or
-  introduced, a new reading rule in `compile.ts`/`filters.ts`/`cards.ts`, a skill type or a
-  bracketed non-skill keyword. The `support` badge and the `engine` line are the claims that go
-  stale first — if a keyword's entry says the engine does something it no longer does, the page is
-  worse than nothing. The typecheck only catches a *missing* keyword; nothing catches a
-  description that has quietly become untrue, which is why this is a rule rather than a test.
-  Files in scope: `src/lib/arena/text/{cards,filters,triggers}.ts`, `src/lib/arena/compile.ts` and
-  `compile/*.ts`, `src/lib/arena/vm/*.ts` (`script.ts` is the interpreter), `src/lib/arena/lang/*.ts`,
-- After a PR merges, delete the merged remote branch (`gh pr merge --delete-branch`, or the
-  "Delete branch" button on GitHub) — do this unasked, but never delete a branch that hasn't
-  merged (`--no-merged` in `git branch -r --merged main`). `npm run branches:prune` lists every merged
-  remote branch, squash merges included (dry run; `-- --apply` deletes them). There is one Neon database for dev,
-  preview and production (`DATABASE_URL` above) — no per-branch database, so a merged branch
-  needs no separate cleanup in Neon.
+Large docs (`arena-history-lessons.md` 199 KB, `arena-code-map.md` 69 KB): grep, don't read whole.

@@ -13,7 +13,7 @@ for judgement; the commands below replace the hand-derived parts. The data lives
    the receipt are fine). Paid calls (Claude, images) stay forbidden.
 2. **DB env.** The cloud `DATABASE_URL` is another app's. `node scripts/card-db-env.mjs "$SCRATCH/card-db.env"` (needs
    `VERCEL_TOKEN`; never prints the value), then `set -a; . "$SCRATCH/card-db.env"; set +a; export DB_DRIVER=neon-http`.
-   Node 24, `PATH=/usr/local/bin:$PATH`. Never put the URL in the repo or `.env.local`.
+   Never put the URL in the repo or `.env.local` (`docs/agent-brief.md` → "When the owner asks for live data").
 3. **Prove the DB.** `rules:batch` and `rules:snapshot` refuse unless `to_regclass('public.card_rules')` exists; state the
    result in the receipt.
 4. **Select.** `npm run rules:batch -- --next 30 --batch "batch 6" --out docs/arena-backlog/evidence/rules-review-<date>/batch-6.md`
