@@ -74,12 +74,11 @@ Skill `verify-changed` has the output reading. The principle: check at the size 
    only the `test`-chain scripts those files reach.
 2. **Workers:** `npm run checks` on their branch plus anything their brief names. They do not run the
    full suite or the build unless the brief says so.
-3. **Once, on the final combined head before merge (the coordinator):** `npm run checks -- full`
-   (typecheck, lint, all of `npm test`, build). When the diff is not build-sensitive, run
-   `npm run typecheck && npm run lint && npm test` and skip the build. Build-sensitive means anything
-   under `src/app` or `src/components`, `next.config.*`, `src/proxy.ts`, `package.json` or
-   `package-lock.json`, env handling, or a change to the client/server boundary. Docs, scripts, tests
-   and pure `src/lib` changes skip the build.
+3. **Once, on the final combined head before merge (the coordinator):** `npm run checks -- full`:
+   typecheck, lint, all of `npm test`, and the build only when a build-sensitive path changed since
+   `origin/main` (`src/app`, `src/components`, `next.config.*`, `src/proxy.ts`, `package.json`/lock,
+   env, `public/`; `isBuildSensitive` in `scripts/lib/checks-plan.ts`). A client/server boundary change
+   in `src/lib` is build-sensitive too: add `--build`.
 4. **Expensive extras, only when the change is in their area, once at the end:**
    `npm run test:policy-performance` (the strict timing ceilings of the policy proofs; `npm test` runs
    them with `--record-performance`; run it on an idle host so scheduling noise cannot fail it);

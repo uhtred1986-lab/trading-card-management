@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FALLBACK, MAX_PER_PATH, buildGraph, parseChain, planSteps, readChain, testsForPaths } from "../lib/checks-plan.ts";
+import { FALLBACK, MAX_PER_PATH, buildGraph, isBuildSensitive, parseChain, planSteps, readChain, testsForPaths } from "../lib/checks-plan.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const chain = readChain(root);
@@ -53,5 +53,9 @@ assert.ok(FALLBACK.every((f) => chain.some((e) => e.file === f)), "every fallbac
 const quick = planSteps({ kind: "quick", paths: ["scripts/checks.mts", "docs/x.md"] }, root, chain, graph).steps;
 assert.deepEqual(quick.map((s) => s.kind), ["tsc", "eslint"]);
 assert.ok(quick[1].argv.includes("scripts/checks.mts") && !quick[1].argv.includes("docs/x.md"), "quick lints the changed source files only");
+
+// full skips the build unless a build-sensitive path changed.
+assert.ok(isBuildSensitive(["src/app/decks/page.tsx"]) && isBuildSensitive(["package-lock.json"]) && isBuildSensitive(["next.config.ts"]));
+assert.ok(!isBuildSensitive(["scripts/checks.mts", "docs/agent-brief.md", "src/lib/arena/glossary.ts"]), "scripts, docs and pure src/lib skip the build");
 
 console.log("checks-plan: ok");

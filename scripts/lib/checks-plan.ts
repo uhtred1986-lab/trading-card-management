@@ -174,6 +174,12 @@ export function testsForPaths(paths: string[], chain: ChainEntry[], graph: Graph
   return { entries: chain.filter((e) => wanted.has(e.key)), unknown, trimmed };
 }
 
+/** A change the build can break (docs/agent-brief.md, "Checking a change"); anything else skips the build in `full`. */
+const BUILD_SENSITIVE = [/^src\/app\//, /^src\/components\//, /^next\.config\./, /^src\/proxy\.ts$/, /^package(-lock)?\.json$/, /^\.env/, /^tsconfig\.json$/, /^postcss\.config\./, /^public\//];
+export function isBuildSensitive(paths: string[]): boolean {
+  return paths.some((p) => BUILD_SENSITIVE.some((re) => re.test(p)));
+}
+
 /* ---------------------------------------------------------------- steps */
 
 export type StepKind = "tsc" | "eslint" | "test" | "build";

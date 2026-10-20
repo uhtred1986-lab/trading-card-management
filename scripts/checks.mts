@@ -4,7 +4,8 @@
  *   (no args)  paths changed vs origin/main plus uncommitted/untracked: typecheck, eslint on them,
  *              and only the test-chain scripts that can care about them (scripts/lib/checks-plan.ts)
  *   quick      typecheck + eslint on the changed files, no tests
- *   full       typecheck, eslint, every script of package.json's `test`, then the build
+ *   full       typecheck, eslint, every script of package.json's `test`, then the build when a
+ *              build-sensitive path changed (`--build` forces it)
  *   <paths>    like no args, for exactly these paths
  *
  * Prints only failures (first ~40 relevant lines each), then a pass/fail count with timings. Exits
@@ -15,7 +16,7 @@
 import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildGraph, planSteps, readChain, type Scope, type Step } from "./lib/checks-plan.ts";
+import { buildGraph, isBuildSensitive, planSteps, readChain, type Scope, type Step } from "./lib/checks-plan.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PARALLEL = 4;
@@ -116,7 +117,10 @@ async function main() {
 
   const started = Date.now();
   const { steps, unknown, trimmed } = planSteps(scope, root, chain, buildGraph(root));
-  const build = steps.filter((s) => s.kind === "build");
+  // `full` builds only when the change can break the build; `--build` forces it.
+  const skipBuild = scope === "full" && !args.includes("--build") && !isBuildSensitive(changedPaths());
+  if (skipBuild) console.log("build skipped: no build-sensitive path changed (--build forces it)");
+  const build = skipBuild ? [] : steps.filter((s) => s.kind === "build");
   const rest = steps.filter((s) => s.kind !== "build");
   if (unknown.length) console.log(`no rule for ${unknown.length} path(s) (ran the fallback scripts): ${unknown.slice(0, 5).join(", ")}${unknown.length > 5 ? ", ..." : ""}`);
   if (trimmed) console.log(`${trimmed} further importing script(s) not run (a widely imported file): use "full" before pushing`);

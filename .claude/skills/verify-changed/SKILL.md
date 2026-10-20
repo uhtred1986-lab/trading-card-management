@@ -13,8 +13,8 @@ description: Use before committing, before pushing, or whenever you need to chec
   `verify/guards.ts`, schema and migrations run the db checks). A path nothing claims runs the
   cheap fallback: `verify-rules`, `verify-arena`, `verify/guards`.
 - **Once on the final combined head, before merge (the coordinator):** `npm run checks -- full`:
-  typecheck, lint, every entry of `npm test`, then the build. Skip the build when the diff is not
-  build-sensitive. Policy and when to run what: `docs/agent-brief.md` → "Checking a change".
+  typecheck, lint, every entry of `npm test`, and the build only when a build-sensitive path
+  changed (`--build` forces it). Policy and when to run what: `docs/agent-brief.md` → "Checking a change".
 - `npm run checks -- quick` is typecheck plus lint of the changed files only. `npm run checks -- <paths>`
   checks exactly those paths.
 
