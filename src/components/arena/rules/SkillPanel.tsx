@@ -187,6 +187,13 @@ export function SkillPanel({ skill: s, admin, busy, editing, actions: a, ask, tr
         </div>
       )}
 
+      {s.ruleId != null && s.source === "claude" && s.status === "draft" && (
+        <p className="rounded-xl border border-ki-500/40 bg-ki-500/5 px-3.5 py-2.5 text-sm font-bold text-ki-400" role="note" data-testid="claude-fix">
+          Claude’s proposed fix — approve or edit
+          <span className="ml-1 font-normal text-space-300">Claude rewrote this skill; nothing counts until you approve it.</span>
+        </p>
+      )}
+
       {s.ruleId != null && !(flag?.changedSince && admin) && (
         <div className="flex flex-wrap items-center gap-2">
           {s.status === "draft" ? (

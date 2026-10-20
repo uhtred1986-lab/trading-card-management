@@ -73,7 +73,7 @@ const SEEDS: Seed[] = [
     printed: "[Auto] When you play this card, choose up to 1 of your opponent’s Battle Cards and it gets −5000 power for the duration of the turn.",
     kind: "Auto",
     status: "draft",
-    source: "compiler",
+    source: "claude",
     rule: rule({ trigger: ["played"], ops: [{ op: "draw", n: 1 }] }),
     reads: "Draw 1 card.",
     version: 2,

@@ -16,7 +16,7 @@ import type { OwnerScope } from "@/lib/collection/scope";
 import { firedInGame } from "./fired";
 import { defaultGroup, defaultHealth, type Queue, type Scope } from "./queue";
 import { countsOf } from "./queue";
-import { draftCards } from "./draft";
+import { cardsRebuildWouldChange, draftCards } from "./draft";
 import { catalogQueueCards } from "@/lib/cache/rules-health";
 import { loadQueueCards, viewOfQueue, type QueueCard, type RuleHealth } from "./rules-store";
 
@@ -130,8 +130,14 @@ export interface RebuildPlan {
   otherRows: number;
   /** Cards holding a protected row (the first 60), listed for the owner to re-approve. */
   protectedCards: string[];
-  /** The cards the compiler can rebuild. */
+  /** The cards a rebuild will change: the compiler has drafts on them and records them differently now. */
   rebuildable: string[];
+  /**
+   * Cards that still need a rebuild but have only compiler drafts the compiler writes back
+   * unchanged (a rebuild ran and nothing moved): offering "Rebuild" for them would do nothing.
+   * Empty until `settlePlan` has looked.
+   */
+  stuck: string[];
 }
 
 export function planRebuild(cs: readonly QueueCard[]): RebuildPlan {
@@ -144,7 +150,28 @@ export function planRebuild(cs: readonly QueueCard[]): RebuildPlan {
     otherRows: need.reduce((n, c) => n + c.rebuild.other, 0),
     protectedCards: need.filter((c) => c.rebuild.protectedRows > 0).map((c) => c.cardId).slice(0, 60),
     rebuildable: need.filter((c) => c.rebuild.compiler > 0).map((c) => c.cardId),
+    stuck: [],
   };
+}
+
+/** How many cards `settlePlan` compiles to tell a rebuild that helps from one that changes nothing (two batches of the drafter). */
+const SETTLE_LIMIT = 800;
+
+/**
+ * Split `rebuildable` into the cards a rebuild would change and the ones it cannot (`stuck`):
+ * runs the compiler, writes nothing (`cardsRebuildWouldChange`). Bounded to `SETTLE_LIMIT` cards;
+ * past that the rest are assumed changeable and are settled as the first ones leave the list.
+ */
+export async function settlePlan(db: Db, plan: RebuildPlan): Promise<RebuildPlan> {
+  if (plan.rebuildable.length === 0) return plan;
+  const look = plan.rebuildable.slice(0, SETTLE_LIMIT);
+  const changes = await cardsRebuildWouldChange(db, look);
+  const stuck = look.filter((id) => !changes.has(id));
+  if (stuck.length === 0) return plan;
+  const gone = new Set(stuck);
+  const rebuildable = plan.rebuildable.filter((id) => !gone.has(id));
+  // The compiler drafts on stuck cards are not "rebuildable" any more.
+  return { ...plan, rebuildable, stuck, compilerDrafts: Math.max(0, plan.compilerDrafts - stuck.length) };
 }
 
 /** One click rebuilds at most this many cards, so a request stays inside the function's time; the banner says how many are left. */
@@ -152,7 +179,7 @@ export const REBUILD_BATCH = 400;
 
 export async function rebuildPlanFor(db: Db, scope: Scope, owner: OwnerScope): Promise<RebuildPlan> {
   const resolved = await resolveScope(db, scope, owner);
-  return planRebuild(await loadQueueCards(db, { cardIds: resolved.cardIds }));
+  return settlePlan(db, planRebuild(await loadQueueCards(db, { cardIds: resolved.cardIds })));
 }
 
 /**

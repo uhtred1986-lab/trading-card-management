@@ -1277,7 +1277,12 @@ export interface QueueCard {
   missing: number;
   /** Rows whose payment record predates #1066: `compiler` the compiler can rebuild, `protectedRows` a person approved, `other` a Claude or person draft. */
   rebuild: { rows: number; compiler: number; protectedRows: number; other: number };
+  /** Skills holding a Claude draft the owner has not approved yet (`source = 'claude'`, `status = 'draft'`): the card is waiting on the owner, not on the compiler. */
+  claudeFix: number;
 }
+
+/** The reason line a card with a waiting Claude fix leads with: it outranks an older audit flag or compiler note. */
+export const CLAUDE_FIX_REASON = "Claude has proposed a fix: approve it or edit it.";
 
 function familyOfRow(row: HealthRow, report: RuleHealthReport): ReasonFamily | null {
   if (report.health !== "incomplete") return null;
@@ -1306,7 +1311,9 @@ export function classifyQueueCard(
   const rebuild = { rows: 0, compiler: 0, protectedRows: 0, other: 0 };
   let worst: { row: (typeof rows)[number]; report: RuleHealthReport } | null = null;
   let missing = 0;
+  let claudeFix = 0;
   for (const { row } of matched) {
+    if (row && row.source === "claude" && row.status === "draft") claudeFix++;
     if (!row) { missing++; skills.push({ health: "text-only", ruleId: null, family: null }); continue; }
     const report = ruleHealth(row);
     skills.push({ health: report.health, ruleId: row.id, family: familyOfRow(row, report) });
@@ -1322,7 +1329,8 @@ export function classifyQueueCard(
   // A card's incomplete skills may have different reasons; the one that comes first in the queue's order names the card.
   const family = health === "incomplete" ? (FAMILY_ORDER.find((f) => skills.some((s) => s.health === "incomplete" && s.family === f)) ?? "other") : null;
   const w = worst?.row ?? null;
-  const reasons = worst ? [...worst.report.reasons.filter(Boolean), ...worst.report.hints] : ["No rule record for this skill yet."];
+  const base = worst ? [...worst.report.reasons.filter(Boolean), ...worst.report.hints] : ["No rule record for this skill yet."];
+  const reasons = claudeFix > 0 && health !== "done" ? [CLAUDE_FIX_REASON, ...base] : base;
   return {
     cardId: card.id, name: card.name, setCode: card.setCode, cardType: card.cardType, colors: card.colors, imageUrl: card.imageUrl,
     health, skills,
@@ -1332,7 +1340,7 @@ export function classifyQueueCard(
     source: (w?.source as RuleSource | undefined) ?? null,
     wording: w && health !== "done" ? wordingKey(w) : null,
     mechanism: w && w.status === "open" ? mechanismOf(w.unread?.[0] ?? "") : null,
-    missing, rebuild,
+    missing, rebuild, claudeFix,
   };
 }
 

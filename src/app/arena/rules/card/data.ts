@@ -6,13 +6,13 @@ import { keywordPlays } from "@/lib/arena/glossary";
 import { describeScript, type Cond, type CostRecord, type Op } from "@/lib/arena/vm/script";
 import type { Rule } from "@/lib/arena/lang";
 import { openingFocus } from "@/lib/arena/lang/blocks";
-import { deckCardSets } from "@/lib/arena/readiness";
+import { currentScope } from "@/lib/auth";
+import { ownerDecks } from "@/lib/arena/queue-cards";
 import { comboChips, flagNotice } from "@/lib/arena/rule-card";
 import { FLAG_PREFIX } from "@/lib/arena/rule-review";
 import { reviewItemById } from "@/lib/arena/rule-review-store";
 import { cardHealth, currentRowsOf, expectedSkills, ruleHealth, worklist, type CompilerDiff, type RuleHealth } from "@/lib/arena/rules-store";
 import type { Trigger } from "@/lib/arena/types";
-import { listDecks } from "@/lib/decks/queries";
 import { historyOf, specifiedCostOf } from "../record";
 import type { CardView, HistoryLine, SkillView } from "./types";
 
@@ -52,10 +52,11 @@ export async function loadCardPage(db: Db, cardId: string): Promise<{ card: Card
   const current = currentRowsOf({ skill: c.skill, backSkill: c.backSkill }, rows);
   const expected = expectedSkills(c.skill, c.backSkill);
 
-  // The decks that play it: every playable deck, whoever owns it (the rules belong to the card).
-  const decks = (await listDecks(db, { game: "dbs" })).filter((d) => d.leader && d.mainCount >= 50);
-  const deckCards = await deckCardSets(db, decks.map((d) => d.id));
-  const mine = decks.filter((d) => deckCards.get(d.id)?.has(cardId)).map((d) => ({ id: d.id, name: d.name }));
+  // The decks that run it, by the queue's own rule (`ownerDecks`: dbs, not testing, the viewer's scope, main/Z/leader
+  // zones), so "in 1 deck" on the queue row and "In 1 of your decks" here are the same count. Before this the page
+  // asked for decks with a leader and 50+ main cards, and said "Not in a deck you play" for a card the queue listed.
+  const decks = await ownerDecks(db, await currentScope());
+  const mine = decks.filter((d) => d.cardIds.includes(cardId)).map((d) => ({ id: d.id, name: d.name }));
 
   // When each flag was written: the in-app Wrong leaves a feedback note beside it.
   const flagged = current.filter((x) => x.row?.reviewFlag).map((x) => x.row!.id);

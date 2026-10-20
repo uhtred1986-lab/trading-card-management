@@ -185,6 +185,41 @@ export function canonical(v: unknown): unknown {
 const same = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 const compilerOwns = (r: RuleRow) => r.source === "compiler" && (r.status === "open" || r.status === "draft");
 
+/** Whether re-running the compiler would rewrite a compiler-owned row: its program (`opsChanged`) or anything else it stores (`changed`). */
+function compilerRowChange(have: RuleRow, rec: SkillRecord, status: string): { opsChanged: boolean; changed: boolean } {
+  const opsChanged = !same(have.ops, rec.ops) || !same(have.cond, rec.cond) || !same(have.combo, rec.combo) || !same(have.usage, rec.usage) || !same(have.validity, rec.validity);
+  const changed = opsChanged || !same(have.unread, rec.unread) || have.printed !== rec.printed || have.kind !== rec.kind || !same(have.trigger, rec.trigger) || !same(have.cost, rec.cost) || have.pattern !== rec.pattern || have.reads !== rec.reads || have.status !== status;
+  return { opsChanged, changed };
+}
+
+/**
+ * Of these cards, the ones `draftCards` would actually write to: a skill with no row yet, or a
+ * compiler-owned row the compiler now records differently. Reads and compiles, writes nothing.
+ * A card missing from the answer is one a rebuild cannot change (the compiler produces the very
+ * record the row already holds), which is what the Rules queue's rebuild banner needs to know so
+ * it stops offering a rebuild that does nothing.
+ */
+export async function cardsRebuildWouldChange(db: Db, ids: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const unique = [...new Set(ids)];
+  for (let i = 0; i < unique.length; i += 400) {
+    const slice = unique.slice(i, i + 400);
+    const rows = await db
+      .select()
+      .from(cardsTable)
+      .where(and(inArray(cardsTable.id, slice), eq(cardsTable.game, DEFAULT_GAME), REVIEWABLE_CARD));
+    const existing = new Map((await loadRules(db, slice)).map((r) => [`${r.cardId}#${r.side}#${r.skillIndex}`, r]));
+    for (const row of rows) {
+      for (const rec of skillRecords(cardDefFrom(row))) {
+        const have = existing.get(`${rec.cardId}#${rec.side}#${rec.skillIndex}`);
+        if (!have) out.add(row.id);
+        else if (compilerOwns(have) && compilerRowChange(have, rec, rec.unread.length ? "open" : "draft").changed) out.add(row.id);
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Draft the given cards. `onlyOpen` leaves compiler drafts alone and only
  * fills gaps: rows that do not exist yet and rows still open.
@@ -220,8 +255,7 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
         }
         if (compilerOwns(have)) {
           if (opts.onlyOpen && have.status !== "open") continue;
-          const opsChanged = !same(have.ops, rec.ops) || !same(have.cond, rec.cond) || !same(have.combo, rec.combo) || !same(have.usage, rec.usage) || !same(have.validity, rec.validity);
-          const changed = opsChanged || !same(have.unread, rec.unread) || have.printed !== rec.printed || have.kind !== rec.kind || !same(have.trigger, rec.trigger) || !same(have.cost, rec.cost) || have.pattern !== rec.pattern || have.reads !== rec.reads || have.status !== status;
+          const { opsChanged, changed } = compilerRowChange(have, rec, status);
           if (!changed) continue;
           await db
             .update(cardRules)
