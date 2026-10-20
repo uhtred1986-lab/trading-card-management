@@ -199,6 +199,14 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
     // 9-1-3-2 / 9-6-3-1-1: a watcher whose own skill plays this card from the
     // hand is heard there too; `pendAutos` keeps only the skills that say so.
     if (handOut) for (const p of sides) for (const id of state.sides[p].zones.hand) { askedCards.push(id); handOut.add(id); }
+    // 9-1-3-2 / 3-9-4 (#1098): "When your life moves to another area, you may
+    // play this card from your Drop" works from the Drop, so the Drop copies
+    // hear this moment too. They are only *asked* here; `pendAutos` keeps a
+    // Drop card's skill when the compiled record declares the Drop as its
+    // origin (`usableFrom`), so a Drop card with no such Auto never fires.
+    if (handOut && trigger.name === "lifeLeft") {
+      for (const p of sides) for (const id of state.sides[p].zones.drop) { askedCards.push(id); handOut.add(id); }
+    }
     // 3-9-2-1: the card turned face up is still in its Life Area, and its own
     // Auto can answer as well as the controller's in-play watchers. The
     // declaration's watcher chooses the audience; this event subject is the
