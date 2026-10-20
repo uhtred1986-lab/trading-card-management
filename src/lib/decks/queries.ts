@@ -118,6 +118,8 @@ export interface DeckCardRow {
   limitedTo: number | null;
   isBanned: boolean;
   skill: string | null;
+  /** The awakened side's text; a Leader's deck-building restrictions are read from both. */
+  backSkill: string | null;
   characters: string[];
   traits: string[];
   /** The card's own game — a mismatch with the deck's is flagged by `legality`. */
@@ -152,6 +154,7 @@ export async function getDeck(db: Db, id: number, viewer?: OwnerScope) {
         limitedTo: cards.limitedTo,
         isBanned: cards.isBanned,
         skill: cards.skill,
+        backSkill: cards.backSkill,
         characters: cards.characters,
         traits: cards.traits,
       })

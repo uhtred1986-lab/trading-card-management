@@ -30,6 +30,12 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   one thing actually *refused* is over-reserving a **built** deck — that's ownership, not legality.
   Colour differs in *kind* per game: a warning in the original game, illegal in Fusion World (which
   also has no Z-Deck).
+  **Deck-building clauses printed on cards** (#1146, `parseDeckBuilding` in `cardRules.ts`) are read
+  from the text, never from ids: the Leader's "can't include …" / "only … in your Z-Deck" (front and
+  back), a card's own copy limit ("up to 7 copies", "as many … as you like", "1 copy in your Z-Deck")
+  and pooled limits ("up to 7 ≪Dark Dragon Ball≫"). A broken one is an `illegal` flag naming the
+  Leader's rule and the card; a clause the parser cannot read is reported in `unread`, never guessed.
+  Original game only. The arena shares the parser (a deck-building clause is read-and-empty).
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
   `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
   rather than dropped.
