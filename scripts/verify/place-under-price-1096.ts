@@ -121,11 +121,45 @@ assert.deepEqual(compileSkill(parseSkills(ONE_STAR)[0]).unsupported, []);
   assert.equal(activationPriceProblem([choose("c0"), place({})]), null, "this card under the chosen card");
   assert.equal(activationPriceProblem([choose("c0"), choose("c1"), place({ target: { var: "c1" } })]), null, "a chosen card under the chosen card");
   assert.match(activationPriceProblem([place({})]) ?? "", /moveTo under a card the price did not choose/, "no choice binds the host");
-  assert.match(activationPriceProblem([choose("c0"), place({ under: undefined })]) ?? "", /did not choose/, "no host named");
+  assert.equal(activationPriceProblem([choose("c0"), place({ under: undefined, target: { var: "c0" } })]), null, "no host named: this card is the host");
   assert.match(activationPriceProblem([choose("c0"), place({ target: { sel: { side: "you", area: "hand" } } })]) ?? "", /for a card the price did not choose/, "a moved card named by a bare selector");
   assert.match(activationPriceProblem([place({ to: "play" })]) ?? "", /cannot charge moveTo play/, "play stays refused");
   assert.match(activationPriceProblem([choose("c0"), { op: "ko", target: { var: "c0" } } as Op]) ?? "", /does not support ko as a cost/, "KO as a price stays refused");
   assert.match(activationPriceProblem([choose("c0"), { op: "comboFrom", target: { var: "c0" } } as unknown as Op]) ?? "", /does not support comboFrom as a cost/, "comboFrom stays refused");
   assert.match(activationPriceProblem([{ op: "shuffle" } as Op]) ?? "", /does not support shuffle as a cost/, "shuffle stays refused");
   assert.match(activationPriceProblem([{ op: "reveal", sel: { side: "you", area: "hand", count: 1 } } as unknown as Op]) ?? "", /does not support reveal as a cost/, "reveal stays refused");
+}
+
+// ── a fixed host: "place 1 card from your hand under this card" (BT2-068, BT4-058 — 55 stored rows) ──
+{
+  const BT2_068 = "[Activate: Main] [Once per turn] Place 1 card from your hand under this card: Draw 2 cards.";
+  DEFS["PU-DRAW"] = card("PU-DRAW", { colors: ["Green"], skill: BT2_068, characters: ["Draw Host"] });
+  DEFS["PU-DRAWX"] = card("PU-DRAWX", { type: "EXTRA", colors: ["Green"], energyCost: 0, power: null, comboCost: null, comboPower: null, skill: BT2_068, characters: ["Draw Extra"] });
+
+  const s = game({ hand: ["PU-XENO"], battle: ["PU-DRAW"] });
+  const host = findG(s, "p1", "battle", "PU-DRAW");
+  const fodder = findG(s, "p1", "hand", "PU-XENO");
+  const acts = activations(s, host);
+  assert.equal(acts.length, 1, `offered in the Battle Area with a card in hand (refusal: ${JSON.stringify(refusal(s, host))})`);
+  let t = playG(s, acts[0]);
+  for (let i = 0; i < 4 && t.prompt.kind === "chooseCards"; i++) {
+    const p = t.prompt as unknown as { player: PlayerId; choice: { candidates: string[] } };
+    t = playG(t, { type: "choose", player: p.player, cards: [p.choice.candidates.includes(fodder) ? fodder : p.choice.candidates[0]] } as Action);
+  }
+  assert.equal(t.prompt.kind, "main");
+  assert.deepEqual(underOf(t, host), ["PU-XENO"], "the hand card went under this card (23-2)");
+  assert.ok(!zoneOf(t, "p1", "hand").includes(fodder));
+  assert.equal(zoneOf(t, "p1", "hand").length, 2, "and 2 cards were drawn");
+
+  const empty = game({ hand: [], battle: ["PU-DRAW"] });
+  assert.equal(activations(empty, findG(empty, "p1", "battle", "PU-DRAW")).length, 0, "an empty hand: nothing to place, not offered");
+
+  const away = game({ hand: ["PU-DRAWX", "PU-XENO"] });
+  assert.equal(activations(away, findG(away, "p1", "hand", "PU-DRAWX")).length, 0, "this card in the hand holds no pile: not offered");
+
+  // A host given as a selector is resolved to its first match, not chosen: refused with its own reason.
+  const selectorHost = { op: "moveTo", target: { var: "c0" }, to: "under", under: { sel: { side: "you", area: "battle" } } } as unknown as Op;
+  const pick = { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "c0" } as Op;
+  assert.match(activationPriceProblem([pick, selectorHost]) ?? "", /host the price did not choose \(selector\)/);
+  assert.equal(activationPriceProblem([pick, { op: "moveTo", target: { var: "c0" }, to: "under" } as Op]), null, "no under: this card is the host");
 }

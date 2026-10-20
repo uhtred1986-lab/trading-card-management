@@ -1085,9 +1085,10 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         if (op.to === "under") {
           const earlier = ops.slice(0, at);
           const chosen = (v: string) => earlier.find((o): o is Extract<typeof o, { op: "choose" }> => o.op === "choose" && o.as === v);
+          // No `under`: the host is this card (`script.ts` moveTo), which must stand in an area that holds piles.
           const hostChoice = op.under && "var" in op.under ? chosen(op.under.var) : undefined;
-          if (!hostChoice) return false;
-          const hosts = resolveSelector(ctx, game, state, frame, hostChoice.sel).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
+          if (op.under && !hostChoice) return false;
+          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
           const movedChoice = "var" in op.target ? chosen(op.target.var) : undefined;
           if (!("var" in op.target) ? op.target.sel.special !== "self" : !movedChoice) return false;
           const moving = movedChoice
