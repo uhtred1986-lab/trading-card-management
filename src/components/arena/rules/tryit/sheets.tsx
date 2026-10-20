@@ -11,7 +11,7 @@ import type { TryRow } from "@/lib/arena/tryit-judge";
  * own condition reads. A bottom sheet on a phone, a centred card from `sm`
  * up; every control a 44 px target.
  */
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", esc);

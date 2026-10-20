@@ -27,7 +27,7 @@ import { isZ } from "./text/cards";
 import { matches, parseFilter, type CardFilter } from "./text/filters";
 import { resolvePath } from "./lang/path";
 import { countArea, countSide, edgeScenarios, edgeTitle, knobWords, ruleViewOf, splitKey, STAGEABLE_AREAS } from "./probe-edges";
-import { heldFrom, instrument, instrumentProgram, isMarker, looksHoisted } from "./probe-trace";
+import { heldFrom, instrumentProgram, isMarker, looksHoisted } from "./probe-trace";
 import type { Engine, EngineState } from "./engines";
 import { RULES } from "./vm";
 import { leaderOf, zoneOf } from "./engine-state";
@@ -35,6 +35,8 @@ import { addEffect as vmAddEffect } from "./vm/effects";
 import { moveCard } from "./vm/zones";
 import { sentence } from "./wording";
 import { specifiedCostWords } from "./specified-cost";
+import { SETUP_FILLER, type ResolvedSetup } from "./sandbox/setup";
+import type { Selector } from "./vm/script";
 import { assumptionsOf, askedQuestion, attributeSteps, boardChanges, candidatesOf, digestOf, emptyProbe, IDLE_PROMPTS, logLines, rulesDefinition, staticReading, tracedLogLines, type ProbeStep } from "./probe-report";
 import type { BoardKnobs, ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeVariant } from "./probe-types";
 export type { BoardKnobs, KnobValue, ProbeFamily, ProbeOutcome, ProbeRule, ProbeRun, ProbeScenario, ProbeTrace, ProbeVariant } from "./probe-types";
@@ -173,7 +175,10 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
   };
   const key = rule.side === "back" ? `${rule.def.id}#back` : rule.def.id;
   const ops = trace ? instrumentProgram(rule.ops, rule.hoisted ?? looksHoisted(rule.ops)) : rule.ops;
-  const price = trace && rule.price.ops?.length ? { ...rule.price, ops: instrument(rule.price.ops, "cost.program") } : rule.price;
+  // The price is left as written even when traced: a marker (`note`) between its steps is not on the whitelist of
+  // payable price steps (`canPayPriceProgram`), so an instrumented "choose 1 card from your hand and place it in
+  // your Drop Area" was never offered and every traced Activate board read "the price could not be paid".
+  const price = rule.price;
   // A traced run is Try it's (#470), where the WHEN being tried is the one
   // in the builder — so it is handed over the way a game hands a row's over
   // (`rulesFor`), and an [Auto] answers to it rather than to its printed
@@ -554,7 +559,7 @@ function placeUnderCard(s: EngineState, id: string, host: string): void {
   moveCard(s, rulesDefinition(), id, "drop", { under: host });
 }
 
-function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false): Staged {
+function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false, setup?: ResolvedSetup): Staged {
   const impl: Engine = RULES;
   const { defs, scripts } = propsFor(rule, trace);
   const ctx: EngineContext = { defs, scripts };
@@ -778,8 +783,22 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false): Staged 
     goals.push({ what: "run the turn to its end", by: actor, at: ["main"], match: (a) => a.type === "endMain" && a.player === actor });
   }
 
+  // An Activate board has to be able to pay: a price that takes cards from your hand ("choose 1 card from your hand and
+  // place it in your Drop Area") is never on the menu of a hand the opening emptied, and the board then answers "nothing"
+  // for a reason that is the board's. Stage the cards the skill itself asks for.
+  if (family === "activateMain" || family === "activateBattle" || family === "copy") {
+    const need = handNeed(rule);
+    if (need > 0) {
+      for (let i = 0; i < need; i++) put(ctx, s, YOU, FILLER, "hand");
+      input.push(`${need} other card${need === 1 ? "" : "s"} in your hand, for the cards the skill takes from it`);
+    }
+  }
+
+  if (setup) applySetup(ctx, s, rule, card, where, setup, input);
+
   if (Object.keys(knobs).length) {
     setKnobs(ctx, s, rule, card, knobs, input);
+    for (const [path, value] of Object.entries(knobs)) if (value === "take" || value === "decline") input.push(knobWords(ruleViewOf(rule), path, value));
     if (turn) {
       for (const g of goals) g.strict = true;
       input.push(turn === "you" ? "it is your turn, and the board waits for nothing on the next one" : "it is the opponent's turn, and the board waits for nothing on the next one");
@@ -796,9 +815,105 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false): Staged 
  * built. `stage` is the same function `probe()` runs, so the sandbox opens on
  * exactly the position a Try it row was judged on.
  */
-export function stagePosition(rule: ProbeRule, scenario: ProbeScenario): { ctx: EngineContext; state: EngineState; card: string; input: string[]; waitsFor: string[] } {
-  const staged = stage(rule, scenario);
-  return { ctx: staged.ctx, state: staged.state, card: staged.card, input: staged.input, waitsFor: staged.goals.map((g) => g.what) };
+export function stagePosition(rule: ProbeRule, scenario: ProbeScenario, setup?: ResolvedSetup): { ctx: EngineContext; state: EngineState; card: string; input: string[]; waitsFor: string[] } {
+  const staged = stage(rule, scenario, false, setup);
+  return { ctx: staged.ctx, state: staged.state, card: staged.card, input: staged.input, waitsFor: staged.goals.map(waitClause) };
+}
+
+/** A goal as a clause of its own — "the opponent attacks", "you activate BT6-062" — for the sentence the sandbox says about its board. */
+function waitClause(g: Goal): string {
+  const mine = g.by === YOU;
+  if (g.what === "a Battle Card is played") return mine ? "you play a Battle Card" : "the opponent plays a Battle Card";
+  if (g.what === "run the turn to its end") return mine ? "you end your turn" : "the opponent ends their turn";
+  if (g.what.startsWith("the opponent")) return g.what;
+  return `${mine ? "you" : "the opponent"} ${g.what}`;
+}
+
+/**
+ * How many cards of your hand the skill takes: every `choose` from your hand in its price and its steps, added up.
+ * The probe empties both hands when it opens a game, so this is what an Activate board must put back.
+ */
+function handNeed(rule: ProbeRule): number {
+  let n = 0;
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && o.sel && typeof o.sel === "object") {
+      const sel = o.sel as Selector;
+      const fromHand = sel.area === "hand" || (sel.areas ?? []).includes("hand");
+      if (fromHand && sel.side !== "opponent") n += Math.max(1, Math.min(sel.minCount ?? sel.count ?? 1, 5));
+    }
+    for (const x of Object.values(o)) walk(x);
+  };
+  walk(rule.price.ops);
+  walk(rule.ops);
+  return Math.min(n, 6);
+}
+
+/** The cards a `ResolvedSetup` stages, laid onto the board the scenario built (`sandbox/setup.ts` says what each field is). */
+function applySetup(ctx: EngineContext, s: EngineState, rule: ProbeRule, card: string, where: string, resolved: ResolvedSetup, input: string[]): void {
+  const { setup } = resolved;
+  const said: string[] = [];
+  for (const [id, def] of Object.entries(resolved.defs)) if (!ctx.defs[id]) ctx.defs[id] = def;
+  const scripts = (ctx.scripts ??= {});
+  for (const [id, script] of Object.entries(resolved.scripts)) if (!scripts[id]) scripts[id] = script;
+  const known = (id: string) => (id === SETUP_FILLER ? FILLER : ctx.defs[id] ? id : null);
+
+  for (const [who, id, p] of [["your", setup.leader, YOU], ["the opponent's", setup.theirLeader, THEM]] as const) {
+    if (!id) continue;
+    if (!ctx.defs[id] || ctx.defs[id].type !== "LEADER") {
+      said.push(`${id} is not a Leader in the catalog, so ${who} Leader is left as it was`);
+      continue;
+    }
+    if (p === YOU && where === "leader") {
+      said.push(`this skill is on your Leader, so your Leader stays ${rule.def.name}`);
+      continue;
+    }
+    const l = leaderOf(s, p);
+    s.cards[l].cardId = id;
+    s.cards[l].flipped = false;
+    said.push(`${who} Leader is ${ctx.defs[id].name}`);
+    // The board's own line about a Leader made to match the card is no longer true of this one.
+    if (p === YOU) for (let i = input.length - 1; i >= 0; i--) if (input[i].startsWith("your Leader shares")) input.splice(i, 1);
+  }
+
+  for (const [area, ids, word] of [["hand", setup.hand, "hand"], ["battle", setup.battle, "Battle Area"], ["drop", setup.drop, "Drop"]] as const) {
+    if (!ids?.length) continue;
+    const names: string[] = [];
+    for (const raw of ids) {
+      const id = known(raw);
+      if (!id) {
+        said.push(`${raw} is not in the catalog, so it was left out of your ${word}`);
+        continue;
+      }
+      put(ctx, s, YOU, id, area);
+      names.push(id === FILLER ? "an ordinary card" : ctx.defs[id].name);
+    }
+    if (names.length) said.push(`your ${word} also holds ${names.join(", ")}`);
+  }
+
+  if (setup.energy) {
+    const { active, rested } = setup.energy;
+    const want = active + rested;
+    const have = () => zoneOf(s, YOU, "energy");
+    while (have().length > want) send(ctx, s, have()[have().length - 1], "deck", YOU, { position: "bottom" });
+    while (have().length < want) put(ctx, s, YOU, ENERGY, "energy");
+    have().forEach((id, i) => {
+      if (i < rested) s.cards[id].mode = "rest";
+      else s.cards[id].mode = "active";
+    });
+    said.push(`you have ${active} active and ${rested} rested energy`);
+  }
+
+  for (const [who, p, n] of [["your", YOU, setup.life?.you], ["the opponent's", THEM, setup.life?.them]] as const) {
+    if (n == null) continue;
+    for (let guard = 0; zoneOf(s, p, "life").length > n && guard < 20; guard++) send(ctx, s, zoneOf(s, p, "life")[0], "deck", p, { position: "bottom" });
+    while (zoneOf(s, p, "life").length < n && zoneOf(s, p, "deck").length) send(ctx, s, zoneOf(s, p, "deck")[0], "life", p);
+    said.push(`${who} life is ${zoneOf(s, p, "life").length}`);
+  }
+  input.push(...said.map((l) => `set up by you: ${l}`));
+  void card;
 }
 
 /**
@@ -888,8 +1003,19 @@ function countedDef(id: string, f: CardFilter | undefined, like: CardDef): CardD
  * it is among the candidates — and everything else is declined, so what is in
  * the log is the rule and not a second card's opinion of it.
  */
-function answerFor(s: EngineState, prefer: string): Action | null {
+function answerFor(s: EngineState, prefer: string, decline = false): Action | null {
   const pr = s.prompt;
+  // An edge board for an "if you do" (`probe-edges.ts`, a "decline" knob): every offer the rule makes is turned down —
+  // "you may" says "Don't", an optional cost is not paid, an "up to" choice takes nothing — and what the rule then
+  // does is the answer.
+  if (decline) {
+    if (pr.kind === "optionalCost") return { type: "optionalCost", player: pr.player, pay: false };
+    if (pr.kind === "chooseMode") {
+      const no = pr.options.findIndex((o) => o === "Don't" || o === "None");
+      if (no >= 0) return { type: "chooseMode", player: pr.player, index: no };
+    }
+    if (pr.kind === "chooseCards" && pr.choice.min === 0) return { type: "choose", player: pr.player, cards: [] };
+  }
   switch (pr.kind) {
     case "chooseFirst":
       return { type: "chooseFirst", player: pr.player, first: YOU };
@@ -980,6 +1106,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, trace: boolean): Pro
   let testedAt = -1;
   let missed: Goal | null = null;
   let missedAt: EngineState | null = null;
+  const declines = Object.values(scenario.knobs ?? {}).includes("decline");
 
   for (let i = 0; i < 80 && s.phase !== "over" && s.prompt.kind !== "gameOver"; i++) {
     const goal = staged.goals[goalIndex];
@@ -1001,7 +1128,7 @@ function runProbe(rule: ProbeRule, scenario: ProbeScenario, trace: boolean): Pro
       break;
     }
     if (!goal && IDLE_PROMPTS.includes(s.prompt.kind as (typeof IDLE_PROMPTS)[number])) break;
-    const answer = answerFor(s, staged.card);
+    const answer = answerFor(s, staged.card, declines);
     if (!answer) break;
     const ask = askedQuestion(ctx, s);
     const r = impl.apply(ctx, s, answer);

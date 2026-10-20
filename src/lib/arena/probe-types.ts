@@ -59,8 +59,12 @@ export interface ProbeScenario {
   knobs?: BoardKnobs;
 }
 
-/** A `count` or `life` condition's number, or `isTurnPlayer`'s side. */
-export type KnobValue = number | "you" | "opponent";
+/**
+ * A `count` or `life` condition's number, `isTurnPlayer`'s side, or — for a
+ * `did`/`chose` condition, which reads an answer and not a board — whether
+ * the probe takes the offer ("take") or declines it ("decline").
+ */
+export type KnobValue = number | "you" | "opponent" | "take" | "decline";
 export type BoardKnobs = Record<RulePath, KnobValue>;
 
 export type ProbeOutcome = "fired" | "blank" | "didNotFire" | "notOffered" | "inForce" | "noScenario" | "error";

@@ -6,6 +6,7 @@ import { expectationsAction, saveExpectationsAction, tryRuleByIdAction } from "@
 import type { Rule } from "@/lib/arena/lang/ast";
 import type { RulePath } from "@/lib/arena/lang/path";
 import type { KnobSpec } from "@/lib/arena/probe-edges";
+import type { KnobValue } from "@/lib/arena/probe-types";
 import { fixPath, judge, ownLines, type Expectation, type JudgedStatus, type TryResult, type TryRow } from "@/lib/arena/tryit-judge";
 import { keepDraft, sandboxHref } from "@/lib/arena/sandbox/draft";
 import { BoardSheet, WrongSheet } from "./sheets";
@@ -211,8 +212,8 @@ export function TryItBoards({ ruleId, rule, onFix, api }: { ruleId: number; rule
 }
 
 /** Where a row's "Change board" sheet starts: the row's own knobs, else the first generated board's, else each knob's least. */
-function startingKnobs(result: TryResult, row: TryRow, specs: KnobSpec[]): Record<string, number | "you" | "opponent"> {
-  const out: Record<string, number | "you" | "opponent"> = {};
+function startingKnobs(result: TryResult, row: TryRow, specs: KnobSpec[]): Record<string, KnobValue> {
+  const out: Record<string, KnobValue> = {};
   for (const k of specs) {
     const from = row.knobs[k.path] ?? result.rows.find((r) => r.knobs[k.path] !== undefined)?.knobs[k.path];
     out[k.path] = from ?? (k.kind === "turn" ? "you" : k.min);

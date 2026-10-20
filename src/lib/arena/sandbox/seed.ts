@@ -6,6 +6,7 @@
  */
 import { familyOf, scenarioFromKey, scenariosFor, stagePosition, type ProbeRule, type ProbeScenario } from "../probe";
 import type { CardArt } from "../view";
+import type { ResolvedSetup } from "./setup";
 import type { SandboxSeed } from "./session";
 
 export function boardFor(rule: ProbeRule, boardKey: string | null | undefined): ProbeScenario | null {
@@ -14,11 +15,11 @@ export function boardFor(rule: ProbeRule, boardKey: string | null | undefined): 
 }
 
 /** The seed for `rule` on the board `boardKey` names (else its default board), or the reason there is none. */
-export function sandboxSeed(rule: ProbeRule, boardKey: string | null | undefined, art: Record<string, CardArt> = {}): { error: string | null; seed: SandboxSeed | null } {
+export function sandboxSeed(rule: ProbeRule, boardKey: string | null | undefined, art: Record<string, CardArt> = {}, setup?: ResolvedSetup): { error: string | null; seed: SandboxSeed | null } {
   const scenario = boardFor(rule, boardKey);
   if (!scenario) return { error: "This skill names a moment the engine does not know, so there is no board to play it on.", seed: null };
   try {
-    const staged = stagePosition(rule, scenario);
+    const staged = stagePosition(rule, scenario, setup);
     return {
       error: null,
       seed: {
