@@ -49,7 +49,7 @@ import { sparkingIsValid } from "./validity";
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Op, type ScriptFrame } from "./script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
 import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
@@ -633,7 +633,73 @@ export function permanents(
         }
       }
     }
+    // #1119: a card in a pile is in no zone (23-2), so the walk above never meets it. Its
+    // [Permanent] counts only where its record asks for the card to be under another one, and only
+    // while the card holding the pile stands in play and shows its face.
+    for (const zone of inPlay) {
+      for (const host of state.sides[p].zones[zone] ?? []) {
+        const hostCard = state.cards[host];
+        if (!hostCard?.under.length || hostCard.hidden) continue;
+        for (const src of hostCard.under) {
+          const card = state.cards[src];
+          if (!card || card.hidden || skillsNegated(state, src)) continue;
+          const showing = skillsShowing(ctx, state, src);
+          for (const sk of showing.skills) {
+            if (sk.kind !== "permanent" || skillNegated(state, src, sk.index, sk.kind)) continue;
+            const program = showing.scripts.bySkill[sk.index];
+            if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+            if (!sparkingIsValid(state, p, sk.validity)) continue;
+            if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
+            const ops = pileOps(program.ops);
+            if (!ops.length) continue;
+            collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, true, targets, holds, measure);
+          }
+        }
+      }
+    }
   }
+  return out;
+}
+
+/**
+ * Does this condition hold only while the card carrying it is under another card? The compiler
+ * reads "when this card is under a card" / "this card is under a white <Cell> card" as a count of
+ * the `onTop` selector (the card whose pile holds this one, 23-2-2-2), so that is what is looked
+ * for, in the record and never in a card's name. `all` needs one such part; `any` and `not` never
+ * count, since either can hold with the card in no pile.
+ */
+function requiresPile(cond: Cond): boolean {
+  if (cond.kind === "count") return cond.sel.special === "onTop" && (cond.atLeast ?? 1) >= 1;
+  if (cond.kind === "all") return cond.conds.some(requiresPile);
+  return false;
+}
+
+const pileOpsCache = new WeakMap<Op[], Op[]>();
+/**
+ * What of a [Permanent]'s program works from the pile under a card (#1119): the branches reached
+ * only through a condition that asks for the card to be under another (BT3-050 f20, BT31-130 f10),
+ * kept inside every condition around them. A program with no such branch gives `[]`, so an
+ * ordinary [Permanent] on a buried card never starts to apply (9-1-3-1: a skill is valid only in the
+ * area its text names).
+ */
+function pileOps(ops: Op[]): Op[] {
+  const cached = pileOpsCache.get(ops);
+  if (cached) return cached;
+  const out: Op[] = [];
+  for (const op of ops) {
+    if (op.op !== "if") continue;
+    if (requiresPile(op.cond)) {
+      // The `else` of a pile condition is where the card is *not* under one, so it is dropped.
+      const { else: _dropped, ...rest } = op;
+      void _dropped;
+      out.push(rest);
+    } else {
+      const then = pileOps(op.then);
+      const other = op.else ? pileOps(op.else) : [];
+      if (then.length || other.length) out.push({ ...op, then, ...(other.length ? { else: other } : {}) });
+    }
+  }
+  pileOpsCache.set(ops, out);
   return out;
 }
 
