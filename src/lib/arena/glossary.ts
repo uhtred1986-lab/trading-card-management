@@ -328,7 +328,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn.",
     engineRules:
-      "Bare printed Dual/Triple Attack needs no stored compiler record; its native declaration and hook still resolve. A priced or unread printed extension remains guarded. Built (#156) in two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area).",
+      "Bare printed Dual/Triple Attack needs no stored compiler record; its native declaration and hook still resolve. A priced or unread printed extension remains guarded. Built (#156) in two halves: the line answers `attacks` (`at:`), so it is announced as the card attacks, and the stand is the `battleEnd` hook on the attacker — after a guard's [Revenge] — which switches it to Active Mode while it is still in play and has declared fewer than X attacks this turn, the one ending included (`attacked`, a count kept on the card and cleared with the turn or a change of area). A \"can't switch to Active Mode\" lock on the card (BT5-101 Time Magic, its Q&A) refuses the stand, as it refuses every skill's switch to Active Mode (#1138: `setMode` asks `switchToActive`).",
     support: "engine",
   },
   Revenge: {
