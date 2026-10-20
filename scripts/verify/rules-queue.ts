@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { cardHref, defaultGroup, defaultHealth, groupCards, neighbours, parseQueue, queueFromParam, queueHref, queueLink, queueParam } from "../../src/lib/arena/queue";
-import { classifyQueueCard, viewOfQueue, type HealthRow, type QueueCard } from "../../src/lib/arena/rules-store";
+import { CLAUDE_FIX_REASON, classifyQueueCard, viewOfQueue, type HealthRow, type QueueCard } from "../../src/lib/arena/rules-store";
 import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { unlimitedUsage } from "../../src/lib/arena/vm/usage";
 import { noSparking } from "../../src/lib/arena/vm/validity";
@@ -67,6 +67,13 @@ const cls = (c: ReturnType<typeof card>, rows: ReturnType<typeof row>[]) => clas
   assert.match(unchecked.reasons[0], /nobody has checked/);
   assert.equal(unchecked.wording, "draw", "a draft groups under its pattern");
 
+  // A Claude draft waiting for the owner leads the reason line, over an older audit flag.
+  const waiting = cls(card("A-1b"), [row({ source: "claude", status: "draft", reviewFlag: "Wrong (phone review) · old note" })]);
+  assert.equal(waiting.claudeFix, 1);
+  assert.equal(waiting.reasons[0], CLAUDE_FIX_REASON, "the waiting fix comes before the stale flag text");
+  assert.equal(unchecked.claudeFix, 0, "a compiler draft is nobody's fix");
+  assert.equal(cls(card("A-1c"), [row({ source: "claude", status: "confirmed" })]).claudeFix, 0, "an approved Claude row waits for no one");
+
   const done = cls(card("A-2"), [row({ status: "confirmed" })]);
   assert.equal(done.health, "done");
   assert.deepEqual(done.reasons, [], "a done card has nothing to say");
@@ -109,7 +116,7 @@ const cls = (c: ReturnType<typeof card>, rows: ReturnType<typeof row>[]) => clas
 {
   const mk = (id: string, name: string, health: QueueCard["health"], extra: Partial<QueueCard> = {}): QueueCard => ({
     cardId: id, name, setCode: id.split("-")[0], cardType: "BATTLE", colors: [], imageUrl: null, health, skills: [{ health, ruleId: 1, family: null }],
-    reasons: [], family: null, ruleId: 1, source: "compiler", wording: null, mechanism: null, missing: 0, rebuild: { rows: 0, compiler: 0, protectedRows: 0, other: 0 }, ...extra,
+    reasons: [], family: null, ruleId: 1, source: "compiler", wording: null, mechanism: null, missing: 0, rebuild: { rows: 0, compiler: 0, protectedRows: 0, other: 0 }, claudeFix: 0, ...extra,
   });
   const cs = [
     mk("BT1-1", "Beta", "incomplete", { family: "combo", reasons: ["combo"] }),

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CardImage } from "@/components/CardImage";
+import { RowOpening } from "./RowOpening";
 import { cardHref, HEALTH_TABS, type Queue } from "@/lib/arena/queue";
 import type { QueueCard, RuleHealth } from "@/lib/arena/rules-store";
 
@@ -83,7 +84,7 @@ export function QueueRow({ card, queue, decks }: { card: QueueCard; queue: Queue
       <Link
         href={cardHref(card.cardId, queue, card.ruleId)}
         data-queue-row
-        className="grid min-h-16 grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 border-t border-space-700/70 px-3 py-2.5 hover:bg-space-800/60 sm:grid-cols-[52px_minmax(0,1.6fr)_minmax(0,2fr)_auto] sm:gap-4 sm:px-5 sm:py-3"
+        className="relative grid min-h-16 grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 border-t border-space-700/70 px-3 py-2.5 hover:bg-space-800/60 sm:grid-cols-[52px_minmax(0,1.6fr)_minmax(0,2fr)_auto] sm:gap-4 sm:px-5 sm:py-3"
       >
         <CardImage src={card.imageUrl} alt={card.name} sizes="52px" className="w-10 sm:w-[52px]" />
         <span className="min-w-0">
@@ -93,15 +94,13 @@ export function QueueRow({ card, queue, decks }: { card: QueueCard; queue: Queue
             {card.skills.map((s, i) => (
               <HealthDot key={i} health={s.health} />
             ))}
+            {card.claudeFix > 0 && <span className="ds-status-success ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold">Claude fix waiting</span>}
             <span className="ml-1 text-xs text-space-400">{decks > 0 ? `in ${decks} deck${decks === 1 ? "" : "s"}` : "in no deck"}</span>
           </span>
           {reason && <span className="mt-0.5 block truncate text-xs text-space-400 sm:hidden">{reason}</span>}
         </span>
         <span className="hidden min-w-0 text-[13px] text-space-200 sm:block">{reason}</span>
-        <span className="text-lg text-ki-300 sm:text-[13px] sm:font-bold" aria-hidden="true">
-          <span className="sm:hidden">›</span>
-          <span className="hidden sm:inline">Open ›</span>
-        </span>
+        <RowOpening />
         <span className="sr-only">Open {card.name}</span>
       </Link>
     </li>

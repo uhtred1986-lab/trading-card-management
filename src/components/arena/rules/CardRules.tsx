@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { approveFlaggedAction, confirmRuleAction, keepMineAction, rebuildCardAction, reopenRuleAction, setSpecifiedCostAction, takeCompilerAction } from "@/app/arena/actions";
 import type { CardView, HistoryLine, SkillView } from "@/app/arena/rules/card/types";
 import { flagWrongAction, unflagWrongAction } from "@/app/arena/rules/review/actions";
@@ -230,7 +230,7 @@ export function CardRules({ card, skills, history, walk, backHref, admin, initia
               ))}
             </>
           ) : (
-            "Not in a deck you play"
+            "Not in any of your decks"
           )}
           {" · "}seen in {card.seenIn} game{card.seenIn === 1 ? "" : "s"}
         </p>
@@ -315,14 +315,7 @@ export function CardRules({ card, skills, history, walk, backHref, admin, initia
         </div>
 
         {editSkill && (
-          <aside id="editor" aria-label={`Edit skill ${editSkill.n}`} className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-space-950 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] lg:sticky lg:top-20 lg:z-auto lg:max-h-[calc(100dvh-6rem)] lg:flex-[1_1_380px] lg:rounded-xl lg:border lg:border-space-700 lg:bg-space-900 lg:p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <h2 className="text-lg font-extrabold italic uppercase text-space-50">Edit skill {editSkill.n}</h2>
-              <span className="flex-1" />
-              <button type="button" className={quiet} onClick={() => setEditing(null)} aria-label="Close the editor">
-                Close ×
-              </button>
-            </div>
+          <EditorPane title={`Edit skill ${editSkill.n}`} onClose={() => setEditing(null)}>
             <SkillEditor
               key={`${editSkill.ruleId}:${editSkill.version}`}
               skill={editing?.focus ? { ...editSkill, focus: editing.focus } : editSkill}
@@ -337,7 +330,7 @@ export function CardRules({ card, skills, history, walk, backHref, admin, initia
                 router.refresh();
               }}
             />
-          </aside>
+          </EditorPane>
         )}
       </div>
 
@@ -377,6 +370,69 @@ export function CardRules({ card, skills, history, walk, backHref, admin, initia
         </nav>
       )}
     </div>
+  );
+}
+
+/** Below this width the editor is a full-screen sheet; from it up, a side column. Matches Tailwind's `xl`: the column needs ~960 px beside the skills, or it wraps under all of them (the 1,700 px "Edit rule does nothing"). */
+const SHEET_QUERY = "(max-width: 1279px)";
+const watchSheet = (cb: () => void) => {
+  const m = window.matchMedia(SHEET_QUERY);
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+};
+
+/**
+ * Where a skill's editor sits. A sheet on a phone or tablet: fixed over the page with its own
+ * scroll, the page behind it locked, focus moved in, Escape and Close × leave it and focus goes
+ * back to what opened it. A side column on a wide screen: scrolled into view and focused when it
+ * opens, so *Edit rule* never looks like it did nothing.
+ */
+function EditorPane({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  const sheet = useSyncExternalStore(watchSheet, () => window.matchMedia(SHEET_QUERY).matches, () => true);
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const el = ref.current;
+    el?.focus({ preventScroll: true });
+    if (!sheet) el?.scrollIntoView({ block: "start", behavior: "smooth" });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) close.current();
+    };
+    document.addEventListener("keydown", onKey);
+    const html = document.documentElement;
+    const before = html.style.overflow;
+    if (sheet) html.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      html.style.overflow = before;
+      if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
+    };
+  }, [sheet]);
+
+  return (
+    <aside
+      ref={ref}
+      id="editor"
+      tabIndex={-1}
+      role={sheet ? "dialog" : "complementary"}
+      aria-modal={sheet ? true : undefined}
+      aria-label={title}
+      className="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-space-950 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] outline-none xl:sticky xl:top-20 xl:z-auto xl:max-h-[calc(100dvh-6rem)] xl:flex-[1_1_380px] xl:rounded-xl xl:border xl:border-space-700 xl:bg-space-900 xl:p-5"
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <h2 className="text-lg font-extrabold italic uppercase text-space-50">{title}</h2>
+        <span className="flex-1" />
+        <button type="button" className={quiet} onClick={onClose} aria-label="Close the editor">
+          Close ×
+        </button>
+      </div>
+      {children}
+    </aside>
   );
 }
 

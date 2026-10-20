@@ -29,14 +29,14 @@ export async function rebuildDryRunAction(scope: Scope): Promise<{ error: string
  * touched. `card_rules` is in no cache tag (`src/lib/cache/tags.ts`: catalog, prices, meta), so
  * only the page is revalidated, plus the `rules-health` cache of the classified catalog.
  */
-export async function rebuildCardsAction(scope: Scope): Promise<{ error: string | null; rebuilt?: number; remaining?: number; updated?: number; protectedRows?: number }> {
+export async function rebuildCardsAction(scope: Scope): Promise<{ error: string | null; rebuilt?: number; remaining?: number; updated?: number; inserted?: number; protectedRows?: number }> {
   await requireSl();
   if (!(await isArenaAdmin())) return { error: ADMINS_ONLY };
   try {
     const r = await rebuildScope(db, scopeOf(scope), await currentScope());
     expireRulesHealth();
     revalidatePath("/arena/rules");
-    return { error: null, rebuilt: r.rebuilt, remaining: r.remaining, updated: r.updated, protectedRows: r.plan.protectedRows };
+    return { error: null, rebuilt: r.rebuilt, remaining: r.remaining, updated: r.updated, inserted: r.inserted, protectedRows: r.plan.protectedRows };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "The rebuild failed." };
   }

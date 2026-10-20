@@ -12,7 +12,7 @@ import { FIND_ID, QueueKeys } from "@/components/arena/rules/WorkbenchKeys";
 import { PageHeader, Panel } from "@/components/ui";
 import { currentScope, isArenaAdmin, requireSlPage } from "@/lib/auth";
 import { groupCards, parseQueue, queueLink, queueParams, type GroupBy, type Queue } from "@/lib/arena/queue";
-import { loadQueue, planRebuild, REBUILD_BATCH } from "@/lib/arena/queue-cards";
+import { loadQueue, planRebuild, REBUILD_BATCH, settlePlan } from "@/lib/arena/queue-cards";
 import { loadProgress, readSnapshots, recordSnapshot, type SnapshotRow } from "@/lib/arena/rules-progress";
 import { ruleById, setsWithRules, type RuleFilter } from "@/lib/arena/rules-store";
 import { recentBatches } from "../actions";
@@ -68,7 +68,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     });
   }
 
-  const plan = planRebuild(scopeCards);
+  const plan = await settlePlan(db, planRebuild(scopeCards));
   const filtered = !!(qu.q || qu.set);
   const pages = Math.ceil(matched.length / PAGE);
   const rows = matched.slice(qu.page * PAGE, (qu.page + 1) * PAGE);
@@ -91,7 +91,14 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
     { value: "catalog", label: "Whole catalog", href: link({ scope: { kind: "catalog" } }) },
     ...(scope.kind === "game" ? [{ value: "game", label: `Fired in game ${scope.id}`, href: link({ scope }) }] : []),
   ];
-  const setOptions = [{ value: "", label: "Every set", href: link({ set: "" }) }, ...sets.map((s) => ({ value: s.setCode, label: `${s.setCode} (${s.n})`, href: link({ set: s.setCode }) }))];
+  // Sets grouped by family (BT, EX, SD, P, …) with the family's card-rule count, so the list is a few headings and not a hundred lines.
+  const familyOf = (code: string) => code.match(/^[A-Za-z]+/)?.[0].toUpperCase() ?? "Other";
+  const familyTotal = new Map<string, number>();
+  for (const s of sets) familyTotal.set(familyOf(s.setCode), (familyTotal.get(familyOf(s.setCode)) ?? 0) + s.n);
+  const setOptions: { value: string; label: string; href: string; group?: string }[] = [
+    { value: "", label: "Every set", href: link({ set: "" }) },
+    ...sets.map((s) => ({ value: s.setCode, label: `${s.setCode} (${s.n})`, href: link({ set: s.setCode }), group: `${familyOf(s.setCode)} · ${familyTotal.get(familyOf(s.setCode))}` })),
+  ];
   if (qu.set && !sets.some((s) => s.setCode === qu.set)) setOptions.push({ value: qu.set, label: qu.set, href: link({ set: qu.set }) });
   const groupOptions = (Object.keys(GROUP_LABELS) as GroupBy[]).map((k) => ({ value: k, label: GROUP_LABELS[k], href: link({ group: k }) }));
 
