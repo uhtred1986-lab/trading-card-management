@@ -57,3 +57,6 @@ docs/arena-redesign/clips/
 
 # Phone runs from `npm run arena:phone` (docs/arena-phone-ux-review.md): screenshots, run.json, review.html
 /arena-phone-runs/
+
+# Before/after proof from `npm run shots:compare` (.claude/skills/screen-proof)
+.shots-compare/

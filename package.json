@@ -66,6 +66,7 @@
     "arena:probe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts",
     "arena:reprobe": "tsx --env-file-if-exists=.env.local scripts/arena-probe.mts --reprobe",
     "arena:shots": "tsx scripts/arena-shots.mts",
+    "shots:compare": "tsx scripts/shots-compare.mts",
     "arena:record": "tsx scripts/arena-record.mts",
     "arena:contrast": "tsx scripts/arena-contrast.mts",
     "arena:tally": "tsx scripts/arena-catalog-tally.mts",
