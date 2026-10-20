@@ -23,13 +23,15 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
 const BT3_050 = "[permanent] When this card is under a card, the <Majin Buu> on top of this card gains [barrier].";
 const BT31_130_F10 = "[permanent] If your Leader is a white <Cell> card and this card is under a white <Cell> card, the card on top of this card gains [Barrier].";
-// An ordinary [Permanent] with no under-condition that happens to name the card above it.
-const ORDINARY = "[permanent] The card on top of this card gains [Barrier].";
+// An ordinary [Permanent] with no under-condition that reaches cards other than the one above it.
+const ORDINARY = "[permanent] Your Battle Cards gain [Barrier].";
 
 const defs: Record<string, CardDef> = { ...DEFS,
   "BT3050": card("BT3050", { colors: ["Blue"], characters: ["Majin Buu"], energyCost: 3, power: 20000, skill: BT3_050 }),
   "BT31130": card("BT31130", { colors: ["White"], characters: ["Cell"], energyCost: 3, power: 10000, skill: BT31_130_F10 }),
   "ORD": card("ORD", { colors: ["Blue"], characters: ["Filler"], energyCost: 1, power: 10000, skill: ORDINARY }),
+  // The stored production row of BT3-050 f20: the same text, but the record is a bare grant to `onTop` with no condition (set below).
+  "BT3050S": card("BT3050S", { colors: ["Blue"], characters: ["Majin Buu"], energyCost: 3, power: 20000, skill: BT3_050 }),
   "BUU": card("BUU", { colors: ["Blue"], characters: ["Majin Buu"], energyCost: 5, power: 25000, skill: null }),
   "NOBUU": card("NOBUU", { colors: ["Blue"], characters: ["Filler"], energyCost: 5, power: 25000, skill: null }),
   "WCELL": card("WCELL", { colors: ["White"], characters: ["Cell"], energyCost: 5, power: 25000, skill: null }),
@@ -39,7 +41,11 @@ const defs: Record<string, CardDef> = { ...DEFS,
 };
 
 const roundtrip = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
-const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
+const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => {
+  // Stored as it is in production: [{"op":"grant","until":"game","target":{"sel":{"filter":{<Majin Buu>},"special":"onTop"}},"keyword":{"name":"Barrier"}}], no `if`, no `cond`.
+  const stored = d.id === "BT3050S" ? { cond: null, ops: roundtrip(skillRecords(defs.BT3050)[0].ops) } : {};
+  return { ...r, ...stored, id, source: "compiler", status: "draft" } as unknown as RuleRow;
+}));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 
@@ -48,6 +54,11 @@ for (const id of ["BT3050", "BT31130"]) {
   const rec = skillRecords(defs[id])[0];
   assert.deepEqual(rec.unread, [], `${id}: nothing unread`);
   assert.match(JSON.stringify(rec.ops), /"special":"onTop"/, `${id}: the record names the card on top`);
+}
+{
+  const stored = rows.find((r) => (r as unknown as { cardId: string }).cardId === "BT3050S") as unknown as { cond: unknown; ops: { op: string; target: { sel: { special: string } } }[] };
+  assert.equal(stored.cond, null, "the stored shape has no condition");
+  assert.deepEqual(stored.ops.map((o) => [o.op, o.target.sel.special]), [["grant", "onTop"]], "and is a bare grant to onTop");
 }
 assert.match(skillRecords(defs.BT3050)[0].reads, /on top of this card/, "BT3-050 f20 reads as a condition on the card on top");
 
@@ -106,6 +117,17 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(barrier(gone, buu.top), false, "with BT3-050 out of the pile, the [Barrier] is gone");
   }
 
+  // ── BT3-050 f20 as stored: a bare grant to the card on top ──
+  {
+    const s = fresh(seat, "L-RED", 11303);
+    const buu = stack(s, seat, "BUU", "BT3050S");
+    assert.equal(barrier(s, buu.top), true, `${seat}: stored BT3-050 under a <Majin Buu> gives it [Barrier]`);
+    const notBuu = stack(s, seat, "NOBUU", "BT3050S");
+    assert.equal(barrier(s, notBuu.top), false, "under a card that is not a <Majin Buu>: none");
+    const loose = stage(s, seat, "BT3050S", "battle");
+    assert.equal(barrier(s, loose), false, "in the Battle Area: nothing is on top of it, no effect");
+  }
+
   // ── BT31-130 f10 ──
   {
     const white = fresh(seat, "L-WCELL", 11300);
@@ -123,13 +145,18 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(barrier(noLeader, wrong.top), false, "without a white <Cell> Leader: no [Barrier]");
   }
 
-  // ── an ordinary [Permanent] on a buried card changes nothing ──
+  // ── a [Permanent] that reaches other cards than the one above it changes nothing from a pile ──
   {
     const s = fresh(seat, "L-RED", 11302);
     const st = stack(s, seat, "BUU", "ORD");
-    assert.equal(barrier(s, st.top), false, `${seat}: a [Permanent] with no under-condition does not apply from the pile`);
-    const inPlay = stage(s, seat, "ORD", "battle");
-    assert.equal(barrier(s, inPlay), false, "(and standing in the Battle Area it grants its own card nothing: nothing is on top of it)");
+    const bystander = stage(s, seat, "NOBUU", "battle");
+    assert.equal(barrier(s, st.top), false, `${seat}: "your Battle Cards gain [Barrier]" does not apply from the pile`);
+    assert.equal(barrier(s, bystander), false, "…to the rest of the board either");
+    // The same text is live where it is valid, so the control above proves the refusal and not a dead card.
+    const live = fresh(seat, "L-RED", 11304);
+    stage(live, seat, "ORD", "battle");
+    const other = stage(live, seat, "NOBUU", "battle");
+    assert.equal(barrier(live, other), true, "in the Battle Area the same Permanent grants [Barrier]");
   }
 }
 

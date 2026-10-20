@@ -674,7 +674,14 @@ function requiresPile(cond: Cond): boolean {
   return false;
 }
 
-const pileOpsCache = new WeakMap<Op[], Op[]>();
+/** A standing grant, power change, attribute change or identity gain whose every target is selected by `special: "onTop"`. */
+function reachesOnlyOnTop(op: Op): boolean {
+  if (op.op !== "grant" && op.op !== "power" && op.op !== "modifyAttr" && op.op !== "gains") return false;
+  const t = op.target;
+  return !!t && "sel" in t && t.sel.special === "onTop";
+}
+
+const pileOpsCache =new WeakMap<Op[], Op[]>();
 /**
  * What of a [Permanent]'s program works from the pile under a card (#1119): the branches reached
  * only through a condition that asks for the card to be under another (BT3-050 f20, BT31-130 f10),
@@ -687,7 +694,13 @@ function pileOps(ops: Op[]): Op[] {
   if (cached) return cached;
   const out: Op[] = [];
   for (const op of ops) {
-    if (op.op !== "if") continue;
+    // A stored row may carry the under-condition nowhere but in the target itself: a bare grant to
+    // `onTop` (BT3-050 f20 as stored). `onTop` is the one card whose pile holds this one, so such an
+    // op reaches nothing else and is safe to take from a pile.
+    if (op.op !== "if") {
+      if (reachesOnlyOnTop(op)) out.push(op);
+      continue;
+    }
     if (requiresPile(op.cond)) {
       // The `else` of a pile condition is where the card is *not* under one, so it is dropped.
       const { else: _dropped, ...rest } = op;
