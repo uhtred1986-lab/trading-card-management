@@ -135,8 +135,8 @@ function finish(s: VmState, want: string | null = null): VmState {
   r = finish(r, attacker);
   assert.equal(pendingFor(r, attacker), 0, "8-1-5: the Auto resolved at the checkpoint after counter timing");
   assert.ok(events.some((e) => e.type === "attackNegated"), "Time Magic negated the attack");
-  // With the switch lock (#1143) on main the Auto fails to untap the chosen attacker; until then only the order is asserted.
-  if (r.cards[attacker].mode === "rest") console.log("  (the switch lock holds: the attacker stayed in Rest Mode)");
+  // The Auto resolved (nothing pending) and the lock Time Magic put on the attacker held against it (#1138/#1143, the Q&A's third answer).
+  assert.equal(r.cards[attacker].mode, "rest", "the Auto ran, but Time Magic's lock kept the attacker in Rest Mode");
 }
 
 // 3. A negated attack does not negate its "when attacks" Autos: they resolve after the negation (the Q&A's first answer).
