@@ -236,7 +236,13 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // its owner's Warp under the same conditions as if it were in your hand"
     // (BT31-150) — a `permit` of `overRealmFromWarp`, read while the card is
     // in the Warp (`vm/effects.ts`). Every other gate is the keyword's own.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp && !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card))) continue;
+    // #1118 / 9-1-3-2: and a non-keyword line whose persisted program takes
+    // this card out of the Warp ("place this card from your Warp…", "play this
+    // card from your Warp") is used from there — read off the record
+    // (`usableFrom`), as the Drop is above, never off the name or the id.
+    if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp &&
+      !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card)) &&
+      (keyword || !usableFrom(showing.scripts.bySkill[skill.index]).includes("warp"))) continue;
     // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, and only that, when its [Permanent]
     // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && (showing.scripts.bySkill[skill.index]?.price?.evolution || !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card)))) continue;

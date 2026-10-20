@@ -955,6 +955,22 @@ function unionCount(said: string, who: string | null): Selector | null {
   return sel;
 }
 
+/**
+ * "If your opponent has 4 or more cards in Rest Mode" (SD8-08, owner ruling
+ * 20 Oct 2026, #1122): with no "Battle Cards" and no place, every one of that
+ * player's cards in Rest Mode counts - the Energy Area included, because paying
+ * energy switches it to Rest Mode (5-3-1). When Bandai means only the Battle
+ * Area they say "Battle Cards" (BT3-097's Q&A), and that still reads the
+ * Battle Area alone; so does a printed place ("in play", "in your Battle Area").
+ * `play` leaves the Energy Area out, so the span is spelled out, as the Hidden
+ * Mode reading does.
+ */
+function restAnywhere(sel: Selector, said: string): Selector {
+  if (sel.area !== "play" || sel.areas || sel.mode !== "rest" || sel.special || sel.fromVar) return sel;
+  if (/\bin play\b|\barea\b|\bbattle cards?\b|\bleader\b|\bunisons?\b|\benergy\b/i.test(said)) return sel;
+  return { ...sel, area: "battle", areas: ["leader", "battle", "unison", "energy"] };
+}
+
 function parseCountCondition(t: string): Cond | null {
   // "a Battle Card" and a bare plural both mean "at least one"; "no" means none.
   // The sets print the contraction as readily as the long form — "**if
@@ -1077,8 +1093,9 @@ function parseCountCondition(t: string): Cond | null {
         part = `${part} ${trailingArea}`;
       }
       const phrase = mine ? `your ${part}` : theirs ? `your opponent's ${part}` : part;
-      const sel = parseTarget(phrase);
-      if (!sel) return null;
+      const parsed = parseTarget(phrase);
+      if (!parsed) return null;
+      const sel = restAnywhere(parsed, part);
       delete sel.count;
       delete sel.upTo;
       if (none) conds.push({ kind: "count", sel, atMost: 0 });
@@ -1089,8 +1106,9 @@ function parseCountCondition(t: string): Cond | null {
   }
 
   const phrase = mine ? `your ${rest}` : theirs ? `your opponent's ${rest}` : rest;
-  const sel = parseTarget(phrase);
-  if (!sel) return null;
+  const parsed = parseTarget(phrase);
+  if (!parsed) return null;
+  const sel = restAnywhere(parsed, rest);
   // "A total of 7 or more cards … in your energy, Z-Energy, Battle Area, and/or
   // Drop" (P-616, #915): the article took the number, which would be read as
   // "at least 1" across four areas. Refused, as the issue asks, until a total
