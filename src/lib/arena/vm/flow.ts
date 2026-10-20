@@ -459,7 +459,15 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // including deterministic [Auto]s, but before the next response/choice.
     // Attack previews must not inspect concealed [Counter: Attack] cards;
     // blocker previews stop before the attacker's combo window.
-    if (previewStop === name && top.phase === "battle") return;
+    // #1139: the attack's own pending Autos resolve at the 8-1-5 checkpoint,
+    // after counter timing. The preview stops before that window is read, so
+    // it first plays the checkpoint as it would run with no Counter played
+    // (the step's work, which opens the window, is skipped), then stops.
+    const previewHere = previewStop === name && top.phase === "battle";
+    if (previewHere) {
+      if (!state.pending.length && !state.programs.length) return;
+      top.asking ??= [];
+    }
 
     // 20-13-1..4: a skipped phase's steps are not performed — no work, no
     // question — except a step declared `always:` (20-13-5). The programs
@@ -568,11 +576,18 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // engine's own `{ op: "checkpoint" }` entries sit, because those are the
     // two places a player is about to be asked to act (9-6-6).
     // 20-13-4: and none in a skipped phase.
-    if (!top.skipped) {
+    // 8-1-3 → 8-1-4 → 8-1-5 (#1139): the attack's "when this card attacks"
+    // Autos pend at the declaration, the guard's side gets counter timing, and
+    // only then does the checkpoint resolve them — so none runs between
+    // `battleDeclare` and `battleCounterAttack`.
+    const noCheckpointYet = top.phase === "battle" && name === "battleDeclare";
+    if (!top.skipped && !noCheckpointYet) {
       const checkpointResult = checkpoint(ctx, game, state, ev);
       if (checkpointResult === "wait") return;
       if (checkpointResult) continue;
     }
+
+    if (previewHere && !state.programs.length && !state.pending.length) return;
 
     // #150: a move taken at a native prompt that does not end its step (an
     // [Activate: Battle] at the combo prompt) asks the step again — now, with
