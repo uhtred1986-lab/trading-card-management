@@ -70,6 +70,10 @@ type SkillRuleRow = {
   unread: string[] | null;
   ops: unknown;
   cost: unknown;
+  usage?: unknown;
+  validity?: unknown;
+  combo?: unknown;
+  cond?: unknown;
 };
 
 type CardAssessment = {
@@ -166,7 +170,7 @@ export async function readiness(db: Db, deckIds: number[]): Promise<Map<number, 
   if (!ids.length) return out;
   const result = await db.execute(sql`
     SELECT dc.deck_id AS "deckId", c.id AS "cardId", c.name, c.skill, c.back_skill AS "backSkill",
-           r.side, r.skill_index AS "skillIndex", r.status, r.printed, r.kind, r.source, r.trigger, r.unread, r.ops, r.cost
+           r.side, r.skill_index AS "skillIndex", r.status, r.printed, r.kind, r.source, r.trigger, r.unread, r.ops, r.cost, r.usage, r.validity, r.combo, r.cond
     FROM deck_cards dc
     JOIN cards c ON c.id = dc.card_id
     LEFT JOIN card_rules r ON r.card_id = dc.card_id
@@ -245,7 +249,7 @@ export async function deckCardStates(db: Db, deckId: number, viewer?: OwnerScope
     SELECT dc.card_id AS "cardId", dc.zone AS "zone", dc.quantity AS "quantity",
            c.name AS "name", c.card_type AS "cardType", c.colors AS "colors",
            c.energy_cost AS "energyCost", c.image_url AS "imageUrl", c.skill, c.back_skill AS "backSkill",
-           r.side, r.skill_index AS "skillIndex", r.status, r.printed, r.kind, r.source, r.trigger, r.unread, r.ops, r.cost
+           r.side, r.skill_index AS "skillIndex", r.status, r.printed, r.kind, r.source, r.trigger, r.unread, r.ops, r.cost, r.usage, r.validity, r.combo, r.cond
     FROM deck_cards dc
     JOIN decks d ON d.id = dc.deck_id
     JOIN cards c ON c.id = dc.card_id

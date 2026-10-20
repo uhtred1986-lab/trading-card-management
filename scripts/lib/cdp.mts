@@ -458,8 +458,9 @@ export class Page {
     await this.call("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "right", clickCount: 1 });
   }
 
-  async screenshot(fullPage: boolean): Promise<Buffer> {
-    const r = await this.call("Page.captureScreenshot", { format: "jpeg", quality: 85, captureBeyondViewport: fullPage });
+  async screenshot(fullPage: boolean, format: "jpeg" | "png" = "jpeg"): Promise<Buffer> {
+    // PNG is lossless: `scripts/shots-compare.mts` compares pixels, which JPEG noise would blur.
+    const r = await this.call("Page.captureScreenshot", { format, ...(format === "jpeg" ? { quality: 85 } : {}), captureBeyondViewport: fullPage });
     return Buffer.from(r.data, "base64");
   }
 

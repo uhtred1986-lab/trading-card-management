@@ -9,7 +9,7 @@
  * `[ -d ... ]`, no `$VAR`), just `node` plus fs/child_process calls, so the
  * same command works under the owner's PowerShell and under bash.
  */
-import { existsSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,27 @@ export function needsInstall(nodeModulesMtimeMs, lockMtimeMs) {
   return lockMtimeMs > nodeModulesMtimeMs;
 }
 
+/** Claude Code on the web: `CLAUDE_CODE_REMOTE=true`. */
+const isCloud = process.env.CLAUDE_CODE_REMOTE === "true";
+const NODE22_NPM = "/opt/node22/bin/npm";
+
+/**
+ * In a cloud session every later Bash call should run on Node 24 (the sandbox's default `node` is 22,
+ * under which three proofs fail for no reason) and never see the environment's DATABASE_URL, which is
+ * another app's database. `$CLAUDE_ENV_FILE` is sourced before each Bash call.
+ */
+export function cloudEnvLines() {
+  return ["export PATH=/usr/local/bin:$PATH", "unset DATABASE_URL"];
+}
+
+function writeCloudEnv() {
+  const file = process.env.CLAUDE_ENV_FILE;
+  if (!isCloud || !file) return;
+  appendFileSync(file, cloudEnvLines().join("\n") + "\n");
+}
+
 function main() {
+  writeCloudEnv();
   const nodeModulesDir = path.join(root, "node_modules");
   const lockFile = path.join(root, "package-lock.json");
 
@@ -39,7 +59,9 @@ function main() {
   }
 
   console.log("session-start: node_modules missing or stale, running npm ci...");
-  const install = spawnSync("npm", ["ci", "--prefer-offline", "--no-audit", "--no-fund"], {
+  // The cloud's default npm (11, under Node 24) rejects the lockfile's optional platform packages.
+  const npm = isCloud && existsSync(NODE22_NPM) ? NODE22_NPM : "npm";
+  const install = spawnSync(npm, ["ci", "--prefer-offline", "--no-audit", "--no-fund"], {
     cwd: root,
     stdio: "inherit",
     shell: process.platform === "win32",
