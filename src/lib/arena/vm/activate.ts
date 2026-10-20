@@ -103,7 +103,9 @@ import type { PayerGrant } from "./effects";
 import { vmHost } from "./host";
 import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
-import { skillsShowing } from "./triggers";
+import { masterOf, skillsShowing } from "./triggers";
+import { replacementChoices } from "./replace";
+import { canCombo } from "../text/cards";
 import { findCard } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
@@ -1029,8 +1031,31 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const inHand = hand.includes(card) ? 1 : 0;
   // #970: choices that must pick different cards are paid or not as a set — a
   // matching over their candidates, never each slot against the whole pool.
+  /**
+   * #1117 (5-12-1, 5-8-2-2): a KO paid as a price must really happen, so only a
+   * Battle Card that nothing forbids KO'ing and no compulsory replacement
+   * takes elsewhere is on offer — the interpreter's `ko` would otherwise skip
+   * the card and the price would go unpaid after it was taken.
+   */
+  const koable = (id: string): boolean => {
+    const at = findCard(state, id);
+    if (!at || at.zone !== "battle") return false;
+    if (forbiddenBy(ctx, game, state, "beKOd", { card: id }) || forbiddenBy(ctx, game, state, "beKOdBySkill", { player, card: id })) return false;
+    if (hasKeyword(ctx, game, state, id, "Indestructible") && masterOf(game, state, id) !== player) return false;
+    return replacementChoices(ctx, game, state, id, "ko", { actor: player, requestedTo: "drop" }).every((c) => c.optional);
+  };
+  /** #1117 (5-7-2): a combo needs a battle with this player in it, a Battle Card with combo cost and power, and no ban. */
+  const comboable = (id: string): boolean => {
+    const b = state.battle;
+    const inst = state.cards[id];
+    const def = inst && ctx.defs[inst.cardId];
+    return !!b && (masterOf(game, state, b.attacker) === player || masterOf(game, state, b.guard) === player) && !!def && !!findCard(state, id)
+      && findCard(state, id)?.zone !== "combo" && canCombo(def) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
+  };
   const movementPayable = (id: string, variable: string): boolean => {
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
+    if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
+    if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
     return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
   };
   if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as)))) return false;
@@ -1099,6 +1124,25 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         }
         if ("var" in op.target) break;
         if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
+        break;
+      // #1117 (owner ruling 20 Oct 2026): a KO or a combo of a card the price chose was narrowed by its own
+      // choice above; one of this card needs this card to be fit for it.
+      case "ko":
+        if (!("var" in op.target) && !koable(card)) return false;
+        break;
+      case "comboFrom":
+        if (!("var" in op.target) && !comboable(card)) return false;
+        break;
+      // The payer picks which matching card is shown; the cards stay where they are (20-11-2). An Extra used
+      // from the hand is in the Drop by the time its price is paid, so it is not one of the cards it can show.
+      case "reveal": {
+        if (op.sel.upTo) break;
+        const shown = resolveSelector(ctx, game, state, frame, op.sel).filter((id) => id !== card || !inHand || !isExtra(ctx, game, state, card));
+        if (selectedCount(op.sel, shown, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
+        break;
+      }
+      // "Pay the rest of the price, then shuffle": a shuffle can always be done (the static half keeps it last).
+      case "shuffle":
         break;
       case "removeMarker": {
         if (typeof op.n !== "number") return false;

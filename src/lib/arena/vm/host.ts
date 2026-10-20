@@ -482,6 +482,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       effect.vars = { ...vars, ...effect.vars };
       log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });
     },
+    // #1117: the price did not happen whole, so the effect it was paying for is dropped, unannounced.
+    priceUnpaid: (key, why) => {
+      const at = state.programs.findIndex((f) => f.pricedBy?.key === key);
+      if (at < 0) throw new RulesetBroken(state.game, `a price failed with no effect waiting on it (${key})`);
+      const [effect] = state.programs.splice(at, 1);
+      log(ev, { type: "note", text: `${effect.pricedBy!.text.slice(0, 60)}: the price was not paid (${why}), so the effect does not happen` });
+    },
     // 20-5: the X a price chose (a `bindX` choose), for its effect — unless the
     // activation already charged an energy X, which wins, as in the legacy
     // `runSkill` (`x ?? paidX`).

@@ -284,6 +284,11 @@ export interface ScriptHost {
   clearLastChoice(): void;
   /** 4-3-3: leave this program's names where the next one can start from them. */
   saveVars(key: string, vars: Record<string, string[]>): void;
+  /**
+   * #1117: the price behind `key` was not paid — a step of it did not really happen. The effect queued behind it
+   * is dropped and the line is not announced: nothing is resolved for a price that was not paid.
+   */
+  priceUnpaid(key: string, why: string): void;
   /** 20-5: and the X it paid, beside them. */
   saveX(key: string, x: number): void;
 
