@@ -118,7 +118,7 @@ for (const wrong of ["C680-CELL2", "C680-GOHAN", "C680-REDCELL"] as const) {
     source: state.sides.p1.zones.leader[0], createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
   assert.equal(attrsNow(ctx, dbs, state, cell).costOf, 2);
   const played = take(state, { type: "play", player: "p1", card: cell });
-  assert.equal(played.state.prompt.kind, "main", "an in-force cost reduction makes the Cell ineligible at the play moment");
+  assert.equal(played.state.prompt.kind, "chooseMode", "#1097: a cost reduction changes what is paid, not the printed cost the filter reads, so the printed-3 Cell still qualifies");
   assert.equal(energy.filter((id) => played.state.cards[id].hidden).length, 0);
   assert.ok(played.state.sides.p1.zones.hand.includes(extra));
 }

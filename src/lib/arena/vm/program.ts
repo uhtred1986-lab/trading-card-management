@@ -1566,6 +1566,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return !!l && state.cards[l].flipped === (c.flipped ?? true);
     }
     case "did":
+      // #1121 (20-16): "if you do" is true only when the optional action happened, not when the offer was taken.
+      if (c.what === "may" && frame.did?.may && frame.mayWitness && (frame.acted ?? 0) <= frame.mayWitness.base) return false;
       return !!frame.did?.[c.what];
     case "not":
       return !condHolds(ctx, game, state, frame, c.cond);
