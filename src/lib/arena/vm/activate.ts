@@ -1073,8 +1073,30 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         break;
       }
       case "moveTo":
-        // "Under" needs a host and "play" is not an area (3-1).
-        if (op.to === "under" || op.to === "play") return false;
+        // "Play" is not an area (3-1).
+        if (op.to === "play") return false;
+        // #1096 (23-2): "under" needs a host, and the price supplies one — the
+        // card an earlier `choose` of the same price binds. It is payable when
+        // that choice has a card that holds piles (23-2-1: the Leader, Battle,
+        // Combo and Unison Areas) other than the card going under it, and a
+        // card to go there: this card (never a Leader, 3-1-2) or one the price
+        // chose. Nothing else is promised, so a move that cannot happen is
+        // never counted as paid.
+        if (op.to === "under") {
+          const earlier = ops.slice(0, at);
+          const chosen = (v: string) => earlier.find((o): o is Extract<typeof o, { op: "choose" }> => o.op === "choose" && o.as === v);
+          // No `under`: the host is this card (`script.ts` moveTo), which must stand in an area that holds piles.
+          const hostChoice = op.under && "var" in op.under ? chosen(op.under.var) : undefined;
+          if (op.under && !hostChoice) return false;
+          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
+          const movedChoice = "var" in op.target ? chosen(op.target.var) : undefined;
+          if (!("var" in op.target) ? op.target.sel.special !== "self" : !movedChoice) return false;
+          const moving = movedChoice
+            ? resolveSelector(ctx, game, state, frame, movedChoice.sel)
+            : state.cards[card] && findCard(state, card) ? [card] : [];
+          if (!moving.some((m) => findCard(state, m)?.zone !== "leader" && hosts.some((h) => h !== m))) return false;
+          break;
+        }
         if ("var" in op.target) break;
         if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
         break;
