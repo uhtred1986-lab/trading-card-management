@@ -7,7 +7,7 @@ import { applyMastersLeaderImages, applyOfficialImages, mastersImageUrl, masters
 import { correctSkillText } from "../src/lib/catalog/errata";
 import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
-import { hasKeyword, leadingTags, parseDeckRules, rulesFor } from "../src/lib/decks/cardRules";
+import { hasKeyword, leadingTags, matchesCardFilter, parseDeckBuilding, parseDeckRules, rulesFor, type DeckBuildingRule, type DeckCardFacts, type DeckCardFilter } from "../src/lib/decks/cardRules";
 import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
 import { greedyOptimise, type Listing } from "../src/lib/marketplace/optimizer";
@@ -306,6 +306,7 @@ const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra:
   limitedTo: 4,
   isBanned: false,
   skill: null,
+  backSkill: null,
   characters: [],
   traits: [],
   game: "dbs",
@@ -475,6 +476,197 @@ const ultimates = legality([
 assert.equal(ultimates.status, "illegal");
 assert.ok(ultimates.issues.some((i) => /2 \[Ultimate\] cards.*at most 1/.test(i.message)));
 assert.deepEqual(ultimates.keywordRules.find((r) => r.keyword === "Ultimate"), { keyword: "Ultimate", max: 1, used: 2, unlimitedCopies: false });
+
+// ── Deck-building clauses (#1146) ─────────────────────────────────────────
+// Every wording the issue quotes, read from the text and never from a card id.
+{
+  const only = (text: string) => {
+    const r = parseDeckBuilding(text);
+    assert.deepEqual(r.unread, [], `${text} reads whole`);
+    assert.equal(r.rest, "", `${text} is nothing but a deck-building clause`);
+    return r.rules;
+  };
+  const one = (text: string) => {
+    const rules = only(text);
+    assert.equal(rules.length, 1, text);
+    return rules[0];
+  };
+  const x = (text: string) => one(text) as Extract<DeckBuildingRule, { kind: "exclude" }>;
+
+  // Leader restrictions.
+  assert.deepEqual(x("[Permanent] You can't include non-white Extra in your deck.").filters, [{ notColors: ["White"], types: ["EXTRA"] }]); // BT31-116
+  assert.deepEqual(x("[Permanent] You can't include non-≪Saiyan≫ Battle Cards in your deck.").filters, [{ notTraits: ["Saiyan"], types: ["BATTLE"] }]); // SD9-01
+  const xd1 = x("[Permanent] You can't include non-≪Universe 6≫ Battle Cards in your deck, except for <Vegeta> cards."); // XD1-01
+  assert.deepEqual(xd1.filters, [{ notTraits: ["Universe 6"], types: ["BATTLE"] }]);
+  assert.deepEqual(xd1.except, { characters: ["Vegeta"] });
+  assert.deepEqual(x("[Permanent] You can't include black Battle Cards in your deck.").filters, [{ colors: ["Black"], types: ["BATTLE"] }]); // BT18-030
+  assert.deepEqual(x("[Permanent] You can't include ≪Saiyan≫ cards in your deck.").filters, [{ traits: ["Saiyan"] }]); // SD13-01
+  assert.deepEqual(x("[Permanent] You can't include Battle Cards with energy costs of 3 or less in your deck.").filters, [{ cost: { max: 3 }, types: ["BATTLE"] }]); // BT6-002
+  assert.deepEqual(x("[Permanent] You can't include cards with energy costs of 5 or more in your deck.").filters, [{ cost: { min: 5 } }]); // P-086
+  assert.deepEqual(x("[Permanent] You can't include Extra Cards with energy costs of 2 or more in your deck.").filters, [{ cost: { min: 2 }, types: ["EXTRA"] }]); // BT13-001
+  assert.deepEqual(x("[Permanent] You can't include cards with energy costs of 6 or more, or multicolor cards in your deck.").filters, [{ cost: { min: 6 } }, { multicolor: true }]); // P-269, SD21-01
+  assert.deepEqual(x("[Permanent] You can't include cards that don't have ≪Universe≫ as part of their special traits in your deck.").filters, [{ notTraitParts: ["Universe"] }]);
+  // Live printed texts (public catalog strings).
+  assert.deepEqual(x("[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.").filters, [{ notTraitParts: ["Universe"] }]); // EX03-25
+  assert.equal(parseDeckBuilding("[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.").rest, "", "the relative clause is part of the description");
+  assert.deepEqual(x("[Permanent] You cannot include non-≪Universe 7≫ cards in your deck.").filters, [{ notTraits: ["Universe 7"] }]); // TB1-050
+  assert.deepEqual(x("[Permanent] You can't include non-≪World Tournament≫ Battle Cards or multicolor cards in your deck.").filters, [{ notTraits: ["World Tournament"], types: ["BATTLE"] }, { multicolor: true }]); // P-269
+  const bt6027 = parseDeckBuilding("[Permanent] You can't include Extra Cards with energy costs of 4 or more in your deck, and this card can't attack."); // BT6-027
+  assert.deepEqual(bt6027.rules.map((r) => (r as Extract<DeckBuildingRule, { kind: "exclude" }>).filters), [[{ cost: { min: 4 }, types: ["EXTRA"] }]]);
+  assert.equal(bt6027.rest, "this card can't attack", "the game half is not swallowed");
+  // An exclude or only that would match every card is never emitted.
+  for (const text of ["[Permanent] You can't include cards in your deck.", "[Permanent] You can't include cards in your deck that look odd.", "[Permanent] You can only include cards in your Z-Deck."]) {
+    const r = parseDeckBuilding(text);
+    assert.deepEqual(r.rules, [], text);
+    assert.equal(r.unread.length, 1, `${text} is unread`);
+  }
+  assert.deepEqual(x("[Permanent] You cannot include cards with energy costs of 6 or more in your deck.").filters, [{ cost: { min: 6 } }]); // TB1-050, TB2-065
+  assert.equal(x("[Permanent] You can't include non-white Extra in your deck.").words, "can't include non-white Extra Cards");
+
+  // Copy limits of the card itself.
+  for (const [text, max, zone] of [
+    ["[Permanent] You can include as many copies of this card in your deck as you like.", null, "main"], // BT2-107 …
+    ["[Permanent] You can include up to 7 copies of this card in your deck.", 7, "main"], // BT13-149
+    ["[Permanent] You can only include 1 copy of this card in your Z-Deck.", 1, "z"], // BT18-003, BT25-104
+    ["[Permanent] You can include as many copies of this card in your Z-Deck as you like.", null, "z"], // BT25-007
+  ] as const) {
+    const c = one(text) as Extract<DeckBuildingRule, { kind: "copies" }>;
+    assert.deepEqual([c.kind, c.max, c.zone], ["copies", max, zone], text);
+  }
+
+  // "Only", and pooled limits.
+  const z = one("[permanent] You can only include Z-Unisons in your Z-Deck.") as Extract<DeckBuildingRule, { kind: "only" }>; // EX24-01
+  assert.deepEqual([z.kind, z.zone, z.filter], ["only", "z", { types: ["Z-UNISON"] }]);
+  const dd = one("[Permanent] You can only include up to 7 ≪Dark Dragon Ball≫ cards in your deck.") as Extract<DeckBuildingRule, { kind: "pool" }>; // BT13-122
+  assert.deepEqual([dd.kind, dd.max, dd.filter], ["pool", 7, { traits: ["Dark Dragon Ball"] }]);
+
+  // Mixed lines: the deck-building clause goes, the game half stays.
+  const bt18 = parseDeckBuilding("[Permanent] Your deck can only include up to 6 [Dragon Ball] cards, and can't include non-red Battle Cards."); // BT18-002
+  assert.deepEqual(bt18.rules.map((r) => r.kind), ["pool", "exclude"]);
+  assert.deepEqual((bt18.rules[0] as Extract<DeckBuildingRule, { kind: "pool" }>).filter, { keyword: "Dragon Ball" });
+  assert.equal(bt18.rest, "");
+  const villain = parseDeckBuilding("[Permanent] You can't include non-≪Villainous≫ cards in your deck, and treat ≪Villainous≫ cards in your hand as if they have no specified cost."); // P-434's shape
+  assert.deepEqual(villain.rules.map((r) => r.kind), ["exclude"]);
+  assert.equal(villain.rest, "treat ≪Villainous≫ cards in your hand as if they have no specified cost");
+  const gameFirst = parseDeckBuilding("[Permanent] Treat ≪Agent of Destruction≫ cards in your hand as if they have no specified cost, and you can't include non-≪Universe 7≫ cards in your deck."); // BT16-002 / BT6-027's other order
+  assert.deepEqual(gameFirst.rules.map((r) => r.kind), ["exclude"]);
+  assert.equal(gameFirst.rest, "Treat ≪Agent of Destruction≫ cards in your hand as if they have no specified cost");
+  const twoSentences = parseDeckBuilding("[Permanent] You can't include black Battle Cards in your deck. [Auto] When this card attacks, draw 1 card.");
+  assert.deepEqual(twoSentences.rules.map((r) => r.kind), ["exclude"]);
+  assert.match(twoSentences.rest, /draw 1 card/);
+
+  // Not deck-building: they say "deck" or "include" about the game, not the deck's contents.
+  for (const text of [
+    "[Permanent] If you have any non-red cards in areas other than your deck, hand, or Drop Area, you can't play this card.", // BT7-125 to -129
+    "[Auto] When this card in your deck and hand is placed in your Drop, draw 1 card.", // EX13-03/04
+    "[Permanent] This card in your deck or hand can't be chosen by your opponent's skills.",
+    "[Auto] When you play this card, choose 1 card that includes {Frieza} in its card name from your deck and add it to your hand.",
+  ]) {
+    const r = parseDeckBuilding(text);
+    assert.deepEqual(r.rules, [], text);
+    assert.deepEqual(r.unread, [], text);
+    assert.ok(r.rest.length > 0, `${text} stays game text`);
+  }
+
+  // A clause it cannot read is reported, kept in the text, never guessed.
+  const odd = parseDeckBuilding("[Permanent] You can't include cards with a strange name in your deck.");
+  assert.deepEqual(odd.rules, []);
+  assert.equal(odd.unread.length, 1);
+  assert.ok(odd.rest.includes("strange name"));
+
+  // The keyword limits keep their own reader.
+  assert.deepEqual(parseDeckBuilding(DB_TEXT).rules.map((r) => r.kind), ["keyword"]);
+  assert.equal(parseDeckBuilding(DB_TEXT).rest, "");
+
+  // Matching reads colours, traits, characters, costs and multicolour.
+  const m = (card: Partial<DeckCardFacts>, f: DeckCardFilter) => matchesCardFilter({ cardType: "BATTLE", colors: ["Red"], ...card }, f);
+  assert.equal(m({ cardType: "EXTRA", colors: ["Red"] }, { types: ["EXTRA"], notColors: ["White"] }), true);
+  assert.equal(m({ cardType: "EXTRA", colors: ["White"] }, { types: ["EXTRA"], notColors: ["White"] }), false);
+  assert.equal(m({ colors: ["Red", "Blue"] }, { multicolor: true }), true);
+  assert.equal(m({ colors: ["Red", "Colorless"] }, { multicolor: true }), false, "colourless is not a colour");
+  assert.equal(m({ energyCost: "X" }, { cost: { min: 5 } }), false, "an X cost is no number");
+  assert.equal(m({ energyCost: "5" }, { cost: { min: 5 } }), true);
+  assert.equal(m({ traits: ["≪Saiyan≫"] }, { traits: ["Saiyan"] }), true, "brackets and case do not matter");
+}
+
+// ── Deck legality against deck-building clauses ───────────────────────────
+{
+  const leader = (id: string, skill: string, over: Partial<DeckCardRow> = {}) => row(id, "leader", 1, { name: id, skill, ...over });
+  const deck = (l: DeckCardRow, ...rest: DeckCardRow[]) => legality([l, ...fill(40), ...rest], "dbs");
+
+  // BT31-116: no non-white Extra.
+  const cell = leader("BT31-116", "[Permanent] You can't include non-white Extra in your deck.", { colors: ["White"] });
+  const redExtra = deck(cell, row("X-RED", "main", 4, { cardType: "EXTRA", colors: ["Red"] }));
+  assert.equal(redExtra.status, "illegal");
+  assert.equal(redExtra.flags["main:X-RED"]?.severity, "illegal");
+  assert.match(redExtra.flags["main:X-RED"].label, /Leader's rule: can't include non-white Extra Cards/);
+  assert.ok(redExtra.issues.some((i) => /BT31-116\) can't include non-white Extra Cards: X-RED \(X-RED\)/.test(i.message)), "names the Leader's rule and the offending card: " + JSON.stringify(redExtra.issues));
+  const whiteExtra = deck(cell, row("X-WHITE", "main", 4, { cardType: "EXTRA", colors: ["White"] }));
+  assert.equal(whiteExtra.flags["main:X-WHITE"], undefined);
+  assert.ok(!whiteExtra.issues.some((i) => /BT31-116/.test(i.message)));
+  assert.equal(deck(cell, row("B-RED", "main", 4, { cardType: "BATTLE", colors: ["Red"] })).flags["main:B-RED"]?.severity !== "illegal", true, "a Battle Card is not an Extra");
+
+  // The Leader's awakened side counts too.
+  const backed = leader("BACK-1", "[Permanent] This card can't attack.", { backSkill: "[Permanent] You can't include black Battle Cards in your deck." });
+  assert.equal(deck(backed, row("BLK", "main", 4, { colors: ["Black"] })).flags["main:BLK"]?.severity, "illegal");
+
+  // XD1-01: non-Universe-6 Battle Cards, except <Vegeta>.
+  const xd1 = leader("XD1-01", "[Permanent] You can't include non-≪Universe 6≫ Battle Cards in your deck, except for <Vegeta> cards.");
+  const u7 = row("U7", "main", 4, { traits: ["Universe 7"], characters: ["Son Goku"] });
+  const u7Vegeta = row("U7V", "main", 4, { traits: ["Universe 7"], characters: ["Vegeta"] });
+  const u6 = row("U6", "main", 4, { traits: ["Universe 6"], characters: ["Hit"] });
+  const xd = deck(xd1, u7, u7Vegeta, u6);
+  // EX03-25: a trait that contains ≪Universe≫ is enough.
+  const ex03 = leader("EX03-25", "[Permanent] You can't include cards in your deck that don't have ≪Universe≫ as part of their special trait.");
+  const uni = deck(ex03, row("UN7", "main", 4, { traits: ["Universe 7"] }), row("UN11", "main", 4, { traits: ["Universe 11"] }), row("SAI", "main", 4, { traits: ["Saiyan"] }));
+  assert.equal(uni.flags["main:UN7"], undefined);
+  assert.equal(uni.flags["main:UN11"], undefined);
+  assert.equal(uni.flags["main:SAI"]?.severity, "illegal", "a non-Universe card is flagged");
+  assert.ok(!uni.issues.some((i) => /EX03-25/.test(i.message) && /UN7|UN11/.test(i.message)));
+  assert.equal(xd.flags["main:U7"]?.severity, "illegal");
+  assert.equal(xd.flags["main:U7V"], undefined, "a non-Universe-6 <Vegeta> is accepted");
+  assert.equal(xd.flags["main:U6"], undefined);
+
+  // Cost and multicolour clauses.
+  const cheap = leader("BT6-002", "[Permanent] You can't include Battle Cards with energy costs of 3 or less in your deck.");
+  assert.equal(deck(cheap, row("C3", "main", 4, { energyCost: "3" })).flags["main:C3"]?.severity, "illegal");
+  assert.equal(deck(cheap, row("C4", "main", 4, { energyCost: "4" })).flags["main:C4"], undefined);
+  const mono = leader("P-269", "[Permanent] You can't include cards with energy costs of 6 or more, or multicolor cards in your deck.");
+  assert.equal(deck(mono, row("MC", "main", 4, { colors: ["Red", "Blue"] })).flags["main:MC"]?.severity, "illegal");
+
+  // Fusion World is untouched.
+  const fwLeader = { ...leader("FL", "[Permanent] You can't include non-white Extra in your deck."), game: "fusion" as const };
+  const fwCard = { ...row("FX", "main", 4, { cardType: "EXTRA", colors: ["Red"] }), game: "fusion" as const };
+  assert.ok(!legality([fwLeader, fwCard], "fusion").issues.some((i) => /can't include/.test(i.message)));
+
+  // Copy limits printed on the cards.
+  const free = (id: string) => row(id, "main", 9, { skill: "[Permanent] You can include as many copies of this card in your deck as you like." });
+  assert.equal(deck(leader("L", ""), free("BT2-107")).flags["main:BT2-107"], undefined, "9 copies of BT2-107 are fine");
+  assert.equal(deck(leader("L", ""), row("PLAIN", "main", 9)).flags["main:PLAIN"]?.label, "9 copies, limit 4", "9 copies of a normal card are flagged");
+  const seven = (n: number) => deck(leader("L", ""), row("BT13-149", "main", n, { skill: "[Permanent] You can include up to 7 copies of this card in your deck." })).flags["main:BT13-149"];
+  assert.equal(seven(7), undefined);
+  assert.equal(seven(8)?.severity, "illegal");
+  const zOne = (n: number) => legality([leader("L", ""), ...fill(50), row("BT18-003", "z", n, { cardType: "Z-BATTLE", skill: "[Permanent] You can only include 1 copy of this card in your Z-Deck." })], "dbs");
+  assert.equal(zOne(1).flags["z:BT18-003"], undefined);
+  assert.equal(zOne(2).flags["z:BT18-003"]?.severity, "illegal", "2 copies of BT18-003 in the Z-Deck are flagged");
+  assert.equal(zOne(2).status, "illegal");
+
+  // Only Z-Unisons in the Z-Deck.
+  const ex24 = leader("EX24-01", "[permanent] You can only include Z-Unisons in your Z-Deck.");
+  const zDeck = legality([ex24, ...fill(50), row("ZU", "z", 2, { cardType: "Z-UNISON" }), row("ZB", "z", 2, { cardType: "Z-BATTLE" })], "dbs");
+  assert.equal(zDeck.flags["z:ZB"]?.severity, "illegal");
+  assert.equal(zDeck.flags["z:ZU"], undefined);
+
+  // Pooled limits: up to 7 ≪Dark Dragon Ball≫ cards, up to 6 [Dragon Ball] cards.
+  const ddb = leader("BT13-122", "[Permanent] You can only include up to 7 ≪Dark Dragon Ball≫ cards in your deck.");
+  const dark = (id: string, n: number) => row(id, "main", n, { traits: ["Dark Dragon Ball"] });
+  assert.equal(deck(ddb, dark("DD1", 4), dark("DD2", 4)).flags["main:DD2"]?.severity, "illegal", "8 Dark Dragon Balls");
+  assert.equal(deck(ddb, dark("DD1", 4), dark("DD2", 3)).flags["main:DD2"], undefined, "7 are fine");
+  const one6 = leader("BT18-002", "[Permanent] Your deck can only include up to 6 [Dragon Ball] cards, and can't include non-red Battle Cards.");
+  assert.equal(legality([one6, ball(7), ...fill(43)], "dbs").flags["main:BALL"]?.severity, "illegal", "7 Dragon Balls break the Leader's 6");
+  assert.equal(legality([one6, ball(6), ...fill(44)], "dbs").status, "legal");
+  assert.equal(legality([one6, ball(6), ...fill(40), row("BLUE", "main", 4, { colors: ["Blue"] })], "dbs").flags["main:BLUE"]?.severity, "illegal", "non-red Battle Cards");
+}
 
 // ── CardTrader collector numbers ──────────────────────────────────────────
 const bp = (n: string | null) => ({ id: 1, name: "x", game_id: 9, expansion_id: 1, fixed_properties: n == null ? {} : { collector_number: n } });

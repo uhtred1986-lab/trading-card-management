@@ -11,7 +11,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { DEFAULT_GAME, deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
-import { hasKeyword, rulesFor } from "./cardRules";
+import { deckBuildingOf, hasKeyword, matchesCardFilter, rulesFor, type DeckBuildingRule } from "./cardRules";
 
 /**
  * Deck sizes and copy limits per game live in src/lib/catalog/games.ts.
@@ -58,6 +58,12 @@ export interface LegalityCard {
   isBanned: boolean;
   /** Needed to read deck-building rules printed on the cards themselves. */
   skill?: string | null;
+  /** The awakened side of a Leader: its deck-building restrictions apply too. */
+  backSkill?: string | null;
+  /** What a Leader's "can't include …" clause is checked against. Left out, a trait, character or cost test finds nothing. */
+  traits?: string[];
+  characters?: string[];
+  energyCost?: string | null;
   /**
    * The game the card belongs to. Left undefined by callers that only ever
    * deal with one game; a card whose game differs from the deck's is flagged.
@@ -112,11 +118,19 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   const RULES = info.deck;
   const issues: DeckIssue[] = [];
   const flags: Record<string, DeckFlag> = {};
-  const flag = (r: LegalityCard, severity: IssueSeverity, label: string) => {
+  const flag = (r: LegalityCard, severity: IssueSeverity, label: string, quiet = false) => {
     const key = `${r.zone}:${r.cardId}`;
     // Keep the most severe reason when a card breaks more than one rule.
     if (!flags[key] || (flags[key].severity === "warning" && severity !== "warning")) flags[key] = { severity, label };
-    issues.push({ severity, message: `${r.name} (${r.cardId}): ${label}.`, cardId: r.cardId });
+    if (!quiet) issues.push({ severity, message: `${r.name} (${r.cardId}): ${label}.`, cardId: r.cardId });
+  };
+  /** One issue for a rule many cards break: the rule once, then the cards ("Cell (BT31-116) can't include …: Goku (X-1), …"). */
+  const breaking = (rule: string, offenders: LegalityCard[], label: string) => {
+    const seen = new Set<string>();
+    const unique = offenders.filter((r) => !seen.has(r.cardId) && !!seen.add(r.cardId));
+    if (!unique.length) return;
+    for (const r of unique) flag(r, "illegal", label, true);
+    issues.push({ severity: "illegal", message: `${rule}: ${unique.map((r) => `${r.name} (${r.cardId})`).join(", ")}.` });
   };
   const count = (zone: string) => rows.filter((r) => r.zone === zone).reduce((n, r) => n + r.quantity, 0);
   const leaderCount = count("leader");
@@ -162,11 +176,60 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   /** A rule like [Dragon Ball] replaces the 4-copy limit rather than adding to it. */
   const copyLimitWaived = (row: LegalityCard) => rules.some((r) => r.unlimitedCopies && hasKeyword(row, r.keyword));
 
+  // Deck-building clauses printed on the cards (#1146). The original game only: Fusion World prints none.
+  const printed = (r: LegalityCard): DeckBuildingRule[] => (game === "dbs" ? [...deckBuildingOf(r.skill).rules, ...deckBuildingOf(r.backSkill).rules] : []);
+  const copyRulesOf = (r: LegalityCard) => printed(r).filter((x): x is Extract<DeckBuildingRule, { kind: "copies" }> => x.kind === "copies");
+
   for (const { n, row } of perCard.values()) {
     if (row.isBanned) flag(row, "illegal", "banned card");
     if (copyLimitWaived(row)) continue;
+    // "You can include up to 7 copies of this card in your deck" / "…1 copy … in your Z-Deck" replaces the
+    // limit for the zone it names; the other zone keeps the game's.
+    const own = copyRulesOf(row);
+    if (own.length) {
+      const copiesIn = (zone: "main" | "z") => rows.filter((x) => x.cardId === row.cardId && x.zone !== "side" && (zone === "z" ? x.zone === "z" : x.zone !== "z")).reduce((sum, x) => sum + x.quantity, 0);
+      for (const zone of ["main", "z"] as const) {
+        const rule = own.find((x) => x.zone === zone);
+        const here = copiesIn(zone);
+        if (rule) {
+          if (rule.max !== null && here > rule.max) flag(row, "illegal", `${here} copies ${zone === "z" ? "in the Z-Deck" : "in the deck"}, its own rule allows ${rule.max}`);
+        } else if (here > copyLimit(row, game)) flag(row, "illegal", `${here} copies, limit ${copyLimit(row, game)}`);
+      }
+      continue;
+    }
     const limit = copyLimit(row, game);
     if (n > limit) flag(row, "illegal", `${n} copies, limit ${limit}`);
+  }
+
+  // The Leader's restrictions (front and back) and the pooled limits any card prints.
+  if (game === "dbs") {
+    const inDeck = rows.filter((r) => r.zone !== "side" && r.zone !== "leader" && (!r.game || r.game === game));
+    for (const leader of rows.filter((r) => r.zone === "leader" && (!r.game || r.game === game))) {
+      for (const rule of printed(leader)) {
+        const who = `${leader.name} (${leader.cardId})`;
+        if (rule.kind === "exclude") {
+          const reachesZ = rule.filters.some((f) => f.types?.some((t) => t.startsWith("Z-")));
+          const offenders = inDeck.filter(
+            (r) => (r.zone !== "z" || reachesZ) && rule.filters.some((f) => matchesCardFilter(r, f)) && !(rule.except && matchesCardFilter(r, rule.except)),
+          );
+          breaking(`${who} ${rule.words}`, offenders, `against the Leader's rule: ${rule.words}`);
+        } else if (rule.kind === "only") {
+          breaking(`${who} allows ${rule.words}`, inDeck.filter((r) => r.zone === rule.zone && !matchesCardFilter(r, rule.filter)), `against the Leader's rule: ${rule.words}`);
+        }
+      }
+    }
+    const seen = new Set<string>();
+    for (const holder of rows.filter((r) => r.zone !== "side" && (!r.game || r.game === game))) {
+      for (const rule of printed(holder)) {
+        if (rule.kind !== "pool") continue;
+        const key = `${holder.cardId}|${rule.words}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const members = inDeck.filter((r) => matchesCardFilter(r, rule.filter));
+        const used = members.reduce((sum, r) => sum + r.quantity, 0);
+        if (used > rule.max) breaking(`${used} cards against ${holder.name} (${holder.cardId}): ${rule.words}`, members, `over the limit of ${holder.name} (${holder.cardId}): ${rule.words}`);
+      }
+    }
   }
 
   const leaderColors = new Set(rows.filter((r) => r.zone === "leader").flatMap((r) => r.colors));
@@ -220,6 +283,10 @@ export async function legalityForDecks(db: Db, deckIds: number[]): Promise<Map<n
         limitedTo: cards.limitedTo,
         isBanned: cards.isBanned,
         skill: cards.skill,
+        backSkill: cards.backSkill,
+        traits: cards.traits,
+        characters: cards.characters,
+        energyCost: cards.energyCost,
         game: cards.game,
       })
       .from(deckCards)
