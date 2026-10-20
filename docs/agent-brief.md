@@ -77,16 +77,11 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
 
 ## Running things (the habits that cost most when missed)
 
-- **In a Claude Code on the web sandbox, test on Node 24 and unset the shared `DATABASE_URL`**
-  (verified 13 Oct 2026). The sandbox's default `node` is 22.22 (`/opt/node22`); under it tsx
-  loads some modules twice, and three proofs fail although nothing is wrong
-  (`revision-polling-568`, the provider registry in `arena-advance-leases`/`arena-policy-shortcuts`,
-  `PolicyInterruption` in `arena-local-worker`, the `.css` stub in `arena-session-648`). Node 24 is at
-  `/usr/local/bin`: `export PATH=/usr/local/bin:$PATH` before `npm test` and the build. Install with
-  Node 22's npm, `/opt/node22/bin/npm ci` (npm 11 rejects the lockfile's optional platform
-  packages), and give each worktree its own `node_modules`: Turbopack refuses a symlinked one. The
-  environment's `DATABASE_URL` is another app's, and `derived-read-569` refuses to run beside it:
-  `env -u DATABASE_URL npm test`.
+- **Check a change with `npm run checks`** (after each commit; `-- full` before each push; skill
+  `verify-changed`). In a cloud session the SessionStart hook puts Node 24 first and unsets the shared
+  `DATABASE_URL` (the sandbox's Node 22 fails three proofs for no reason; the URL is another app's). Install
+  with `/opt/node22/bin/npm ci` (npm 11 rejects the lockfile's optional platform packages), one
+  `node_modules` per worktree: Turbopack refuses a symlinked one for `build`.
 - **Run `npm test` and `npm run build` in the foreground.** A backgrounded run
   finishing does not reliably wake you, and agents have stalled for good that way.
 - **Don't pipe long output through `| tail`**: it buffers to the end and looks like a hang.
@@ -103,11 +98,11 @@ set -a; . "$OUT"; set +a      # then DB_DRIVER=neon-http for scripts in this san
   host scheduling should not turn an otherwise passing functional merge gate into a failure.
 - **Restart `next dev` after a `git checkout`**: hot reload has served stale modules and produced
   false "fixed" results.
-- **Test at the right size.** After each commit run `npm run typecheck && npm run lint` plus only
-  the check for what you changed (`npx tsx scripts/verify-rules.ts`, `npx tsx
-  scripts/verify-arena.ts`). Before each push run the full set: `npm run typecheck && npm run
-  lint && npm test && npm run build`. The orchestrator reviews the exact proposed commit and its
-  local evidence; GitHub does not duplicate these tests or run automatic AI reviews (owner, 11 Oct 2026).
+- **Test at the right size.** After each commit run `npm run checks` (typecheck, lint and only the
+  tests the changed files reach). Before each push run `npm run checks -- full`, which is
+  `npm run typecheck && npm run lint && npm test && npm run build` in one go. The orchestrator reviews
+  the exact proposed commit and its local evidence; GitHub does not duplicate these tests or run
+  automatic AI reviews (owner, 11 Oct 2026).
   Snapshot changes also require contract emission review (`npm run contract:emit`). **Skip Android:**
   no native Android app is planned (owner, 13 Oct 2026), so don't run `android:test`, Kotlin decoding
   or Docker checks, and don't list them as unverified.

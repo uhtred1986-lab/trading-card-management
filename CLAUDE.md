@@ -81,6 +81,7 @@ npm run dev            # Dev server (port 3000, or 3001 if taken)
 npm run build          # Production build
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
+npm run checks         # typecheck, lint and only the tests the changed files reach; `-- full` before a push (skill verify-changed)
 npm test               # verify-rules.ts (pure) + verify-arena.ts on both engines (docs/arena-tooling.md) + verify-db.mts (PGlite)
 npm run db:generate    # Generate a migration after editing src/db/schema.ts
 npm run db:migrate     # Apply migrations (also run on every *production* Vercel deploy via scripts/vercel-build.mjs)
