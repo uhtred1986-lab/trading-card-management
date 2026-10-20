@@ -56,7 +56,7 @@ export function compileSkill(skill: Skill): Script {
   // part of that keyword skill. Preserve that cause on mode-switch events so
   // triggers requiring a non-[Awaken] skill cannot mistake it for an ordinary
   // effect (22-2, #571).
-  const awakened = skill.keyword?.name === "Awaken" ? markSwitchesByAwaken(sc) : sc;
+  const awakened = skill.keyword?.name === "Awaken" ? markSwitchesByAwaken(awakenDrawIsMandatory(sc)) : sc;
   // 22-13-6-3 (#929): a [Union-Absorb] line's "play … on top of this card" is
   // the keyword's own play — it opens the [Counter: Play] timings and obeys
   // the failed-entry rule, which a plain `play … onto` does not.
@@ -140,6 +140,28 @@ function markAbsorbPlays(script: Script): Script {
     return changed ? next : value;
   };
   return { ...script, ops: mark(script.ops) as Op[] };
+}
+
+/**
+ * [Awaken] "You may draw N cards and flip this card over" (BT2-001 .. -003,
+ * about 181 rows, #1135): the draw is a mandatory part of the [Awaken]; "you
+ * may" is the choice to awaken, which the engine already offers. Official Q&A
+ * on BT2-001/-002/-003/-034/-035/-036/-068/-069/-070/-100/-102: "Can you choose
+ * not to draw cards with [Awaken]? No, you cannot. You must draw 2 cards."
+ *
+ * Only the draw that opens the effect is unwrapped. Anything else the "may"
+ * held ("You may draw 1 card and switch up to 1 of your energy…") stays in
+ * its `may`, as it was read before; so do the other optional clauses of an
+ * [Awaken] ("If you have a blue energy, you may switch…").
+ */
+function awakenDrawIsMandatory(script: Script): Script {
+  const [first, ...rest] = script.ops;
+  if (first?.op !== "may" || first.ops[0]?.op !== "draw") return script;
+  const draws: Op[] = [];
+  let i = 0;
+  while (first.ops[i]?.op === "draw") draws.push(first.ops[i++]);
+  const kept = first.ops.slice(i);
+  return { ...script, ops: [...draws, ...(kept.length ? [{ ...first, ops: kept } as Op] : []), ...rest] };
 }
 
 /** Apply a keyword cause through nested conditionals/choices, retaining any more specific cause already read on a switch. */
