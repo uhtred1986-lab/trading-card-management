@@ -16,6 +16,8 @@ import { applyToGame, clearBeats, clearBeatsForTurn, loadGame, StaleGame, startG
 import { artForGame, snapshotOfGame } from "../src/lib/arena/session.ts";
 import { RULES } from "../src/lib/arena/vm/index.ts";
 import type { Action } from "../src/lib/arena/types.ts";
+import { zeroCostRecord } from "../src/lib/arena/vm/skill-payment.ts";
+import { typedRecords } from "./verify/records.ts";
 
 export async function verifyGameFlow(db: Db): Promise<void> {
   const card = (id: string, name: string, cardType: string, extra: Partial<typeof schema.cards.$inferInsert> = {}) => ({
@@ -48,7 +50,8 @@ export async function verifyGameFlow(db: Db): Promise<void> {
     printed: "[Permanent] This card gets +3000 power.",
     kind: "permanent",
     trigger: [],
-    cost: null,
+    ...typedRecords(),
+    cost: zeroCostRecord(),
     cond: null,
     ops: [{ op: "power", target: { sel: { special: "self" } }, amount: 3000, until: "game" }],
     status: "confirmed",

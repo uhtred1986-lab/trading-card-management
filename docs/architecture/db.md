@@ -17,3 +17,8 @@ under the owner's Windows/PowerShell machine and in the sandbox. It is a no-op i
 when `node_modules` is already current. A `Cannot find module` error from any `verify-*` or
 `arena:*` script means the hook did not run (or ran and failed) — run `npm ci` by hand rather than
 assuming the suite is broken.
+
+`DB_DRIVER=neon-http` sends queries to Neon over HTTPS instead of Postgres TCP, for sandboxes that let
+443 out and nothing on 5432 (Claude Code on the web). The HTTP driver has no interactive transactions,
+so it is for scripts, not the app server. `npm run db:check` shows which driver reaches the database;
+`db:migrate:http` is `db:migrate` over HTTPS.

@@ -29,18 +29,10 @@ stable public barrel. `vm/script.ts` (2,223, the record interpreter) and the leg
 
 ## 3. Fast feedback loop
 
-For pure rule-logic changes, skip the DB-backed suite:
-
-```powershell
-npx tsx scripts/verify-rules.ts
-npx tsx scripts/verify-arena.ts
-```
-
-Run the full `npm test` (adds `verify-db.mts`, which boots PGlite + migrations) only before
-finalizing. Never run `npm run sync:catalog` or `sync:prices` just to inspect state — they hit
-real network endpoints (~30-50s).
+`npm run checks` after each commit; the full policy is `docs/agent-brief.md` → "Checking a change".
+`verify-arena.ts` alone takes about 7 minutes. Never run `npm run sync:catalog` or `sync:prices` just to
+inspect state: they hit real network endpoints.
 
 ## 4. If the change touches what the compiler understands
 
-Update `src/lib/arena/glossary.ts` in the same change (required by CLAUDE.md's Conventions
-section) — this is a doc-as-code file, not a separate documentation task.
+Update `src/lib/arena/glossary.ts` in the same change (a hard rule in CLAUDE.md) — this is a doc-as-code file, not a separate documentation task.
