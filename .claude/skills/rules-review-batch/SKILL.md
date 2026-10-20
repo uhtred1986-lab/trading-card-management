@@ -40,6 +40,6 @@ for judgement; the commands below replace the hand-derived parts. The data lives
    the receipts name as the owner's. Claude-authored rows cannot be confirmed here: skipped.
 9. **Receipt.** Say which writes you made, row by row (no `db:*`, no migrations). Fill Totals, caveats and the engine gaps found (issues are the owner's call to open). Commit
     `Rules review <d> Mon, batch N: next 30 deck cards (receipt)` on a `claude/*` branch, PR title the same plus ` (#PR)` by GitHub,
-    body: totals, writes made, snapshot results, what was not verified. Docs only. Do not merge.
+    body: totals, writes made, snapshot results, what was not verified. Docs only; the coordinator reviews and merges it.
 
 Stop every process you started; leave no URL file in the repo.
