@@ -1533,6 +1533,15 @@ export interface ScriptFrame {
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
   did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
   /**
+   * #1121 (20-16): how many things this program has really done so far — a card
+   * moved, drawn, KO'd, played, a life lost. `mayWitness` is set when an offer
+   * is taken and its block does nothing but such steps: "if you do" then needs
+   * `acted` to have moved past `base`, so an offer taken over an empty choose
+   * (nothing to move) is not one that was performed.
+   */
+  acted?: number;
+  mayWitness?: { base: number };
+  /**
    * This frame *is* a replacement's substitute, running in the place of the
    * departure of the card named here (#107). What it moves is moving for real
    * — a substitute cannot replace its own replacement — which is the same
@@ -1712,6 +1721,33 @@ function defers(r: ReplacementResult | null | undefined): boolean {
  * reveal with too few matches, a discard from a short hand, damage with no life
  * to take it from, a move or KO of cards that are not there.
  */
+/** Steps whose effect is a recorded change of the game (a move, a draw, a KO, a play, a payment of life). */
+const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo"]);
+/** Steps that decide or look but change nothing on their own. */
+const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
+
+/**
+ * #1121: whether "if you do" after this `may` block can be read from what
+ * happened. True when the block holds at least one acting step and nothing
+ * else that matters (a power change, a rest or a grant has no count, so a
+ * block with those keeps the answer given).
+ */
+export function mayBlockWitnessable(ops: Op[]): boolean {
+  let acting = false;
+  const walk = (list: Op[]): boolean => {
+    for (const o of list) {
+      if (ACTING_OPS.has(o.op)) acting = true;
+      else if (INERT_OPS.has(o.op)) continue;
+      else if (o.op === "if") { if (!walk(o.then) || !walk(o.else ?? [])) return false; }
+      else if (o.op === "may") { if (!walk(o.ops)) return false; }
+      else if (o.op === "chooseMode") { for (const m of o.modes) if (!walk(m.ops)) return false; }
+      else return false;
+    }
+    return true;
+  };
+  return walk(ops) && acting;
+}
+
 function firstStepImpossible(h: ScriptHost, frame: ScriptFrame, master: PlayerId, op: Op): boolean {
   switch (op.op) {
     case "reveal":
@@ -1864,6 +1900,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.draw(p, h.amount(frame, op.n));
           // "If you did not draw a card with this skill" (20-16).
           if (p === master && h.zone(p, "hand").length > before) (frame.did ??= {}).draw = true;
+          if (h.zone(p, "hand").length > before) frame.acted = (frame.acted ?? 0) + 1;
         }
         break;
 
@@ -1899,7 +1936,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const life = h.zone(p, "life")[0];
             if (!life) break;
             h.move(life, "hand", p, { reason: "damage" });
-            if (h.areaOf(life) !== "life") taken.push(life);
+            if (h.areaOf(life) !== "life") { taken.push(life); frame.acted = (frame.acted ?? 0) + 1; }
           }
           if (taken.length) {
             h.addDamageTaken(p, taken.length);
@@ -1936,6 +1973,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const id = h.zone(p, "deck")[0];
             h.move(id, "drop", p, { reason: "effect", reveal: true });
             milled.push(id);
+            frame.acted = (frame.acted ?? 0) + 1;
           }
         }
         if (op.as) frame.vars[op.as] = milled;
@@ -1945,7 +1983,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "addLife":
         for (const p of sideOf(master, op.side)) {
           const n = h.amount(frame, op.n);
-          for (let i = 0; i < n && h.zone(p, "deck").length; i++) h.move(h.zone(p, "deck")[0], "life", p, { reason: "effect" });
+          for (let i = 0; i < n && h.zone(p, "deck").length; i++) { h.move(h.zone(p, "deck")[0], "life", p, { reason: "effect" }); frame.acted = (frame.acted ?? 0) + 1; }
         }
         break;
 
@@ -1956,6 +1994,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const before = h.zone(p, "life").length;
             h.move(h.zone(p, "life")[0], "hand", p, { reason: "effect" });
             if (h.zone(p, "life").length >= before) break;
+            frame.acted = (frame.acted ?? 0) + 1;
           }
         }
         break;
@@ -2393,7 +2432,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const deferred = defers(replaced);
             h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
-            if (h.zone(h.ownerOf(id), "drop").length > before) (frame.did ??= {}).ko = true;
+            if (h.zone(h.ownerOf(id), "drop").length > before) { (frame.did ??= {}).ko = true; frame.acted = (frame.acted ?? 0) + 1; }
             // #1117: the price is paid by this card standing in the Drop, not by the attempt: anything that kept it
             // out (a replacement taken instead, a ban raised since the choice) leaves the price unpaid. A discard a
             // replacement made instead puts another card there, which is why the card itself is asked after.
@@ -2440,7 +2479,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           if (op.to === "under") {
-            if (host) h.placeUnder(id, host);
+            if (host) { h.placeUnder(id, host); frame.acted = (frame.acted ?? 0) + 1; }
             frame.moveLoop.index++;
             continue;
           }
@@ -2534,6 +2573,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // after the move because 3-1-4 clears the flag on the way.
           if (op.faceUp) h.setFaceUp(id, true);
           if (dest === "hand" && owner === master) (frame.did ??= {}).addToHand = true;
+          frame.acted = (frame.acted ?? 0) + 1;
           frame.moveLoop.leftBattle = undefined;
           frame.moveLoop.index++;
         }
@@ -3234,6 +3274,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (field === "blocked") break;
           if (field === "ready") {
             frame.did.play = true;
+            frame.acted = (frame.acted ?? 0) + 1;
             frame.ip++;
             h.resume(frame);
             h.activateField(master, candidates[0]);
@@ -3299,6 +3340,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.clearLastMode();
           frame.awaiting = undefined;
           (frame.did ??= {}).may = yes;
+          frame.mayWitness = yes && mayBlockWitnessable(op.ops) ? { base: frame.acted ?? 0 } : undefined;
           if (!yes) {
             frame.ip++;
             continue;
@@ -3383,7 +3425,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // shape is what `may` lowers to (#273) — and the answer is bound
           // either way, so "if you do" / "if you don't" reads it downstream
           // the same as the native `may` op does.
-          if (op.modes.length === 2 && !op.modes[1].ops.length) (frame.did ??= {}).may = index === 0;
+          if (op.modes.length === 2 && !op.modes[1].ops.length) {
+            (frame.did ??= {}).may = index === 0;
+            frame.mayWitness = index === 0 && mayBlockWitnessable(picked?.ops ?? []) ? { base: frame.acted ?? 0 } : undefined;
+          }
           frame.ops = [...frame.ops.slice(0, frame.ip), ...(picked?.ops ?? []), ...frame.ops.slice(frame.ip + 1)];
           continue;
         }
