@@ -1340,9 +1340,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const predicate = predicateOf(evolution.base.filter, game);
       matchesPrinted = id => {
         const at = findCard(state, id), attrs = attrsNow(ctx, game, state, id);
-        if (at?.owner !== frame.master || at.zone !== evolution.base.area || typeof attrs.costOf !== "number") return false;
-        const current = Math.max(attrs.costOf, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
-        return predicate({ ...attrs, energyCost: current });
+        if (at?.owner !== frame.master || at.zone !== evolution.base.area || typeof attrs.energyCost !== "number") return false;
+        // #1136 (owner ruling, 20 Oct 2026): the cost an [Evolve] base is matched against is the
+        // PRINTED energy cost, like every cost filter (#1097); 20-21 reductions and [Permanent]
+        // increases change only what is paid. The specified orbs still floor it.
+        const printed = Math.max(attrs.energyCost, Array.isArray(attrs.specifiedCost) ? attrs.specifiedCost.length : 0);
+        return predicate({ ...attrs, energyCost: printed });
       };
     } else {
       const sk = lineOf(ctx, state, frame, game);
