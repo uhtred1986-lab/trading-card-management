@@ -83,21 +83,46 @@ function priceOfRow(row: Pick<RuleRow, "cost">): SkillPrice {
 
 /** Structural material/grant failures always block drafts too. Other support
  * diagnostics retain the loader's existing draft/review policy. */
+/** What a printed line says about the typed records it needs: a function of the text alone, so it is kept per text. */
+interface PrintedFacts { combo: boolean; fusion: boolean; evolution: boolean; absorb: boolean; potara: boolean }
+const PRINTED_FACTS_LIMIT = 20_000;
+const printedFactsByText = new Map<string, PrintedFacts>();
+export function printedFactsUncached(printed: string): PrintedFacts {
+  const skills = parseSkills(printed);
+  return {
+    combo: skills.some((sk) => compileComboQualification(sk)),
+    fusion: skills.some(isFusionSkill),
+    evolution: skills.some(needsEvolutionContract),
+    absorb: skills.some(isAbsorbSkill),
+    potara: skills.some(isPotaraSkill),
+  };
+}
+export function printedFacts(printed: string): PrintedFacts {
+  let hit = printedFactsByText.get(printed);
+  if (!hit) {
+    if (printedFactsByText.size >= PRINTED_FACTS_LIMIT) printedFactsByText.clear();
+    hit = printedFactsUncached(printed);
+    printedFactsByText.set(printed, hit);
+  }
+  return hit;
+}
+
 function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "ops"> & { cond?: unknown }): string[] {
   const unsupported: string[] = [];
-  if ((row.cost as CostRecord | null)?.fusion !== undefined || parseSkills(row.printed).some(isFusionSkill)) {
+  const facts = printedFacts(row.printed);
+  if ((row.cost as CostRecord | null)?.fusion !== undefined || facts.fusion) {
     const gap = fusionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
     if (gap) unsupported.push(gap);
   }
-  if ((row.cost as CostRecord | null)?.evolution !== undefined || parseSkills(row.printed).some(needsEvolutionContract)) {
+  if ((row.cost as CostRecord | null)?.evolution !== undefined || facts.evolution) {
     const gap = evolutionIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row) }, true);
     if (gap) unsupported.push(gap);
   }
-  if ((row.cost as CostRecord | null)?.absorb !== undefined || parseSkills(row.printed).some(isAbsorbSkill)) {
+  if ((row.cost as CostRecord | null)?.absorb !== undefined || facts.absorb) {
     const gap = absorbIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
     if (gap) unsupported.push(gap);
   }
-  if ((row.cost as CostRecord | null)?.potara !== undefined || parseSkills(row.printed).some(isPotaraSkill)) {
+  if ((row.cost as CostRecord | null)?.potara !== undefined || facts.potara) {
     const gap = potaraIdentityProblem({ kind: row.kind as import("./types").Skill["kind"], price: priceOfRow(row), ops: programOf(row) }, true);
     if (gap) unsupported.push(gap);
   }
@@ -116,7 +141,7 @@ function materialContractGaps(row: Pick<RuleRow, "printed" | "kind" | "cost" | "
 function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unknown }): string | null {
   const triggers = Array.isArray(row.trigger) ? row.trigger : [];
   const required = row.combo != null || triggers.some((t) => t === "comboUsed" || t === "comboed")
-    || parseSkills(row.printed).some((sk) => compileComboQualification(sk));
+    || printedFacts(row.printed).combo;
   if (!required) return null;
   return comboScriptProblem(row);
 }
@@ -275,6 +300,22 @@ export async function rulesFor(db: Db, defs: Record<string, CardDef>): Promise<R
  * (what games load) and `cardHealthOf` (what the screens show) both read it.
  */
 export function expectedSkills(front: string | null | undefined, back: string | null | undefined): { side: Side; skillIndex: number; printed: string; effect: string }[] {
+  // A card's text always yields the same skills, and the catalog queue asks for ~6,000 cards on every cache fill:
+  // keep the answer per text pair and hand each caller its own copy.
+  const key = `${front ?? ""}\u0000${back ?? ""}`;
+  let hit = expectedByText.get(key);
+  if (!hit) {
+    if (expectedByText.size >= EXPECTED_BY_TEXT_LIMIT) expectedByText.clear();
+    hit = expectedSkillsUncached(front, back);
+    expectedByText.set(key, hit);
+  }
+  return hit.map((e) => ({ ...e }));
+}
+const EXPECTED_BY_TEXT_LIMIT = 20_000;
+const expectedByText = new Map<string, ReturnType<typeof expectedSkillsUncached>>();
+
+/** `expectedSkills` without the memo: the definition, and what `scripts/verify/rule-health-memo.ts` holds the memo to. */
+export function expectedSkillsUncached(front: string | null | undefined, back: string | null | undefined): { side: Side; skillIndex: number; printed: string; effect: string }[] {
   const out: { side: Side; skillIndex: number; printed: string; effect: string }[] = [];
   for (const [side, text] of [["front", front], ["back", back]] as const) {
     const lines = skillLines(text);

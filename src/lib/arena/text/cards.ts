@@ -17,6 +17,21 @@ const SPELLED: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, si
 /** `<br>` and `[br]` separate skill lines; entities are HTML-escaped in some sets. */
 export function skillLines(text: string | null | undefined): string[] {
   if (!text) return [];
+  // The same text is split by the parser, by `expectedSkills` and by the readiness checks; split it once and hand out copies.
+  let hit = linesByText.get(text);
+  if (!hit) {
+    if (linesByText.size >= LINES_BY_TEXT_LIMIT) linesByText.clear();
+    hit = skillLinesUncached(text);
+    linesByText.set(text, hit);
+  }
+  return [...hit];
+}
+const LINES_BY_TEXT_LIMIT = 20_000;
+const linesByText = new Map<string, string[]>();
+
+/** `skillLines` without the memo (what `scripts/verify/rule-health-memo.ts` holds it to). */
+export function skillLinesUncached(text: string | null | undefined): string[] {
+  if (!text) return [];
   const raw = text
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/\[br\]/gi, "\n")
