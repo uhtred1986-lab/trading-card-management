@@ -672,6 +672,11 @@ input[type="number"] {
 .arena-turnveil-hold {
   animation-name: arena-turnfade-in;
 }
+/* The phase banner's bar: full width like the turn bar, in the skin's own canvas so both skins read. */
+.arena-stepbar {
+  background: color-mix(in srgb, var(--color-space-950) 62%, transparent);
+  border-block: 3px solid var(--color-ki-500);
+}
 @media (min-width: 1024px) {
   .arena-turnbanner .arena-turnbanner-inner { padding: 1.6rem 2rem 1.9rem; }
 }

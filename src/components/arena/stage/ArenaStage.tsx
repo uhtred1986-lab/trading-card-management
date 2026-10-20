@@ -1631,7 +1631,7 @@ export function ArenaStage({
                   targetLabel={targetLabel}
                   attackRole={attackPick ? { attacker: attackPick.attacker, target: attackPick.target } : null}
                 />
-                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={wide ? null : held && beat?.t === "clash" && playback.playing ? { ...held, text: "Clash!" } : (playback.playing ? held : null)} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen} summary={attackSummary}>
+                <Lane view={view} cardProps={cardProps} staged={!!shape} narration={null} onLog={() => setLogOpen((x) => !x)} logOpen={logOpen} summary={attackSummary}>
                   {logOpen && (
                     <div className="arena-logpop absolute inset-x-2 top-1 z-30 rounded-xl p-3 lg:hidden" role="dialog" aria-label="Battle log">
                       <div className="mb-1 flex items-center justify-between">

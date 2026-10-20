@@ -273,7 +273,7 @@ export function Lane({
   view: BoardView;
   cardProps: CardProps;
   staged?: boolean;
-  /** The sentence on the pill, and whose it is (the dot's colour). */
+  /** The sentence on the pill, and whose it is (the dot's colour). The stage passes null on every width: the battle log and the turn/phase chips say the same thing (owner, 20 Oct 2026, after #1091 did it on desktop). */
   narration: { text: string; n: number; mine: boolean } | null;
   onLog: () => void;
   logOpen?: boolean;
