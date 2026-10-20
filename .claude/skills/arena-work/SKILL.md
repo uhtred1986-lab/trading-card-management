@@ -38,20 +38,14 @@ large to read whole. Grep for the function/type name, then Read with `offset`/`l
 
 ## 3. Fast feedback loop
 
-For pure rule-logic changes, skip the DB-backed suite:
-
-```bash
-npx tsx scripts/verify-rules.ts && npx tsx scripts/verify-arena.ts
-```
-
-Run the full `npm test` (adds `verify-db.mts`, which boots PGlite + migrations) only before
-finalizing. Never run `npm run sync:catalog` or `sync:prices` just to inspect state — they hit
-real network endpoints (~30-50s).
+`npm run checks` after each commit; what else runs, when, and by whom: `docs/agent-brief.md` → "Checking
+a change". `verify-arena.ts` alone takes about 7 minutes, so an arena-path run is slow by nature. While
+iterating on pure rule logic you may run `npx tsx scripts/verify-rules.ts` or `npx tsx scripts/verify-arena.ts` directly.
+Never run `npm run sync:catalog` or `sync:prices` just to inspect state: they hit real network endpoints.
 
 Symbol definitions/references/diagnostics and browser network/offline/worker/storage inspection,
 with commands verified on Windows: `docs/arena-agent-tools.md` (no Playwright, no MCP server needed).
 
 ## 4. If the change touches what the compiler understands
 
-Update `src/lib/arena/glossary.ts` in the same commit (required by CLAUDE.md's Conventions
-section) — this is a doc-as-code file, not a separate documentation task.
+Update `src/lib/arena/glossary.ts` in the same commit (a hard rule in CLAUDE.md) — this is a doc-as-code file, not a separate documentation task.

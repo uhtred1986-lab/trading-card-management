@@ -18,10 +18,7 @@ Closes #
 
 ## Checks run
 
-- [ ] `npm run typecheck`
-- [ ] `npm run lint`
-- [ ] `npm test`
-- [ ] `npm run build`
+- [ ] `npm run checks` (the changed paths; the coordinator runs the full gate once on the combined head)
 - [ ] `npm run arena:fuzz -- 40` (arena engine or rules changes)
 - [ ] `npm run contract:emit` reviewed (only if the `Snapshot` shape changed)
 - [ ] `npm run arena:readings` / `npm run arena:tally` diff reviewed (compiler changes only)
