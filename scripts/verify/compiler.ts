@@ -1,5 +1,6 @@
 import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
 import { typedRecords } from "./records";
+import { emptyOnPurpose } from "../../src/lib/arena/compile/silent";
 /**
  * The compiler and the interpreter: what a printed line becomes, and what the
  * engine then does with it.
@@ -546,6 +547,31 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   const deckRule = one("[Permanent] You can't include non-≪Saiyan≫ Battle Cards in your deck.");
   assert.deepEqual(deckRule.unsupported, []);
   assert.deepEqual(deckRule.ops, []);
+
+  // #1146: every deck-building wording reads as nothing, on purpose and with nothing unread.
+  for (const text of [
+    "[Permanent] You can only include 1 copy of this card in your Z-Deck.",
+    "[Permanent] You can include up to 7 copies of this card in your deck.",
+    "[Permanent] You can include as many copies of this card in your Z-Deck as you like.",
+    "[permanent] You can only include Z-Unisons in your Z-Deck.",
+    "[Permanent] You can only include up to 7 ≪Dark Dragon Ball≫ cards in your deck.",
+    "[Permanent] Your deck can only include up to 6 [Dragon Ball] cards, and can't include non-red Battle Cards.",
+    "[Permanent] You can't include non-white Extra in your deck.",
+    "[Permanent] You can't include cards with energy costs of 6 or more, or multicolor cards in your deck.",
+  ]) {
+    const r = one(text);
+    assert.deepEqual([r.ops, r.unsupported], [[], []], text);
+    assert.equal(emptyOnPurpose(parseSkills(text)[0]), true, `${text} is empty on purpose`);
+  }
+  // …and a mixed line keeps its game half: only the deck-building clause is taken out.
+  const mixedLine = "[Permanent] You can't include non-≪Villainous≫ cards in your deck, and treat ≪Villainous≫ cards in your hand as if they have no specified cost.";
+  const mixed = one(mixedLine);
+  assert.deepEqual(mixed.unsupported, []);
+  assert.ok(mixed.ops.length > 0, "the game half is still compiled");
+  assert.deepEqual(mixed.ops, one("[Permanent] Treat ≪Villainous≫ cards in your hand as if they have no specified cost.").ops, "the same program as the game half printed alone");
+  assert.equal(emptyOnPurpose(parseSkills(mixedLine)[0]), false, "a mixed line is not empty on purpose");
+  // Not deck-building: still compiled (or refused) as game text.
+  assert.equal(emptyOnPurpose(parseSkills("[Auto] When you play this card, draw 1 card.")[0]), false);
 }
 
 {

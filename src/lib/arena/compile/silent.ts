@@ -1,3 +1,4 @@
+import { deckBuildingOf, type DeckBuildingReading } from "../../decks/cardRules";
 import type { Script } from "../vm/script";
 import type { Skill } from "../types";
 
@@ -17,7 +18,7 @@ import type { Skill } from "../types";
  *   itself (`KEYWORD_HANDLES_THE_LINE`);
  * - a **reminder** printed in brackets, which `stripNotes` removes (1-5-8);
  * - a **deck-building** restriction (6-1): the engine takes the deck it is
- *   given.
+ *   given. `deckBuildingOfSkill` reads it (#1146).
  */
 export function readsAsNothingSilently(skill: Skill, script: Script): boolean {
   if (script.ops.length || script.unsupported.length) return false;
@@ -35,8 +36,24 @@ export function emptyOnPurpose(skill: Skill): boolean {
   const text = skill.effect.replace(/\s+/g, " ").trim();
   if (!text) return true;
   if (/^[(（].*[)）]\.?$/.test(text)) return true;
-  if (/\b(?:include|included)\b.*\bin your deck\b|\bin your deck\b.*\bas you like\b/i.test(text)) return true;
+  // A deck-building clause read whole, with no game text beside it. A mixed line is not empty:
+  // its game half is compiled on its own (`compileSkill`).
+  const deck = deckBuildingOfSkill(skill);
+  if (isDeckBuildingLine(deck)) return true;
+  // A wording the deck-building reader cannot take whole is still not a rule of play, as before
+  // (it is listed by `parseDeckBuilding`'s `unread`); a line that has a clause it did read is judged by its rest.
+  if (!deck.rules.length && /\b(?:include|included)\b.*\bin your deck\b|\bin your deck\b.*\bas you like\b/i.test(text)) return true;
   return false;
+}
+
+/** The deck-building clauses of a skill's effect text, and what is left of it for the engine (#1146). */
+export function deckBuildingOfSkill(skill: Pick<Skill, "effect">): DeckBuildingReading {
+  return deckBuildingOf(skill.effect);
+}
+
+/** Nothing but deck-building clauses ([Dragon Ball]-style keyword limits are the keyword skill's, not this). */
+export function isDeckBuildingLine(reading: DeckBuildingReading): boolean {
+  return reading.rules.some((r) => r.kind !== "keyword") && !reading.rest && reading.unread.length === 0;
 }
 
 /**

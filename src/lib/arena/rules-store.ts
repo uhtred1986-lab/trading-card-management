@@ -32,7 +32,7 @@ import { reviewVersion } from "./rule-review-version";
 import type { Rule } from "./lang/ast";
 import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
 import { programProblem } from "./vm/script-schema";
-import { emptyOnPurpose, readsAsNothingSilently } from "./compile/silent";
+import { deckBuildingOfSkill, emptyOnPurpose, isDeckBuildingLine, readsAsNothingSilently } from "./compile/silent";
 import { DEFAULT_GAME } from "@/lib/catalog/games";
 import { FLAG_PREFIX } from "./rule-review";
 
@@ -399,6 +399,15 @@ export interface RuleHealthReport {
    * incomplete.
    */
   needsRebuild: boolean;
+  /**
+   * "deck-building" when the whole line is a deck-building clause (a Leader's "You can't include …",
+   * a card's own copy limit, a pooled limit; #1146): it is a rule of deck construction, not of play,
+   * so it is read and empty on purpose. It is `done` for the counts and never Text only, Incomplete
+   * or unchecked, and the screens label it with its own name. Null for every other line.
+   */
+  category: "deck-building" | null;
+  /** The deck-building clauses the line carries, in words. Also set for a mixed line, whose game half has its own health. */
+  deckBuilding: string[];
 }
 
 const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -406,6 +415,7 @@ const flatLine = (s: string) => s.replace(/\s+/g, " ").trim();
 /**
  * One skill row, classified. Order matters:
  *
+ * 0. A line that is nothing but deck-building clauses → `done`, category `deck-building` (#1146).
  * 1. `open`, or a program that reads as nothing without saying so → `text-only`
  *    (the engine does nothing with the text; keyword lines, bracketed reminders
  *    and deck-building restrictions are empty on purpose and are not silent).
@@ -425,12 +435,20 @@ export function ruleHealth(row: HealthRow): RuleHealthReport {
   const gaps = support.unsupported.filter((g) => !records.has(g));
   const hints = support.unknown.length ? ["Try it in play: whether it can play its target depends on the board."] : [];
   const unread = (row.unread ?? []).slice(0, 3).map((c) => `Not read: ${flatLine(String(c)).slice(0, 140)}`);
-  const report = (health: RuleHealth, reasons: string[]): RuleHealthReport => ({ health, reasons, hints, needsRebuild });
+  const program = programOf(row);
+  const skill = parseSkills(row.printed).find((s) => s.index === row.skillIndex % 10);
+  const deck = skill ? deckBuildingOfSkill(skill) : null;
+  const deckBuilding = deck ? deck.rules.filter((r) => r.kind !== "keyword").map((r) => r.words) : [];
+  const report = (health: RuleHealth, reasons: string[], category: RuleHealthReport["category"] = null): RuleHealthReport => ({ health, reasons, hints, needsRebuild, category, deckBuilding });
+
+  // A deck-building line is read from its printed text, whatever the stored status says. A person's Wrong flag
+  // or a compiler difference on it is still shown through the normal path below.
+  if (deck && isDeckBuildingLine(deck) && program.length === 0 && !row.reviewFlag && !row.compilerDiff) {
+    return report("done", ["A deck-building rule: it says what a deck may hold, so the engine plays nothing for it. Deck legality checks it."], "deck-building");
+  }
 
   if (row.status === "open") return report("text-only", ["The engine does nothing with this text yet.", ...unread]);
 
-  const program = programOf(row);
-  const skill = parseSkills(row.printed).find((s) => s.index === row.skillIndex % 10);
   // "This skill does nothing" is a person's answer (`blankRule`), not a silent blank.
   const ownerBlanked = row.status === "corrected" && row.source === "user";
   if (skill && !ownerBlanked && readsAsNothingSilently(skill, { ops: program, unsupported: row.unread ?? [] })) {
@@ -1293,6 +1311,8 @@ export interface QueueSkill {
   /** The `card_rules` row; null where the card prints a skill that has no current row. */
   ruleId: number | null;
   family: ReasonFamily | null;
+  /** "deck-building" for a line that is only a deck-building clause (`RuleHealthReport.category`). */
+  category: RuleHealthReport["category"];
 }
 
 /** A card as the queue lists it: the card, its dots, and the reason of its worst skill. */
@@ -1309,6 +1329,10 @@ export interface QueueCard {
   /** The worst skill's reasons in plain words, then its hints; empty when there is nothing to say. */
   reasons: string[];
   family: ReasonFamily | null;
+  /** "deck-building" for a card whose skills are done and at least one is a deck-building clause (#1146): its own label in the queue. */
+  category: RuleHealthReport["category"];
+  /** Every deck-building clause the card prints, in words (a mixed line's too). */
+  deckBuilding: string[];
   /** The worst skill's row: where *Open ›* lands. */
   ruleId: number | null;
   source: RuleSource | null;
@@ -1353,11 +1377,13 @@ export function classifyQueueCard(
   let worst: { row: (typeof rows)[number]; report: RuleHealthReport } | null = null;
   let missing = 0;
   let claudeFix = 0;
+  const deckBuilding: string[] = [];
   for (const { row } of matched) {
     if (row && row.source === "claude" && row.status === "draft") claudeFix++;
-    if (!row) { missing++; skills.push({ health: "text-only", ruleId: null, family: null }); continue; }
+    if (!row) { missing++; skills.push({ health: "text-only", ruleId: null, family: null, category: null }); continue; }
     const report = ruleHealth(row);
-    skills.push({ health: report.health, ruleId: row.id, family: familyOfRow(row, report) });
+    skills.push({ health: report.health, ruleId: row.id, family: familyOfRow(row, report), category: report.category });
+    for (const w of report.deckBuilding) if (!deckBuilding.includes(w)) deckBuilding.push(w);
     if (report.needsRebuild) {
       rebuild.rows++;
       if (row.source === "compiler" && (row.status === "open" || row.status === "draft")) rebuild.compiler++;
@@ -1370,13 +1396,16 @@ export function classifyQueueCard(
   // A card's incomplete skills may have different reasons; the one that comes first in the queue's order names the card.
   const family = health === "incomplete" ? (FAMILY_ORDER.find((f) => skills.some((s) => s.health === "incomplete" && s.family === f)) ?? "other") : null;
   const w = worst?.row ?? null;
+  const category: RuleHealthReport["category"] = health === "done" && skills.some((x) => x.category) ? "deck-building" : null;
   const base = worst ? [...worst.report.reasons.filter(Boolean), ...worst.report.hints] : ["No rule record for this skill yet."];
   const reasons = claudeFix > 0 && health !== "done" ? [CLAUDE_FIX_REASON, ...base] : base;
   return {
     cardId: card.id, name: card.name, setCode: card.setCode, cardType: card.cardType, colors: card.colors, imageUrl: card.imageUrl,
     health, skills,
-    reasons: health === "done" && !worst?.report.hints.length ? [] : reasons,
+    reasons: category ? [`Deck-building: ${deckBuilding.join("; ")}.`] : health === "done" && !worst?.report.hints.length ? [] : reasons,
     family,
+    category,
+    deckBuilding,
     ruleId: w?.id ?? null,
     source: (w?.source as RuleSource | undefined) ?? null,
     wording: w && health !== "done" ? wordingKey(w) : null,

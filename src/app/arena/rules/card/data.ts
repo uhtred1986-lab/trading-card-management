@@ -36,6 +36,7 @@ const sentence = (s: string) => s.replace(/[.\s]+$/, "");
 
 /** The card's one-line why, from its skills' reasons: the worst skills first, at most two, each with its number. */
 function whyLine(skills: SkillView[], health: RuleHealth): string {
+  if (health === "done" && skills.some((s) => s.category)) return "Every skill is read and checked; a deck-building rule is checked by deck legality, not played.";
   if (health === "done") return "Every skill is read and checked.";
   const bad = skills.filter((s) => s.health === health);
   const parts = bad.slice(0, 2).map((s) => `Skill ${s.n}: ${sentence(s.reasons[0] ?? (s.ruleId == null ? "no rule record yet" : "needs a look"))}.`);
@@ -75,7 +76,7 @@ export async function loadCardPage(db: Db, cardId: string): Promise<{ card: Card
     const row = current[i]?.row ?? null;
     if (!row) {
       skills.push({
-        n: i + 1, side: e.side, skillIndex: e.skillIndex, printed: e.printed, ruleId: null, kindLabel: "Skill", health: "text-only",
+        n: i + 1, side: e.side, skillIndex: e.skillIndex, printed: e.printed, ruleId: null, kindLabel: "Skill", health: "text-only", category: null, deckBuilding: [],
         reasons: ["The engine has no record of this skill yet."], hints: [], needsRebuild: true, status: null, source: null, version: 0, changedAt: null,
         reads: "", comboChips: [], unread: [], flag: null, compilerDiff: null, rule: null, item: null, timesSeen: 0, focus: null,
       });
@@ -94,6 +95,8 @@ export async function loadCardPage(db: Db, cardId: string): Promise<{ card: Card
       ruleId: row.id,
       kindLabel: SKILL_LABELS[row.kind] ?? row.kind,
       health: report.health,
+      category: report.category,
+      deckBuilding: report.deckBuilding,
       reasons: report.reasons,
       hints: report.hints,
       needsRebuild: report.needsRebuild,

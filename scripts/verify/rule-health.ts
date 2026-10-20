@@ -44,6 +44,27 @@ const health = (o: Partial<HealthRow>): RuleHealth => ruleHealth(row(o)).health;
   assert.equal(health({ kind: "permanent", printed: restriction, ops: [], trigger: [], status: "confirmed", reviewFlag: "wrong" }), "incomplete", "…but a flag on it still counts");
 }
 
+// ── deck-building clauses: their own category (#1146) ─────────────────────
+{
+  const deck = (printed: string, o: Partial<HealthRow> = {}) => ruleHealth(row({ kind: "permanent", printed, ops: [], trigger: [], status: "open", unread: [printed], ...o }));
+  const z1 = deck("[Permanent] You can only include 1 copy of this card in your Z-Deck.");
+  assert.equal(z1.category, "deck-building");
+  assert.equal(z1.health, "done", "an open row for a deck-building line is not Text only");
+  assert.deepEqual(z1.deckBuilding, ["up to 1 copy of this card in the Z-Deck"]);
+  assert.equal(deck("[Permanent] You can only include Z-Unisons in your Z-Deck.", { status: "draft" }).health, "done", "a draft is not 'unchecked' either");
+  assert.equal(deck("[Permanent] You can include any number of this card in your deck.").category, "deck-building", "'any number of this card' is read");
+  // Not whole: a flag, an unread wording, a mixed line.
+  assert.equal(deck("[Permanent] You can only include 1 copy of this card in your Z-Deck.", { status: "confirmed", reviewFlag: "wrong" }).category, null, "a person's Wrong flag still counts");
+  assert.equal(deck("[Permanent] You can't include cards with a strange name in your deck.").health, "text-only", "an unread deck clause is reported, not guessed");
+  assert.equal(deck("[Permanent] You can't include cards with a strange name in your deck.").deckBuilding.length, 0);
+  const mixed = deck("[Permanent] You can't include non-≪Villainous≫ cards in your deck, and treat ≪Villainous≫ cards in your hand as if they have no specified cost.");
+  assert.equal(mixed.category, null);
+  assert.equal(mixed.health, "text-only", "the game half keeps its own health");
+  assert.deepEqual(mixed.deckBuilding, ["can't include non-≪Villainous≫ cards"]);
+  assert.equal(ruleHealth(row()).category, null);
+  assert.deepEqual(ruleHealth(row()).deckBuilding, []);
+}
+
 // ── incomplete ────────────────────────────────────────────────────────────
 {
   const flagged = ruleHealth(row({ status: "confirmed", reviewFlag: "Wrong (phone review) · DO ops[0] · wrong target\nsecond line" }));

@@ -15,9 +15,11 @@ export const dynamic = "force-dynamic";
 /**
  * Dev-only: the Card rules page on a synthetic card, with no database behind it,
  * so it can be opened and shot in a session that keeps off Neon (the way
- * `/arena/preview` shows the board). Four skills: one the engine reads nothing
+ * `/arena/preview` shows the board). Skills: one the engine reads nothing
  * of, one marked Wrong that has changed since, a read draft, an approved one.
  * Saving answers "preview only". Production answers 404.
+ *
+ * Skills 5 and 6 are deck-building lines (#1146): a Leader's whole-line clause under its own label, and a mixed line whose game half keeps its health.
  *
  * `?skill=102&edit=1` opens a skill's editor, `?walk=0` hides ‹ / ›.
  */
@@ -90,6 +92,29 @@ const SEEDS: Seed[] = [
     version: 3,
     ageDays: 30,
   },
+  {
+    id: 105,
+    printed: "[Permanent] You can't include non-white Extra in your deck.",
+    kind: "Permanent",
+    status: "open",
+    source: "compiler",
+    rule: rule({ kind: "permanent", trigger: [], ops: [] }),
+    unread: ["You can't include non-white Extra in your deck"],
+    reads: "",
+    version: 1,
+    ageDays: 2,
+  },
+  {
+    id: 106,
+    printed: "[Permanent] You can't include non-≪Villainous≫ cards in your deck, and treat ≪Villainous≫ cards in your hand as if they have no specified cost.",
+    kind: "Permanent",
+    status: "draft",
+    source: "compiler",
+    rule: rule({ kind: "permanent", trigger: [], ops: [{ op: "draw", n: 1 }] }),
+    reads: "All ≪Villainous≫ cards in your hand have no specified cost.",
+    version: 2,
+    ageDays: 3,
+  },
 ];
 
 function skillOf(s: Seed, n: number): SkillView {
@@ -102,7 +127,7 @@ function skillOf(s: Seed, n: number): SkillView {
     source: s.source, pattern: null, explanation: null, timesSeen: 0, probe: null, firedIn: null, decks: ["Fixture deck"], sameWording: 0,
   };
   return {
-    n, side: "front", skillIndex: (n - 1) * 10, printed: s.printed, ruleId: s.id, kindLabel: s.kind, health: report.health, reasons: report.reasons, hints: report.hints,
+    n, side: "front", skillIndex: (n - 1) * 10, printed: s.printed, ruleId: s.id, kindLabel: s.kind, health: report.health, category: report.category, deckBuilding: report.deckBuilding, reasons: report.reasons, hints: report.hints,
     needsRebuild: report.needsRebuild || s.id === 101, status: s.status, source: s.source, version: s.version, changedAt, reads: s.reads, comboChips: comboChips(s.combo),
     unread: s.unread ?? [], flag: s.flag ? flagNotice(`Wrong (phone review) · ${s.flag.text}`, flagAt, changedAt) : null, compilerDiff: null, rule: s.rule, item, timesSeen: 0, focus: s.unread?.length ? "ops" : null,
   };
@@ -112,12 +137,14 @@ export default async function CardRulesPreviewPage({ searchParams }: { searchPar
   await requireSlPage();
   if (process.env.NODE_ENV === "production") notFound();
   const sp = await searchParams;
-  const skills = SEEDS.map((s, i) => skillOf(s, i + 1));
+  // `?leader=1`: a Leader whose only skill is the deck-building line (the shape of BT31-116).
+  const leader = sp.leader === "1";
+  const skills = leader ? [skillOf(SEEDS[4], 1)] : SEEDS.map((s, i) => skillOf(s, i + 1));
   const health: RuleHealth = cardHealth(skills.map((s) => s.health));
   const card: CardView = {
-    id: "BT0-FIXTURE", name: "Fixture Trunks", setCode: "BT0", type: "BATTLE", colors: ["RED"], imageUrl: null, cost: "3", power: 10000, comboPower: 5000, traits: ["Saiyan", "Earthling"],
+    id: "BT0-FIXTURE", name: leader ? "Fixture Cell" : "Fixture Trunks", setCode: "BT0", type: leader ? "LEADER" : "BATTLE", colors: [leader ? "WHITE" : "RED"], imageUrl: null, cost: leader ? null : "3", power: 10000, comboPower: leader ? null : 5000, traits: leader ? ["Android"] : ["Saiyan", "Earthling"],
     decks: [{ id: 1, name: "Fixture deck" }, { id: 2, name: "[Starter] Pride of the Saiyans" }], seenIn: 0, health,
-    why: "Skill 1: Marked wrong: WHEN · misses a condition. Skill 2: The engine does nothing with this text yet.", canRebuild: true,
+    why: leader ? "Every skill is read and checked; a deck-building rule is checked by deck legality, not played." : "Skill 1: Marked wrong: WHEN · misses a condition. Skill 2: The engine does nothing with this text yet.", canRebuild: !leader,
     specifiedCost: sp.xcost ? { entered: null, words: null, unknown: true } : null,
   };
   const history: HistoryLine[] = [

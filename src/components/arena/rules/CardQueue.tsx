@@ -94,6 +94,7 @@ export function QueueRow({ card, queue, decks }: { card: QueueCard; queue: Queue
             {card.skills.map((s, i) => (
               <HealthDot key={i} health={s.health} />
             ))}
+            {card.category === "deck-building" && <span className="ds-badge-neutral ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ring-space-600">Deck-building</span>}
             {card.claudeFix > 0 && <span className="ds-status-success ml-1 rounded-full px-2 py-0.5 text-[11px] font-bold">Claude fix waiting</span>}
             <span className="ml-1 text-xs text-space-400">{decks > 0 ? `in ${decks} deck${decks === 1 ? "" : "s"}` : "in no deck"}</span>
           </span>
