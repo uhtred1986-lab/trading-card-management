@@ -169,7 +169,9 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
       // #1163: `byWatcher: true` — only the card whose own skill made the move
       // is asked ("…is played by this card's skill", BT29-083). The moment
       // names that card as `byCard`; a move no card's skill made names none.
-      if (trigger.on.args.byWatcher === true && moment.args.byCard !== card) continue;
+      // #1166: a skill granted in quotation marks names the granting card as
+      // "this card" of "this card's skill", so its holder is asked as well.
+      if (trigger.on.args.byWatcher === true && moment.args.byCard !== card && !quotedGrantFrom(state, card, moment.args.byCard)) continue;
       // A self-moment a skill caused hands that skill's card on as the subject (#907).
       const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card }
         : trigger.bind === "self" && moment.source !== undefined ? { subject: moment.source } : {};
@@ -177,6 +179,25 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
     }
   }
   return out;
+}
+
+/**
+ * #1166: does `card` hold a skill granted in quotation marks by `by`'s skill
+ * ("…your Leader gains the following skill for the turn- "[auto] When your
+ * ≪Ginyu Force≫ card is played by this card's skill, …"")? The card whose
+ * skill granted the line is the one "this card's skill" names in it (BT29-083).
+ */
+function quotedGrantFrom(state: VmState, card: string, by: PatternValue | undefined): boolean {
+  return typeof by === "string" && state.effects.some((e) => e.kind === "copiedSkills" && e.target === card && e.copied?.quoted && e.copied.from === by);
+}
+
+/** #1166: the card whose skill granted this copied skill in quotation marks, if it is one. */
+function quotedGrantSource(state: VmState, card: string, index: number): string | undefined {
+  for (const e of state.effects) {
+    if (e.kind !== "copiedSkills" || e.target !== card || !e.copied?.quoted) continue;
+    if (e.copied.skills.some((i) => copiedSkillIndex(e.id, i) === index)) return e.copied.from;
+  }
+  return undefined;
 }
 
 /** Every argument the pattern names, matched against what the moment carries. `watcher` is about who is asked rather than about the event, and is read by `asked`; `byWatcher` is about which of them, and is read by `matchTriggers`. */
@@ -361,6 +382,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (gap) throw new NotYet(gap, "#907");
       }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // #1163, #1166: "…played by this card's skill" — "this card" is the one
+      // with the skill, or, for a skill granted in quotation marks, the card
+      // whose skill granted it.
+      if (game.triggers[match.trigger]?.on.args.byWatcher === true && moment.args.byCard !== (quotedGrantSource(state, match.card, sk.index) ?? match.card)) continue;
       requireUsage(sk.usage);
       if (!sparkingIsValid(state, master, sk.validity)) continue;
       if (sk.kind === "auto" && ["comboUsed", "comboed"].includes(match.trigger) && !combo)
@@ -520,8 +545,12 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
     return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
       script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
   };
-  if (!copies.length) return { ...own, skills: own.skills.map((sk) => executable(sk, own.scripts)) };
-  const skills = own.skills.slice();
+  // #1166: a line printed in quotation marks is a skill this card grants
+  // ("…your Leader gains the following skill for the turn- "[auto] …""),
+  // never one it has — it runs only as the copy a quoted grant makes.
+  const mine = own.skills.some((sk) => sk.granted) ? own.skills.filter((sk) => !sk.granted) : own.skills;
+  if (!copies.length) return { ...own, skills: mine.map((sk) => executable(sk, own.scripts)) };
+  const skills = mine.slice();
   const bySkill = { ...own.scripts.bySkill };
   for (const e of copies) {
     const c = e.copied!;
@@ -530,8 +559,10 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
     const scripts = programsOf(ctx, src, c.side);
     for (const sk of parseSkills((c.side === "back" ? src.back?.skill : src.skill) ?? null)) {
       if (!c.skills.includes(sk.index)) continue;
+      // #1166: a quoted grant runs the quoted skill; no other copy takes one.
+      if (!sk.granted !== !c.quoted) continue;
       const index = copiedSkillIndex(e.id, sk.index);
-      skills.push({ ...sk, index });
+      skills.push({ ...(sk.granted ? sk.granted.skill : sk), index });
       if (scripts.bySkill[sk.index]) {
         const script = scripts.bySkill[sk.index];
         bySkill[index] = script.usage?.limit != null ? { ...script, usage: undefined,

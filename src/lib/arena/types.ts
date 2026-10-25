@@ -109,6 +109,21 @@ export interface Skill {
    */
   energyEither: Color[][];
   raw: string;
+  /**
+   * #1166: this line grants the skill printed in quotation marks on the next
+   * line ("…your ≪Ginyu Force≫ Leader gains the following skill for the
+   * turn-"): the quoted line's index, and the quoted skill read on its own.
+   * Set by `parseSkills` from the text alone.
+   */
+  grants?: { index: number; skill: Skill };
+  /**
+   * #1166: this line is a skill another line of the same card grants, printed
+   * wholly in quotation marks. `by` is the granting line's index and `skill`
+   * the quoted skill read on its own (with this line's index). The line itself
+   * stays an inert [Permanent]: the card never has it, and its record (compiled
+   * from `skill`) runs only on the card the grant names, while the grant lasts.
+   */
+  granted?: { by: number; skill: Skill };
 }
 
 export type SkillKind =
@@ -559,6 +574,13 @@ export interface CopiedSkills {
   from?: string;
   /** That card's name, captured now, for the label. */
   name?: string;
+  /**
+   * #1166: the source's own quoted line, granted ("…gains the following skill
+   * for the turn- "[auto] …""), not a skill it has. The target runs the quoted
+   * skill (`Skill.granted`); "this card's skill" in it names `from`, the card
+   * whose skill granted it.
+   */
+  quoted?: true;
 }
 
 /** Identity a card also counts as under 20-1, for a static or timed effect. */

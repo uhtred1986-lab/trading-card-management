@@ -17,7 +17,8 @@
  * `rulesFromRows`, the path a match loads), for both seats. BT29-083#10 is
  * stored in the repo's open-rules export inside the quotation marks of the
  * skill its Extra grants ('…gains the following skill for the turn- "[auto]…"');
- * that quoted line stays an honest gap (a granted skill), so the VM proof runs
+ * that quoted line, read alone, stays a gap (the grant itself is #1166's,
+ * `quoted-grants-1166`), so the VM proof here runs
  * the unquoted line on a Battle Card whose own [Activate: Main] makes the play.
  */
 import assert from "node:assert/strict";
