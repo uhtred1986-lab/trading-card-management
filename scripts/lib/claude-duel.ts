@@ -47,6 +47,11 @@ export interface DuelSettings {
   maxOutputTokens: number;
   /** A call whose prompt bound (`promptTokenBound`) is larger is not sent: `token-limit`. */
   maxPromptTokens: number;
+  /**
+   * Tokens per game, counted at reservation (each call's prompt bound plus its `maxOutputTokens`, so
+   * failed and retried calls count): a call that would pass it is not sent, `token-limit`.
+   */
+  maxGameTokens: number;
   /** Decisions the model answers per game (free choices excluded). */
   maxClaudeDecisions: number;
   /** Provider calls per game, retries included. */
@@ -69,6 +74,7 @@ export interface DuelSettings {
 export const DEFAULT_SETTINGS: Omit<DuelSettings, "model"> = {
   maxOutputTokens: 1500,
   maxPromptTokens: 60_000,
+  maxGameTokens: 4_000_000,
   maxClaudeDecisions: 120,
   maxCallsPerGame: 160,
   maxMoves: 3000,
@@ -176,6 +182,8 @@ export interface DuelResult {
   chargedMicros: number;
   /** Of that, what the provider reported as billed. */
   billedMicros: number;
+  /** Tokens counted against `maxGameTokens` (prompt bounds plus output allowances of every call sent). */
+  reservedTokens: number;
   damage: { toClaude: number; toLocal: number };
   localGuards: number;
   trace: string;
@@ -244,7 +252,7 @@ export async function playClaudeDuel(spec: DuelSpec, deps: DuelDeps): Promise<Du
   if (rate.model !== settings.model) throw new Error(`the rate ${rate.model} does not price the selected model ${settings.model}`);
 
   const decisions: DecisionEvidence[] = [];
-  let calls = 0, claudeDecisions = 0, charged = 0, billed = 0, localGuards = 0;
+  let calls = 0, claudeDecisions = 0, charged = 0, billed = 0, localGuards = 0, reservedTokens = 0;
   let hash = 0x811c9dc5;
   const mix = (text: string) => { for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0; };
 
@@ -261,7 +269,7 @@ export async function playClaudeDuel(spec: DuelSpec, deps: DuelDeps): Promise<Du
     if (gameStarted) ledger.finishGame(spec.key, outcome);
     return {
       key: spec.key, outcome, winner, winnerSeat, reason, detail, moves: n, turn: match?.state.turn ?? 0, claudeDecisions, calls,
-      chargedMicros: charged, billedMicros: billed,
+      chargedMicros: charged, billedMicros: billed, reservedTokens,
       damage: { toClaude: Math.max(0, dealt[spec.claudeSeat] - life(spec.claudeSeat)), toLocal: Math.max(0, dealt[localSeat] - life(localSeat)) },
       localGuards, trace: hash.toString(16).padStart(8, "0"), pins, decisions,
     };
@@ -294,6 +302,7 @@ export async function playClaudeDuel(spec: DuelSpec, deps: DuelDeps): Promise<Du
       const call: CallEvidence = { attempt, reservation: null, maxMicros: null, requestSha256: sha(requestText(request).join("\u0000")), promptTokenBound: bound, text: null, stop: null, usage: null, chargedMicros: null, billed: null, error: null, rejected: null };
       evidence.push(call);
       if (bound > settings.maxPromptTokens) return { ok: false, outcome: "token-limit", detail: `the prompt bound ${bound} exceeds ${settings.maxPromptTokens} tokens` };
+      if (reservedTokens + bound + settings.maxOutputTokens > settings.maxGameTokens) return { ok: false, outcome: "token-limit", detail: `this call would bring the game to ${reservedTokens + bound + settings.maxOutputTokens} of ${settings.maxGameTokens} tokens` };
       const maxMicros = maxChargeMicros(rate, { promptTokens: bound, maxOutputTokens: settings.maxOutputTokens });
       const reserved = ledger.reserve({ game: spec.key, model: settings.model, maxMicros });
       if (!reserved.ok) return { ok: false, outcome: "budget-limited", detail: reserved.reason };
@@ -302,6 +311,7 @@ export async function playClaudeDuel(spec: DuelSpec, deps: DuelDeps): Promise<Du
       deps.capture?.({ seat, revision, input, request });
       ledger.dispatch(reserved.id);
       calls++;
+      reservedTokens += bound + settings.maxOutputTokens;
       const timeout = new AbortController();
       const timer = setTimeout(() => timeout.abort(), settings.callTimeoutMs);
       const onCancel = () => timeout.abort();
@@ -335,7 +345,17 @@ export async function playClaudeDuel(spec: DuelSpec, deps: DuelDeps): Promise<Du
         clearTimeout(timer);
         deps.signal?.removeEventListener("abort", onCancel);
       }
-      const micros = chargeMicros(rate, result.usage);
+      let micros: number;
+      try {
+        micros = chargeMicros(rate, result.usage);
+      } catch (err) {
+        // Usage that cannot be priced is no usage: the call keeps its whole reservation, and the game stops.
+        const message = err instanceof Error ? err.message : String(err);
+        call.error = { kind: "provider", message: message.slice(0, 300) };
+        ledger.ambiguous(reserved.id, `unpriceable usage: ${message.slice(0, 200)}`);
+        charged += maxMicros;
+        return { ok: false, outcome: "provider-error", detail: `unpriceable usage: ${message}` };
+      }
       ledger.settle(reserved.id, { usage: result.usage, micros, billed: result.billed });
       charged += micros;
       if (result.billed) billed += micros;

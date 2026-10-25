@@ -14,6 +14,13 @@
  *      owner reconciles it; a torn final line is cut, a malformed line fails closed.
  *   5. Retries and failed billable calls count in the one total; a budget-limited game is incomplete.
  *   6. No secret reaches the ledger, the evidence or the manifest.
+ *   7. A whole worker killed mid-game: on resume its sent call stays spent and its game is closed as
+ *      interrupted (slot used, never restarted); the paid ledger lives outside the checkout and a
+ *      missing one is never recreated; the CLI refuses a paid run while the sheet is unverified.
+ *   8. The per-game token limit stops a game before the call (incomplete); unpriceable usage keeps
+ *      the whole reservation.
+ *   9. The paid provider sends one request per reserved call: the SDK's own retries are off (a local
+ *      127.0.0.1 stand-in answering 529, never the network).
  *
  * Run from the repo root:  npx tsx scripts/verify/claude-ledger-902.mts   (part of `npm test`)
  */
@@ -23,7 +30,10 @@ import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { CAMPAIGN_RATES, chargeMicros, maxChargeMicros, promptTokenBound, rateFor, type RateSheet } from "../lib/claude-campaign-rates";
-import { APPROVED_CAPS, CampaignLedger, type CampaignCaps } from "../lib/claude-campaign-ledger";
+import { createServer } from "node:http";
+import { APPROVED_CAPS, CampaignLedger, paidLedgerDir, type CampaignCaps } from "../lib/claude-campaign-ledger";
+import { CAMPAIGN_SDK_RETRIES, campaignApiProvider } from "../lib/claude-campaign-provider";
+import { AiError } from "../../src/lib/ai/errors";
 import { modelEntry } from "../../src/lib/ai/models";
 import { DEFAULT_SETTINGS, playClaudeDuel } from "../lib/claude-duel";
 import { fakeClaude } from "../lib/claude-duel-fake";
@@ -79,6 +89,10 @@ const fresh = (caps: CampaignCaps = APPROVED_CAPS) => {
     }
   }
   assert.ok(promptTokenBound(["héllo"]) >= 6, "the bound counts UTF-8 bytes");
+  // A sheet whose cheaper row comes second: the bound still takes the dearest row the prompt can fall in.
+  const inverted = { ...haiku.rate, tiers: [{ maxPromptTokens: 1000, usdPerMTok: { input: 10, cacheWrite5m: 10, cacheWrite1h: 10, cacheRead: 10, output: 10 } }, { maxPromptTokens: null, usdPerMTok: { input: 1, cacheWrite5m: 1, cacheWrite1h: 1, cacheRead: 1, output: 1 } }] };
+  assert.ok(maxChargeMicros(inverted, { promptTokens: 5000, maxOutputTokens: 0 }) >= chargeMicros(inverted, { input: 1000, output: 0, cacheRead: 0, cacheWrite: 0 }), "an inverted sheet cannot make the bound cheaper than a charge within it");
+  assert.throws(() => maxChargeMicros(haiku.rate, { promptTokens: -1, maxOutputTokens: 10 }), /token counts/);
   // Fail closed.
   assert.ok(!rateFor("claude-future-9", { paid: false }).ok, "an unknown model has no price");
   for (const m of CAMPAIGN_RATES.models) assert.match((rateFor(m.model, { paid: true }) as { reason: string }).reason, /not owner-verified/, `${m.model}: paid stays disabled`);
@@ -172,11 +186,11 @@ const collect = (child: ReturnType<typeof worker>) => new Promise<{ code: number
   assert.equal(restarted.summary().committedMicros, 2_000_000, "both crashed reservations still count after the restart");
   assert.equal(restarted.summary().inFlight, 2);
   const recovered = restarted.recoverOrphans();
-  assert.deepEqual(recovered, { released: [unsent], ambiguous: [sent] }, "the one never sent is released; the one sent is kept");
+  assert.deepEqual(recovered, { released: [unsent], ambiguous: [sent], games: [] }, "the one never sent is released; the one sent is kept; this live process's game stays open");
   const s = restarted.summary();
   assert.equal(s.committedMicros, 1_000_000, "the dispatched call stays spent at its whole reservation");
   assert.equal(s.ambiguous, 1);
-  assert.deepEqual(restarted.recoverOrphans(), { released: [], ambiguous: [] }, "recovery is idempotent");
+  assert.deepEqual(restarted.recoverOrphans(), { released: [], ambiguous: [], games: [] }, "recovery is idempotent");
   assert.throws(() => restarted.reconcile(sent, 250_000, " "), /names its source/);
   restarted.reconcile(sent, 250_000, "owner: Console usage page, 25 Oct 2026");
   assert.equal(restarted.summary().committedMicros, 250_000, "only the owner's figure replaces a kept reservation");
@@ -238,5 +252,100 @@ const collect = (child: ReturnType<typeof worker>) => new Promise<{ code: number
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// 7. A restart cannot reset the cap: a whole crashed worker, the paid ledger's fixed home, no implicit re-creation.
+{
+  const { dir, ledger } = fresh();
+  const crashed = spawnSync(process.execPath, ["--import", "tsx", "scripts/verify/claude-ledger-worker-902.mts", "crash-in-game", dir, "w", "700000"], { encoding: "utf8" });
+  assert.equal(crashed.signal, "SIGKILL", crashed.stderr);
+  const id = crashed.stdout;
+  assert.equal(ledger.summary().games.total, 1, "the crashed worker's game slot is used");
+  assert.equal(ledger.summary().committedMicros, 700_000, "and its sent call counts in full");
+  const resumed = CampaignLedger.open(dir, { campaign: "test-902", caps: APPROVED_CAPS, rateSheet: "test", dryRun: true });
+  assert.deepEqual(resumed.recoverOrphans(), { released: [], ambiguous: [id], games: ["w"] }, "resume: the sent call stays spent, the game is closed as interrupted");
+  const s = resumed.summary();
+  assert.equal(s.committedMicros, 700_000);
+  assert.equal(s.games.finished, 1);
+  assert.equal(s.remaining.pilotGames, APPROVED_CAPS.pilot.games - 1, "an interrupted game is not given back");
+  assert.equal((resumed.startGame("w", "pilot") as { code: string }).code, "state", "nor restarted under its key");
+  assert.ok(!resumed.reserve({ game: "w", model: "m", maxMicros: 1 }).ok, "an interrupted game reserves nothing more");
+
+  // The paid ledger lives in the home directory, outside every checkout, and is never created implicitly.
+  const paidDir = paidLedgerDir("arena-claude-duel-906");
+  assert.ok(path.isAbsolute(paidDir) && !path.resolve(paidDir).startsWith(path.resolve(process.cwd()) + path.sep), `${paidDir} is outside the checkout`);
+  assert.throws(() => paidLedgerDir("../escape"), /slug/);
+  const missing = path.join(scratch, "never-started");
+  assert.throws(() => CampaignLedger.open(missing, { campaign: "test-902", caps: APPROVED_CAPS, rateSheet: "test", dryRun: false, mustExist: true }), /never recreated/, "a missing paid ledger is an error");
+  assert.ok(!existsSync(path.join(missing, "ledger.jsonl")), "and the refusal wrote nothing");
+  const existing = CampaignLedger.open(dir, { campaign: "test-902", caps: APPROVED_CAPS, rateSheet: "test", dryRun: true, mustExist: true });
+  assert.equal(existing.summary().committedMicros, 700_000, "an existing ledger opens with mustExist");
+  const cli = spawnSync(process.execPath, ["--import", "tsx", "scripts/arena-claude-duel.mts", "--model", "claude-haiku-4-5", "--provider", "anthropic-api", "--allow-paid", "--ledger", missing], { encoding: "utf8", env: { ...process.env, ANTHROPIC_API_KEY: "" } });
+  assert.notEqual(cli.status, 0);
+  assert.match(cli.stderr, /not owner-verified/, "the CLI refuses a paid run before it touches any ledger");
+}
+
+// ---------------------------------------------------------------------------------------------
+// 8. Per-game token limit and unpriceable usage, through the runner.
+{
+  const bundle = await policyFixtureBundle();
+  const rate = rateFor("claude-haiku-4-5", { paid: false });
+  assert.ok(rate.ok);
+  const { ledger } = fresh();
+  const spec = (key: string) => ({ key, phase: "pilot" as const, bundle, interpreterRevision: POLICY_FIXTURE_REVISION, gameSeed: 902, policySeed: 3, claudeSeat: "p1" as const });
+  const settings = { ...DEFAULT_SETTINGS, model: "claude-haiku-4-5", maxGameTokens: 1 };
+  const limited = await playClaudeDuel(spec("tok"), { provider: fakeClaude({ seed: 4, model: settings.model }), providerKind: "fake", rate: rate.rate, ledger, settings, sleep: async () => {} });
+  assert.equal(limited.outcome, "token-limit", limited.detail ?? "");
+  assert.equal(limited.winner, null, "a token-limited game is incomplete");
+  assert.equal(limited.calls, 0, "nothing was sent past the limit");
+  const roomy = await playClaudeDuel(spec("tok2"), { provider: fakeClaude({ seed: 4, model: settings.model }), providerKind: "fake", rate: rate.rate, ledger, settings: { ...settings, maxGameTokens: DEFAULT_SETTINGS.maxGameTokens }, sleep: async () => {} });
+  assert.ok(roomy.reservedTokens > 0 && roomy.reservedTokens <= DEFAULT_SETTINGS.maxGameTokens, "every sent call's tokens are counted");
+
+  // A provider reporting usage the sheet cannot price: the call keeps its whole reservation.
+  const fake = fakeClaude({ seed: 4, model: settings.model });
+  const broken = { ...fake, generate: async (req: Parameters<typeof fake.generate>[0]) => ({ ...(await fake.generate(req)), usage: { input: -1, output: 1, cacheRead: 0, cacheWrite: 0 } }) };
+  const bad = await playClaudeDuel(spec("bad"), { provider: broken, providerKind: "fake", rate: rate.rate, ledger, settings: { ...settings, maxGameTokens: DEFAULT_SETTINGS.maxGameTokens }, sleep: async () => {} });
+  assert.equal(bad.outcome, "provider-error");
+  const call = bad.decisions.flatMap((d) => d.calls ?? []).at(-1)!;
+  assert.equal(ledger.reservation(call.reservation!)!.state, "ambiguous", "unpriceable usage is no usage");
+  assert.equal(bad.chargedMicros, call.maxMicros);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 9. The paid provider sends exactly the requests the runner reserved: the SDK's own retries are off.
+//    A local stand-in for the API (127.0.0.1, never the network) answers 529 Overloaded.
+{
+  let hits = 0;
+  const server = createServer((req, res) => {
+    hits++;
+    req.resume();
+    res.writeHead(529, { "content-type": "application/json", "retry-after-ms": "1" });
+    res.end(JSON.stringify({ type: "error", error: { type: "overloaded_error", message: "Overloaded" } }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = (server.address() as { port: number }).port;
+  const saved = { key: process.env.ANTHROPIC_API_KEY, base: process.env.ANTHROPIC_BASE_URL, noProxy: process.env.NO_PROXY };
+  process.env.ANTHROPIC_API_KEY = "sk-ant-api03-NOT-A-REAL-KEY-902-retries";
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`;
+  process.env.NO_PROXY = "127.0.0.1";
+  try {
+    assert.equal(CAMPAIGN_SDK_RETRIES, 0);
+    const req = { task: "arena_move" as const, model: "claude-haiku-4-5", system: [], messages: [{ role: "user" as const, parts: [{ type: "text" as const, text: "x" }] }], maxTokens: 10 };
+    const provider = await campaignApiProvider();
+    await assert.rejects(provider.generate(req), (e: unknown) => e instanceof AiError && e.kind === "provider");
+    assert.equal(hits, 1, "one reserved call, one request: the campaign provider does not retry on its own");
+    // The control: the same adapter with one SDK retry sends two requests, so the option is what stops it.
+    hits = 0;
+    const { createAnthropicApiProvider } = await import("../../src/lib/ai/providers/anthropic-api");
+    await assert.rejects(createAnthropicApiProvider({ maxRetries: 1 }).generate(req));
+    assert.equal(hits, 2, "with SDK retries on, a 529 is resent unreserved");
+  } finally {
+    server.close();
+    for (const [k, v] of [["ANTHROPIC_API_KEY", saved.key], ["ANTHROPIC_BASE_URL", saved.base], ["NO_PROXY", saved.noProxy]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true });
-console.log(`claude-ledger-902 ok: rates dated ${CAMPAIGN_RATES.verifiedOn}, caps, 4 simultaneous workers, crash/resume, retries and budget stop; ${((Date.now() - started) / 1000).toFixed(1)} s`);
+console.log(`claude-ledger-902 ok: rates dated ${CAMPAIGN_RATES.verifiedOn}, caps, 4 simultaneous workers, crash/resume, retries, budget and token stops, no SDK retries; ${((Date.now() - started) / 1000).toFixed(1)} s`);
