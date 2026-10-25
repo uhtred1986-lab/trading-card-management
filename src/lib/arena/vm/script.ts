@@ -34,8 +34,13 @@ export type Side = "you" | "opponent" | "both";
  * card whose skill made it (its `source`) leaves the Battle Area, and no longer
  * (9-9-2: it lasts for the period the effect names). A [Permanent]'s own
  * "While this card is …" is a condition (`IF`), not this.
+ *
+ * `nextMain` is "until the start of your next Main Phase" (BT13-012, #1163):
+ * it holds through the opponent's whole turn and the controller's own Charge
+ * Phase, and ends as the controller's next Main Phase begins — one phase later
+ * than `nextTurn`, which ends as that turn begins.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";

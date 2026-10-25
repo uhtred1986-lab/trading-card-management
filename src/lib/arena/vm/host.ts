@@ -694,7 +694,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
           ...(opts.using ? { using: opts.using } : {}),
           // #1015: a play a skill makes names its cause; a declared play (5-5-2) does not.
-          ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player }),
+          ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
         // 22-13-5-4: [Union-Potara]'s materials all go under the card in the play

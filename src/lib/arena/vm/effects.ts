@@ -366,6 +366,17 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
   return dropEffects(state, ev, (e) => !(e.until === "afterNextCharge" && cards.includes(e.target)));
 }
 
+/**
+ * "…until the start of your next Main Phase" (`nextMain`, BT13-012, #1163):
+ * ends as its master's Main Phase begins on a later turn than the one it was
+ * made on — so it holds through the opponent's whole turn and the master's
+ * own Charge Phase. Called as a Main Phase begins (or is skipped, 20-13-5);
+ * the turn player then is the one whose Main Phase it is.
+ */
+export function endNextMainEffects(state: VmState, ev: GameEvent[]): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "nextMain" && e.master === state.turnPlayer && e.createdTurn < state.turn));
+}
+
 /** End a source-controller's opponent-Charge restriction after that phase, even when its target changed control. */
 export function endAfterOpponentChargeEffects(state: VmState, ev: GameEvent[]): ContinuousEffect[] {
   return dropEffects(state, ev, (e) => !(e.until === "afterOpponentCharge" && e.master !== state.turnPlayer && e.createdTurn < state.turn));

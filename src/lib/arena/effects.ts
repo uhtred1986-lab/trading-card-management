@@ -319,6 +319,10 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
       return w.text;
     case "afterOpponentCharge":
       return (mine ? w.text : (w.you ?? w.text)).replace("{them}", o.them);
+    // "Until the start of your next Main Phase" (#1163): the master's own
+    // next Main Phase, so the viewer hears "your" when that is theirs.
+    case "nextMain":
+      return (mine && w.you ? w.you : w.text).replace("{them}", o.them);
     case "nextTurn":
     case "opponentTurn": {
       // `nextTurn` ends as the master's next turn begins, `opponentTurn` as the

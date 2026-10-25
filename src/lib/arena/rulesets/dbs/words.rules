@@ -277,6 +277,14 @@ DEFINE WORDS untilAfterOpponentCharge
   you: "through your next Charge Phase"
   text: "through {them}'s next Charge Phase"
 
+-- "Until the start of your next Main Phase" (BT13-012, #1163): through the
+-- opponent's turn and the controller's Charge Phase, ending as the
+-- controller's next Main Phase begins.
+DEFINE WORDS untilNextMain
+  of: until
+  you: "until the start of your next Main Phase"
+  text: "until the start of {them}'s next Main Phase"
+
 DEFINE WORDS untilGame
   of: until
   text: "for the rest of the game"

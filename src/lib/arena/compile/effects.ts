@@ -367,6 +367,10 @@ function durationOf(clause: string): Duration {
   if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
   if (/for the (?:duration of (?:the|this) )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
+  // "Until the start of your next Main Phase" (BT13-012, #1163): through the
+  // opponent's turn and your Charge Phase, ending as your Main Phase begins.
+  // Read before the catch-all "for the turn", which ended it a whole turn early.
+  if (/until the (?:start|beginning) of your next main phase/.test(t)) return "nextMain";
   // Your *own* next Charge Phase is one step past "your next turn": the effect
   // has to be there when the Active Step runs (7-2-7).
   if (/during your next charge phase/.test(t)) return "afterNextCharge";
@@ -3176,12 +3180,10 @@ function compileImmunity(t: string, c: Ctx): Op[] | null {
   if (!m) return null;
   const subject = m[1].trim();
 
-  // BT9-119: "until the start of your next Main Phase" lands a phase later
-  // than any duration this engine can name exactly — `afterNextCharge`
-  // expires a phase early, while the card is still exposed — so the clause
-  // is refused rather than landed on a wrong approximation.
-  if (/\bnext main phase\b/.test(m[2])) return null;
-
+  // BT9-119: "until the start of your next Main Phase" was refused here while
+  // no duration named it exactly; it is `nextMain` now (#1163), read by
+  // `durationOf` below. The duration is cut off the tail before the tail is
+  // read as whose skills are blocked.
   const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
   if (!target) return null;
   const until = durationOf(t);

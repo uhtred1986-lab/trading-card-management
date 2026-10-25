@@ -104,6 +104,9 @@ function legacyUntilWords(until: EffectUntil, o: { master: string | null; viewer
       return "through the next Charge Phase";
     case "afterOpponentCharge":
       return mine ? `through ${o.them}'s next Charge Phase` : "through your next Charge Phase";
+    // #1163: added with its words, never in the old switch — the master's own Main Phase.
+    case "nextMain":
+      return mine ? "until the start of your next Main Phase" : `until the start of ${o.them}'s next Main Phase`;
     case "game":
       return "for the rest of the game";
     case "permanent":
@@ -127,7 +130,7 @@ assert.deepEqual(fromDef.verb, LEGACY_VERB);
 assert.deepEqual(fromDef.window, LEGACY_WINDOW);
 
 // ── ...and so does every table's output, old against new ────────────────────
-const UNTILS: EffectUntil[] = ["turn", "battle", "nextTurn", "opponentTurn", "afterNextCharge", "afterOpponentCharge", "game", "permanent", "whileSourceInPlay"];
+const UNTILS: EffectUntil[] = ["turn", "battle", "nextTurn", "opponentTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "game", "permanent", "whileSourceInPlay"];
 assert.deepEqual(Object.keys(fromDef.until).sort(), [...UNTILS].sort(), "words.rules declares one `until` word per duration, and no other");
 for (const until of UNTILS) {
   for (const master of ["p1", "p2", null] as const) {

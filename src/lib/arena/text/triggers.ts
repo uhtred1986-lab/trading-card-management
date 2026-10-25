@@ -86,6 +86,15 @@ export function comboBattleEndYourTurn(sk: Skill): boolean {
   return COMBO_BATTLE_END.test(head) && /^during your turn,/.test(head);
 }
 
+/**
+ * "…is played **by this card's skill**" (BT29-083, #1163): the means of a play,
+ * naming the watching card as what played the subject — never the subject
+ * itself. The compiler sets it aside before asking whether "it" means this card.
+ */
+export const BY_THIS_CARDS_SKILL = /\s+by this card['’]s skills?\b/gi;
+/** "When your ≪Ginyu Force≫ card is played by this card's skill" (BT29-083, #1163), the description captured. */
+const YOUR_CARD_PLAYED_BY_THIS_CARD = /^when your ((?!opponent)[^,]{1,120}?) is played by this card['’]s skill(?:,|\.|$)/;
+
 /** A moved subject qualified in its original Battle Area (BT29-029, 9-6-9-1-2). */
 export const RETURNED_FROM_YOUR_BATTLE = /^when (?:a|an|1) (.+?) is returned from your battle area to its owner'?s hand$/i;
 /** No cause restriction is printed (BT3-112), unlike deckToWarpBySkill. */
@@ -636,6 +645,18 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // descriptions (`anyOf`), so an "or" it reads in full no longer stands
       // in the way (XD1-01, owner's card review): only one it cannot read does.
       return !/ or /.test(said) || readsOr(said);
+    }
+    // #1163: "When your ≪Ginyu Force≫ card is played by this card's skill"
+    // (BT29-083): the play this card's own skill made, and no other — the
+    // moment carries the playing card (`moved(byWatcher: true)`, `vm/triggers.ts`).
+    // As for `youPlayed`, a description the filter cannot read whole does not fire.
+    case "youPlayedByThisCard": {
+      const m = YOUR_CARD_PLAYED_BY_THIS_CARD.exec(head.toLowerCase());
+      if (!m) return false;
+      const said = expandSharedCardDescription(effect.unmask(m[1]));
+      if (/\bfrom\b|\busing\b|\bin your\b/.test(said)) return false;
+      if (/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(said)) return false;
+      return !parseFilter(said).unreadable;
     }
     case "opponentAttacks":
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t)
