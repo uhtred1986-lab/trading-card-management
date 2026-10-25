@@ -4399,6 +4399,10 @@
       "words": "when your opponent uses a skill to play a card"
     },
     {
+      "name": "youPlayedByThisCard",
+      "words": "when your card is played by this card's skill"
+    },
+    {
       "name": "placed",
       "words": "when this card is placed in a Battle Area"
     },
@@ -4721,7 +4725,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · game · whileSourceInPlay",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · nextMain · game · whileSourceInPlay",
       "is": "a side, a zone, a duration"
     },
     {
