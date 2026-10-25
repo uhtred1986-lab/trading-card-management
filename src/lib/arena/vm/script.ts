@@ -778,6 +778,16 @@ export type Op =
    */
   | { op: "swapBattle"; target: Ref }
   /**
+   * "Place a Z-Extra from under this card on top of this card" (BT31-005,
+   * BT31-004, BT23-007; 23-2, 21-5-2): `target`, a card in this card's pile,
+   * becomes the top card where this card stands, and this card goes directly
+   * under it with the rest of the pile in its order. Placed, not played (5-5):
+   * nothing that answers a play fires. The new top card takes this card's
+   * position (Active/Rest), the continuous effects on its power and its seat in
+   * a battle (21-5-2); this card's other effects end. Not in a Leader Area.
+   */
+  | { op: "placeOnTop"; target: Ref }
+  /**
    * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
    * its skills negated)" — into your Combo Area during a battle, for no combo
    * cost (5-7); it leaves with the other combo cards at the end of the battle.
@@ -2779,6 +2789,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === master && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
         if (!id) break;
         h.swapBattleCard(out, id);
+        break;
+      }
+
+      case "placeOnTop": {
+        // 23-2, 21-5-2: one card of this card's pile comes to the top. A
+        // selector that matches several is a choice the record never asked
+        // (the compiler makes the card a `choose`): nothing moves, as #1123's
+        // selector host does, and a price that needed it is unpaid.
+        const ids = h.resolveRef(frame, op.target).filter((id) => h.exists(id));
+        if (ids.length > 1) h.log({ type: "note", text: `${h.nameOf(frame.card)}: ${ids.length} cards match the card to place on top, and the skill does not say which; nothing is placed` });
+        const done = ids.length === 1 && h.placeOnTop(ids[0], frame.card);
+        if (done) frame.acted = (frame.acted ?? 0) + 1;
+        else if (frame.saveVarsAs && ids.length) frame.priceUnpaid ??= "the card from under this card was not placed on top of it";
         break;
       }
 

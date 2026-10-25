@@ -2447,6 +2447,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under" })) : null;
   }
+  // "Place a Z-Extra / 1 Z-Extra / a {Destroyed West City} from under this card
+  // on top of this card" (BT31-005, BT31-004, BT23-007; 23-2, 21-5-2): one card
+  // of this card's own pile comes to the top in its place. The card is counted,
+  // so it is a choice (`withChoice`): with several matching pile cards the
+  // player picks which. Read below as "this card goes under the card", it named
+  // a pile card as the host by a selector, which no move can stand on.
+  if ((m = /^(?:place|put) ((?:a|an|1|one|up to 1) .+?) from under this card on top of this card$/.exec(t))) {
+    const ref = refFor(`${m[1]} from under this card`, c);
+    if (!ref || !("sel" in ref) || ref.sel.area !== "under" || ref.sel.count !== 1) return null;
+    return withChoice(ref, clause, c, (target) => ({ op: "placeOnTop", target }));
+  }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
     const host = refFor(m[1], c);
@@ -2499,6 +2510,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "From the top of your deck", "from under this card", "among them" all
     // say where; "in its card name" does not.
     if (/^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
+    // "…then choose 1 of your red <Android 17> cards and 1 of your red <Android
+    // 18> cards: Play up to 1 {…} from your hand or Drop, then place **all of the
+    // chosen cards** under that card" (BT23-007): every card the price chose,
+    // each its own move under the same host, when the effect has chosen none of
+    // its own (a play's choice is the played card, not a chosen one). Read as
+    // "the last choice" it was the played card, under itself.
+    const chosenNames = c.priceChosen ?? [];
+    if (/^all (?:of )?the chosen cards$/.test(m[1]) && chosenNames.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
+      const host = refFor(m[2], c);
+      if (!host || ("var" in host && chosenNames.includes(host.var))) return null;
+      return chosenNames.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under", under: host }));
+    }
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     if (!host || !ref) return null;
