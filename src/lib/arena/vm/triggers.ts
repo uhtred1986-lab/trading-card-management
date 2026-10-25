@@ -358,6 +358,25 @@ function subjectGate(ops: readonly Op[] | undefined): CardFilter | null {
 }
 
 /**
+ * #930: the [Union] keyword an [Auto] on `played` asks its own play to have
+ * been made by — "when this card is played using [Union]" (BT14-114), "…with
+ * [union]" (BT5-039), "…by a [union] skill" (BT28-097), "…using
+ * [Union-Potara]" — read off the record, never the text: a chain of plain IFs
+ * (no ELSE, one op inside each, as a price's condition wraps the trigger's)
+ * one of which is `playedUsing(sel: self, what: Union…)`. "Union" is any
+ * [Union-(type)]; null for any other shape. A condition later in the program
+ * (BT6-036's "…and if this card was played using [union], draw 1 more card")
+ * is not a gate: the Auto answers every play and asks it as it resolves.
+ */
+export function unionPlayGate(ops: readonly Op[] | undefined): string | null {
+  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+    const cond = at[0].cond;
+    if (cond.kind === "playedUsing" && cond.sel.special === "self" && (cond.what === "Union" || cond.what.startsWith("Union-"))) return cond.what;
+  }
+  return null;
+}
+
+/**
  * Queue every [Auto] that answers to this moment (9-6-2), and say which.
  *
  * Appends to `state.pending` in the order the declarations were read; the

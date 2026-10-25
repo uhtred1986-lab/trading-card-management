@@ -43,6 +43,9 @@ import { deckBuildingOfSkill } from "./silent";
 /** SD13-05's trigger, printed with "if" (`droppedFromHand` in `text/triggers.ts`). */
 const IF_DROPPED_FROM_HAND = /^if this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill\b/i;
 
+/** #930: "when this card is played using [Union]" / "when you play this card with [union]" / "…by a [union] skill", and a named variant ("using [Union-Potara]", captured). The whole trigger clause, nothing coordinated after it. */
+const UNION_PLAY_TRIGGER = /^when (?:you play this card|this card is played) (?:using|with|by) (?:an? |the )?\[union(?:[- ](fusion|potara|absorb))?\](?: skill)?[,.]?$/i;
+const UNION_VARIANT = { fusion: "Union-Fusion", potara: "Union-Potara", absorb: "Union-Absorb" } as const;
 const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union", "Over Realm", "Swap", "Overlord", "Z-Awaken", "Z-Stack", "Field", "Attack", "Revenge", "Offering"]);
 
 
@@ -801,6 +804,17 @@ function compileSkillText(skill: Skill): Script {
     if (/\bduring the turn (?:you played (?:it|this card)|(?:it|this card) was played) (?:with|using) \[(?:dark )?over realm[^\]]*\]/i.test(trigger)) {
       triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" };
     }
+    // #930: "When this card is played using [Union]" (BT14-114), "when you play
+    // this card with [union]" (BT5-039, BT2-085 …), "when this card is played
+    // by a [union] skill" (BT28-097, BT28-099): the moment is `played`, and
+    // how it was played is a gate on it — a successful entry by a [Union-(type)]
+    // skill's own play (owner's ruling, 25 Oct 2026), bare [Union] any of them,
+    // a named variant ("using [Union-Potara]") only that one. `resolvePlay`
+    // withdraws the Auto from any other play (`vm/triggers.ts`
+    // `unionPlayGate`). Only the whole moment: "…using [union-potara] or
+    // attacks" (BT4-019) has no gate for one half and stays refused.
+    const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
+    if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
     // "At the end of a turn in which this card was placed in a Battle Area"
     // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
