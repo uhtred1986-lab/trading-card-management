@@ -7,7 +7,9 @@ import type { Op } from "./script";
  * `under`: "place 1 card from your hand under this card", BT2-068) or a card
  * an earlier `choose` of the same price bound (`under: { var }`), and what goes
  * under it is this card or another earlier `choose` of the price. A host given
- * as a selector would be resolved to its first match instead of chosen.
+ * as a selector would be resolved to its first match instead of chosen: since
+ * #1123 the compiler makes a counted host ("under a {Spirit Bomb}", BT20-087) a
+ * `choose` of the price, so only a record compiled before that still carries one.
  */
 function placeUnderProblem(op: Extract<Op, { op: "moveTo" }>, earlier: Op[]): string | null {
   const bound = (v: string) => earlier.some((o) => o.op === "choose" && o.as === v);
