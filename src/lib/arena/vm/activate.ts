@@ -96,7 +96,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -530,6 +530,12 @@ export function activationRefusals(
   // which is what makes the *first* requirement the same requirement.
   const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card });
   if (banned) before.push({ kind: "forbidden", ...banned });
+  // #930: a keyword move that plays a card is not offered when 20-14 forbids
+  // that play — "you can only play Battle Cards by using [Union-Fusion]"
+  // (P-069, P-226) leaves the [Union-Fusion] offered and an [Evolve] or a
+  // [Union-Potara] not (`keywordPlayForbiddenBy`).
+  const playBanned = banned ? null : keywordPlayForbiddenBy(ctx, game, state, player, card, sk.keyword);
+  if (playBanned) before.push({ kind: "forbidden", ...playBanned });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
   const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);

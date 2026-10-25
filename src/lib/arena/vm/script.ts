@@ -346,6 +346,11 @@ export type Ref = { var: string; minus?: string } | { sel: Selector };
  * cards is 2. Both engines' `amount` read the three `per` shapes through this,
  * so the rounding is written once.
  */
+/** #930: the [Union] variant a `play` op's `using` names ("Union-Fusion" -> "Fusion"), or undefined for any other play. */
+export function unionVariantOf(using: string | undefined): "Fusion" | "Potara" | "Absorb" | undefined {
+  return using === "Union-Fusion" ? "Fusion" : using === "Union-Potara" ? "Potara" : using === "Union-Absorb" ? "Absorb" : undefined;
+}
+
 export const perStep = (n: number, per: number | undefined): number => (per && per > 1 ? Math.floor(n / per) : n);
 
 export type Cond =
@@ -1095,6 +1100,8 @@ export type Op =
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
       exceptEvolve?: boolean;
+      /** #930: "you can only play Battle Cards by using [Union-Fusion]" — the one kind of play still allowed (`Prohibition.exceptUnion`). */
+      exceptUnion?: ("Fusion" | "Potara" | "Absorb")[];
       uses?: Amount;
       unless?: Cond;
       unlessPay?: Op[];
@@ -2993,7 +3000,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player: players[0] },
             });
           break;
         }
@@ -3013,6 +3020,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
             ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}),
             ...(op.extraCardActivation ? { extraCardActivation: true } : {}),
+            // #930: "you can only play Battle Cards by using [Union-Fusion]".
+            ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
@@ -3363,7 +3372,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return "done";
           }
         }
-        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution }));
+        // #930: which [Union] variant the play is, again the play's own `using`
+        // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
+        const union = unionVariantOf(op.using);
+        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}) }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
