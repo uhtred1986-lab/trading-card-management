@@ -48,7 +48,7 @@ import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext } from "../types";
-import { backCharactersOf, baseType, coversColors, namedSetCandidates, keywordsInSkills, parseSkills, printedDescription, sumReachable } from "../text/cards";
+import { backCharactersOf, baseType, coversColors, identityKey, namedSetCandidates, keywordsInSkills, parseSkills, printedDescription, sumReachable } from "../text/cards";
 import { unionNeeds } from "../text/union";
 import { costModifierAs, negateAs, perStep, selectedCount, type Amount, type AmountAttr, type CardAttr, type Cond, type Op, type Ref, type ScriptArea, type ScriptFrame, type Selector, type Side } from "./script";
 import type { CardIdentityGain, Color, EffectUntil, ForbiddenAction, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, Skill } from "../types";
@@ -1412,6 +1412,19 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const against = frame.vars[sel.filter.nameInSkillTextOf]?.[0] ?? null;
       const host = against ? ctx.defs[state.cards[against]?.cardId] : undefined;
       if (!host || !nameInSkillText(namesNow(attrsNow(ctx, game, state, id)), host.skill)) return false;
+    }
+    // "…with the same character name as the card you placed under this card"
+    // (BT4-018, #930): one of the candidate's character names is exactly one
+    // the placed card **prints** (2-10-1-1). Printed, by the owner's ruling of
+    // 25 Oct 2026: under this card the material is a new card (3-1-4), so a
+    // name it gained in the Battle Area no longer counts. Nothing bound, or a
+    // card that has left the pile it was paid into, is nothing to match.
+    if (sel.filter?.sameCharacterAs) {
+      const against = frame.vars[sel.filter.sameCharacterAs]?.[0] ?? null;
+      const placed = against ? ctx.defs[state.cards[against]?.cardId] : undefined;
+      if (!placed || !state.cards[frame.card]?.under?.includes(against!)) return false;
+      const printed = new Set(placed.characters.map(identityKey));
+      if (!list(attrsNow(ctx, game, state, id).characters).some((n) => printed.has(identityKey(String(n))))) return false;
     }
     // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
     // beChosen)`), checked on its own rather than through `forbids()`'s wider

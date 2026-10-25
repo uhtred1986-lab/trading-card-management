@@ -4185,6 +4185,14 @@
       ]
     },
     {
+      "field": "sameCharacterAs",
+      "type": "variable",
+      "printed": "card with the same character name as the card you placed under this card",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
       "field": "z",
       "type": "tri",
       "printed": "Z-card",

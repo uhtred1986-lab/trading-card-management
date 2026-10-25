@@ -2,6 +2,7 @@ import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, energyBoundOf, expand
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
+import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED } from "./shared";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -405,6 +406,18 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special || sel.side === "opponent") return null;
     return { ...sel, ownedByOpponent: true };
   }
+  // #930, BT4-018: "…<Baby> with an energy cost of 4 or less **with the same
+  // character name as the card you placed under this card** from your deck" -
+  // a name measured against the card the price placed under this one. Struck
+  // out before the rest is read (or "under this card" is taken for the area
+  // searched), and left as a placeholder the compiler's choice clause binds to
+  // the price's variable (`Ctx.pricePlacedUnder`); unbound, it stays unread.
+  const samePlaced = SAME_CHARACTER_AS_PLACED.exec(phrase);
+  if (samePlaced) {
+    const sel = parseTarget(phrase.replace(samePlaced[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special || sel.fromVar || sel.filter?.anyOf?.length || sel.filter?.sameCharacterAs) return null;
+    return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), sameCharacterAs: PLACED_UNDER_PLACEHOLDER } };
+  }
   const characters = DIFFERENT_CHARACTERS.exec(phrase);
   if (characters) {
     const sel = parseTarget(phrase.replace(characters[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
@@ -450,9 +463,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // it, and with the type list read whole (`joinsCardTypes`) the bound fell away and every card was chosen.
   if (/\b(?:cards?|unisons?|leaders?)\s+equal to or (?:less|more) than (?:their|your opponent'?s|your) (?:current )?energy\b/i.test(phrase)) return null;
   // #930, BT4-018: "<Baby> … with the same character name as the card you
-  // placed under this card" names a card by another card's name. There is no
-  // such filter, and "placed under this card" was read as the area the target
-  // is in ("under your cards"): a deck search of the wrong place. Refused whole.
+  // placed under this card" is read above (`sameCharacterAs`); any other
+  // "card you placed" wording reaching here (it was once read as the area the
+  // target is in, "under your cards": a deck search of the wrong place) is
+  // still refused whole.
   // #907 round 4: "…with the same name as **the chosen card**" (P-440, BT25-099b) is the same thing - a price's
   // choice named as the pattern - and was read as the chosen card itself, so the skill moved or played the card
   // it had only chosen to be compared with.
