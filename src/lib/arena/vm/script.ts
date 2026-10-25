@@ -1126,8 +1126,12 @@ export type Op =
    * negated — `negateAttack` against a battle it attacks in does nothing and
    * does not set the "you negated" flag; `until` is its span (a [Permanent]
    * says "game"). Not an attack prohibition, and not card-skill immunity.
+   * `absorbMaterialUnder` (BT17-082 back, #930): a card placed under another
+   * card to pay the skill cost of its master's [Union-Absorb] on a card the
+   * `filter` describes may come from under the target (the granting card)
+   * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
