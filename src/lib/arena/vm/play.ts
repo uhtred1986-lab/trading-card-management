@@ -244,6 +244,9 @@ export function resolvePlay(
   // a play the player declares carries no cause. Not for a card coming out of a
   // Battle Area: that is `removedFromBattle`'s move (`moved(by: skill, from:
   // battle)`), and this play must not answer to it.
+  // #930: the Autos this very play pends — BT6-036's "when you play this
+  // card" — are told below how it entered, once that is known.
+  const pendedBefore = new Set(state.pending);
   const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
@@ -289,7 +292,14 @@ export function resolvePlay(
   // successful entry by the keyword's own play, and nothing else — a play
   // that a counter replaced or that failed to enter never reaches here with
   // `success`. The copy keeps it while it stays (`VmCard.enteredUsing`).
-  if (success && opts.using?.startsWith("Union-")) state.cards[card].enteredUsing = opts.using;
+  // The Autos the arrival pended were triggered by this entry, so they carry
+  // it (`VmPending.selfEnteredUsing`): a copy KO'd before they resolve keeps
+  // the answer (owner's ruling, 25 Oct 2026). Only this play's own, and only
+  // on success — an earlier or later play's Autos are never tagged.
+  if (success && opts.using?.startsWith("Union-")) {
+    state.cards[card].enteredUsing = opts.using;
+    for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredUsing = opts.using;
+  }
   // 22-5-2-3/4: evolution is a successful play, separate from using the
   // keyword from hand. Failed/countered plays and ordinary stacks have none.
   if (success && evolution) fire(ctx, game, state, { event: "evolved", card, controller: player, args: { to } });

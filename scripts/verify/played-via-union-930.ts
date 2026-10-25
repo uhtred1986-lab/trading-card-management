@@ -25,7 +25,11 @@
  * it (BT5-037 also on a later turn); an ordinary play does not; a Union play a
  * [Counter: Play] replaced ("placed in its owner's Drop Area instead" / "returned
  * to its owner's hand instead of being played") does not — the returned copy,
- * played ordinarily afterwards, does not inherit it. Printed texts:
+ * played ordinarily afterwards, does not inherit it; and (owner's second
+ * ruling, 25 Oct 2026: the condition is how it was played) a [Union] Vegito
+ * KO'd before its on-play [Auto] resolves — by a [Counter: Play] after it
+ * landed, or by the seat's own Auto ordered first — still draws the extra
+ * card, while an ordinary-play Vegito KO'd the same way does not. Printed texts:
  * docs/arena-backlog/evidence/923/inventory.json (`catalogContext`, catalog
  * snapshot of 15 Oct 2026). Costs, powers and the companion cards are synthetic.
  */
@@ -63,6 +67,8 @@ const defs: Record<string, CardDef> = {
   "B-E": blue("B-E", { characters: ["Filler"] }),
   CDROP: counter("CDROP", "[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played."),
   CRET: counter("CRET", "[Counter: Play] The Battle Card being played is returned to its owner's hand instead of being played."),
+  CKO: counter("CKO", "[Counter: Play] Choose 1 of your opponent's Battle Cards and KO it."),
+  KOER: blue("KOER", { characters: ["Filler"], skill: "[Auto] When you play a card, choose 1 of your Battle Cards and KO it." }),
 };
 
 // ── 1. the records ───────────────────────────────────────────────────────────
@@ -160,16 +166,23 @@ const offer = (s: VmState, c: string, skill: number) => RULES.legalActions(ctx, 
 const playOf = (s: VmState, c: string) => RULES.legalActions(ctx, s).find((l) => l.action.type === "play" && l.action.card === c);
 const hand = (s: VmState, p: PlayerId) => s.sides[p].zones.hand;
 
-/** Run to the Main Phase; the opponent answers a counter window with `answer` (null: decline). */
-function settle(s0: VmState, seat: PlayerId, answer: (s: VmState) => string | null = () => null): VmState {
+/**
+ * Run to the Main Phase; the opponent answers a counter window with `answer`
+ * (null: decline) — the window before the play lands, or with `landed` the
+ * one after a [Union] play has landed (#929). `steer` answers a prompt first
+ * when it returns an action.
+ */
+function settle(s0: VmState, seat: PlayerId, answer: (s: VmState) => string | null = () => null, landed = false, steer: (s: VmState) => Action | null = () => null): VmState {
   let s = s0;
   for (let i = 0; i < 40 && s.prompt.kind !== "main"; i++) {
     const q = s.prompt;
-    if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: q.player, index: 0 } as Action);
+    const steered = steer(s);
+    if (steered) s = take(s, steered);
+    else if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: q.player, index: 0 } as Action);
     else if (q.kind === "payCost") s = take(s, { type: "payCost", player: q.player, option: 0 } as Action);
     else if (q.kind === "chooseCards") s = take(s, { type: "choose", player: q.player, cards: q.choice.candidates.slice(0, Math.max(1, q.choice.min)) });
     else if (q.kind === "orderPending") s = take(s, { type: "orderPending", player: q.player, index: 0 } as Action);
-    else if (q.kind === "counter") s = take(s, { type: "counter", player: q.player, card: s.resolving?.landed ? null : answer(s) } as Action);
+    else if (q.kind === "counter") s = take(s, { type: "counter", player: q.player, card: !!s.resolving?.landed === landed ? answer(s) : null } as Action);
     else s = take(s, { type: "pass", player: (q as { player: PlayerId }).player } as Action);
   }
   assert.equal(s.prompt.kind, "main", `back at the Main Phase (at ${s.prompt.kind})`);
@@ -179,7 +192,7 @@ function settle(s0: VmState, seat: PlayerId, answer: (s: VmState) => string | nu
 
 interface Board { s: VmState; union: string; mats: string[]; foeCounter?: string }
 /** The seat's board for one [Union] card: `energy` blue energy, the two materials where the variant takes them. */
-function board(seat: PlayerId, seed: number, which: "BT5037" | "BT6036", o: { energy?: number; counter?: "CDROP" | "CRET"; searchable?: boolean } = {}): Board {
+function board(seat: PlayerId, seed: number, which: "BT5037" | "BT6036", o: { energy?: number; counter?: "CDROP" | "CRET" | "CKO"; searchable?: boolean } = {}): Board {
   const s = fresh(seat, seed);
   for (let i = 0; i < (o.energy ?? 3); i++) stage(s, seat, "B-E", "energy");
   if (o.searchable) {
@@ -192,16 +205,29 @@ function board(seat: PlayerId, seed: number, which: "BT5037" | "BT6036", o: { en
   const foeCounter = o.counter ? stage(s, other(seat), o.counter, "hand") : undefined;
   return { s, union, mats, ...(foeCounter ? { foeCounter } : {}) };
 }
-function unionPlay(b: Board, seat: PlayerId, which: "BT5037" | "BT6036", answer?: (s: VmState) => string | null): VmState {
+function unionPlay(b: Board, seat: PlayerId, which: "BT5037" | "BT6036", answer?: (s: VmState) => string | null, landed = false, steer?: (s: VmState) => Action | null): VmState {
   const a = offer(b.s, b.union, UNION_LINE(which));
   assert.ok(a, `${seat}: ${which}'s [Union] is offered`);
-  return settle(take(b.s, a.action), seat, answer);
+  return settle(take(b.s, a.action), seat, answer, landed, steer);
 }
-function ordinaryPlay(s: VmState, seat: PlayerId, c: string): VmState {
+function ordinaryPlay(s: VmState, seat: PlayerId, c: string, steer?: (s: VmState) => Action | null): VmState {
   const p = playOf(s, c);
   assert.ok(p, `${seat}: ${c} can be played ordinarily`);
-  return settle(take(s, p.action), seat);
+  return settle(take(s, p.action), seat, undefined, false, steer);
 }
+/**
+ * KOER's [Auto] goes first and KOs `victim`, before the victim's own on-play
+ * [Auto] resolves — the same seat's two Autos, ordered (9-6-6).
+ */
+const koFirst = (seat: PlayerId, victim: string) => (s: VmState): Action | null => {
+  const q = s.prompt;
+  if (q.kind === "orderPending" && q.player === seat) {
+    const i = q.candidates.find((n) => s.pending[n]?.card !== victim && s.cards[s.pending[n]!.card]?.cardId === "KOER");
+    if (i !== undefined) return { type: "orderPending", player: seat, index: i } as Action;
+  }
+  if (q.kind === "chooseCards" && q.player === seat && q.choice.candidates.includes(victim)) return { type: "choose", player: seat, cards: [victim] } as Action;
+  return null;
+};
 /** BT5-037's [Activate: Main] from the Battle Area: how many cards it added to the hand. */
 function veku(s: VmState, seat: PlayerId, c: string): { s: VmState; gained: number } {
   const a = offer(s, c, VEKU_LINE);
@@ -263,6 +289,56 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(hand(s, seat).includes(b.union), "returned to the hand");
     assert.equal(hand(s, seat).length - h0, 0, "no draw");
     s = ordinaryPlay(s, seat, b.union);
+    assert.equal(hand(s, seat).length - h0, -1 + 1, "the ordinary play draws 1 only");
+    cases++;
+  }
+
+  // (e) Owner's ruling of 25 Oct 2026: the condition is how it was played. A
+  // [Union-Potara] Vegito the opponent KOs with a [Counter: Play] after it
+  // landed (#929's second window), before its on-play [Auto] resolves, still
+  // draws 1 and 1 more.
+  {
+    const b = board(seat, seed + 5, "BT6036", { counter: "CKO" });
+    const h0 = hand(b.s, seat).length;
+    const s = unionPlay(b, seat, "BT6036", (q) => hand(q, other(seat)).find((c) => q.cards[c].cardId === "CKO") ?? null, true);
+    assert.ok(s.sides[seat].zones.drop.includes(b.union) && !s.sides[seat].zones.battle.includes(b.union), "the counter KO'd Vegito after it landed");
+    assert.ok(s.sides[other(seat)].zones.drop.some((c) => s.cards[c].cardId === "CKO"), "the counter was used");
+    assert.equal(s.cards[b.union].enteredUsing, undefined, "the copy's memory went with it (3-1-4)…");
+    assert.equal(hand(s, seat).length - h0, -1 + 2, "…but the Auto was triggered by a [Union] entry: drew 2");
+    cases++;
+  }
+  // (f) The same, KO'd by the seat's own [Auto] ordered first.
+  {
+    const b = board(seat, seed + 6, "BT6036");
+    stage(b.s, seat, "KOER", "battle");
+    const h0 = hand(b.s, seat).length;
+    const s = unionPlay(b, seat, "BT6036", undefined, false, koFirst(seat, b.union));
+    assert.ok(s.sides[seat].zones.drop.includes(b.union), "KO'd before its Auto resolved");
+    assert.equal(hand(s, seat).length - h0, -1 + 2, "a [Union] entry: drew 2");
+    cases++;
+  }
+  // (g) An ordinary play KO'd the same way before its Auto resolves: draw 1
+  // only. (An ordinary play has no counter window after it lands — #929's is
+  // a [Union] play's — so the KO is the seat's own [Auto], ordered first.)
+  {
+    const b = board(seat, seed + 7, "BT6036");
+    stage(b.s, seat, "KOER", "battle");
+    const h0 = hand(b.s, seat).length;
+    const s = ordinaryPlay(b.s, seat, b.union, koFirst(seat, b.union));
+    assert.ok(s.sides[seat].zones.drop.includes(b.union), "KO'd before its Auto resolved");
+    assert.equal(hand(s, seat).length - h0, -1 + 1, "an ordinary play: drew 1 only");
+    cases++;
+  }
+  // (h) A [Union-Potara] Vegito returned to the hand, then played ordinarily
+  // and KO'd before its Auto resolves: the old entry is not inherited.
+  {
+    const b = board(seat, seed + 8, "BT6036", { counter: "CRET" });
+    stage(b.s, seat, "KOER", "battle");
+    const h0 = hand(b.s, seat).length;
+    let s = unionPlay(b, seat, "BT6036", (q) => hand(q, other(seat)).find((c) => q.cards[c].cardId === "CRET") ?? null);
+    assert.ok(hand(s, seat).includes(b.union), "returned to the hand");
+    s = ordinaryPlay(s, seat, b.union, koFirst(seat, b.union));
+    assert.ok(s.sides[seat].zones.drop.includes(b.union), "KO'd before its Auto resolved");
     assert.equal(hand(s, seat).length - h0, -1 + 1, "the ordinary play draws 1 only");
     cases++;
   }

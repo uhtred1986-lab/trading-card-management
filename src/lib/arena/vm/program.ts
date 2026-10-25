@@ -1644,7 +1644,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // [Union-(type)] entry (`VmCard.enteredUsing`), kept while it stays. "This
     // card" that has since left — BT5-037 places itself in the Drop as the
     // cost — is read as it was when the [Activate] skill was activated
-    // (`frame.selfEnteredUsing`). An [Auto] reads the copy as it is.
+    // (`frame.selfEnteredUsing`). An [Auto] reads it as it was when the Auto
+    // was triggered (`VmPending.selfEnteredUsing`, owner's ruling of 25 Oct
+    // 2026): BT6-036 KO'd before its on-play Auto resolves still counts.
     case "playedUsing": {
       if (c.what === "Union") {
         const union = (using: string | undefined) => !!using?.startsWith("Union-");
