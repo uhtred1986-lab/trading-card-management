@@ -80,6 +80,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   side: "places",
   area: "places",
   areas: "places",
+  areaSides: "places",
   mode: "flag",
   hidden: "flag",
   ignoreBarrier: "flag",

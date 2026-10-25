@@ -143,6 +143,20 @@ const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:
  * selector cannot state. Those are refused (`SUMMED_COUNT`) rather than read as
  * a choice of four cards.
  */
+/**
+ * #930: an area pair whose two areas print two different owners — "in your
+ * Drop or your opponent's Battle Area" (BT30-064's quoted [Union-Absorb]) —
+ * as one owner per area, in the pair's order. Null when either area prints no
+ * owner of its own (it shares the phrase's) or both print the same one.
+ */
+function mixedPairSides(said: string): [Side, Side] | null {
+  const m = /^(?:in|from|of|into) your( opponent'?s)? \S.*? (?:and\/or|or) (?:(?:from|in) )?(?:the )?your( opponent'?s)? /.exec(`${said} `);
+  if (!m) return null;
+  const first: Side = m[1] ? "opponent" : "you";
+  const second: Side = m[2] ? "opponent" : "you";
+  return first === second ? null : [first, second];
+}
+
 function saidTheShortWay(phrase: string): string {
   return phrase
     .replace(/\bup to a total of (\d+)\b/gi, "up to $1")
@@ -945,6 +959,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, ...floor, mode, hidden, notSelf };
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, ...floor, mode, hidden, notSelf };
   if (bothAreas) return { side, area: leaderOrBattle || leadersBattlesUnisons ? "leader" : "battle", areas: leadersBattlesUnisons ? ["leader", "battle", "unison"] : leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  // #930, BT30-064's quoted Absorb: "choose 1 Battle Card **in your Drop or
+  // your opponent's Battle Area**" — each area with its own owner. Read with
+  // one side, the possessive nearest the second area took both, and the price
+  // chose from the opponent's Drop and never from yours.
+  const pairSides = !list && pair && both ? mixedPairSides(both[0]) : null;
+  if (pair && pairSides) return { area: pair[0], areas: pair, areaSides: pairSides, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };

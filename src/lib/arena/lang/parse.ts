@@ -762,8 +762,21 @@ class Parser {
       return;
     }
     const areas = [first];
-    while (this.eatPunct("|")) areas.push(this.area());
+    // #930: `IN you.drop|opponent.battle` — an owner per area (`areaSides`).
+    const sides: (Side | undefined)[] = [sel.side];
+    while (this.eatPunct("|")) {
+      if (this.tok.kind === "word" && this.isPunct(".", this.ahead(1))) {
+        sides.push(this.sideWord());
+        this.want(".");
+      } else sides.push(undefined);
+      areas.push(this.area());
+    }
     sel.areas = areas;
+    if (sides.slice(1).some((x) => x !== undefined)) {
+      if (sides.some((x) => x === undefined)) this.fail("an owner per area names one for every area", ["you.", "opponent."]);
+      sel.areaSides = sides as Side[];
+      delete sel.side;
+    }
   }
 
   // ── the card filter ───────────────────────────────────────────────────────

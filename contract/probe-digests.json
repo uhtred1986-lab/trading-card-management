@@ -1,7 +1,7 @@
 {
   "ABSORBER#0": {
     "outcome": "notOffered",
-    "digest": "c68d2cd8"
+    "digest": "62a9de8f"
   },
   "ACTIVE-HUNTER#0": {
     "outcome": "inForce",
@@ -333,7 +333,7 @@
   },
   "FUSER#0": {
     "outcome": "notOffered",
-    "digest": "3ef64fe9"
+    "digest": "a564e1e4"
   },
   "GLOATER#0": {
     "outcome": "noScenario",
