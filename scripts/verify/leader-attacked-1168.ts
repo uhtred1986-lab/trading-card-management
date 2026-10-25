@@ -122,10 +122,10 @@ function attackerMain(defender: PlayerId, leaderDef: string): VmState {
 interface Outcome { asked: number; damage: number; markers: number; drew: number }
 /** Attack `target` (default the defender's Leader) and answer to the end of the battle: `pay` the Auto's price or not. */
 function attack(defender: PlayerId, leaderDef: string, { pay = true, battleTarget = false, watcher = false } = {}): Outcome {
-  let s = attackerMain(defender, leaderDef);
+  const s = attackerMain(defender, leaderDef);
   const attacker = other(defender);
   const unison = stage(s, defender, "SD15-02", "unison", 7);
-  const watch = watcher ? stage(s, defender, "PLAIN1168", "battle") : null;
+  if (watcher) stage(s, defender, "PLAIN1168", "battle");
   const guard = battleTarget ? stage(s, defender, "V1", "battle") : s.sides[defender].zones.leader[0];
   if (battleTarget) s.cards[guard].mode = "rest";
   const atk = stage(s, attacker, "ATK1168", "battle");
