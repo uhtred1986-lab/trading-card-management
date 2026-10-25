@@ -57,6 +57,13 @@ owner guidance for already accepted ambiguous destinations instead of silently
 reinterpreting it. [Counter-chain #552](../../../../scripts/verify/counter-chain-552.ts)
 is separate evidence, not proof that every Union composition ran.
 
+**25 Oct addendum (#929 rescope):** bullet 1 is narrowed to the applied records
+(BT3-070 f#0, BT2-012 f#0, BT11-013, P-360 back#0, BT6-012/013 f#0) and the Union
+Counter:Counter composition is now proved on them by
+[`union-counter-records-929.ts`](../../../../scripts/verify/union-counter-records-929.ts).
+Per-bullet mapping and the gate/glossary review: [929.md](../../929.md). The
+"Unverified" paragraph above and the line below are the 19 Oct state, kept for history.
+
 Keep #929 open. Do not reimplement its delivered windows or failed-entry machinery
 because the 15 October matrix still says unsupported.
 
