@@ -89,7 +89,7 @@ export const CAMPAIGN_RATES: RateSheet = {
     { model: "claude-haiku-4-5", label: "Claude Haiku 4.5", access: "pending", tiers: [tier(1, 1.25, 2, 0.1, 5)] },
     // Current Haiku: priced by prompt length, over 100,000 prompt tokens the higher row.
     { model: "claude-haiku-5-5", label: "Claude Haiku 5.5", access: "pending", tiers: [tier(0.1, 0.125, 0.2, 0.01, 0.5, 100_000), tier(0.5, 0.625, 1, 0.05, 2.5)] },
-    // `SONNET_MODEL`: cache hits are 0.05x input on this model (models.ts still says 0.1x, the safe side).
+    // `SONNET_MODEL`: cache hits are 0.05x input on this model (models.ts agrees since 25 Oct 2026).
     { model: "claude-sonnet-5-5", label: "Claude Sonnet 5.5", access: "pending", tiers: [tier(2, 2.5, 4, 0.1, 10)] },
     // `MODEL`, the Tournament tier's model today.
     { model: "claude-opus-5", label: "Claude Opus 5", access: "pending", tiers: [tier(5, 6.25, 10, 0.5, 25)] },

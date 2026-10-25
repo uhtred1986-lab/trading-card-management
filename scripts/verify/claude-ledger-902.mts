@@ -71,7 +71,7 @@ const fresh = (caps: CampaignCaps = APPROVED_CAPS) => {
       const usage = { input: prompt - read - write, cacheRead: read, cacheWrite: write, output: rnd(out + 1) };
       assert.ok(chargeMicros(r.rate, usage) <= maxChargeMicros(r.rate, { promptTokens: prompt, maxOutputTokens: out }), `${m.model}: the bound covers ${JSON.stringify(usage)}`);
     }
-    // models.ts prices the same models for ai:spend; input and output must agree (cache reads differ on Sonnet 5.5, on the safe side there).
+    // models.ts prices the same models for ai:spend; input and output must agree.
     const app = modelEntry(m.model);
     if (app) {
       assert.equal(app.usdPerMTok.input, m.tiers[0].usdPerMTok.input, `${m.model}: input agrees with models.ts`);
