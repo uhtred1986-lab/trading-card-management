@@ -55,6 +55,10 @@ export function activationPriceProblem(ops: Op[]): string | null {
         if (problem) return problem;
         break;
       }
+      case "placeOnTop":
+        // 23-2, 21-5-2: the pile card that comes to the top is one the price chose from this card's pile.
+        if (!("var" in op.target) || !ops.slice(0, at).some((o) => o.op === "choose" && o.as === (op.target as { var: string }).var && o.sel.area === "under" && !o.sel.underHost)) return "the activation payment planner cannot charge placeOnTop for a card the price did not choose from under this card";
+        break;
       case "reveal":
         // The payer picks the card shown; a selector over a bound name must name a choice of this price.
         if (op.sel.fromVar && !ops.slice(0, at).some((o) => o.op === "choose" && o.as === op.sel.fromVar)) return "the activation payment planner cannot charge a reveal of cards the price did not choose";

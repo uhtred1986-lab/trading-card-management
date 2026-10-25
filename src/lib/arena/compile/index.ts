@@ -582,6 +582,10 @@ function compileSkillText(skill: Skill): Script {
     c.priceChoice = o.as;
     c.priceDiscarded = priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === o.as && p.to === "drop");
   }
+  c.priceChosen = priceOps
+    .filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose")
+    .map((o) => o.as)
+    .filter((v) => !priceOps.some((p) => p.op === "placeOnTop" && "var" in p.target && p.target.var === v));
   // "The card you placed under this card" (BT4-018, #930) is the price's choice
   // only when the price is exactly one choice of one card, placed under this
   // card; the effect's own names then start past it, so its search never
