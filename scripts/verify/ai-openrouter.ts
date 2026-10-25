@@ -402,7 +402,7 @@ async function models(): Promise<void> {
   assert.deepEqual(picks("scan_identify"), [SONNET]);
 
   // Prices reach priceOf / costMicros through rememberModelPrices.
-  assert.deepEqual(priceOf(MINI, "openrouter"), { input: 0.15, output: 0.6 });
+  assert.deepEqual(priceOf(MINI, "openrouter"), { input: 0.15, output: 0.6, cacheRead: 0.015 });
   assert.equal(costMicros({ model: MINI, provider: "openrouter", input: 1_000_000, output: 1_000_000, cached: 0 }), 750_000);
 
   // Cached for an hour; a failing refresh keeps the stale list.
