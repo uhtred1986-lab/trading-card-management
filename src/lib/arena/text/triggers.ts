@@ -725,9 +725,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // opponent's attack knocking markers off (13-5-2) is not their moment —
     // which is why it is a trigger of its own and not the one above. Both ends
     // of it are printed: the Unison itself ("from this card") and the Battle
-    // Cards watching it ("from one of your Unison Cards").
+    // Cards watching it ("from one of your Unison Cards"). What the watcher
+    // says about the Unison ("your **red** Unison Cards", SD15-05, #1169) is a
+    // condition on the payer the compiler reads (`spiritBoostPayerOf`).
     case "spiritBoostPaid":
-      return /when you remove a marker from (?:this card|(?:one of )?your (?:[a-z-]+ )?unison cards?)/.test(t) && /\[spirit boost\]/.test(t);
+      return /when you remove a marker from (?:this card|(?:one of )?your (?!opponent)(?:[^,:.]{1,80}? )?unison cards?|(?:one of )?your \{\d+\}(?: cards?)?)/.test(t) && /\[spirit boost\]/.test(t);
     case "offenseStart":
       return /^at the (?:beginning|start) of (?:your|the) offense step\b/.test(head);
     case "defenseStart":
@@ -792,4 +794,19 @@ export function compileComboQualification(sk: Skill): ComboQualification | null 
   return { version: 1, timing: end ? "battleEnd" : "entry", subject: "self",
     origins: origins ? [...origins] : null,
     turn, ...(entry?.viaSkillOf ? { viaSkillOf: entry.viaSkillOf } : {}) };
+}
+
+/**
+ * 22-43-3, #1169: "When you remove a marker from one of your **red** Unison
+ * Cards using a [Spirit Boost] skill" (SD15-05) — the Unison the markers came
+ * off is the moment's subject, and what the watcher says about it is a
+ * condition on that subject. Returns the description as printed ("red Unison
+ * Cards", "{SS Cabba, Spirit Resonance}"), or null when the trigger is not a
+ * watcher of another Unison's payment ("from this card" has no description).
+ */
+const SPIRIT_BOOST_PAYER = /^when you remove (?:a marker|markers) from (?:one of )?your (?!opponent)(.+?) using an? \[spirit boost\] skill[,.]?$/i;
+export function spiritBoostPayerOf(trigger: string): string | null {
+  const names = maskNames(trigger.trim());
+  const m = SPIRIT_BOOST_PAYER.exec(names.text);
+  return m ? names.unmask(m[1]).trim() : null;
 }

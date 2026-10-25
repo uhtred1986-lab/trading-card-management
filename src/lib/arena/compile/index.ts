@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { triggersOf } from "../gaps";
 import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
+import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -828,6 +828,20 @@ function compileSkillText(skill: Skill): Script {
         if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
         triggerCond = { kind: "count", sel: { special: "subject", filter: cause }, atLeast: 1 };
       }
+    }
+    // "When you remove a marker from one of your **red** Unison Cards using a
+    // [Spirit Boost] skill" (SD15-05, 22-43-3, #1169): the moment is any
+    // [Spirit Boost] payment of yours (`spiritBoostPaid`), which hands the
+    // Unison the markers came off on as the subject, so what the card says
+    // about it — a colour, mono-colour, a <name>, a ≪trait≫, a {card name} —
+    // is a condition on that subject. A description the filter cannot read
+    // whole leaves the skill unread: firing for any Unison would be wider
+    // than the card.
+    const payer = skill.kind === "auto" ? spiritBoostPayerOf(trigger) : null;
+    if (payer !== null && !/^unison cards?$/i.test(payer)) {
+      const filter = filterFor(payer, null);
+      if (!filter || unreadFilterWords(payer, filter).length) return { ops: [], unsupported: [trigger, ...clauses] };
+      triggerCond = { kind: "count", sel: { special: "subject", filter }, atLeast: 1 };
     }
     // "When this card is played from your hand or discarded by a <Shadow Dragon>
     // card's skill" (BT14-131 …, #969): the discard half is `droppedFromHand`,
