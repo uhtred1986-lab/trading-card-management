@@ -17,7 +17,7 @@ import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { compileSkillPrice, IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
-import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
 import { compileFusionMaterials } from "./fusion-materials";
 import { isFusionSkill } from "../vm/fusion-materials";
@@ -582,6 +582,19 @@ function compileSkillText(skill: Skill): Script {
     c.priceChoice = o.as;
     c.priceDiscarded = priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === o.as && p.to === "drop");
   }
+  // "The card you placed under this card" (BT4-018, #930) is the price's choice
+  // only when the price is exactly one choice of one card, placed under this
+  // card; the effect's own names then start past it, so its search never
+  // rebinds the name it is compared against.
+  const priceChoices = priceOps.filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
+  if (priceChoices.length === 1 && priceChoices[0].sel.count === 1 && !priceChoices[0].sel.upTo
+    && priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === priceChoices[0].as && p.to === "under" && !p.under)) {
+    c.pricePlacedUnder = true;
+    if (SAME_CHARACTER_AS_PLACED.test(text)) {
+      const at = /^c(\d+)$/.exec(priceChoices[0].as);
+      if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
+    }
+  }
   // "The card that was switched to Hidden Mode by this skill" names the
   // price's card, possibly well after the effect has made choices of its own
   // ("Play this card, then switch the card that was switched to Hidden Mode
@@ -863,6 +876,11 @@ function compileSkillText(skill: Skill): Script {
   // — a condition written before the colon is part of the skill's validity
   // (9-1-3), and it lands in `cost`. It wraps the whole program; one the
   // compiler cannot read fails the skill rather than running it unconditionally.
+  // A "same character name as the card you placed under this card" that no
+  // choice clause bound to the price (#930) measures nothing: unread.
+  if (JSON.stringify(ops).includes(`"sameCharacterAs":"${PLACED_UNDER_PLACEHOLDER}"`)) {
+    return { ops: [], unsupported: [...unsupported, "with the same character name as the card you placed under this card"] };
+  }
   const priced = costText(skill.cost);
   const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;
   // This one shared Cell/Jr. trigger is checked against the played card when

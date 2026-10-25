@@ -2502,6 +2502,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   }
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
+  if (f.sameCharacterAs) bits.push("with the same character name as the card you placed under this card");
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }
