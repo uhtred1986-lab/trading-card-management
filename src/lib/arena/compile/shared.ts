@@ -64,6 +64,14 @@ export interface Ctx {
    */
   priceChoice?: string;
   /**
+   * Every card the price *chose* ("then choose 1 of your red <Android 17> cards
+   * and 1 of your red <Android 18> cards", BT23-007), by the names it binds —
+   * not the pile card it placed on top of this card (`placeOnTop`), which it
+   * placed rather than chose. What "all of the chosen cards" in the effect means
+   * when the effect has chosen nothing of its own.
+   */
+  priceChosen?: string[];
+  /**
    * The price's choice is a discard: it moves the cards it chose to the Drop
    * Area. "The cards discarded by this skill" (BT20-090, BT20-107..109) means
    * those and nothing else, so it is read only when this holds.

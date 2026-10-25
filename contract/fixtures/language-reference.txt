@@ -1258,6 +1258,21 @@
       "doc": "\"switch your card that's in a battle with this card / the chosen card\" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its \"when this card attacks / is attacked\" are not made pending"
     },
     {
+      "name": "placeOnTop",
+      "class": "primitive",
+      "signature": "{\"op\":\"placeOnTop\",\"target\":TARGET}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        }
+      ],
+      "sentence": "place this card on top of this card, from under it",
+      "doc": "\"place a Z-Extra from under this card on top of this card\" (23-2, 21-5-2): the target, a card in this card's pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card's position, the continuous effects on its power and its seat in a battle; this card's other effects end. Never in a Leader Area"
+    },
+    {
       "name": "comboFrom",
       "class": "macro over `move` + `negate`",
       "signature": "{\"op\":\"comboFrom\",\"target\":TARGET,\"negated\"?:true|false}",
