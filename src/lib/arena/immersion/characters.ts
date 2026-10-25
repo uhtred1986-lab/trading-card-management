@@ -26,3 +26,8 @@ export function resolveCharacter(
     ? { id: character.id, name: character.name, sheet: character.sheet }
     : null;
 }
+
+/** The poses a character's reviewed sheet carries, as `characters.json` lists them. Unknown id: none. */
+export function characterPoses(characterId: string): readonly string[] {
+  return charactersById.get(characterId)?.frames ?? [];
+}

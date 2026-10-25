@@ -48,14 +48,22 @@
   filter: drop-shadow(0 0 9px var(--accent));
   transform-origin: 50% 65%;
 }
-.figure.attack { animation: charge var(--beat-duration) ease-out both; }
+.figure.attack { animation: windup var(--windup) ease-in both; }
+.banner[data-phase="release"] .figure.attack { animation: release var(--after-contact) cubic-bezier(.2,.9,.3,1) both; }
 .figure.guard { animation: brace var(--beat-duration) ease-out both; }
 .hit { --accent: #ffc67b; }
 .figure.hit { animation: recoil var(--beat-duration) ease-out both; }
 .banner.hit .energy { background: radial-gradient(ellipse at 48% 50%, #ffad5077, transparent 68%); }
 .block { --accent: #cfb7ff; }
 .banner.block .energy { background: radial-gradient(ellipse at 48% 50%, transparent 20%, #b7e9ff66 21%, transparent 23%, transparent 29%, #a29fff55 30%, transparent 32%); }
+.repelled { --accent: #cfb7ff; }
 .repelled .speedfield { animation-direction: reverse; }
+.ko { --accent: #ff9f6b; }
+.figure.hit, .ko .figure { animation: recoil var(--beat-duration) ease-out both; }
+.damage { --accent: #ff8a7a; }
+.banner.damage .energy, .banner.ko .energy { background: radial-gradient(ellipse at 50% 50%, #ff7a5c77, transparent 66%); }
+/* Buildup: the energy gathers into the source until the release marker. */
+.banner[data-phase="windup"] .energy { animation: gather var(--windup) ease-in both; }
 .negated .energy { background: radial-gradient(ellipse at center, #bca8ff66, transparent 65%); }
 .name {
   position: absolute;
@@ -106,17 +114,21 @@
 .skip:focus-visible { outline: 2px solid #b9faff; outline-offset: 2px; }
 @keyframes rush { to { transform: translateX(180px); } }
 @keyframes reveal { 0% { opacity: 0; } 10%, 82% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes charge { 0% { transform: translateX(-25%) scale(.84); } 35% { transform: translateX(-4%) scale(1); } 65% { transform: translateX(0) scale(1.04); } 100% { transform: translateX(24%) scale(1.1); } }
+@keyframes windup { from { transform: translateX(-12%) scale(.9); filter: drop-shadow(0 0 4px var(--accent)); } to { transform: translateX(-22%) scale(.96) rotate(-3deg); filter: brightness(1.25) drop-shadow(0 0 16px var(--accent)); } }
+@keyframes release { 0% { transform: translateX(-22%) scale(.96) rotate(-3deg); } 30% { transform: translateX(10%) scale(1.06); } 100% { transform: translateX(24%) scale(1.1); } }
+@keyframes gather { from { opacity: .2; transform: scale(1.4); } to { opacity: 1; transform: scale(.85); } }
+@keyframes contact { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.35); } 35% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } }
+@keyframes hum { 0%, 100% { transform: translate(-50%, -50%) scale(.94); } 50% { transform: translate(-50%, -50%) scale(1.04); } }
 @keyframes brace { from { transform: translateX(-5%); } 18%, 100% { transform: translateX(5%); } }
 @keyframes recoil { 0% { transform: translateX(0) rotate(0); filter: drop-shadow(0 0 9px var(--accent)); } 22% { transform: translateX(15%) rotate(8deg); filter: brightness(1.6) drop-shadow(0 0 18px var(--accent)); } 45% { transform: translateX(4%) rotate(-3deg); } 100% { transform: translateX(12%) rotate(5deg); } }
 @keyframes power { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .reduced .banner { top: 42%; height: 54px; transform: none; box-shadow: none; animation: none; }
-.reduced .speedfield, .reduced .farfield, .reduced .figure, .reduced .energy, .reduced .name, .reduced .track { display: none; }
+.reduced .speedfield, .reduced .farfield, .reduced .figure, .reduced .energy, .reduced .name, .reduced .track, .reduced .emblem, .reduced .contact { display: none; }
 .reduced .word { inset: 0; display: grid; place-items: center; font-size: 20px; transform: none; }
 .reduced .skip { top: calc(42% + 64px); }
 @media (prefers-reduced-motion: reduce) {
   .banner { top: 42%; height: 54px; transform: none; box-shadow: none; animation: none; }
-  .speedfield, .farfield, .figure, .energy, .name, .track { display: none; }
+  .speedfield, .farfield, .figure, .energy, .name, .track, .emblem, .contact { display: none; }
   .word { inset: 0; display: grid; place-items: center; font-size: 20px; transform: none; }
   .skip { top: calc(42% + 64px); }
 }
@@ -137,3 +149,39 @@
 @media (prefers-reduced-motion: reduce) {
   .impact { background: none; }.impact .banner { top: 42%; height: 54px; }.impact .word { font-size: 20px; }.impact .skip { top: calc(42% + 64px); }
 }
+
+/* Neutral art (#1105): unknown, hidden, unmapped or still-loading faces stay in this one route. */
+.emblem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(84px, 22vw, 130px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #f2fdff 0 9%, var(--accent) 10% 22%, #ffffff22 23% 46%, transparent 47%);
+  box-shadow: 0 0 0 2px #e9fbff66, 0 0 28px var(--accent);
+  opacity: .55;
+  animation: hum var(--beat-duration) ease-in-out both;
+}
+.emblem > span { position: absolute; inset: 18%; border-radius: 50%; border: 2px dashed #e9fbff88; }
+
+/* The contact marker fires on the contract marker: the release for an attack, the reaction's own start otherwise. */
+.contact {
+  position: absolute;
+  left: 42%;
+  top: 50%;
+  width: clamp(110px, 30vw, 190px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: contact var(--after-contact) ease-out both;
+}
+.contact-attack { left: 70%; background: repeating-conic-gradient(from 0deg, #e9fbffcc 0 4deg, transparent 4deg 22deg), radial-gradient(circle, #ffffff 0 10%, #79edffaa 11% 30%, transparent 55%); }
+.contact-hit, .contact-ko { background: repeating-conic-gradient(from 8deg, #fff3d0 0 6deg, transparent 6deg 24deg), radial-gradient(circle, #ffffff 0 12%, #ffad50cc 13% 34%, transparent 60%); }
+.contact-damage { left: 50%; background: radial-gradient(circle, #ffffff 0 8%, #ff8a7acc 9% 30%, transparent 58%); }
+.contact-block, .contact-repelled { background: radial-gradient(circle, transparent 0 38%, #e2d6ffee 40% 44%, transparent 46% 54%, #a29fffaa 56% 59%, transparent 61%); }
+.contact-repelled { left: 58%; }
+.neutral .contact-attack { left: 84%; }
+.contact-negated { left: 50%; background: linear-gradient(45deg, transparent 47%, #e2d6ffdd 48% 52%, transparent 53%), radial-gradient(circle, transparent 0 42%, #bca8ffdd 44% 48%, transparent 50%); }

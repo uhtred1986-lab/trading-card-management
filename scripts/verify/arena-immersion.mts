@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { actionCues, actionSequence, combatMoment, cueMarkers, CUE_WINDOW_MS, soundCue, SYNTH_FALLBACK } from '../../src/lib/arena/immersion/events';
 import { ACTION_CUE_IDS, type ActionCueId } from '../../src/lib/arena/immersion/types';
 import { ACTION_FIXTURES, fixtureCardOf } from '../../src/lib/arena/immersion/action-fixtures';
+import { bannerDuration, bannerPlan, bannerPose, BANNER_MAX_MS } from '../../src/lib/arena/immersion/banner';
 import { validateSoundCatalog, type SoundCatalog } from '../../src/lib/arena/immersion/sound-catalog';
 import type { NumberedBeat } from '../../src/lib/arena/beats';
 import type { CardView } from '../../src/lib/arena/view';
@@ -143,3 +144,71 @@ for (const cue of catalog.cues) {
   assert.ok(doc.includes(cue.prompt), `docs/arena-sound-prompts.md has ${cue.cueId}'s exact prompt`);
 }
 console.log(`Immersion: sound catalog (${catalog.cues.length} cues, ${catalog.cues.filter((c) => c.trigger === 'supported').length} supported) is valid and mirrored in the docs.`);
+
+// ── #1105: the one character banner route, planned from the contract sequence ────────────────
+{
+  const plans = (name: string, durationMs = 1200, techniqueOf?: TechniqueOf) => {
+    const f = fixture(name);
+    return f.beats.map((beat) => bannerPlan(actionSequence(9, beat, { cardOf: fixtureCardOf(f), art: f.art, viewer: f.viewer, durationMs, techniqueOf }), beat));
+  };
+  // Attack: only the source is staged; it winds up until the buildup marker and releases on the release marker.
+  const [atk, hit, ko] = plans('attack-hit-ko');
+  assert.equal(atk?.kind, 'attack');
+  assert.equal(atk?.role, 'attacker');
+  assert.equal(atk?.pose, 'attack');
+  assert.equal(atk?.character?.id, 'goku');
+  assert.equal(atk?.durationMs, BANNER_MAX_MS, 'capped at 1100 ms');
+  assert.deepEqual([atk?.windupMs, atk?.contactMs], [300, 300], 'buildup ends and release starts on the contract markers');
+  // A short beat compresses the markers, never stretches the banner.
+  const quick = plans('attack-hit-ko', 460)[0]!;
+  assert.equal(quick.durationMs, 460);
+  assert.deepEqual([quick.windupMs, quick.contactMs], [153, 153]);
+  assert.ok(quick.markers.every((m) => m.stopMs <= 460));
+  // Resolved hit: the guard recoils from its own clash beat; KO is its own beat.
+  assert.deepEqual([hit?.kind, hit?.role, hit?.pose, hit?.character?.id, hit?.contactMs], ['hit', 'defender', 'hit', 'vegeta', 0]);
+  assert.deepEqual([ko?.kind, ko?.pose, ko?.label], ['ko', 'hit', 'KO']);
+  // Repel braces and never says HIT.
+  const repel = plans('repel')[1]!;
+  assert.deepEqual([repel.kind, repel.pose, repel.character?.id, repel.label], ['repelled', 'guard', 'vegeta', 'REPELLED']);
+  // Block: the actual blocker reacts; unmapped → neutral with the contract's reason, no default character.
+  const blocked = plans('block')[1]!;
+  assert.deepEqual([blocked.kind, blocked.role, blocked.character, blocked.pose, blocked.neutral], ['block', 'defender', null, null, 'unmapped']);
+  // Negate and damage name no card: neutral art and the exact receipt.
+  const negated = plans('negate')[1]!;
+  assert.deepEqual([negated.kind, negated.role, negated.character, negated.neutral, negated.label], ['negated', null, null, 'no-subject', 'NEGATED']);
+  const damage = plans('attack-hit-damage')[2]!;
+  assert.deepEqual([damage.kind, damage.neutral, damage.label], ['damage', 'no-subject', '−2 LIFE']);
+  // Hidden source: neutral, and nothing in the plan names the card.
+  const hiddenPlan = plans('hidden-source', 1200, () => 'Kamehameha')[0]!;
+  assert.equal(hiddenPlan.neutral, 'hidden');
+  assert.ok(!/BT1-056|Son Goku|goku|sheet|Kamehameha/i.test(JSON.stringify(hiddenPlan)), 'hidden plan carries no identity');
+  // A departed attacker stays neutral; the move after it is motion staging, not a combat banner.
+  const [gone, moved] = plans('cancelled');
+  assert.equal(gone?.neutral, 'unknown-card');
+  assert.equal(moved, null, 'motion is not a combat banner');
+  // Leader and Battle Card attacks take the same route and the same pose rule.
+  {
+    const f = fixture('attack-hit-ko');
+    const cabba = { id: 'p1-cabba', cardId: 'BT1-014', name: 'Saiyan Cabba', hidden: false, flipped: false } as CardView;
+    const battle = bannerPlan(actionSequence(9, { n: 4, t: 'attack', attacker: cabba.id, target: 'p2-vegeta' }, { cardOf: (id) => (id === cabba.id ? cabba : fixtureCardOf(f)(id)), art: {}, viewer: 'p1', durationMs: 900 }), null)!;
+    assert.deepEqual([battle.kind, battle.role, battle.pose, battle.character?.id], ['attack', 'attacker', 'attack', 'cabba']);
+  }
+  // Poses come only from the manifest: a sheet without the pose stays neutral, never a substitute pose.
+  {
+    const f = fixture('attack-hit-ko');
+    const noAttack = bannerPlan(actionSequence(9, f.beats[0], { cardOf: fixtureCardOf(f), art: f.art, viewer: 'p1', durationMs: 900 }), f.beats[0], { posesOf: () => ['guard', 'hit'] })!;
+    assert.deepEqual([noAttack.character, noAttack.pose, noAttack.neutral], [null, null, 'unmapped']);
+  }
+  // The defender never reacts to an attack declaration; the attacker never takes a reaction pose.
+  assert.equal(bannerPose('attack', 'defender'), null);
+  assert.equal(bannerPose('hit', 'attacker'), null);
+  assert.equal(bannerPose('negated', null), null);
+  // Technique labels only the attacker's mapped face.
+  assert.equal(plans('attack-hit-ko', 1200, () => 'Approved technique')[0]?.label, 'Approved technique');
+  assert.equal(plans('attack-hit-ko', 1200, () => 'Approved technique')[1]?.label, 'HIT!', 'a reaction keeps its own word');
+  // Duration: the beat's own length, capped; a non-finite pace falls back.
+  assert.equal(bannerDuration(5000, 460), 1100);
+  assert.equal(bannerDuration(Number.NaN, 460), 460);
+  assert.equal(bannerDuration(0, 460), 1);
+  console.log('Immersion: banner plans (buildup/release markers, actual reactions, manifest poses, neutral reasons, one route) pass.');
+}
