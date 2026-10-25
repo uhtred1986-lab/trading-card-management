@@ -391,6 +391,16 @@ export interface Prohibition {
    */
   exceptEvolve?: boolean;
   /**
+   * #930: `play` only — "you can only play Battle Cards by using
+   * [Union-Fusion] for the remainder of the turn" (P-069, P-226). Every play
+   * the rule is about is forbidden — a declared play, any skill's play, an
+   * evolution, another [Union] variant — except a [Union-(variant)] play of
+   * one of these variants (matched against the play's own `using`, `union` in
+   * the matchers' options). Asked without saying which play it is, the rule
+   * is read as applying.
+   */
+  exceptUnion?: ("Fusion" | "Potara" | "Absorb")[];
+  /**
    * `activateCounter` only: the one [Counter] kind it names — "[Counter: Play]
    * skills" is not every [Counter] (22-10-2-1). Matched against the line being
    * activated (`skillKind` in the matchers' options); absent means any kind.
