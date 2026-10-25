@@ -47,6 +47,10 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 
 export function compileSkill(skill: Skill): Script {
+  // #1166: a line printed in quotation marks that another line grants is
+  // compiled as the skill it quotes; its record is the grant's program.
+  if (skill.granted) return compileQuotedSkill(skill.granted.skill);
+  if (skill.grants) return compileGrantingLine(skill, skill.grants);
   // A deck-building clause is not a rule of play (6-1; #1146): take it out and compile what is left of the
   // line. A line that is nothing else reads as empty, on purpose, and says so by having nothing unread.
   const deck = deckBuildingOfSkill(skill);
@@ -55,6 +59,94 @@ export function compileSkill(skill: Skill): Script {
     return compileSkillWithoutDeckBuilding({ ...skill, effect: `${deck.rest}.` });
   }
   return compileSkillWithoutDeckBuilding(skill);
+}
+
+/**
+ * #1166: a line that grants the skill printed in quotation marks on the next
+ * line — "Play up to 1 yellow ≪Ginyu Force≫ card … from your Drop, and your
+ * ≪Ginyu Force≫ Leader gains the following skill for the turn-" (BT29-083#0).
+ *
+ * "X gains the following skill <duration>" says what every keyword grant
+ * says, with the quoted line in place of the keyword; so it is read as one,
+ * through the readers that already know who X is ("your Leader", "this
+ * card", "it" after a choice) and how long: the clause is compiled with a
+ * stand-in keyword the line does not print, and that `grant` is replaced by a
+ * `copySkills` of this card's own quoted line (`quoted: true`, `skill`: its
+ * index). The quoted line's program is its own record, compiled from its text
+ * like every other line (`compileQuotedSkill`); nothing is read at game time.
+ *
+ * A grant on a card the effect has not chosen (the Leader) is made before the
+ * rest of the effect: the quoted skill has to be in force for what the same
+ * effect does, or "When your ≪Ginyu Force≫ card is played by this card's
+ * skill" could never answer to the play printed beside it — the only play that
+ * card's skill makes. A grant on a card the effect chooses follows the choice,
+ * and one on this card stays where it is printed (it may be played by the same
+ * effect, BT23-109). Refused, in the card's own words: a duration the line
+ * prints that is not one of `GRANT_DURATIONS`; a grant the readers cannot
+ * place (no `grant` comes out, or more than one); a [Permanent] that grants
+ * (a standing grant has no typed contract); and a grant of a quoted skill that
+ * is itself unread or that the engine cannot run as a copy.
+ */
+function compileGrantingLine(skill: Skill, grants: { index: number; skill: Skill }): Script {
+  const plain: Skill = { ...skill, grants: undefined };
+  const at = /\bthe following skill\b/i.exec(skill.effect);
+  const stand = GRANT_STAND_INS.find((k) => !new RegExp(`\\[${k}\\]`, "i").test(`${skill.cost} ${skill.effect}`));
+  if (!at || !stand) return compileSkill(plain);
+  const tail = skill.effect.slice(at.index + at[0].length).replace(/[\s\-—–―:,.]+$/, "").trim();
+  const clause = skill.effect.slice(at.index).replace(/[\s\-—–―:,.]+$/, "");
+  const compiled = compileSkill({ ...plain, effect: `${skill.effect.slice(0, at.index)}[${stand}]${tail ? ` ${tail}` : ""}.` });
+  const back = (s: string) => s.replace(new RegExp(`\\[${stand}\\]`, "gi"), "the following skill");
+  const refuse = (why: string): Script => ({ ...compiled, ops: [], unsupported: [...compiled.unsupported.map(back).filter((u) => !/the following skill/i.test(u)), clause, why] });
+  if (skill.kind === "permanent") return refuse("a [Permanent] granting a skill in quotation marks has no typed standing grant (#1166)");
+  if (tail && !GRANT_DURATIONS.test(tail)) return refuse(`the grant's duration "${tail}" is not read (#1166)`);
+  const quoted = compileQuotedSkill(grants.skill);
+  if (quoted.unsupported.length) return refuse(`the granted skill (line ${Math.floor(grants.index / 10) + 1}) is not read (#1166)`);
+  let found = 0;
+  const swap = (ops: Op[]): Op[] => {
+    let first: Op | null = null;
+    const out = ops.map((op) => {
+      if (op.op === "grant" && op.keyword.name === stand) {
+        found++;
+        const made = { op: "copySkills", target: op.target, from: { sel: { special: "self" } }, skill: grants.index, quoted: true, until: op.until } as Op;
+        const target = JSON.stringify(op.target);
+        if (!target.includes('"var"') && !target.includes('"self"')) first = made;
+        return made;
+      }
+      const copy: Record<string, unknown> = { ...op };
+      for (const [k, v] of Object.entries(op)) if (Array.isArray(v) && v.length && v.every((x) => x && typeof x === "object" && typeof (x as { op?: unknown }).op === "string")) copy[k] = swap(v as Op[]);
+      return copy as Op;
+    });
+    return first ? [first, ...out.filter((op) => op !== first)] : out;
+  };
+  const ops = swap(compiled.ops);
+  const unsupported = compiled.unsupported.map(back);
+  if (found === 0) return { ...compiled, unsupported: unsupported.some((u) => /the following skill/i.test(u)) ? unsupported : [...unsupported, clause] };
+  if (found > 1) return refuse("one line granting the following skill more than once is not read (#1166)");
+  return { ...compiled, ops, unsupported };
+}
+
+/** Keywords a granting line is compiled with in place of "the following skill" (`compileGrantingLine`): the first one the line does not print itself. */
+const GRANT_STAND_INS = ["Barrier", "Blocker", "Critical", "Double Strike", "Triple Strike", "Dual Attack"] as const;
+/** The durations a granting line may print after "the following skill" (`durationOf` reads them): "for the turn", "until the end of your opponent's (next) turn", "until the start of your next turn / Main Phase". Anything else (BT23-077's "until the start of your turn") is refused, not read as the turn. */
+const GRANT_DURATIONS = /^(?:for the turn|until the end of your opponent's(?: next)? turn|until the (?:start|beginning) of your next (?:turn|main phase))$/i;
+
+/**
+ * #1166: the skill a line in quotation marks quotes, as the record of that
+ * line. Its "this card" is whichever card holds it while the grant lasts.
+ * Refused: a keyword line ([Union-Absorb], [EX-Evolve] — a granted keyword
+ * move needs a grant contract of its own, as `permit(unionLine)` is for a
+ * Union in hand), and an [Auto] whose moment is not read (it would never
+ * answer, and the grant would look read). Also "at the end of a battle in
+ * which this card attacked" (BT22-022): the `battleEnd` moment does not ask
+ * which card attacked, so the skill would answer to every battle's end; a
+ * granted line is not made readable on that misreading.
+ */
+function compileQuotedSkill(quoted: Skill): Script {
+  if (quoted.kind === "keyword" || quoted.keyword) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "a keyword skill granted in quotation marks is not supported (#1166)"] };
+  if (/\bat the end of (?:a|the) battle in which this card attack/i.test(quoted.effect)) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "\"a battle in which this card attacked\" is not a moment the engine asks (#1166)"] };
+  const script = compileSkill(quoted);
+  if (quoted.kind === "auto" && !script.unsupported.length && !(script.trigger ?? triggersOf(quoted)).length) return { ...script, ops: [], unsupported: [quoted.raw, "the granted [Auto]'s moment is not read (#1166)"] };
+  return script;
 }
 
 function compileSkillWithoutDeckBuilding(skill: Skill): Script {
@@ -997,8 +1089,9 @@ export function compileCard(card: CardDef, side: "front" | "back" = "front"): Ca
   const unsupported: string[] = [];
   for (const printed of skillsOf(card, side)) {
     // 22-30-2: an [Aegis] line's text after its tag is its price (#595).
-    const sk = aegisPriceLine(printed);
-    const script = compileSkill(sk);
+    // #1166: a granted line in quotation marks is compiled (and priced) as the skill it quotes.
+    const sk = aegisPriceLine(printed.granted ? printed.granted.skill : printed);
+    const script = compileSkill(printed.granted ? printed : sk);
     // The price rides with the program. This is the only place it is read for
     // a context built from card text — `rulesFor` reads the row instead — and
     // it is what keeps `npm test` and the probe playing prices at all now that

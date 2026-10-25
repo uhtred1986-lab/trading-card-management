@@ -434,8 +434,52 @@ function parseSkillsUncached(text: string): Skill[] {
     const { cost, effect } = splitCost(body, !keywords.length && tags.some((t) => /^(?:activate|auto)\b/i.test(t)));
     out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
   }
-  return out;
+  return linkQuotedGrants(out);
 }
+
+/**
+ * #1166: a skill granted in quotation marks. "…your ≪Ginyu Force≫ Leader gains
+ * the following skill for the turn-" ends one line, and the skill it grants is
+ * printed on the next line, wholly in quotation marks ("[auto][bond 2] …").
+ * The catalog keeps that next line as a line of its own, so it parses as an
+ * unread [Permanent] of the granting card. It is no skill of that card: it is
+ * the program of the grant. The two are linked here, from the text alone —
+ * the granting line gets `grants` (the quoted line's index and skill), and the quoted
+ * line keeps its inert outer reading (so a reader that knows nothing of grants
+ * still sees nothing it could use) with `granted`: which line grants it and
+ * the quoted skill parsed on its own. The compiler reads `granted.skill` into
+ * the quoted line's record; the engine never lets the card use it
+ * (`skillsShowing`) and runs it only on the card the grant names.
+ *
+ * Only a line that is quoted from end to end, right after a line that ends in
+ * "…the following skill" (any duration, dash, colon or comma), and only one
+ * that parses as exactly one skill. A quoted line with no such line before it,
+ * or a line with more after its closing quotation mark, is left as it was.
+ */
+function linkQuotedGrants(skills: Skill[]): Skill[] {
+  if (!skills.some((sk) => QUOTED_LINE.test(sk.raw.trim()))) return skills;
+  return skills.map((sk, k) => {
+    const quoted = QUOTED_LINE.exec(sk.raw.trim());
+    const prev = k > 0 ? skills[k - 1] : undefined;
+    if (!quoted || !prev || Math.floor(prev.index / 10) !== Math.floor(sk.index / 10) - 1 || !GRANTING_LINE_END.test(prev.raw.trim())) return sk;
+    const inner = parseSkillsUncached(quoted[1]);
+    if (inner.length !== 1) return sk;
+    return { ...sk, granted: { by: prev.index, skill: { ...inner[0], index: sk.index } } };
+  }).map((sk, k, all) => {
+    const next = all[k + 1];
+    if (next?.granted?.by !== sk.index) return sk;
+    // "Your Leader gains the following skill until the start of your turn:" —
+    // the colon that ends the sentence introduces the quoted line; it is no
+    // cost colon, so a line `splitCost` left with no effect is all effect.
+    const whole = !sk.effect.trim() && GRANTING_LINE_END.test(sk.cost) ? { cost: "", effect: sk.cost, energyCost: {}, energyEither: [] } : {};
+    return { ...sk, ...whole, grants: { index: next.index, skill: next.granted.skill } };
+  });
+}
+
+/** A line quoted from end to end, with no quotation mark inside: `"[auto] …"` or `“[auto] …”`, a full stop allowed after it. */
+const QUOTED_LINE = /^["“]\s*(\[[^"“”]+?)\s*["”]\.?$/;
+/** A line that ends by granting "the following skill", with whatever duration and punctuation the card prints before the quoted line. */
+export const GRANTING_LINE_END = /\bthe following skill\b[^"“”]*$/i;
 
 /** Keywords that print no cost and no text after their tag, so a [Union] on the same line cannot be mistaken for theirs. */
 const BARE_BESIDE_UNION = new Set<KeywordSkill["name"]>(["Barrier", "Blocker", "Energy-Exhaust", "Deflect", "Critical", "Strike", "Attack", "Indestructible", "Revenge", "Victory Strike"]);
