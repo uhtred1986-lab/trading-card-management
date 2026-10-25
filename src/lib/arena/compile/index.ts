@@ -15,6 +15,7 @@ import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
+import { bondDescriptorOnly } from "../text/bond";
 import { compileSkillPrice, IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
@@ -428,6 +429,12 @@ function compileSkillText(skill: Skill): Script {
   const owners = [skill.keyword, ...skill.tags.map(keywordOf)].filter((k): k is KeywordSkill => !!k);
   const keywordOwnsIt = owners.some((k) => KEYWORD_HANDLES_THE_LINE.has(k.name) && !(k.name === "Union" && k.variant === "Absorb"));
   if (keywordOwnsIt) return { ops: [], unsupported: [] };
+  // 22-21-2: a bare keyword line's [Bond X] descriptor — "[Blocker][Bond 3]
+  // Red ≪Saiyan≫ cards and/or ≪Bardock's Crew≫ cards." (BT13-006) — names the
+  // Battle Cards the keyword counts (`bondSelector`, checked in play by
+  // `vm/bond.ts`); it is not an effect. Only a descriptor the selector reader
+  // proves is taken off; anything else stays unread.
+  if (skill.kind === "keyword" && skill.bond != null && !skill.cost.trim() && skill.effect.trim() && bondDescriptorOnly(skill)) return { ops: [], unsupported: [] };
   // A trigger printed at the end of the sentence rather than at its head
   // (BT3-103) has already happened by the time the effect resolves, exactly
   // like the leading form the clause loop drops below. Left in the text it
