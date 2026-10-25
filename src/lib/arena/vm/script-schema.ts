@@ -1289,12 +1289,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   },
   battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of the")} has been in a battle this turn` },
   playedUsing: {
-    fields: [SEL, { name: "what", type: { enum: ["Over Realm"] }, required: true }],
+    fields: [SEL, { name: "what", type: { enum: ["Over Realm", "Union"] }, required: true }],
     sentence: (raw) => {
       const c = raw as CondOf<"playedUsing">;
-      return `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
+      return c.what === "Union"
+        ? `${describeSelector(c.sel, "any of the")} was played using a [Union] skill`
+        : `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
     },
-    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4)",
+    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated",
   },
   placedThisTurn: {
     fields: [SEL],

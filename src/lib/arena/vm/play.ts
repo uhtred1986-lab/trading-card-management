@@ -285,6 +285,11 @@ export function resolvePlay(
   }
   const arrived = findCard(state, card);
   const success = arrived?.zone === to && arrived.owner === player && (!host || state.cards[card].under.includes(host)) && (opts.under ?? []).every((id) => state.cards[card].under.includes(id));
+  // 22-13 (#930, owner's ruling of 25 Oct 2026): "played using [Union]" is a
+  // successful entry by the keyword's own play, and nothing else — a play
+  // that a counter replaced or that failed to enter never reaches here with
+  // `success`. The copy keeps it while it stays (`VmCard.enteredUsing`).
+  if (success && opts.using?.startsWith("Union-")) state.cards[card].enteredUsing = opts.using;
   // 22-5-2-3/4: evolution is a successful play, separate from using the
   // keyword from hand. Failed/countered plays and ordinary stacks have none.
   if (success && evolution) fire(ctx, game, state, { event: "evolved", card, controller: player, args: { to } });

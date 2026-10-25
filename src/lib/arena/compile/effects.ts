@@ -1125,7 +1125,8 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   // "…, and **you draw** 1 card" (BT8-089b, TB2-033, BT19-022): the same draw with its subject said.
-  if ((m = /^(?:you )?draw (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
+  // "…draw 1 card, and if …, **draw 1 more card**" (BT6-036, #930): the same draw, again.
+  if ((m = /^(?:you )?draw (\d+) (?:more )?cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]) }];
   // 20-5: "Draw X cards" — the X the price was paid at, read off the frame the
   // activation bound it on. Only when the price charges one: a program that
   // says `X` with nothing to bind it throws where it resolves, and the honest

@@ -67,6 +67,11 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     let list = m[1].replace(/^up to /i, "");
     // "1 each of <A> and <B>": the "each of" says every name is one slot.
     if (shape.required) list = list.replace(/^1 each of /i, "1 ");
+    else if (/^1 each of /i.test(list)) {
+      const each = eachOfSlots(list);
+      if (!each) return null;
+      return { verb: shape.verb, dest: shape.dest, source: m[2].trim(), colour: each.colour, required: false, slots: each.slots };
+    }
     let colour: string | null = null;
     // "…and 1 <Bollarator> card―all red―": one colour for every slot.
     const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(${COLOUR})\\s*${DASH}\\s*$`, "i").exec(list);
@@ -94,6 +99,24 @@ export function namedSetWords(clause: string): NamedSetWords | null {
 }
 
 const DASH_ANYWHERE = /[―—–]|--/;
+
+/**
+ * #930: "choose **up to 1 each of blue {Super Saiyan Son Goku} and {Super
+ * Saiyan Vegeta} cards with energy costs of 2** from your deck and add them to
+ * your hand" (BT5-037): one "up to 1" slot per name. **Labelled best guess**
+ * (no manual rule or card FAQ found): the colour before the first name and the
+ * measure after the last describe every name, as "cards" in the plural says.
+ * Only a colour and an energy-cost or power measure are read; anything else
+ * leaves the clause to the readers that refuse it.
+ */
+function eachOfSlots(list: string): { colour: string | null; slots: string[] } | null {
+  const m = new RegExp(`^1 each of (?:(${COLOUR}) )?((?:${NAME},?\\s+)*(?:and\\s+)?${NAME})(?:\\s+cards?)?((?:\\s+with (?:an? )?(?:energy costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power))?)$`, "i").exec(list.trim());
+  if (!m) return null;
+  const names = [...m[2].matchAll(new RegExp(NAME, "g"))].map((x) => x[0]);
+  if (names.length < 2 || new Set(names.map((x) => x.toLowerCase())).size !== names.length) return null;
+  const colour = m[1] ? m[1].toLowerCase() : null;
+  return { colour, slots: names.map((n) => `up to 1 ${colour ? `${colour} ` : ""}${n} card${m[3]}`) };
+}
 
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function namedSetSpans(text: string): [number, number][] {

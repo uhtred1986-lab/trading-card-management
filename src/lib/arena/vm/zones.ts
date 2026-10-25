@@ -148,6 +148,18 @@ export interface VmCard {
    */
   playedUsing?: string;
   /**
+   * 22-13 (#930): the [Union] keyword whose own move played this copy into
+   * the area it stands in ("Union-Fusion", "Union-Potara", "Union-Absorb";
+   * no other keyword's play is recorded here) — what
+   * `playedUsing(what: Union)` reads for BT5-037's "if you played this card
+   * using [union]" and BT6-036's "if this card was played using [union]". Set
+   * by `resolvePlay` only when the play succeeded (owner's ruling of 25 Oct
+   * 2026: a play that was negated, replaced or failed to enter is not one),
+   * kept across turns while the copy stays, cleared by a change of area
+   * (3-1-4). Absent otherwise.
+   */
+  enteredUsing?: string;
+  /**
    * 5-5-4: this card arrived in a Battle Area this turn, played or placed by a
    * skill (5-5-1) — what `placedThisTurn` reads for BT15-118's "at the end of
    * a turn in which this card was placed in a Battle Area". Set by `moved`
@@ -462,5 +474,6 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   card.hidden = false;
   delete card.attacksThisTurn;
   delete card.playedUsing;
+  delete card.enteredUsing;
   delete card.placedThisTurn;
 }
