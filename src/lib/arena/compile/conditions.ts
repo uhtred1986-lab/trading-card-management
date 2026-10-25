@@ -387,6 +387,22 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Combo Area", BT19-035b) is the list's own, read whole by the each-name reading above.
   const holdNames = (s: string) => s.replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2");
   const unhold = (s: string) => s.replaceAll("\u0001", " and ");
+  // #930, P-226: "you have only <Son Goten: GT> cards in play **or no Battle
+  // Cards in play**". The "or" has no subject after it, so the split below
+  // never cut it, and the whole was read as one count of at least 1 card that
+  // is either description — the "only" and the "no" both lost, a gate that held
+  // with any Battle Card at all. Read as the two alternatives it prints: every
+  // card in your Battle Area is one of those cards (the EX24-05 reading of
+  // "only … in play", owner ruling of 17 Oct 2026: false when the area is
+  // empty), or you have no Battle Cards in play. LABELLED BEST GUESS: "in play"
+  // is read as your Battle Area — the alternative it is paired with is about
+  // Battle Cards, and a Leader is never a <Son Goten: GT> Battle Card.
+  const onlyOrNone = /^you have only (.+? cards?) in play or no battle cards in play$/.exec(t);
+  if (onlyOrNone) {
+    const only = parseConditionClause(`you only have ${onlyOrNone[1]} in play in your battle area`, true);
+    const none = parseConditionClause("you have no battle cards in play", true);
+    return only && none && only.cond.kind === "every" ? { cond: { kind: "any", conds: [only.cond, none.cond] } } : null;
+  }
   const andParts = holdNames(t).split(/ and /).map(unhold);
   if (andParts.length > 1 && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
     // "…card, **this card** and {X} are in your Warp" (BT20-078, #907 round 5): the "and" joins this card to the name

@@ -100,6 +100,7 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
         ...(op.unless ? { unless: op.unless, master } : {}),
         ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
         ...(op.exceptEvolve ? { exceptEvolve: true } : {}),
+        ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
       });
     }
   }
@@ -790,7 +791,7 @@ function collect(
       // and not from the chair of whoever is trying to act.
       // #1005: "…can only attack this card" — read as the cards it names, now.
       const attackOnly = op.attackOnly ? targets(frame, { ...op, target: op.attackOnly }) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {
