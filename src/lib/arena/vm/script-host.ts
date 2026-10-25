@@ -162,6 +162,8 @@ export interface ScriptHost {
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
   /** 23-2: put a card under another. */
   placeUnder(id: string, host: string): boolean;
+  /** 23-2, 21-5-2: a card from `host`'s pile becomes the top card in its place, and `host` goes directly under it. Returns whether it happened. */
+  placeOnTop(id: string, host: string): boolean;
   /**
    * 1-10: switch a card's mode. Returns whether it moved. `by` is the skill
    * doing it when a program does, with the keyword whose skill it is (#157):
