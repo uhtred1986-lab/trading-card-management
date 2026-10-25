@@ -1639,8 +1639,22 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // P-048's "during the turn you played it with [Over Realm]": the card's
     // memory of the play (`VmCard.playedUsing`), set by `resolvePlay` and gone
     // with the turn or a change of area.
-    case "playedUsing":
+    // #930: "if you played this card using [union]" (BT5-037), "if this card
+    // was played using [union]" (BT6-036): the copy's memory of a successful
+    // [Union-(type)] entry (`VmCard.enteredUsing`), kept while it stays. "This
+    // card" that has since left — BT5-037 places itself in the Drop as the
+    // cost — is read as it was when the [Activate] skill was activated
+    // (`frame.selfEnteredUsing`). An [Auto] reads it as it was when the Auto
+    // was triggered (`VmPending.selfEnteredUsing`, owner's ruling of 25 Oct
+    // 2026): BT6-036 KO'd before its on-play Auto resolves still counts.
+    case "playedUsing": {
+      if (c.what === "Union") {
+        const union = (using: string | undefined) => !!using?.startsWith("Union-");
+        if (c.sel.special === "self" && union(frame.selfEnteredUsing)) return true;
+        return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
+      }
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
+    }
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).
     case "placedThisTurn":

@@ -346,6 +346,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // #930: "if you played this card using [union]" (BT5-037), "if this card was
+  // played using [union]" (BT6-036): the copy's memory of entering by a
+  // [Union-(type)] skill's own play — only a successful one (owner's ruling,
+  // 25 Oct 2026). Bare "[union]" only: a named variant is not read here.
+  if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:a |the )?\[union\](?: skill)?$/.test(t)) {
+    return { cond: { kind: "playedUsing", sel: { special: "self" }, what: "Union" } };
+  }
   // "When you've sent 7 or more cards to your Warp, reduce the energy cost of this card in your hand and Warp by 1" (SD3-04, deck
   // audit 18 Oct 2026): LABELLED BEST GUESS. No manual rule, errata or official Q&A covers it (card FAQ searched 18 Oct 2026); the
   // cards the game puts in the Warp stay there, so "have sent N or more to your Warp" is read as "N or more cards are in your Warp".
