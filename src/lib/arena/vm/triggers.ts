@@ -108,6 +108,15 @@ export interface VmPending {
   subjectInfo?: Attrs;
   /** Internal identity of the 8-5-6 subject occurrence, across pause/reload. */
   cleanupOccurrence?: string;
+  /**
+   * #930 (owner's ruling of 25 Oct 2026): the answering card's [Union] entry
+   * memory (`VmCard.enteredUsing`) as the skill was triggered — BT6-036's "if
+   * this card was played using [union]" is about how it was played, so a copy
+   * that leaves play before its [Auto] resolves keeps the answer. Taken when
+   * pended, or by `resolvePlay` for the Autos its own successful [Union] play
+   * pended; never copied onto a later play's Autos. Older entries carry none.
+   */
+  selfEnteredUsing?: string;
 }
 
 /** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
@@ -530,7 +539,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
-        ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}) };
+        ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}),
+        ...(state.cards[match.card]?.enteredUsing ? { selfEnteredUsing: state.cards[match.card].enteredUsing } : {}) };
       state.pending.push(pending);
       pended.push(pending);
     }

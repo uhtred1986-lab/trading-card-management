@@ -383,8 +383,17 @@ export type Cond =
    * of these cards played this turn by that keyword's own move? The card's
    * memory of the play — set as the `play … using: "Over Realm"` lands, gone
    * when the turn ends or the card changes area (3-1-4).
+   *
+   * `what: "Union"` (#930) is BT5-037's "if you played this card using
+   * [union]" and BT6-036's "if this card was played using [union]": did the
+   * copy enter by a [Union-(type)] keyword's own play that succeeded (owner's
+   * ruling, 25 Oct 2026)? Not limited to this turn — the copy remembers it
+   * while it stays (`VmCard.enteredUsing`); "this card" read after it left as
+   * the skill's own cost is its memory when the skill was activated, and an
+   * [Auto]'s is its memory when the Auto was triggered (owner's ruling, 25
+   * Oct 2026: a copy KO'd before its on-play Auto resolves still counts).
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" }
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
@@ -1503,6 +1512,8 @@ export interface ScriptFrame {
   subject?: string;
   /** §9-6-9-1-3 movement information, captured separately from live zones. */
   subjectInfo?: import("./cards").Attrs;
+  /** #930: the source's [Union] entry memory (`VmCard.enteredUsing`) as the skill was activated (`vm/activate.ts`) — "this card" after it left as the cost — or, for an [Auto], as it was triggered (`VmPending.selfEnteredUsing`, `vm/flow.ts`): a copy that left before resolving keeps it. Additive: older frames carry none. */
+  selfEnteredUsing?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
   /** Persisted ID of the timed effect granting this individual keyword skill. */
