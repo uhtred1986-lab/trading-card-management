@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { triggersOf } from "../gaps";
 import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf } from "../text/triggers";
+import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -952,6 +952,20 @@ function compileSkillText(skill: Skill): Script {
         // condition on that subject and the skill stays where it was printed.
         const subject = subjectFilterOf(trigger);
         if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
+      }
+      // #930: "When your <X> card is played by a [Union] skill" (BT22-033,
+      // BT25-036 back, P-682), "when you play a Battle Card using a
+      // [Union-Fusion] skill" (BT12-122): the moment is `youPlayed`, the
+      // description stays the condition on the played card, and how it was
+      // played is a second one beside it — a successful entry by a
+      // [Union-(type)] skill's own play (owner's ruling, 25 Oct 2026), bare
+      // [Union] any of them, a named variant only that one. `resolvePlay`
+      // withdraws the Auto from any other play, or a card the description
+      // refuses (`vm/triggers.ts` `unionPlayedGate`).
+      const byUnion = yourCardPlayedByUnion(trigger);
+      if (byUnion) {
+        const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };
+        triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
       }
     }
     // "When this card attacks and KOs an opponent's Battle Card", "when this

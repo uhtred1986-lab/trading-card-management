@@ -62,7 +62,7 @@ import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } 
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
-import { NO_RULES, type CardScripts, type Op } from "./script";
+import { NO_RULES, type CardScripts, type Cond, type Op } from "./script";
 import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
 import type { EngineContext } from "../types";
@@ -117,6 +117,14 @@ export interface VmPending {
    * pended; never copied onto a later play's Autos. Older entries carry none.
    */
   selfEnteredUsing?: string;
+  /**
+   * #930: the same memory of the moment's `subject` — "when your <X> card is
+   * played by a [Union] skill" (BT22-033, BT25-036 back) asks how that card
+   * was played, and it still counts when it leaves play before the [Auto]
+   * resolves. Stamped by `resolvePlay` on the Autos its successful [Union]
+   * entry pended about it; older entries carry none.
+   */
+  subjectEnteredUsing?: string;
 }
 
 /** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
@@ -369,11 +377,29 @@ function subjectGate(ops: readonly Op[] | undefined): CardFilter | null {
  * is not a gate: the Auto answers every play and asks it as it resolves.
  */
 export function unionPlayGate(ops: readonly Op[] | undefined): string | null {
-  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
-    const cond = at[0].cond;
-    if (cond.kind === "playedUsing" && cond.sel.special === "self" && (cond.what === "Union" || cond.what.startsWith("Union-"))) return cond.what;
-  }
-  return null;
+  return unionPlayedGate(ops, "self")?.what ?? null;
+}
+
+/**
+ * #930: the same gate, generalised to the card the moment is about. For
+ * `"subject"` it is "when your <X> card is played by a [Union] skill"
+ * (BT22-033, BT25-036 back, P-682) and "when you play a Battle Card using a
+ * [Union-Fusion] skill" (BT12-122), an [Auto] on `youPlayed`: one of the chain
+ * of plain IFs holds `playedUsing(sel: subject, what: Union…)`, alone or as a
+ * part of an `all`, and the description of the played card, when one is
+ * printed, is the `count(subject <filter>)` beside it (`filter`). Read off the
+ * record, never the text; null for any other shape.
+ */
+export function unionPlayedGate(ops: readonly Op[] | undefined, who: "self" | "subject"): { what: string; filter?: CardFilter } | null {
+  let what: string | null = null;
+  let filter: CardFilter | undefined;
+  const visit = (cond: Cond): void => {
+    if (cond.kind === "all") { for (const c of cond.conds) visit(c); return; }
+    if (cond.kind === "playedUsing" && cond.sel.special === who && !cond.sel.filter && (cond.what === "Union" || cond.what.startsWith("Union-"))) what ??= cond.what;
+    if (who === "subject" && cond.kind === "count" && cond.sel.special === "subject" && cond.sel.filter && (cond.atLeast ?? 1) <= 1 && !cond.atMost) filter ??= cond.sel.filter;
+  };
+  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) visit(at[0].cond);
+  return what === null ? null : { what, ...(filter ? { filter } : {}) };
 }
 
 /**

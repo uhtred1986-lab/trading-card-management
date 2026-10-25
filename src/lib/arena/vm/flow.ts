@@ -897,6 +897,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),
+    ...(next.subjectEnteredUsing ? { subjectEnteredUsing: next.subjectEnteredUsing } : {}),
     skillIndex: next.skillIndex,
     usage: skill?.usage as import("./usage").UsageRecord,
     validity: skill?.validity as import("./validity").ValidityRecord,

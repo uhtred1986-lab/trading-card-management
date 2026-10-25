@@ -95,6 +95,23 @@ export const BY_THIS_CARDS_SKILL = /\s+by this card['’]s skills?\b/gi;
 /** "When your ≪Ginyu Force≫ card is played by this card's skill" (BT29-083, #1163), the description captured. */
 const YOUR_CARD_PLAYED_BY_THIS_CARD = /^when your ((?!opponent)[^,]{1,120}?) is played by this card['’]s skill(?:,|\.|$)/;
 
+/**
+ * #930: "When your <X> card is played **by a [Union] skill**" (BT22-033,
+ * BT25-036's back, P-682) and "When you play a Battle Card **using a
+ * [Union-Fusion] skill**" (BT12-122): another of your cards' play, made by a
+ * [Union] keyword's own play. The description and the variant are captured
+ * (bare "[Union]" is any of them); only the whole moment, nothing coordinated
+ * after it.
+ */
+const YOUR_CARD_PLAYED_BY_UNION = /^when (?:your ((?!opponent)[^,]{1,120}?) is played|you play ((?:an?|1) [^,]{1,120}?)) (?:by|using|with) (?:an? |the )?\[union(?:[- ](fusion|potara|absorb))?\](?: skills?)?\s*(?:,|:|\.|$)/i;
+const UNION_VARIANT_NAME = { fusion: "Union-Fusion", potara: "Union-Potara", absorb: "Union-Absorb" } as const;
+/** #930: the played card's description ("your blue <Gotenks> card", "a Battle Card") and the [Union] keyword named, or null for any other moment. */
+export function yourCardPlayedByUnion(head: string): { said: string; what: "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" } | null {
+  const m = YOUR_CARD_PLAYED_BY_UNION.exec(head.trim());
+  if (!m) return null;
+  return { said: m[1] !== undefined ? `your ${m[1]}` : m[2], what: m[3] ? UNION_VARIANT_NAME[m[3].toLowerCase() as keyof typeof UNION_VARIANT_NAME] : "Union" };
+}
+
 /** A moved subject qualified in its original Battle Area (BT29-029, 9-6-9-1-2). */
 export const RETURNED_FROM_YOUR_BATTLE = /^when (?:a|an|1) (.+?) is returned from your battle area to its owner'?s hand$/i;
 /** No cause restriction is printed (BT3-112), unlike deckToWarpBySkill. */
@@ -628,10 +645,23 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // your cards arrive. Not "this card" — that is `played`, the card's own
     // arrival — and not the opponent's.
     //
-    // A trigger that names *how* the card was played ("by a [Union] skill",
-    // "using [Swap]", "from your life") is left out: the engine cannot check
-    // that, and firing on an ordinary play would be worse than not firing.
+    // A trigger that names *how* the card was played ("using [Swap]", "from
+    // your life") is left out: the engine cannot check that, and firing on an
+    // ordinary play would be worse than not firing. "By a [Union] skill" is
+    // the one it checks (#930, below).
     case "youPlayed": {
+      // #930: "When your <X> card is played by a [Union] skill" (BT22-033,
+      // BT25-036 back, P-682), "when you play a Battle Card using a
+      // [Union-Fusion] skill" (BT12-122): the means is one the engine checks
+      // — the compiler gates the record on the subject's successful [Union]
+      // entry (`playedUsing(sel: subject)`, `vm/play.ts`) — so it is this
+      // moment, with the same rule for a description the filter cannot read.
+      const byUnion = yourCardPlayedByUnion(head.toLowerCase());
+      if (byUnion) {
+        const said = expandSharedCardDescription(effect.unmask(byUnion.said));
+        if (/\bfrom\b|\busing\b|\bby\b|\bin your\b/.test(said)) return false;
+        return !/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) || readsOr(said);
+      }
       if (/when (?:you play this card|this card is played)/.test(t)) return false;
       if (/\bis played (?:by|using|from)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
       const spoken = /when you play ((?:an?|1|up to \d+|\d+) [^,]{0,80}?)(?:,|$)/.exec(t);
