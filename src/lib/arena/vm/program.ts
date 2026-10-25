@@ -684,6 +684,40 @@ export function unionPotaraExtras(ctx: EngineContext, game: GameDefinition, stat
   return [...out];
 }
 
+/**
+ * #930, BT17-082 (back): "When placing Battle Cards under other cards to pay
+ * skill costs for your ≪Namekian≫ [Union Absorb] skills, you can use cards
+ * from under this card instead." The Battle Cards under each card granting an
+ * `absorbMaterialUnder` permit to this frame's master, offered beside the
+ * cost's own areas — but only to the material choice of a [Union-Absorb]
+ * skill cost (a `choose` of the recorded price, `absorbIdentity`, whose cards
+ * that price then places under this card) and only for a card the permit's
+ * filter describes. Owner-accepted default of 25 Oct 2026 on #930: a
+ * substitute for the place-under material only, one card for one (the
+ * choice's count is unchanged, so hand and pile mix freely), never for energy
+ * (the orbs are paid apart). The cost's own description still applies to the
+ * substitute — `resolveSelector` filters these with the rest.
+ */
+function absorbMaterialFromUnder(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): string[] {
+  const price = frame.absorbIdentity?.price?.ops;
+  if (!price || !frame.card || sel.special || sel.fromVar || sel.side !== "you" || sel.take != null) return [];
+  const key = JSON.stringify(sel);
+  const material = price.some((o, i) => o.op === "choose" && !o.namedSet && JSON.stringify(o.sel) === key
+    && price.slice(i + 1).some((m) => m.op === "moveTo" && m.to === "under" && "var" in m.target && m.target.var === o.as && (m.under === undefined || ("sel" in m.under && m.under.sel.special === "self"))));
+  if (!material) return [];
+  const out: string[] = [];
+  for (const p of permissions(ctx, game, state, "absorbMaterialUnder")) {
+    if (p.master !== frame.master || p.target === frame.card || !permitted(ctx, game, state, p.filter, frame.card)) continue;
+    const at = findCard(state, p.target);
+    if (!at || at.owner !== frame.master) continue;
+    for (const id of state.cards[p.target]?.under ?? []) {
+      const type = ctx.defs[state.cards[id].cardId]?.type;
+      if ((type === "BATTLE" || type === "Z-BATTLE") && !state.cards[id].hidden) out.push(id);
+    }
+  }
+  return out;
+}
+
 /** #927, BT20-125: is this hand card played in the opponent's Battle Area (its own [Permanent])? */
 export function playsInOpponentBattle(ctx: EngineContext, game: GameDefinition, state: VmState, master: PlayerId, card: string): boolean {
   const at = findCard(state, card);
@@ -1323,6 +1357,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       }
       for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(game, state, p, area, frame));
     }
+    if (frame.absorbIdentity) for (const id of absorbMaterialFromUnder(ctx, game, state, frame, sel)) if (!out.includes(id)) out.push(id);
   }
   // "The top 2 cards of your deck" — the area's own order decides, and the
   // filter is not applied first, because the cards are not being searched for.

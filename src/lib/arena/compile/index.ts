@@ -353,6 +353,22 @@ function unionPotaraSourcePermit(text: string): Op[] | null {
 }
 
 /**
+ * #930, BT17-082 (back): "When placing Battle Cards under other cards to pay
+ * skill costs for your ≪Namekian≫ [Union Absorb] skills, you can use cards
+ * from under this card instead." One standing permission: `filter` is the
+ * card whose [Union-Absorb] it widens, and the pile is the granting card's own
+ * (owner-accepted default of 25 Oct 2026: a substitute for the place-under
+ * material only, one for one, never for energy). Null for any other sentence.
+ */
+function absorbMaterialUnderPermit(text: string): Op | null {
+  const m = /^when placing battle cards under other cards to pay skill costs for your (.+?) \[union[- ]absorb\] skills,? you (?:can|may) use cards from under this card instead\.?$/i.exec(text.trim());
+  if (!m) return null;
+  const filter = filterFor(`${m[1]} card`, null);
+  if (!filter || filter.unreadable) return null;
+  return { op: "permit", what: "absorbMaterialUnder", target: { sel: { special: "self" } }, until: "game", filter };
+}
+
+/**
  * 22-5-2 widened (BT19-077/078/081/082): "This card's [EX-Evolve] can also be
  * activated from your Z-Energy." One standing permission about the card's own
  * Evolve line's source area. The official card Q&A (BT19-077 Q1) reads it as
@@ -473,6 +489,8 @@ function compileSkillText(skill: Skill): Script {
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;
   if (potaraSources) return { ops: potaraSources, unsupported: [] };
+  const absorbUnder = c.permanent ? absorbMaterialUnderPermit(text) : null;
+  if (absorbUnder) return { ops: [absorbUnder], unsupported: [] };
   const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
   if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
@@ -582,6 +600,10 @@ function compileSkillText(skill: Skill): Script {
     c.priceChoice = o.as;
     c.priceDiscarded = priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === o.as && p.to === "drop");
   }
+  c.priceChosen = priceOps
+    .filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose")
+    .map((o) => o.as)
+    .filter((v) => !priceOps.some((p) => p.op === "placeOnTop" && "var" in p.target && p.target.var === v));
   // "The card you placed under this card" (BT4-018, #930) is the price's choice
   // only when the price is exactly one choice of one card, placed under this
   // card; the effect's own names then start past it, so its search never

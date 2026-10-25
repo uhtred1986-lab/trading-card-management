@@ -230,6 +230,43 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under" } }, null);
       return true;
     },
+    // "Place a Z-Extra from under this card on top of this card" (BT31-005,
+    // BT31-004, BT23-007). 23-2-2-2: every card of the pile is already in the
+    // top card's area, so no card changes area and no `moved` moment fires;
+    // the card is placed, not played (5-5). 21-5-2: a card placed on an
+    // existing card takes over its position (Active/Rest), the continuous
+    // effects on its power and whether it is in battle; the old top card's
+    // other effects end (21-5-2-1), as `vm/play.ts`'s `stackOnto` does. The
+    // old top card goes directly under the new one and keeps the rest of the
+    // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
+    // Leader is the only card that stands there (3-1-2, 17-1-1).
+    placeOnTop: (id, host) => {
+      const top = state.cards[host];
+      const at = findCard(state, host);
+      if (!top || !state.cards[id] || !top.under.includes(id) || !at || at.zone === SETUP_ZONES.leader || game.zones[at.zone]?.host !== true) return false;
+      const mode = top.mode;
+      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: true });
+      if (!up.ok) return false;
+      const down = moveCard(state, game, host, at.zone, { under: id });
+      if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
+      const list = state.sides[at.owner].zones[at.zone];
+      list.splice(list.indexOf(id), 1);
+      list.splice(Math.min(at.index, list.length), 0, id);
+      if (mode !== undefined && mode !== null) state.cards[id].mode = mode;
+      for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = id;
+      state.effects = state.effects.filter((e) => e.target !== host);
+      const b = state.battle;
+      if (b && (b.attacker === host || b.guard === host)) {
+        state.cards[id].battledThisTurn = true;
+        if (b.attacker === host) b.attacker = id;
+        if (b.guard === host) b.guard = id;
+      }
+      clearAutoReveal(state, host);
+      log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
+      log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
+      emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under" } }, null);
+      return true;
+    },
     setMode: (id, mode, by) => {
       const at = zoneOf(state, id);
       const declared = at ? game.zones[at] : undefined;

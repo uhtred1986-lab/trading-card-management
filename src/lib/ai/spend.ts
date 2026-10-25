@@ -3,7 +3,8 @@
  *
  * A run stores `cost_micros` when its adapter knew the cost at call time (OpenRouter, #520). Those rows are
  * summed as stored. Every other row (Anthropic's, and anything from before the column existed) is priced from
- * its tokens with the formula the script always used: input at list price, cache reads at 0.1x, cache writes
+ * its tokens with the formula the script always used: input at list price, cache reads at the model's cache-read price (0.1x input
+ * where none is listed), cache writes
  * at 1.25x, output at list price.
  */
 import { priceOf } from "./models";
@@ -20,8 +21,8 @@ export interface SpendRow {
 }
 
 /** US dollars for one group of runs. */
-export function rowUsd(r: SpendRow, price: (model: string, provider: string) => { input: number; output: number } = priceOf): number {
+export function rowUsd(r: SpendRow, price: (model: string, provider: string) => { input: number; output: number; cacheRead?: number } = priceOf): number {
   const p = price(r.model, r.provider);
-  const priced = (r.legacy_input * p.input + r.legacy_cache_read * p.input * 0.1 + r.legacy_cache_write * p.input * 1.25 + r.legacy_output * p.output) / 1_000_000;
+  const priced = (r.legacy_input * p.input + r.legacy_cache_read * (p.cacheRead ?? p.input * 0.1) + r.legacy_cache_write * p.input * 1.25 + r.legacy_output * p.output) / 1_000_000;
   return r.stored_micros / 1_000_000 + priced;
 }
