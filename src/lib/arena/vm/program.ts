@@ -1591,6 +1591,17 @@ export function countSelected(ctx: EngineContext, game: GameDefinition, state: V
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
 
+/**
+ * #930: does a copy's [Union] entry (`VmCard.enteredUsing`, "Union-Potara" …)
+ * answer `playedUsing`'s `what`? Bare "Union" is any [Union-(type)] keyword's
+ * own successful play; a named variant ("Union-Potara") only that one. No
+ * entry answers nothing.
+ */
+export function unionEntryMatches(what: string, using: string | undefined): boolean {
+  if (!using?.startsWith("Union-")) return false;
+  return what === "Union" || what === using;
+}
+
 /** Does this condition hold? The legacy `condHolds`, case for case. */
 export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, c: Cond): boolean {
   const between = (n: number, atLeast?: number, atMost?: number) => (atLeast == null || n >= atLeast) && (atMost == null || n <= atMost);
@@ -1647,9 +1658,11 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // (`frame.selfEnteredUsing`). An [Auto] reads it as it was when the Auto
     // was triggered (`VmPending.selfEnteredUsing`, owner's ruling of 25 Oct
     // 2026): BT6-036 KO'd before its on-play Auto resolves still counts.
+    // A named variant (#930, "when this card is played using [Union-Potara]")
+    // is that keyword's entry only (`unionEntryMatches`).
     case "playedUsing": {
-      if (c.what === "Union") {
-        const union = (using: string | undefined) => !!using?.startsWith("Union-");
+      if (c.what === "Union" || c.what.startsWith("Union-")) {
+        const union = (using: string | undefined) => unionEntryMatches(c.what, using);
         if (c.sel.special === "self" && union(frame.selfEnteredUsing)) return true;
         return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
       }

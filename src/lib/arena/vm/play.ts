@@ -41,7 +41,8 @@ import { NotYet, RulesetBroken } from "./errors";
 import { fire, log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
-import { attrsNow, queryHookStatics } from "./program";
+import { attrsNow, queryHookStatics, unionEntryMatches } from "./program";
+import { skillsShowing, unionPlayGate, type VmPending } from "./triggers";
 import { SETUP_ZONES, findCard, moveCard } from "./zones";
 
 /**
@@ -296,6 +297,20 @@ export function resolvePlay(
   // it (`VmPending.selfEnteredUsing`): a copy KO'd before they resolve keeps
   // the answer (owner's ruling, 25 Oct 2026). Only this play's own, and only
   // on success — an earlier or later play's Autos are never tagged.
+  // #930: an [Auto] whose moment is "this card is played using [Union]"
+  // (BT14-114, BT5-039, BT28-097 …) is triggered only by such an entry — a
+  // successful one, by the [Union] keyword the gate names (bare [Union]: any)
+  // — so from any other play (ordinary, failed, another variant) it is
+  // withdrawn before anything sees it: not pended, nothing to order, no
+  // [Once per turn] used (9-6-2). The gate is the record's (`unionPlayGate`).
+  const gated = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.card === card && p.kind !== "hook" && (p.trigger === "played" || p.trigger === "playedFromHand"));
+  if (gated.length) {
+    const scripts = skillsShowing(ctx, state, card).scripts;
+    for (const p of gated) {
+      const what = unionPlayGate(scripts.bySkill[p.skillIndex]?.ops);
+      if (what !== null && !(success && unionEntryMatches(what, opts.using))) state.pending.splice(state.pending.indexOf(p), 1);
+    }
+  }
   if (success && opts.using?.startsWith("Union-")) {
     state.cards[card].enteredUsing = opts.using;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredUsing = opts.using;
