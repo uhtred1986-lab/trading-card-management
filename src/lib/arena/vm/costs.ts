@@ -77,11 +77,11 @@
 import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../types";
 import type { AltCost } from "../types";
 import type { Color, ContinuousEffect, PlayerId, Requirement, Skill } from "../types";
-import type { Op, Selector } from "./script";
+import type { Op, ScriptFrame, Selector } from "./script";
 import type { CostAsks, CostConsumes } from "../lang";
 import type { ActionDef, CostDef, GameDefinition } from "../rulesets";
 import type { PayerGrant, VmAltCost } from "./effects";
-import { attrsNow, staticsNow } from "./program";
+import { attrsNow, resolveSelector, staticsNow } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { NotYet, RulesetBroken } from "./errors";
 import { SETUP_ZONES, moved, type MoveCause } from "./flow";
@@ -1116,7 +1116,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   const reaches = (e: { onto?: string[] }) => !e.onto || (onto !== undefined && e.onto.includes(onto));
   const changes = [
     ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag) && reaches(e)),
-    ...state.effects.filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag) && reaches(e) && (e.uses ?? 1) > 0),
+    ...state.effects.filter((e) => e.kind === channel && onCard(ctx, game, state, e, card) && applies(e.skillKind, e.tag) && reaches(e) && (e.uses ?? 1) > 0),
   ];
   for (const e of changes) {
     const by = e.value as number;
@@ -1150,11 +1150,28 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
  * left ends here rather than at its duration. Called where a line's price has
  * been charged (`vm/activate.ts`' `resolveActivation`, `vm/battle.ts`'s
  * counter), never while the menu is only being built, so offering a line
- * spends nothing. The legacy engine's twin of the same name is in `engine.ts`.
+ * spends nothing. A pending change (`matching`, #930) is spent by the first
+ * line it reaches, on whichever card that is.
  */
-export function spendSkillCostUses(state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
+export function spendSkillCostUses(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
-  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.target === card && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && skillTagMatches(sk, e.tag)));
+  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
+}
+
+/**
+ * Is this timed change about this card? Either it was put on the card itself
+ * (`target`), or it is a pending one-use change keyed by a description
+ * (`matching`, BT31-042 and the other "the next time you activate the [Union]
+ * skill on a … card from your hand" lines, owner ruling on #930, 25 Oct
+ * 2026) and the card is one that description finds right now — so a card
+ * drawn after the skill resolved is reached too, and a card that has left
+ * the place the words name is not.
+ */
+function onCard(ctx: EngineContext, game: GameDefinition, state: VmState, e: ContinuousEffect, card: string): boolean {
+  if (e.target) return e.target === card;
+  if (!e.matching) return false;
+  const frame: ScriptFrame = { ops: [], ip: 0, vars: e.matching.vars, card: e.source ?? card, master: e.master };
+  return resolveSelector(ctx, game, state, frame, e.matching.sel).includes(card);
 }
 
 /**

@@ -1300,7 +1300,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
     chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
-    spendSkillCostUses(state, ev, card, sk);
+    spendSkillCostUses(ctx, game, state, ev, card, sk);
   }
   // #552: the price is settled (the 3-8-2 question above is behind us), so
   // the [Counter: Counter] window this answers is over (9-7-3-4-1); the new

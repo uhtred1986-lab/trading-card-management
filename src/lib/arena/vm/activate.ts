@@ -907,7 +907,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
   if (!waived && !deferredFusion) {
-    spendSkillCostUses(state, ev, card, sk);
+    spendSkillCostUses(ctx, game, state, ev, card, sk);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
     if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(state, ev, card);
