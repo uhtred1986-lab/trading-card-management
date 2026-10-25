@@ -62,7 +62,8 @@ import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } 
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
-import { NO_RULES, type CardScripts } from "./script";
+import { NO_RULES, type CardScripts, type Op } from "./script";
+import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
 import type { EngineContext } from "../types";
 import type { PatternValue } from "../lang";
@@ -314,6 +315,22 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
   return state.cards[id].owner;
 }
 
+/**
+ * The trigger subject's filter in a program's leading chain of lone IFs (no
+ * ELSE, one op inside each but the last): `if A: if <subject is …>: …`, as
+ * the compiler writes a trigger condition inside a price's condition (#1168).
+ * Undefined when the chain holds none.
+ */
+function leadingSubjectFilter(ops: Op[] | undefined): CardFilter | undefined {
+  let at = ops;
+  while (at?.length === 1 && at[0].op === "if" && !at[0].else) {
+    const cond = at[0].cond;
+    if (cond.kind === "count" && cond.sel.special === "subject" && cond.sel.filter && (cond.atLeast ?? 1) <= 1 && cond.atMost === undefined) return cond.sel.filter;
+    at = at[0].then;
+  }
+  return undefined;
+}
+
 // ── pending what answers ────────────────────────────────────────────────────
 
 /**
@@ -411,6 +428,17 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
           && (first.cond.atLeast ?? 1) <= 1 && !first.cond.atMost) {
           if (!predicateOf(first.cond.sel.filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
         }
+      }
+      // "When your mono-red ≪Saiyan≫ Leader Card is attacked" (#1168, 8-1-3,
+      // 9-6): an attack on a Leader the description does not meet is no
+      // trigger, so the Auto is not pended and its price is never asked. The
+      // record keeps the description as an IF on the attacked Leader
+      // (`special: "subject"`), inside any condition its price states
+      // ("If your opponent's life is at 3 or more:"), which the price asks
+      // for itself; that chain of lone IFs is read here, never the text.
+      if (sk.kind === "auto" && match.trigger === "yourLeaderAttacked" && match.subject && state.cards[match.subject]) {
+        const filter = leadingSubjectFilter(showing.scripts.bySkill[sk.index]?.ops);
+        if (filter && !predicateOf(filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
       }
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
