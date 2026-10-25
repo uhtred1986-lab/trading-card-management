@@ -105,3 +105,10 @@ emblem) carries the contract's reason in `data-neutral` (`hidden`, `unknown-card
 attacker's mapped face. `SkillBanner` shares the duration cap and marks a faceless motion with the same
 reason. Reduced motion renders the static result at once with no timed phase; Skip clears the beat and
 its timers; a new beat key unmounts the old one. Audio is unchanged (#1109).
+
+Visual smoke: `npx tsx scripts/arena-banner-smoke.mts --base <dev server>` opens
+`/arena/preview?fixture=immersion&fx=immersion-{attack,hit,block,repel,negated,unknown}&pace=slow` at
+1440, 1024 and 390, records each banner's `data-*` contract attributes (kind, role, phase sequence, pose,
+neutral reason, contact) and captures the release frame from a paused static clone (the live banner
+lasts at most 1100 ms, so `shots:compare`, which waits 1.5 s and disables animation, cannot see it). It
+also checks OS reduced motion (no queued banner) and page overflow.

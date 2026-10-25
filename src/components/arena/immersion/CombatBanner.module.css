@@ -183,4 +183,5 @@
 .contact-damage { left: 50%; background: radial-gradient(circle, #ffffff 0 8%, #ff8a7acc 9% 30%, transparent 58%); }
 .contact-block, .contact-repelled { background: radial-gradient(circle, transparent 0 38%, #e2d6ffee 40% 44%, transparent 46% 54%, #a29fffaa 56% 59%, transparent 61%); }
 .contact-repelled { left: 58%; }
+.neutral .contact-attack { left: 84%; }
 .contact-negated { left: 50%; background: linear-gradient(45deg, transparent 47%, #e2d6ffdd 48% 52%, transparent 53%), radial-gradient(circle, transparent 0 42%, #bca8ffdd 44% 48%, transparent 50%); }
