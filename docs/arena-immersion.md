@@ -87,3 +87,21 @@ Focused checks: 768×1024/1024×768 tablet layout and 1440×900 desktop layout, 
 Cues (`ACTION_CUE_IDS`): an attack sounds only `attack.buildup` then `attack.release`; `reaction.block` follows the actual blocker; `impact.hit` and `reaction.repel` need the clash; `reaction.negate`, `damage` and `ko` come only from their own beats. Markers are milliseconds from the start of the beat's presentation (`CUE_WINDOW_MS`), compressed to fit a shorter beat and never stretched, so a clip cannot extend a turn. Dodge, zone moves, energy charge/payment and match start are deliberately unsupported (owner default, 25 Oct 2026). `soundCue` now reads the contract and plays the same synth tones as before; banners and `audio.ts` are unchanged until #1105/#1109 consume the sequence. Fixtures: `action-fixtures.ts`.
 
 The sound catalog is `src/lib/arena/immersion/sound-catalog.json` (validator and type in `sound-catalog.ts`), readable in `docs/arena-sound-prompts.md`. `scripts/verify/arena-immersion.mts` (in the `npm test` chain) checks the fixtures, the catalog shape, that every supported cue maps to a contract cue, and that the doc carries every exact prompt.
+
+## One character banner route (#1105)
+
+`bannerPlan(sequence, beat)` (`src/lib/arena/immersion/banner.ts`) turns the contract sequence into the
+one combat banner `CombatBanner` stages for leader and Battle Cards alike; `ArenaImmersion` is the only
+caller and `ArenaStage` mounts it once for phone, tablet and desktop, so there is no second staging
+route. The kind comes from the beat's own first cue (`attack.buildup` → attack, `reaction.block`,
+`impact.hit`, `reaction.repel`, `reaction.negate`, `damage`, `ko`), never from an earlier beat. The
+attacker winds up until the `attack.buildup` stop marker and releases, with its contact marker, at the
+`attack.release` start; markers are re-timed inside the banner's own length (the beat's duration, at
+most 1100 ms, compressed never stretched). A defender takes a pose only for its own block/repel (guard)
+or hit/KO (hit) beat. The pose must be listed in the character's `frames` in `characters.json`;
+otherwise the banner stays neutral (`unmapped`) rather than substituting one. Neutral art (an energy
+emblem) carries the contract's reason in `data-neutral` (`hidden`, `unknown-card`, `face-changed`,
+`unmapped`, `no-subject`; `asset-pending` while a sheet loads). An approved technique labels only the
+attacker's mapped face. `SkillBanner` shares the duration cap and marks a faceless motion with the same
+reason. Reduced motion renders the static result at once with no timed phase; Skip clears the beat and
+its timers; a new beat key unmounts the old one. Audio is unchanged (#1109).
