@@ -68,9 +68,9 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   assert.equal(costMicros({ model: "claude-opus-5", input: 523_456, output: 234_567, cached: 89_012 }), opusFormula(523_456, 234_567, 89_012), "Opus non-round tokens with cache");
   assert.equal(costMicros({ model: "claude-opus-5", input: 1, output: 1, cached: 1 }), opusFormula(1, 1, 1), "Opus tiny inputs");
 
-  // Sonnet: input 2, output 10 per MTok
+  // Sonnet 5.5: input 2, output 10 per MTok; cache read at 0.05× ($0.10, public pricing page 25 Oct 2026)
   const sonnetFormula = (input: number, output: number, cached: number): number => {
-    return Math.round((input * 2 + cached * 2 * 0.1 + output * 10) / 1_000_000 * 1_000_000);
+    return Math.round((input * 2 + cached * 2 * 0.05 + output * 10) / 1_000_000 * 1_000_000);
   };
   assert.equal(costMicros({ model: "claude-sonnet-5-5", input: 1_000_000, output: 1_000_000, cached: 0 }), sonnetFormula(1_000_000, 1_000_000, 0), "Sonnet 1M+1M+0");
   assert.equal(costMicros({ model: "claude-sonnet-5-5", input: 456_789, output: 111_222, cached: 333_444 }), sonnetFormula(456_789, 111_222, 333_444), "Sonnet non-round tokens with cache");
@@ -91,8 +91,8 @@ export async function verifyAiRuns(db: Db): Promise<void> {
     { id: "mistralai/mistral-7b", label: "Mistral 7B", capabilities: { vision: false, json: true, tools: true }, usdPerMTok: { in: 0.0005, out: 0.0015 } },
   ];
   rememberModelPrices("openrouter", openrouterModels);
-  assert.deepEqual(priceOf("meta-llama/llama-2-7b", "openrouter"), { input: 0.001, output: 0.002 }, "rememberModelPrices stores model prices");
-  assert.deepEqual(priceOf("mistralai/mistral-7b", "openrouter"), { input: 0.0005, output: 0.0015 }, "remembered price is used");
+  assert.deepEqual(priceOf("meta-llama/llama-2-7b", "openrouter"), { input: 0.001, output: 0.002, cacheRead: 0.0001 }, "rememberModelPrices stores model prices");
+  assert.deepEqual(priceOf("mistralai/mistral-7b", "openrouter"), { input: 0.0005, output: 0.0015, cacheRead: 0.00005 }, "remembered price is used");
   assert.equal(modelEntry("meta-llama/llama-2-7b", "openrouter")?.vision, false, "remembered model info includes capabilities");
 
   assert.equal(costMicros({ model: "meta-llama/llama-2-7b", provider: "openrouter", input: 1_000_000, output: 1_000_000, cached: 0 }), 3_000, "costMicros prices a remembered model at its listed price");
@@ -122,11 +122,12 @@ export async function verifyAiRuns(db: Db): Promise<void> {
   assert.equal(row2.costMicros, null, "a legacy response stores null");
 
   // ai:spend's arithmetic. A row without a stored cost is priced exactly as the script always did (the formula is written out here, not imported).
-  const oldUsd = (r: { input: number; output: number; cache_read: number; cache_write: number }, p: { input: number; output: number }) =>
-    (r.input * p.input + r.cache_read * p.input * 0.1 + r.cache_write * p.input * 1.25 + r.output * p.output) / 1_000_000;
+  const oldUsd = (r: { input: number; output: number; cache_read: number; cache_write: number }, p: { input: number; output: number; cacheRead?: number }) =>
+    (r.input * p.input + r.cache_read * (p.cacheRead ?? p.input * 0.1) + r.cache_write * p.input * 1.25 + r.output * p.output) / 1_000_000;
   const tok = { input: 523_456, output: 234_567, cache_read: 89_012, cache_write: 12_345 };
   const legacyRow = { provider: "anthropic-api", model: "claude-sonnet-5-5", stored_micros: 0, legacy_input: tok.input, legacy_output: tok.output, legacy_cache_read: tok.cache_read, legacy_cache_write: tok.cache_write };
-  assert.equal(rowUsd(legacyRow), oldUsd(tok, { input: 2, output: 10 }), "a legacy / Anthropic row is priced as before");
+  // Sonnet 5.5 cache reads are $0.10/MTok (0.05× input), not 0.1× (25 Oct 2026).
+  assert.equal(rowUsd(legacyRow), oldUsd(tok, { input: 2, output: 10, cacheRead: 0.1 }), "a legacy / Anthropic row is priced from the table");
   assert.equal(rowUsd({ ...legacyRow, model: "claude-opus-5" }), oldUsd(tok, { input: 5, output: 25 }), "Opus row unchanged");
   assert.equal(rowUsd({ ...legacyRow, provider: "anthropic-agent-sdk", model: "claude-haiku-4-5" }), oldUsd(tok, { input: 1, output: 5 }), "a plan row is unchanged");
   // OpenRouter rows with a stored cost: the stored sum, whatever the model's id would be priced as (an id nobody remembered would read as Opus).

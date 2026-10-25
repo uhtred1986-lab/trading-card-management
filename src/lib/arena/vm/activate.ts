@@ -91,7 +91,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
-import { activationPriceProblem } from "./activation-price-support";
+import { activationPriceProblem, isFixedUnderHost } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -1064,7 +1064,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
     return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
   };
-  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as)))) return false;
+  // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
+  // card, so a later choice of the same price can no longer pick it.
+  const toppedAt = ops.findIndex((o) => o.op === "placeOnTop");
+  const stillThere = (id: string, variable: string): boolean => id !== card || toppedAt < 0 || ops.findIndex((o) => o.op === "choose" && o.as === variable) < toppedAt;
+  if (!disjointPayable(ops, (slot) => resolveSelector(ctx, game, state, frame, slot.sel).filter(id => movementPayable(id, slot.as) && stillThere(id, slot.as)))) return false;
   const linked = new Set(disjointGroups(ops).flat());
   for (const [at, op] of ops.entries()) {
     switch (op.op) {
@@ -1078,7 +1082,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
         const then = ops.find((o) => (o.op === "switchMode" || o.op === "hidden") && "target" in o && o.target && "var" in o.target && o.target.var === op.as);
         const switches = (id: string) =>
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
-        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as));
+        const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as) && stillThere(id, op.as));
         if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
@@ -1117,9 +1121,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           const earlier = ops.slice(0, at);
           const chosen = (v: string) => earlier.find((o): o is Extract<typeof o, { op: "choose" }> => o.op === "choose" && o.as === v);
           // No `under`: the host is this card (`script.ts` moveTo), which must stand in an area that holds piles.
+          // A fixed host (owner decision 25 Oct 2026: "under your Leader Card", EX20-04, EX25-28) is the one card it names.
           const hostChoice = op.under && "var" in op.under ? chosen(op.under.var) : undefined;
-          if (op.under && !hostChoice) return false;
-          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
+          const fixedHost = op.under && isFixedUnderHost(op.under) ? resolveRef(ctx, game, state, frame, op.under) : undefined;
+          if (op.under && !hostChoice && !fixedHost) return false;
+          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : fixedHost ?? [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
           const movedChoice = "var" in op.target ? chosen(op.target.var) : undefined;
           if (!("var" in op.target) ? op.target.sel.special !== "self" : !movedChoice) return false;
           const moving = movedChoice
@@ -1139,6 +1145,13 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
       case "comboFrom":
         if (!("var" in op.target) && !comboable(card)) return false;
         break;
+      // 23-2, 21-5-2: "place a Z-Extra from under this card on top of this card". The pile card was counted by
+      // its own choice above (this card's pile); this card must stand where a pile is kept, never a Leader Area.
+      case "placeOnTop": {
+        const where = findCard(state, card)?.zone;
+        if (!where || where === "leader" || game.zones[where]?.host !== true) return false;
+        break;
+      }
       // The payer picks which matching card is shown; the cards stay where they are (20-11-2). An Extra used
       // from the hand is in the Drop by the time its price is paid, so it is not one of the cards it can show.
       case "reveal": {

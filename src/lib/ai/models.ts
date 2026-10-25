@@ -2,12 +2,13 @@
  * Models, their capabilities and list prices. The owner's model rulings (#381)
  * live here so a provider adapter can read them without importing `client.ts`
  * (which imports the provider registry). Models are listed as a single table per
- * provider; prices include cache read (10% of input) and cache write (125% of
- * input). Tier aliases stay as named constants, and the settings' model picker
+ * provider; prices include cache read (10% of input, 5% on Sonnet 5.5) and cache
+ * write (125% of input). Tier aliases stay as named constants, and the settings' model picker
  * joins this file in #516.
  *
- * Pricing (#515): Anthropic API list prices (checked 4 Sep 2026). Cache reads
- * are 0.1× the input price; cache writes are 1.25× the input price (the
+ * Pricing (#515): Anthropic API list prices (checked 4 Sep 2026; Sonnet 5.5's
+ * cache read re-checked 25 Oct 2026). Cache reads are the table's `cacheRead`
+ * (0.1× the input price, 0.05× on Sonnet 5.5); cache writes are 1.25× the input price (the
  * multipliers used in `scripts/ai-spend.mts`). Dynamic model pricing from
  * providers' `listModels()` is cached via `rememberModelPrices()`.
  */
@@ -47,7 +48,7 @@ export interface ModelEntry {
   effort: boolean;
   adaptiveThinking: boolean;
   vision: boolean;
-  /** US dollars per million tokens: input, output, cache read (0.1× input), cache write (1.25× input). */
+  /** US dollars per million tokens: input, output, cache read (0.1× input; 0.05× on Sonnet 5.5), cache write (1.25× input). */
   usdPerMTok: { input: number; output: number; cacheRead: number; cacheWrite: number };
 }
 
@@ -73,7 +74,7 @@ const MODELS: Record<string, ModelEntry[]> = {
       effort: true,
       adaptiveThinking: true,
       vision: true,
-      usdPerMTok: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+      usdPerMTok: { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
     },
     {
       id: FAST_MODEL,
@@ -104,12 +105,12 @@ export const PRICES: Record<string, { input: number; output: number }> = Object.
 
 /**
  * Millionths of a dollar for one call: input and output at list price, cached
- * reads at a tenth of the input price (cache writes are not counted, as before
- * #515). A model in no table is priced as Opus, as before.
+ * reads at the model's cache-read price (a tenth of the input price where the
+ * table has no entry; cache writes are not counted, as before #515). A model in no table is priced as Opus, as before.
  */
 export function costMicros(spend: { model: string; input: number; output: number; cached: number; provider?: ProviderId }): number {
   const p = priceOf(spend.model, spend.provider);
-  const dollars = (spend.input * p.input + spend.cached * p.input * 0.1 + spend.output * p.output) / 1_000_000;
+  const dollars = (spend.input * p.input + spend.cached * (p.cacheRead ?? p.input * 0.1) + spend.output * p.output) / 1_000_000;
   return Math.round(dollars * 1_000_000);
 }
 
@@ -164,9 +165,9 @@ export function rememberModelPrices(provider: ProviderId, models: ModelInfo[]): 
 }
 
 /** Get the price of a model, checking the table first, then remembered prices, then falling back to Opus. */
-export function priceOf(model: string, provider: ProviderId = "anthropic-api"): { input: number; output: number } {
+export function priceOf(model: string, provider: ProviderId = "anthropic-api"): { input: number; output: number; cacheRead?: number } {
   const entry = modelEntry(model, provider) ?? modelEntry(model, "anthropic-api");
-  if (entry) return { input: entry.usdPerMTok.input, output: entry.usdPerMTok.output };
+  if (entry) return { input: entry.usdPerMTok.input, output: entry.usdPerMTok.output, cacheRead: entry.usdPerMTok.cacheRead };
   // Fall back to the default (Opus) as costMicros does.
   return PRICES["claude-opus-5"];
 }

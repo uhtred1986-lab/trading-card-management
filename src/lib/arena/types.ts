@@ -490,8 +490,14 @@ export interface Permission {
    * `startLife` (6-2-2, 6-2-2-1; BT12-002, BT16-046, BT16-047, BT19-100): "You start
    * the game with X life." The Leader in the Leader Area sets how many cards the Life
    * Area is set up with (6-2-1-10) in place of the 8 of the rule; `n` is X.
+   * `absorbMaterialUnder` (BT17-082 back, #930): while the card granting it is
+   * in play, the card placed under another card to pay the skill cost of its
+   * master's [Union-Absorb] on a card the `filter` describes (≪Namekian≫) may
+   * be a Battle Card from under the granting card instead, one for one; the
+   * cost's own description still applies and its energy is never affected
+   * (owner-accepted default of 25 Oct 2026 on #930).
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
