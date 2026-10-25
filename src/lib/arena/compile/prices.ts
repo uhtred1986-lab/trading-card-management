@@ -4,6 +4,7 @@ import { compileEvolutionBase } from "./evolution-base";
 import { compileFusionMaterials } from "./fusion-materials";
 import { priceFromCostRecord, zeroCostRecord } from "../vm/skill-payment";
 import { keywordOf, orbsIn } from "../text/cards";
+import { bondSelector } from "../text/bond";
 import type { Color, Skill } from "../types";
 import type { Cond, CostRecord, Op, Ref, Script, SkillPrice, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
@@ -486,6 +487,19 @@ export function joints(said: string): { at: number; len: number }[] {
   return out;
 }
 
+/**
+ * 22-21 (#544): "[Bond 2] ≪Universe 6≫:" names the Battle Cards the keyword
+ * counts — a condition `bondIsValid` checks — and pays nothing. A price that is
+ * only that descriptor (one bracketed selector, its reminder note, orbs) is a
+ * readable payment of its orbs alone. Anything the selector reader cannot prove
+ * ("≪Universe 6≫ draw 1 card") stays unreadable, never free.
+ */
+function bondDescriptorOnly(skill: Skill): boolean {
+  if (skill.bond == null) return false;
+  const selector = bondSelector({ ...skill, cost: stripNotes(skill.cost) });
+  return selector != null && selector.kind !== "unknown";
+}
+
 /** Compile the complete price once, including an explicit zero payment. */
 export function compileCostRecord(skill: Skill): CostRecord {
   if (skill.kind === "permanent") return zeroCostRecord();
@@ -499,7 +513,7 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
-    readable: costIsOnlyOrbs(skill.cost) || condition !== null || !!program?.length || x !== null,
+    readable: costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || condition !== null || !!program?.length || x !== null,
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
     marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
     condition, program, ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),

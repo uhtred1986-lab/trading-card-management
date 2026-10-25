@@ -574,7 +574,7 @@ export const MODIFIERS: ModifierDoc[] = [
     tag: "[Bond X]",
     section: "22-21",
     meaning: "The skill is only valid while you have X or more Battle Cards in your Battle Area — or X or more of a named Battle Card, when one is printed.",
-    engine: "The rules engine checks a [Bond X] Auto when it would pend and again when it is chosen to activate; a failed condition does not reveal a secret-area source. For one exact bracketed selector, only matching Battle Cards count, using their effective attributes (22-21-3-1, #549). Selector text with anything beyond that remains an explicit unread-price interruption. The existing [Activate] and [Permanent] checks still use the plain Battle Card count when a selector is printed (#716).",
+    engine: "The rules engine checks a [Bond X] Auto when it would pend and again when it is chosen to activate; a failed condition does not reveal a secret-area source. For one exact bracketed selector, only matching Battle Cards count, using their effective attributes (22-21-3-1, #549). Selector text with anything beyond that remains an explicit unread-price interruption. The descriptor is a condition, not a payment: a price that is only that selector (≪X≫, <X> or {X}), its reminder note and orbs is a readable payment of its orbs alone in the stored cost record (XD1-05’s “[Bond 2] ≪Universe 6≫:” used to be stored unreadable and interrupted the game, #544). The existing [Activate] and [Permanent] checks still use the plain Battle Card count when a selector is printed (#716).",
   },
   {
     tag: "[Sparking X]",
