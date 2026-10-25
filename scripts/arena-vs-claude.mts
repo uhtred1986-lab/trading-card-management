@@ -6,6 +6,10 @@
  * Default: 6 calls on the Sparring tier, which is a fraction of a cent.
  * Pass 0 for maxCalls to run without spending anything (no API key needed):
  * the opponent then takes the first legal move.
+ *
+ * A server-path smoke script only. It is not a local-policy versus Claude evaluation: that is
+ * `scripts/arena-claude-duel.mts` (`arena:claude-duel`, #901/#902), which plays offline over pinned
+ * inputs with a restricted observation, typed outcomes and the campaign's spend ledger.
  */
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
