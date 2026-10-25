@@ -2155,7 +2155,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Some sets print the same rule as "will not" rather than "can't"
   // ("the chosen card will not switch to Active Mode during your next Charge
   // Phase"); it forbids the action just the same.
-  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b/.test(t)) {
+  // #930: "you can only play Battle Cards by using [Union-Fusion]" arrives
+  // here as "only play …" — the leading "you can" is stripped above.
+  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -3329,6 +3331,19 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     if (onlyThis[1] === "your opponent") return [{ op: "forbid", what: "attack", side: "opponent", until, attackOnly: self }];
     const target = refFor(onlyThis[1], c);
     return target ? [{ op: "forbid", what: "attack", until, target, attackOnly: self }] : null;
+  }
+  // #930: "You can only play Battle Cards by using [Union-Fusion] for the
+  // remainder of the turn" (P-069 back) and "you can only play Battle Cards
+  // using [Union-Fusion] skills for the turn" (P-226). A rule about the
+  // player: every play of a Battle Card is forbidden — declared, by any other
+  // skill, an evolution, another [Union] variant — except a [Union] play of
+  // the variant named (owner-agreed narrow reading; the rule manual says
+  // nothing more). Only "Battle Cards" bare is read: a narrower description
+  // would need its own filter proof.
+  const unionOnly = /^(?:you\s+can\s+)?only play battle cards\s+(?:by\s+)?using\s+\[union-(fusion|potara|absorb)\](?:\s+skills?)?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  if (unionOnly) {
+    const variant = (unionOnly[1][0].toUpperCase() + unionOnly[1].slice(1)) as "Fusion" | "Potara" | "Absorb";
+    return [{ op: "forbid", what: "play", side: "you", until, filter: { ...parseFilter(""), type: "BATTLE" }, exceptUnion: [variant] }];
   }
   // #907 round 4: "can only attack **with Battle Cards one more time**" (BT15-119, BT15-140, P-321) puts
   // the "with" in front of the count, and "can only attack **2 more times**" (BT19-092, BT19-099,
