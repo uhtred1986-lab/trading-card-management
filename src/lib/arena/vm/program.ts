@@ -62,6 +62,7 @@ import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
+import { keywordBondHolds } from "./bond";
 import { SETUP_ZONES, findCard, hostOf, inPlayZones } from "./zones";
 import type { VmState } from "./state";
 
@@ -744,7 +745,7 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!card || card.hidden || skillsNegated(state, id)) return false;
   const standing = statics(ctx, game, state);
   if (keywordNegatedFor(ctx, game, state, id, name, standing)) return false;
-  for (const k of printedKeywords(ctx, state, id)) if (k.name === name) return true;
+  for (const k of printedKeywords(ctx, game, state, id)) if (k.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && !grantedSkillNegated(state, id, e.id)) return true;
   for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) return true;
   return false;
@@ -758,10 +759,12 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
  * (#439). Grants are collected separately, then named keyword negation is
  * applied to printed and granted skills alike.
  */
-function printedKeywords(ctx: EngineContext, state: VmState, id: string): KeywordSkill[] {
+function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
   if (state.cards[id].hidden || skillsNegated(state, id)) return [];
   return skillsShowing(ctx, state, id)
-    .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind))
+    .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind)
+      // 22-21-3: "[Blocker][Bond 3] …" is a [Blocker] only while the Bond holds.
+      && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk)))
     .map((sk) => sk.keyword!);
 }
 
@@ -782,7 +785,7 @@ function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state
   // 23-5-2-1, as in `hasKeyword`.
   if (!card || card.hidden || skillsNegated(state, id)) return [];
   const standing = statics(ctx, game, state);
-  const out: { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] = printedKeywords(ctx, state, id).map((keyword) => ({ keyword }));
+  const out: { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] = printedKeywords(ctx, game, state, id).map((keyword) => ({ keyword }));
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && !grantedSkillNegated(state, id, e.id)) out.push({ keyword: e.value as KeywordSkill, grantEffectId: e.id });
   for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId }) });
   return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing));

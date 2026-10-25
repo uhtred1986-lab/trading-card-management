@@ -4,7 +4,7 @@ import { compileEvolutionBase } from "./evolution-base";
 import { compileFusionMaterials } from "./fusion-materials";
 import { priceFromCostRecord, zeroCostRecord } from "../vm/skill-payment";
 import { keywordOf, orbsIn } from "../text/cards";
-import { bondSelector } from "../text/bond";
+import { bondDescriptorOnly } from "../text/bond";
 import type { Color, Skill } from "../types";
 import type { Cond, CostRecord, Op, Ref, Script, SkillPrice, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
@@ -333,7 +333,10 @@ function priceText(skill: Skill): string {
   // the effect (`declaredNumber`), so the price has nothing else to say.
   const declared = DECLARE_TAIL.exec(said);
   if (declared && declaredNumber(skill)) return said.slice(0, declared.index).replace(/[\s,]*(?:and)?[\s,]*$/i, "");
-  if (skill.bond != null) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
+  // A [Bond] line that opens with a condition word prints no descriptor:
+  // "[Bond 2] If your Leader Card is a ≪Slug's Army≫ card:" (BT12-060) is the
+  // price's condition whole, and cutting it as a descriptor lost it.
+  if (skill.bond != null && !/^(?:if|when|while|during)\b/i.test(said)) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
   if (skill.spiritBoost != null) return said.replace(/^(?:[a-z-]+ )?(?:z-)?unison cards?\b[^,]*(?:,\s*|$)/i, "");
   return said;
 }
@@ -487,18 +490,14 @@ export function joints(said: string): { at: number; len: number }[] {
   return out;
 }
 
-/**
+/*
  * 22-21 (#544): "[Bond 2] ≪Universe 6≫:" names the Battle Cards the keyword
  * counts — a condition `bondIsValid` checks — and pays nothing. A price that is
- * only that descriptor (one bracketed selector, its reminder note, orbs) is a
- * readable payment of its orbs alone. Anything the selector reader cannot prove
- * ("≪Universe 6≫ draw 1 card") stays unreadable, never free.
+ * only that descriptor (one bracketed selector or a compound of them, its
+ * reminder note, orbs) is a readable payment of its orbs alone
+ * (`bondDescriptorOnly`, text/bond.ts). Anything the selector reader cannot
+ * prove ("≪Universe 6≫ draw 1 card") stays unreadable, never free.
  */
-function bondDescriptorOnly(skill: Skill): boolean {
-  if (skill.bond == null) return false;
-  const selector = bondSelector({ ...skill, cost: stripNotes(skill.cost) });
-  return selector != null && selector.kind !== "unknown";
-}
 
 /** Compile the complete price once, including an explicit zero payment. */
 export function compileCostRecord(skill: Skill): CostRecord {

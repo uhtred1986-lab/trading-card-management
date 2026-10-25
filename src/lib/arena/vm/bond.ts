@@ -37,3 +37,34 @@ export function bondIsValid(
     });
   return matches.length >= skill.bond!;
 }
+
+/**
+ * 22-21-3: a printed keyword line carrying [Bond X] — "[Blocker][Bond 3] Red
+ * ≪Saiyan≫ cards and/or ≪Bardock's Crew≫ cards." (BT13-006) — is the card's
+ * only while the Bond holds, counting the specified Battle Cards when a
+ * descriptor is printed (22-21-3-1). A descriptor the reader cannot prove
+ * falls back to the plain Battle Card count, the least the keyword always
+ * asks; the compiler keeps such a line unread.
+ */
+export function keywordBondHolds(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  player: PlayerId,
+  skill: Skill,
+): boolean {
+  if (skill.bond == null) return true;
+  // Counting reads each Battle Card's attributes as they stand (`attrsNow`),
+  // and those ask the keyword hooks which keywords a card has — this line
+  // again. One level, as `readingStatics` allows: inside that count the line
+  // stands as printed.
+  if (countingKeywordBond) return true;
+  countingKeywordBond = true;
+  try {
+    return bondIsValid(ctx, game, state, player, skill) ?? bondIsValid(ctx, game, state, player, { ...skill, cost: "", effect: "" }) === true;
+  } finally {
+    countingKeywordBond = false;
+  }
+}
+
+let countingKeywordBond = false;
