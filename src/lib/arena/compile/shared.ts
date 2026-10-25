@@ -3,6 +3,17 @@ import type { Duration, Op, Ref, Selector, Side } from "../vm/script";
 /** "The card that was switched to Hidden Mode by this skill" (BT28-105, BT28-121): the card the skill's price switched (`Ctx.priceChoice`). */
 export const SWITCHED_BY_THIS_SKILL = /\b(?:all )?the cards? (?:that (?:was|were) )?switched to (?:hidden|revealed) mode by this skill\b/i;
 
+/**
+ * "…with the same character name as **the card you placed under this card**"
+ * (BT4-018, #930): `parseTarget` writes this placeholder into the filter's
+ * `sameCharacterAs`, and the compiler's choice clause replaces it with the
+ * variable the skill's price bound and placed under this card
+ * (`Ctx.pricePlacedUnder`). A placeholder left anywhere else is unread
+ * (`compileEffect`), never a measure against nothing.
+ */
+export const PLACED_UNDER_PLACEHOLDER = "placedUnderByPrice";
+export const SAME_CHARACTER_AS_PLACED = /\s*,?\s*with the same character name as the card you placed under this card\b/i;
+
 export interface Ctx {
   /** The variable the last `choose` bound. */
   last: string | null;
@@ -58,6 +69,13 @@ export interface Ctx {
    * those and nothing else, so it is read only when this holds.
    */
   priceDiscarded?: boolean;
+  /**
+   * The price's single one-card choice is placed under this card ("Choose 1
+   * of your Battle Cards and place it under this card", BT4-018, #930): what
+   * "the card you placed under this card" names in the effect. Read only when
+   * this holds.
+   */
+  pricePlacedUnder?: boolean;
   /**
    * The cards this skill's own effect last switched to Hidden or Revealed
    * Mode — "then switch all the cards switched to Hidden Mode by this skill

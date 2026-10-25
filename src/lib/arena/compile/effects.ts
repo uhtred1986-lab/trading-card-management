@@ -11,7 +11,7 @@ import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { AREA_WORDS, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
@@ -3082,6 +3082,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // point at) the filter still measures nothing rather than a card it was
     // never told about; see the field's comment in `filters.ts`.
     if (sel.filter?.powerRel?.of === "chosen" && c.last) sel = { ...sel, filter: { ...sel.filter, powerRel: { ...sel.filter.powerRel, var: c.last } } };
+    // "…with the same character name as the card you placed under this card"
+    // (BT4-018, #930): the card the price chose and placed under this one, by
+    // the name the price bound it to. No such price, nothing to compare with:
+    // unread (ground rule 5).
+    if (sel.filter?.sameCharacterAs === PLACED_UNDER_PLACEHOLDER) {
+      if (!c.priceChoice || !c.pricePlacedUnder) return null;
+      sel = { ...sel, filter: { ...sel.filter, sameCharacterAs: c.priceChoice } };
+    }
     const v = `c${c.n++}`;
     return [{ op: "choose", sel, as: v, reason: clause }];
   }

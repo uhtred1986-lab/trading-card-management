@@ -199,6 +199,12 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
   }
   const owner = state.programs.find((f) => f.keywordPrice?.key === cost.key);
   if (owner) owner.keywordPrice = undefined;
+  // 20-5-3, 22-13-6-1 (#930): what an Absorb's cost chose is its effect's —
+  // BT4-018's "the card you placed under this card" is the price's `c0`. The
+  // `DO` frame runs the printed effect, so it is handed on there, as an
+  // [Activate]'s price hands its names on through `saveVars`; names the frame
+  // already holds win.
+  if (owner && frame.absorbIdentity) owner.vars = { ...frame.vars, ...owner.vars };
   if (cost.fusion) {
     if (cost.line.script?.price?.payment.marker != null) state.cards[frame.card].usedMarkerSkill = true;
     spendUse(state, frame.master, frame.card, cost.line.skill);

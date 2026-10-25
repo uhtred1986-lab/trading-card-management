@@ -113,7 +113,19 @@ export interface CardFilter {
    * (2-3-2) and equals the card's name as a whole (2-3-1-1).
    */
   nameInSkillTextOf: string | null;
-  type: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
+  /**
+   * "Choose up to 1 <Baby> … **with the same character name as the card you
+   * placed under this card** from your deck" (BT4-018, #930): the variable the
+   * skill's price bound (`choose … as cN`, then `moveTo … under`) whose
+   * **printed** character names the candidate must share one of (2-10-1-1,
+   * an exact name). Printed, by the owner's ruling of 25 Oct 2026: once under
+   * this card the material is a new card (3-1-4), so a name it gained in the
+   * Battle Area is gone. A measure against another card the skill holds, so it
+   * is applied where that card is known (`resolveSelector`), not by `matches`.
+   * Optional and written only when read, like `traitsAll`.
+   */
+  sameCharacterAs?: string | null;
+  type:"LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /**
@@ -426,6 +438,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   skillLess: "boolean",
   powerRel: "powerRel",
   nameInSkillTextOf: "variable",
+  sameCharacterAs: "variable",
   z: "tri",
 };
 type FilterFieldMissing = Exclude<keyof CardFilter, keyof typeof FILTER_FIELDS>;
