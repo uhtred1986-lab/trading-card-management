@@ -670,6 +670,17 @@ export interface ContinuousEffect {
    * spending any of them ends the lot. The id of the first one made.
    */
   group?: number;
+  /**
+   * `skillCost` only, with `target` empty: a one-use change waiting for the
+   * next activation on **any** card this description finds when the price is
+   * read — "the next time you activate the [Union] skill on a green <Gogeta:
+   * GT> card from your hand, reduce the skill cost by {g}" (BT31-042, owner
+   * ruling on #930, 25 Oct 2026), including a card that reaches the hand
+   * after the skill resolved. The selector is read from `master`'s side with
+   * the variables the skill had bound. Additive: absent, the change is on
+   * `target` alone.
+   */
+  matching?: { sel: Selector; vars: Record<string, string[]> };
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163). */
   until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "game" | "whileSourceInPlay";
   /**

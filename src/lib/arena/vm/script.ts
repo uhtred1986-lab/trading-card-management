@@ -3123,6 +3123,35 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // engines); a budget of nothing puts nothing in force.
         const uses = op.uses != null && (kind === "skillCost" || kind === "evolveCost" || kind === "cost") ? op.uses : undefined;
         if (uses !== undefined && uses <= 0) break;
+        // "The next time you activate the [Union] skill on a green <Gogeta: GT>
+        // card from your hand [this turn], reduce the skill cost by {g}"
+        // (BT31-042, BT31-043, EX23-11, EX23-29, EX25-11; owner ruling on #930,
+        // 25 Oct 2026): the change waits for the next [Union] activation this
+        // turn on **any** card the description finds — one that reaches the
+        // hand after this resolved included — and that one payment uses it up.
+        // So it is not pinned to the cards in the hand now: it is one change
+        // keyed by the description (`matching`), read live where the line's
+        // price is read and spent (`vm/costs.ts`' `onCard`).
+        if (kind === "skillCost" && uses !== undefined && op.tag === "union" && op.target && "sel" in op.target && op.target.sel.area === "hand" && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
+          // Every card it finds, not a count of them (the compiler's `count: 99`).
+          const sel: Selector = { ...op.target.sel };
+          delete sel.count;
+          delete sel.upTo;
+          h.addEffect({
+            master: frame.master,
+            source: frame.card,
+            target: "",
+            kind,
+            value: by,
+            until: op.until ?? "turn",
+            tag: op.tag,
+            ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.colors?.length ? { colors: op.colors } : {}),
+            uses,
+            matching: { sel, vars: Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]])) },
+          });
+          break;
+        }
         let group: number | undefined;
         for (const id of h.resolveRef(frame, op.target)) {
           const made = h.addEffect({

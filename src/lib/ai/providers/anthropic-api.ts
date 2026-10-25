@@ -97,6 +97,12 @@ export interface AnthropicApiOptions {
   /** A recorded transport for the contract suite: builds the client around this `fetch`. */
   fetch?: typeof fetch;
   apiKey?: string;
+  /**
+   * The SDK's own retries (it retries 408/409/429/5xx and connection errors twice by default). A
+   * caller that reserves money per request (the #902 campaign) passes 0, so every request that
+   * leaves is one it reserved; the shared client keeps the default.
+   */
+  maxRetries?: number;
 }
 
 export function createAnthropicApiProvider(opts: AnthropicApiOptions = {}): AiProvider {
@@ -104,7 +110,13 @@ export function createAnthropicApiProvider(opts: AnthropicApiOptions = {}): AiPr
   let own: Anthropic | null = null;
   const get = (): Anthropic => {
     if (opts.client) return opts.client;
-    if (opts.fetch) return (own ??= new Anthropic({ apiKey: opts.apiKey ?? "sk-test-not-a-real-key", fetch: opts.fetch, maxRetries: 0 }));
+    if (opts.fetch) return (own ??= new Anthropic({ apiKey: opts.apiKey ?? "sk-test-not-a-real-key", fetch: opts.fetch, maxRetries: opts.maxRetries ?? 0 }));
+    if (opts.maxRetries !== undefined) {
+      // Built on first use from the key in the environment at call time; the key is held only by the client.
+      const apiKey = anthropicKey();
+      if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set — AI features are disabled.");
+      return (own ??= new Anthropic({ apiKey, maxRetries: opts.maxRetries }));
+    }
     return legacyAnthropicClient();
   };
 

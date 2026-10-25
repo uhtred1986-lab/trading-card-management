@@ -756,7 +756,7 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
   // 22-11-2 / 22-44-3 (#741): the paid Auto is activated — one use spent, on
   // the copy for [Once per turn] and across copies for [Limit X].
   spendUse(state, frame.master, frame.card, cost.skill);
-  spendSkillCostUses(state, ev, frame.card, cost.skill);
+  spendSkillCostUses(ctx, game, state, ev, frame.card, cost.skill);
   log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? cost.skill.index, master: frame.master, text: cost.skill.raw, inBattle: !!state.battle,
     ...(frame.autoRevealEpoch === undefined ? {} : { reveal: true as const, revealEpoch: frame.autoRevealEpoch }) });
   const effect = { ...frame, ops: cost.effect, ip: 0 };

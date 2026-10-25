@@ -4,6 +4,7 @@
  *
  *   tsx claude-ledger-worker-902.mts reserve <dir> <game> <count> <micros>     reserve until refused; prints the ids granted
  *   tsx claude-ledger-worker-902.mts crash-after <dir> <game> reserve|dispatch  reserve (and dispatch), then exit without settling
+ *   tsx claude-ledger-worker-902.mts crash-in-game <dir> <game> <micros>       start the game, send one call, die
  */
 import { writeSync } from "node:fs";
 import { APPROVED_CAPS, CampaignLedger, type CampaignCaps } from "../lib/claude-campaign-ledger.ts";
@@ -22,6 +23,15 @@ if (mode === "reserve") {
     ledger.settle(r.id, { usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, micros: Number(b), billed: false });
   }
   process.stdout.write(JSON.stringify(granted));
+} else if (mode === "crash-in-game") {
+  // A whole worker dies mid-game: it started the game, sent one call and never finished either.
+  const started = ledger.startGame(game, "pilot");
+  if (!started.ok) throw new Error(started.reason);
+  const r = ledger.reserve({ game, model: "claude-haiku-4-5", maxMicros: Number(a) });
+  if (!r.ok) throw new Error(r.reason);
+  ledger.dispatch(r.id);
+  writeSync(1, r.id);
+  process.kill(process.pid, "SIGKILL");
 } else if (mode === "crash-after") {
   const r = ledger.reserve({ game, model: "claude-haiku-4-5", maxMicros: 1_000_000 });
   if (!r.ok) throw new Error(r.reason);

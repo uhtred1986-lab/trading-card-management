@@ -21,13 +21,17 @@
  * it the two starter controls are qualified from the committed catalog snapshot (as the freeze does).
  * Every seed is played twice, Claude at p1 then at p2. Flags: --pairs N (1), --seed-base N (901000),
  * --policy-seed N (7919), --phase pilot|full (pilot), --max-moves, --max-decisions, --max-calls,
- * --max-output-tokens, --max-prompt-tokens, --retries, --wall-minutes, --faults "3:malformed,5:rate" (dry only).
+ * --max-output-tokens, --max-prompt-tokens, --max-game-tokens, --retries, --wall-minutes,
+ * --faults "3:malformed,5:rate" (dry only).
  *
  * Paid execution (`--provider anthropic-api --allow-paid`) is refused until the rate sheet is
  * owner-verified and the model's access is verified (`scripts/lib/claude-campaign-rates.ts`), and only
- * after the owner's explicit go (#906, 25 Oct 2026). Its ledger is `.arena-campaign/paid` with the
- * approved caps ($20 / 8 games pilot, $100 / 40 games in all); a restart can never change them. The API
- * key is read from the environment by the provider at call time and is written nowhere.
+ * after the owner's explicit go (#906, 25 Oct 2026). Its ledger is `~/.arena-campaign/arena-claude-duel-906`
+ * (`paidLedgerDir`: outside every checkout, so a new worktree cannot start it empty; `--ledger` is refused
+ * for a paid run) with the approved caps ($20 / 8 games pilot, $100 / 40 games in all); a restart can never
+ * change them. The first paid run creates it with `--new-campaign`; afterwards a missing ledger is an error.
+ * The API key is read from the environment by the provider at call time, with the SDK's own retries off
+ * (`claude-campaign-provider.ts`), and is written nowhere.
  */
 import { execSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -43,7 +47,8 @@ import type { CardDef, PlayerId } from "../src/lib/arena/types";
 import type { CatalogCard } from "../src/lib/catalog/deckplanet";
 import type { AiProvider } from "../src/lib/ai/types";
 import { CAMPAIGN_RATES, formatUsd, rateFor, sheetHash } from "./lib/claude-campaign-rates";
-import { APPROVED_CAPS, CampaignLedger, type CampaignCaps, type CampaignPhase } from "./lib/claude-campaign-ledger";
+import { APPROVED_CAPS, CampaignLedger, paidLedgerDir, type CampaignCaps, type CampaignPhase } from "./lib/claude-campaign-ledger";
+import { campaignApiProvider } from "./lib/claude-campaign-provider";
 import { DEFAULT_SETTINGS, DUEL_RUNNER_VERSION, playClaudeDuel, recordedProvider, type DuelResult, type DuelSettings, type ProviderKind } from "./lib/claude-duel";
 import { fakeClaude, type Fault } from "./lib/claude-duel-fake";
 import { duelManifest } from "./lib/claude-duel-manifest";
@@ -154,10 +159,16 @@ async function replay(path: string) {
 }
 
 async function main() {
-  const ledgerDirFor = (kind: ProviderKind) => flag("--ledger") ?? join(".arena-campaign", kind === "fake" ? "dry-run" : "paid");
+  // The paid ledger's place is fixed outside the checkout (`paidLedgerDir`): no flag can point a paid
+  // run at a fresh, empty ledger. Only the dry run takes --ledger.
+  const ledgerDirFor = (kind: ProviderKind) => {
+    if (kind === "fake") return flag("--ledger") ?? join(".arena-campaign", "dry-run");
+    if (flag("--ledger")) throw new Error(`a paid run's ledger is always ${paidLedgerDir(CAMPAIGN)}; --ledger is for the dry run only`);
+    return paidLedgerDir(CAMPAIGN);
+  };
   if (flag("--replay")) return replay(flag("--replay")!);
   if (process.argv.includes("--ledger-summary") || process.argv.includes("--recover") || flag("--reconcile")) {
-    const dir = flag("--ledger") ?? join(".arena-campaign", "paid");
+    const dir = flag("--ledger") ?? paidLedgerDir(CAMPAIGN);
     const ledger = CampaignLedger.inspect(dir);
     if (process.argv.includes("--recover")) console.log(JSON.stringify(ledger.recoverOrphans()));
     if (flag("--reconcile")) {
@@ -189,6 +200,7 @@ async function main() {
     maxCallsPerGame: num("--max-calls", DEFAULT_SETTINGS.maxCallsPerGame),
     maxOutputTokens: num("--max-output-tokens", DEFAULT_SETTINGS.maxOutputTokens),
     maxPromptTokens: num("--max-prompt-tokens", DEFAULT_SETTINGS.maxPromptTokens),
+    maxGameTokens: num("--max-game-tokens", DEFAULT_SETTINGS.maxGameTokens),
     maxRetries: num("--retries", DEFAULT_SETTINGS.maxRetries),
     wallTimeMs: num("--wall-minutes", DEFAULT_SETTINGS.wallTimeMs / 60_000) * 60_000,
   };
@@ -197,15 +209,16 @@ async function main() {
   const run = flag("--run") ?? new Date().toISOString().replace(/[:.]/g, "-");
   const games = schedule(inputs, { pairs, seedBase, policySeed, run });
   const ledgerDir = ledgerDirFor(providerKind);
-  const ledger = CampaignLedger.open(ledgerDir, { campaign: paid ? CAMPAIGN : `${CAMPAIGN}-dry-run`, caps: APPROVED_CAPS, rateSheet: sheetHash(), dryRun: !paid });
+  // A paid ledger is created only by the explicit first start (--new-campaign); after that a missing
+  // one is an error, never a fresh $100.
+  const ledger = CampaignLedger.open(ledgerDir, { campaign: paid ? CAMPAIGN : `${CAMPAIGN}-dry-run`, caps: APPROVED_CAPS, rateSheet: sheetHash(), dryRun: !paid, mustExist: paid && !process.argv.includes("--new-campaign") });
   const recovered = ledger.recoverOrphans();
-  if (recovered.released.length || recovered.ambiguous.length) console.log(`recovered orphans: ${recovered.released.length} released (never sent), ${recovered.ambiguous.length} ambiguous (kept as spent)`);
+  if (recovered.released.length || recovered.ambiguous.length || recovered.games.length) console.log(`recovered orphans: ${recovered.released.length} released (never sent), ${recovered.ambiguous.length} ambiguous (kept as spent), ${recovered.games.length} game(s) closed as interrupted`);
 
   let provider: AiProvider;
   if (paid) {
-    // Loaded only here, so a dry run's import graph has no vendor SDK at all.
-    const { createAnthropicApiProvider } = await import("../src/lib/ai/providers/anthropic-api");
-    provider = createAnthropicApiProvider();
+    // Loaded only here, so a dry run's import graph has no vendor SDK at all. The SDK's own retries are off.
+    provider = await campaignApiProvider();
     const available = await provider.available();
     if (!available.ok) throw new Error(available.reason);
   } else {

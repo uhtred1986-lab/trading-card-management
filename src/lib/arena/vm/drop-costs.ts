@@ -56,7 +56,7 @@ export function stepDropCost(ctx: EngineContext, game: GameDefinition, state: Vm
   // The action price was paid here, so resolve once with that price waived.
   // This boundary spends Once/Limit only now and hands cost choices to effects.
   resolveActivation(ctx, game, state, ev, frame.master, line, frame.x, undefined, { ops: line.script!.ops, vars: frame.vars }, true);
-  spendSkillCostUses(state, ev, frame.card, line.skill);
+  spendSkillCostUses(ctx, game, state, ev, frame.card, line.skill);
   fire(ctx, game, state, moment);
   return "done";
 }

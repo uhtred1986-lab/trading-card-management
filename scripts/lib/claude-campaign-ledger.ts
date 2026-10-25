@@ -26,11 +26,23 @@
  * start (8 pilot, 40 in all, pilot included), whether they finish or not.
  */
 import { closeSync, existsSync, fsyncSync, ftruncateSync, mkdirSync, openSync, readFileSync, readSync, statSync, unlinkSync, writeSync, fstatSync } from "node:fs";
-import { hostname } from "node:os";
+import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 export const LEDGER_FORMAT = 1;
+
+/**
+ * Where a paid campaign's ledger lives: in the owner's home directory, never in a checkout. A
+ * worktree is created and deleted per branch, so a ledger inside one would start empty in the next
+ * worktree and the caps with it. The path is fixed (no flag, no environment variable), and a missing
+ * paid ledger is never created implicitly (`open`'s `mustExist`): only the explicit first start of
+ * the campaign creates it.
+ */
+export function paidLedgerDir(campaign: string): string {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(campaign)) throw new Error(`campaign id ${campaign} is not a plain slug`);
+  return join(homedir(), ".arena-campaign", campaign);
+}
 
 export type CampaignPhase = "pilot" | "full";
 
@@ -48,7 +60,7 @@ export interface CallUsageRecord { input: number; output: number; cacheRead: num
 
 type Line =
   | { t: "open"; format: typeof LEDGER_FORMAT; campaign: string; caps: CampaignCaps; rateSheet: string; dryRun: boolean; at: string }
-  | { t: "game"; game: string; phase: CampaignPhase; at: string }
+  | { t: "game"; game: string; phase: CampaignPhase; at: string; pid?: number }
   | { t: "gameEnd"; game: string; outcome: string; at: string }
   | { t: "reserve"; id: string; game: string; phase: CampaignPhase; model: string; maxMicros: number; at: string; pid: number }
   | { t: "dispatch"; id: string; at: string }
@@ -95,7 +107,7 @@ export type LedgerRefusal = { ok: false; reason: string; code: "cap" | "games" |
 
 interface Folded {
   open: Extract<Line, { t: "open" }> | null;
-  games: Map<string, { phase: CampaignPhase; outcome: string | null }>;
+  games: Map<string, { phase: CampaignPhase; outcome: string | null; pid: number | null }>;
   reservations: Map<string, Reservation>;
   dispatched: Set<string>;
 }
@@ -129,11 +141,17 @@ export class CampaignLedger {
    * caps and dry-run flag: a restart can never change the caps. A different rate sheet is allowed
    * (rates are re-verified) and recorded per reservation by its model, not here.
    */
-  static open(dir: string, header: { campaign: string; caps: CampaignCaps; rateSheet: string; dryRun: boolean }): CampaignLedger {
+  static open(dir: string, header: { campaign: string; caps: CampaignCaps; rateSheet: string; dryRun: boolean; mustExist?: boolean }): CampaignLedger {
+    // A paid campaign's ledger is created once, on purpose; a missing one is never recreated empty
+    // (that would reset the caps after a deleted directory or a fresh machine).
+    if (header.mustExist && !existsSync(join(dir, "ledger.jsonl"))) {
+      throw new Error(`no campaign ledger in ${dir}: a missing paid ledger is never recreated (that would reset the caps). Start the campaign once with --new-campaign; restore a lost ledger from its backup instead.`);
+    }
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const ledger = new CampaignLedger(dir);
     ledger.locked(() => {
       if (!ledger.folded.open) {
+        if (header.mustExist) throw new Error(`the campaign ledger in ${dir} has no header; refusing to start it again`);
         ledger.append({ t: "open", format: LEDGER_FORMAT, campaign: header.campaign, caps: header.caps, rateSheet: header.rateSheet, dryRun: header.dryRun, at: now() });
         return;
       }
@@ -251,7 +269,7 @@ export class CampaignLedger {
         f.open = line;
         return;
       case "game":
-        f.games.set(line.game, { phase: line.phase, outcome: null });
+        f.games.set(line.game, { phase: line.phase, outcome: null, pid: line.pid ?? null });
         return;
       case "gameEnd": {
         const g = f.games.get(line.game);
@@ -288,7 +306,7 @@ export class CampaignLedger {
       const s = this.summaryNow();
       if (phase === "pilot" && s.remaining.pilotGames < 1) return { ok: false as const, code: "games" as const, reason: `the pilot's ${s.caps.pilot.games} games are used` };
       if (s.remaining.totalGames < 1) return { ok: false as const, code: "games" as const, reason: `the campaign's ${s.caps.total.games} games are used` };
-      this.append({ t: "game", game, phase, at: now() });
+      this.append({ t: "game", game, phase, at: now(), pid: process.pid });
       return { ok: true as const };
     });
   }
@@ -355,19 +373,26 @@ export class CampaignLedger {
   /**
    * After a restart: reservations of processes that are gone. One never dispatched is released (the
    * request provably did not leave); one dispatched but never settled becomes ambiguous and keeps
-   * its reservation. Live processes' reservations are left alone.
+   * its reservation. A game a gone process left unfinished is closed as `interrupted` (incomplete,
+   * never a result; its slot stays used). Live processes' reservations and games are left alone.
    */
-  recoverOrphans(): { released: string[]; ambiguous: string[] } {
+  recoverOrphans(): { released: string[]; ambiguous: string[]; games: string[] } {
     return this.locked(() => {
       const released: string[] = [];
       const ambiguous: string[] = [];
+      const games: string[] = [];
+      for (const [game, g] of this.folded.games) {
+        if (g.outcome !== null || g.pid === null || g.pid === process.pid || alive(g.pid)) continue;
+        this.append({ t: "gameEnd", game, outcome: "interrupted", at: now() });
+        games.push(game);
+      }
       for (const r of this.folded.reservations.values()) {
         const pid = Number(r.id.split("-")[1]);
         if (pid === process.pid || (Number.isInteger(pid) && alive(pid))) continue;
         if (r.state === "reserved") { this.append({ t: "release", id: r.id, why: "orphaned before dispatch: the request never left", at: now() }); released.push(r.id); }
         else if (r.state === "dispatched") { this.append({ t: "ambiguous", id: r.id, why: "orphaned after dispatch: the process ended before usage was recorded", at: now() }); ambiguous.push(r.id); }
       }
-      return { released, ambiguous };
+      return { released, ambiguous, games };
     });
   }
 

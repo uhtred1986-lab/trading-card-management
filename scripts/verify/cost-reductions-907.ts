@@ -299,9 +299,9 @@ const ops = (text: string): CostOp[] => {
     put(s, { target: a, kind: "skillCost", value: 1, colors: ["Red"], tag: "arrival", uses: 1 });
     assert.equal(orbs(s, a, arrival).total, 1, "the [Arrival] line is a red orb cheaper");
     assert.equal(orbs(s, a, swap).total, 2, "a [Swap] line of the same card is not");
-    spendSkillCostUses(s as never, [], a, swap);
+    spendSkillCostUses(CTX, DBS_DEFINITION, s as never, [], a, swap);
     assert.equal(orbs(s, a, arrival).total, 1, "paying the [Swap] spent nothing");
-    spendSkillCostUses(s as never, [], a, arrival);
+    spendSkillCostUses(CTX, DBS_DEFINITION, s as never, [], a, arrival);
     assert.equal(orbs(s, a, arrival).total, 2, "paying the [Arrival] spent the one use");
   }
   // [EX-Evolve] is the Evolve channel narrowed to its variant (22-5-2-2).
@@ -319,7 +319,7 @@ const ops = (text: string): CostOp[] => {
     const first = put(s, { target: a, kind: "skillCost", value: 1, colors: ["Red"], tag: "arrival", uses: 1 });
     first.group = first.id;
     put(s, { target: b, kind: "skillCost", value: 1, colors: ["Red"], tag: "arrival", uses: 1, group: first.id });
-    spendSkillCostUses(s as never, [], a, arrival);
+    spendSkillCostUses(CTX, DBS_DEFINITION, s as never, [], a, arrival);
     assert.equal(orbs(s, b, arrival).total, 2, "the other card's copy of the same change went with it");
     assert.deepEqual((s as unknown as { effects: ContinuousEffect[] }).effects.filter((e) => e.kind === "skillCost"), []);
   }
