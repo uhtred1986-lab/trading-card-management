@@ -42,8 +42,9 @@ import { fire, log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
 import { attrsNow, queryHookStatics, unionEntryMatches } from "./program";
-import { skillsShowing, unionPlayGate, type VmPending } from "./triggers";
+import { skillsShowing, unionPlayGate, unionPlayedGate, type VmPending } from "./triggers";
 import { SETUP_ZONES, findCard, moveCard } from "./zones";
+import { predicateOf } from "./filters";
 
 /**
  * The in-play area a card of each base type is played into (3-6-1, 3-11-4).
@@ -311,9 +312,25 @@ export function resolvePlay(
       if (what !== null && !(success && unionEntryMatches(what, opts.using))) state.pending.splice(state.pending.indexOf(p), 1);
     }
   }
+  // #930: the same gate on another card's [Auto] about this play — "when
+  // your <X> card is played by a [Union] skill" (BT22-033, BT25-036 back,
+  // P-682), "when you play a Battle Card using a [Union-Fusion] skill"
+  // (BT12-122): triggered only by a successful entry by the [Union] keyword
+  // the gate names, of a card the description meets (9-6-2), so from any
+  // other play it is never pended and no [Once per turn] is used. "Your"
+  // includes the card itself, as for every `youPlayed` moment.
+  const watching = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.kind !== "hook" && p.subject === card && p.trigger === "youPlayed");
+  for (const p of watching) {
+    const gate = unionPlayedGate(skillsShowing(ctx, state, p.card).scripts.bySkill[p.skillIndex]?.ops, "subject");
+    if (gate === null) continue;
+    const meets = !gate.filter || predicateOf(gate.filter, game)(p.subjectInfo ?? attrsNow(ctx, game, state, card));
+    if (!(success && unionEntryMatches(gate.what, opts.using) && meets)) state.pending.splice(state.pending.indexOf(p), 1);
+  }
   if (success && opts.using?.startsWith("Union-")) {
     state.cards[card].enteredUsing = opts.using;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredUsing = opts.using;
+    // …and the Autos it pended about this card carry it as their subject's.
+    for (const p of state.pending) if (!pendedBefore.has(p) && p.subject === card && p.kind !== "hook") p.subjectEnteredUsing = opts.using;
   }
   // 22-5-2-3/4: evolution is a successful play, separate from using the
   // keyword from hand. Failed/countered plays and ordinary stacks have none.
