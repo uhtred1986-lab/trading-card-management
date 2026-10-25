@@ -76,12 +76,14 @@ export const CAMPAIGN_RATES: RateSheet = {
   version: RATE_SHEET_VERSION,
   verifiedOn: "2026-10-25",
   source: "https://platform.claude.com/docs/en/about-claude/pricing (redirected from docs.claude.com/en/docs/about-claude/pricing); ids: https://platform.claude.com/docs/en/about-claude/models/overview",
-  method: "public pricing page fetched by the #902 agent session; not yet compared with the owner's Console or invoices",
+  method: "public pricing page fetched by the #902 agent session and re-read by the #902 follow-up the same day (every row and footnote unchanged; the claude-api skill's table cached 6 Oct 2026 still lists Sonnet 5.5 cache hits at $0.20, the live page at $0.10, and the live page wins); not yet compared with the owner's Console or invoices",
   assumptions: [
     "Claude API first party, global inference (no inference_geo: \"us\", which is 1.1x)",
     "synchronous Messages API: no Batch API discount, no fast mode",
     "no server tools (web search, code execution) and no Managed Agents",
     "cache writes charged at the 1-hour rate whatever their TTL",
+    "no Priority Tier commitment: the request sends no service_tier",
+    "the Anthropic SDK's own retries are off (maxRetries 0): every request that leaves is one the ledger reserved",
   ],
   ownerVerified: false,
   models: [
@@ -156,9 +158,17 @@ export function chargeMicros(rate: CampaignModelRate, usage: CallUsage): number 
  * since `max_tokens` bounds both).
  */
 export function maxChargeMicros(rate: CampaignModelRate, bound: { promptTokens: number; maxOutputTokens: number }): number {
-  const r = exact(tierFor(rate, bound.promptTokens).usdPerMTok);
-  const dearestIn = Math.max(r.input, r.cacheWrite1h, r.cacheWrite5m, r.cacheRead);
-  return Math.ceil((bound.promptTokens * dearestIn + bound.maxOutputTokens * r.output) / 1000);
+  for (const v of [bound.promptTokens, bound.maxOutputTokens]) if (!Number.isSafeInteger(v) || v < 0) throw new Error(`token bound ${JSON.stringify(bound)} is not a set of token counts`);
+  // Any tier the actual prompt (at most the bound) can fall in: the dearest of them, so a sheet whose
+  // rows are not ordered by price still cannot make the bound cheaper than a charge within it.
+  const last = rate.tiers.indexOf(tierFor(rate, bound.promptTokens));
+  let worst = 0;
+  for (const t of rate.tiers.slice(0, last + 1)) {
+    const r = exact(t.usdPerMTok);
+    const dearestIn = Math.max(r.input, r.cacheWrite1h, r.cacheWrite5m, r.cacheRead);
+    worst = Math.max(worst, bound.promptTokens * dearestIn + bound.maxOutputTokens * r.output);
+  }
+  return Math.ceil(worst / 1000);
 }
 
 /**

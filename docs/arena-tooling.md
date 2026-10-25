@@ -495,8 +495,20 @@ OpenRouter fallback.
   reservation of the most a call can cost before it leaves, `dispatch` written before sending,
   settle from usage after; a dispatched call without usage keeps its whole reservation until the
   owner reconciles it (`--reconcile <id> <micros> <source>`); `--recover` after a crash releases
-  only reservations provably never sent. Caps are fixed at the approved $20 / 8 games pilot and
-  $100 / 40 games total, and a restart cannot change them (`--ledger-summary`).
+  only reservations provably never sent and closes games a crashed process left open as
+  `interrupted`. Caps are fixed at the approved $20 / 8 games pilot and $100 / 40 games total, and a
+  restart cannot change them (`--ledger-summary`).
+- **The paid ledger lives outside the checkout** (`~/.arena-campaign/arena-claude-duel-906`,
+  `paidLedgerDir`; `--ledger` is refused for a paid run), so a new worktree cannot start it empty.
+  The first paid run creates it with `--new-campaign`; after that a missing or headerless paid
+  ledger is an error, never a fresh $100. Back it up with the evidence files.
+- **No hidden requests**: the paid provider is built by `scripts/lib/claude-campaign-provider.ts`
+  with the Anthropic SDK's own retries off (`maxRetries: 0`; the SDK default resends 408/409/429/5xx
+  twice). Each retry is the runner's, reserved like the first attempt (`--retries`, default 2).
+- **Limits per game**: `--max-output-tokens` and `--max-prompt-tokens` per call, `--max-game-tokens`
+  (prompt bounds plus output allowances of every call sent, retries and failures included),
+  `--max-decisions`, `--max-calls`, `--max-moves`, `--wall-minutes`; each stop is `limit` in the
+  manifest, never a draw or win. Usage that cannot be priced keeps the whole reservation.
 - **Paid runs are refused** until the owner verifies the rate sheet and the model's access and
   gives the go (#903/#904): `--provider anthropic-api --allow-paid --phase pilot`.
 
