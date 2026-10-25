@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { CombatMoment } from "@/lib/arena/immersion/types";
+import type { BannerPlan } from "@/lib/arena/immersion/banner";
+import type { CombatPose } from "@/lib/arena/immersion/types";
 import styles from "./CombatBanner.module.css";
 
 export interface CombatBannerProps {
-  moment: CombatMoment | null;
+  plan: BannerPlan | null;
   reducedMotion?: boolean;
-  /** Presentation pace only; capped at 1100ms and never awaited by gameplay. */
-  durationMs?: number;
   onSkip: () => void;
 }
 
-/** The same public presentation beat is used for Leader and Battle Card combat. */
-export function CombatBanner({ moment, reducedMotion = false, durationMs, onSkip }: CombatBannerProps) {
-  return moment ? <CombatBeat key={moment.key} moment={moment} reducedMotion={reducedMotion} durationMs={durationMs} onSkip={onSkip} /> : null;
+/**
+ * The one character-action banner (#1105): leader and Battle Cards, phone, tablet and desktop. The
+ * plan comes from the contract sequence; this only stages it and never holds playback.
+ */
+export function CombatBanner({ plan, reducedMotion = false, onSkip }: CombatBannerProps) {
+  return plan ? <CombatBeat key={plan.key} plan={plan} reducedMotion={reducedMotion} onSkip={onSkip} /> : null;
 }
 
 /** Sheets already decoded in this tab: a banner whose hero is warm shows it on its first frame, not after a load. */
@@ -26,20 +28,28 @@ export function warmSheet(url: string) {
   image.src = url;
 }
 
-/** What the banner shouts when the beat carries no exact receipt of its own. */
-const WORD: Record<CombatMoment["outcome"], string> = { attack: "ATTACK", block: "BLOCK", hit: "HIT!", repelled: "BLOCKED!", negated: "NEGATED" };
+/** The reviewed prototype crops per pose (the silhouettes cross nominal thirds). Frames themselves come from the manifest. */
+const FRAME: Record<CombatPose, CSSProperties> = {
+  attack: { backgroundSize: "238.095% 100%", backgroundPosition: "0% 0%", clipPath: "polygon(0 0,100% 0,100% 64%,81% 64%,81% 100%,0 100%)" },
+  guard: { backgroundSize: "294.118% 100%", backgroundPosition: "54.545% 0%", clipPath: "polygon(18% 0,100% 0,100% 100%,0 100%,0 60%,18% 60%)" },
+  hit: { backgroundSize: "322.581% 100%", backgroundPosition: "100% 0%", clipPath: "none" },
+};
 
-function CombatBeat({ moment, reducedMotion, durationMs, onSkip }: CombatBannerProps & { moment: CombatMoment; reducedMotion: boolean }) {
+function CombatBeat({ plan, reducedMotion, onSkip }: { plan: BannerPlan; reducedMotion: boolean; onSkip: () => void }) {
   const [finished, setFinished] = useState(false);
-  const [loadedSheet, setLoadedSheet] = useState<string | null>(() => (moment.character?.sheet && warmSheets.has(moment.character.sheet) ? moment.character.sheet : null));
-  const defaultDuration = moment.outcome === "attack" ? 460 : 1100;
-  const duration = durationMs !== undefined && Number.isFinite(durationMs) ? Math.max(1, Math.min(1100, durationMs)) : defaultDuration;
-  const sheet = moment.character?.sheet;
+  // Reduced motion shows the static result at once: no buildup, no timed phase change.
+  const [released, setReleased] = useState(reducedMotion || plan.contactMs <= 0);
+  const [loadedSheet, setLoadedSheet] = useState<string | null>(() => (plan.character?.sheet && warmSheets.has(plan.character.sheet) ? plan.character.sheet : null));
+  const sheet = plan.character?.sheet;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setFinished(true), duration);
-    return () => window.clearTimeout(timer);
-  }, [duration]);
+    // Both timers belong to this beat's key: a new beat, skip or unmount clears them.
+    const done = window.setTimeout(() => setFinished(true), plan.durationMs);
+    const contact = released ? 0 : window.setTimeout(() => setReleased(true), plan.contactMs);
+    return () => { window.clearTimeout(done); if (contact) window.clearTimeout(contact); };
+    // `released` only seeds the contact timer once per beat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan.durationMs, plan.contactMs]);
 
   useEffect(() => {
     if (!sheet) return;
@@ -51,26 +61,38 @@ function CombatBeat({ moment, reducedMotion, durationMs, onSkip }: CombatBannerP
   }, [sheet]);
 
   if (finished) return null;
-  // A repel/negate never borrows the damage pose, even if its caller supplies it.
-  const character = loadedSheet === sheet && moment.outcome !== "repelled" && moment.outcome !== "negated" ? moment.character : null;
-  const pose = moment.outcome === "attack" ? "attack" : moment.outcome === "hit" ? "hit" : "guard";
-  // These silhouettes cross nominal thirds; use the reviewed prototype crops.
-  const frame: CSSProperties = pose === "attack"
-    ? { backgroundSize: "238.095% 100%", backgroundPosition: "0% 0%", clipPath: "polygon(0 0,100% 0,100% 64%,81% 64%,81% 100%,0 100%)" }
-    : pose === "guard"
-      ? { backgroundSize: "294.118% 100%", backgroundPosition: "54.545% 0%", clipPath: "polygon(18% 0,100% 0,100% 100%,0 100%,0 60%,18% 60%)" }
-      : { backgroundSize: "322.581% 100%", backgroundPosition: "100% 0%", clipPath: "none" };
-  const style = { "--beat-duration": `${duration}ms` } as CSSProperties;
+  // A cold, slow or failed sheet stays neutral until it has loaded; it never delays the beat.
+  const character = loadedSheet === sheet ? plan.character : null;
+  const pose = character ? plan.pose : null;
+  const impact = plan.kind !== "attack";
+  const style = {
+    "--beat-duration": `${plan.durationMs}ms`,
+    "--windup": `${Math.max(1, plan.windupMs)}ms`,
+    "--contact": `${plan.contactMs}ms`,
+    "--after-contact": `${Math.max(1, plan.durationMs - plan.contactMs)}ms`,
+  } as CSSProperties;
 
   return (
-    <div className={`${styles.overlay} ${moment.outcome === "hit" || moment.outcome === "repelled" || moment.outcome === "negated" ? styles.impact : ""} ${reducedMotion ? styles.reduced : ""}`} style={style} data-combat-banner={moment.outcome}>
-      <div className={`${styles.banner} ${styles[moment.outcome]} ${!character ? styles.neutral : ""}`}>
+    <div
+      className={`${styles.overlay} ${impact ? styles.impact : ""} ${reducedMotion ? styles.reduced : ""}`}
+      style={style}
+      data-combat-banner={plan.kind}
+      data-role={plan.role ?? "none"}
+      data-phase={released ? "release" : "windup"}
+      data-neutral={character ? undefined : plan.neutral ?? "asset-pending"}
+    >
+      <div className={`${styles.banner} ${styles[plan.kind]} ${!character ? styles.neutral : ""}`} data-phase={released ? "release" : "windup"}>
         <div className={styles.speedfield} aria-hidden="true" />
         <div className={styles.farfield} aria-hidden="true" />
         <div className={styles.energy} aria-hidden="true" />
-        {character && <div className={`${styles.figure} ${styles[pose]}`} aria-hidden="true" style={{ backgroundImage: `url(${JSON.stringify(character.sheet)})`, ...frame }} />}
+        {character && pose ? (
+          <div className={`${styles.figure} ${styles[pose]}`} data-pose={pose} aria-hidden="true" style={{ backgroundImage: `url(${JSON.stringify(character.sheet)})`, ...FRAME[pose] }} />
+        ) : (
+          <div className={styles.emblem} aria-hidden="true"><span /></div>
+        )}
+        {released && <div className={`${styles.contact} ${styles[`contact-${plan.kind}`]}`} data-contact={plan.kind} aria-hidden="true" />}
         {character && <span className={styles.name}>{character.name}</span>}
-        <span className={styles.word} role="status">{moment.caption ?? WORD[moment.outcome]}</span>
+        <span className={styles.word} role="status">{plan.label}</span>
         <div className={styles.track} aria-hidden="true"><div /></div>
       </div>
       <button type="button" className={styles.skip} onClick={() => { setFinished(true); onSkip(); }}>Skip</button>

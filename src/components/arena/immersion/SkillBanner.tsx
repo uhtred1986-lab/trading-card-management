@@ -1,19 +1,30 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { SkillMoment } from "@/lib/arena/immersion/skills";
+import { bannerDuration } from "@/lib/arena/immersion/banner";
+import type { NeutralReason } from "@/lib/arena/immersion/types";
 import styles from "./SkillBanner.module.css";
 
-export function SkillBanner({ moment, durationMs, reducedMotion, onSkip }: { moment: SkillMoment | null; durationMs: number; reducedMotion: boolean; onSkip: () => void }) {
-  return moment ? <SkillBeat key={moment.key} moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={onSkip} /> : null;
+interface SkillBannerProps {
+  moment: SkillMoment | null;
+  durationMs: number;
+  reducedMotion: boolean;
+  /** The contract sequence's neutral reason for this beat's card (#1103), shown as neutral art when no face is staged. */
+  neutral?: NeutralReason | null;
+  onSkip: () => void;
 }
-function SkillBeat({ moment, durationMs, reducedMotion, onSkip }: { moment: SkillMoment; durationMs: number; reducedMotion: boolean; onSkip: () => void }) {
+export function SkillBanner({ moment, ...rest }: SkillBannerProps) {
+  return moment ? <SkillBeat key={moment.key} moment={moment} {...rest} /> : null;
+}
+function SkillBeat({ moment, durationMs, reducedMotion, neutral, onSkip }: SkillBannerProps & { moment: SkillMoment }) {
   const [finished, setFinished] = useState(false);
-  const duration = Number.isFinite(durationMs) ? Math.max(1, Math.min(1100, durationMs)) : 850;
+  // Same cap as the combat banner: never longer than the beat, never past 1100 ms.
+  const duration = bannerDuration(durationMs, 850);
   useEffect(() => { const timer = window.setTimeout(() => setFinished(true), duration); return () => window.clearTimeout(timer); }, [duration]);
   if (finished) return null;
   // The event adapter supplies a face only when the viewer may see it.
   const movement = moment.from && moment.to;
-  return <div className={`${styles.overlay} ${styles[moment.style]} ${reducedMotion ? styles.reduced : ""}`} style={{ "--duration": `${duration}ms` } as CSSProperties} data-skill-banner={moment.style}>
+  return <div className={`${styles.overlay} ${styles[moment.style]} ${reducedMotion ? styles.reduced : ""}`} style={{ "--duration": `${duration}ms` } as CSSProperties} data-skill-banner={moment.style} data-neutral={moment.face ? undefined : neutral ?? "no-subject"}>
     <div className={styles.stage}>
       <div className={styles.aura} aria-hidden="true" />
       <strong className={styles.title}>{moment.title}</strong>
