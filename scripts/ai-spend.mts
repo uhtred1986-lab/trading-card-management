@@ -4,8 +4,8 @@
  * showing billed and notional cost apart and cache hit rates. Read-only; needs
  * DATABASE_URL (the owner runs it).
  *
- * Prices are in `src/lib/ai/models.ts`. Anthropic bills cache reads at 0.1×
- * input price and cache writes at 1.25×; the API's `input_tokens` excludes both.
+ * Prices are in `src/lib/ai/models.ts`. Anthropic bills cache reads at the
+ * model's cache-read price (0.1× input; 0.05× on Sonnet 5.5) and cache writes at 1.25×; the API's `input_tokens` excludes both.
  * Rows from before #380 carry no cache figures (shown as "-" and counted as zero),
  * so their cost is a floor. Rows from before #515 read as "anthropic-api" and
  * billed=true. Runs that stored `cost_micros` (OpenRouter) are priced by it; all others by the formula above.
