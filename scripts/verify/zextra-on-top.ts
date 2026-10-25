@@ -178,7 +178,8 @@ for (const seat of ["p1", "p2"] as PlayerId[]) {
     assert.ok(!t.effects.some((e) => e.target === chosen && e.kind === "comboPower"), "and are not carried to the new top card (a combo-power change is no power change)");
     assert.ok(zoneOf(t, seat, "warp").includes(ei), `${seat}: the rest of the price: the ≪Evil Incarnate≫ card went to the Warp`);
     assert.equal(powerOfG(t, leaderOf(t, seat)), before + 5000, `${seat}: the effect ran: Leader +5000`);
-    assert.ok(!ev.some((e) => e.type === "play" && (e as { card?: string }).card === chosen), "5-5: placed, not played");
+    assert.ok(!ev.some((e) => e.type === "move" && e.card === chosen), "5-5: placed, not played - and no card changed area (23-2-2-2)");
+    assert.equal(t.cards[chosen].playedUsing, undefined);
     assert.ok(ev.some((e) => e.type === "stack" && (e as { top?: string }).top === chosen), "the stack is logged");
   }
 }
