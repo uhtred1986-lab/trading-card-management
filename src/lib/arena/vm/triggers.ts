@@ -62,7 +62,8 @@ import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } 
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
-import { NO_RULES, type CardScripts } from "./script";
+import { NO_RULES, type CardScripts, type Op } from "./script";
+import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
 import type { EngineContext } from "../types";
 import type { PatternValue } from "../lang";
@@ -296,6 +297,21 @@ export function masterOf(game: GameDefinition, state: VmState, id: string): Play
 // ── pending what answers ────────────────────────────────────────────────────
 
 /**
+ * The filter a record puts on the moment's subject, when the whole program is
+ * a chain of plain IFs (no ELSE, one op inside each) and one of them is "the
+ * subject is <filter>" (#1169). Every IF of the chain has to hold for anything
+ * to happen, so a subject the filter refuses means nothing happens; any other
+ * shape says nothing (null).
+ */
+function subjectGate(ops: readonly Op[] | undefined): CardFilter | null {
+  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+    const cond = at[0].cond;
+    if (cond.kind === "count" && cond.sel.special === "subject" && cond.sel.filter && (cond.atLeast ?? 1) <= 1 && !cond.atMost) return cond.sel.filter;
+  }
+  return null;
+}
+
+/**
  * Queue every [Auto] that answers to this moment (9-6-2), and say which.
  *
  * Appends to `state.pending` in the order the declarations were read; the
@@ -386,6 +402,17 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
           && (first.cond.atLeast ?? 1) <= 1 && !first.cond.atMost) {
           if (!predicateOf(first.cond.sel.filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
         }
+      }
+      // "When you remove a marker from one of your **red** Unison Cards using a
+      // [Spirit Boost] skill" (SD15-05, #1169, 22-43-3): a payment from a
+      // Unison the description refuses is no trigger (9-6-2), so it is not
+      // pended — not even for a hand copy to decline. The compiled record is
+      // an IF on the payer (`special: "subject"`), behind the IF of any
+      // condition before the colon; it is read off the Unison the markers
+      // came off as it stands, as the IF would read it at resolution.
+      if (sk.kind === "auto" && match.trigger === "spiritBoostPaid" && match.subject && state.cards[match.subject]) {
+        const payer = subjectGate(showing.scripts.bySkill[sk.index]?.ops);
+        if (payer && !predicateOf(payer, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
       }
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
