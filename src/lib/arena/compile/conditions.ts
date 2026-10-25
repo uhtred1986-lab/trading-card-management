@@ -399,9 +399,24 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Battle Cards, and a Leader is never a <Son Goten: GT> Battle Card.
   const onlyOrNone = /^you have only (.+? cards?) in play or no battle cards in play$/.exec(t);
   if (onlyOrNone) {
-    const only = parseConditionClause(`you only have ${onlyOrNone[1]} in play in your battle area`, true);
+    const only = onlyInBattleArea(onlyOrNone[1]);
     const none = parseConditionClause("you have no battle cards in play", true);
-    return only && none && only.cond.kind === "every" ? { cond: { kind: "any", conds: [only.cond, none.cond] } } : null;
+    return only && none ? { cond: { kind: "any", conds: [only.cond, none.cond] } } : null;
+  }
+  // #930, the same "only" without the "or no Battle Cards" tail: "you have
+  // only <X> cards in play", "you have only <X> cards (in play) in your Battle
+  // Area", "you only have <X> cards in play". The count reader took the "only"
+  // as an adverb before a number that is not there and read "1 or more <X>",
+  // which held beside any other card. Read as the EX24-05 shape: every card in
+  // your Battle Area is <X>, and there is at least one (an empty Battle Area is
+  // false — only the P-226 tail above makes it true). "In play" is your Battle
+  // Area (owner ruling on #930). Only a plural description with no number,
+  // article or "this card" in front ("you have only 3 or less cards …" stays a
+  // count); any other place keeps its reading. A description the target reader
+  // cannot take in is a gap, never the old count.
+  const onlyHave = /^you (?:have only|only have) ((?!\d|no\b|an?\b|any\b|one\b|this\b|these\b).+? cards) (?:in play(?: in your battle area)?|in your battle area)$/.exec(t);
+  if (onlyHave) {
+    return onlyInBattleArea(onlyHave[1]);
   }
   const andParts = holdNames(t).split(/ and /).map(unhold);
   if (andParts.length > 1 && !/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t)) {
@@ -665,18 +680,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // (which an empty area would pass). Battle Area only: other places keep their
   // own readings. A description the target reader did not take in leaves the
   // two selectors identical, and the condition would always hold: a gap instead.
-  if ((m = /^you only have (.+? cards?) (?:in play )?in your battle area$/.exec(t))) {
-    const whole = parseTarget("your cards in play in your battle area");
-    const part = parseTarget(`your ${m[1]} in play in your battle area`);
-    if (whole && part && !part.filter?.unreadable) {
-      for (const sel of [whole, part]) {
-        delete sel.count;
-        delete sel.upTo;
-      }
-      if (JSON.stringify(whole) !== JSON.stringify(part)) return { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } };
-    }
-    return null;
-  }
+  if ((m = /^you only have (.+? cards?) (?:in play )?in your battle area$/.exec(t))) return onlyInBattleArea(m[1]);
   // "If **all** of your opponent's energy is in Rest Mode" (XD1-01): the whole
   // set against the part of it the description picks out. Read as two
   // selectors so that the description can be a mode as easily as a colour.
@@ -985,6 +989,24 @@ function restAnywhere(sel: Selector, said: string): Selector {
   if (sel.area !== "play" || sel.areas || sel.mode !== "rest" || sel.special || sel.fromVar) return sel;
   if (/\bin play\b|\barea\b|\bbattle cards?\b|\bleader\b|\bunisons?\b|\benergy\b/i.test(said)) return sel;
   return { ...sel, area: "battle", areas: ["leader", "battle", "unison", "energy"] };
+}
+
+/**
+ * "Only <description> cards in your Battle Area" (EX24-05, owner ruling of 17
+ * Oct 2026; #930): every card in your Battle Area fits the description, AND
+ * there is at least one — `every`, false with nothing to find (0-2-4-1). A
+ * description the target reader did not take in leaves the two selectors
+ * identical, and the condition would always hold: a gap instead.
+ */
+function onlyInBattleArea(description: string): { cond: Cond; subject: { sel: Selector } } | null {
+  const whole = parseTarget("your cards in play in your battle area");
+  const part = parseTarget(`your ${description} in play in your battle area`);
+  if (!whole || !part || part.filter?.unreadable) return null;
+  for (const sel of [whole, part]) {
+    delete sel.count;
+    delete sel.upTo;
+  }
+  return JSON.stringify(whole) !== JSON.stringify(part) ? { cond: { kind: "every", sel: whole, matching: part }, subject: { sel: whole } } : null;
 }
 
 function parseCountCondition(t: string): Cond | null {

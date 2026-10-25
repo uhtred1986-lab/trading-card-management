@@ -54,6 +54,14 @@ const POTARA = "[union-potara]{1}: Yellow <Son Goten: GT> and yellow <Trunks: GT
 const EVOLVE = "[Evolve]{1}: Yellow <Son Goten: GT> card with an energy cost of 1.";
 const SKILL_PLAY = "[Activate: Main] Choose up to 1 yellow card with an energy cost of 1 in your hand and play it.";
 
+// #930, widened: the same "only" without P-226's "or no Battle Cards" tail. No card printing it is
+// in the repo's catalog snapshots (the rules audit and the Union inventory hold only unread and
+// Union cards), so the shared wordings are proved here on Leaders, whose own place is not the
+// Battle Area the condition reads.
+const ONLY_IN_PLAY = "[Activate: Main][Once per turn] If you have only <Son Goten: GT> cards in play: Draw 1 card.";
+const ONLY_HAVE_IN_PLAY = "[Activate: Main][Once per turn] If you only have yellow <Trunks: GT> cards in play: Draw 1 card.";
+const ONLY_IN_AREA = "[Activate: Main][Once per turn] If you have only <Son Goten: GT> cards in your Battle Area: Draw 1 card.";
+
 const RESTRICTION = { op: "forbid", what: "play", side: "you", until: "turn", exceptUnion: ["Fusion"] };
 
 const mat = (id: string, colors: Color[], characters: string[], o: Partial<CardDef> = {}) => card(id, { colors, characters, power: 10000, energyCost: 1, skill: null, ...o });
@@ -69,6 +77,9 @@ const defs: Record<string, CardDef> = { ...DEFS,
   "PLAIN": mat("PLAIN", ["Yellow"], ["Filler"]),
   "OTHER": mat("OTHER", ["Yellow"], ["Pan: GT"]),
   "Y-E": mat("Y-E", ["Yellow"], ["Filler"]),
+  "L-ONLY1": card("L-ONLY1", { type: "LEADER", colors: ["Yellow"], power: 10000, energyCost: null, comboCost: null, comboPower: null, skill: ONLY_IN_PLAY }),
+  "L-ONLY2": card("L-ONLY2", { type: "LEADER", colors: ["Yellow"], power: 10000, energyCost: null, comboCost: null, comboPower: null, skill: ONLY_HAVE_IN_PLAY }),
+  "L-ONLY3": card("L-ONLY3", { type: "LEADER", colors: ["Yellow"], power: 10000, energyCost: null, comboCost: null, comboPower: null, skill: ONLY_IN_AREA }),
 };
 
 // ── 1. the readings ──────────────────────────────────────────────────────────
@@ -122,6 +133,21 @@ function language(rec: Rec, what: string): void {
     ],
   });
   language(r, "P-226");
+  // The plain "only": every card in your Battle Area is one, and there is at least one (`every`, false
+  // when the area is empty). It used to read "1 or more", which held beside any other card.
+  const every = (filter: Record<string, unknown>) => ({ kind: "every", sel: { side: "you", area: "battle" }, matching: { side: "you", area: "battle", filter } });
+  for (const [id, filter] of [["L-ONLY1", { characters: ["son goten: gt"] }], ["L-ONLY2", { colors: ["Yellow"], characters: ["trunks: gt"] }], ["L-ONLY3", { characters: ["son goten: gt"] }]] as const) {
+    const recs = skillRecords(defs[id]);
+    assert.equal(recs.length, 1);
+    const rec = recs[0];
+    assert.deepEqual(rec.unread, [], `${id}: nothing unread`);
+    const held = rec.cost?.condition ?? rec.cond;
+    assert.deepEqual(strip(held), every(filter), `${id}: "only" is every card in your Battle Area`);
+    const rule = asRule(rec);
+    assert.equal(validateRule(rule, rec.kind), null, `${id}: the record validates`);
+    const round = parseRule(printRule(rule));
+    assert.ok(round.ok && printRule(round.value) === printRule(rule), `${id}: the rules language round-trips it`);
+  }
   for (const id of ["P227", "POT930", "EVO930", "SKP930"]) assert.deepEqual(skillRecords(defs[id]).flatMap((x) => x.unread), [], `${id} reads`);
 }
 
@@ -310,6 +336,31 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(declared(roundtrip(done), b.plain), undefined, `${seat}: …and after a reload`);
     assert.equal(findCard(done, b.plain)?.zone, "hand");
     cases += 4;
+  }
+}
+// ── 3. the plain "only", in the VM ──────────────────────────────────────────
+for (const seat of ["p1", "p2"] as const) {
+  for (const [leader, fits] of [["L-ONLY1", "GOTEN"], ["L-ONLY2", "TRUNKS"], ["L-ONLY3", "GOTEN"]] as const) {
+    const board = (inBattle: string[]) => {
+      const s = fresh(seat, 93000 + (seat === "p1" ? 0 : 1), leader);
+      for (const def of inBattle) stage(s, seat, def, "battle");
+      // The opponent's Battle Area is not yours: a card there never breaks nor satisfies "only".
+      stage(s, other(seat), "OTHER", "battle");
+      const s2 = roundtrip(s);
+      return { s: s2, leader: s2.sides[seat].zones.leader[0] };
+    };
+    const offered = (inBattle: string[]) => { const b = board(inBattle); return activation(b.s, b.leader) !== undefined; };
+    assert.ok(offered([fits]), `${seat} ${leader}: only ${fits} in your Battle Area — offered`);
+    assert.ok(offered([fits, fits]), `${seat} ${leader}: two of them — offered`);
+    assert.ok(!offered([fits, "OTHER"]), `${seat} ${leader}: ${fits} beside another card — not offered`);
+    assert.ok(!offered(["OTHER"]), `${seat} ${leader}: only another card — not offered`);
+    assert.ok(!offered([]), `${seat} ${leader}: an empty Battle Area — not offered (no "or no Battle Cards" printed)`);
+    // Taken: the effect resolves from a stored state.
+    const b = board([fits]);
+    const hand0 = zone(b.s, seat, "hand").length;
+    const done = settle(take(b.s, activation(b.s, b.leader)!.action));
+    assert.equal(zone(done, seat, "hand").length, hand0 + 1, `${seat} ${leader}: the draw resolves`);
+    cases += 6;
   }
 }
 console.log(`union-only-play-930: ok (${cases} cases)`);
