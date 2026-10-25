@@ -735,8 +735,14 @@ export type Op =
    * keyword given by a skill exactly as it writes any other, and the engine
    * already plays a granted keyword — so only typed lines become a copy the
    * target has to enumerate.
+   *
+   * `quoted: true` (#1166) is the quoted grant: `from` is this card and
+   * `skill` the index of its own line printed in quotation marks ("…your
+   * Leader gains the following skill for the turn- "[auto] …""), compiled into
+   * that line's record. Only such a line is copied by it, and no other copy
+   * ever takes one.
    */
-  | { op: "copySkills"; target?: Ref; from: Ref; which?: "all"; skill?: number; only?: "keyword"; until: Duration }
+  | { op: "copySkills"; target?: Ref; from: Ref; which?: "all"; skill?: number; only?: "keyword"; quoted?: true; until: Duration }
   | { op: "negateSkills"; target: Ref; until: Duration }
   /**
    * "Negate that card's [Auto] skill for the turn" (9-1-5): one kind of skill
@@ -2861,6 +2867,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // The printed face, as 20-18 reads it: what the source says, not
           // what anything has since done to it.
           for (const sk of skillsOf(sd, side)) {
+            // #1166: a line in quotation marks is a skill the card grants,
+            // never one it has: only the quoted grant copies it, and that
+            // copies nothing else.
+            if (!sk.granted !== !op.quoted) continue;
             if (op.only === "keyword" && !sk.keyword) continue;
             if (op.skill != null && sk.index !== op.skill) continue;
             offered.push({ card: src, side, skill: sk });
@@ -2897,7 +2907,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             // A pure keyword line is a granted keyword and nothing more
             // (20-18-1); everything else is carried as a copy the target
             // enumerates alongside its own skills.
-            const typed = mine.filter((x) => !(x.skill.kind === "keyword" && x.skill.keyword));
+            const typed = mine.filter((x) => x.skill.granted || !(x.skill.kind === "keyword" && x.skill.keyword));
             for (const x of mine)
               if (!typed.includes(x)) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: x.skill.keyword!, until: op.until });
             if (typed.length)
@@ -2907,7 +2917,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 target: id,
                 kind: "copiedSkills",
                 value: 0,
-                copied: { cardId: h.catalogIdOf(src), side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: h.defOf(src).name },
+                copied: { cardId: h.catalogIdOf(src), side: typed[0].side, skills: typed.map((x) => x.skill.index), from: src, name: h.defOf(src).name, ...(op.quoted ? { quoted: true as const } : {}) },
                 until: op.until,
               });
           }

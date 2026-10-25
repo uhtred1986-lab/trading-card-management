@@ -71,11 +71,19 @@ export function skillRecords(def: CardDef): SkillRecord[] {
       if (!parsed.effect.trim() && !needsPaymentRecord(parsed)) continue;
       // 22-30-2: an [Aegis] line's text after its tag is its price, drafted
       // as the record's cost program rather than its effect (#595).
-      const sk = aegisPriceLine(parsed);
-      const script = compileSkill(sk);
+      // #1166: a line in quotation marks that another line grants is recorded
+      // as the skill it quotes, and its reading says which line grants it.
+      const granted = parsed.granted;
+      const sk = aegisPriceLine(granted ? granted.skill : parsed);
+      const script = compileSkill(granted ? parsed : sk);
       const { cond, ops } = hoist(script.ops);
       const permanent = sk.kind === "permanent";
-      const unread = script.unsupported;
+      // The quoted line runs only through its grant: while the granting line
+      // is not wholly read (BT22-080's [Permanent], BT23-077's duration,
+      // BT26-089's combo, BT26-001b's moment), neither is the line it grants.
+      const parent = granted ? out.find((r) => r.side === side && r.skillIndex === granted.by) : undefined;
+      const grantRead = !granted || (!!parent && !parent.unread.length && (parent.kind !== "auto" || parent.trigger.length > 0) && JSON.stringify(parent.ops).includes(`"skill":${sk.index},"quoted":true`));
+      const unread = grantRead ? script.unsupported : [...script.unsupported, `the skill that grants it (#${granted!.by}) is not read (#1166)`];
       out.push({
         cardId: def.id,
         side,
@@ -91,7 +99,7 @@ export function skillRecords(def: CardDef): SkillRecord[] {
         ops,
         unread,
         pattern: patternKey(sk, unread, script.ops),
-        reads: describeScript(script.ops, { permanent }),
+        reads: granted ? `granted by skill #${granted.by}, not this card's own: ${describeScript(script.ops, { permanent })}` : describeScript(script.ops, { permanent }),
       });
     }
   }

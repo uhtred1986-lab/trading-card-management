@@ -323,6 +323,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
   { name: "which", type: { enum: ["all"] } },
   { name: "skill", type: "number" },
   { name: "only", type: { enum: ["keyword"] } },
+  { name: "quoted", type: "boolean" },
   UNTIL,
 ];
 
@@ -580,6 +581,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const op = raw as OpOf<"copySkills">;
       const kind = op.only === "keyword" ? "keyword skills" : "skills";
+      // #1166: this card's own line in quotation marks, granted.
+      if (op.quoted) return renderTemplate(`{target} gains this card's quoted skill (line ${Math.floor((op.skill ?? 0) / 10) + 1}){until}`, raw as unknown as Record<string, unknown>, COPY_SKILLS_FIELDS, r);
       const template =
         op.which === "all"
           ? `{target} gains all of the ${kind} of {from}{until}`
@@ -588,7 +591,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
             : `choose 1 of the ${kind} of {from}, and {target} gains that skill{until}`;
       return renderTemplate(template, raw as unknown as Record<string, unknown>, COPY_SKILLS_FIELDS, r);
     },
-    doc: '20-18: one card takes on another\'s printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play',
+    doc: '20-18: one card takes on another\'s printed skills. "which":"all" copies every one of them, "skill" copies one by its index on the source, and neither lets the master pick one as the skill resolves — which is what "choose up to 1 keyword skill … and this card gains that skill" says. "only":"keyword" narrows the pick and the copy to keyword skills. "quoted":true (#1166) is a quoted grant: "from" is this card and "skill" the index of its own line printed in quotation marks after "…gains the following skill", whose record is the program granted; only that line is copied, and "this card\'s skill" in it names the granting card. The printed face is snapshotted when the effect is made (9-9), so the copy outlives the source leaving play',
   },
   negate: {
     fields: NEGATE_FIELDS,
