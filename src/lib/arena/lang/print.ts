@@ -166,7 +166,9 @@ export function printSelector(sel: Selector): string {
   if (sel.take !== undefined) parts.push(`${sel.fromEnd ? "BOTTOM" : "TOP"} ${typeof sel.take === "object" && !isHole(sel.take) ? `(${printAmount(sel.take as unknown as Amount)})` : slot(sel.take)}`);
   else if (sel.fromEnd) parts.push("fromEnd");
   if (sel.filter !== undefined) parts.push(printFilter(sel.filter));
-  const zones = sel.areas !== undefined ? (sel.areas.length === 1 ? `ANY(${sel.areas[0]})` : sel.areas.join("|")) : sel.area === undefined ? undefined : slot(sel.area);
+  // #930: an owner per area, `IN you.drop|opponent.battle`.
+  const owned = sel.areas !== undefined && sel.areaSides !== undefined && sel.areaSides.length === sel.areas.length && sel.areas.length > 1 && sel.side === undefined;
+  const zones = owned ? sel.areas!.map((a, i) => `${sel.areaSides![i]}.${a}`).join("|") : sel.areas !== undefined ? (sel.areas.length === 1 ? `ANY(${sel.areas[0]})` : sel.areas.join("|")) : sel.area === undefined ? undefined : slot(sel.area);
   if (zones !== undefined) parts.push(`IN ${sel.side === undefined ? "" : `${slot(sel.side)}.`}${zones}`);
   else if (sel.side !== undefined) parts.push(`OF ${slot(sel.side)}`);
   if (sel.mode !== undefined) parts.push(sel.mode);

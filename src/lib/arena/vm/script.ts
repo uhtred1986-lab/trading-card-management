@@ -104,6 +104,12 @@ export interface Selector {
    * `area`; this is read instead of it when present.
    */
   areas?: ScriptArea[];
+  /**
+   * #930: whose each of `areas` is, one side per area in the same order, for
+   * a phrase that prints an owner per area — "in your Drop or your opponent's
+   * Battle Area" (BT30-064). Only with `areas`, and never with `side`.
+   */
+  areaSides?: Side[];
   filter?: CardFilter;
   special?: SpecialTarget;
   /** Only cards in this mode (1-10). */

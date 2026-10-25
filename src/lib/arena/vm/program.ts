@@ -1394,12 +1394,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   } else {
     // A phrase may name two areas — "your opponent's Battle Cards or Unisons".
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
-    for (const area of areas) {
+    for (const [i, area] of areas.entries()) {
       if (area === "under" && sel.underHost) {
         for (const host of resolveSelector(ctx, game, state, frame, sel.underHost)) out.push(...(state.cards[host]?.under ?? []));
         continue;
       }
-      for (const p of sideOf(frame.master, sel.side)) out.push(...areaCards(game, state, p, area, frame));
+      // #930: "your Drop or your opponent's Battle Area" — an owner per area.
+      for (const p of sideOf(frame.master, sel.areas?.length && sel.areaSides ? sel.areaSides[i] : sel.side)) out.push(...areaCards(game, state, p, area, frame));
     }
     if (frame.absorbIdentity) for (const id of absorbMaterialFromUnder(ctx, game, state, frame, sel)) if (!out.includes(id)) out.push(id);
   }

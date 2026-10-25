@@ -690,6 +690,8 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { side: "opponent" as const },
     ...AREAS.map((area) => ({ area })),
     { areas: ["hand", "drop"] as const },
+    // #930, BT30-064: an owner per area, "in your Drop or your opponent's Battle Area".
+    { areas: ["drop", "battle"] as const, areaSides: ["you", "opponent"] as const, count: 1 },
     // A one-area list is the shape that would print exactly like `area`; it is
     // marked instead, or the field would change on the way back.
     { areas: ["hand"] as const },

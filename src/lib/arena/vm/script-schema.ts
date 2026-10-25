@@ -1995,6 +1995,7 @@ const SELECTOR_KEYS = {
   side: 1,
   area: 1,
   areas: 1,
+  areaSides: 1,
   filter: 1,
   special: 1,
   mode: 1,
@@ -2042,6 +2043,11 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.side !== undefined && !is(v.side, SIDES)) return wrong("side", "you, opponent or both");
   if (v.area !== undefined && !is(v.area, AREAS)) return wrong("area", "an area");
   if (v.areas !== undefined && !(Array.isArray(v.areas) && v.areas.length > 0 && v.areas.every((a) => is(a, AREAS)))) return wrong("areas", "a list of areas");
+  // #930: an owner per area ("your Drop or your opponent's Battle Area"), one for each of `areas`, in place of `side`.
+  if (v.areaSides !== undefined) {
+    if (!(Array.isArray(v.areaSides) && v.areaSides.every((x) => x === "you" || x === "opponent"))) return wrong("areaSides", "a list of you or opponent");
+    if (!Array.isArray(v.areas) || v.areas.length !== v.areaSides.length || v.side !== undefined) return `${at}.areaSides needs areas of the same length and no side`;
+  }
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
@@ -2581,6 +2587,8 @@ export const ZONE_NOUNS: Record<Exclude<ScriptArea, "play" | "under" | "removed"
  */
 function describeWhere(sel: Selector): string {
   const areas: ScriptArea[] = sel.areas?.length ? sel.areas : [sel.area ?? "play"];
+  // #930: an owner per area — "in your Drop or your opponent's Battle Area".
+  if (sel.areaSides?.length === areas.length) return areas.map((a, i) => `in ${sel.areaSides![i] === "opponent" ? "your opponent's" : "your"} ${ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] ?? a}`).join(" or ");
   const owner = sel.side === "opponent" ? "your opponent's" : sel.side === "both" ? "each player's" : "your";
   const has = sel.side === "opponent" ? "your opponent has" : sel.side === "both" ? "either player has" : "you have";
   const zones = areas.filter((a) => a !== "play" && a !== "under" && a !== "removed").map((a) => ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] ?? a);
