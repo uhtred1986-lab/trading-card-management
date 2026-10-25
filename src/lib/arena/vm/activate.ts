@@ -91,7 +91,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
-import { activationPriceProblem } from "./activation-price-support";
+import { activationPriceProblem, isFixedUnderHost } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -1121,9 +1121,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           const earlier = ops.slice(0, at);
           const chosen = (v: string) => earlier.find((o): o is Extract<typeof o, { op: "choose" }> => o.op === "choose" && o.as === v);
           // No `under`: the host is this card (`script.ts` moveTo), which must stand in an area that holds piles.
+          // A fixed host (owner decision 25 Oct 2026: "under your Leader Card", EX20-04, EX25-28) is the one card it names.
           const hostChoice = op.under && "var" in op.under ? chosen(op.under.var) : undefined;
-          if (op.under && !hostChoice) return false;
-          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
+          const fixedHost = op.under && isFixedUnderHost(op.under) ? resolveRef(ctx, game, state, frame, op.under) : undefined;
+          if (op.under && !hostChoice && !fixedHost) return false;
+          const hosts = (hostChoice ? resolveSelector(ctx, game, state, frame, hostChoice.sel) : fixedHost ?? [card]).filter((id) => game.zones[findCard(state, id)?.zone ?? ""]?.host === true);
           const movedChoice = "var" in op.target ? chosen(op.target.var) : undefined;
           if (!("var" in op.target) ? op.target.sel.special !== "self" : !movedChoice) return false;
           const moving = movedChoice
