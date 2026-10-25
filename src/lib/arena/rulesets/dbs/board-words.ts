@@ -101,6 +101,10 @@ export const DBS_BOARD_WORDS: BoardWords = {
       "text": "through {them}'s next Charge Phase",
       "you": "through your next Charge Phase"
     },
+    "nextMain": {
+      "text": "until the start of {them}'s next Main Phase",
+      "you": "until the start of your next Main Phase"
+    },
     "game": {
       "text": "for the rest of the game"
     },

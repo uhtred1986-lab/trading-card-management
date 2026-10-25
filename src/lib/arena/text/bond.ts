@@ -17,7 +17,8 @@ const BRACKET = String.raw`(?:≪[^≫]+≫|<[^>]+>|\{[^}]+\})`;
 const PART = String.raw`(?:(?:red|blue|green|yellow|black|white)\s+)?${BRACKET}(?:\s+cards?)?`;
 /** "Red ≪Saiyan≫ cards and/or ≪Bardock's Crew≫ cards" (BT13-006): two or more alternatives. */
 const COMPOUND = new RegExp(String.raw`^${PART}(?:\s*,?\s+(?:and\/or|or)\s+${PART})+$`, "i");
-const SINGLE = new RegExp(String.raw`^${BRACKET}$`);
+/** One bracketed name, with or without "card(s)" after it: "≪Universe 6≫" (#549), "≪Ginyu Force≫ card" (BT29-083, #1163). */
+const SINGLE = new RegExp(String.raw`^${BRACKET}(?:\s+cards?)?$`, "i");
 const ORBS = /\{(?:[rugykbw]|\d+)\}(?:\/\{[rugykbw]\})?/gi;
 const NAME_KEYS = ["traits", "characters", "names"] as const;
 
@@ -93,7 +94,8 @@ function compoundFilter(text: string): CardFilter | null {
 
 /**
  * A Bond line's text before the colon may name the Battle Cards it counts.
- * Admitted here: one fully bracketed selector ("≪Universe 6≫", #549), or a
+ * Admitted here: one fully bracketed selector ("≪Universe 6≫", #549; with
+ * "card(s)" after it, "≪Ginyu Force≫ card", BT29-083, #1163), or a
  * compound of bracketed names, each with an optional colour, joined by "or"
  * or "and/or" (BT13-006). The existing text filter parser reads its meaning;
  * the exact grammar check proves there is no additional text. A line whose
