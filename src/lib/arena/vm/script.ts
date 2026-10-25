@@ -403,6 +403,9 @@ export type Cond =
    * [Union]" (BT14-114, BT28-097 …), a lone IF the record hoists to `cond` —
    * it is also a trigger condition: `resolvePlay` withdraws the Auto from any
    * play that was not such an entry (`vm/triggers.ts` `unionPlayGate`).
+   * With `sel: subject` on a `youPlayed` [Auto] — "when your <X> card is
+   * played by a [Union] skill" (BT22-033, BT25-036 back, P-682) — it is the
+   * same gate about the played card (`unionPlayedGate`).
    */
   | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" }
   /**
@@ -1525,6 +1528,8 @@ export interface ScriptFrame {
   subjectInfo?: import("./cards").Attrs;
   /** #930: the source's [Union] entry memory (`VmCard.enteredUsing`) as the skill was activated (`vm/activate.ts`) — "this card" after it left as the cost — or, for an [Auto], as it was triggered (`VmPending.selfEnteredUsing`, `vm/flow.ts`): a copy that left before resolving keeps it. Additive: older frames carry none. */
   selfEnteredUsing?: string;
+  /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
+  subjectEnteredUsing?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
   /** Persisted ID of the timed effect granting this individual keyword skill. */
