@@ -2132,11 +2132,13 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   // Under a named host, from an area.
   const under = one("[Auto] When you play this card, place up to 1 yellow ≪Frieza Clan≫ card from your Drop under {Wickedest Clan} in your Battle Area.");
   assert.deepEqual(under.unsupported, []);
+  // #1123: the host is a description, so it is a choice of its own (the card first, then its host).
   assert.deepEqual(
     under.ops.map((o) => o.op),
-    ["choose", "moveTo"],
+    ["choose", "choose", "moveTo"],
   );
-  assert.equal((under.ops[1] as { to: string }).to, "under");
+  assert.equal((under.ops[2] as { to: string }).to, "under");
+  assert.deepEqual((under.ops[2] as { under: unknown }).under, { var: (under.ops[1] as { as: string }).as }, "under the chosen {Wickedest Clan}");
 
   // Under a host that is one of two earlier choices (BT3-052, BT3-054). "The
   // chosen opponent Battle Card" and "the chosen <Majin Buu>" are told apart

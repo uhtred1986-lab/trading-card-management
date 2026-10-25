@@ -97,9 +97,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // narrowing — without it the phrase named no area and the clause failed.
   const host = one("[Auto] When you play this card, place up to 1 red <Android 17> card from your deck under a Z-Extra in your Battle Area, then shuffle your deck.");
   assert.deepEqual(host.unsupported, []);
+  // #1123: "a Z-Extra" is a counted host, so it is a choice of its own before the move.
   assert.deepEqual(
     host.ops.map((o) => o.op),
-    ["choose", "moveTo", "shuffle"],
+    ["choose", "choose", "moveTo", "shuffle"],
   );
 
   // "Up to the number of cards in your Battle Area" — read off the board.

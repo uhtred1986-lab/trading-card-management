@@ -2450,7 +2450,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "moveTo": {
         // 23-2: under a card is not an area of its own, so it is its own move.
-        const host = op.to === "under" ? (op.under ? h.resolveRef(frame, op.under)[0] : frame.card) : null;
+        // #1123: a host named by a selector is taken only when it matches one card. Several matches
+        // are a choice the record never asked (the compiler makes a counted host a `choose`), and
+        // picking the first for the player moves a card under the wrong one: nothing is placed, a
+        // price that needed the move is unpaid, and the log says why.
+        const hosts = op.to === "under" && op.under ? h.resolveRef(frame, op.under) : [];
+        const ambiguousHost = !!op.under && "sel" in op.under && hosts.length > 1;
+        if (ambiguousHost && !frame.moveLoop) {
+          h.log({ type: "note", text: `${h.nameOf(frame.card)}: ${hosts.length} cards match the card to place under, and the skill does not say which; nothing is placed` });
+          if (frame.saveVarsAs) frame.priceUnpaid ??= "the card to place under was not chosen";
+        }
+        const host = op.to === "under" ? (op.under ? (ambiguousHost ? undefined : hosts[0]) : frame.card) : null;
         frame.moveLoop ??= {
           kind: "moveTo",
           ids: h.resolveRef(frame, op.target),
