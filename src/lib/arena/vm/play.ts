@@ -131,6 +131,8 @@ export interface PlayOptions {
   /** #1015: a skill made the play (`"skill"`), and whether it was the other player's. A declared play (5-5-2) names neither. */
   by?: "skill";
   byOpponent?: boolean;
+  /** #1163: the card whose skill made the play, beside `by` — what `moved(byWatcher: true)` asks of the watcher. */
+  byCard?: string;
   /**
    * 22-13-5-4 (#927): [Union-Potara]'s other materials, in the order chosen —
    * `onto` is the first, directly beneath the played card, these follow it.
@@ -242,7 +244,7 @@ export function resolvePlay(
   // a play the player declares carries no cause. Not for a card coming out of a
   // Battle Area: that is `removedFromBattle`'s move (`moved(by: skill, from:
   // battle)`), and this play must not answer to it.
-  const cause: { by?: string; byOpponent?: boolean } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
+  const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
   // 22-15: the card remembers which keyword played it, for the rest of the
@@ -299,7 +301,7 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string } = {}): void {
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the

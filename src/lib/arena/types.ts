@@ -648,8 +648,8 @@ export interface ContinuousEffect {
    * spending any of them ends the lot. The id of the first one made.
    */
   group?: number;
-  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins. */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "game" | "whileSourceInPlay";
+  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163). */
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -755,6 +755,8 @@ export type Trigger =
   | "opponentPlayedBySkill"
   /** Your own side of it: "when your blue ≪God≫ card is played", "when you play a red ≪Android≫ card". */
   | "youPlayed"
+  /** #1163: one of your cards played by the watching card's own skill ("when your ≪Ginyu Force≫ card is played by this card's skill", BT29-083). The played card is the `subject`. */
+  | "youPlayedByThisCard"
   | "opponentAttacks"
   /** BT7-003: an opponent's skill made your energy Active on their turn. */
   | "opponentEnergyActiveBySkill"

@@ -57,7 +57,7 @@ import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./tr
 import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
 import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
@@ -234,7 +234,10 @@ const STEP_WORK: Record<string, Work> = {
   mainPending: {
     section: "7-3-2",
     waits: "the same DELAY declaration `chargeTurnEffects` waits on",
-    run: (_ctx, _game, state) => {
+    run: (ctx, game, state, ev) => {
+      // #1163: "until the start of your next Main Phase" ends here, before
+      // anything waiting for this Main Phase resolves.
+      returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
       state.programs.push(...dueDelays(state, "mainStart"));
       // 7-2-11's one charge has gone by the moment the Main Phase begins,
       // whether or not a card was actually charged at the Charge Phase's own
@@ -673,6 +676,9 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
     if (name === game.game?.phases?.[0]) endAfterOpponentChargeEffects(state, ev);
+    // …and so does "until the start of your next Main Phase" (#1163) when the
+    // phase whose first step would have ended it is skipped.
+    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
     return;
   }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
@@ -1500,6 +1506,8 @@ export interface MoveCause {
   by?: string;
   /** 3-1-5: was the cause the other player's? Only meaningful beside `by`. */
   byOpponent?: boolean;
+  /** #1163: the card whose skill caused it, beside `by` — `moved(byWatcher: true)` asks it of the watching card. */
+  byCard?: string;
   /** It arrives on top of this card, which goes under it next (`MoveOptions.onto`, 22-46-6). */
   onto?: string;
   /** 22-15: the keyword whose own move played it ("Over Realm"), for `moved(using: …)`. Left out for every other move, and a pattern naming it does not match those. */
@@ -1609,7 +1617,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
 
 /** The `moved` moment, in the words `triggers.rules` asks about it in. */
 function movement(id: string, from: string | null, to: string, owner: PlayerId, opts: MoveCause, wasHidden = false, fromHolder?: PlayerId): Moment {
-  const cause: Record<string, PatternValue> = opts.by !== undefined ? { by: opts.by, byOpponent: opts.byOpponent ?? false } : {};
+  const cause: Record<string, PatternValue> = opts.by !== undefined ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
   const where: Record<string, PatternValue> = from !== null ? { from } : {};
   return {
     event: "moved",

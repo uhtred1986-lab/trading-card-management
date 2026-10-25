@@ -166,6 +166,10 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
       // declaration that names `hidden: true` is what specifies it.
       if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
       if (!holdsFor(game, state, trigger, card)) continue;
+      // #1163: `byWatcher: true` — only the card whose own skill made the move
+      // is asked ("…is played by this card's skill", BT29-083). The moment
+      // names that card as `byCard`; a move no card's skill made names none.
+      if (trigger.on.args.byWatcher === true && moment.args.byCard !== card) continue;
       // A self-moment a skill caused hands that skill's card on as the subject (#907).
       const subject = trigger.bind === "subject" && moment.card !== undefined ? { subject: moment.card }
         : trigger.bind === "self" && moment.source !== undefined ? { subject: moment.source } : {};
@@ -175,10 +179,10 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
   return out;
 }
 
-/** Every argument the pattern names, matched against what the moment carries. `watcher` is about who is asked rather than about the event, and is read by `asked`. */
+/** Every argument the pattern names, matched against what the moment carries. `watcher` is about who is asked rather than about the event, and is read by `asked`; `byWatcher` is about which of them, and is read by `matchTriggers`. */
 function fieldsMatch(pattern: Record<string, PatternValue>, carried: Record<string, PatternValue>): boolean {
   for (const [name, want] of Object.entries(pattern)) {
-    if (name === "watcher") continue;
+    if (name === "watcher" || name === "byWatcher") continue;
     if (!valueMatches(want, carried[name])) return false;
   }
   return true;

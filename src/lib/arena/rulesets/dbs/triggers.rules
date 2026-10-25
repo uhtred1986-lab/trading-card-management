@@ -97,6 +97,15 @@ DEFINE TRIGGER opponentPlayedBySkill
   BIND "subject"
   text: "when your opponent uses a skill to play a card"
 
+-- #1163 — when your card is played by this card's skill (BT29-083): your own
+-- skill's play (`by: skill, byOpponent: false`), and only the one the watching
+-- card's own skill made — `byWatcher: true` asks that the card whose skill
+-- played it is the card being asked, which no other moment says.
+DEFINE TRIGGER youPlayedByThisCard
+  ON moved(asPlay: true, by: skill, byOpponent: false, byWatcher: true, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when your card is played by this card's skill"
+
 -- §5-5-4 — when this card is placed in a Battle Area. 5-5-1: playing a card
 -- places it in the Battle Area, so a play is one of the ways this happens and
 -- the pattern does not ask `asPlay` (owner's ruling, 2 Oct 2026). A skill whose

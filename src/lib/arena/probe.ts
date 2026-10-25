@@ -213,7 +213,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
 
 // ── which board the rule needs ─────────────────────────────────────────────
 
-const PLAY_TRIGGERS = ["played", "playedFromHand", "youPlayed", "placed", "yourCardPlaced", "evolvedInto", "opponentPlayed", "opponentPlayedBySkill", "overRealmPlayed", "playedUsingOverRealm"];
+const PLAY_TRIGGERS = ["played", "playedFromHand", "youPlayed", "youPlayedByThisCard", "placed", "yourCardPlaced", "evolvedInto", "opponentPlayed", "opponentPlayedBySkill", "overRealmPlayed", "playedUsingOverRealm"];
 const BATTLE_TRIGGERS = ["attacks", "attacked", "kos", "dealtDamage", "opponentAttacks", "battleEnd", "yourLeaderAttacked", "offenseStart", "defenseStart", "damageStart", "blockerUsed", "koed"];
 const COMBO_TRIGGERS = ["comboUsed", "comboed", "youCombo", "opponentCombos"];
 const MOMENT_TRIGGERS = ["turnEnd", "mainEnd", "mainStart", "chargeStart", "opponentTurnEnd", "opponentTurnStart", "opponentMainStart"];
