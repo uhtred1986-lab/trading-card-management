@@ -131,8 +131,11 @@ const rowOf = (cardId: string, skillIndex: number) => {
   assert.match(unread(["[activate: main] Your Leader gains the following skill until the start of your turn:", "\"[Auto] When this card attacks, draw 1 card.\""])[0].join(" "), /duration "until the start of your turn" is not read/, "BT23-077's duration is refused, not read as the turn");
   assert.match(unread(["[permanent] Your opponent's Leader gains the following skill—", "\"[activate: main]{2}: Draw 1 card.\""])[0].join(" "), /\[Permanent\] granting/, "BT22-080's standing grant is refused");
   const absorb = unread(["[activate: main] Choose up to 1 of your green <Majin Buu> cards with an energy cost of 4 and it gains the following skill for the turn—", "\"[union absorb][once per turn] If your opponent has 2 or more energy, choose 1 Battle Card in your Drop and place it under this card: Play up to 1 green <Majin Buu> card with an energy cost of 6 from your Drop on top of this card in Active Mode.\""]);
-  assert.match(absorb[0].join(" "), /granted skill \(line 2\) is not read/, "BT30-064: a granted [Union-Absorb] refuses the grant");
-  assert.match(absorb[1].join(" "), /keyword skill granted in quotation marks/);
+  // #930: a granted [Union-Absorb] is read since `granted-absorb-930.ts` (BT30-064); every other quoted keyword stays refused.
+  assert.deepEqual(absorb, [[], []], "BT30-064's shape: a granted [Union-Absorb] is read");
+  const evolve = unread(["[activate: main] Choose up to 1 of your Battle Cards and it gains the following skill for the turn—", "\"[evolve]{2}: <Majin Buu>\""]);
+  assert.match(evolve[0].join(" "), /granted skill \(line 2\) is not read/, "a granted [Evolve] refuses the grant");
+  assert.match(evolve[1].join(" "), /keyword skill granted in quotation marks/);
   const parentUnread = unread(["[permanent] Your opponent's Leader gains the following skill—", "\"[activate: main]{2}: Draw 1 card.\""]);
   assert.match(parentUnread[1].join(" "), /the skill that grants it \(#0\) is not read/, "a quoted line whose grant is unread is not read either");
   // A quoted line compiled alone (no line before it) stays the unread line it was.

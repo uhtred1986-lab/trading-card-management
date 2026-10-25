@@ -136,16 +136,20 @@ const GRANT_DURATIONS = /^(?:for the turn|until the end of your opponent's(?: ne
 /**
  * #1166: the skill a line in quotation marks quotes, as the record of that
  * line. Its "this card" is whichever card holds it while the grant lasts.
- * Refused: a keyword line ([Union-Absorb], [EX-Evolve] — a granted keyword
- * move needs a grant contract of its own, as `permit(unionLine)` is for a
- * Union in hand), and an [Auto] whose moment is not read (it would never
+ * A quoted [Union-Absorb] (#930, BT30-064) is read: its record carries the
+ * typed grant contract a granted Union needs — `cost.absorb` v1 identity, the
+ * typed price program and the effect program, as P-360's `permit(unionLine)`
+ * carries its typed price — so the host offers it from the Battle Area as its
+ * own keyword move while the grant lasts, and nothing is read off the text.
+ * Refused: every other keyword line ([EX-Evolve], [Evolve] — a granted keyword
+ * move needs a grant contract of its own), and an [Auto] whose moment is not read (it would never
  * answer, and the grant would look read). Also "at the end of a battle in
  * which this card attacked" (BT22-022): the `battleEnd` moment does not ask
  * which card attacked, so the skill would answer to every battle's end; a
  * granted line is not made readable on that misreading.
  */
 function compileQuotedSkill(quoted: Skill): Script {
-  if (quoted.kind === "keyword" || quoted.keyword) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "a keyword skill granted in quotation marks is not supported (#1166)"] };
+  if ((quoted.kind === "keyword" || quoted.keyword) && !isAbsorbSkill(quoted)) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "a keyword skill granted in quotation marks is not supported (#1166)"] };
   if (/\bat the end of (?:a|the) battle in which this card attack/i.test(quoted.effect)) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "\"a battle in which this card attacked\" is not a moment the engine asks (#1166)"] };
   const script = compileSkill(quoted);
   if (quoted.kind === "auto" && !script.unsupported.length && !(script.trigger ?? triggersOf(quoted)).length) return { ...script, ops: [], unsupported: [quoted.raw, "the granted [Auto]'s moment is not read (#1166)"] };

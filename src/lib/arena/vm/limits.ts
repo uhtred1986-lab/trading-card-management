@@ -22,6 +22,7 @@ import { requireUsage, usageProblem } from "./usage";
  * Both counts end with the turn (`vm/flow.ts`'s `endTurn`).
  */
 import type { PlayerId, Skill } from "../types";
+import { copiedSkillIndex, isCopiedSkill } from "./common";
 import type { VmState } from "./state";
 
 /**
@@ -46,9 +47,28 @@ export function limitUsed(state: VmState, master: PlayerId, card: string, sk: Pi
  */
 export function usesLeft(state: VmState, master: PlayerId, card: string, sk: Skill): number | null {
   const usage = requireUsage(sk.usage);
-  if (usage.oncePerTurn) return (state.cards[card]?.usedThisTurn ?? []).includes(sk.index) ? 0 : 1;
+  if (usage.oncePerTurn) {
+    const used = state.cards[card]?.usedThisTurn ?? [];
+    return used.includes(sk.index) || sameQuotedGrant(state, card, sk.index).some((i) => used.includes(i)) ? 0 : 1;
+  }
   if (usage.limit === null) return null;
   return Math.max(0, usage.limit - limitUsed(state, master, card, sk));
+}
+
+/**
+ * #930, BT30-064 (owner-accepted default of 25 Oct 2026): a [Once per turn]
+ * line a quoted grant put on a card is counted on that card by what it is —
+ * the granting card number and its quoted line — not by the grant. Every
+ * other index on this card that a quoted grant of the same line gives it, so a
+ * second grant of the skill to the same card in the same turn is the skill it
+ * has already used. A copy's index is the effect's (`copiedSkillIndex`).
+ */
+function sameQuotedGrant(state: VmState, card: string, index: number): number[] {
+  if (!isCopiedSkill(index)) return [];
+  const mine = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === card && e.copied?.quoted);
+  const at = mine.flatMap((e) => e.copied!.skills.filter((i) => copiedSkillIndex(e.id, i) === index).map((i) => ({ cardId: e.copied!.cardId, side: e.copied!.side, line: i })))[0];
+  if (!at) return [];
+  return mine.filter((e) => e.copied!.cardId === at.cardId && e.copied!.side === at.side && e.copied!.skills.includes(at.line)).map((e) => copiedSkillIndex(e.id, at.line)).filter((i) => i !== index);
 }
 
 /**

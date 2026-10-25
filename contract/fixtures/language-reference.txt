@@ -3624,6 +3624,10 @@
       "part": "places"
     },
     {
+      "field": "areaSides",
+      "part": "places"
+    },
+    {
       "field": "mode",
       "part": "flag"
     },
