@@ -3,7 +3,8 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { NumberedBeat, BeatArt, Beats } from "@/lib/arena/beats";
 import type { CardView } from "@/lib/arena/view";
 import type { PlayerId } from "@/lib/arena/types";
-import { combatMoment, soundCue } from "@/lib/arena/immersion/events";
+import { actionSequence, soundCue } from "@/lib/arena/immersion/events";
+import { bannerPlan } from "@/lib/arena/immersion/banner";
 import { arenaAudio } from "@/lib/arena/immersion/audio";
 import { useImmersionPreferences, setImmersionPreferences } from "@/lib/arena/immersion/preferences";
 import { CombatBanner, warmSheet } from "./CombatBanner";
@@ -65,9 +66,12 @@ export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, redu
     return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
   }, [prefs.sound]);
   useEffect(() => () => arenaAudio.stop(), [gameId]);
-  const moment = combatMoment(gameId, beat, cardOf, art);
-  const rawSkill = skillMoment(gameId, beat, { cardOf, art, viewer });
+  // One contract sequence per beat (#1103) feeds the single banner route: leader and Battle Cards, every screen size.
+  const sequence = actionSequence(gameId, beat, { cardOf, art, viewer, durationMs });
+  const plan = bannerPlan(sequence, beat);
+  const rawSkill = sequence?.staging === "motion" ? skillMoment(gameId, beat, { cardOf, art, viewer }) : null;
   const skill = bannerOwnsMoment(rawSkill, beat) ? rawSkill : null;
+  const skip = () => { arenaAudio.stop(); onSkip(); };
   // Keep the keyed beat mounted while obscured, so restoring visibility cannot replay it.
-  return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner moment={moment} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /><SkillBanner moment={skill} durationMs={durationMs} reducedMotion={reducedMotion} onSkip={() => { arenaAudio.stop(); onSkip(); }} /></div>;
+  return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner plan={plan} reducedMotion={reducedMotion} onSkip={skip} /><SkillBanner moment={skill} durationMs={durationMs} reducedMotion={reducedMotion} neutral={sequence?.neutral ?? null} onSkip={skip} /></div>;
 }

@@ -146,6 +146,9 @@ function defendView(snap: Snapshot): Snapshot {
  *   finish                the clash and the damage that end the game, then the end screen
  *   no-target             your leader's KO skill with nothing to KO (`noEffect`), on the computer's move (#783)
  *   no-target-battle      the same inside a battle (`attack`), read off the clash that follows it
+ *   immersion-attack | immersion-hit | immersion-block | immersion-negated | immersion-repel
+ *                         one character banner beat on the `immersion` fixture (#1105)
+ *   immersion-unknown     an attack by a card no longer on the board: the neutral banner fallback
  */
 function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   const own = snap.beats?.list ?? [];
@@ -155,7 +158,7 @@ function fxBeats(fx: string, snap: Snapshot): NonNullable<Snapshot["beats"]> {
   if (fx.startsWith("immersion-")) {
     const attacker = snap.view.you.battle[0]?.id ?? snap.view.you.leader?.id ?? "";
     const guard = snap.view.them.battle[0]?.id ?? snap.view.them.leader?.id ?? "";
-    list = number(fx === "immersion-block" ? [{ t: "block", guard, by: guard }] : fx === "immersion-negated" ? [{ t: "negated" }] : fx === "immersion-hit" ? [{ t: "clash", attacker, guard, attackPower: 20000, guardPower: 10000, hit: true }] : [{ t: "attack", attacker, target: guard }]);
+    list = number(fx === "immersion-block" ? [{ t: "block", guard, by: guard }] : fx === "immersion-negated" ? [{ t: "negated" }] : fx === "immersion-hit" ? [{ t: "clash", attacker, guard, attackPower: 20000, guardPower: 10000, hit: true }] : fx === "immersion-repel" ? [{ t: "clash", attacker, guard, attackPower: 10000, guardPower: 20000, hit: false }] : fx === "immersion-unknown" ? [{ t: "attack", attacker: "departed", target: guard }] : [{ t: "attack", attacker, target: guard }]);
   } else if (fx === "reveal") list = own.filter((b) => b.t === "move");
   else if (fx === "damage" || fx === "damage-you") list = number([{ t: "damage", player: fx === "damage" ? snap.view.them.player : snap.view.you.player, amount: 1, critical: false, cards: [] }]);
   else if (fx.startsWith("clash")) {
