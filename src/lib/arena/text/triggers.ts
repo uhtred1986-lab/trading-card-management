@@ -385,7 +385,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card is attacked/.test(t);
     // 8-1: a Battle Card watching the *Leader* be attacked. The Leader's own
     // copy of that sentence is `attacked` above — it is a card in play like
-    // any other — so this is only for the ones printed elsewhere.
+    // any other — so this is only for the ones printed elsewhere. The words
+    // between "your" and "Leader" ("mono-red ≪Saiyan≫", SD15-02, #1168) are
+    // not lost here: the compiler reads them into a condition on the attacked
+    // Leader (`attackedLeaderDescription`), or leaves the skill unread.
     case "yourLeaderAttacked":
       return /when your [^,]{0,60}leader(?: card)? is attacked/.test(head);
     // 21-3: damage from a skill, which is the only damage the `damage` op

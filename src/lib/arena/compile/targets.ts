@@ -67,7 +67,9 @@ export const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bleader area\b/, "leader"],
   [/\bbattle area\b/, "battle"],
   // Noun card types when no explicit area preposition was named
-  [/\bleader cards?\b|\byour leaders?\b/, "leader"],
+  // "your ≪Ginyu Force≫ Leader" (BT29-083, #1166), "your yellow Leader": a Leader
+  // with a colour or a special trait in front is still the Leader Area.
+  [/\bleader cards?\b|\byour (?:(?:red|blue|green|yellow|black) )?(?:≪[^≫]+≫ ?)?leaders?\b/, "leader"],
   [/\bbattle cards?\b/, "battle"],
   [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
