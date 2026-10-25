@@ -793,6 +793,8 @@ locks, compares the whole row and swaps, so a stale row aborts that batch with n
 the classification and asserts 0 pending. Needs `DATABASE_URL` (an agent session does not run it; the
 coordinator or owner does).
 
+**Finding the ids for a shape change.** `tsx --env-file-if-exists=.env.local scripts/arena-selector-hosts.mts [--out ids.txt] [--extra "BT4-018#0"]` (read-only) lists every stored row whose price or effect still moves a card `under` a host named by a selector (the pre-#1123 shape) with its source/status, and writes the ids for `--ids-file`. After a refresh, the hosts left are the fixed ones (`special` leader/self/opponentLeader/subject), owner rows, and rows whose fresh compile is still unread. Offline test: `scripts/verify/selector-hosts-1123.ts` (part of `npm test`). First run, 25 Oct 2026: 83 rows found, 76 refreshed with BT4-018#0 (#930), 8 excluded.
+
 ---
 
 ## 5. Recording a ruling
