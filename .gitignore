@@ -60,3 +60,4 @@ docs/arena-redesign/clips/
 
 # Before/after proof from `npm run shots:compare` (.claude/skills/screen-proof)
 .shots-compare/
+/.arena-campaign/

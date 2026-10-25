@@ -465,6 +465,43 @@ creates a game.
 module that calls the compiler in production is `draft.ts`**; the engine
 reads rows.
 
+`arena:vs` stays the server-path smoke script it is (a stored game, a first-legal-move stand-in).
+**Any local-policy versus Claude evaluation uses `arena:claude-duel` instead** (#901/#902, below).
+
+### `arena:claude-duel` — local policy versus the Claude API, isolated (#901, #902)
+
+`scripts/arena-claude-duel.mts` plays the built-in opponent (`localStep` + `localPolicy()`, its own
+seeded RNG) against a Claude seat on the real rules VM over pinned inputs — a corpus pack from
+`arena:corpus --out` (bundle rebuilt and checked by hash) or, without `--pack`, the qualified
+starters. No database, no arena tables. The Claude seat is given only its `PolicyInput` (restricted
+observation + legal decisions, `policyTurn`), rendered by `scripts/lib/claude-duel-prompt.ts` with
+the shared primer/`DOCTRINE`; free choices and single-move menus are taken without a call. The
+provider is called directly with an explicit `--model` — no router, tier, subscription or
+OpenRouter fallback.
+
+- **Dry run (default, `--provider fake`)**: a deterministic fake that reads only the request text;
+  no network, $0 billed. It still reserves/settles notional spend in `.arena-campaign/dry-run`
+  (gitignored), so budget stops are exercised. `--faults "3:malformed,5:rate"` injects failures.
+- **Every stop is typed** (`completed`, `malformed`, `illegal`, `refusal`, `rate-limited`,
+  `provider-error`, `interrupted`, `no-progress`, `move-cap`, `decision-cap`, `wall-time`,
+  `budget-limited`, `token-limit`, `cancelled`); limits are never a draw or win. `--evidence-out`
+  writes the private replay evidence (request hashes, raw answers, usage, reservations; keep it out
+  of public issues); `--replay <file>` replays the recorded answers and checks each trace.
+  `--manifest-out` writes the Testing & stats manifest (runner `arena-claude-duel`, protocol
+  `arena-claude-duel-dry-v1`/`-paid-v1`), which maps to no recipe or scenario.
+- **Money (#902)**: rates live in `scripts/lib/claude-campaign-rates.ts`, dated and sourced, read
+  off the public pricing page on 25 Oct 2026 and **not yet owner-verified**; unknown models fail
+  closed. `scripts/lib/claude-campaign-ledger.ts` is the durable journal: an atomic (lock-file)
+  reservation of the most a call can cost before it leaves, `dispatch` written before sending,
+  settle from usage after; a dispatched call without usage keeps its whole reservation until the
+  owner reconciles it (`--reconcile <id> <micros> <source>`); `--recover` after a crash releases
+  only reservations provably never sent. Caps are fixed at the approved $20 / 8 games pilot and
+  $100 / 40 games total, and a restart cannot change them (`--ledger-summary`).
+- **Paid runs are refused** until the owner verifies the rate sheet and the model's access and
+  gives the go (#903/#904): `--provider anthropic-api --allow-paid --phase pilot`.
+
+Proofs: `scripts/verify/claude-duel-901.mts` and `scripts/verify/claude-ledger-902.mts` (`npm test`).
+
 ### `arena:specified` — what the feed does not say
 
 ```

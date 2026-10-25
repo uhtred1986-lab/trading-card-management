@@ -34,7 +34,7 @@ import { words, type Words } from "../rulesets/words";
 import { loadDbs } from "../rulesets";
 import { decklistText, money, movesText, shownName, stateText } from "./view";
 import { tableOf } from "./table";
-import { generatedPrimer } from "./primer";
+import { DOCTRINE, generatedPrimer } from "./primer";
 import type { EngineState } from "../engines";
 import { nameOf } from "../engine-state";
 import { freeChoice } from "./shortcut-input";
@@ -95,19 +95,6 @@ export async function recordedMove(db: Db, callId: string, legal: LegalAction[])
   };
 }
 
-/**
- * Attacking, and the doctrine for playing well — judgement about the game,
- * not a fact `game.rules`/`zones.rules` could state, so it stays hand-written
- * beside the generated half above it (#160).
- */
-const DOCTRINE = `Attacking: switch an active card to Rest Mode to attack the opposing Leader, their Unison, or one of their Battle Cards that is already rested. Both sides may then add Combo Power from hand or from active Battle Cards; the attacker wins ties. A beaten Battle Card is KO'd; a beaten Leader loses life, which goes to that player's hand unless the attacker has [Critical].
-
-What matters, roughly in order: do not let your life run out; trade up in power; keep energy of the colours you still need; a card in hand that you cannot pay for is worth less than the energy it would have been; life in the Drop is gone, life in hand is a card.
-
-Combos, which is where a hand is usually thrown away: both players may add Combo Power, but never at the same moment. The Offense Step comes first and is the attacker's; the Defense Step follows and is the defender's. So combo power you add while attacking is shown to the defender before they answer, and they answer last — they can out-bid it or simply decline, and either way you are a card down for the turn they attack you. Combo on offense only when the extra power settles something they cannot answer cheaply: you are attacking a Battle Card and the number gets you past its printed power, or the comboed card's own text pays you for it. Otherwise pass and keep the card.
-On defense you already know what the attack is worth, so the question is only whether this hit is worth paying for. Add the least that holds — enough to beat the attack outright, not one card more — and only when what you save is worth more than the cards you spend. Ties go to the attacker, so matching the number is not enough. Early in the game, with life to spare, taking the hit is usually the cheaper play: a lost life card comes back to your hand, and a hand emptied on turn 3 is not there on turn 8. Late, or when the hit would be lethal or [Critical], pay whatever it takes.
-
-The engine enforces every rule. You will be given a numbered list of the only moves that are currently legal. Answer with one of those numbers.`;
 
 /**
  * The primer Claude is told the game by: the mechanical half generated from
