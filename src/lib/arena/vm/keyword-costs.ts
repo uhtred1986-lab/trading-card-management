@@ -208,7 +208,7 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
   if (cost.fusion) {
     if (cost.line.script?.price?.payment.marker != null) state.cards[frame.card].usedMarkerSkill = true;
     spendUse(state, frame.master, frame.card, cost.line.skill);
-    spendSkillCostUses(state, ev, frame.card, cost.line.skill);
+    spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);
   }
   announce(state, ev, frame.master, cost.line);
   for (const moment of cost.moments) fire(ctx, game, state, moment);
