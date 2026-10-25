@@ -1292,14 +1292,16 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   },
   battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of the")} has been in a battle this turn` },
   playedUsing: {
-    fields: [SEL, { name: "what", type: { enum: ["Over Realm", "Union"] }, required: true }],
+    fields: [SEL, { name: "what", type: { enum: ["Over Realm", "Union", "Union-Fusion", "Union-Potara", "Union-Absorb"] }, required: true }],
     sentence: (raw) => {
       const c = raw as CondOf<"playedUsing">;
       return c.what === "Union"
         ? `${describeSelector(c.sel, "any of the")} was played using a [Union] skill`
-        : `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
+        : c.what.startsWith("Union-")
+          ? `${describeSelector(c.sel, "any of the")} was played using [${c.what}]`
+          : `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
     },
-    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026)",
+    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play",
   },
   placedThisTurn: {
     fields: [SEL],

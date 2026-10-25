@@ -392,8 +392,13 @@ export type Cond =
    * the skill's own cost is its memory when the skill was activated, and an
    * [Auto]'s is its memory when the Auto was triggered (owner's ruling, 25
    * Oct 2026: a copy KO'd before its on-play Auto resolves still counts).
+   * A named variant (`what: "Union-Potara"`, …) is that [Union] keyword only.
+   * As the gate of an [Auto] on `played` — "when this card is played using
+   * [Union]" (BT14-114, BT28-097 …), a lone IF the record hoists to `cond` —
+   * it is also a trigger condition: `resolvePlay` withdraws the Auto from any
+   * play that was not such an entry (`vm/triggers.ts` `unionPlayGate`).
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" }
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
