@@ -328,6 +328,34 @@ function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op):
   return [act(ref)];
 }
 
+/**
+ * #1123 (owner ruling 25 Oct 2026, 23-2): "place 1 card from your hand under
+ * **a {Spirit Bomb}** in your Battle Area" (BT20-087) names the host by a
+ * description, and a counted description is a choice like any other target
+ * (`withChoice`): the player picks which matching card the pile grows on. The
+ * interpreter takes a selector host only when it matches one card, so the move
+ * is handed the chosen card. A host the text names exactly ("this card", "your
+ * Leader", a card already chosen) is no description and stays as it is.
+ */
+function hostChoice(host: Ref, clause: string, c: Ctx): { ops: Op[]; host: Ref } {
+  if ("sel" in host && !host.sel.special && host.sel.take == null && host.sel.count != null && host.sel.count < 99) {
+    const v = `c${c.n++}`;
+    return { ops: [{ op: "choose", sel: host.sel, as: v, reason: clause }], host: { var: v } };
+  }
+  return { ops: [], host };
+}
+
+/**
+ * The move of a target under a host, each chosen when the words count it: the
+ * card going under first, then its host, in the order the sentence says them.
+ */
+function placeUnderOps(ref: Ref, named: Ref, clause: string, c: Ctx): Op[] {
+  const target = withChoice(ref, clause, c, (t) => ({ op: "moveTo", target: t, to: "under" }));
+  const move = target.pop() as Extract<Op, { op: "moveTo" }>;
+  const { ops: chooseHost, host } = hostChoice(named, clause, c);
+  return [...target, ...chooseHost, { ...move, under: host }];
+}
+
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
   // "…and it can't activate skills while this card is in a Battle Area"
@@ -2474,9 +2502,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const host = refFor(m[2], c);
     const ref = refFor(m[1], c);
     if (!host || !ref) return null;
-    const ops = withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host }));
-    // Remember who the placed card went under (see `Ctx.underHost`).
-    for (const o of ops) if (o.op === "choose" && "var" in host) (c.underHost ??= {})[o.as] = host.var;
+    const ops = placeUnderOps(ref, host, clause, c);
+    // Remember who the placed card went under (see `Ctx.underHost`); a host
+    // chosen here (#1123) is the move's `under`, never a passenger of itself.
+    const under = (ops[ops.length - 1] as Extract<Op, { op: "moveTo" }>).under;
+    for (const o of ops) if (o.op === "choose" && under && "var" in under && o.as !== under.var) (c.underHost ??= {})[o.as] = under.var;
     return ops;
   }
 
@@ -2486,7 +2516,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^place (.+?) from (?:your|their) (drop|warp|hand|deck)(?: area)? under (.+?)(?: in (?:your|the) battle area)?$/.exec(t))) {
     const ref = refFor(`${m[1]} in your ${m[2]}`, c);
     const host = refFor(m[3], c);
-    return ref && host ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under", under: host })) : null;
+    return ref && host ? placeUnderOps(ref, host, clause, c) : null;
   }
   // "Place up to 2 {Dragon Ball} from your Drop into the Battle Area" — placed,
   // not played (5-5), so nothing that triggers on a play fires.
