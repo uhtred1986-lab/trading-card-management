@@ -10,6 +10,7 @@ import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigg
 import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
+import type { CardFilter } from "../text/filters";
 import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
@@ -812,14 +813,26 @@ function compileSkillText(skill: Skill): Script {
     // the trigger says "your", as before.
     else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
       if (/\byour\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
-      // The dropped clause also said *which* card, and dropping it dropped
-      // that: "when your opponent plays a **Battle Card**" fired when they
-      // played an Extra, and "when your **≪Saiyan≫** card attacks" fired for
-      // anything of theirs that attacked. The engine binds the card as the
-      // trigger's subject, so what the clause said about it becomes a
-      // condition on that subject and the skill stays where it was printed.
-      const subject = subjectFilterOf(trigger);
-      if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
+      // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
+      // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
+      // the Leader attacked, and the description is a condition on that
+      // Leader. Dropped, the skill fired for any Leader. A description that
+      // cannot be read whole leaves the skill unread rather than firing for
+      // every Leader (`subjectFilterOf`'s ground rule 6 is not this case).
+      const leader = attackedLeaderDescription(trigger);
+      if (leader === null) return { ops: [], unsupported: [trigger, ...clauses] };
+      if (leader) {
+        triggerCond = { kind: "count", sel: { special: "subject", filter: leader }, atLeast: 1 };
+      } else {
+        // The dropped clause also said *which* card, and dropping it dropped
+        // that: "when your opponent plays a **Battle Card**" fired when they
+        // played an Extra, and "when your **≪Saiyan≫** card attacks" fired for
+        // anything of theirs that attacked. The engine binds the card as the
+        // trigger's subject, so what the clause said about it becomes a
+        // condition on that subject and the skill stays where it was printed.
+        const subject = subjectFilterOf(trigger);
+        if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
+      }
     }
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"
@@ -945,6 +958,26 @@ function compileSkillText(skill: Skill): Script {
   }
   if (ops.length && effectTriggerCond) return { ops: [{ op: "if", cond: effectTriggerCond, then: ops }], unsupported };
   return { ops, unsupported };
+}
+
+/**
+ * What "when your <description> Leader Card is attacked" (`yourLeaderAttacked`,
+ * 8-1-3; SD15-02, #1168) says about the Leader attacked: `undefined` when the
+ * trigger is not that wording or describes nothing ("When your Leader Card is
+ * attacked"), the filter when the description reads whole (colour, mono-colour,
+ * ≪traits≫, <names>, {card names}), and `null` when it does not — the skill is
+ * then left unread, never fired for any Leader.
+ */
+function attackedLeaderDescription(trigger: string): CardFilter | null | undefined {
+  const m = /^when your (.*?)\s*leader(?: card)? is attacked\b/i.exec(trigger.trim());
+  if (!m) return undefined;
+  const said = m[1].trim();
+  if (!said) return undefined;
+  // "Your opponent's Leader" is the other side's attack, not this moment.
+  if (/\bopponent/i.test(said)) return null;
+  const filter = filterFor(`${said} leader card`, null);
+  if (!filter || unreadFilterWords(said, filter).length) return null;
+  return filter;
 }
 
 const cardCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();
