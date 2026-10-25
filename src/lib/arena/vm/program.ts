@@ -1664,6 +1664,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       if (c.what === "Union" || c.what.startsWith("Union-")) {
         const union = (using: string | undefined) => unionEntryMatches(c.what, using);
         if (c.sel.special === "self" && union(frame.selfEnteredUsing)) return true;
+        // …and the moment's subject as it was when the Auto was triggered
+        // ("when your <X> card is played by a [Union] skill", #930).
+        if (c.sel.special === "subject" && !c.sel.filter && union(frame.subjectEnteredUsing)) return true;
         return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
       }
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
