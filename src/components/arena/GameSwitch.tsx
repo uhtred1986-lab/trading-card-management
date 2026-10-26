@@ -13,7 +13,7 @@ export function GameSwitch({ games, chosen, hrefFor }: { games: readonly Game[];
     return <GameMark game={games[0] ?? chosen} size="logo" />;
   }
   return (
-    <div role="radiogroup" aria-label="Game to play" className="grid grid-cols-2 gap-3" data-game-switch>
+    <div role="radiogroup" aria-label="Game to play" className="grid max-w-xl grid-cols-2 gap-3" data-game-switch>
       {games.map((g) => {
         const on = g === chosen;
         return (
@@ -26,7 +26,7 @@ export function GameSwitch({ games, chosen, hrefFor }: { games: readonly Game[];
             aria-checked={on}
             aria-label={GAME_INFO[g].label}
             data-game-tile={g}
-            className={`tap block min-w-0 rounded-xl p-0.5 transition ${on ? "ring-2 ring-offset-2 ring-offset-space-950" : "opacity-50 saturate-50 hover:opacity-80"}`}
+            className={`tap block min-w-0 rounded-xl bg-space-900 p-0.5 transition ${on ? "ring-2 ring-offset-2 ring-offset-space-950" : "opacity-60 saturate-50 hover:opacity-90"}`}
             style={on ? ({ "--tw-ring-color": GAME_INFO[g].art.accent } as React.CSSProperties) : undefined}
           >
             <GameMark game={g} size="tile" />

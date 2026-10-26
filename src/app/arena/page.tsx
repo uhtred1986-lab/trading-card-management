@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
-import { ARENA_GAMES, GAME_INFO, parseGame, type Game } from "@/lib/catalog/games";
+import { ARENA_GAMES, parseGame, type Game } from "@/lib/catalog/games";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
@@ -127,12 +127,13 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
       {onGames ? <PageHeader title="Games" eyebrow="Arena" description="Continue a match or revisit your recent games." /> : <PageHeader title="Set up a match" eyebrow="Arena · Play" description="Play the built-in computer for free, or choose a ready deck to play Claude or a friend." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Learn to play</Link>} />}
       {/* Phone: `?tab=games` is a screen of its own, so the play screen steps aside below `sm`; the desktop keeps both. Otherwise the Games list is desktop-only. */}
       <div className={`space-y-5 ${onGames ? "hidden sm:block" : ""}`}>
+        {/* F1-12: the game to play opens the setup, above everything it filters. */}
+        {!onGames && offered.length > 0 && <GameSwitch games={offered} chosen={chosen} hrefFor={switchQuery} />}
         {/* The Continue strip is the first thing under the header (ah-05), then any open invitation. */}
         {playing[0] && <ContinueStrip game={playing[0]} me={me} />}
         {!onGames && invites}
         {/* The built-in computer (#896): a first-class choice, no Claude and no tokens (#656); not gated on server decks. */}
         {!onGames && <ComputerPlayCard />}
-        {!onGames && offered.length > 0 && <GameSwitch games={offered} chosen={chosen} hrefFor={switchQuery} />}
       {playable.length < 1 && allPlayable.length > 0 ? (
         <section className="rounded-xl border border-dashed border-space-700 p-6 text-center">
           <p className="text-sm text-space-200">Your playable decks are marked for testing and are hidden from the default picker.</p>
@@ -142,7 +143,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         </section>
       ) : playable.length < 1 ? (
           <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
-            No deck is ready to play yet. A deck needs a leader, at least 50 cards, and every card's rule read.{" "}
+            No deck is ready to play yet. A deck needs a leader, at least 50 cards, and every card&rsquo;s rule read.{" "}
             <Link href="/decks" className="text-ki-300 hover:underline">
               Build one
             </Link>

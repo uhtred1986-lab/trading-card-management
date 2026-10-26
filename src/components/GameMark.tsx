@@ -45,7 +45,7 @@ export function GameMark({ game, size = "chip", className = "" }: { game: unknow
     );
   }
   return (
-    <span className={`relative block aspect-[470/333] w-full overflow-hidden rounded-xl ${className}`} data-game-mark={info.id}>
+    <span className={`relative block aspect-[470/400] w-full overflow-hidden rounded-xl ${className}`} data-game-mark={info.id}>
       {failed ? fallback : (
         <Image src={info.art.tile} alt={info.label} fill sizes="(min-width: 640px) 320px, 45vw" onError={() => setFailed(true)} className="object-cover object-top" />
       )}
