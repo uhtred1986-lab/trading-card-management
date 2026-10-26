@@ -316,6 +316,45 @@ function splitTags(line: string): { tags: string[]; body: string } {
 }
 
 /**
+ * Fusion World prints its timing as a bracket tag where the original game prints a sentence (#1187):
+ * "[On Play] Draw 1 card." is the dbs "[Auto] When this card is played, draw 1 card.". The tag is read
+ * as an alias, so a Fusion World card compiles to the same kind and trigger as a dbs card of the same
+ * meaning: a timing tag becomes [Auto] plus the trigger sentence, and a turn tag ("[Your Turn]",
+ * "[Opponent's Turn]") becomes the "During your turn, " clause both compilers already read. Every other
+ * tag, and every line with none of these, is untouched. `FUSION_SPELLINGS` is what the glossary lists.
+ */
+export const FUSION_SPELLINGS: readonly { tag: string; reads: string }[] = [
+  { tag: "On Play", reads: "[Auto] When this card is played, …" },
+  { tag: "When Attacking", reads: "[Auto] When this card attacks, …" },
+  { tag: "When KO'd", reads: "[Auto] When this card is KO'd, …" },
+  { tag: "End of Your Turn", reads: "[Auto] At the end of your turn, …" },
+  { tag: "Your Turn", reads: "During your turn, …" },
+  { tag: "Opponent's Turn", reads: "During your opponent's turn, …" },
+];
+const FUSION_TRIGGER: Record<string, string> = {
+  "on play": "When this card is played, ",
+  "when attacking": "When this card attacks, ",
+  "when ko'd": "When this card is KO'd, ",
+  "end of your turn": "At the end of your turn, ",
+};
+const FUSION_TURN: Record<string, string> = { "your turn": "During your turn, ", "opponent's turn": "During your opponent's turn, " };
+function fusionSpelling(parts: { tags: string[]; body: string }): { tags: string[]; body: string } {
+  const norm = (t: string) => t.trim().toLowerCase().replace(/\s+/g, " ");
+  if (!parts.tags.some((t) => norm(t) in FUSION_TRIGGER || norm(t) in FUSION_TURN)) return parts;
+  let trigger = "", turn = "";
+  const tags: string[] = [];
+  for (const t of parts.tags) {
+    if (norm(t) in FUSION_TRIGGER) { trigger = FUSION_TRIGGER[norm(t)]; tags.push("Auto"); }
+    else if (norm(t) in FUSION_TURN) turn = FUSION_TURN[norm(t)];
+    else tags.push(t);
+  }
+  if (!parts.body) return { tags, body: parts.body };
+  // A turn tag goes in front of the trigger: "During your turn, when this card …".
+  const lead = turn + trigger;
+  return { tags, body: lead + (lead ? parts.body.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()) : parts.body) };
+}
+
+/**
  * "cost : effect" — the first colon outside brackets/braces/angle brackets.
  * Explanatory notes in parentheses are not costs (1-5-8).
  */
@@ -403,7 +442,7 @@ function deepFreeze<T>(value: T): T {
 function parseSkillsUncached(text: string): Skill[] {
   const out: Skill[] = [];
   for (const [index, line] of skillLines(text).entries()) {
-    const { tags, body } = splitTags(line);
+    const { tags, body } = fusionSpelling(splitTags(line));
     // A line that is only keyword tags ("[Deflect][Triple Attack]") is several
     // keyword skills; emit one per keyword so each can be negated alone.
     const keywords = tags.map(keywordOf).filter((k): k is KeywordSkill => !!k);
