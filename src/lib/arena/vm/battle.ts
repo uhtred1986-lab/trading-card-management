@@ -1425,7 +1425,7 @@ function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: V
   return [...hand, ...field].filter((id) => {
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];
-    if (!def || !canCombo(def)) return false;
+    if (!def || !canCombo(def, comboPriceOf(game) === null)) return false;
     if (forbids(ctx, game, state, "combo", { player, card: id })) return false;
     const price = comboPriceFor(ctx, game, state, id, def);
     return price === null || planCost(ctx, game, state, player, price, id).ok;
@@ -1911,7 +1911,7 @@ function comboWhy(ctx: EngineContext, game: GameDefinition, state: VmState, play
     if (inst.hidden) why.push({ kind: "other", detail: "a face-down card cannot combo" });
   }
   const def = ctx.defs[inst.cardId];
-  const combos = !!def && canCombo(def);
+  const combos = !!def && canCombo(def, comboPriceOf(game) === null);
   if (!combos) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
   const banned = forbiddenBy(ctx, game, state, "combo", { player, card });
   if (banned) why.push({ kind: "forbidden", ...banned });
