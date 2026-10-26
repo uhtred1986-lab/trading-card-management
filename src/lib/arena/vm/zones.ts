@@ -102,6 +102,13 @@ export interface VmCard {
   /** 1-10-2 Hidden Mode: face down in play, no information (23-5). */
   hidden: boolean;
   /**
+   * How many times this copy has been switched to Hidden Mode. With `zoneEpoch` it tells one
+   * Hidden Mode from the next: BT28-121's "switch the card that was switched to Hidden Mode by
+   * this skill to Revealed Mode" passes over a card revealed by another skill and hidden again
+   * since (official Q&A). Absent on older saved games: never hidden by a counted switch.
+   */
+  hiddenCount?: number;
+  /**
    * 22-11 / 22-44: the skill lines of this copy that have been used this
    * turn, one entry per use.
    *

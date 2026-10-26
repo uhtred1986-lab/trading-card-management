@@ -100,6 +100,8 @@ export interface ScriptHost {
   isFaceUp(id: string): boolean;
   /** 1-10-2: Hidden Mode. */
   isHidden(id: string): boolean;
+  /** Which Hidden Mode this card is in (`CardInstance.hiddenCount`), or null while it is revealed. */
+  hiddenStamp(id: string): string | null;
   /** 1-9: turned to its back side. */
   isFlipped(id: string): boolean;
   /** Does the card have a back side to turn to at all? */
@@ -199,6 +201,8 @@ export interface ScriptHost {
   shuffleDecks(players: PlayerId[]): void;
   /** 5-11-2: shuffle life after it was searched, using the same persisted RNG. */
   shuffleLives(players: PlayerId[]): void;
+  /** "Choose … at random" (BT1-073): `n` of these cards picked with the game's own RNG, no player involved (official Q&A). */
+  pickAtRandom(ids: string[], n: number): string[];
   /** 12-2-4: currently eligible, cost-waived lines on one selected hand card. */
   invokableSkills(player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): { index: number; label: string }[];
   /** #926: put the strict frame that pays this keyword `DO` frame's printed action price in front of it (`payActionPrice`). */

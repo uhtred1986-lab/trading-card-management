@@ -628,7 +628,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: "negate the [{kind:auto=Auto|activate=Activate|counter=Counter|permanent=Permanent}] skills of {target}{until}",
     doc: '"negate that card\'s [Auto] skill for the turn" — one kind, not the whole card (9-1-5)',
   },
-  hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode", doc: "Hidden Mode / Revealed Mode (23-5)" },
+  hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }, { name: "sameHiding", type: "boolean" }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode{sameHiding? (only a card still in the Hidden Mode this skill switched it to)}", doc: "Hidden Mode / Revealed Mode (23-5). `sameHiding` (BT28-121, official Q&A): reveal only a card still in the Hidden Mode this skill switched it to — not one revealed by another skill and hidden again since" },
   redirectAttack: { fields: [TARGET], sentence: "switch the target of the attack to {target}", doc: '"switch the target of the attack to it" (22-4-2)' },
   swapBattle: {
     fields: [TARGET],
@@ -2034,6 +2034,7 @@ const SELECTOR_KEYS = {
   fromEnd: 1,
   ignoreBarrier: 1,
   notInBattle: 1,
+  atRandom: 1,
   ownedByOpponent: 1,
   notSelf: 1,
   differentNames: 1,
@@ -2077,6 +2078,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
+  if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
@@ -2748,6 +2750,7 @@ const describeNotSelf = (sel: Selector): string =>
   // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
+  (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
   (sel.notIn?.length ? " other than the cards already chosen" : "") +

@@ -482,6 +482,18 @@ export function joints(said: string): { at: number; len: number }[] {
     }
     const rest = said.slice(i);
     const m = /^(,\s+and\s+|,\s+|\s+and\s+)/i.exec(rest);
+    // "…a green card with **both <Zamasu> and <Goku Black>**" (BT23-092, P-563;
+    // `charactersAll`, #768): the "and" of "both A and B" joins two names of one
+    // card, never two requirements. Cut there, neither half read and the price
+    // stayed unread.
+    // "…a total of 3 or more energy **between you and your opponent**" (EX19-28)
+    // and "**you and your opponent** have a total of 8 or less life" (BT10-012)
+    // name both players as one subject: the "and" is no joint either.
+    const bothPlayers = m && /^\s+and\s+$/i.test(m[1]) && /(?:^|\bbetween |\band |,\s*|\bif )you$/i.test(said.slice(0, i)) && /^your opponent\b/i.test(rest.slice(m[1].length));
+    if (m && (bothPlayers || (/^\s+and\s+$/i.test(m[1]) && /\bboth\s+(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})$/i.test(said.slice(0, i))))) {
+      i += m[1].length - 1;
+      continue;
+    }
     if (m) {
       out.push({ at: i, len: m[1].length });
       i += m[1].length - 1;
