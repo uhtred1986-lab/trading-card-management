@@ -1360,3 +1360,33 @@ export const READING_RULES: ReadingRule[] = [
     body: "22-13-6-3 and 22-13-4-1. Two printings that say the usual thing in another form. **Destination before source.** BT17-077's [Union-Absorb] effect prints “Play up to 1 green <Piccolo> card with an energy cost of 4 **on top of this card from your deck**, then shuffle your deck”; the play reader knew only “… from your deck on top of this card”, so the play was unread and the Absorb paid its price and only shuffled. The “from <area>” printed after the destination is now moved in front of it before the clause is read, and the line reads exactly as the usual order does: `choose` (up to 1 green <Piccolo>, energy cost 4, in your deck) → `play(onto: this card, using: Union-Absorb, counterWindow)` → `shuffle`. Only a source that starts with a possessive (“from your …”, “from their …”, “from its owner's …”) and only after the host phrases the play-on-top reader already takes (“this card”, “it”, “the played card”, “the chosen card”, “that card”), with the optional mode and negation tails. **“Mono green”.** BT31-052's own [Union-Fusion] prints “**Mono green** <Son Goku: GT> card and mono-green <Vegeta: GT> card”: the hyphen is missing, every mono-colour reader looks for “mono-green” (or “monocolor”), and the material was refused as an unsupported description. “Mono <colour>” and “mono colour” (any case) are tidied to the hyphenated word before anything reads the line (with the other printings, see that entry; never inside a bracketed name), so both materials read as mono-green, each matched by its own name. Proof: `scripts/verify/play-order-mono-930.ts`.",
   },
 ];
+
+// ── Fusion World spellings (#1187) ─────────────────────────────────────────
+
+export interface FusionSpellingDoc {
+  /** The tag, or the price shape, as a Fusion World card prints it. */
+  tag: string;
+  /** The original-game spelling it reads as: same skill kind, same trigger. */
+  reads: string;
+  note: string;
+}
+
+/**
+ * Fusion World prints timing as a bracket tag. The parser (`fusionSpelling` in `text/cards.ts`) reads each as an alias
+ * of the original game's sentence, so a card of either game with the same meaning compiles to the same skill kind and
+ * trigger. `FUSION_SPELLINGS` in `text/cards.ts` is the list the parser holds; `scripts/verify/arena-fusion-world.mts`
+ * checks every tag of it is written here and compiles the 64 starter cards.
+ */
+export const FUSION_WORLD_SPELLINGS: FusionSpellingDoc[] = [
+  { tag: "[On Play]", reads: "[Auto] When this card is played, …", note: "Trigger `played` (manual p. 12: any play into a Battle Area), not `playedFromHand`." },
+  { tag: "[When Attacking]", reads: "[Auto] When this card attacks, …", note: "Trigger `attacks`." },
+  { tag: "[When KO'd]", reads: "[Auto] When this card is KO'd, …", note: "Trigger `koed`." },
+  { tag: "[End of Your Turn]", reads: "[Auto] At the end of your turn, …", note: "Trigger `turnEnd`." },
+  { tag: "[Permanent][Your Turn]", reads: "[Permanent] During your turn, …", note: "The permanent's condition is “during your turn”, the one the printed phrase already compiles to." },
+  { tag: "[Permanent][Opponent's Turn]", reads: "[Permanent] During your opponent's turn, …", note: "The same condition for your opponent's turn." },
+  { tag: "[Auto][Opponent's Turn]", reads: "[Auto] During your opponent's turn, when …", note: "The four [Super Combo] cards: trigger `comboUsed` with the opponent's-turn condition on the combo record." },
+  { tag: "[Activate:Main] / [Activate:Battle]", reads: "[Activate: Main] / [Activate: Battle]", note: "No space after the colon; the same skill kinds." },
+  { tag: "[Once Per Turn]", reads: "[Once per turn]", note: "The once-per-turn usage flag; capital P is the same tag." },
+  { tag: "[Double Strike]", reads: "[Strike x] with x = 2", note: "Read already; kept under test." },
+  { tag: "<clause> : <effect>", reads: "<clause>: <effect>", note: "An activation price closed by a spaced colon (“Place 1 of your energy in your Drop : …”, “Discard 1 card from your hand : …”) is the price, read by the same price readers as a dbs cost. Energy-icon prices are not read yet." },
+];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KEYWORDS, MODIFIERS, SKILL_TYPES, READING_RULES, SUPPORT_LABEL, keywordsByGroup, type Support } from "@/lib/arena/glossary";
+import { KEYWORDS, MODIFIERS, FUSION_WORLD_SPELLINGS, SKILL_TYPES, READING_RULES, SUPPORT_LABEL, keywordsByGroup, type Support } from "@/lib/arena/glossary";
 import type { loadDbs } from "@/lib/arena/rulesets";
 import { Panel } from "@/components/ui";
 
@@ -47,6 +47,9 @@ export function KeywordsReference({ loaded }: { loaded: ReturnType<typeof loadDb
         ))}
         <a href="#modifiers" className="tap rounded-md bg-space-900 px-2.5 py-1.5 text-space-300 hover:text-ki-300">
           Not skills ({MODIFIERS.length})
+        </a>
+        <a href="#fusion-spellings" className="tap rounded-md bg-space-900 px-2.5 py-1.5 text-space-300 hover:text-ki-300">
+          Fusion World ({FUSION_WORLD_SPELLINGS.length})
         </a>
         <a href="#types" className="tap rounded-md bg-space-900 px-2.5 py-1.5 text-space-300 hover:text-ki-300">
           Skill types
@@ -104,6 +107,22 @@ export function KeywordsReference({ loaded }: { loaded: ReturnType<typeof loadDb
                 <span className="text-space-500">the engine: </span>
                 {m.engine}
               </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section id="fusion-spellings" className="scroll-mt-4 space-y-2">
+        <h2 className="text-xs uppercase tracking-widest text-space-400">Fusion World spellings</h2>
+        <p className="text-[13px] text-space-300">Fusion World prints timing as a bracket tag. Each reads as the original game&rsquo;s sentence, so both games compile to the same skill kind and trigger.</p>
+        <ul className="space-y-2">
+          {FUSION_WORLD_SPELLINGS.map((f) => (
+            <li key={f.tag} className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="font-mono text-sm font-medium text-space-100">{f.tag}</span>
+                <span className="font-mono text-[12px] text-space-400">reads as {f.reads}</span>
+              </div>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-space-200">{f.note}</p>
             </li>
           ))}
         </ul>

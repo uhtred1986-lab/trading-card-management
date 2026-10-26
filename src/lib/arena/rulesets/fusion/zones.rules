@@ -1,41 +1,19 @@
--- The areas of the Dragon Ball Super Card Game, as declarations.
+-- The areas of Dragon Ball Super Card Game Fusion World, as declarations.
 --
--- Every section cited is `docs/rules/rulemanual.txt`: §3 is the areas
--- themselves, §1-10 card positions (Active and Rest Mode), §1-11 markers,
--- §9-1-3-1 where a card's own skills are valid, §20-10 removal from the game
--- and §23-2 cards placed under other cards.
+-- Cut down from the dbs file of the same name (F1-02). The manual's seven
+-- areas (FW manual p. 5) are the Leader, Deck, Battle, Combo, Energy, Drop and
+-- Life Areas; there is no Z-Deck, Z-Energy, Unison or Warp Area, so those four
+-- declarations are gone. Three more are declared because a program has to be
+-- able to name them: `removed` (an energy marker or a card removed from the
+-- game, FW manual p. 8), `under` (cards beneath another card) and `play`, the
+-- word for the areas in which a card is in play. Each says so in its own text.
 --
--- The manual counts twelve areas (§3). Three more are declared below because
--- a program has to be able to name them: `removed` (§20-10, where a card
--- removed from the game is kept, which the manual pointedly says is no area
--- at all), `under` (§23-2, the cards beneath another card) and `play`, which
--- is the word for the three areas together in which a card is in play
--- (§9-1-3-1). Each says so in its own text.
---
--- Three conventions, held to on every declaration so that a reader never has to
--- ask what a missing line meant:
---   `ordered: true`  the order of the cards is fixed by the rules and no
---                    player may rearrange it (§3-2-2, §3-9-2). Every other
---                    area lets its owner change the order freely, and is
---                    written `ordered: false` rather than left out.
---   `visibility`     who may read the faces: `none` is a secret area neither
---                    player may check, `owner` a secret area its own player
---                    may read, `all` an open area (§3-1-3).
---   `place`          is this zone a list of cards a player holds? Twelve of the
---                    fifteen are, and so are `removed` (§20-10) — a card
---                    removed from the game is kept somewhere even though the
---                    manual counts it in no area. `play` and `under` are not:
---                    the first is a word for three zones at once (§9-1-3-1)
---                    and the second is the pile hanging off one card
---                    (§23-2-2-2). An interpreter builds a side's zones from
---                    the ones that are, so this line is what saves it from
---                    knowing those two names (#139).
---
--- Each player possesses one of every area, and two areas of the same name
--- with different masters are different areas (§3-1-1) — which is what
--- `owner: player` says. No area of this game is shared.
+-- The conventions are the dbs file's: `ordered: true` is an order the rules
+-- fix, `visibility` is `none` (a secret nobody reads), `owner` or `all`, and
+-- `place` is whether the zone is a list of cards a player holds (`play` and
+-- `under` are not). Each player has one of every area; none is shared.
 
-DEFINE ZONE deck                                                          -- §3-2
+DEFINE ZONE deck                                                          -- FW manual p. 5, Deck Area
   owner: player
   visibility: none
   ordered: true
@@ -44,9 +22,9 @@ DEFINE ZONE deck                                                          -- §3
   inPlay: false
   host: false
   place: true
-  text: "the deck, face down: neither player may check its contents or change its order (3-2-2)"
+  text: "the deck, face down: neither player may check its contents or change its order (FW manual p. 5, Deck Area)"
 
-DEFINE ZONE hand                                                          -- §3-3
+DEFINE ZONE hand                                                          -- FW manual p. 6, setup step 3
   owner: player
   visibility: owner
   ordered: false
@@ -55,9 +33,9 @@ DEFINE ZONE hand                                                          -- §3
   inPlay: false
   host: false
   place: true
-  text: "the cards a player holds: their own to read and reorder, and no limit on how many (3-3-2, 3-3-4)"
+  text: "the cards a player holds: their own to read and reorder, and no limit on how many (FW manual p. 6, setup step 3)"
 
-DEFINE ZONE drop                                                          -- §3-4
+DEFINE ZONE drop                                                          -- FW manual p. 5, Drop Area
   owner: player
   visibility: all
   ordered: false
@@ -66,9 +44,9 @@ DEFINE ZONE drop                                                          -- §3
   inPlay: false
   host: false
   place: true
-  text: "where KO'd Battle Cards, spent Unison Cards and activated Extra Cards are placed, face up (3-4-1, 3-4-3)"
+  text: "where KO'd Battle Cards and used Extra Cards are placed, face up (FW manual p. 5, Drop Area)"
 
-DEFINE ZONE leader                                                        -- §3-5
+DEFINE ZONE leader                                                        -- FW manual p. 5, Leader Area
   owner: player
   visibility: all
   ordered: false
@@ -78,9 +56,9 @@ DEFINE ZONE leader                                                        -- §3
   host: true
   place: true
   modes: [active, rest]
-  text: "the one Leader Card, face up, which no effect or rule may move out of this area (3-5-1, 3-5-3)"
+  text: "the one Leader Card, face up, which no effect or rule may move out of this area (FW manual p. 5, Leader Area)"
 
-DEFINE ZONE battle                                                        -- §3-6
+DEFINE ZONE battle                                                        -- FW manual p. 5, Battle Area
   owner: player
   visibility: all
   ordered: false
@@ -90,9 +68,9 @@ DEFINE ZONE battle                                                        -- §3
   host: true
   place: true
   modes: [active, rest]
-  text: "where Battle Cards and some Extra Cards are played, revealed and active, with no limit on how many (3-6-1, 3-6-3)"
+  text: "where Battle Cards are played, in Active Mode, with no limit on how many (FW manual p. 5, Battle Area)"
 
-DEFINE ZONE combo                                                         -- §3-7
+DEFINE ZONE combo                                                         -- FW manual p. 5, Combo Area
   owner: player
   visibility: all
   ordered: false
@@ -101,9 +79,9 @@ DEFINE ZONE combo                                                         -- §3
   inPlay: false
   host: true
   place: true
-  text: "the Battle Cards used in a combo, face up (3-7-1, 3-7-2)"
+  text: "the Battle Cards used in a combo, face up; their combo power is added to the card in battle (FW manual p. 5, Combo Area)"
 
-DEFINE ZONE energy                                                        -- §3-8
+DEFINE ZONE energy                                                        -- FW manual p. 5, Energy Area
   owner: player
   visibility: all
   ordered: false
@@ -113,9 +91,9 @@ DEFINE ZONE energy                                                        -- §3
   host: false
   place: true
   modes: [active, rest]
-  text: "the energy a player pays costs with, face up and active, and where energy markers are kept (3-8-1, 3-8-3, 1-14-3)"
+  text: "the energy a player pays costs with, face up and active, and where energy markers are kept (FW manual p. 5, Energy Area; p. 8 for the marker)"
 
-DEFINE ZONE life                                                          -- §3-9
+DEFINE ZONE life                                                          -- FW manual p. 5, Life Area
   owner: player
   visibility: none
   ordered: true
@@ -124,8 +102,44 @@ DEFINE ZONE life                                                          -- §3
   inPlay: false
   host: false
   place: true
-  text: "the Leader's life, face down: its order may not be changed, but any card may be chosen when one leaves (3-9-2, 3-9-4)"
+  text: "the Leader's life, face down: its order may not be changed, but any card may be chosen when one leaves (FW manual p. 5, Life Area; p. 6, setup step 4)"
 
+DEFINE ZONE removed                                                       -- FW manual p. 8
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  place: true
+  text: "cards removed from the game: face up, visible to all, and in no area of the game at all (FW manual p. 8: a marker spent on a cost is removed from the game)"
+
+DEFINE ZONE under                                                         -- FW manual p. 5
+  owner: player
+  visibility: all
+  ordered: true
+  single: false
+  markers: false
+  inPlay: false
+  host: false
+  place: false
+  text: "the cards beneath another card, face up and skills negated; the area they count as being in is the area of the card on top (FW manual p. 5)"
+
+DEFINE ZONE play                                                          -- FW manual p. 5
+  owner: player
+  visibility: all
+  ordered: false
+  single: false
+  markers: false
+  inPlay: true
+  host: false
+  place: false
+  text: "not a place a card is put: the word for the Leader and Battle Areas together, the areas a card's own skills are valid in (FW manual p. 5)"
+
+-- F1-03: Fusion World has no a Warp Area; the declaration stays because board-words.ts
+-- (AREAS) refuses a ruleset that does not declare every area it names, and the
+-- engine's createGame still builds this zone. Remove with the engine reference.
 DEFINE ZONE warp                                                          -- §3-10
   owner: player
   visibility: all
@@ -137,6 +151,9 @@ DEFINE ZONE warp                                                          -- §3
   place: true
   text: "where cards sent to the Warp are placed, face up and readable by either player (3-10-2)"
 
+-- F1-03: Fusion World has no a Unison Area; the declaration stays because board-words.ts
+-- (AREAS) refuses a ruleset that does not declare every area it names, and the
+-- engine's createGame still builds this zone. Remove with the engine reference.
 DEFINE ZONE unison                                                        -- §3-11
   owner: player
   visibility: all
@@ -149,6 +166,9 @@ DEFINE ZONE unison                                                        -- §3
   modes: [active, rest]
   text: "the one Unison Card, revealed and active, carrying the markers its skills are counted in (3-11-3, 3-11-4, 1-11-1)"
 
+-- F1-03: Fusion World has no a Z-Deck; the declaration stays because board-words.ts
+-- (AREAS) refuses a ruleset that does not declare every area it names, and the
+-- engine's createGame still builds this zone. Remove with the engine reference.
 DEFINE ZONE zDeck                                                         -- §3-12
   owner: player
   visibility: owner
@@ -160,6 +180,9 @@ DEFINE ZONE zDeck                                                         -- §3
   place: true
   text: "the Z-Deck, face down but its owner's to read and reorder; a face-up card in it is in an open area (3-12-2, 3-12-2-1)"
 
+-- F1-03: Fusion World has no a Z-Energy Area; the declaration stays because board-words.ts
+-- (AREAS) refuses a ruleset that does not declare every area it names, and the
+-- engine's createGame still builds this zone. Remove with the engine reference.
 DEFINE ZONE zEnergy                                                       -- §3-13
   owner: player
   visibility: all
@@ -170,36 +193,3 @@ DEFINE ZONE zEnergy                                                       -- §3
   host: false
   place: true
   text: "the Z-Energy a player pays Z-Energy costs with, face up (3-13-2, 3-13-3)"
-
-DEFINE ZONE removed                                                       -- §20-10
-  owner: player
-  visibility: all
-  ordered: false
-  single: false
-  markers: false
-  inPlay: false
-  host: false
-  place: true
-  text: "cards removed from the game: face up, visible to all, and in no area of the game at all (20-10-2, 20-10-3)"
-
-DEFINE ZONE under                                                         -- §23-2
-  owner: player
-  visibility: all
-  ordered: true
-  single: false
-  markers: false
-  inPlay: false
-  host: false
-  place: false
-  text: "the cards beneath another card, face up and skills negated; the area they count as being in is the area of the card on top (23-2-2, 23-2-2-2)"
-
-DEFINE ZONE play                                                          -- §9-1-3-1
-  owner: player
-  visibility: all
-  ordered: false
-  single: false
-  markers: false
-  inPlay: true
-  host: false
-  place: false
-  text: "not a place a card is put: the word for the Leader, Battle and Unison Areas together, the areas a card's own skills are valid in (9-1-3-1)"

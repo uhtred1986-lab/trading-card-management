@@ -1,6 +1,10 @@
 -- ───────────────────────────────────────────────────────────────────────────
--- The moments an [Auto] or a [Counter] answers to (manual 9-6), as the events
--- that *are* them.
+-- The moments an [Auto] or a [Counter] answers to, as the events that *are*
+-- them. Fusion World keeps 29 of the dbs moments (F1-02): every one whose event
+-- or zone names a Unison, Z-Energy, Z-Deck or Warp Area, or a moment only a
+-- card of the original game reads, is gone. The moments kept are the ones the
+-- Fusion World skill tags read (FW manual p. 12, Glossary: [On Play], [When
+-- Attacking], [When KO'd], [End of Your Turn], [Your Turn], [Opponent's Turn]).
 --
 -- A trigger is a name in the legacy engine, matched against the event log by
 -- TypeScript. Here it is an event pattern, so a game can declare its own
@@ -28,118 +32,66 @@
 --     A condition on the answering side rather than on the event.
 --     `isTurnPlayer(who: you)` is what "your Charge Phase" means on a card,
 --     and "your opponent's turn" is the same condition from the other chair
---     (7-1) — never a duration.
+--     (FW manual p. 7) — never a duration.
 --
 --   BIND
 --     What the event's card is called inside the program: "self" when the
 --     moment happened to the answering card, "subject" when it happened to
 --     another card that the answering card is watching. A watcher list that
---     includes the card itself (a Unison paying its own [Spirit Boost], a
---     Life card turned face up) binds "subject" all the same — there it is
+--     includes the card itself (a Life card turned face up) binds "subject" all the same — there it is
 --     the same card.
 --
 -- The names are the `Trigger` union's, and `text:` is the record's WHEN in
 -- words, so `scripts/verify/rulesets.ts` can hold the two to one list.
 -- The five `counter:*` declarations at the foot are the counter windows
--- (4-3, 9-7): the moments a [Counter] answers to rather than an [Auto], and
+-- (FW manual p. 10): the moments a [Counter] answers to rather than an [Auto], and
 -- the only names here a card's WHEN never says.
 -- ───────────────────────────────────────────────────────────────────────────
 
--- ── playing and placing ────────────────────────────────────────────────────
+-- ── playing a Battle Card (FW manual p. 8) ──
 
--- §6-2-4 — when your Leader is placed
-DEFINE TRIGGER leaderPlaced
-  ON moved(to: leader)
-  BIND "self"
-  text: "when your Leader is placed"
-
--- §9-6-9-4 — when this card is played
+-- FW manual p. 12, [On Play] — when this card is played
 DEFINE TRIGGER played
-  ON moved(asPlay: true, to: [battle, unison])
+  ON moved(asPlay: true, to: battle)
   BIND "self"
   text: "when this card is played"
 
--- §9-6-9-4 — when this card is played from your hand (#936): the same
+-- FW manual p. 12, [On Play] — when this card is played from your hand (#936): the same
 -- arrival, asking where the card was when it was played. `from` is the
 -- origin captured by the move itself (a normal play, or a skill's play from
 -- the hand), never the zone after entry or the source skill's text.
 DEFINE TRIGGER playedFromHand
-  ON moved(asPlay: true, from: hand, to: [battle, unison])
+  ON moved(asPlay: true, from: hand, to: battle)
   BIND "self"
   text: "when this card is played from your hand"
 
--- §22-15 — when this card is played using [Over Realm]: the same arrival,
--- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
--- keywords.rules). An ordinary play carries no `using`, so it never matches.
-DEFINE TRIGGER playedUsingOverRealm
-  ON moved(asPlay: true, to: battle, using: "Over Realm")
-  BIND "self"
-  text: "when this card is played using [Over Realm]"
-
--- §5-5 — when you play a card
+-- FW manual p. 12 — when you play a card
 DEFINE TRIGGER youPlayed
-  ON moved(asPlay: true, to: [battle, unison], watcher: controller)
+  ON moved(asPlay: true, to: battle, watcher: controller)
   BIND "subject"
   text: "when you play a card"
 
--- §5-5 — when your opponent plays a card
+-- FW manual p. 12 — when your opponent plays a card
 DEFINE TRIGGER opponentPlayed
-  ON moved(asPlay: true, to: [battle, unison], watcher: opponent)
+  ON moved(asPlay: true, to: battle, watcher: opponent)
   BIND "subject"
   text: "when your opponent plays a card"
 
--- #1015 — when your opponent uses a skill to play a card (BT15-005, BT15-085,
--- BT15-101, BT12-132): the play is the opponent's own skill's (`by: skill`,
--- `byOpponent: false` — the cause is not the other player's), never a play the
--- opponent declared from their hand. `opponentPlayed` above is any arrival.
-DEFINE TRIGGER opponentPlayedBySkill
-  ON moved(asPlay: true, by: skill, byOpponent: false, to: [battle, unison], watcher: opponent)
-  BIND "subject"
-  text: "when your opponent uses a skill to play a card"
+-- ── battles (FW manual pp. 10-11) ──
 
--- #1163 — when your card is played by this card's skill (BT29-083): your own
--- skill's play (`by: skill, byOpponent: false`), and only the one the watching
--- card's own skill made — `byWatcher: true` asks that the card whose skill
--- played it is the card being asked, which no other moment says.
-DEFINE TRIGGER youPlayedByThisCard
-  ON moved(asPlay: true, by: skill, byOpponent: false, byWatcher: true, to: [battle, unison], watcher: controller)
-  BIND "subject"
-  text: "when your card is played by this card's skill"
-
--- §5-5-4 — when this card is placed in a Battle Area. 5-5-1: playing a card
--- places it in the Battle Area, so a play is one of the ways this happens and
--- the pattern does not ask `asPlay` (owner's ruling, 2 Oct 2026). A skill whose
--- record also says `played` answers the one arrival once (`vm/triggers.ts`).
-DEFINE TRIGGER placed
-  ON moved(to: battle)
-  BIND "self"
-  text: "when this card is placed in a Battle Area"
-
--- §5-5-4 — when a card is placed in your Battle Area: the same arrival,
--- watched by the cards of the side whose Battle Area it arrived in. Played or
--- placed by a skill alike (5-5-1, owner's ruling of 2 Oct 2026). The card is
--- the subject, and what the card says about it ("a {Scouter}", "one of your
--- blue Z-Extras", BT23-066, BT22-032b) is a condition on that subject.
-DEFINE TRIGGER yourCardPlaced
-  ON moved(to: battle, watcher: controller)
-  BIND "subject"
-  text: "when a card is placed in your Battle Area"
-
--- ── battles (8-1 … 8-5) ────────────────────────────────────────────────────
-
--- §8-1-3 — when this card attacks
+-- FW manual p. 12, [When Attacking] — when this card attacks
 DEFINE TRIGGER attacks
   ON attackDeclared(role: attacker)
   BIND "self"
   text: "when this card attacks"
 
--- §8-1-3 — when this card is attacked
+-- FW manual p. 10 — when this card is attacked
 DEFINE TRIGGER attacked
   ON attackDeclared(role: target)
   BIND "self"
   text: "when this card is attacked"
 
--- §8-1-3 — when your opponent attacks
+-- FW manual p. 12, [Counter] — when your opponent attacks
 --
 -- `role: attacker` is #150's addition, the first stage to actually fire an
 -- `attackDeclared` moment: a battle names two cards, the attacker and the
@@ -153,50 +105,15 @@ DEFINE TRIGGER opponentAttacks
   BIND "subject"
   text: "when your opponent attacks"
 
--- SD15-01 — when the opponent attacks the specific red Unison named by the
--- card. The target declaration is a separate role from the attacking card;
--- its current attributes are carried on that target moment, while the Auto
--- remains on the controller's board and BINDs self.
-DEFINE TRIGGER opponentAttacksRedUnison2
-  ON attackDeclared(role: target, target: unison, initial: true, targetRed: true, targetSpecifiedCost: 2, watcher: controller)
-  BIND "self"
-  text: "when your opponent attacks your red Unison Card with a specified cost of 2"
-
--- §8-1-3 — when your Leader is attacked
-DEFINE TRIGGER yourLeaderAttacked
-  ON attackDeclared(target: leader, watcher: controller)
-  BIND "subject"
-  text: "when your Leader is attacked"
-
--- §8-2 — at the start of the offense step
-DEFINE TRIGGER offenseStart
-  ON stepStart(step: offense)
-  WHERE isTurnPlayer(who: you)
-  BIND "self"
-  text: "at the start of the offense step"
-
--- §8-3 — at the start of the defense step
-DEFINE TRIGGER defenseStart
-  ON stepStart(step: defense)
-  WHERE isTurnPlayer(who: opponent)
-  BIND "self"
-  text: "at the start of the defense step"
-
--- §8-4 — at the start of the damage step
-DEFINE TRIGGER damageStart
-  ON stepStart(step: damage, watcher: both)
-  BIND "self"
-  text: "at the start of the damage step"
-
--- §8-5 — at the end of the battle
+-- FW manual p. 10 — at the end of the battle
 DEFINE TRIGGER battleEnd
   ON stepStart(step: battleEnd, watcher: both)
   BIND "self"
   text: "at the end of the battle"
 
--- ── KOs (5-12, 21-14) ──────────────────────────────────────────────────────
+-- ── KOs (FW manual p. 11 "When KO'd", p. 12) ──
 
--- §5-12 — when this card is KO'd
+-- FW manual p. 12, [When KO'd] — when this card is KO'd
 --
 -- `role: koed` is #150's addition, for the same reason `opponentAttacks`
 -- above needed one: a KO names two cards, the one that left and the one that
@@ -216,183 +133,79 @@ DEFINE TRIGGER koed
   BIND "self"
   text: "when this card is KO'd"
 
--- §21-14 — when this card KOs a card
+-- FW manual p. 12 — when this card KOs a card
 DEFINE TRIGGER kos
   ON ko(role: cause)
   BIND "self"
   text: "when this card KOs a card"
 
--- §21-14 — when one of your cards is KO'd
+-- FW manual p. 12 — when one of your cards is KO'd
 DEFINE TRIGGER yourCardKoed
   ON ko(role: koed, watcher: controller)
   BIND "subject"
   text: "when one of your cards is KO'd"
 
--- §21-14 — when an opponent's card is KO'd
+-- FW manual p. 12 — when an opponent's card is KO'd
 DEFINE TRIGGER opponentCardKoed
   ON ko(role: koed, watcher: opponent)
   BIND "subject"
   text: "when an opponent's card is KO'd"
 
--- ── leaving a Battle Area (3-1, 9-6-9) ─────────────────────────────────────
+-- ── damage and life (FW manual p. 10) ──
 
--- §3-1-5 — when this card is removed from a Battle Area by a skill
-DEFINE TRIGGER removedFromBattle
-  ON moved(by: skill, from: battle)
-  BIND "self"
-  text: "when this card is removed from a Battle Area by a skill"
-
--- §3-1-5 — when this card is removed from a Battle Area by an opponent's skill
-DEFINE TRIGGER removedByOpponent
-  ON moved(by: skill, byOpponent: true, from: battle)
-  BIND "self"
-  text: "when this card is removed from a Battle Area by an opponent's skill"
-
--- §3-1-5 — when a skill sends this card from a Battle Area to the Drop
-DEFINE TRIGGER droppedFromBattle
-  ON moved(by: skill, from: battle, to: drop)
-  BIND "self"
-  text: "when a skill sends this card from a Battle Area to the Drop"
-
--- §3-1-5 — the same move made by an opponent's skill: SD15-03's "placed in
--- your Drop Area from your Battle Area by an opponent's skill" (#728). Its
--- "or KO'd" half is `koed`; a KO is not a skill's move (`ko`, not `moved`).
-DEFINE TRIGGER droppedByOpponent
-  ON moved(by: skill, byOpponent: true, from: battle, to: drop)
-  BIND "self"
-  text: "when an opponent's skill sends this card from a Battle Area to the Drop"
-
--- §20-7 — when a skill sends this card from your hand to the Drop: a
--- discard by a skill's effect or as its cost (1-6, 1-7-1, 20-7-4). Pended by
--- name from a skill's own move, like `droppedFromBattle` above; a card leaving
--- the hand by the rules (an Extra after it is activated, 12-2-2) says no
--- `by: skill` and is not this.
-DEFINE TRIGGER droppedFromHand
-  ON moved(by: skill, from: hand, to: drop)
-  BIND "self"
-  text: "when a skill sends this card from your hand to the Drop"
-
--- §3-1-5 — when this card goes from a Battle Area to the Drop
-DEFINE TRIGGER leftBattleToDrop
-  ON moved(from: battle, to: drop)
-  BIND "self"
-  text: "when this card goes from a Battle Area to the Drop"
-
--- BT29-029: "your Battle Area" is the original holder's, including a
--- borrowed card returning to its owner's hand (9-6-9-1-1/2).
-DEFINE TRIGGER yourCardReturnedToHand
-  ON moved(from: battle, to: hand, watcher: fromHolder)
-  BIND "subject"
-  text: "when a card is returned from your Battle Area to its owner's hand"
-
--- EX24-01b: "your Unison Area" is the original holder's, and the Unison is read
--- as it was when it left (the movement carries its information), whichever
--- area it went to.
-DEFINE TRIGGER yourUnisonLeft
-  ON moved(from: unison, watcher: fromHolder)
-  BIND "subject"
-  text: "when a Unison leaves your Unison Area"
-
--- BT3-112: Battle Area OR deck, and no restriction on the movement's cause.
-DEFINE TRIGGER battleOrDeckToWarp
-  ON moved(from: [battle, deck], to: warp)
-  BIND "self"
-  text: "when this card goes from your Battle Area or deck to the Warp"
-
--- §9-6-9-3 — when this card goes from a Battle Area to the Drop in Hidden
--- Mode. A card that moves face down answers to no other moment of its own
--- (`matchTriggers`); this is the "unless specified otherwise" (BT28-117).
-DEFINE TRIGGER hiddenToDrop
-  ON moved(from: battle, to: drop, hidden: true)
-  BIND "self"
-  text: "when this card goes from a Battle Area to the Drop in Hidden Mode"
-
--- ── damage and life (5-10, 3-9, 21-3) ──────────────────────────────────────
-
--- §5-10 — when this card deals damage
+-- FW manual p. 10 — when this card deals damage
 DEFINE TRIGGER dealtDamage
   ON damage(role: source)
   BIND "self"
   text: "when this card deals damage"
 
--- §21-3 — when you take damage from a skill
-DEFINE TRIGGER youTookDamage
-  ON damage(by: skill, watcher: controller)
-  BIND "subject"
-  text: "when you take damage from a skill"
+-- ── the turn (FW manual pp. 7-11) ──
 
--- §21-3 — when your opponent takes damage from a skill
-DEFINE TRIGGER opponentTookDamage
-  ON damage(by: skill, watcher: opponent)
-  BIND "subject"
-  text: "when your opponent takes damage from a skill"
-
--- §3-9 — when a card leaves your life
-DEFINE TRIGGER lifeLeft
-  ON moved(from: life, watcher: controller)
-  BIND "subject"
-  text: "when a card leaves your life"
-
--- §3-9-2-1 — when a card in your life is flipped face up
-DEFINE TRIGGER flippedFaceUp
-  ON faceUpTurned(in: life, watcher: controller)
-  BIND "subject"
-  text: "when a card in your life is flipped face up"
-
--- ── the turn (7-1 … 7-4) ───────────────────────────────────────────────────
-
--- §7-2 — at the start of your Charge Phase
+-- FW manual p. 7 — at the start of your Charge Phase
 DEFINE TRIGGER chargeStart
   ON phaseStart(phase: charge)
   WHERE isTurnPlayer(who: you)
   BIND "self"
   text: "at the start of your Charge Phase"
 
--- §7-1 — at the start of your opponent's turn
+-- FW manual p. 7 — at the start of your opponent's turn
 DEFINE TRIGGER opponentTurnStart
   ON phaseStart(phase: charge)
   WHERE isTurnPlayer(who: opponent)
   BIND "self"
   text: "at the start of your opponent's turn"
 
--- §7-3 — at the start of your Main Phase
+-- FW manual p. 8 — at the start of your Main Phase
 DEFINE TRIGGER mainStart
   ON phaseStart(phase: main)
   WHERE isTurnPlayer(who: you)
   BIND "self"
   text: "at the start of your Main Phase"
 
--- §7-3 — at the start of your opponent's Main Phase
-DEFINE TRIGGER opponentMainStart
-  ON phaseStart(phase: main)
-  WHERE isTurnPlayer(who: opponent)
-  BIND "self"
-  text: "at the start of your opponent's Main Phase"
-
--- §7-3 — at the end of your Main Phase
+-- FW manual p. 8 — at the end of your Main Phase
 DEFINE TRIGGER mainEnd
   ON phaseEnd(phase: main)
   WHERE isTurnPlayer(who: you)
   BIND "self"
   text: "at the end of your Main Phase"
 
--- §7-4 — at the end of your turn
+-- FW manual p. 11, [End of Your Turn] — at the end of your turn
 DEFINE TRIGGER turnEnd
   ON phaseStart(phase: end)
   WHERE isTurnPlayer(who: you)
   BIND "self"
   text: "at the end of your turn"
 
--- §7-1 — at the end of your opponent's turn
+-- FW manual p. 11 — at the end of your opponent's turn
 DEFINE TRIGGER opponentTurnEnd
   ON phaseStart(phase: end)
   WHERE isTurnPlayer(who: opponent)
   BIND "self"
   text: "at the end of your opponent's turn"
 
--- ── combos (5-7, 8-5-8) ────────────────────────────────────────────────────
+-- ── combos (FW manual p. 10) ──
 
--- §8-5-6 — a Battle Area watcher of a same-player Combo-to-Drop departure.
+-- FW manual p. 10 — a Battle Area watcher of a same-player Combo-to-Drop departure.
 -- Native cleanup announces this before 8-5-7 and suppresses only its repeat
 -- at the physical 8-5-8 move. Other movement triggers still hear that move.
 DEFINE TRIGGER comboToDrop
@@ -400,309 +213,63 @@ DEFINE TRIGGER comboToDrop
   BIND "subject"
   text: "when a card in your Combo Area is placed in your Drop Area"
 
--- §8-5-8 departure — ordinary self-combo wording already answered at entry;
+-- FW manual p. 10, departure — ordinary self-combo wording already answered at entry;
 -- the special "at battle end after combo" Auto is announced at 8-5-9.
 DEFINE TRIGGER comboed
   ON moved(from: combo)
   BIND "self"
   text: "when this card is used in a combo"
 
--- §§5-7-5-3/5-7-6-3 — this card's own Auto at Combo Area entry. `comboed`
+-- FW manual p. 10 — this card's own Auto at Combo Area entry. `comboed`
 -- remains the stored legacy alias and the distinct 8-5-10-1 cleanup moment.
 DEFINE TRIGGER comboUsed
   ON comboUsed(to: combo)
   BIND "self"
   text: "when you combo with this card"
 
--- §5-7 — when you combo
-DEFINE TRIGGER youCombo
-  ON comboUsed(watcher: controller)
-  BIND "subject"
-  text: "when you combo"
+-- ── modes (FW manual p. 7) ──
 
--- §5-7 — when your opponent combos
-DEFINE TRIGGER opponentCombos
-  ON comboUsed(watcher: opponent)
-  BIND "subject"
-  text: "when your opponent combos"
-
--- ── keyword activations (22) ───────────────────────────────────────────────
-
--- §22-4 — when this card activates [Blocker]
-DEFINE TRIGGER blockerUsed
-  ON keywordActivated(keyword: Blocker)
-  BIND "self"
-  text: "when this card activates [Blocker]"
-
--- §22-5-2-3/4 — successful evolution, distinct from keyword activation.
-DEFINE TRIGGER evolvedInto
-  ON evolved(to: battle)
-  BIND "subject"
-  text: "when a card evolves into this card"
-
--- §22-5 — when you use this card's [Evolve] from your hand
-DEFINE TRIGGER evolveFromHandActivated
-  ON keywordActivated(from: hand, keyword: Evolve)
-  BIND "self"
-  text: "when you use this card's [Evolve] from your hand"
-
--- §22-13 — when you activate a [Union] skill
-DEFINE TRIGGER unionActivated
-  ON keywordActivated(keyword: Union, watcher: controller)
-  BIND "subject"
-  text: "when you activate a [Union] skill"
-
--- §22-13-5 — when this card's [Union-Absorb] is activated
-DEFINE TRIGGER unionAbsorbActivated
-  ON keywordActivated(keyword: "Union-Absorb")
-  BIND "self"
-  text: "when this card's [Union-Absorb] is activated"
-
--- §22-41 — when you activate an [Overlord] skill
-DEFINE TRIGGER overlordActivated
-  ON keywordActivated(keyword: Overlord, watcher: controller)
-  BIND "subject"
-  text: "when you activate an [Overlord] skill"
-
--- §22-15 — when you play a card using [Over Realm]
-DEFINE TRIGGER overRealmPlayed
-  ON keywordActivated(keyword: "Over Realm", watcher: controller)
-  BIND "subject"
-  text: "when you play a card using [Over Realm]"
-
--- ── skills and counters (9-6, 9-7, 22-10) ──────────────────────────────────
-
--- §9-7 — when your opponent activates a [Counter] skill
-DEFINE TRIGGER opponentCounter
-  ON skillActivated(kind: counter, watcher: opponent)
-  BIND "subject"
-  text: "when your opponent activates a [Counter] skill"
-
--- §12-1-3 — when you activate an Extra Card from your hand. "Activating an
--- Extra Card" is using its [Activate] or [Counter] skill from the hand unless
--- the card says otherwise, [Field] included (22-3-1), so `from: hand` is the
--- whole of it; `extra: true` is the card's type, read before it went to the
--- Drop (12-2-2-2). The Extra is the subject, and what the card says about it
--- ("a blue Extra", BT29-029) is a condition on that subject.
-DEFINE TRIGGER extraActivated
-  ON skillActivated(extra: true, from: hand, watcher: controller)
-  BIND "subject"
-  text: "when you activate an Extra Card from your hand"
-
--- §22-10 — when you activate this card's [Counter] from your hand without paying its energy cost
-DEFINE TRIGGER counterFreeFromHand
-  ON skillActivated(from: hand, kind: counter, paid: false)
-  BIND "self"
-  text: "when you activate this card's [Counter] from your hand without paying its energy cost"
-
--- ── modes and markers (1-10, 5-13, 22-32, 22-43) ───────────────────────────
-
--- §1-10-1 — when this card is rested by one of your skills
-DEFINE TRIGGER restedBySkill
-  ON modeSwitched(by: skill, byOpponent: false, mode: rest)
-  BIND "self"
-  text: "when this card is rested by one of your skills"
-
--- #907 — when this card is rested by a skill, whoever's: "by a skill"
--- (BT18-104, P-492). A keyword's own switch ([Alliance]) is its own moment
--- (`restedByAlliance`), so `by: skill` here, as above.
-DEFINE TRIGGER restedByAnySkill
-  ON modeSwitched(by: skill, mode: rest)
-  BIND "self"
-  text: "when this card is rested by a skill"
-
--- #907 — when this card is rested by your opponent's skill. The moment carries
--- the skill's card, which a cause the card prints ("by your opponent's
--- <Name> card's skill") asks about as the subject.
-DEFINE TRIGGER restedByOpponentSkill
-  ON modeSwitched(by: skill, byOpponent: true, mode: rest)
-  BIND "self"
-  text: "when this card is rested by your opponent's skill"
-
--- §1-10-1 — when your skill rests an opponent's card. The printed wording
--- names their Battle Cards and energy, which is where the legacy engine pends
--- it, and the skill is the other player's (#157).
-DEFINE TRIGGER restedTheirsBySkill
-  ON modeSwitched(by: skill, byOpponent: true, in: [battle, energy], mode: rest, watcher: opponent)
-  BIND "subject"
-  text: "when your skill rests an opponent's card"
-
--- BT7-003 — an opponent's skill switches your energy. The text does not name
--- whose energy, so the matching SD8-09 form below covers their own energy
--- too. Charge Phase's ordinary Active switch carries no cause fields.
-DEFINE TRIGGER opponentEnergyActiveBySkill
-  ON modeSwitched(byOpponent: true, notAwaken: true, in: energy, mode: active, watcher: controller)
-  WHERE isTurnPlayer(who: opponent)
-  BIND "subject"
-  text: "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn"
-
--- SD8-09 — “their energy” narrows the switch to the opponent's energy.
-DEFINE TRIGGER opponentOwnEnergyActiveBySkill
-  ON modeSwitched(byOpponent: false, notAwaken: true, in: energy, mode: active, watcher: opponent)
-  WHERE isTurnPlayer(who: opponent)
-  BIND "subject"
-  text: "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn"
-
--- #916 — "their energy" switched to Active by the opponent's own [Counter]
--- skill (DB3-013, -040, -059, -089, -105). The cause is the typed skill kind
--- the switching frame carries (`kind: counter`), not the source card's other
--- lines, and there is no turn restriction: a Counter is used on either turn.
--- The Charge Phase's rule-made switch carries no cause and never matches.
-DEFINE TRIGGER opponentOwnEnergyActiveByCounter
-  ON modeSwitched(byOpponent: false, kind: counter, in: energy, mode: active, watcher: opponent)
-  BIND "subject"
-  text: "when your opponent switches their energy to Active Mode using a [Counter] skill"
-
--- §1-10-1, §0-2-4-1 — when this card itself is switched from Rest Mode to Active
+-- FW manual p. 7 — when this card itself is switched from Rest Mode to Active
 -- Mode (TB3-019, #922), by a skill or by the Charge Phase alike. A card already
 -- Active does not switch, so no `modeSwitched` is fired for it. An arrival in
 -- the Battle Area (a play, or the preliminary move of an energy-base [EX-Evolve],
 -- 22-5-3-1-1) is a movement, never a mode switch, and does not match.
 DEFINE TRIGGER selfRestToActive
-  ON modeSwitched(mode: active, in: [battle, leader, unison])
+  ON modeSwitched(mode: active, in: [battle, leader])
   BIND "self"
   text: "when this card is switched from Rest Mode to Active Mode"
 
--- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode by one of
--- your skills. The card is face down by the time it answers, and the pattern
--- naming `hidden: true` is what lets its front side do so (`matchTriggers`).
-DEFINE TRIGGER hiddenBySkill
-  ON hiddenSwitched(by: skill, byOpponent: false, hidden: true, in: battle)
-  BIND "self"
-  text: "when this card is switched to Hidden Mode by one of your skills"
+-- ── the counter windows (FW manual p. 10: the defending player's skills during the Defense Step) ──
 
--- §1-10-2 — when this card is switched to Revealed Mode, whatever switched it.
--- In a Battle or Unison Area only: a card's skills are not valid in the
--- Energy Area (9-1-3-1), though its energy can be switched there.
-DEFINE TRIGGER switchedRevealed
-  ON hiddenSwitched(hidden: false, in: [battle, unison])
-  BIND "self"
-  text: "when this card is switched to Revealed Mode"
-
--- §1-10-2, §23-5-2-4 — when this card is switched to Hidden Mode, whatever
--- switched it; answered by its front side, as `hiddenBySkill` is.
-DEFINE TRIGGER switchedHidden
-  ON hiddenSwitched(hidden: true, in: [battle, unison])
-  BIND "self"
-  text: "when this card is switched to Hidden Mode"
-
--- §23-2 — when this card is placed under another card. The pile is a place
--- of its own, so the card answers there although its skills are not valid
--- under a card otherwise (23-2-2); the host is the card on top.
-DEFINE TRIGGER placedUnder
-  ON placedUnder(to: under)
-  BIND "self"
-  text: "when this card is placed under a card"
-
--- §3-2, §3-3, §3-4 — when this card goes from your deck or hand to the Drop
-DEFINE TRIGGER deckOrHandToDrop
-  ON moved(from: [deck, hand], to: drop)
-  BIND "self"
-  text: "when this card goes from your deck or hand to the Drop"
-
--- §3-10 — when one of your skills sends this card from your deck to the Warp
--- (BT30-106). The skill's card is the subject the program is handed, so "by
--- your <Heles> card's skill" is a condition on it rather than a moment of its
--- own. Pended by name from a skill's `moveTo`, as `removedFromBattle` is.
-DEFINE TRIGGER deckToWarpBySkill
-  ON moved(by: skill, byOpponent: false, from: deck, to: warp)
-  BIND "self"
-  text: "when one of your skills sends this card from your deck to the Warp"
-
--- §22-32-3 — when this card is rested by an [Alliance] skill
-DEFINE TRIGGER restedByAlliance
-  ON modeSwitched(by: Alliance, mode: rest)
-  BIND "self"
-  text: "when this card is rested by an [Alliance] skill"
-
--- §5-13 — when a marker is removed from this card
-DEFINE TRIGGER markerRemoved
-  ON markerRemoved
-  BIND "self"
-  text: "when a marker is removed from this card"
-
--- §22-43-3 — when you pay a [Spirit Boost] cost from this card
-DEFINE TRIGGER spiritBoostPaid
-  ON markerRemoved(by: "Spirit Boost", watcher: controller)
-  BIND "subject"
-  text: "when you pay a [Spirit Boost] cost from this card"
-
--- ── areas outside play (3-8, 3-11, 3-13) ───────────────────────────────────
-
--- §3-8, §7-2-11 — when this card is placed in an Energy Area, from anywhere and
--- by anything: the Charge Phase's own placing (7-2-11) and a skill's alike
--- (BT18-052, EX17-02, "added to energy" P-617). Best guess, no official ruling
--- separates a charge from a skill's placing: both put a card in the Energy Area.
--- The card answers from there: the pattern names the place (9-1-3-1's exception).
-DEFINE TRIGGER placedInEnergy
-  ON moved(to: energy)
-  BIND "self"
-  text: "when this card is placed in your energy"
-
--- #907 — the same arrival from the hand: "placed in your energy from your hand"
--- (BT13-040, -043, -045) and "this card in your hand is played or placed in
--- your energy" (EX19-26 …, P-353).
-DEFINE TRIGGER placedInEnergyFromHand
-  ON moved(from: hand, to: energy)
-  BIND "self"
-  text: "when this card is placed in your energy from your hand"
-
--- §3-8 — when a card goes from your energy to the Drop
-DEFINE TRIGGER energyToDrop
-  ON moved(from: energy, to: drop, watcher: controller)
-  BIND "subject"
-  text: "when a card goes from your energy to the Drop"
-
--- §3-11-5 — when your Unison goes to the Drop
-DEFINE TRIGGER unisonToDrop
-  ON moved(from: unison, to: drop)
-  BIND "self"
-  text: "when your Unison goes to the Drop"
-
--- §3-11, #930 — when this card is removed from a Unison Area: any move out of
--- it, whatever the cause (a skill, a new Unison replacing it 13-2-1-3, zero
--- markers 21-9-2) and wherever it goes (BT31-043).
-DEFINE TRIGGER removedFromUnison
-  ON moved(from: unison)
-  BIND "self"
-  text: "when this card is removed from a Unison Area"
-
--- §3-13-1 — when this card is added to your Z-Energy
-DEFINE TRIGGER addedToZEnergy
-  ON moved(to: zEnergy)
-  BIND "self"
-  text: "when this card is added to your Z-Energy"
-
--- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these
 -- five carry a name a card's WHEN never says. The shape is the same: the
 -- moment as the event that is it.
 
--- §9-6-6 — the window after a card is played and before it resolves
+-- FW manual p. 12, [Counter] — the window after a card is played and before it resolves
 DEFINE TRIGGER "counter:play"
   ON counterTiming(watcher: opponent, window: play)
   BIND "subject"
   text: "when your opponent plays a card, before it resolves"
 
--- §8-1-4 — the window after an attack is declared
+-- FW manual p. 12, [Counter] — the window after an attack is declared
 DEFINE TRIGGER "counter:attack"
   ON counterTiming(watcher: opponent, window: attack)
   BIND "subject"
   text: "when your opponent declares an attack"
 
--- §8-1-4 — the same window, narrowed to an attack a Battle Card made
+-- FW manual p. 12, [Counter] — the same window, narrowed to an attack a Battle Card made
 DEFINE TRIGGER "counter:battleCardAttack"
   ON counterTiming(attacker: battleCard, watcher: opponent, window: attack)
   BIND "subject"
   text: "when your opponent's Battle Card declares an attack"
 
--- §9-7-4 — the window after a [Counter] skill is activated
+-- FW manual p. 12, [Counter] — the window after a [Counter] skill is activated
 DEFINE TRIGGER "counter:counter"
   ON counterTiming(watcher: opponent, window: counter)
   BIND "subject"
   text: "when your opponent activates a [Counter] skill, before it resolves"
 
--- §9-6-6 — the window after a skill is activated
+-- FW manual p. 12, [Counter] — the window after a skill is activated
 DEFINE TRIGGER "counter:skill"
   ON counterTiming(watcher: opponent, window: skill)
   BIND "subject"

@@ -65,8 +65,6 @@ export const FUSION_BOARD_WORDS: BoardWords = {
     "attack": "attack",
     "combo": "combo",
     "play": "be played",
-    "playUnison": "be played",
-    "playZ": "be played",
     "activate": "use its skill",
     "charge": "be charged",
     "counter": "counter",
