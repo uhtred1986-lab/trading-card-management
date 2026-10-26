@@ -80,7 +80,7 @@ import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
-import { activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, type TaxGate } from "./activate";
+import { activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
 import { spendUse, usesLeft } from "./limits";
@@ -984,7 +984,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // card that nobody can pay means [Revive] is not asked at all, so no
       // hand card is dropped for a play that cannot happen. One that can be
       // paid is asked by the `play` op once the colours are paid.
-      const unpaidPlay = unpaidActivationTax(ctx, game, state, next.master, next.card, keywordPlayTaxes(ctx, game, state, next.master, next.card, keyword));
+      // Judged once its colour cards have left the hand too (the batch 5
+      // follow-up): a hand tax the colours would leave unpayable is no reason
+      // to drop them (`unpaidKeywordPlayTax`).
+      const unpaidPlay = unpaidKeywordPlayTax(ctx, game, state, next.master, next.card, skill, keywordPlayTaxes(ctx, game, state, next.master, next.card, keyword), 0);
       if (unpaidPlay) {
         log(ev, { type: "note", text: `${named}: [Revive] can't play it — the price a rule puts on playing it (20-14-1) can't be paid` });
         return true;
