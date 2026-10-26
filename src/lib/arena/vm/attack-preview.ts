@@ -51,10 +51,12 @@ export function attackPreviews(ctx: EngineContext, game: GameDefinition, state: 
       unknown("A pending skill or hidden attacker prevents a reliable preview."); return;
     }
     try {
-      let taxed = taxes.get(action.attacker);
+      // A price may be on attacking this defender only (BT13-082).
+      const taxKey = `${action.attacker}>${action.target}`;
+      let taxed = taxes.get(taxKey);
       if (taxed === undefined) {
-        taxed = taxesOn(ctx, game, state, "attack", { player: action.player, card: action.attacker }).length > 0;
-        taxes.set(action.attacker, taxed);
+        taxed = taxesOn(ctx, game, state, "attack", { player: action.player, card: action.attacker, attackTarget: action.target }).length > 0;
+        taxes.set(taxKey, taxed);
       }
       if (taxed) {
         unknown("This attack has an additional cost that resolves before the battle."); return;
