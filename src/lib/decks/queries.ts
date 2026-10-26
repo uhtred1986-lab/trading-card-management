@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks, storageLocations } from "@/db/schema";
 import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
@@ -63,7 +63,7 @@ export function visibleToViewer(scope?: OwnerScope) {
   return deckScope(scope);
 }
 
-export async function listDecks(db: Db, opts: { game?: Game; viewer?: OwnerScope } = {}) {
+export async function listDecks(db: Db, opts: { game?: Game; games?: readonly Game[]; viewer?: OwnerScope } = {}) {
   const rows = await db
     .select({
       id: decks.id,
@@ -80,7 +80,7 @@ export async function listDecks(db: Db, opts: { game?: Game; viewer?: OwnerScope
     })
     .from(decks)
     .leftJoin(storageLocations, eq(storageLocations.id, decks.locationId))
-    .where(and(opts.game ? eq(decks.game, opts.game) : undefined, visibleToViewer(opts.viewer)))
+    .where(and(opts.game ? eq(decks.game, opts.game) : undefined, opts.games ? inArray(decks.game, [...opts.games]) : undefined, visibleToViewer(opts.viewer)))
     .orderBy(desc(decks.isBuilt), desc(decks.updatedAt));
   const leaderIds = rows.map((r) => r.leaderId).filter((x): x is string => !!x);
   const [leaders, legalities] = await Promise.all([

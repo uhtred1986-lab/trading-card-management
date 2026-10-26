@@ -9,7 +9,8 @@ import { arenaRuleBundles } from "@/db/schema";
 import type { CardDef } from "./types";
 import type { CardScripts } from "./vm/script";
 import type { GameDefinition } from "./rulesets/types";
-import { DBS_FILES } from "./rulesets/dbs";
+import { DBS_FILES, FUSION_FILES } from "./rulesets";
+import type { Game } from "../catalog/games";
 import type { CardArt } from "./view";
 import {
   contextFromBundle,
@@ -41,19 +42,22 @@ export function runtimeRevision(): string | null {
   return normaliseRuntimeRevision(process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null);
 }
 
-/** Server entry: defaults to the shipped DBS ruleset and this deployment's revision. */
+/** Server entry: defaults to the shipped ruleset of `game` (dbs when absent) and this deployment's revision. */
 export function makeReplayBundle(input: {
   defs: Record<string, CardDef>;
   scripts: Record<string, CardScripts>;
   art: Record<string, CardArt>;
   rulesetFiles?: Record<string, string>;
+  /** The game being played: picks the ruleset files to pin. Defaults to dbs. */
+  game?: Game;
   runtime?: string | null;
 }): Promise<ReplayBundle> {
   return makePortableReplayBundle({
     defs: input.defs,
     scripts: input.scripts,
     art: input.art,
-    rulesetFiles: input.rulesetFiles ?? DBS_FILES,
+    rulesetFiles: input.rulesetFiles ?? (input.game === "fusion" ? FUSION_FILES : DBS_FILES),
+    game: input.game,
     runtime: input.runtime === undefined ? runtimeRevision() : input.runtime,
   });
 }

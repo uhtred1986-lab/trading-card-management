@@ -108,6 +108,7 @@ export interface OfflinePack {
   /** SHA-256 of the canonical JSON of every other field. */
   hash: string;
   id: string;
+  /** Offline packs are dbs-only in this milestone: the offline worker and its pinned bundle carry no Fusion World ruleset (plan §1). */
   game: "dbs";
   compatibility: PackCompatibility;
   source: PackSource;
