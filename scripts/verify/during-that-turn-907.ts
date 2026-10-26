@@ -103,8 +103,10 @@ for (const [id, text] of Object.entries(PRINTED)) assert.deepEqual(read(text).un
   // Not guessed past: two descriptions after a number, and the same words on cards in play.
   assert.ok(read("[activate: main][limit 1] If your leader is a <Bardock: Xeno> card: During that turn, the next time you activate [activate: main] on a <Gogeta: Xeno> card that is mono-black with an energy cost of 10 or multicolor with an energy cost of 8 in your hand, reduce the skill cost by {3}.").unsupported.length > 0, "EX23-45 stays unread");
   assert.ok(read("[activate: main/battle] Place 1 of your Z-Energy in your Drop: During this turn, the next time you activate [activate] on a red <Son Gohan: Future> or <Trunks: Future> card in your Battle Area and/or Combo Area, reduce the skill cost of that skill by {1}.").unsupported.length > 0, "BT23-003 stays unread");
-  // Only the discard price: another "If you place …:" price keeps being refused whole.
-  assert.ok(read("[Activate: Main] If you place 1 card from your hand in your drop: draw 1 card.").unsupported.length > 0);
+  // Phrasing batch 2: "If you place …:" is read as the action it names too (`IF_YOU_ACTION_PRICE`), charged as the
+  // price; "If you switch …:" and "If you add …:" still are not (BT24-096, BT21-103).
+  assert.deepEqual(read("[Activate: Main] If you place 1 card from your hand in your drop: draw 1 card.").unsupported, []);
+  assert.ok(compileCostProgram(parseSkills("[Activate: Main] If you place 1 card from your hand in your drop: draw 1 card.")[0]), "…as its price");
 }
 
 // ── compile: ignoring [Barrier] ───────────────────────────────────────────────

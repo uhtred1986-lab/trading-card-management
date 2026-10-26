@@ -188,8 +188,8 @@ const BT5_045 = "[Auto] When you play this card, you may choose 2 non-black Batt
   assert.ok(opp[0].op === "may" && opp[0].ops[0].op === "choose" && opp[1].op === "moveTo" && "var" in opp[1].target && opp[1].target.var === opp[0].ops[0].as && opp[1].to === "deck" && opp[1].position === "bottom", "BT5-045: the chosen cards to the bottom of their owner's deck");
   records += 4;
 }
-// A plural "top or bottom" may mean one end per card: unread until ruled.
-assert.ok(unreadOf("[Activate: Main][Once per turn] Look at up to 5 cards from the top of your deck and place them on the top and/or bottom of your deck in any order.").length > 0, "BT10-081's \"top and/or bottom\" stays unread");
+// A plural "top or bottom" is one end per card since the owner's ruling of 26 Oct 2026 (phrasing batch 2, proved there).
+assert.deepEqual(unreadOf("[Activate: Main][Once per turn] Look at up to 5 cards from the top of your deck and place them on the top and/or bottom of your deck in any order."), [], "BT10-081's \"top and/or bottom\" reads since the ruling");
 
 // 3. the card sent to the Warp by this skill
 const BT13_025 = "[auto] If you have 2 or more energy and all of your opponent's energy is in Rest Mode: When this card is played, your opponent reveals their hand. You choose up to 1 Battle Card with 15000 power or less from it and send it to its owner's Warp. At the end of your opponent's next turn, return the card sent to the Warp by this skill to its owner's hand.";

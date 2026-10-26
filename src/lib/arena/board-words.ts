@@ -24,6 +24,8 @@ import type { Area } from "./types";
 import { AREAS, COLORS } from "./vm/script-schema";
 import type { GameDefinition } from "./rulesets";
 import { DBS_BOARD_WORDS } from "./rulesets/dbs/board-words";
+import { FUSION_BOARD_WORDS } from "./rulesets/fusion/board-words";
+import type { Game } from "../catalog/games";
 
 /** How long a rule holds, as `words.rules` declares it. `{them}` and `{source}` are filled by `effects.ts`'s `untilWords`. */
 export interface UntilWord {
@@ -37,10 +39,10 @@ export interface UntilWord {
 
 /** Every table's vocabulary, gathered in one place. */
 export interface BoardWords {
-  /** A zone, said as the viewer's own — "your Battle Area" (`wording.ts`'s refusals). */
-  area: Record<Area, string>;
+  /** A zone, said as the viewer's own — "your Battle Area" (`wording.ts`'s refusals). Only the areas the game declares have a word. */
+  area: Partial<Record<Area, string>>;
   /** The same zone, said from the third person — "the Battle Area" (`narration.ts`'s beats). */
-  narrationArea: Record<Area, string>;
+  narrationArea: Partial<Record<Area, string>>;
   /** A phase or step id (the beat stream's own, not always the declaration's — see `PHASE_DECLARATION` below), said as a sentence names it. */
   phase: Record<string, string>;
   /** Active/Rest Mode, the only two tokens `zones.rules` declares for `modes:`. */
@@ -77,6 +79,9 @@ const PHASE_DECLARATION: Record<string, { kind: "phase" | "step"; name: string }
   battleEnd: { kind: "step", name: "battleEnd" },
 };
 
+/** The areas a game may leave undeclared (Fusion World has none of them); every other area is every game's, and a ruleset without one is broken. */
+const SOME_GAMES_ONLY = new Set<string>(["warp", "unison", "zDeck", "zEnergy"]);
+
 /** The two effect-language-only routes a program names and a board never shows a card sitting in. */
 const NOT_ON_THE_BOARD = new Set<string>(["under", "play"]);
 
@@ -94,12 +99,18 @@ export function wordsFromRuleset(def: GameDefinition): BoardWords {
   const of = (kind: string) => all.filter(([, w]) => w.of === kind);
 
   // Zones: both forms, for every area a board can show a card in.
-  const area = {} as Record<Area, string>;
-  const narrationArea = {} as Record<Area, string>;
+  const area: Partial<Record<Area, string>> = {};
+  const narrationArea: Partial<Record<Area, string>> = {};
   const zoneNames = Object.keys(def.zones);
   for (const name of AREAS) {
     if (NOT_ON_THE_BOARD.has(name)) continue;
-    if (!zoneNames.includes(name)) throw new Error(`board-words: zones.rules no longer declares "${name}", which wording.ts/narration.ts still name`);
+    // A game that does not declare an area (Fusion World has no Warp, Unison, Z-Deck or Z-Energy) gets
+    // no word for it; the board reads "no word" as "this game has no such area".
+    if (!zoneNames.includes(name)) {
+      if (!SOME_GAMES_ONLY.has(name)) throw new Error(`board-words: zones.rules no longer declares "${name}", which wording.ts/narration.ts still name`);
+      if (def.words[name]?.of === "zone") throw new Error(`board-words: words.rules has a DEFINE WORDS ${name} (of: zone) for an area zones.rules does not declare`);
+      continue;
+    }
     const w = def.words[name];
     if (w?.of !== "zone" || !w.you) throw new Error(`board-words: words.rules has no DEFINE WORDS ${name} (of: zone, with you:)`);
     area[name as Area] = w.you;
@@ -161,4 +172,18 @@ export function wordsFromRuleset(def: GameDefinition): BoardWords {
  */
 export function dbsWords(): BoardWords {
   return DBS_BOARD_WORDS;
+}
+
+/**
+ * The vocabulary of one card game's board, from the generated table of its ruleset. An area the game does not
+ * declare has no word in it (`area[a] === undefined`), and the board reads that as "this game has no such area":
+ * it draws no frame, label or counter for it (F1-06).
+ */
+export function wordsFor(game: Game): BoardWords {
+  return game === "fusion" ? FUSION_BOARD_WORDS : DBS_BOARD_WORDS;
+}
+
+/** Whether `game` has the area at all — the test every stage component asks before it draws a slot for one. */
+export function hasArea(words: BoardWords, area: Area): boolean {
+  return words.area[area] !== undefined;
 }

@@ -351,13 +351,20 @@ function priceText(skill: Skill): string {
  * keyword's own move) and [Permanent]s (no price) are not asked.
  */
 /**
- * The one "If you …:" price read as the action it names: a discard from the
- * hand. Narrow on purpose: other "If you place/add/switch …:" prices would
- * expose effect readings nobody has signed off (BT21-103's "play this card
- * under a yellow <Whis> Z-Battle Card" reads as a plain play), and each is its
- * own wording to check.
+ * The "If you …:" prices read as the action they name. First a discard from the
+ * hand (BT22-054b); phrasing batch 2 adds the other verbs a price is charged
+ * with — "If you **place** 1 card from your hand at the bottom of your deck"
+ * (BT21-003), "If you **discard** 1 red ≪Red Ribbon Army≫ card from your hand"
+ * (BT22-002b), "If you **remove** 1 of your skill-less Battle Cards from the
+ * game" (BT21-137), "If you **send** 3 cards from your hand to your Warp"
+ * (BT24-139) — each read only when the action compiles whole, and the newly
+ * read effects checked one by one. Not "add": BT21-103's "If you add 1 yellow
+ * <Vegeta> … to your hand: … play this card under a yellow <Whis> Z-Battle
+ * Card" would expose an effect read as a plain play. Not "switch": "if you
+ * switch 5 yellow cards to Rest Mode" (BT24-096) does not say whether energy
+ * counts among the cards (a ruling question), and reads as cards in play.
  */
-export const IF_YOU_DISCARD_PRICE = /^if you discard (?:\d+|an?|up to \d+) cards? from your hand$/i;
+export const IF_YOU_ACTION_PRICE = /^if you (?:discard|place|send|remove|return) \S.*$/i;
 
 export function priceIsUnread(skill: Skill): boolean {
   if (skill.keyword || !/^(?:activate|auto|counter)/.test(skill.kind)) return false;
@@ -461,7 +468,7 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // all — the action is the price, as in the unprefixed "Discard 1 card from
   // your hand:". Read last, once it has failed to be a condition, for the
   // reason given above: charging an action is the stronger reading.
-  const bareAction = IF_YOU_DISCARD_PRICE.test(said) ?compileAction(said.replace(/^if\s+/i, ""), skill) : null;
+  const bareAction = IF_YOU_ACTION_PRICE.test(said) ? compileAction(said.replace(/^if\s+/i, ""), skill) : null;
   return bareAction ? { conds: [], program: bareAction } : NO_PRICE;
 }
 

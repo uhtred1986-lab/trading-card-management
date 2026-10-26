@@ -1,0 +1,1594 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 106001,
+    "revision": 0,
+    "mode": "versus",
+    "engine": "rules",
+    "game": "fusion",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "You",
+    "p2Name": "Opponent",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "You",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "FW-L-RED",
+        "name": "Red Leader",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": "/art/FW-L-RED.png",
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#17",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#26",
+          "cardId": "FW-B",
+          "name": "Red Guard",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-B.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Blocker]",
+              "tags": [
+                "Blocker"
+              ],
+              "zone": "battle",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#19",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#11",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#42",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#41",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#10",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#19",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#11",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#42",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#41",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        },
+        {
+          "card": "p1#10",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#35",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#43",
+          "cardId": "FW-B",
+          "name": "Red Guard",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-B.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Blocker]",
+              "tags": [
+                "Blocker"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1#47",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#3",
+          "cardId": "FW-B",
+          "name": "Red Guard",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-B.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [
+            "Blocker"
+          ],
+          "text": "[Blocker]",
+          "reading": "",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "keyword",
+              "category": "keyword",
+              "text": "[Blocker]",
+              "tags": [
+                "Blocker"
+              ],
+              "zone": "hand",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              }
+            }
+          ]
+        },
+        {
+          "id": "p1#32",
+          "cardId": "FW-A",
+          "name": "Red Fighter",
+          "power": 15000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": "/art/FW-A.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 5,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 30,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 5,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p2",
+      "name": "Opponent",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "FW-L-BLUE",
+        "name": "Blue Leader",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": "/art/FW-L-BLUE.png",
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p2#38",
+          "cardId": "FW-C",
+          "name": "Blue Fighter",
+          "power": 15000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": "/art/FW-C.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p2#48",
+          "cardId": "FW-C",
+          "name": "Blue Fighter",
+          "power": 15000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": "/art/FW-C.png",
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p2#5",
+          "cardId": "FW-C",
+          "name": "Blue Fighter",
+          "power": 15000,
+          "colors": [
+            "Blue"
+          ],
+          "imageUrl": "/art/FW-C.png",
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p2#5",
+          "colors": [
+            "Blue"
+          ],
+          "paymentColors": [
+            "Blue"
+          ]
+        }
+      ],
+      "hand": null,
+      "handCount": 6,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 33,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 1,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "main",
+    "phase": "main",
+    "battleStep": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "endMain",
+        "player": "p1"
+      },
+      "label": "End turn"
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Play Red Fighter",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#19",
+              "p1#11"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Play Red Guard",
+      "cost": {
+        "energy": 1,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "1 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#19"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#47"
+      },
+      "label": "Play Red Fighter",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#19",
+              "p1#11"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#3"
+      },
+      "label": "Play Red Guard",
+      "cost": {
+        "energy": 1,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "1 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#19"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "play",
+        "player": "p1",
+        "card": "p1#32"
+      },
+      "label": "Play Red Fighter",
+      "cost": {
+        "energy": 2,
+        "orbs": {
+          "Red": 1
+        },
+        "describe": "2 energy (1 red)"
+      },
+      "paymentPreview": {
+        "state": "known",
+        "options": [
+          {
+            "energyRest": [
+              "p1#19",
+              "p1#11"
+            ],
+            "markers": 0,
+            "costMarkers": 0
+          }
+        ]
+      }
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#0"
+      },
+      "label": "Attack Blue Leader with Red Leader (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#0",
+        "target": "p2#48"
+      },
+      "label": "Attack Blue Fighter with Red Leader (10000 vs 15000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#17",
+        "target": "p2#0"
+      },
+      "label": "Attack Blue Leader with Red Fighter (15000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#17",
+        "target": "p2#48"
+      },
+      "label": "Attack Blue Fighter with Red Fighter (15000 vs 15000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#26",
+        "target": "p2#0"
+      },
+      "label": "Attack Blue Leader with Red Guard (10000 vs 10000)"
+    },
+    {
+      "action": {
+        "type": "attack",
+        "player": "p1",
+        "attacker": "p1#26",
+        "target": "p2#48"
+      },
+      "label": "Attack Blue Fighter with Red Guard (10000 vs 15000)"
+    }
+  ],
+  "attackPreviews": [
+    {
+      "action": 6,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#0",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#0": 10000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 7,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#0",
+        "guard": "p2#48",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 15000,
+        "stakes": {
+          "hit": false,
+          "tied": false,
+          "target": "battle",
+          "lifeDamage": 0,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#0": 10000,
+          "p2#48": 15000
+        }
+      }
+    },
+    {
+      "action": 8,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#17",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": false,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#17": 15000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 9,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#17",
+        "guard": "p2#48",
+        "step": "declared",
+        "attackPower": 15000,
+        "guardPower": 15000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "battle",
+          "lifeDamage": 0,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#17": 15000,
+          "p2#48": 15000
+        }
+      }
+    },
+    {
+      "action": 10,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#26",
+        "guard": "p2#0",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 10000,
+        "stakes": {
+          "hit": true,
+          "tied": true,
+          "target": "leader",
+          "lifeDamage": 1,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#26": 10000,
+          "p2#0": 10000
+        }
+      }
+    },
+    {
+      "action": 11,
+      "state": "known",
+      "battle": {
+        "attacker": "p1#26",
+        "guard": "p2#48",
+        "step": "declared",
+        "attackPower": 10000,
+        "guardPower": 15000,
+        "stakes": {
+          "hit": false,
+          "tied": false,
+          "target": "battle",
+          "lifeDamage": 0,
+          "strikeDamage": 1,
+          "markerLoss": 0,
+          "critical": false,
+          "victoryStrike": false,
+          "potentialLethal": false,
+          "koPrevented": false,
+          "assumption": "At current totals, with no further responses. Pending skills and replacements can change this result."
+        },
+        "contributions": {
+          "p1#26": 10000,
+          "p2#48": 15000
+        }
+      }
+    }
+  ],
+  "taps": {
+    "byCard": {
+      "p1#35": [
+        1
+      ],
+      "p1#43": [
+        2
+      ],
+      "p1#47": [
+        3
+      ],
+      "p1#3": [
+        4
+      ],
+      "p1#32": [
+        5
+      ],
+      "p1#0": [
+        6,
+        7
+      ],
+      "p1#17": [
+        8,
+        9
+      ],
+      "p1#26": [
+        10,
+        11
+      ]
+    },
+    "bare": [
+      0
+    ],
+    "attackTargets": {
+      "p1#0": {
+        "p2#0": 6,
+        "p2#48": 7
+      },
+      "p1#17": {
+        "p2#0": 8,
+        "p2#48": 9
+      },
+      "p1#26": {
+        "p2#0": 10,
+        "p2#48": 11
+      }
+    },
+    "whyByCard": {
+      "p1#35": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#43": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#47": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#3": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ],
+      "p1#32": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    }
+  },
+  "rejected": [
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#35"
+      },
+      "label": "Charge Red Fighter",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#43"
+      },
+      "label": "Charge Red Guard",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#47"
+      },
+      "label": "Charge Red Fighter",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#3"
+      },
+      "label": "Charge Red Guard",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    },
+    {
+      "action": {
+        "type": "charge",
+        "player": "p1",
+        "card": "p1#32"
+      },
+      "label": "Charge Red Fighter",
+      "why": [
+        {
+          "kind": "oncePerTurn",
+          "what": "charge"
+        }
+      ]
+    }
+  ],
+  "beats": {
+    "seq": 55,
+    "list": [
+      {
+        "t": "move",
+        "card": "p1#19",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 1
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#19",
+        "n": 2
+      },
+      {
+        "t": "move",
+        "card": "p1#11",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 3
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#11",
+        "n": 4
+      },
+      {
+        "t": "move",
+        "card": "p1#35",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 5
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#35",
+        "n": 6
+      },
+      {
+        "t": "move",
+        "card": "p1#43",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 7
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#43",
+        "n": 8
+      },
+      {
+        "t": "move",
+        "card": "p1#47",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 9
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#47",
+        "n": 10
+      },
+      {
+        "t": "move",
+        "card": "p1#3",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 11
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#3",
+        "n": 12
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 13
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 14
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 15
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 16
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 17
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 18
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 19
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 20
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 21
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 22
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 23
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 24
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 25
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 26
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 27
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 28
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 29
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 30
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 31
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p1",
+        "n": 32
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 33
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 34
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 35
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 36
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 37
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 38
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 39
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "life",
+        "owner": "p2",
+        "n": 40
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p1",
+        "turn": 1,
+        "n": 41
+      },
+      {
+        "t": "move",
+        "card": "p1#19",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p1",
+        "reveal": true,
+        "n": 42
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p1",
+        "turn": 1,
+        "n": 43
+      },
+      {
+        "t": "phase",
+        "phase": "end",
+        "player": "p1",
+        "turn": 1,
+        "n": 44
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p2",
+        "turn": 2,
+        "n": 45
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p2",
+        "n": 46
+      },
+      {
+        "t": "draw",
+        "player": "p2",
+        "card": "?",
+        "n": 47
+      },
+      {
+        "t": "move",
+        "card": "p2#5",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p2",
+        "reveal": true,
+        "n": 48
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p2",
+        "turn": 2,
+        "n": 49
+      },
+      {
+        "t": "phase",
+        "phase": "end",
+        "player": "p2",
+        "turn": 2,
+        "n": 50
+      },
+      {
+        "t": "phase",
+        "phase": "charge",
+        "player": "p1",
+        "turn": 3,
+        "n": 51
+      },
+      {
+        "t": "move",
+        "card": "p1#32",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "n": 52
+      },
+      {
+        "t": "draw",
+        "player": "p1",
+        "card": "p1#32",
+        "n": 53
+      },
+      {
+        "t": "move",
+        "card": "p1#11",
+        "from": "hand",
+        "to": "energy",
+        "owner": "p1",
+        "reveal": true,
+        "n": 54
+      },
+      {
+        "t": "phase",
+        "phase": "main",
+        "player": "p1",
+        "turn": 3,
+        "n": 55
+      }
+    ],
+    "art": {
+      "p1#19": {
+        "cardId": "FW-A",
+        "name": "Red Fighter",
+        "imageUrl": "/art/FW-A.png"
+      },
+      "p1#11": {
+        "cardId": "FW-A",
+        "name": "Red Fighter",
+        "imageUrl": "/art/FW-A.png"
+      },
+      "p1#35": {
+        "cardId": "FW-B",
+        "name": "Red Guard",
+        "imageUrl": "/art/FW-B.png"
+      },
+      "p1#43": {
+        "cardId": "FW-B",
+        "name": "Red Guard",
+        "imageUrl": "/art/FW-B.png"
+      },
+      "p1#47": {
+        "cardId": "FW-B",
+        "name": "Red Guard",
+        "imageUrl": "/art/FW-B.png"
+      },
+      "p1#3": {
+        "cardId": "FW-A",
+        "name": "Red Fighter",
+        "imageUrl": "/art/FW-A.png"
+      },
+      "p2#5": {
+        "cardId": "FW-C",
+        "name": "Blue Fighter",
+        "imageUrl": "/art/FW-C.png"
+      },
+      "p1#32": {
+        "cardId": "FW-B",
+        "name": "Red Guard",
+        "imageUrl": "/art/FW-B.png"
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}
