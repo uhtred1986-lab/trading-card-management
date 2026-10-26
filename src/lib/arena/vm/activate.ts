@@ -1169,7 +1169,11 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
         const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as) && stillThere(id, op.as));
         if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
-        if (orbs && then?.op === "switchMode" && then.mode === "rest" && !restedEnoughBesideOrbs(ctx, game, state, player, payable, orbs, op.sel.minCount ?? op.sel.count ?? 1)) return false;
+        // Phrasing batch 4 (owner's approval of 26 Oct 2026): the same for every exact choice whose cards must be in
+        // Active Mode when it is made — rested by the price ("switch … to Rest Mode", BT24-096) or chosen as Active
+        // Mode cards ("choose 2 of your energy in Active Mode …") — since the orbs, paid first, rest energy of their own.
+        const needsActive = (then?.op === "switchMode" && then.mode === "rest") || op.sel.mode === "active";
+        if (orbs && needsActive && !restedEnoughBesideOrbs(ctx, game, state, player, payable, orbs, op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":

@@ -106,7 +106,11 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // "Choose" is a misprinted full stop — the Leader condition gates only the draw and discard; the
   // +15000 (and its "Additionally") always happens.
   "BT26-027": [[/discard\s+2\s+cards\s+from\s+your\s+hand,\s+Choose\s+up\s+to\s+1/g, "discard 2 cards from your hand. Choose up to 1"]],
-  "BT26-071": [[/both\s+gree\s+and\s+with/g, "both green and with"]],
+  "BT26-071": [
+    [/both\s+gree\s+and\s+with/g, "both green and with"],
+    // Phrasing batch 4 (26 Oct 2026): "with and energy cost".
+    [/green\s+<Vegito>\s+card\s+with\s+and\s+energy\s+cost/g, "green <Vegito> card with an energy cost"],
+  ],
   "BT26-085": [[/negated\s+fro\s+the\s+turn/g, "negated for the turn"]],
   "BT26-093": [
     [/Rest\s+Mode\s+Batle\s+Cards/g, "Rest Mode Battle Cards"],
@@ -201,6 +205,11 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   ],
   "BT28-077": [[/Multi-Form\s+Tkoens/g, "Multi-Form Tokens"]],
   "BT31-144": [[/of\s+your\s+energy\s+to\s+Activate\s+Mode/g, "of your energy to Active Mode"]],
+  // Phrasing batch 4 (26 Oct 2026): more misspellings the compiler reads literally (and BT26-071's second, above).
+  "BT25-114": [[/switch\s+this\s+card\s+toActive\s+Mode/g, "switch this card to Active Mode"]],
+  "BT26-120": [[/Look\s+at\s+up\s+to\s+5cards\s+from/g, "Look at up to 5 cards from"]],
+  "BT31-084": [[/Flip\s+up\s+ot\s+1\s+<Vegeta>/g, "Flip up to 1 <Vegeta>"]],
+  "P-683": [[/\[Barrier\]\s+until\s+he\s+end\s+of/g, "[Barrier] until the end of"]],
 
   // ── Fusion World (display only — the arena does not play it) ──────────────
   "FB04-032": [[/Plce\s+this\s+card/g, "Place this card"]],
