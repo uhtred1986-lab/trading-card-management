@@ -8,7 +8,7 @@ import { NewDeckWithClaude } from "@/components/NewDeckWithClaude";
 import { LocalMatchSetup } from "@/components/arena/session/LocalMatchSetup";
 import type { PackFacts } from "@/components/arena/session/local-board";
 export const setupDecks: PlayDeck[] = Array.from({length: 16}, (_, i) => ({
-  id: i + 1, name: `Deck ${i + 1}: ${i % 2 ? "Shenron Wish — patient control and Dragon Ball recursion" : "Bardock’s Crew — a long deck name that must stay readable"}`,
+  id: i + 1, game: "dbs" as const, name: `Deck ${i + 1}: ${i % 2 ? "Shenron Wish — patient control and Dragon Ball recursion" : "Bardock’s Crew — a long deck name that must stay readable"}`,
   description: i===4 ? null : i%2 ? "Patient control: recover Dragon Balls and rebuild your hand before a late finish. Keep resources available for the opponent’s threats." : "Aggressive red strategy: pressure early, build a Saiyan board, then finish with a coordinated attack. ".repeat(4),
   colors: i%2 ? ["Blue","Yellow"] : ["Red"], isBuilt:i<8, leaderId:i%2?"SD5-01":"SD15-01",
   leaderName: i % 2 ? "Shenron, the Eternal Dragon" : "Bardock, the Resolute Warrior", leaderImage: null, mainCount: 50,

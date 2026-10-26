@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
-import { ARENA_GAMES, GAME_INFO } from "@/lib/catalog/games";
+import { ARENA_GAMES, GAME_INFO, parseGame, type Game } from "@/lib/catalog/games";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
@@ -10,6 +10,7 @@ import { currentScope, currentUser, requireSignedInPage } from "@/lib/auth";
 import { listUsers } from "@/lib/auth/users";
 import { isLocked, readiness } from "@/lib/arena/readiness";
 import { ArenaHeader } from "@/components/arena/ArenaHeader";
+import { GameSwitch } from "@/components/arena/GameSwitch";
 import { PlayPicker } from "@/components/arena/PlayPicker";
 import { ContinueStrip, GamesList } from "@/components/arena/GamesList";
 import { Invitations } from "@/components/arena/Invitations";
@@ -19,7 +20,7 @@ import { PageHeader, SectionTabs } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string; tab?: string; list?: string; testing?: string }> }) {
+export default async function ArenaPage({ searchParams }: { searchParams: Promise<{ deck?: string; tab?: string; list?: string; testing?: string; game?: string }> }) {
   await requireSignedInPage();
   // `?deck=<id>` preselects a deck: GameOver's "Change deck" (#358).
   const sp = await searchParams;
@@ -53,31 +54,50 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
     costs[mode] = `your average ~${Math.round(avg)}¢`;
   }
   const allPlayable = decks.filter((d) => d.leader && d.mainCount >= 50);
-  // A game badge in the pickers only once more than one arena game has decks.
-  const manyGames = new Set(allPlayable.map((d) => d.game)).size > 1;
-  const playable = showTestingDecks ? allPlayable : allPlayable.filter((d) => !d.isTesting);
+  const shown = showTestingDecks ? allPlayable : allPlayable.filter((d) => !d.isTesting);
   // One query for every deck's rule readiness (#357).
   const ready = await readiness(
     db,
-    playable.map((d) => d.id),
+    shown.map((d) => d.id),
   );
+  const readyIds = shown.filter((d) => !isLocked(ready.get(d.id))).map((d) => d.id);
 
-  // Preselected from the newest games, but always a *ready* deck: a locked one
-  // cannot be played, so the last-played ready one wins, then the first ready.
-  const last = await lastPlayedDecks(
+  // F1-12: the game to play. Offered when the viewer has ready decks of more than one arena game;
+  // `?game=` wins, then the game of the deck last played, then the first game they can play.
+  const readyGames = ARENA_GAMES.filter((g) => shown.some((d) => d.game === g && readyIds.includes(d.id)));
+  const offered: readonly Game[] = readyGames.length ? readyGames : [...new Set(shown.map((d) => d.game))];
+  const lastAll = await lastPlayedDecks(
     db,
-    playable.map((d) => d.id),
+    shown.map((d) => d.id),
     me,
   );
-  const readyIds = playable.filter((d) => !isLocked(ready.get(d.id))).map((d) => d.id);
-  const pick = (id: number | null, fallback: number) => (id != null && readyIds.includes(id) ? id : fallback);
+  const lastGame = shown.find((d) => d.id === lastAll.own)?.game;
+  const wantedGame = shown.find((d) => d.id === wanted)?.game;
+  const pickedGame = parseGame(sp.game);
+  const chosen: Game = [pickedGame, wantedGame, lastGame, "dbs" as const].find((g): g is Game => !!g && offered.includes(g)) ?? offered[0] ?? "dbs";
+  // Both pickers show only the chosen game's decks, so a mixed pair cannot be chosen.
+  const playable = shown.filter((d) => d.game === chosen);
+  const last = lastAll.own != null && playable.some((d) => d.id === lastAll.own)
+    ? lastAll
+    : await lastPlayedDecks(db, playable.map((d) => d.id), me);
+  const pick = (id: number | null, fallback: number) => (id != null && readyIds.includes(id) && playable.some((d) => d.id === id) ? id : fallback);
+  const playableReady = playable.filter((d) => readyIds.includes(d.id)).map((d) => d.id);
   // A deck named in the query wins even when locked, so the picker shows why.
-  const initialDeck = playable.some((d) => d.id === wanted) ? wanted : pick(last.own, readyIds[0] ?? playable[0]?.id ?? 0);
-  const initialClaudeDeck = pick(last.claude, readyIds.find((id) => id !== initialDeck) ?? readyIds[0] ?? playable[0]?.id ?? 0);
-  const hiddenTestingDeckName = !showTestingDecks ? allPlayable.find((d) => d.id === wanted && d.isTesting)?.name ?? null : null;
+  const initialDeck = playable.some((d) => d.id === wanted) ? wanted : pick(last.own, playableReady[0] ?? playable[0]?.id ?? 0);
+  const initialClaudeDeck = pick(last.claude, playableReady.find((id) => id !== initialDeck) ?? playableReady[0] ?? playable[0]?.id ?? 0);
+  const switchQuery = (g: Game) => {
+    const q = new URLSearchParams();
+    if (sp.tab) q.set("tab", sp.tab);
+    if (sp.list) q.set("list", sp.list);
+    if (showTestingDecks) q.set("testing", "1");
+    q.set("game", g);
+    return `/arena?${q.toString()}`;
+  };
+  const hiddenTestingDeckName = !showTestingDecks ? allPlayable.filter((d) => d.game === chosen).find((d) => d.id === wanted && d.isTesting)?.name ?? null : null;
   const toggleQuery = new URLSearchParams();
   if (sp.deck) toggleQuery.set("deck", sp.deck);
   if (sp.tab) toggleQuery.set("tab", sp.tab);
+  toggleQuery.set("game", chosen);
   if (sp.list) toggleQuery.set("list", sp.list);
   if (!showTestingDecks) toggleQuery.set("testing", "1");
   const testingToggleHref = `/arena${toggleQuery.size ? `?${toggleQuery.toString()}` : ""}`;
@@ -86,10 +106,10 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
     <Invitations
       matches={matches}
       me={me}
-      defaultDeck={readyIds[0] ?? playable[0]?.id ?? 0}
-      decks={playable.map((d) => ({
+      decks={shown.map((d) => ({
         id: d.id,
-        label: `${manyGames ? `[${GAME_INFO[d.game].short}] ` : ""}${d.name} — ${d.leader?.name ?? "no leader"}${isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}`,
+        game: d.game,
+        label: `${d.name} — ${d.leader?.name ?? "no leader"}${isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}`,
         locked: isLocked(ready.get(d.id)),
       }))}
     />
@@ -104,7 +124,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         { href: "/arena/tutorial", label: "Learn" },
         { href: "/arena/offline", label: "Vs computer" },
       ]} />
-      {onGames ? <PageHeader title="Games" eyebrow="Arena" description="Continue a match or revisit your recent games." /> : <PageHeader title="Set up a match" eyebrow="Arena · Play" description="Play the built-in computer for free, or choose a ready Masters deck to play Claude or a friend." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Learn to play</Link>} />}
+      {onGames ? <PageHeader title="Games" eyebrow="Arena" description="Continue a match or revisit your recent games." /> : <PageHeader title="Set up a match" eyebrow="Arena · Play" description="Play the built-in computer for free, or choose a ready deck to play Claude or a friend." actions={<Link href="/arena/tutorial" className="ds-button-secondary">Learn to play</Link>} />}
       {/* Phone: `?tab=games` is a screen of its own, so the play screen steps aside below `sm`; the desktop keeps both. Otherwise the Games list is desktop-only. */}
       <div className={`space-y-5 ${onGames ? "hidden sm:block" : ""}`}>
         {/* The Continue strip is the first thing under the header (ah-05), then any open invitation. */}
@@ -112,6 +132,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         {!onGames && invites}
         {/* The built-in computer (#896): a first-class choice, no Claude and no tokens (#656); not gated on server decks. */}
         {!onGames && <ComputerPlayCard />}
+        {!onGames && offered.length > 0 && <GameSwitch games={offered} chosen={chosen} hrefFor={switchQuery} />}
       {playable.length < 1 && allPlayable.length > 0 ? (
         <section className="rounded-xl border border-dashed border-space-700 p-6 text-center">
           <p className="text-sm text-space-200">Your playable decks are marked for testing and are hidden from the default picker.</p>
@@ -121,7 +142,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         </section>
       ) : playable.length < 1 ? (
           <p className="rounded-xl border border-dashed border-space-700 p-6 text-center text-sm text-space-300">
-            No deck is ready to play yet. A deck needs a leader, at least 50 cards, and the original game&rsquo;s rules — the arena does not play Fusion World.{" "}
+            No deck is ready to play yet. A deck needs a leader, at least 50 cards, and every card's rule read.{" "}
             <Link href="/decks" className="text-ki-300 hover:underline">
               Build one
             </Link>
@@ -130,7 +151,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
         ) : (
           <PlayPicker
             key={`${showTestingDecks}:${initialDeck}:${initialClaudeDeck}:${playable.map((d) => d.id).join(",")}`}
-            decks={playable.map((d) => ({ id: d.id, name: d.name, isTesting: d.isTesting, description: d.description, colors: d.leader?.colors ?? [], leaderId: d.leaderId, isBuilt: d.isBuilt, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, ready: ready.get(d.id)! }))}
+            decks={playable.map((d) => ({ id: d.id, name: d.name, isTesting: d.isTesting, description: d.description, colors: d.leader?.colors ?? [], leaderId: d.leaderId, isBuilt: d.isBuilt, leaderName: d.leader?.name ?? null, leaderImage: d.leader?.imageUrl ?? null, mainCount: d.mainCount, game: d.game, ready: ready.get(d.id)! }))}
             initialDeck={initialDeck}
             initialClaudeDeck={initialClaudeDeck}
             costs={costs}

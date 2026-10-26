@@ -1,16 +1,20 @@
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelMatchAction, joinMatchForm } from "@/app/arena/actions";
 import { Panel } from "@/components/ui";
+import { GameMark } from "@/components/GameMark";
+import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 
 export interface InvitationMatch {
   id: number;
   hostUser: string;
   hostDeckName: string | null;
+  hostGame: string | null;
 }
 export interface InvitationDeck {
   id: number;
   label: string;
   locked: boolean;
+  game: string;
 }
 
 /**
@@ -18,19 +22,22 @@ export interface InvitationDeck {
  * "Sam wants to play — Join", the deck select opening on tap. Your own:
  * "Waiting — call it off". `id="friend"` keeps the header's "Play a friend" door.
  */
-export function Invitations({ matches, me, decks, defaultDeck }: { matches: InvitationMatch[]; me: string | null; decks: InvitationDeck[]; defaultDeck: number }) {
+export function Invitations({ matches, me, decks }: { matches: InvitationMatch[]; me: string | null; decks: InvitationDeck[] }) {
   const select = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-2 text-sm text-space-100";
   return (
     <ul id="friend" className="space-y-2">
       {matches.map((m) => {
         const mine = m.hostUser === me;
+        // Joining with the other game is impossible from here, not only refused by the server.
+        const joinable = decks.filter((d) => d.game === m.hostGame);
+        const firstReady = joinable.find((d) => !d.locked)?.id ?? joinable[0]?.id;
         return (
           <li key={m.id}><Panel className="border-ki-500/50 bg-ki-500/10 px-4 py-2">
             {mine ? (
               <form action={cancelMatchAction.bind(null, m.id)} className="flex min-h-12 items-center gap-3">
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-space-50">Waiting for someone to join</span>
-                  <span className="block truncate text-xs text-space-300">with {m.hostDeckName ?? "a deck that is gone"}</span>
+                  <span className="block truncate text-xs text-space-300">with {m.hostDeckName ?? "a deck that is gone"} {m.hostGame && <GameMark game={m.hostGame} />}</span>
                 </span>
                 <SubmitButton pendingLabel="Calling it off…" className="tap rounded-lg border border-space-600 px-3 text-sm text-space-200 hover:text-loss">
                   Call it off
@@ -41,16 +48,19 @@ export function Invitations({ matches, me, decks, defaultDeck }: { matches: Invi
                 <summary className="tap flex min-h-12 cursor-pointer list-none items-center gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-space-50">{m.hostUser} wants to play</span>
-                    <span className="block truncate text-xs text-space-300">with {m.hostDeckName ?? "a deck that is gone"}</span>
+                    <span className="block truncate text-xs text-space-300">with {m.hostDeckName ?? "a deck that is gone"} {m.hostGame && <GameMark game={m.hostGame} />}</span>
                   </span>
                   <span className="flex min-w-24 items-center justify-center rounded-lg bg-ki-500 px-4 py-2.5 text-sm font-semibold text-space-950">Join</span>
                 </summary>
+                {joinable.length === 0 ? (
+                  <p className="mt-2 pb-1 text-sm text-space-300">You have no ready {m.hostGame ? GAME_INFO[gameOr(m.hostGame)].short : ""} deck to join with.</p>
+                ) : (
                 <form action={joinMatchForm} className="mt-2 flex flex-wrap items-end gap-2 pb-1">
                   <input type="hidden" name="match" value={m.id} />
                   <label className="min-w-0 flex-1 text-sm">
                     <span className="mb-1 block text-xs uppercase tracking-wider text-space-400">Your deck</span>
-                    <select name="deck" className={select} defaultValue={defaultDeck}>
-                      {decks.map((d) => (
+                    <select name="deck" className={select} defaultValue={firstReady}>
+                      {joinable.map((d) => (
                         <option key={d.id} value={d.id} disabled={d.locked}>
                           {d.label}
                         </option>
@@ -61,6 +71,7 @@ export function Invitations({ matches, me, decks, defaultDeck }: { matches: Invi
                     Join
                   </SubmitButton>
                 </form>
+                )}
               </details>
             )}
           </Panel></li>
