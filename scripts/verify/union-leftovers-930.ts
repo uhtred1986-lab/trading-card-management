@@ -17,13 +17,16 @@
  *    `exactly`); "if you do" plays that card on top of this card (5-5-3: no
  *    energy cost). Before, the switch read "that card" as the revealed card and
  *    switched the Vegito itself, outside the offer, and the play was unread.
- *    With too few green energy the offer is not done (20-16-1): nothing is
- *    switched and nothing is played.
+ *    Only a Vegito whose specified cost the Active green energy can pay in
+ *    full is on offer (owner's ruling of 26 Oct 2026, `choose`'s
+ *    `specifiedCostAtMost`); with none payable the reveal has no candidates,
+ *    nothing is switched and nothing is played.
  *  - BT29-150 front#10: "[auto] When this card is removed from a Unison Area,
  *    **both players send cards from their hands to their owners' Warps until
  *    both hands have 7 cards**." Each player gives up the excess of their own
  *    hand over 7, choosing the cards themselves (20-7); a hand of 7 or fewer
- *    sends nothing.
+ *    sends nothing. The turn player acts first (0-2-8, owner's ruling of 26
+ *    Oct 2026), also when the skill resolves on the opponent's turn.
  *
  * Proved here: the records (nothing unread, the stored-row JSON round trip,
  * the rules language's print and reparse), and in the VM for both seats with
@@ -69,9 +72,12 @@ const defs: Record<string, CardDef> = {
   GOKU: mat("GOKU", ["Green"], ["Son Goku"], { energyCost: 3 }),
   VEGETA: mat("VEGETA", ["Green"], ["Vegeta"], { energyCost: 3 }),
   VEGITO3: mat("VEGITO3", ["Green"], ["Vegito"], { energyCost: 6, power: 35000, specifiedCost: { Green: 3 } }),
+  VEGITO2: mat("VEGITO2", ["Green"], ["Vegito"], { energyCost: 4, power: 30000, specifiedCost: { Green: 2 } }),
   "VEGITO-GY": mat("VEGITO-GY", ["Green", "Yellow"], ["Vegito"], { energyCost: 4, power: 30000, specifiedCost: { Green: 1, Yellow: 1 } }),
   "G-E": mat("G-E", ["Green"], ["Filler"]),
   "R-E": mat("R-E", ["Red"], ["Filler"]),
+  // The opponent's skill that removes a Unison on their own turn.
+  KICK: card("KICK", { colors: ["Blue"], energyCost: 1, power: 10000, skill: "[Activate: Main] Choose up to 1 of your opponent's Unisons and place it in its owner's Drop Area." }),
   // BT29-150, a Unison.
   BT29150: card("BT29150", { type: "UNISON", colors: ["Black"], characters: ["Filler"], energyCost: "X", power: 15000, comboCost: null, comboPower: null, skill: BT29_150_TEST }),
 };
@@ -118,6 +124,8 @@ function record(def: CardDef, what: string): Rec {
   assert.ok(pick.op === "choose" && "side" in pick.sel && pick.sel.area === "hand" && pick.sel.count === 1 && !pick.sel.upTo, "pick 1 card from the hand");
   assert.ok(pick.sel.filter?.monoColor && pick.sel.filter.colors.join() === "Green" && pick.sel.filter.characters.join() === "vegito", "mono-green <Vegito>");
   assert.ok(shown.op === "reveal" && shown.sel.fromVar === pick.as && shown.as === pick.as, "…and reveal it");
+  assert.ok(pick.op === "choose" && energy.op === "choose");
+  assert.deepEqual(pick.specifiedCostAtMost, { count: energy.sel }, "only a Vegito whose specified cost the Active green energy can pay is offered");
   assert.ok(energy.op === "choose" && "side" in energy.sel && energy.sel.side === "you" && energy.sel.area === "energy" && energy.sel.mode === "active" && energy.sel.filter?.colors.join() === "Green", "your Active Mode green energy");
   assert.deepEqual(energy.exactly, { attr: { var: pick.as }, name: "specifiedCost" }, "exactly that card's specified cost");
   assert.equal(energy.sel.count, undefined, "the selector's count is not the count");
@@ -127,10 +135,11 @@ function record(def: CardDef, what: string): Rec {
 {
   const r = record(card("BT29-150", { type: "UNISON", skill: BT29_150_F10 }), "BT29-150 front#10");
   assert.deepEqual(r.trigger, ["removedFromUnison"]);
-  for (const [i, side] of (["you", "opponent"] as const).entries()) {
+  const step = (side: "you" | "opponent") => {
     const hand = { side, area: "hand" };
-    assert.deepEqual(r.ops[i], { op: "if", cond: { kind: "count", sel: hand, atLeast: 8 }, then: [{ op: "discard", n: { plus: [{ count: hand }, -7] }, side, to: "warp" }] }, `${side}: the excess over 7 to the Warp`);
-  }
+    return { op: "if", cond: { kind: "count", sel: hand, atLeast: 8 }, then: [{ op: "discard", n: { plus: [{ count: hand }, -7] }, side, to: "warp" }] };
+  };
+  assert.deepEqual(r.ops, [{ op: "if", cond: { kind: "isTurnPlayer" }, then: [step("you"), step("opponent")], else: [step("opponent"), step("you")] }], "each player's excess over 7 to the Warp, the turn player first (0-2-8)");
 }
 // The general switch reader no longer takes "the same number of … as that card's …" for that card.
 assert.ok(skillRecords(card("SN", { skill: "[Activate: Main] Reveal 1 card from your hand. Switch the same number of your energy as that card's energy cost to Rest Mode." }))[0].unread.length > 0, "another measure than the specified cost stays unread");
@@ -290,15 +299,41 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(s.sides[seat].zones.hand.includes(gy), "the other Vegito stays in the hand");
     cases++;
   }
-  // (b) Accepted with only two Active green energy: the switch cannot be done in full, so the
-  // offer is not done — nothing is switched and the Vegito is not played (20-16-1).
+  // (b) Accepted with only two Active green energy and no payable Vegito: the reveal has no
+  // candidates — nothing is revealed, switched or played.
   {
     const b = vegitoBoard(4, 2, ["VEGITO3"]);
     const [vegito] = b.hand;
-    const s = settle(take(b.s, b.a.action)).s;
+    const r = settle(take(b.s, b.a.action));
+    const s = r.s;
+    assert.ok(!r.asked.some((q) => q.candidates.includes(vegito)), `${seat}: a Vegito with specified cost 3 is not offered over two green energy`);
     assert.ok(s.sides[seat].zones.hand.includes(vegito), `${seat}: too little green energy: the Vegito stays in the hand`);
     assert.equal(rested(s, seat), 0, "and no energy was switched");
     assert.ok(s.sides[seat].zones.battle.includes(b.host), "BT26-088 is still in play");
+    cases++;
+  }
+  // (b2) A payable and an unpayable mono-green Vegito in hand over two Active green energy: only
+  // the payable one (specified cost 2) is offered, and it is the one played; the other stays.
+  {
+    const b = vegitoBoard(8, 2, ["VEGITO3", "VEGITO2"]);
+    const [three, two] = b.hand;
+    const r = settle(take(b.s, b.a.action));
+    const s = r.s;
+    assert.ok(!r.asked.some((q) => q.candidates.includes(three)), `${seat}: the unpayable Vegito (specified cost 3) is never offered`);
+    assert.ok(s.sides[seat].zones.battle.includes(two), `${seat}: the payable Vegito (specified cost 2) is played`);
+    assert.ok(s.cards[two].under.includes(b.host), "…on top of BT26-088");
+    assert.equal(rested(s, seat, b.greens), 2, "both green energy switched to Rest Mode");
+    assert.ok(s.sides[seat].zones.hand.includes(three), "the unpayable Vegito stays in the hand");
+    cases++;
+  }
+  // (b3) With three Active green energy both are payable: both are offered.
+  {
+    const b = vegitoBoard(9, 3, ["VEGITO3", "VEGITO2"]);
+    const [three, two] = b.hand;
+    const r = settle(take(b.s, b.a.action), { cards: (q) => (q.choice.candidates.includes(three) ? [three] : undefined) });
+    assert.ok(r.asked.some((q) => q.candidates.includes(three) && q.candidates.includes(two)), `${seat}: both payable Vegitos are offered`);
+    assert.ok(r.s.sides[seat].zones.battle.includes(three), "the one chosen is played");
+    assert.equal(rested(r.s, seat, b.greens), 3, "its specified cost (3) switched");
     cases++;
   }
   // (c) Declined: nothing switched, nothing played.
@@ -335,8 +370,38 @@ for (const seat of ["p1", "p2"] as const) {
       if (sent) assert.ok(ask.length > 0, `${p} chose the cards from their own hand`);
       else assert.equal(ask.length, 0, `${p} was not asked`);
     }
+    // Both over 7: the turn player (here the seat, who controls the skill) chooses first (0-2-8).
+    const hands = r.asked.filter((q) => q.candidates.length > 0 && q.candidates.every((c) => s.sides[q.player].zones.hand.includes(c) || s.sides[q.player].zones.warp.includes(c)));
+    if (mine + 1 > 7 && theirs > 7) assert.equal(hands[0]?.player, seat, "the turn player chooses first");
+    cases++;
+  }
+  // Removed on the OPPONENT's turn by their skill: BT29-150's controller is not the turn player,
+  // and the turn player (the opponent) still sends their excess first (0-2-8), then the seat.
+  {
+    let s = fresh(foe, seed(10), "L-BLUE");
+    assert.equal(s.turnPlayer, foe);
+    const uni = stage(s, seat, "BT29150", "unison", 3);
+    stage(s, foe, "V-BLUE", "energy");
+    const kick = stage(s, foe, "KICK", "battle");
+    for (let i = 0; i < 9; i++) stage(s, seat, "V1", "hand");
+    for (let i = 0; i < 10; i++) stage(s, foe, "V-BLUE", "hand");
+    const warp0 = { [seat]: s.sides[seat].zones.warp.length, [foe]: s.sides[foe].zones.warp.length };
+    const a = offerOf(s, kick, lineOf("KICK", (sk) => sk.kind.startsWith("activate")));
+    assert.ok(a, `${foe}: the opponent's line is offered`);
+    const r = settle(take(s, a.action));
+    s = r.s;
+    assert.ok(s.sides[seat].zones.drop.includes(uni), "the opponent's skill sent BT29-150 to the Drop");
+    for (const [p, had] of [[seat, 9], [foe, 10]] as const) {
+      assert.equal(s.sides[p].zones.hand.length, 7, `${p}: the hand is down to 7`);
+      assert.equal(s.sides[p].zones.warp.length - warp0[p], had - 7, `${p}: the excess went to their own Warp`);
+    }
+    const hands = r.asked.filter((q) => q.candidates.length > 0 && q.candidates.every((c) => s.sides[q.player].zones.hand.includes(c) || s.sides[q.player].zones.warp.includes(c)));
+    assert.ok(hands.some((q) => q.player === seat) && hands.some((q) => q.player === foe), "both players chose from their own hands");
+    assert.equal(hands[0].player, foe, `${seat}'s BT29-150 on ${foe}'s turn: the turn player (${foe}) chooses first`);
+    const firstSeat = hands.findIndex((q) => q.player === seat);
+    assert.ok(hands.slice(0, firstSeat).every((q) => q.player === foe), "the turn player's cards are all chosen before the other player's");
     cases++;
   }
 }
 
-console.log(`union-leftovers-930: BT7-123 front#30 (to their energy), BT26-088 front#20 (play the revealed card on top), BT29-150 front#10 (hands down to 7) — records and ${cases} both-seat reload cases`);
+console.log(`union-leftovers-930: BT7-123 front#30 (to their energy), BT26-088 front#20 (only a payable Vegito, played on top), BT29-150 front#10 (hands down to 7, the turn player first) — records and ${cases} both-seat reload cases`);

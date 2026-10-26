@@ -1201,13 +1201,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // their own hand over N, chosen by that player (20-7), as BT7-105's "until
   // they have 12 cards in hand" does for the opponent alone; a hand of N or
   // fewer sends nothing (0-2-4-2). Each side its own `if`, because the excess
-  // differs per hand. Only the Warp, as printed.
+  // differs per hand. Only the Warp, as printed. The turn player acts first
+  // (0-2-8; owner's ruling of 26 Oct 2026), whoever controls the skill — it
+  // can resolve on the opponent's turn (a Unison removed by their skill) — so
+  // the order is chosen by `isTurnPlayer` as the skill resolves.
   if ((m = /^both players send cards from their hands to (?:their owners?'?s?|their) warps? until both hands have (\d+) cards$/.exec(t))) {
     const keep = Number(m[1]);
-    return (["you", "opponent"] as const).map((side): Op => {
+    const step = (side: "you" | "opponent"): Op => {
       const hand: Selector = { side, area: "hand" };
       return { op: "if", cond: { kind: "count", sel: hand, atLeast: keep + 1 }, then: [{ op: "discard", n: { plus: [{ count: hand }, -keep] }, side, to: "warp" }] };
-    });
+    };
+    return [{ op: "if", cond: { kind: "isTurnPlayer" }, then: [step("you"), step("opponent")], else: [step("opponent"), step("you")] }];
   }
   // "Both players choose 1 card from their hand and 1 card from their Battle
   // Area, and place those cards in their Drop Areas" (BT1-057): two areas at
@@ -5249,7 +5253,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
           got.length === 2 && pay.op === "choose" && pay.exactly !== undefined && got[1].op === "switchMode" && "var" in got[1].target && got[1].target.var === pay.as &&
           mayBefore.ops.length === 1 && shownFirst?.op === "reveal" && shownFirst.audience !== "you" && shownFirst.sel.area === "hand" && shownFirst.sel.count === 1 && !shownFirst.sel.upTo
         ) {
-          const pick: Op = { op: "choose", sel: shownFirst.sel, as: shownFirst.as, reason: mayBefore.reason ?? "reveal" };
+          // Only a card whose specified cost the Active energy the switch
+          // chooses from can pay in full is on offer (owner's ruling of 26 Oct
+          // 2026): an unpayable one is never revealed.
+          const pick: Op = { op: "choose", sel: shownFirst.sel, as: shownFirst.as, reason: mayBefore.reason ?? "reveal", specifiedCostAtMost: { count: pay.sel } };
           mayBefore.ops.splice(0, 1, pick, { op: "reveal", sel: { fromVar: shownFirst.as }, as: shownFirst.as });
           mayBefore.ops.push(...got);
           if (mayBefore.reason) mayBefore.reason = `${mayBefore.reason} and ${clause.trim().replace(/[.]$/, "")}`;
