@@ -12,6 +12,7 @@
 
 import type { CardFilter } from "./text/filters";
 import type { CardScripts, Cond, Op, Selector } from "./vm/script";
+import type { Game } from "../catalog/games";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -202,7 +203,7 @@ export type Mode = "active" | "rest";
  * triggers resulting from the chosen Battle Card moving to a different area are
  * not made pending, nor does counter timing occur", so it announces no `moved`.
  */
-export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge" | "areaExtension";
+export type MoveReason = "ko" | "effect" | "powerZero" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge" | "areaExtension";
 
 /**
  * A replacement effect that may change what happens when a card is about to
@@ -344,7 +345,14 @@ export type ForbiddenAction =
    * the KO a battle makes (8-4-6-2), asked of the guard with the attacking
    * card's controller as `player`. A skill's KO is `beKOdBySkill`.
    */
-  | "beKOdInBattle";
+  | "beKOdInBattle"
+  /**
+   * "You can't place cards under this card, except with this card's skill"
+   * (BT25-008, BT7-022): a skill's move of a card under the rule's card (23-2),
+   * asked of that card (the host) with the skill's controller as `player` and
+   * its card as `source`.
+   */
+  | "placeUnder";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -452,6 +460,39 @@ export interface Prohibition {
    * line's kind and the area the card was used from (`skillKind`, `from`).
    */
   extraCardActivation?: boolean;
+  /**
+   * `activateSkill` / `activateCounter` only: the line kinds it is about —
+   * "you can't activate **the [Activate: Main] skill** on copies of this card
+   * for the turn" (BT12-031, BT12-035) is not the card's [Auto]. Matched against
+   * the line being activated (`skillKind` in the matchers' options); asked
+   * without a line, the rule is read as applying.
+   */
+  skillKinds?: string[];
+  /**
+   * The one skill the rule lets through: "…by skills **other than its own**"
+   * (EB1-27, DB2-008: `self`, a skill of the card that made the rule), "…by
+   * skills other than **{Jaguar's Island}'s** skills" (BT22-072: `name`, a
+   * skill of a card with that name). Matched against the card whose skill it
+   * is (`source` in the matchers' options); an action no skill takes is not
+   * let through.
+   */
+  exceptSource?: { self?: true; name?: string };
+  /**
+   * `beMovedBySkill` only: where the skill would put the card — "can't be
+   * **returned to your hand** by your skills" (DB2-040), "…**placed at the
+   * bottom of** their owner's deck by your opponent's skills" (P-672, with
+   * `toBottom`), "…placed in their owners' **Drop Areas** by your skills"
+   * (EX06-18). Absent is any destination.
+   */
+  toArea?: "hand" | "deck" | "drop" | "warp" | "energy" | "life";
+  toBottom?: boolean;
+  /**
+   * A description of the card whose action it is (`source` in the matchers'
+   * options): "this card can't be KO'd in battle **against Battle Cards with
+   * energy costs of 3 or less**" (P-481) — `beKOdInBattle`, asked with the
+   * attacking card.
+   */
+  byFilter?: CardFilter;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
@@ -1299,9 +1340,12 @@ export interface Replacement {
    * Battle Area"); `"skill"` is only an effect putting the card out; `"ko"`
    * only the KO; `"skillOrKo"` is what BT30-016 prints — "would be removed
    * from a Battle Area by a skill **or KO'd**", which is both causes and still
-   * not a card leaving for a rule.
+   * not a card leaving for a rule. `"skillOrKoBySkill"` is "once per turn,
+   * this card can't be removed from a Battle Area by skills" (BT22-117,
+   * P-638): an effect putting it out or a **skill's** KO (owner ruling, 26 Oct
+   * 2026: a KO by a skill is a removal), but never the battle's KO.
    */
-  by?: "skill" | "ko" | "skillOrKo";
+  by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill";
   /**
    * 9-10 with the cause narrowed to *whose* skill it was: "if this card would
    * be removed from your Battle Area **by an opponent's skill**" (19 cards).
@@ -1417,6 +1461,8 @@ export interface DeckInput {
 
 export interface GameOptions {
   seed: number;
+  /** The game the state is created for (`deckInputFor` returns it beside the deck); `dbs` when absent. */
+  game?: Game;
   p1: DeckInput;
   p2: DeckInput;
 }

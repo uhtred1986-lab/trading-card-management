@@ -88,7 +88,7 @@ const SELF = { sel: { special: "self" } };
   assert.deepEqual(forbids(ops("[Permanent] This card can't be used in a combo from the Battle Area and your opponent's Clone Tokens can't attack."))[0], { op: "forbid", what: "combo", until: "game", target: SELF, fromArea: "battle" }, "EB1-21");
   assert.deepEqual(forbids(ops("[Permanent] This card can't be used in combos from Battle Areas."))[0].fromArea, "battle", "P-277");
   const bt10 = forbids(ops("[Permanent] You can't play Battle Cards, this card can't be removed from your Battle Area by skills, and you can't combo with cards in your Battle Area."));
-  assert.deepEqual(bt10.map((x) => [x.what, x.side ?? null, x.fromArea ?? null]), [["play", "you", null], ["beMovedBySkill", null, null], ["combo", "you", "battle"]], "BT10-154");
+  assert.deepEqual(bt10.map((x) => [x.what, x.side ?? null, x.fromArea ?? null]), [["play", "you", null], ["beMovedBySkill", null, null], ["beKOdBySkill", null, null], ["combo", "you", "battle"]], "BT10-154 (a skill's KO is a removal: prohibition-catalog-2)");
   const bt3 = ops("[permanent] Your opponent can't combo for the duration of this card's battle.");
   assert.equal(bt3[0].op, "if", "BT3-033: while this card is in a battle");
   if (bt3[0].op === "if") assert.deepEqual(bt3[0].cond, { kind: "inBattle", sel: { special: "self" } });
@@ -130,7 +130,8 @@ const SELF = { sel: { special: "self" } };
 {
   assert.deepEqual(forbids(ops("[permanent] You and your opponent can't play Battle Cards with 25000 power or more from their owner's hands."))[0], { op: "forbid", what: "play", side: "both", until: "game", fromArea: "hand", filter: { type: "BATTLE", powerMin: 25000 } }, "EX23-05");
   const bt20 = forbids(ops("[Permanent] You can't activate Extras, and during your turn, you can't use skills to play Battle Cards."));
-  assert.deepEqual(bt20.map((x) => [x.what, x.bySkill, x.filter?.type]), [["play", true, "BATTLE"]], "BT20-024");
+  // "You can't activate Extras" is read since batch 2 (owner ruling, 26 Oct 2026).
+  assert.deepEqual(bt20.map((x) => [x.what, x.bySkill, x.filter?.type]), [["activateSkill", undefined, "EXTRA"], ["activateCounter", undefined, "EXTRA"], ["play", true, "BATTLE"]], "BT20-024");
   assert.equal(forbids(ops("[Activate: Main] Choose up to 4 of your opponent's Battle Cards and those cards can't activate [Blocker] skills for the turn."))[0].what, "block", "EB1-36");
   assert.equal(forbids(ops("[Activate: Main][Limit 1] Choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and that card's [Blocker] can't activate for the turn."))[0].what, "block", "P-498");
 }
@@ -141,13 +142,9 @@ const SELF = { sel: { special: "self" } };
     "[Permanent] Your opponent's Battle Cards with the same keyword skills as cards under this card can't attack or switch to Active Mode.",
     // Where a play comes from and what plays it are not a description of the card.
     "[Auto] When you play this card, draw 1 card, and your opponent may not play Battle Cards from their hand with the skills of cards with [Super Combo] for the duration of the game.",
-    // A moment, not a duration: the opponent's [Blocker] during this card's attack.
-    "[permanent] Your opponent cannot activate [counter] against this card's attack and cannot activate [blocker] during this card's attack.",
-    // A leading duration reaches only the first clause after it.
-    "[activate: main] Choose up to 1 of your opponent's Battle Cards, and until the end of your opponent's turn, that card can't attack and your opponent can't activate its skills.",
-    // A bare "removed from Battle Areas" would also be a KO's; an exception is not read.
-    "[permanent] This card can't attack or be removed from Battle Areas.",
-    "[Permanent] This card can't be removed from Battle Areas by skills other than {Jaguar's Island}'s skills.",
+    // (BT1-031's [Counter]/[Blocker] during this card's attack, BT31-111's
+    // leading duration, BT19-153's bare removal and BT22-072's exception are
+    // read since batch 2: prohibition-catalog-2.)
     // A bare "switched to Rest Mode" would also be an attack's.
     "[Permanent] This card can't be switched to Rest Mode.",
   ]) assert.ok(unread(text).length, `unread, and says so: ${text}`);

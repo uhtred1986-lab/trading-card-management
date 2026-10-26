@@ -1,0 +1,78 @@
+-- The keyword skills of Dragon Ball Super Card Game Fusion World: [Awaken],
+-- [Blocker], [Critical], [Strike] (the glossary's [Double Strike] and [Triple
+-- Strike], with X in TAKES), [Super Combo] and [Dragon Ball]. The other 33
+-- dbs keywords are gone (F1-02): the Fusion World manual's glossary has none of
+-- them (FW manual p. 12).
+--
+-- TAKES is the arity KeywordSkill (types.ts) carries and keywordOf
+-- (text/cards.ts) reads back; scripts/verify/rulesets.ts checks both against
+-- this file. text: is the FW manual glossary's meaning line (p. 12) — the page
+-- /arena/rules/keywords renders it from here and scripts/verify/game-page.ts
+-- holds it equal to glossary.ts.
+--
+-- Three HOOK bodies, [Critical]'s and [Strike]'s beforeDamage and the DO/AFTER
+-- of [Awaken], the one activation that is a move (`offer:`): the four starter
+-- leaders print "[Awaken] When your life is at 4 or less, draw 1 card. Then,
+-- flip this card over." [Blocker]'s moment is the engine's own, and [Super
+-- Combo] and [Dragon Ball] are deck-building rules (`legality`) that no game
+-- reads in play.
+
+-- FW manual p. 12
+DEFINE KEYWORD Awaken
+  TAKES (surge: boolean)
+  text: "A Leader's own skill. When the printed condition is met, the card is turned over and powered up, after the skill's effect has been carried out (FW manual pp. 2, 12)."
+  -- #156: [Awaken]'s body — a move offered at the Main Phase and at the combo prompt from a
+  -- face-up Leader that prints an awakened side, while the printed condition
+  -- (the record's hoisted price condition) holds; the line's effect runs, and
+  -- `AFTER` flips the Leader once it has, even when the effect stopped to ask
+  -- something. [Awaken: Surge] is the same move: `surge` changes nothing the
+  -- engine does, on either engine, and the menu says "Awaken" for both.
+  offer: "activate:main/battle"
+  REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
+  REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
+  REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  label: "Awaken: {card} → {back}"
+  DO {}
+  AFTER {
+    flip(target: [self])
+  }
+
+-- FW manual p. 12
+DEFINE KEYWORD Blocker
+  TAKES ()
+  text: "Can be activated when an opponent's card attacks: the card with this skill is switched to Rest Mode, then the attack target is switched to that card (FW manual p. 12)."
+  -- Stage 7 (#153–#157)
+
+-- FW manual p. 12
+DEFINE KEYWORD Critical
+  TAKES ()
+  text: "When a card with this skill attacks and deals damage, the life is placed into its owner's Drop instead of the hand (FW manual p. 12)."
+  -- #156: read as the attacker's damage lands (`beforeDamage`, a query hook
+  -- so it changes this damage rather than a later one): the life cards go
+  -- to the Drop face up, and "when your life is placed in your Drop" hears
+  -- the move. Battle damage only, as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(to: drop)
+  }
+
+-- FW manual p. 12
+DEFINE KEYWORD Strike
+  TAKES (x: number)
+  text: "When a card with this skill attacks and deals damage, the amount of damage dealt is X — 2 for [Double Strike], 3 for [Triple Strike] (FW manual p. 12)."
+  -- #156: the same hook as [Critical]: X life damage to a Leader, as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(atLeast: $x)
+  }
+
+-- FW manual p. 12
+DEFINE KEYWORD "Super Combo"
+  TAKES ()
+  text: "A deck may hold at most four cards with [Super Combo], counted across all of them (kept from the original game; FW manual p. 12)."
+  -- Stage 7 (#153–#157)
+
+-- FW manual p. 12
+DEFINE KEYWORD "Dragon Ball"
+  TAKES ()
+  text: "Only up to N total cards with this skill can be placed in a deck (FW manual p. 12); the dbs rule of seven [Dragon Ball] cards in all is kept by name."
+  -- #155: no body to write — a deck-building rule (`legality`), which no game
+  -- reads on either engine.

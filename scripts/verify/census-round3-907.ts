@@ -293,7 +293,8 @@ const playCard = (s: EngineState, id: string) => settle(pay(playG(s, { type: "pl
   const hold = compile("[Permanent] During your turn, once per turn, this card can't be removed from your Battle Area by your opponent's skills.");
   assert.deepEqual(hold.unsupported, [], "BT22-117");
   const [shield] = find(hold.ops, "replace");
-  assert.deepEqual([shield.event, shield.by, shield.bySide], ["leave", "skill", "opponent"]);
+  // Owner ruling, 26 Oct 2026: a skill's KO is a removal too (prohibition-catalog-2).
+  assert.deepEqual([shield.event, shield.by, shield.bySide], ["leave", "skillOrKoBySkill", "opponent"]);
   assert.deepEqual(shield.with, [{ op: "negateOwnSkill", until: "turn" }]);
   assert.equal(hold.ops[0].op, "if", "during your turn only");
 

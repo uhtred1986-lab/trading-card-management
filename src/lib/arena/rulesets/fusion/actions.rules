@@ -1,0 +1,266 @@
+-- The moves a player may make, as declarations rather than as predicates.
+--
+-- Fusion World's six moves (F1-02): `charge`, `play`, `activate`, `endMain`,
+-- `pass` and `concede`. `growUnison`, `playUnison` and `playZ` are gone: there is
+-- no Unison or Z-Deck (FW manual pp. 4-5). Cited by FW manual page (printed
+-- page numbers); the section numbers left in comments are the dbs manual's, for
+-- a rule the two games share.
+--
+-- An action is `WHEN / FOR / COST / DO / REFUSE` (§3b of
+-- `docs/arena-rules-language.md`, "how an action is declared" in
+-- `docs/arena-ruleset-spec.md`). `vm/actions.ts` reads all five: `WHEN` and
+-- `prompts:` say which question it is offered at, `FOR` which cards it is
+-- offered for, `REFUSE` the requirement a player is owed for each card it is
+-- *not* offered for, and `COST` and `DO` what taking it costs and does. The
+-- menu and the refusals therefore come from one paragraph, which is the whole
+-- point of the file: nothing below has a hand-written `whyNot` twin.
+--
+-- **Six in Fusion World, eight in the original game.** The four that need no payment and no battle came first
+-- (#145), which is what makes them the ones that proved the machinery on a real
+-- turn; the prices followed (#148), and the play family below is the first to
+-- carry one. Activating followed (#147), which is the one whose candidate is a
+-- skill *line*; the battle is Stage 6, and each arrives here as a paragraph
+-- rather than as a branch somewhere else.
+--
+-- `listed: false` is the rule the legacy engine has always had and never
+-- wrote down: a move a client shows as a button of its own is accepted
+-- without ever being enumerated. It says nothing about legality — an unlisted
+-- action is checked exactly as a listed one is — only that it is on neither
+-- the menu nor the list of refusals, because a refusal explains a move a
+-- player can see. `pass` and `concede` are the two.
+
+-- 7-2-11 gives the turn player **one** charge, and the other half of that
+-- sentence is a refusal rather than a silence: the legacy engine offers every
+-- card in hand at the Main Phase question and refuses each with "you have
+-- already had your charge this turn". So the move is declared in both phases
+-- and refused in one, over the player attribute §269 added for exactly this:
+-- `charged` (`attributes.rules`), true from the moment the Charge Phase's own
+-- question is answered (`vm/flow.ts`'s `mainPending`) — which is also
+-- `whyNotCharge`'s own reading ("once the Main Phase has begun, the one
+-- charge of the turn has gone by"), so the two engines cannot disagree about
+-- what the sentence means. Earlier this REFUSE named `asking(prompt: charge)`
+-- instead, a proxy for the fact rather than the fact itself, which is what
+-- left 13-3's `growUnison` with no word to reuse (issue #269).
+DEFINE ACTION charge                                                      -- FW manual p. 8
+  WHEN [charge, main]
+  prompts: [charge, main]
+  FOR 1 IN you.hand
+  BIND "card"
+  -- 7-2-11 is a *may*, and the half of it that takes no card is an answer of
+  -- its own rather than the absence of one: a candidate, last on the menu, so
+  -- the board keeps the ghost button beside the cards it could have charged
+  -- (`docs/arena-hud-spec.md` §2.3). The `DO` below is written about the
+  -- candidate, so declining runs it over no cards and moves nothing. It is an
+  -- answer to *this* question, so the board-level refusal below takes it off
+  -- the menu entirely at the Main Phase rather than greying it out: there is no
+  -- skip button there to explain.
+  decline: "Skip charge"
+  DO {
+    moveTo(target: $card, to: energy, reveal: true)
+  }
+  -- First, and about the board rather than about any card — which is the order
+  -- `whyNotCharge` asks in, so the *first* requirement a player is owed is the
+  -- same requirement on both engines, a Leader in hand included.
+  REFUSE oncePerTurn(what: "charge") UNLESS NOT playerAttr(name: "charged")
+  -- 3-1-2: a Leader Card does not leave the Leader Area, so it is not a card
+  -- this move can be made about. Nothing puts one in a hand — 6-2-1-2 places it
+  -- before the first card is drawn — which is exactly why the refusal is
+  -- declared rather than assumed away: a rule that is never reached is still
+  -- the answer a player reaching for that card is owed.
+  REFUSE cardType(needs: "a card that is not a Leader Card") UNLESS count(FROM $card "non-leader card") >= 1
+  -- 20-14: "your opponent can't place cards in their Energy Area." Last, which
+  -- is `whyNotCharge`'s order again — it asks the question first and the
+  -- prohibition second. The `forbidden` requirement's own fields (which card's
+  -- rule, how long it holds, what would let it through) are the board's and are
+  -- filled in by the interpreter, because a declaration cannot name a rule that
+  -- is not in the file.
+  REFUSE forbidden() UNLESS NOT forbidden(what: placeEnergy)
+  -- "You can only place up to 6 energy" (BT3-032): the official card Q&A says the
+  -- limit holds for the Charge Phase as well as for skills, so an Energy Area
+  -- already at the limit takes no further card (`energyCap`, a skill's placement
+  -- is stopped in `moveTo`).
+  REFUSE forbidden() UNLESS NOT forbidden(what: energyCap)
+  label: "Charge"
+  text: "the turn player may place 1 card from their hand in their Energy Area, face up (7-2-11)"
+
+DEFINE ACTION endMain                                                     -- FW manual p. 8
+  WHEN [main]
+  prompts: [main]
+  DO {}
+  label: "End turn"
+  text: "the turn player ends their Main Phase, and with it the last phase they act in (7-3-5)"
+
+DEFINE ACTION pass                                                        -- FW manual p. 8
+  WHEN [setup, charge, main]
+  prompts: [mulligan, charge, main]
+  DO {}
+  listed: false
+  label: "Pass"
+  text: "take none of what the question offers, whatever it is (6-2-1-9-1, 7-2-11, 7-3-4)"
+
+-- The one move that is not an answer to the question on the table: it is taken
+-- at any point in a game, including at a prompt that belongs to the other
+-- player, and no card may cause or replace it (0-1-3-4). So `WHEN` is every
+-- phase a game is still being played in, and `prompts:` is left out.
+--
+-- Its `DO` is empty because a game *ending* is not something the effect
+-- language can say — no op of `OP_SCHEMA` ends one — so the ending stays the
+-- interpreter's, the way the steps in `vm/flow.ts`'s `STEP_WORK` are, and this
+-- declaration is what decides the move may be taken at all. A `DO` written here
+-- would be a program `vm/index.ts` refuses by name rather than ignores.
+
+DEFINE ACTION concede                                                     -- not in the FW manual; a player's act
+  WHEN [setup, charge, main, mainEnd, end]
+  DO {}
+  listed: false
+  label: "Concede"
+  text: "a player gives up the game, and their opponent wins immediately (0-1-3-4)"
+
+-- ── playing a card (§5-5, §13-2, §16-2) ───────────────────────────────────
+--
+-- Three paragraphs rather than one, because the shared `Action` union has
+-- three words: a client sends `play`, `playUnison` or `playZ`, and the
+-- declaration's **name is the action type** (`vm/actions.ts`). What they share
+-- is the `DO`: every one of them is the `play` op, which is 5-5-3's "play this
+-- card" — so a play a player declares and a play a skill makes are the same
+-- act, resolved in one place (`vm/play.ts`), and neither of them pends a
+-- trigger by name. The card arriving is `moved(asPlay: true)` and
+-- `triggers.rules` decides that this is `played`, `youPlayed` and
+-- `opponentPlayed`; its [Permanent]s stand because it is in an in-play area.
+--
+-- **20-14's prohibitions are read** (`forbidden()`), and each play below
+-- carries the gate: "your opponent can't play Battle Cards", "this card can't
+-- be played from any area except by skills". `bySkill: false` is the half of
+-- that wording a player's own declared play is — a play a *skill* makes is
+-- 5-5-3's, resolved by the `play` op and not by this paragraph.
+--
+-- One gate is still missing, and the language is what is missing: 22-39's
+-- [Unique] needs a filter for "a card with the same name as *this* candidate",
+-- which `FILTER_FIELDS` has no field for (the keyword's own body is #154's).
+--
+-- One ordering is deliberately not the legacy engine's, and is recorded rather
+-- than matched. A `REFUSE` is read **before** the price, which is where
+-- `whyNotPlay` sits for a Unison and for an X-cost card — but for a plain
+-- Battle Card `whyNotPlayFromHand` concatenates the price first, so on a board
+-- where the player is both short of energy *and* forbidden, that engine says
+-- "1 short" where this one says "forbidden". Saying a price about a move that
+-- is banned outright is the worse of the two answers, and the legacy engine
+-- already disagrees with itself about it across its own three branches
+-- (`verify/vm.ts` §21 asserts both, so neither drifts unnoticed).
+--
+-- The other half the price cannot settle is an **X cost**: 1-2-2-2 makes its
+-- value an answer to a question, and until issue #270 a candidate was a card
+-- and nothing else, so `costOf` was absent and `vm/costs.ts` refused such a
+-- card as `unread` rather than offering it free. `x: true` is the answer:
+-- one candidate per legal value of X, floored at the coloured requirement and
+-- ceilinged at what the player could pay, read generically off the price
+-- (`vm/costs.ts`'s `xValues`) rather than a branch per action. [Evolve],
+-- [Union], [Over Realm] and [Swap] are plays a keyword gates and are #157's.
+--
+-- 5-3: a card may print **another price** for playing it — "you can play this
+-- card from your hand without paying its energy cost", or by adding a card
+-- from life to the hand instead — which is often the only reason it is
+-- playable at all. `alt: "play"` is the word such a record names the move by
+-- (`altCost`'s `for:`), and a card carrying one that the board can meet is
+-- offered a second time at that price (`vm/costs.ts`' `altCostFor`), exactly
+-- as the legacy engine offers it: never for an X cost, and never past a
+-- `REFUSE` that holds.
+
+DEFINE ACTION play                                                        -- FW manual p. 8
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand "battle card"
+  BIND "card"
+  COST [energy]
+  x: true
+  alt: "play"
+  DO {
+    play(target: $card)
+  }
+  REFUSE forbidden() UNLESS NOT forbidden(what: play, bySkill: false)
+  again: true
+  label: "Play"
+  text: "the turn player pays a Battle Card's energy cost and places it in their Battle Area in Active Mode (FW manual p. 8, Main Phase step 1)"
+
+-- ── using a skill (§9-1-2, §4-3) ────────────────────────────────────────────
+--
+-- The one move whose candidate is **a line rather than a card**, which is what
+-- `skills:` says. A card prints up to nine of them, each with its own price,
+-- its own condition and its own once-per-turn ceiling, so one being on the menu
+-- says nothing at all about the other eight: §3.2 of
+-- `docs/arena-workflow-spec.md` counts one rejection per card per action type
+-- *except* an activation, which is one per line, and this declaration is where
+-- that exception is written down rather than special-cased.
+--
+-- Three things this paragraph does that no other does, and each is read off it:
+--
+--   `skills:`  the kinds it **offers**. A line of the same family and another
+--              window — an [Activate: Battle] skill at the Main Phase question
+--              — is still a candidate, and the answer it is owed is the
+--              `timing` requirement naming the window it belongs to. The
+--              window this move offers is the one its kinds share, so the
+--              battle paragraph Stage 6 writes needs no second table.
+--   `FOR`      where the lines are read from: the three in-play areas (9-1-3-1)
+--              and the hand, because 4-2 makes using an Extra Card from the
+--              hand how an Extra is played at all. A Battle Card's line in the
+--              hand is refused with the area it is valid in.
+--   `DO {}`    deliberately empty, and checked to be: the program an activation
+--              runs is the **record's** (`card_rules.ops`, carried on
+--              `Script.ops`), and a `DO` written once here could not be the
+--              program of nine different lines. `vm/activate.ts` queues that
+--              frame on the same interpreter a pended [Auto] runs on (#142),
+--              and the moment is a `skillActivated` the declarations in
+--              `triggers.rules` answer — nothing pends a trigger by name.
+--
+-- **The price is the record's too**, which is the 8 Sep 2026 precedent applied
+-- to a move: the orbs printed in front of the line and 13-4's marker cost are
+-- what `COST` below is charged, bound from the line rather than read off the
+-- card the way a play's price is (`vm/costs.ts`'s `BoundAmounts`). `text` is
+-- the half no engine charges itself, and it is named here so that a price this
+-- engine cannot read refuses the move with `unread` instead of offering it
+-- free. The order is `marker`, then
+-- `energy`, because that is the order the engine that has been
+-- playing charges them in, and the order is what the oracle compares.
+--
+-- **What it refuses and what it cannot.** Negation (9-1-5), the once-per-turn
+-- and [Limit X] count (22-44-3), [Bond X] and [Sparking X], 13-4's Unison Area
+-- and its one marker skill a turn, the condition 9-4 hoisted out of the price,
+-- the energy, an effect the compiler could not read, and 9-1-3-1's wrong area —
+-- in the order the legacy `whyNotActivate` asks them, so the first requirement
+-- is the same requirement on both engines. 20-14's prohibition is read too, and
+-- it is the one gate of this move that is **not** a `REFUSE` line here: the
+-- order is what matters and `whyNotActivate` asks it second, after the
+-- negation, where a declared `REFUSE` would run before everything. It is in
+-- `vm/activate.ts`'s gate list with the rest of them, at that position.
+--
+-- A keyword's own activation — [Awaken] — is its `DEFINE KEYWORD`'s `DO`, offered here by `offer:`
+-- (`keywords.rules`; [Overlord] is the first, Stage 7 writes the rest one
+-- keyword at a time): the line is then a candidate of this paragraph as an
+-- `activate:main` line, with the keyword's own `REFUSE`s among its gates. A
+-- printed [Activate] line carrying a keyword whose `DO` is not written is
+-- refused `unread`, because a player reaching for it is owed an answer. An
+-- action price (4-3-3) is
+-- refused the same way and for the same reason 22-39's [Unique] is unread:
+-- the value or the identity is not a fixed wording. An X price (20-5) is
+-- issue #270's `x: true` in principle — the price is a skill line's own
+-- (`BoundAmounts`), not a card attribute `xValues` reads, so wiring it up is
+-- separate plumbing in `activate`'s own candidate builder and is not done
+-- here — it is since #439: `x: true` below makes such a line one candidate
+-- per payable X (`vm/actions.ts`'s `activation`, the legacy `xValuesFor`),
+-- and the X paid is what the effect reads as `X`. [Counter] windows are native (`vm/battle.ts`, #150), and so is
+-- this paragraph read against the combo prompt for [Activate: Battle]: the
+-- same FOR, COST and again:, asked over the battle's own two kinds.
+
+DEFINE ACTION activate                                                    -- FW manual p. 9
+  WHEN [main]
+  prompts: [main]
+  FOR 1 IN you.hand|leader|battle|drop                                         -- FW manual p. 9: a skill on a card in the Leader or Battle Area, an Extra Card from the hand (p. 9)
+  BIND "card"
+  skills: ["activate:main", "activate:main/battle"]
+  COST [marker, energy, payWith, text]
+  x: true                                                                 -- 20-5: a line priced "Pay X energy" is offered once per payable X
+  alt: "play"                                                             -- 5-3, 22-37: an Extra used from the hand is played (4-2)
+  DO {}
+  again: true
+  label: "Activate"
+  text: "a player uses one of a card's [Activate] skills, paying the price printed in front of it; the skill then resolves (9-1-2, 4-3-3)"

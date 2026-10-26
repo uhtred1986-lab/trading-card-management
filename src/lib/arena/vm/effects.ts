@@ -101,6 +101,8 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
         ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
         ...(op.exceptEvolve ? { exceptEvolve: true } : {}),
         ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
+        // "…by skills other than its own" (EB1-27, DB2-008).
+        ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}),
       });
     }
   }
@@ -286,6 +288,9 @@ export function costLayerGaps(game: GameDefinition): string[] {
   for (const [attr, layers] of Object.entries(LAYER_KINDS)) {
     const declared = game.attributes[attr];
     if (!declared) {
+      // A game with no price that reads this attribute has nothing to misread
+      // (Fusion World declares no Z-Energy price, so no `zEnergyCostOf`).
+      if (!Object.values(game.costs).some((cost) => cost.amount === attr)) continue;
       out.push(`${attr} is an attribute nothing declares, and a price is read off one`);
       continue;
     }
@@ -833,7 +838,7 @@ function collect(
       const attackOnly = op.attackOnly ? targets(frame, { ...op, target: op.attackOnly }) : undefined;
       // "…can't attack **this card**" (BT15-122): read as the cards it names, now.
       const against = op.against ? targets(frame, { ...op, target: op.against }) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {

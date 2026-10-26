@@ -1,0 +1,276 @@
+-- ───────────────────────────────────────────────────────────────────────────
+-- The moments an [Auto] or a [Counter] answers to, as the events that *are*
+-- them. Fusion World keeps 29 of the dbs moments (F1-02): every one whose event
+-- or zone names a Unison, Z-Energy, Z-Deck or Warp Area, or a moment only a
+-- card of the original game reads, is gone. The moments kept are the ones the
+-- Fusion World skill tags read (FW manual p. 12, Glossary: [On Play], [When
+-- Attacking], [When KO'd], [End of Your Turn], [Your Turn], [Opponent's Turn]).
+--
+-- A trigger is a name in the legacy engine, matched against the event log by
+-- TypeScript. Here it is an event pattern, so a game can declare its own
+-- moments without code — and so the engine's moments can be read against the
+-- manual rather than against `pendTriggers`.
+--
+-- Four conventions hold across the file.
+--
+--   ON <event>(field: value, …)
+--     The event and the fields that have to match. Event names are the
+--     definition's own; which of them a game fires is Stage 4's business.
+--     Only `from`, `to`, `in`, `area` and `zone` name a DEFINE ZONE and are
+--     checked by the loader — every other argument is a word about the event
+--     itself, so `attackDeclared(target: leader)` is a part in the attack and
+--     not a place.
+--
+--   watcher: controller | opponent | both | fromHolder
+--     Whose cards in play are asked, when the moment is not the answering
+--     card's own. `controller` is the side the event is about (the moved
+--     card's master, the damaged player); `opponent` is the other one.
+--     `fromHolder` is the original area holder carried by a movement.
+--     Left out, only the card the event is about answers.
+--
+--   WHERE
+--     A condition on the answering side rather than on the event.
+--     `isTurnPlayer(who: you)` is what "your Charge Phase" means on a card,
+--     and "your opponent's turn" is the same condition from the other chair
+--     (FW manual p. 7) — never a duration.
+--
+--   BIND
+--     What the event's card is called inside the program: "self" when the
+--     moment happened to the answering card, "subject" when it happened to
+--     another card that the answering card is watching. A watcher list that
+--     includes the card itself (a Life card turned face up) binds "subject" all the same — there it is
+--     the same card.
+--
+-- The names are the `Trigger` union's, and `text:` is the record's WHEN in
+-- words, so `scripts/verify/rulesets.ts` can hold the two to one list.
+-- The five `counter:*` declarations at the foot are the counter windows
+-- (FW manual p. 10): the moments a [Counter] answers to rather than an [Auto], and
+-- the only names here a card's WHEN never says.
+-- ───────────────────────────────────────────────────────────────────────────
+
+-- ── playing a Battle Card (FW manual p. 8) ──
+
+-- FW manual p. 12, [On Play] — when this card is played
+DEFINE TRIGGER played
+  ON moved(asPlay: true, to: battle)
+  BIND "self"
+  text: "when this card is played"
+
+-- FW manual p. 12, [On Play] — when this card is played from your hand (#936): the same
+-- arrival, asking where the card was when it was played. `from` is the
+-- origin captured by the move itself (a normal play, or a skill's play from
+-- the hand), never the zone after entry or the source skill's text.
+DEFINE TRIGGER playedFromHand
+  ON moved(asPlay: true, from: hand, to: battle)
+  BIND "self"
+  text: "when this card is played from your hand"
+
+-- FW manual p. 12 — when you play a card
+DEFINE TRIGGER youPlayed
+  ON moved(asPlay: true, to: battle, watcher: controller)
+  BIND "subject"
+  text: "when you play a card"
+
+-- FW manual p. 12 — when your opponent plays a card
+DEFINE TRIGGER opponentPlayed
+  ON moved(asPlay: true, to: battle, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent plays a card"
+
+-- ── battles (FW manual pp. 10-11) ──
+
+-- FW manual p. 12, [When Attacking] — when this card attacks
+DEFINE TRIGGER attacks
+  ON attackDeclared(role: attacker)
+  BIND "self"
+  text: "when this card attacks"
+
+-- FW manual p. 10 — when this card is attacked
+DEFINE TRIGGER attacked
+  ON attackDeclared(role: target)
+  BIND "self"
+  text: "when this card is attacked"
+
+-- FW manual p. 12, [Counter] — when your opponent attacks
+--
+-- `role: attacker` is #150's addition, the first stage to actually fire an
+-- `attackDeclared` moment: a battle names two cards, the attacker and the
+-- guard, and `vm/battle.ts` fires one moment for each so `attacks`/`attacked`
+-- can each `BIND "self"` to the right one. Without a role narrowing this
+-- pattern, the *guard's* own moment would match it too (its `watcher:
+-- opponent` asks nothing about which card the moment is about, only who is
+-- asked), which would pend this trigger a second time off the wrong subject.
+DEFINE TRIGGER opponentAttacks
+  ON attackDeclared(role: attacker, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent attacks"
+
+-- FW manual p. 10 — at the end of the battle
+DEFINE TRIGGER battleEnd
+  ON stepStart(step: battleEnd, watcher: both)
+  BIND "self"
+  text: "at the end of the battle"
+
+-- ── KOs (FW manual p. 11 "When KO'd", p. 12) ──
+
+-- FW manual p. 12, [When KO'd] — when this card is KO'd
+--
+-- `role: koed` is #150's addition, for the same reason `opponentAttacks`
+-- above needed one: a KO names two cards, the one that left and the one that
+-- caused it (`kos`, `role: cause`, already declared), and `vm/battle.ts`
+-- fires one `ko` moment for each. Left bare, this pattern's empty `ON ko`
+-- would match *either* moment — the koed card's own and the attacker's —
+-- since a pattern with no arguments is true of any event carrying that name;
+-- naming the koed card's own role is what keeps it from also asking the
+-- attacker "were you KO'd". `to: drop` is 9-1-3-1's derived exception,
+-- exactly as `droppedFromBattle` below reads it for a skill's own move: a
+-- card asking whether it was just KO'd is asked about its own departure
+-- *after* it has already landed in the Drop, so the pattern has to name the
+-- place its skills are still valid in reacting to, the same as any other
+-- "fires while the card is elsewhere" moment.
+DEFINE TRIGGER koed
+  ON ko(role: koed, to: drop)
+  BIND "self"
+  text: "when this card is KO'd"
+
+-- FW manual p. 12 — when this card KOs a card
+DEFINE TRIGGER kos
+  ON ko(role: cause)
+  BIND "self"
+  text: "when this card KOs a card"
+
+-- FW manual p. 12 — when one of your cards is KO'd
+DEFINE TRIGGER yourCardKoed
+  ON ko(role: koed, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd"
+
+-- FW manual p. 12 — when an opponent's card is KO'd
+DEFINE TRIGGER opponentCardKoed
+  ON ko(role: koed, watcher: opponent)
+  BIND "subject"
+  text: "when an opponent's card is KO'd"
+
+-- ── damage and life (FW manual p. 10) ──
+
+-- FW manual p. 10 — when this card deals damage
+DEFINE TRIGGER dealtDamage
+  ON damage(role: source)
+  BIND "self"
+  text: "when this card deals damage"
+
+-- ── the turn (FW manual pp. 7-11) ──
+
+-- FW manual p. 7 — at the start of your Charge Phase
+DEFINE TRIGGER chargeStart
+  ON phaseStart(phase: charge)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the start of your Charge Phase"
+
+-- FW manual p. 7 — at the start of your opponent's turn
+DEFINE TRIGGER opponentTurnStart
+  ON phaseStart(phase: charge)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the start of your opponent's turn"
+
+-- FW manual p. 8 — at the start of your Main Phase
+DEFINE TRIGGER mainStart
+  ON phaseStart(phase: main)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the start of your Main Phase"
+
+-- FW manual p. 8 — at the end of your Main Phase
+DEFINE TRIGGER mainEnd
+  ON phaseEnd(phase: main)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the end of your Main Phase"
+
+-- FW manual p. 11, [End of Your Turn] — at the end of your turn
+DEFINE TRIGGER turnEnd
+  ON phaseStart(phase: end)
+  WHERE isTurnPlayer(who: you)
+  BIND "self"
+  text: "at the end of your turn"
+
+-- FW manual p. 11 — at the end of your opponent's turn
+DEFINE TRIGGER opponentTurnEnd
+  ON phaseStart(phase: end)
+  WHERE isTurnPlayer(who: opponent)
+  BIND "self"
+  text: "at the end of your opponent's turn"
+
+-- ── combos (FW manual p. 10) ──
+
+-- FW manual p. 10 — a Battle Area watcher of a same-player Combo-to-Drop departure.
+-- Native cleanup announces this before 8-5-7 and suppresses only its repeat
+-- at the physical 8-5-8 move. Other movement triggers still hear that move.
+DEFINE TRIGGER comboToDrop
+  ON moved(from: combo, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when a card in your Combo Area is placed in your Drop Area"
+
+-- FW manual p. 10, departure — ordinary self-combo wording already answered at entry;
+-- the special "at battle end after combo" Auto is announced at 8-5-9.
+DEFINE TRIGGER comboed
+  ON moved(from: combo)
+  BIND "self"
+  text: "when this card is used in a combo"
+
+-- FW manual p. 10 — this card's own Auto at Combo Area entry. `comboed`
+-- remains the stored legacy alias and the distinct 8-5-10-1 cleanup moment.
+DEFINE TRIGGER comboUsed
+  ON comboUsed(to: combo)
+  BIND "self"
+  text: "when you combo with this card"
+
+-- ── modes (FW manual p. 7) ──
+
+-- FW manual p. 7 — when this card itself is switched from Rest Mode to Active
+-- Mode (TB3-019, #922), by a skill or by the Charge Phase alike. A card already
+-- Active does not switch, so no `modeSwitched` is fired for it. An arrival in
+-- the Battle Area (a play, or the preliminary move of an energy-base [EX-Evolve],
+-- 22-5-3-1-1) is a movement, never a mode switch, and does not match.
+DEFINE TRIGGER selfRestToActive
+  ON modeSwitched(mode: active, in: [battle, leader])
+  BIND "self"
+  text: "when this card is switched from Rest Mode to Active Mode"
+
+-- ── the counter windows (FW manual p. 10: the defending player's skills during the Defense Step) ──
+
+-- A [Counter] answers to a window rather than to a card's moment, so these
+-- five carry a name a card's WHEN never says. The shape is the same: the
+-- moment as the event that is it.
+
+-- FW manual p. 12, [Counter] — the window after a card is played and before it resolves
+DEFINE TRIGGER "counter:play"
+  ON counterTiming(watcher: opponent, window: play)
+  BIND "subject"
+  text: "when your opponent plays a card, before it resolves"
+
+-- FW manual p. 12, [Counter] — the window after an attack is declared
+DEFINE TRIGGER "counter:attack"
+  ON counterTiming(watcher: opponent, window: attack)
+  BIND "subject"
+  text: "when your opponent declares an attack"
+
+-- FW manual p. 12, [Counter] — the same window, narrowed to an attack a Battle Card made
+DEFINE TRIGGER "counter:battleCardAttack"
+  ON counterTiming(attacker: battleCard, watcher: opponent, window: attack)
+  BIND "subject"
+  text: "when your opponent's Battle Card declares an attack"
+
+-- FW manual p. 12, [Counter] — the window after a [Counter] skill is activated
+DEFINE TRIGGER "counter:counter"
+  ON counterTiming(watcher: opponent, window: counter)
+  BIND "subject"
+  text: "when your opponent activates a [Counter] skill, before it resolves"
+
+-- FW manual p. 12, [Counter] — the window after a skill is activated
+DEFINE TRIGGER "counter:skill"
+  ON counterTiming(watcher: opponent, window: skill)
+  BIND "subject"
+  text: "when your opponent activates a skill, before it resolves"

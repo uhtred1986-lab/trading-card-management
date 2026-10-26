@@ -1063,7 +1063,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1195,6 +1195,16 @@ export type Op =
       counterKind?: CounterKind;
       otherCards?: true;
       extraCardActivation?: true;
+      /** "…the [Activate: Main] skill on copies of this card" (`Prohibition.skillKinds`). */
+      skillKinds?: string[];
+      /** "…by skills other than its own" / "…other than {X}'s skills" (`Prohibition.exceptSource`). */
+      exceptOwnSkills?: true;
+      exceptSourceName?: string;
+      /** `beMovedBySkill`: the destination it is about (`Prohibition.toArea`, `toBottom`). */
+      toArea?: "hand" | "deck" | "drop" | "warp" | "energy" | "life";
+      toBottom?: true;
+      /** A description of the card whose action it is (`Prohibition.byFilter`). */
+      byFilter?: CardFilter;
     }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
@@ -1908,7 +1918,7 @@ function priceTargetFits(h: ScriptHost, frame: ScriptFrame, variable: string, id
   const later = frame.ops.slice(frame.ip + 1);
   const on = (name: "ko" | "comboFrom") => later.some((o) => o.op === name && "var" in o.target && o.target.var === variable);
   if (on("ko")) {
-    if (h.areaOf(id) !== "battle" || h.forbids("beKOd", { card: id }) || h.forbids("beKOdBySkill", { player: master, card: id })) return false;
+    if (h.areaOf(id) !== "battle" || h.forbids("beKOd", { card: id }) || h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) return false;
     if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) return false;
     if (!h.replacementsFor(id, "ko", { actor: master, requestedTo: "drop" }).every((c) => c.optional)) return false;
   }
@@ -2576,7 +2586,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           // 20-14: the same thing spelled out on the card rather than keyworded.
-          if (h.forbids("beKOdBySkill", { player: master, card: id })) {
+          // The card whose skill it is answers "the skills of your opponent's
+          // Battle Cards" (BT10-058, `byTypes`), as the move below does.
+          if (h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
             frame.moveLoop.index++;
             continue;
@@ -2667,8 +2679,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // its own master moves alone and "by skills" (BT10-065) does not;
           // the card whose skill it is answers "the skills of your opponent's
           // Battle Cards" (BT10-058, `byTypes`).
-          if (h.areaOf(id) === "battle" && h.forbids("beMovedBySkill", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
-            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} can't be removed from the Battle Area`;
+          // A rule may name where the card goes — "…can't be returned to your
+          // hand by your skills" (DB2-040), "…placed at the bottom of their
+          // owner's deck by your opponent's skills" (P-672) — and a card in a
+          // hand is asked too ("cards in your hand can't be returned to your
+          // deck by your opponent's skills", DB2-156): `fromArea: hand`.
+          const leaving = h.areaOf(id);
+          if ((leaving === "battle" || leaving === "hand") && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "hand" ? `${h.nameOf(id)} can't be moved from the hand` : `${h.nameOf(id)} can't be removed from the Battle Area`;
             frame.moveLoop.index++;
             continue;
           }
@@ -2681,6 +2699,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           if (op.to === "under") {
+            // 20-14: "you can't place cards under this card, except with this
+            // card's skill" (BT25-008, BT7-022) — asked of the host.
+            if (host && h.forbids("placeUnder", { card: host, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
+              if (frame.saveVarsAs) frame.priceUnpaid ??= `cards can't be placed under ${h.nameOf(host)}`;
+              frame.moveLoop.index++;
+              continue;
+            }
             if (host) { h.placeUnder(id, host); frame.acted = (frame.acted ?? 0) + 1; }
             frame.moveLoop.index++;
             continue;
@@ -3164,7 +3189,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3190,6 +3215,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.extraCardActivation ? { extraCardActivation: true } : {}),
             // #930: "you can only play Battle Cards by using [Union-Fusion]".
             ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
+            ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
@@ -3543,7 +3569,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}) }));
+        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}) }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card

@@ -932,7 +932,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
   // activate skills" (BT29-041) has its pending [Auto] cancelled.
-  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card })) {
+  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
@@ -1092,7 +1092,9 @@ function dropEmptyUnisons(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "wait" | void {
   // 21-6 is DBS-specific until rulesets declare rule procedures themselves.
-  if (state.game !== "dbs") return;
+  // Fusion World has the same drop (FW manual p. 11: power reduced to 0 by a
+  // skill goes to the Drop, and is not a KO) and records it as `powerZero`.
+  if (state.game !== "dbs" && state.game !== "fusion") return;
   const battle = game.zones.battle ? "battle" : null;
   if (!battle) return;
   while (true) {
@@ -1121,7 +1123,7 @@ function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmSta
             const actor = causedByEffect
               ? reductions.find((reduction) => reduction.master !== targetMaster)?.master ?? reductions[0]?.master
               : undefined;
-            pass.push({ id, event: 0, reason: causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
+            pass.push({ id, event: 0, reason: state.game === "fusion" ? "powerZero" : causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
           }
         }
         if (!pass.length) return { pass, totalCards: 0, replacementCeiling: 0 };
@@ -1334,7 +1336,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }
-    if (frame.pendingHookSkill && forbids(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card })) {
+    if (frame.pendingHookSkill && forbids(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card, skillKind: "auto" })) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card} can't activate skills, so its skill does not resolve` });
       return "done";
     }

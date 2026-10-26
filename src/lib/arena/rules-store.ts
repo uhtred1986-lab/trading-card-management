@@ -33,7 +33,7 @@ import type { Rule } from "./lang/ast";
 import { fusionMaterialsProblem, isFusionSkill } from "./vm/fusion-materials";
 import { programProblem } from "./vm/script-schema";
 import { deckBuildingOfSkill, emptyOnPurpose, isDeckBuildingLine, readsAsNothingSilently } from "./compile/silent";
-import { DEFAULT_GAME } from "@/lib/catalog/games";
+import { ARENA_GAMES, DEFAULT_GAME } from "@/lib/catalog/games";
 import { FLAG_PREFIX } from "./rule-review";
 
 import { comboScriptProblem, type ComboQualification } from "./vm/combo-qualification";
@@ -519,7 +519,7 @@ export async function cardHealthsFor(db: Db, cardIds: string[]): Promise<Map<str
   const ids = [...new Set(cardIds)];
   if (!ids.length) return out;
   const [cs, found] = await Promise.all([
-    db.select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(and(inArray(cards.id, ids), eq(cards.game, "dbs"), REVIEWABLE_CARD)),
+    db.select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(and(inArray(cards.id, ids), inArray(cards.game, ARENA_GAMES), REVIEWABLE_CARD)),
     db
       .select({
         cardId: cardRules.cardId, side: cardRules.side,

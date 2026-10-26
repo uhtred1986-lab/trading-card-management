@@ -273,11 +273,11 @@ export async function startGame(
   const art: Record<string, CardArt> = {};
   for (const r of rows) art[r.id] = { front: r.imageUrl, back: r.backImageUrl };
   const scripts = await rulesFor(db, defs);
-  const bundle = await makeReplayBundle({ defs, scripts, art });
+  const bundle = await makeReplayBundle({ defs, scripts, art, game: a.game });
   await persistReplayBundle(db, bundle);
   const ctx = await pinnedContext(bundle);
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state, events } = RULES.createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const { state, events } = RULES.createGame(ctx, { seed, game: a.game, p1: a.input, p2: b.input });
   const [row] = await db
     .insert(arenaGames)
     .values({

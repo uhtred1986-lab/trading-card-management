@@ -1,7 +1,7 @@
 /**
  * Deck-weighted rules progress (owner decision, 18 Oct 2026): the measure is how many of the cards
  * in the owner's decks have CONFIRMED rules, not catalog-wide unread counts. Eligible decks are
- * game "dbs", not testing, owner-scoped (the rule of scripts/arena-immersion-inventory.mts); cards
+ * a game the arena plays (`ARENA_GAMES`), not testing, owner-scoped (the rule of scripts/arena-immersion-inventory.mts); cards
  * are main + Z + leader, both faces (a leader's awakened side is `side = back` rows). "Done" is
  * `ruleHealth`'s: confirmed or corrected, and nothing the engine cannot carry out.
  *
@@ -12,6 +12,7 @@ import type { Db } from "@/db";
 import { rulesProgressSnapshots } from "@/db/schema";
 import { rows } from "@/db/rows";
 import { textArray } from "@/db/sqlx";
+import { ARENA_GAMES } from "@/lib/catalog/games";
 import type { OwnerScope } from "@/lib/collection/scope";
 import { cardHealth, currentRowsOf, RULE_HEALTHS, ruleHealth, type HealthRow, type RuleHealth } from "./rules-store";
 
@@ -130,7 +131,7 @@ export async function loadProgress(db: Db, scope: OwnerScope): Promise<Progress>
     from decks d
     join deck_cards dc on dc.deck_id = d.id and dc.zone in ('main', 'z', 'leader')
     join cards c on c.id = dc.card_id
-    where d.game = 'dbs' and d.is_testing = false ${ownerWhere}`));
+    where d.game = any(${textArray([...ARENA_GAMES])}) and d.is_testing = false ${ownerWhere}`));
   const ids = [...new Set(deckCards.map((r) => r.cardId))];
   if (!ids.length) return computeProgress([], []);
   const found = rows<HealthRow & { id: number; cardId: string; side: string; cond: unknown; reviewFlag: string | null; compilerDiff: unknown }>(await db.execute(sql`

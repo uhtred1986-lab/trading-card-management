@@ -20,7 +20,7 @@ import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyMastersLeaderImages, applyOfficialImages, fetchOfficialImageNames, mastersLeaderCandidates } from "./bandai";
 import { correctSkillText, unmatchedCorrections } from "./errata";
 import { staleSpecifiedCosts } from "@/lib/arena/specified-cost";
-import { GAMES, GAME_INFO, type Game } from "./games";
+import { GAMES, GAME_INFO, arenaPlays, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 import { draftCards, reviewOpenRules } from "@/lib/arena/draft";
 import { countRules } from "@/lib/arena/rules-store";
@@ -583,11 +583,10 @@ export interface CatalogSyncOptions {
 /**
  * New and changed cards get a rule now, not later (brief §3.7): the drafter
  * runs over exactly the cards this import touched, and Claude is asked about
- * every skill it left open, within the budget. Original game only — the arena
- * does not play Fusion World.
+ * every skill it left open, within the budget. Every game the arena plays.
  */
 async function draftTouched(db: Db, game: Game, touched: string[], opts: CatalogSyncOptions): Promise<Pick<CatalogSyncSummary, "drafted" | "reviewed" | "stillOpen">> {
-  if (game !== "dbs" || !touched.length) return {};
+  if (!arenaPlays(game) || !touched.length) return {};
   const d = await draftCards(db, touched);
   const drafted = d.inserted + d.updated;
   if (opts.review === false) return { drafted, reviewed: 0, stillOpen: (await countRules(db, touched)).open };
