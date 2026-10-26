@@ -352,7 +352,17 @@ export type ForbiddenAction =
    * asked of that card (the host) with the skill's controller as `player` and
    * its card as `source`.
    */
-  | "placeUnder";
+  | "placeUnder"
+  /**
+   * "You cannot lose the game … for the duration of the turn" (P-032): the
+   * game's own loss conditions (0-1-3) do not end the game for this player
+   * while the rule holds — asked when the conditions are checked, with the
+   * player who would lose as `player`. The loss is not remembered: once the
+   * rule is gone, a condition that still holds ends the game at the next check.
+   */
+  | "loseGame"
+  /** "…and the opponent cannot win the game" (P-032): no win for this player, asked with the would-be winner as `player`. */
+  | "winGame";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -413,7 +423,7 @@ export interface Prohibition {
    * their owner's hands**" (EX23-05). Matched against where the card is when
    * the action is asked about; a card the rule cannot place is not its.
    */
-  fromArea?: "hand" | "battle" | "drop";
+  fromArea?: "hand" | "battle" | "drop" | "deck";
   /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
   fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
@@ -493,6 +503,31 @@ export interface Prohibition {
    * attacking card.
    */
   byFilter?: CardFilter;
+  /**
+   * Only cards this player owns where they are: "**cards in your hand** can't
+   * be returned to your deck by your opponent's skills for the turn" (DB2-156,
+   * owner ruling 26 Oct 2026) is the hand as a zone, a card that enters it
+   * later included — a rule about no card in particular, matched against the
+   * side whose area the card is in when the action is asked about.
+   */
+  cardsOf?: PlayerId;
+  /**
+   * `play` only: the one keyword whose own play the rule lets through — "You
+   * can't play this card from any area with skills other than [Revive
+   * Blue/Green]" (owner ruling 26 Oct 2026): a [Revive] play is allowed, any
+   * other skill's play is not, and the declared play from the hand is not
+   * this rule's (`bySkill: true`). Matched against the keyword whose program
+   * makes the play (`keyword` in the matchers' options).
+   */
+  exceptKeyword?: string;
+  /**
+   * The card's energy cost against its controller's energy (the cards in their
+   * Energy Area): "Battle Cards with energy costs **greater than their current
+   * energy**" (P-219, BT15-043) is `above`, "…**greater than or equal to**
+   * their current energy" (P-299) is `atLeast`. A measure no filter says,
+   * asked of the card the rule is about (the attacker).
+   */
+  costVsEnergy?: "above" | "atLeast";
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
@@ -1553,4 +1588,10 @@ export interface MoveOptions {
   replaced?: ReplacementResult | null;
   /** The card whose skill made the move (#907: "combo … using {X}'s skill"), carried on the `moved` moment as `viaCard`. */
   source?: string;
+  /**
+   * The card whose skill adds this card from a life to a hand — asked by 20-14
+   * only (BT6-054's "except with this card's skill"), not carried on the
+   * `moved` moment as `source` is.
+   */
+  lifeSource?: string;
 }
