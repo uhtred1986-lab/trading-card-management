@@ -368,6 +368,16 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
 }
 
 /**
+ * "…until the end of your turn" (`ownTurn`, BT31-043, #930): ends at 7-4-5
+ * of a turn whose turn player is the effect's master — the same turn when it
+ * was made on the master's own turn, or the master's next turn when it was made
+ * on the opponent's. Called beside the "for the turn" expiry.
+ */
+export function endOwnTurnEffects(state: VmState, ev: GameEvent[]): ContinuousEffect[] {
+  return dropEffects(state, ev, (e) => !(e.until === "ownTurn" && e.master === state.turnPlayer));
+}
+
+/**
  * "…until the start of your next Main Phase" (`nextMain`, BT13-012, #1163):
  * ends as its master's Main Phase begins on a later turn than the one it was
  * made on — so it holds through the opponent's whole turn and the master's

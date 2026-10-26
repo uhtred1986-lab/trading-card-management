@@ -748,6 +748,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
     case "unisonToDrop":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your) unison area|when this card in a unison area is placed into its owner's drop/.test(t);
+    // #930: "When this card is removed from a Unison Area" (BT31-043): this card
+    // leaving the Unison Area for any area, by any cause. A cause said after it
+    // ("… by a skill") is a narrower moment and is not read here.
+    case "removedFromUnison":
+      return /^when this card is removed from (?:a|the|your) unison area(?!\s+(?:by|due|because|using|during))(?:,|$)/.test(head.toLowerCase());
     case "markerRemoved":
       return /when a marker is removed/.test(t);
     // 22-43-3: paying [Spirit Boost X] takes markers off your Unison. These

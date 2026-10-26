@@ -133,6 +133,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   addedToZEnergy: "when this card is added to your Z-Energy",
   energyToDrop: "when a card goes from your energy to the Drop",
   unisonToDrop: "when your Unison goes to the Drop",
+  removedFromUnison: "when this card is removed from a Unison Area",
   markerRemoved: "when a marker is removed from this card",
   restedBySkill: "when this card is rested by one of your skills",
   restedByAnySkill: "when this card is rested by a skill",

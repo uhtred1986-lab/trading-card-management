@@ -659,6 +659,14 @@ DEFINE TRIGGER unisonToDrop
   BIND "self"
   text: "when your Unison goes to the Drop"
 
+-- §3-11, #930 — when this card is removed from a Unison Area: any move out of
+-- it, whatever the cause (a skill, a new Unison replacing it 13-2-1-3, zero
+-- markers 21-9-2) and wherever it goes (BT31-043).
+DEFINE TRIGGER removedFromUnison
+  ON moved(from: unison)
+  BIND "self"
+  text: "when this card is removed from a Unison Area"
+
 -- §3-13-1 — when this card is added to your Z-Energy
 DEFINE TRIGGER addedToZEnergy
   ON moved(to: zEnergy)

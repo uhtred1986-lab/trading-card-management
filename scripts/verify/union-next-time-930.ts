@@ -12,8 +12,8 @@
  *    Adolescence> card with an energy cost of 7 or less from your hand,
  *    reduce the skill cost by {y}{y}."
  *  (BT31-043 f#20, EX23-11 f#10 and EX25-11 f#10 print the same reduction;
- *  their other clauses are out of scope here, the reduction is checked at the
- *  record level only.)
+ *  it is checked at the record level here, and their other clauses with it in
+ *  the VM in `union-reductions-rest-930.ts`.)
  *
  * The ruling: the reduction waits for the NEXT [Union] activation this turn on
  * ANY card matching the description — a card that reaches the hand after the
@@ -84,13 +84,13 @@ const defs: Record<string, CardDef> = {
 
 // ── 1. the readings ──────────────────────────────────────────────────────────
 type Rec = ReturnType<typeof skillRecords>[number];
-function reduction(rec: Rec, what: string) {
+function reduction(rec: Rec, what: string, until: "turn" | "ownTurn" = "turn") {
   const op = rec.ops.at(-1)!;
   if (op.op !== "costReduction") throw new Error(`${what}: the last step is a costReduction`);
   assert.equal(op.what, "skill", `${what}: a skill cost`);
   assert.equal(op.tag, "union", `${what}: the [Union] line`);
   assert.equal(op.uses, 1, `${what}: one use`);
-  assert.equal(op.until, "turn", `${what}: for the turn`);
+  assert.equal(op.until, until, `${what}: for the turn`);
   if (!op.target || !("sel" in op.target)) throw new Error(`${what}: a description`);
   assert.equal(op.target.sel.side, "you");
   assert.equal(op.target.sel.area, "hand", `${what}: "from your hand"`);
@@ -114,8 +114,9 @@ function reduction(rec: Rec, what: string) {
   assert.deepEqual(b.filter.characters.map((c) => c.toLowerCase()), ["gotenks: adolescence"]);
   assert.equal(b.filter.costMax, 7, "energy cost of 7 or less");
 
-  // The other three: only the reduction is this suite's.
-  reduction(skillRecords(card("BT31-043", { skill: BT31_043_F20 }))[0], "BT31-043");
+  // The other three: only the reduction is this suite's (their other clauses: `union-reductions-rest-930.ts`).
+  // BT31-043 says "until the end of YOUR turn" (`ownTurn`).
+  reduction(skillRecords(card("BT31-043", { skill: BT31_043_F20 }))[0], "BT31-043", "ownTurn");
   reduction(skillRecords(card("EX23-11", { skill: EX23_11_F10 }))[0], "EX23-11");
   reduction(skillRecords(card("EX25-11", { skill: EX25_11_F10 }))[0], "EX25-11");
 }

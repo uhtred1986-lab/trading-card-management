@@ -105,6 +105,10 @@ export const DBS_BOARD_WORDS: BoardWords = {
       "text": "until the start of {them}'s next Main Phase",
       "you": "until the start of your next Main Phase"
     },
+    "ownTurn": {
+      "text": "until the end of {them}'s turn",
+      "you": "until the end of your turn"
+    },
     "game": {
       "text": "for the rest of the game"
     },
