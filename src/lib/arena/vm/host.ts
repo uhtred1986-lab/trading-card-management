@@ -287,6 +287,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // of the card alone and without the hooks, so [Servant]'s Charge-Phase
       // hook does not stop its own card standing by a skill.
       if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) return false;
+      // 20-14: "your cards can't be switched to Rest Mode by your opponent's
+      // skills" (P-680, DB2-138) — a skill's switch, asked with that skill's
+      // controller; a rest no skill makes (an attack's, 8-1-2) passes no `by`.
+      if (mode === "rest" && by && forbids(ctx, game, state, "beRestedBySkill", { card: id, player: by.master })) return false;
       inst.mode = mode;
       // 1-10-1: a skill doing the switching is part of the moment — `by:
       // skill`, or the keyword whose skill it is (`by: Alliance`, 22-32-3) —

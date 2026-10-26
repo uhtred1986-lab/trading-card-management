@@ -3415,8 +3415,68 @@ function attackObjects(objectSaid: string): { defender: CardFilter | undefined; 
   return defender ? { defender, attacker: undefined } : null;
 }
 
+/** The verbs a prohibition's action starts with — what makes a list after "can't" a list of actions. */
+const PROHIBITED_VERB = /^(?:attack|activate|block|combo|use|be|switch|play|send|place)\b/;
+
+/**
+ * "Can't attack **or** activate skills", "can't attack, be placed in your
+ * opponent's Combo Area, or activate skills until …": the actions of one
+ * prohibition said as a list, cut into one action each with the duration
+ * they share. Only a list whose every item starts with a verb is cut — "can't
+ * attack Leader Cards **or** Unison Cards" is one action with two defenders —
+ * and nothing with an escape clause, whose "unless" belongs to which action
+ * the words do not say. "Activate [Counter] or [Blocker] (skills)" (BT4-094,
+ * BT14-152) names two kinds of skill after one verb.
+ */
+function prohibitedActs(rest: string): { parts: string[]; tail: string } | null {
+  if (/\bunless\b|\bif\b|\bexcept\b|\bother than\b/.test(rest)) return null;
+  const tail = DURATION_AFTER_OBJECT.exec(rest)?.[0] ?? "";
+  const body = (tail ? rest.slice(0, rest.length - tail.length) : rest).trim();
+  if (/^activate (?:the )?\[counter\] or \[blocker\](?: skills?)?$/.test(body)) return { parts: ["activate [counter] skills", "activate [blocker]"], tail };
+  const parts = body.split(/\s*,\s*(?:or\s+)?|\s+or\s+/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2 || !parts.every((p) => PROHIBITED_VERB.test(p))) return null;
+  return { parts, tail };
+}
+
+/**
+ * The cards a combo prohibition is about (5-7): "combo", "combo with Battle
+ * Cards in their Battle Area" (P-060), "use a card in a combo" (BT28-013),
+ * "use cards from your hand in combos" (BT14-152). Only the area and a
+ * description the filter takes whole are read; anything else is `null`.
+ */
+function comboWords(rest: string): { filter?: CardFilter; fromArea?: "hand" | "battle" } | null {
+  const body = rest.replace(DURATION_AFTER_OBJECT, "").replace(/\s+this turn$/, "").trim();
+  let m: RegExpExecArray | null;
+  let said: string;
+  if (body === "combo") said = "";
+  else if ((m = /^combo with (.+)$/.exec(body))) said = m[1];
+  else if ((m = /^use (.+?) in (?:a )?combos?$/.exec(body))) said = m[1];
+  else return null;
+  let fromArea: "hand" | "battle" | undefined;
+  said = said.replace(/\s+(?:from|in) (?:your|their|the) (hand|battle area)$/, (_, a: string) => {
+    fromArea = a === "hand" ? "hand" : "battle";
+    return "";
+  }).trim();
+  if (!said || /^(?:an?|any)?\s*cards?$/.test(said)) return { ...(fromArea ? { fromArea } : {}) };
+  if (/^battle cards?$/.test(said)) return { filter: { ...parseFilter(""), type: "BATTLE" }, ...(fromArea ? { fromArea } : {}) };
+  const filter = filterFor(said, null);
+  if (!filter || unreadFilterWords(said, filter).length) return null;
+  return { filter, ...(fromArea ? { fromArea } : {}) };
+}
+
+/** "From the Battle Area", "from Battle Areas", "from your hand" after a combo or a play: the area, or null for none said. */
+function fromAreaWords(said: string): "hand" | "battle" | null {
+  if (/\bfrom (?:the |a |your |their |your opponent'?s |its owner'?s )?battle areas?\b/.test(said)) return "battle";
+  if (/\bfrom (?:your|their|their owners?'?s?) hands?\b/.test(said)) return "hand";
+  return null;
+}
+
 function compileProhibition(t: string, c: Ctx): Op[] | null {
-  const until = durationOf(t);
+  // "…choose up to 1 of your opponent's Battle Cards …, and it can't attack
+  // until the end of **their** next turn" (BT13-054): the pronoun is the
+  // opponent the skill names, as `durationOf` reads it when the same clause
+  // says "your opponent".
+  const until = /\buntil the end of their(?: next)? turn\b/.test(t) && !/\byour opponent\b/.test(t) && /\byour opponent'?s?\b/i.test(c.raw) ? "nextTurn" : durationOf(t);
   const q = stripQualifiers(t);
   // "Your opponent can only attack **this card**" (DB2-068), "your opponent's
   // Battle Cards can only attack this card" (TB1-035; #1005): every attack of
@@ -3464,6 +3524,26 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (!m) return null;
   let subject = m[1].trim();
   let rest0 = m[2].trim();
+  // "Your opponent can't **declare to** attack this card" (BT25-100): an
+  // attack is declared (8-1-1), so this is the attack itself.
+  rest0 = rest0.replace(/^declare to attack\b/, "attack");
+  // "If this card is in Rest Mode, **the opponent** cannot attack <Evil Wizard
+  // Babidi>" (BT2-023): the same player as "your opponent".
+  if (subject === "the opponent") subject = "your opponent";
+  // "It can't attack **or** activate skills" (BT9-071), "…can't attack, be
+  // placed in your opponent's Combo Area, or activate skills" (BT9-087): one
+  // prohibition per action, each read as if printed alone with the same
+  // subject and duration. Every action has to be read, or none is.
+  const acts = prohibitedActs(rest0);
+  if (acts) {
+    const out: Op[] = [];
+    for (const act of acts.parts) {
+      const one = compileProhibition(`${subject} can't ${act}${acts.tail}`, c);
+      if (!one) return null;
+      out.push(...one);
+    }
+    return out;
+  }
   // "Your opponent's Battle Cards and Unisons can't attack for the turn **if
   // they have 25000 power or more**" (BT22-138, #1005): a description of the
   // cards the rule is about, said after the verb. Folded back into the subject
@@ -3617,7 +3697,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
 
   // "Players can't attack with Battle Cards with energy costs of 1" (P-074,
   // #1005): both of them, which is what an absent `side` has always meant.
-  const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : /^players$/.test(subject) && /^attack\b/.test(rest) ? "both" : null;
+  // "You and your opponent can't play Battle Cards …" (EX23-05, BT24-138):
+  // both players, as "players" is.
+  const side: Side | null = /^you$/.test(subject) ? "you" : /^your opponent$/.test(subject) ? "opponent" : (/^players$/.test(subject) && /^attack\b/.test(rest)) || (/^you and your opponent$/.test(subject) && /^play\b/.test(rest)) ? "both" : null;
 
   // A sentence about a player: what follows names the cards it is about.
   if (side) {
@@ -3625,10 +3707,37 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // BT6-053: a player prohibition, not damage prevention or an optional payment.
     if (side === "you" && /^add cards from your life to your hand(?: for the duration of the turn)?$/.test(rest))
       return [{ op: "forbid", what: "addLifeToHand", side, until }];
+    // "During your turn, you can't use skills to play Battle Cards" (BT20-024):
+    // a play by a skill (`bySkill`), of the cards it names. A declared play is
+    // not this rule's.
+    if ((mm = /^use (?:card )?skills to play (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      const what = mm[1].trim();
+      const type = /^battle cards?$/.test(what) ? "BATTLE" : /^cards?$/.test(what) ? null : undefined;
+      if (type === undefined) return null;
+      return [{ op: "forbid", what: "play", side, until, bySkill: true, ...(type ? { filter: { ...parseFilter(""), type } } : {}), ...withUnless }];
+    }
     if ((mm = /^play\s+(.*)$/.exec(rest))) {
+      // "…can't play Battle Cards … **from their owner's hands**" (EX23-05,
+      // BT24-138): only a play of a card that is in a hand — declared or by a
+      // skill — and not one from the Drop, the deck or the Warp.
+      const fromHand = /\s+from (?:your|their|their owners?'?s?) hands?(?=\s+(?:for|during|until)\b|$)/;
+      const fromArea = fromHand.test(mm[1]) ? ("hand" as const) : undefined;
+      if (fromArea) {
+        const what = mm[1].replace(fromHand, "").replace(DURATION_AFTER_OBJECT, "").trim();
+        if (side === "both" && !/\btheir owners?'?s?\b/.test(mm[1])) return null;
+        if (!/\bbattle cards?\b/.test(what)) return null;
+        const filter = filterFor(what, null);
+        if (filter === null || (filter && unreadFilterWords(what, filter).length)) return null;
+        return [{ op: "forbid", what: "play", side, until, fromArea, filter: { ...(filter ?? parseFilter("")), type: "BATTLE" }, ...withUnless }];
+      }
+      if (side === "both") return null;
       const what = mm[1];
       if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true, ...withUnless }];
       if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } }, ...withUnless }];
+      // "…play Battle Cards from their hand **with the skills of cards with
+      // [Super Combo]**" (BT4-104): where the play comes from and what plays
+      // it are not a description of the card, and read as one they were.
+      if (/\bfrom\b|\bskills? of\b|\bby (?:card )?skills?\b|\busing\b/.test(what)) return null;
       const filter = filterFor(what, null);
       const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
       // A description that could not be read must not fall back to the type
@@ -3637,6 +3746,41 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       if (filter === null) return null;
       if (!filter && !type) return null;
       return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) }, ...withUnless }];
+    }
+    // 5-7: "your opponent can't combo for the battle", "…can't use a card in a
+    // combo", "you can't combo with cards in your Battle Area" (BT10-154),
+    // "…can't use cards from your hand in combos" (BT14-152).
+    const combo = /^(?:combo\b|use\b.*\bin (?:a )?combos?\b)/.test(rest) ? comboWords(rest.replace(/\s+for the duration of this card'?s battle$/, "")) : null;
+    if (combo) {
+      // "For the duration of this card's battle" (BT3-033): a [Permanent] says
+      // it holds while this card is in a battle; a resolved skill, for the battle.
+      if (/\bthis card'?s battle\b/.test(rest)) {
+        const rule: Op = { op: "forbid", what: "combo", side, until: "battle", ...combo, ...withUnless };
+        return c.permanent ? [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" } }, then: [rule] }] : [rule];
+      }
+      return [{ op: "forbid", what: "combo", side, until, ...combo, ...withUnless }];
+    }
+    if (/^combo\b|^use\b.*\bcombos?\b/.test(rest)) return null;
+    // "You can't send cards from Drop Areas to Warps" (BT6-028), "…from your
+    // Drop Area to your Warp" (BT16-001): a move by this player — a skill's or
+    // a price's — out of a Drop and into a Warp.
+    if ((mm = /^send cards from (drop areas|(?:your|their) drop(?: area)?) to (?:warps|(?:your|their) warp)(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      return [{ op: "forbid", what: "dropToWarp", side, until, fromArea: "drop", ...(mm[1] === "drop areas" ? {} : { fromOwnArea: true as const }), ...withUnless }];
+    }
+    // "Your opponent can't activate its skills" (BT31-111): the card the
+    // sentence has just named, and only that player's activation of it.
+    // A duration has to be said in the clause: BT31-111 prints it ahead of
+    // the sentence ("until the end of your opponent's turn, that card can't
+    // attack and your opponent can't activate its skills"), and only the
+    // first clause receives it, so this one would last the turn instead.
+    if (/^activate (?:its|their) skills\s+(?:for|during|until)\b/.test(rest)) {
+      const it = c.lastTarget;
+      return it ? [{ op: "forbid", what: "activateSkill", side, until, target: it, ...withUnless }] : null;
+    }
+    // "Your opponent can't activate skills on Battle Cards for the duration of
+    // the turn" (P-093): every skill of a Battle Card, in any area.
+    if (/^activate (?:the )?skills (?:of|on) battle cards(?: in any areas?)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
+      return [{ op: "forbid", what: "activateSkill", side, until, filter: { ...parseFilter(""), type: "BATTLE" }, ...withUnless }];
     }
     if (/^attack\b/.test(rest)) {
       // "attack this card" is about the defender, not the attacker.
@@ -3652,7 +3796,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       // print "can't attack your Leader" banned every attack the player had.
       // A description the filter cannot say whole stays unread.
       const objects = attackObjects(rest.replace(/^attack\s+/, ""));
-      if (!objects) return null;
+      if (!objects) {
+        // "Your opponent cannot attack your other Battle Cards" (BT1-093), "the
+        // opponent cannot attack <Evil Wizard Babidi>" (BT2-023): the cards of
+        // yours no attack of theirs may be declared against — each one asked
+        // as the defender (`beAttacked`), whoever attacks it.
+        const object = rest.replace(/^attack\s+/, "").replace(DURATION_AFTER_OBJECT, "").trim();
+        if (side !== "opponent" || !/^(?:your\b|[<{])/.test(object) || /\bwith\b/.test(object)) return null;
+        const target = refFor(object, c);
+        if (!target || !("sel" in target) || target.sel.special || (target.sel.side && target.sel.side !== "you")) return null;
+        return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
+      }
       return [{ op: "forbid", what: "attack", side, until, ...(objects.attacker ? { filter: objects.attacker } : {}), ...(objects.defender ? { attackTarget: objects.defender } : {}), ...withUnless }];
     }
     if (/^activate\b/.test(rest) && /\[counter/.test(rest)) {
@@ -3662,13 +3816,18 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       if (bounded) return [{ op: "forbid", what: "activateCounter", side, until, filter: { ...parseFilter(""), costMin: Number(bounded[1]) }, ...withUnless }];
       // #716: "the [Counter: Play] skills of other cards for the turn"
       // (BT10-008's price) names one kind of [Counter] and leaves this card out.
-      const narrow = /^activate (?:the )?\[counter: (play|attack|battle card attack|counter)\] skills of other cards(?:\s+(?:for|during|until)\b.*)?$/.exec(rest);
+      // BT15-016's own price says it "on other cards this turn".
+      const narrow = /^activate (?:the )?\[counter: (play|attack|battle card attack|counter)\] skills (?:of|on) other cards(?:\s+(?:for|during|until)\b.*|\s+this turn)?$/.exec(rest);
       if (narrow) {
         const counterKind = narrow[1] === "battle card attack" ? "battleCardAttack" : (narrow[1] as "play" | "attack" | "counter");
         return [{ op: "forbid", what: "activateCounter", side, until, counterKind, otherCards: true, ...withUnless }];
       }
       if (/^activate (?:the )?\[counter\] skills?(?:\s+(?:until|for|during)\b.*)?$/.test(rest))
         return [{ op: "forbid", what: "activateCounter", side, until, ...withUnless }];
+      // "Your opponent may not activate [Counter: Play] skills for the duration
+      // of the turn" (BT4-122): one kind of [Counter] (22-10-2-1), every card's.
+      const kind = /^activate (?:the )?\[counter: (play|attack|battle card attack|counter)\] skills?(?:\s+(?:until|for|during)\b.*)?$/.exec(rest);
+      if (kind) return [{ op: "forbid", what: "activateCounter", side, until, counterKind: kind[1] === "battle card attack" ? "battleCardAttack" : (kind[1] as "play" | "attack" | "counter"), ...withUnless }];
       // A trailing qualifier cannot be discarded into a wider Counter ban.
       return null;
     }
@@ -3701,10 +3860,26 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // subject at all it continues the clause before it, and only falls back to
   // this card when nothing was named — which is what the sets mean when they
   // print "this card gets +5000 power and can't attack for the turn".
+  // "That card's [Blocker] can't activate for the turn" (P-498): the card's
+  // [Blocker] is what blocks (22-4), so it is that card that can't block.
+  const keywordSubject = /^(.+?)'s? \[blocker\](?: skills?)?$/.exec(subject);
+  if (keywordSubject && /^activate(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
+    const owner = refFor(keywordSubject[1], c);
+    return owner ? [{ op: "forbid", what: "block", until, target: owner, ...withUnless }] : null;
+  }
   const target = subject ? refFor(subject, c) : (c.lastTarget ?? refFor("this card", c));
   if (!target) return null;
+  // "Your opponent's Battle Cards **with the same keyword skills as cards
+  // under this card**" (BT27-069) is a comparison no selector says; read as a
+  // description it became the cards under this card. A subject that names the
+  // opponent's cards and resolved to the player's own is refused the same way.
+  if (/\bsame\b.*\bas\b/.test(subject)) return null;
+  if (/^your opponent'?s\b/.test(subject) && "sel" in target && target.sel.side === "you") return null;
   // "can't be KO'd by your opponent's skills" — who is stopped from doing it.
-  const bySide: Side | undefined = /\bby your opponent'?s? (?:card'?s )?skills?\b/.test(rest) ? "opponent" : /\bby your skills?\b/.test(rest) ? "you" : undefined;
+  // "…by your opponent's **card** skills" (BT8-040), "…by **an** opponent's
+  // skill" (BT30-030), "…by **the skills of** your opponent's Battle Cards"
+  // (BT10-058) and "…by your **own** skills" (BT3-078) say the same two sides.
+  const bySide: Side | undefined = /\bby (?:your |an )?opponent'?s? (?:card'?s? )?skills?\b|\bby the skills of your opponent'?s\b/.test(rest) ? "opponent" : /\bby your (?:own )?skills?\b/.test(rest) ? "you" : undefined;
   // "This card can't be played by skills from any area", "…from any area
   // except by skills" (20-14). Fifteen cards print one of these, and the moment
   // that matters is always a *skill* reaching into the Drop or the deck for
@@ -3737,6 +3912,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // The object is the defender (BT1-057), not a blanket prohibition.
     if (/^attack(?:$| (?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "attack", until, target, ...withUnless }];
     const object = /^attack (.+?)(?= (?:for|during|until)\b|$)/.exec(rest)?.[1];
+    // "Your opponent's skill-less cards can't attack **this card**" (BT15-122),
+    // "your opponent's Leader Card cannot attack this card" (TB1-026): those
+    // attackers, and only an attack on this card (`against`).
+    if (object === "this card") return [{ op: "forbid", what: "attack", until, target, against: { sel: { special: "self" } }, ...withUnless }];
     if (!object || !/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) return null;
     // "…can't attack Leader Cards **or Unison Cards**" is two kinds, which
     // `filterFor` alone reads as the first and a bare "cards" as none (#1005).
@@ -3748,6 +3927,34 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
   // cannot be activated is cancelled), so `activateSkill` stops both.
   if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
+  // "Those cards can't activate [Blocker] skills for the turn" (EB1-36), "it
+  // can't attack or activate the [Blocker] skill" (BT25-100): its [Blocker] is
+  // how a card blocks (22-4), so this is a card that can't block.
+  // Only with a duration after it: "…during this card's attack" (BT1-031) is a
+  // moment, said about the opponent's [Blocker], and stays unread.
+  if (/^activate (?:the |its |their )?\[blocker\](?: skills?)?(?:$|\s+(?:for the|until|during (?:this|the) turn)\b)/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
+  // 5-7: "This card can't be used in a combo from the Battle Area" (EB1-21),
+  // "…in combos from Battle Areas" (P-277), "this card can't be used in a combo
+  // this turn" (BT15-129); "be placed in your opponent's Combo Area" (BT9-087)
+  // and "…in a Combo Area from your opponent's Battle Area" (SD10-04) are the
+  // same move said from where the card lands. Anything after the area is not read.
+  {
+    const comboSaid = /^(?:be used in (?:a )?combos?|be placed in (?:your opponent'?s |your |their |its owner'?s |a )?combo areas?)(.*)$/.exec(rest);
+    if (comboSaid) {
+      const after = comboSaid[1].replace(DURATION_AFTER_OBJECT, "").replace(/\s+this turn$/, "").trim();
+      const fromArea = fromAreaWords(after);
+      if (after && !(fromArea && /^from (?:the |a |your |their |your opponent'?s |its owner'?s )?(?:battle areas?|hands?)$/.test(after))) return null;
+      return [{ op: "forbid", what: "combo", until, target, ...(fromArea ? { fromArea } : {}), ...withUnless }];
+    }
+  }
+  // "This card can't be switched to Rest Mode by your opponent's skills"
+  // (DB2-138, P-680, BT8-040): a skill's switch only, whose side `bySide` says.
+  // A bare "can't be switched to Rest Mode" would also stop the rest an attack
+  // makes (8-1-2), which is a different rule, and stays unread.
+  if (/^be switched to rest mode\b/.test(rest)) {
+    if (!/^be switched to rest mode by (?:your |an )?(?:opponent'?s? )?(?:card'?s? )?skills?(?:$|\s+(?:for|during|until)\b)/.test(rest)) return null;
+    return [{ op: "forbid", what: "beRestedBySkill", until, target, side: bySide, ...withUnless }];
+  }
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
   if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) {
@@ -3756,13 +3963,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const inCharge = /\bduring (?:your opponent'?s|their) next charge phase\b/.test(t);
     return [{ op: "forbid", what: inCharge ? "switchToActiveInCharge" : "switchToActive", until, target, ...withUnless }];
   }
+  // "It can't be KO'd by your opponent's attacks for the battle" (BT13-118):
+  // the KO a battle makes when one of the opponent's cards attacked it, not
+  // one by a skill.
+  if (/^be ko'?d by your opponent'?s attacks?(?:$|\s+(?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "beKOdInBattle", until, target, side: "opponent", ...withUnless }];
   if (/^be ko'?d\b/.test(rest)) {
     // #907 round 4 (P-481, BT8-060): "can't be KO'd in battle **against Battle Cards with energy costs of 3 or
     // less**" / "…**by Battle Cards with an original power of 15000 or less**" names whose KO is stopped. The
     // bare rule below is stronger than that (every KO), so a qualifier that is not "by skills" is refused.
-    if (/\b(?:against|by) (?!(?:your opponent'?s |your )?(?:card'?s )?skills?\b)/.test(rest)) return null;
+    if (/\b(?:against|by) (?!(?:your opponent'?s |your (?:own )?)?(?:card'?s )?skills?\b)/.test(rest)) return null;
     // "by skills" is the narrow rule; a bare "can't be KO'd" covers the battle too.
-    const bySkill = /\bby (?:your opponent's |your )?(?:card'?s )?skills?\b/.test(rest);
+    const bySkill = /\bby (?:your opponent's |your (?:own )?)?(?:card'?s )?skills?\b/.test(rest);
     return [{ op: "forbid", what: bySkill ? "beKOdBySkill" : "beKOd", until, target, side: bySide, ...withUnless }];
   }
   if (/^be chosen\b/.test(rest)) return [{ op: "forbid", what: "beChosen", until, target, side: bySide, ...withUnless }];
@@ -3772,6 +3983,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // "can't be removed from a Battle Area" would also cover the KO.
   if (/^be removed from (?:a|the|your|their) battle area\b/.test(rest) && /\bby (?:your opponent's |your )?skills?\b/.test(rest)) {
     return [{ op: "forbid", what: "beMovedBySkill", until, target, side: bySide, ...withUnless }];
+  }
+  // The same rule said other ways: "…from Battle Areas by skills" (BT10-065),
+  // "…by your opponent's card skills" (BT8-040), "…by an opponent's skill"
+  // (BT30-030), "…by the skills of your opponent's Battle Cards" (BT10-058, a
+  // skill of a Battle Card only — `byTypes`). An exception ("other than",
+  // "except") stays unread.
+  {
+    const removed = /^be removed from (?:(?:a|the|your|their) battle areas?|battle areas) by (skills|your opponent'?s card skills|an opponent'?s skill|the skills of your opponent'?s battle cards)(?:$|\s+(?:for|during|until)\b)/.exec(rest);
+    if (removed) return [{ op: "forbid", what: "beMovedBySkill", until, target, ...(bySide ? { side: bySide } : {}), ...(/battle cards$/.test(removed[1]) ? { byTypes: ["BATTLE" as const] } : {}), ...withUnless }];
   }
   // "This card's skills can't be negated in any area" (9-1-5). `durationOf`
   // already reads "in any area" as the game.
@@ -5017,7 +5237,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // it. A replacement's "instead" is at the *end* of its clause (9-10); one
     // at the front is emphasis only, and it stopped every pattern below from
     // recognising an otherwise ordinary sentence.
-    const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1");
+    // 20-14: "your opponent **may not** activate [Counter: Play] skills"
+    // (BT4-122, BT4-003, BT4-080, BT4-094, BT4-104, P-060) is the same
+    // prohibition as "can't" — not an offer, which "may" alone would be.
+    const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1").replace(/\bmay not\b/i, "can't");
     const unbounded = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
     // 9-10 once a turn: "…, once per turn you may switch 1 of your cards to
     // Revealed Mode instead" (BT29-141). The replacement's program ends by
