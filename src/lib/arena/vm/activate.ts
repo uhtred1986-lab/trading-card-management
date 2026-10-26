@@ -90,7 +90,7 @@ import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem, isFixedUnderHost } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
@@ -1062,7 +1062,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];
     return !!b && (masterOf(game, state, b.attacker) === player || masterOf(game, state, b.guard) === player) && !!def && !!findCard(state, id)
-      && findCard(state, id)?.zone !== "combo" && canCombo(def) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
+      && findCard(state, id)?.zone !== "combo" && canCombo(def, comboPriceOf(game) === null) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
   };
   /** 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps" (BT6-028) — a price that needs that move can't be paid. */
   const dropToWarpForbidden = (id: string, to: string): boolean => to === "warp" && findCard(state, id)?.zone === "drop" && !!forbiddenBy(ctx, game, state, "dropToWarp", { player, card: id });
