@@ -32,9 +32,11 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
 {
   const lock = one(BT29_041);
   assert.deepEqual(lock.unsupported, []);
-  assert.deepEqual(lock.ops.map((o) => o.op), ["choose", "forbid"]);
+  // Owner ruling 26 Oct 2026 (A2): its [Blocker] is a skill it activates (22-4), so it does not block either.
+  assert.deepEqual(lock.ops.map((o) => o.op), ["choose", "forbid", "forbid"]);
   assert.deepEqual(lock.ops[1], { op: "forbid", what: "activateSkill", until: "whileSourceInPlay", target: { var: "c0" } });
-  assert.equal(describeScript(lock.ops), "choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards can't activate skills while this card is in a Battle Area");
+  assert.deepEqual(lock.ops[2], { op: "forbid", what: "block", until: "whileSourceInPlay", target: { var: "c0" } });
+  assert.equal(describeScript(lock.ops), "choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards can't activate skills while this card is in a Battle Area, the chosen cards can't block while this card is in a Battle Area");
 
   const barrier = one(BT29_042);
   assert.deepEqual(barrier.unsupported, []);

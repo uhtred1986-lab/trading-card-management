@@ -1091,7 +1091,9 @@ function ruleApplies(
   // rule cannot place is not its.
   // A caller asking about a move out of an area the candidate is not in says
   // which (`from`): [Over Realm]'s price, asked of the card in the hand.
-  if (f.fromArea) {
+  // "…from any of your areas" (`fromArea: "any"`, BT17-032's "place cards in
+  // your energy"): wherever the card comes from.
+  if (f.fromArea && f.fromArea !== "any") {
     const at = opts.card ? findCard(state, opts.card) : null;
     if ((opts.from ?? at?.zone) !== f.fromArea) return false;
     if (f.fromOwnArea && opts.player && (!at || at.owner !== opts.player)) return false;
@@ -1343,6 +1345,8 @@ export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState
 export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, card: string): boolean {
   for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
     if (rule.target !== card || rule.forbid.what !== what || (rule.forbid.uses ?? 0) > 0 || rule.forbid.pay) continue;
+    // BT18-052: "…this card in your Energy Area…" — only while it is there.
+    if (rule.forbid.fromArea && rule.forbid.fromArea !== "any" && zoneOf(state, card) !== rule.forbid.fromArea) continue;
     if (what === "switchToActiveInCharge" && rule.until === "afterOpponentCharge" && rule.master === state.turnPlayer) continue;
     if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
     return true;
@@ -1483,6 +1487,10 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       matchesPrinted = id => {
         const at = findCard(state, id), attrs = attrsNow(ctx, game, state, id);
         if (at?.owner !== frame.master || at.zone !== evolution.base.area || typeof attrs.energyCost !== "number") return false;
+        // 20-14: "this card can't [Evolve] into other cards" (BT8-009),
+        // "you can't place cards on top of this card" (BT1-111) — no base,
+        // so the evolution is not offered onto it and no price is paid for it.
+        if (forbids(ctx, game, state, "evolveOnto", { card: id, player: frame.master }) || forbids(ctx, game, state, "placeOnTop", { card: id, player: frame.master })) return false;
         // #1136 (owner ruling, 20 Oct 2026): the cost an [Evolve] base is matched against is the
         // PRINTED energy cost, like every cost filter (#1097); 20-21 reductions and [Permanent]
         // increases change only what is paid. The specified orbs still floor it.
@@ -1493,7 +1501,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const sk = lineOf(ctx, state, frame, game);
       if (!sk) return [];
       const printed = predicateOf(parseFilter(printedDescription(sk)), game);
-      matchesPrinted = (id) => printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+      // An [Evolve] line whose record carries no base: the same 20-14 bans as above.
+      const evolving = sk.keyword?.name === "Evolve";
+      matchesPrinted = (id) => {
+        if (evolving && (forbids(ctx, game, state, "evolveOnto", { card: id, player: frame.master }) || forbids(ctx, game, state, "placeOnTop", { card: id, player: frame.master }))) return false;
+        return printed(sel.special === "subject" && id === frame.subject && frame.subjectInfo ? frame.subjectInfo : attrsNow(ctx, game, state, id));
+      };
     }
   }
   // #970: cards an earlier choice of this program bound are not on offer again.

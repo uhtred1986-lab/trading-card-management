@@ -476,7 +476,7 @@ export function isComboDropReplacement(clause: string): boolean {
   return from?.length === 1 && from[0] === "combo";
 }
 
-function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent"; subject?: string } | null {
+function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent" | "you"; subject?: string } | null {
   const t = clean(clause);
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
   // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
@@ -497,12 +497,15 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
     // "would leave" covers every cause, so it has no restriction at all.
     // Owner ruling, 26 Oct 2026: a KO by a skill is a removal, so "…removed
     // from the Battle Area **by your opponent's skill**, … instead" answers
-    // a skill's KO as well (`skillOrKoBySkill`) — never the battle's. A
-    // removal with no cause named keeps the old reading ("skill").
-    const by = verb === "leave" ? undefined : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skill" as const);
+    // a skill's KO as well (`skillOrKoBySkill`) — never the battle's.
+    // Owner ruling 26 Oct 2026 (A9): a removal with no cause named answers
+    // every removal a skill makes and every KO, the battle's included
+    // (`skillOrKo`, the reading "…by a skill or KO'd" has).
+    const by = verb === "leave" ? undefined : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skillOrKo" as const);
     // The cause was named and it was not one of the player's own skills, so
     // it is the opponent's — the one distinction `by` alone cannot draw.
-    const bySide = opener[4] && !opener[5] ? ({ bySide: "opponent" } as const) : null;
+    // "…by your skill", "…by one of your skills": the card's own controller's.
+    const bySide = opener[4] && !opener[5] ? ({ bySide: "opponent" } as const) : opener[5] === "your" || opener[5] === "one of your" ? ({ bySide: "you" } as const) : null;
     const who = opener[1].trim();
     // "…with a combo cost of 1" (BT19-100): a card filter has no combo-cost
     // measure, so the qualifier was dropped without a word and the rule read as
@@ -518,13 +521,17 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // "A ≪Turles Crusher Corps≫ card in your Battle Area would be placed in its
   // owner's Drop Area by one of your skills" (BT12-056(+b), BT15-092(+b),
   // BT15-097) — the ordinary route out (a skill sending it to the Drop) named
-  // in full rather than as "leave"/"removed from" the Battle Area. Same
-  // event, same default cause.
-  const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (?:a|one of your) skills?$/.exec(t);
+  // in full rather than as "leave"/"removed from" the Battle Area.
+  // Owner ruling 26 Oct 2026 (A9): a skill's KO places the card in the Drop
+  // Area too (5-12-1), so it answers that as well (`skillOrKoBySkill`) —
+  // never the battle's KO.
+  // "…by one of your skills" is the card's controller's skill (`bySide: you`).
+  const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (a|one of your) skills?$/.exec(t);
   if (droppedBySkill) {
     const who = droppedBySkill[1].trim();
-    if (/^(?:this card|it)$/.test(who)) return { by: "skill" };
-    return who ? { by: "skill", subject: who } : { by: "skill" };
+    const mine = droppedBySkill[2] === "one of your" ? ({ bySide: "you" } as const) : null;
+    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine };
+    return who ? { by: "skillOrKoBySkill", ...mine, subject: who } : { by: "skillOrKoBySkill", ...mine };
   }
   // #920: the official DB2 errata names both valid source areas and no
   // cause/destination restriction. Keep these areas on the redirect rather
@@ -4214,18 +4221,27 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // and takes that one; with none, it stays unread.
     if (/^activate (?:its|their) skills\s+(?:for|during|until)\b/.test(rest)) {
       const it = c.lastTarget;
-      return it ? [{ op: "forbid", what: "activateSkill", side, until, target: it, ...withUnless }] : null;
+      return it ? [{ op: "forbid", what: "activateSkill", side, until, target: it, ...withUnless }, { op: "forbid", what: "block", until, target: it, ...withUnless }] : null;
     }
     if (/^activate (?:its|their) skills$/.test(rest)) {
       const said = t.replace(/[.\s]+$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const lead = new RegExp(`(until the end of [^,.]+?|for the (?:duration of the )?turn),\\s+[^,.]*?\\bcan'?t\\b[^,.]*?\\s+and\\s+${said}`, "i").exec(c.raw);
       const it = c.lastTarget;
-      return lead && it ? [{ op: "forbid", what: "activateSkill", side, until: /\buntil the end of their(?: next)? turn\b/i.test(lead[1]) ? "nextTurn" : durationOf(lead[1]), target: it, ...withUnless }] : null;
+      const span = lead ? (/\buntil the end of their(?: next)? turn\b/i.test(lead[1]) ? "nextTurn" : durationOf(lead[1])) : until;
+      return lead && it ? [{ op: "forbid", what: "activateSkill", side, until: span, target: it, ...withUnless }, { op: "forbid", what: "block", until: span, target: it, ...withUnless }] : null;
     }
     // "Your opponent can't activate skills on Battle Cards for the duration of
     // the turn" (P-093): every skill of a Battle Card, in any area.
+    // Owner ruling 26 Oct 2026 (A2): "can't activate skills on Battle Cards"
+    // covers their [Counter] lines (`activateCounter`, asked on its own) and
+    // their [Blocker] (22-4: a [Blocker] is activated) as well.
     if (/^activate (?:the )?skills (?:of|on) battle cards(?: in any areas?)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
-      return [{ op: "forbid", what: "activateSkill", side, until, filter: { ...parseFilter(""), type: "BATTLE" }, ...withUnless }];
+      const battle = { ...parseFilter(""), type: "BATTLE" as const };
+      return [
+        { op: "forbid", what: "activateSkill", side, until, filter: battle, ...withUnless },
+        { op: "forbid", what: "activateCounter", side, until, filter: battle, ...withUnless },
+        { op: "forbid", what: "block", side, until, filter: battle, ...withUnless },
+      ];
     }
     // "When this card is in a battle, your opponent can't activate
     // non-[Super Combo] card skills" (BT18-019), "…can't activate skills on
@@ -4246,9 +4262,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         if (!filter || unreadFilterWords(said, filter).length) return null;
         const which = /\bbattle cards?\b/.test(said) ? { ...filter, type: "BATTLE" as const } : filter;
         const escape = inBattleTail ? { unless: { kind: "not" as const, cond: { kind: "inBattle" as const, sel: { special: "self" as const } } } } : withUnless;
+        // Owner ruling 26 Oct 2026 (A2): a [Blocker] is a skill activated
+        // (22-4), so the described cards do not block either.
         return [
           { op: "forbid", what: "activateSkill", side, until, filter: which, ...escape },
           { op: "forbid", what: "activateCounter", side, until, filter: which, ...escape },
+          { op: "forbid", what: "block", side, until, filter: which, ...escape },
         ];
       }
     }
@@ -4334,6 +4353,31 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
     if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
+    // "You can't place cards on top of this card" (BT1-111, BT25-131): no
+    // card is played on top of it — an evolution or a [Union-Potara] (23-1).
+    if (/^place cards on top of this card(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "placeOnTop", side, until, target: { sel: { special: "self" } }, ...withUnless }];
+    // "You can't switch this card in your Energy Area to Active Mode"
+    // (BT18-052): a rule about itself while it is in the Energy Area — a
+    // skill's switch and the Charge Phase's alike (`fromArea: energy`).
+    if (side === "you" && /^switch this card in your energy(?: area)? to active mode$/.test(rest)) return [{ op: "forbid", what: "switchToActive", until: "game", target: { sel: { special: "self" } }, fromArea: "energy", ...withUnless }];
+    // "You can't use non-≪Red Ribbon Army≫ card skills to place cards in your
+    // energy" (BT17-032): a skill of a card the description fits (`byFilter`,
+    // asked of the skill's card) moving a card of this player's, from any
+    // area, into an Energy Area. The Charge Phase is no skill's.
+    if (side !== "both" && (mm = /^use (.+?) card skills to place cards (?:in|into) (your|their) energy(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      const said = `${mm[1]} card`;
+      const byFilter = filterFor(said, null);
+      if (!byFilter || unreadFilterWords(said, byFilter).length || (mm[2] === "your") !== (side === "you")) return null;
+      return [{ op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", byFilter, ...withUnless }];
+    }
+    // "You cannot place your opponent's hand in their Drop Area using
+    // {Destined Conclusion Hero}'s skill for the duration of the turn"
+    // (TB2-045): that card's skill (`byFilter` by name) moving a card of the
+    // opponent's hand to a Drop Area — every card of it, one that enters
+    // the hand later included (`cardsOf`).
+    if (side === "you" && (mm = /^place your opponent'?s hand in their drop(?: area)? using (\{[^}]+\})'?s skills?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      return [{ op: "forbid", what: "beMovedBySkill", side, until, cardsOf: "opponent", fromArea: "hand", toArea: "drop", byFilter: { ...parseFilter(""), names: [mm[1].slice(1, -1).trim()] }, ...withUnless }];
+    }
     return null;
   }
 
@@ -4442,7 +4486,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // "your opponent's Leader Card cannot attack this card" (TB1-026): those
     // attackers, and only an attack on this card (`against`).
     if (object === "this card") return [{ op: "forbid", what: "attack", until, target, against: { sel: { special: "self" } }, ...withUnless }];
-    if (!object || !/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) return null;
+    if (!object) return null;
+    // "Your opponent's Battle Cards and Unisons can't attack **your yellow
+    // Z-Unisons**" (BT24-101): a described defender of this player's, read
+    // only when the description is read whole and names a kind of card.
+    if (!/^(?:(?:your(?: opponent'?s)?|their|an?|the) )?(?:battle cards?|leaders?(?: cards?)?|unisons?(?: cards?)?)\b/.test(object)) {
+      const described = /^your\b/.test(object) && /^your opponent'?s\b/.test(subject) ? attackObjects(object) : null;
+      if (!described?.defender || described.attacker) return null;
+      return [{ op: "forbid", what: "attack", until, target, attackTarget: described.defender, ...withUnless }];
+    }
     // "…can't attack Leader Cards **or Unison Cards**" is two kinds, which
     // `filterFor` alone reads as the first and a bare "cards" as none (#1005).
     const objects = attackObjects(object);
@@ -4452,7 +4504,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // "It can't activate skills" (BT29-041): the card's own [Activate] and
   // [Auto] skills, both of which are *activated* (9-6-3-2 — an [Auto] that
   // cannot be activated is cancelled), so `activateSkill` stops both.
-  if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }];
+  // Owner ruling 26 Oct 2026 (A2): its [Blocker] is a skill it activates
+  // (22-4), so a card that can't activate skills does not block.
+  if (/^activate (?:its |their )?skills\b/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target, ...withUnless }, { op: "forbid", what: "block", until, target, ...withUnless }];
   // "Those cards can't activate [Blocker] skills for the turn" (EB1-36), "it
   // can't attack or activate the [Blocker] skill" (BT25-100): its [Blocker] is
   // how a card blocks (22-4), so this is a card that can't block.
@@ -4480,6 +4534,29 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (/^be switched to rest mode\b/.test(rest)) {
     if (!/^be switched to rest mode by (?:your |an )?(?:opponent'?s? )?(?:card'?s? )?skills?(?:$|\s+(?:for|during|until)\b)/.test(rest)) return null;
     return [{ op: "forbid", what: "beRestedBySkill", until, target, side: bySide, ...withUnless }];
+  }
+  // "This card can't [Evolve] into other cards" (BT8-009, DB2-131, EX25-37):
+  // it is no base for an evolution of any kind (22-5) — the card itself
+  // still evolves onto others, and a [Union-Potara] onto it is not this rule's.
+  if (c.permanent && /^\[evolve\] into other cards$/.test(rest)) return [{ op: "forbid", what: "evolveOnto", until: "game", target, ...withUnless }];
+  // "Cards in your hand can't be discarded by your green <Broly> Leader Card
+  // skills" (P-270): a skill's move from the hand to the Drop Area (a discard,
+  // 20-7), by a skill of a card the description fits (`byFilter`).
+  {
+    const discarded = /^be discarded by (your (?:own )?|your opponent'?s |an opponent'?s )(?:(.+?) )?(?:card )?skills?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest);
+    if (discarded && "sel" in target && target.sel.area === "hand") {
+      const said = discarded[2] ? (/\bcards?$/.test(discarded[2]) ? discarded[2] : `${discarded[2]} card`) : "";
+      const byFilter = said ? filterFor(said, null) : undefined;
+      if (byFilter === null || (byFilter && unreadFilterWords(said, byFilter).length)) return null;
+      const actor: Side = /^your (?:own )?$/.test(discarded[1]) ? "you" : "opponent";
+      const scope = { side: actor, fromArea: "hand" as const, toArea: "drop" as const, ...(byFilter ? { byFilter } : {}) };
+      if (!c.permanent) {
+        const whole = /^cards in (your|your opponent'?s) hand$/.exec(subject);
+        if (!whole || "var" in target || target.sel.filter) return null;
+        return [{ op: "forbid", what: "beMovedBySkill", until, cardsOf: whole[1] === "your" ? "you" : "opponent", ...scope, ...withUnless }];
+      }
+      return [{ op: "forbid", what: "beMovedBySkill", until, target, ...scope, ...withUnless }];
+    }
   }
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];

@@ -1928,7 +1928,12 @@ import type { EngineState, Trigger } from "./harness";
   assert.deepEqual(one("[Activate: Main] Look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under your Leader, then shuffle your deck.").unsupported, []);
   // "Add up to 2 [Dragon Ball] cards to your hand" with no area (BT21-027)
   // is not read as cards you have in play either.
-  assert.ok(one("[Auto] When this card is played, look at your deck and life, add up to 2 [Dragon Ball] cards to your hand.").unsupported.length > 0);
+  // (Phrasing batch 4: "look at your deck and life, add …" is a search of both areas — never cards in play.)
+  {
+    const both = one("[Auto] When this card is played, look at your deck and life, add up to 2 [Dragon Ball] cards to your hand.");
+    assert.deepEqual(both.unsupported, []);
+    assert.ok(!JSON.stringify(both.ops).includes('"area":"play"') && JSON.stringify(both.ops).includes('"areas":["deck","life"]'), "chosen from your deck and life");
+  }
 }
 
 {

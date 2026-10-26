@@ -286,7 +286,14 @@ for (const code of STARTERS) {
 }
 for (const def of Object.values(FW_DEFS)) {
   assert.equal(def.comboCost, null, `${def.id}: no combo price`);
-  assert.equal(def.specifiedCost, undefined, `${def.id}: no specified cost until F1-08`);
+  // The printed orbs from Bandai's official card list (F1-08, #1191): every non-leader prints at least one,
+  // never more than its cost; a leader prints none.
+  if (def.type === "LEADER") assert.equal(def.specifiedCost, undefined, `${def.id}: a leader prints no specified cost`);
+  else {
+    const orbs = Object.values(def.specifiedCost ?? {}).reduce((a, b) => a + (b ?? 0), 0);
+    assert.ok(orbs >= 1, `${def.id}: a specified cost of at least one orb`);
+    assert.ok(orbs <= Number(def.energyCost), `${def.id}: no more orbs than its cost`);
+  }
   for (const side of def.back ? (["front", "back"] as const) : (["front"] as const)) {
     const compiled = compileCardCached(def, side);
     const unread = Object.entries(compiled.bySkill).filter(([, sc]) => (sc as { unsupported: string[] }).unsupported.length).map(([i]) => i);
@@ -301,10 +308,13 @@ for (const def of Object.values(FW_DEFS)) {
   const created = IMPL.createGame(FC, { seed: 7, game: "fusion", p1: starterDeck("FS01"), p2: starterDeck("FS02") }).state;
   assert.equal(created.game, "fusion");
   let state = opening("FS01", "FS02");
+  // The first player draws on turn one too (owner's ruling of 26 Oct 2026, the 1 Jul 2024 change):
+  // at their first Charge Phase prompt p1 holds the 6-card hand plus that draw.
   for (const p of ["p1", "p2"] as const) {
-    assert.equal(zoneOf(state, p, "hand").length, 6, `${p}: a 6-card hand`);
+    const drew = p === state.firstPlayer ? 1 : 0;
+    assert.equal(zoneOf(state, p, "hand").length, 6 + drew, `${p}: a 6-card hand${drew ? " plus the first turn's draw" : ""}`);
     assert.equal(lifeOf(state, p), 8, `${p}: 8 life`);
-    assert.equal(zoneOf(state, p, "deck").length, 36, `${p}: 50 - 6 - 8 left in the deck`);
+    assert.equal(zoneOf(state, p, "deck").length, 36 - drew, `${p}: 50 - 6 - 8 left in the deck${drew ? ", less the draw" : ""}`);
     assert.equal(zoneOf(state, p, "zDeck").length + zoneOf(state, p, "zEnergy").length, 0, `${p}: no Z-Deck`);
   }
   assert.equal(energyMarkersOf(state, "p1"), 0, "the first player has no energy marker");
@@ -621,3 +631,37 @@ const FUZZ_GAMES = 40;
 
 
 console.log(`arena-fusion-world: ${rows.length} skill lines of 64 cards read`);
+
+// #1191 (review of the stored starter rules): the catalog's Fusion World rows carry no `characters` at all (the
+// deckplanet feed has no `card_character` for that game), and its names are spelled "Trunks: Youth", not the card
+// site's "Trunks : Youth" the fixtures use. `cardDefFrom` therefore makes a Fusion World card's name its character;
+// this proves it on catalog-shaped rows, through the filters the real stored rows compile to.
+{
+  const { cardDefFrom } = await import("../../src/lib/arena/load");
+  const { matches } = await import("../../src/lib/arena/text/filters");
+  const row = (id: string, name: string, cardType: string, energyCost: string | null, skill: string | null, game = "fusion") => ({
+    id, name, cardType, colors: ["Blue"], energyCost, zEnergyCost: null, power: 10000, comboCost: null, comboPower: 5000,
+    skill, characters: [] as string[], traits: [] as string[], backName: null, backPower: null, backSkill: null, specifiedCost: null, game,
+  });
+  const trunks = cardDefFrom(row("FS02-08", "Trunks: Youth", "BATTLE", "1", "[On Play] Draw 1 card."));
+  const goten = cardDefFrom(row("FS02-05", "Son Goten", "BATTLE", "1", null));
+  const broly = cardDefFrom(row("FS03-01", "Broly", "LEADER", null, null));
+  assert.deepEqual(trunks.characters, ["Trunks: Youth"], "a Fusion World card's name is its character");
+  assert.deepEqual(cardDefFrom(row("BT1-001", "Some Card", "BATTLE", "1", null, "dbs")).characters, [], "an original-game card keeps its own (empty) list");
+  // FS02-03 exactly as the catalog prints it, "?" where the feed lost the dashes.
+  const gotenks = cardDefFrom(row("FS02-03", "Gotenks", "BATTLE", "4", "[On Play] If you have 7 or fewer cards in your hand, add up to 1 &lt;Son Goten&gt; and up to 1 &lt;Trunks: Youth&gt;?both with a cost of 2 or less?from your Drop to your hand."));
+  const chooses: { sel?: { filter?: Parameters<typeof matches>[1] } }[] = [];
+  const walk = (ops: unknown): void => { if (Array.isArray(ops)) ops.forEach(walk); else if (ops && typeof ops === "object") { const o = ops as Record<string, unknown>; if (o.op === "choose") chooses.push(o as never); for (const v of Object.values(o)) walk(v); } };
+  walk((skillRecords(gotenks) as { ops: unknown[] }[]).map((r) => r.ops));
+  const named = chooses.filter((c) => c.sel?.filter?.characters?.length);
+  assert.equal(named.length, 2, "FS02-03 compiles to two named picks");
+  assert.ok(matches(goten, named[0].sel!.filter!) && !matches(trunks, named[0].sel!.filter!), "the first pick takes Son Goten, not Trunks");
+  assert.ok(matches(trunks, named[1].sel!.filter!) && !matches(goten, named[1].sel!.filter!), "the second pick takes Trunks: Youth, not Son Goten");
+  // FS03-06's "If your Leader is <Broly>" on the catalog's Broly leader.
+  const shamoian = cardDefFrom(row("FS03-06", "Paragus", "BATTLE", "2", "[Activate Main][Once per turn] If your Leader is &lt;Broly&gt; and you have no &lt;Shamoian&gt; Battle Cards, play up to 1 &lt;Shamoian&gt; with a cost of 1 from your Drop."));
+  const conds: { kind?: string; filter?: Parameters<typeof matches>[1] }[] = [];
+  const walkCond = (v: unknown): void => { if (Array.isArray(v)) v.forEach(walkCond); else if (v && typeof v === "object") { const o = v as Record<string, unknown>; if (o.kind === "leaderMatches") conds.push(o as never); for (const x of Object.values(o)) walkCond(x); } };
+  walkCond(skillRecords(shamoian));
+  assert.ok(conds.length >= 1 && conds.every((c) => matches(broly, c.filter!)), "\"your Leader is <Broly>\" holds for the catalog's Broly leader");
+  console.log("arena-fusion-world: catalog-shaped rows: names are characters; FS02-03's picks and FS03-06's leader check match");
+}

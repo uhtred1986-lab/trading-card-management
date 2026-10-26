@@ -91,7 +91,10 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
     const program = showing.scripts.bySkill[sk.index];
     if (!program || program.unsupported.length || !sparkingIsValid(state, master, sk.validity)) continue;
     for (const op of program.ops) {
-      if (op.op !== "forbid" || op.until !== "game" || (op.bySkill === undefined && op.what !== "play")) continue;
+      // BT18-052: "You can't switch this card in your Energy Area to Active
+      // Mode" — a rule about itself where it is (9-1-3-3), which is no in-play area.
+      const inEnergy = op.op === "forbid" && op.what === "switchToActive" && op.fromArea === "energy" && Object.values(state.sides).some((side) => side.zones.energy?.includes(id));
+      if (op.op !== "forbid" || op.until !== "game" || (op.bySkill === undefined && op.what !== "play" && !inEnergy)) continue;
       if (!op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
       const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card: id, master };
       out.push({
@@ -105,6 +108,7 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
         ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}),
         // "…with skills other than [Revive Blue/Green]" (owner ruling 26 Oct 2026).
         ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}),
+        ...(inEnergy ? { fromArea: "energy" as const } : {}),
       });
     }
   }

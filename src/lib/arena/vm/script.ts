@@ -1026,7 +1026,7 @@ export type Op =
    * `by: "skill"` narrows it to departures a skill caused, and
    * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent" | "you"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -1064,7 +1064,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1181,7 +1181,7 @@ export type Op =
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
-      fromArea?: "hand" | "battle" | "drop" | "deck";
+      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
@@ -1949,6 +1949,10 @@ const SUM_ONE = "__one";
 
 /** Name of the variable a paid-for switch names its energy by (BT8-051): a price already paid, so the switch is not taxed again. Never a name a card's program writes. */
 const TAX_PAID_VAR = "§taxPaid";
+/** A4: the cards of one `play` whose play tax was paid, declined (or unpayable), and the one being asked about. */
+const PLAY_TAX_PAID = "§playTaxPaid";
+const PLAY_TAX_SKIPPED = "§playTaxSkipped";
+const PLAY_TAX_ASKED = "§playTaxAsked";
 
 /** `switchMode` on these cards, with the moments a switch to Rest Mode pends (1-10). */
 function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "switchMode" }>, ids: string[], master: PlayerId): void {
@@ -2711,8 +2715,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // "Your opponent can't add cards from their deck to their hand using
           // non-Leader Card skills" (DB3-092, BT9-077): a card in a deck too,
           // which only a rule naming the deck (`fromArea: deck`) is about.
-          if ((leaving === "battle" || leaving === "hand" || leaving === "deck") && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
-            if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "hand" ? `${h.nameOf(id)} can't be moved from the hand` : leaving === "deck" ? `${h.nameOf(id)} can't be moved from the deck` : `${h.nameOf(id)} can't be removed from the Battle Area`;
+          // "You can't use non-≪Red Ribbon Army≫ card skills to place cards in
+          // your energy" (BT17-032, `fromArea: "any"`): a card from any area —
+          // a rule naming no area is still about the Battle Area alone.
+          if (leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "battle" ? `${h.nameOf(id)} can't be removed from the Battle Area` : `${h.nameOf(id)} can't be moved from the ${leaving}`;
             frame.moveLoop.index++;
             continue;
           }
@@ -3596,7 +3603,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
+        let targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
         // that fails to enter play (Fusion/Potara: the card that activated it,
@@ -3605,8 +3612,63 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (evolution || op.using === "Union-Fusion" || op.using === "Union-Potara") { for (const id of candidates) if (h.areaOf(id) === "hand" || (evolution && h.areaOf(id) === "zEnergy")) h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
           else if (op.using === "Union-Absorb") for (const id of candidates) { const at = h.areaOf(id); if (at && at !== "drop") h.move(id, "drop", h.ownerOf(id), { reason: "rule" }); }
         };
+        // Owner ruling 26 Oct 2026 (A4, 20-14-1): a play tax ("…can't play
+        // Battle Cards with 30000 power or less unless they choose 4 cards from
+        // their life and place them in their Drop Area", BT6-017, BT6-023)
+        // binds a skill's play too, a keyword's included: each such card is
+        // played only once its player pays the price — asked here, one card at
+        // a time, and paid in a frame of its own whose "this card" is the card
+        // being played (a price from the hand never offers it). A price that
+        // can't be paid, or one declined, leaves that card where it is. The
+        // play the player declares has paid at its declaration already.
+        if (!frame.declaredPlay && targets.length) {
+          const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) });
+          if (frame.awaiting === "playTax" && h.lastMode() != null) {
+            const yes = h.lastMode() === 0;
+            h.clearLastMode();
+            frame.awaiting = undefined;
+            const [asked] = frame.vars[PLAY_TAX_ASKED] ?? [];
+            delete frame.vars[PLAY_TAX_ASKED];
+            if (asked && yes) {
+              frame.vars[PLAY_TAX_PAID] = [...(frame.vars[PLAY_TAX_PAID] ?? []), asked];
+              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master }, frame);
+              return "done";
+            }
+            if (asked) frame.vars[PLAY_TAX_SKIPPED] = [...(frame.vars[PLAY_TAX_SKIPPED] ?? []), asked];
+          }
+          const settled = new Set([...(frame.vars[PLAY_TAX_PAID] ?? []), ...(frame.vars[PLAY_TAX_SKIPPED] ?? [])]);
+          for (const id of targets) {
+            if (settled.has(id)) continue;
+            const taxes = h.taxesOn("play", ask(id));
+            if (!taxes.length) continue;
+            const price = describeScript(taxes.flat()).replace(/ other than this card\b/g, " other than the card being played");
+            if (!taxes.every((ops) => h.canPayTax(master, id, ops))) {
+              h.note(`${h.nameOf(id)} can't be played — the price (${price}) can't be paid`);
+              frame.vars[PLAY_TAX_SKIPPED] = [...(frame.vars[PLAY_TAX_SKIPPED] ?? []), id];
+              continue;
+            }
+            frame.vars[PLAY_TAX_ASKED] = [id];
+            frame.awaiting = "playTax";
+            h.resume(frame);
+            h.ask({ kind: "chooseMode", player: master, reason: `${h.nameOf(frame.card)}: ${h.nameOf(id)} can be played only by paying ${price}`, options: [`Pay ${price} and play ${h.nameOf(id)}`, `Don't pay — ${h.nameOf(id)} is not played`] });
+            return "wait";
+          }
+          const skipped = frame.vars[PLAY_TAX_SKIPPED] ?? [];
+          targets = targets.filter((id) => !skipped.includes(id));
+          delete frame.vars[PLAY_TAX_PAID];
+          delete frame.vars[PLAY_TAX_SKIPPED];
+        }
         if (!targets.length) { failedEvolution(); break; }
         const onto = op.onto ? h.resolveRef(frame, op.onto)[0] : undefined;
+        // 20-14: "you can't place cards on top of this card" (BT1-111), "this
+        // card can't [Evolve] into other cards" (BT8-009). The base choice
+        // already leaves such a card out; a base that came under the rule
+        // since is no base, and the play fails as 22-5-7's does.
+        if (onto && (h.forbids("placeOnTop", { card: onto, player: master }) || (evolution && h.forbids("evolveOnto", { card: onto, player: master })))) {
+          h.note(`${h.nameOf(onto)}: no card can be played on top of it`);
+          failedEvolution();
+          break;
+        }
         const under = op.alsoUnder ? h.resolveRef(frame, op.alsoUnder) : undefined;
         // #929: a Potara/Absorb whose host is not in the Battle Area any more is no play at all, not one beside it.
         // #927: a Potara's materials may also stand under a Unison or in the opponent's

@@ -81,7 +81,7 @@ const SELF = { sel: { special: "self" } };
   assert.equal((ops("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, you may place all of the cards under this card in their owners' Drop Areas instead.")[0] as { by?: string }).by, "skillOrKoBySkill", "a substitute (BT7-119's family)");
   assert.equal((ops("[Permanent] If this card would be removed from a Battle Area by a skill, remove it from the game instead.")[0] as { by?: string }).by, "skillOrKoBySkill", "any player's skill");
   assert.equal((ops("[Permanent] If this card would be removed from a Battle Area by a skill or KO'd, remove it from the game instead.")[0] as { by?: string }).by, "skillOrKo", "\"…or KO'd\" still takes the battle's KO");
-  assert.equal((ops("[Permanent] If this card would be removed from a Battle Area, remove it from the game instead.")[0] as { by?: string }).by, "skill", "no cause named: unchanged");
+  assert.equal((ops("[Permanent] If this card would be removed from a Battle Area, remove it from the game instead.")[0] as { by?: string }).by, "skillOrKo", "no cause named: every removal by a skill and every KO, the battle's included (owner ruling A9, batch 4)");
 }
 // Ruling 9: [Revive] is the one skill that may play it.
 {
@@ -119,10 +119,11 @@ const SELF = { sel: { special: "self" } };
     "[Permanent] When this card is in Rest Mode, your opponent can't use non-Leader Card skills to add cards from their deck to their hand.",
     "[Permanent] When this card is in Rest Mode, your opponent can't add cards from their deck to their hand using non-Leader Card skills.",
   ]) assert.deepEqual(forbids(ops(text)), [{ op: "forbid", what: "beMovedBySkill", side: "opponent", until: "game", cardsOf: "opponent", fromArea: "deck", toArea: "hand", byTypes: ["BATTLE", "EXTRA", "UNISON"] }], text);
-  assert.deepEqual(forbids(ops("[Permanent] When this card is in a battle, your opponent can't activate non-[super combo] card skills.")).map((f) => [f.what, f.filter]), [["activateSkill", { notKeywords: ["Super Combo"] }], ["activateCounter", { notKeywords: ["Super Combo"] }]], "BT18-019");
+  assert.deepEqual(forbids(ops("[Permanent] When this card is in a battle, your opponent can't activate non-[super combo] card skills.")).map((f) => [f.what, f.filter]), [["activateSkill", { notKeywords: ["Super Combo"] }], ["activateCounter", { notKeywords: ["Super Combo"] }], ["block", { notKeywords: ["Super Combo"] }]], "BT18-019 (A2: their [Blocker] too)");
   assert.deepEqual(forbids(ops("[Activate: Main] This card gains [Dual Attack] for the turn, and your opponent can't activate skills on Battle Cards with original energy costs of 7 or less from any area when this card is in a battle.")).map((f) => [f.what, f.filter, f.unless]), [
     ["activateSkill", { type: "BATTLE", originalCostMax: 7 }, { kind: "not", cond: { kind: "inBattle", sel: { special: "self" } } }],
     ["activateCounter", { type: "BATTLE", originalCostMax: 7 }, { kind: "not", cond: { kind: "inBattle", sel: { special: "self" } } }],
+    ["block", { type: "BATTLE", originalCostMax: 7 }, { kind: "not", cond: { kind: "inBattle", sel: { special: "self" } } }],
   ], "BT14-097: only while this card is in a battle");
   assert.deepEqual(forbids(ops("[permanent] Your Battle Cards can't be switched to Rest Mode by your opponent's card skills, and you can only use blue or green card skills to place cards under this card."))[1], { op: "forbid", what: "placeUnder", side: "you", until: "game", target: SELF, byFilter: { notColors: ["Blue", "Green"] } }, "BT8-040");
   assert.deepEqual(forbids(ops("[Auto] When a card evolves into this card, for the duration of the turn, you cannot lose the game and the opponent cannot win the game.")), [
