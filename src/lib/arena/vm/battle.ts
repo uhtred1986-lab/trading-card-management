@@ -83,7 +83,7 @@ import { dueDelays, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, gameEndForbidden, moved, other, requirePrompt, type Work } from "./flow";
-import { activationTaxGate, activationTaxes, canPayPriceProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
+import { activationTaxGate, activationTaxes, canPayPriceProgram, canPayTaxProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
@@ -185,7 +185,7 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   // time" with an empty hand) leaves the defender off the list.
   return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }) &&
     (!attacker || !forbids(ctx, game, state, "attack", { player, card: attacker, attackTarget: id })) &&
-    (!attacker || taxesOn(ctx, game, state, "attack", { player, card: attacker, attackTarget: id }).every((t) => !t.defender || canPayPriceProgram(ctx, game, state, player, attacker, t.ops))));
+    (!attacker || taxesOn(ctx, game, state, "attack", { player, card: attacker, attackTarget: id }).every((t) => !t.defender || canPayTaxProgram(ctx, game, state, player, attacker, t.ops))));
 }
 
 /** The `whyNotAttack` reading (8-1): timing first, then mode, then a prohibition, then whether anything at all may be hit — `whyNotCharge`'s own order, board-fact-before-card-fact where the two could otherwise disagree about which is first. */
@@ -206,7 +206,7 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
     // A defender's price is asked of each defender (`targetsFor`).
     if (tax.defender) continue;
-    if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
+    if (!canPayTaxProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
   }
   if (!why.length && !targets.length) why.push({ kind: "target", reason: "nothing may be attacked" });
   return why;
@@ -230,7 +230,8 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // two apart for the patterns that read either (`triggers.rules`'s own
       // `opponentAttacks`/`koed` carry the same field for the same reason,
       // added in this stage since neither had been fired before it).
-      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker" } });
+      // "When a Battle Card attacks" (BT8-089): whether the attacker is a Battle Card (8-1-1), for the moment every player's cards answer.
+      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(findCard(state, b.attacker)?.zone === "battle" && attrsNow(ctx, game, state, b.attacker).type === "BATTLE" ? { battleCard: true } : {}) } });
       fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: attackTargetMomentArgs(ctx, game, state, b.guard, guardArea, true) });
     },
   },

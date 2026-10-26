@@ -375,7 +375,13 @@ export type ForbiddenAction =
    * played on top of it — an evolution of any kind or a [Union-Potara] (23-1) —
    * asked of the card underneath, as `evolveOnto` is.
    */
-  | "placeOnTop";
+  | "placeOnTop"
+  /**
+   * "Markers on your Unisons can't be removed by your opponent's skills"
+   * (P-676): a skill taking markers off the card (13-5), asked of the card
+   * with the skill's controller as `player`.
+   */
+  | "removeMarkers";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -436,7 +442,7 @@ export interface Prohibition {
    * their owner's hands**" (EX23-05). Matched against where the card is when
    * the action is asked about; a card the rule cannot place is not its.
    */
-  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "any";
+  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
   /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
   fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
@@ -541,6 +547,20 @@ export interface Prohibition {
    * asked of the card the rule is about (the attacker).
    */
   costVsEnergy?: "above" | "atLeast";
+  /**
+   * `activateSkill` only: the one keyword skill the rule is about — "you may
+   * not activate [EX-Evolve] for the duration of the turn" (BT4-003). Matched
+   * against the line's keyword (`keyword` in the matchers' options: the
+   * variant of an [Evolve], the name of any other); a line with no keyword is
+   * not this rule's. "Evolve" is every [Evolve] skill (22-5-2-2).
+   */
+  keywordSkill?: string;
+  /**
+   * The cards the rule lets through, resolved when it is put in force — "…can't
+   * attack with … **other than the card they attacked with**" (BT8-089): the
+   * attacking card of that moment.
+   */
+  exceptCards?: string[];
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
@@ -927,6 +947,8 @@ export type Trigger =
   /** #1163: one of your cards played by the watching card's own skill ("when your ≪Ginyu Force≫ card is played by this card's skill", BT29-083). The played card is the `subject`. */
   | "youPlayedByThisCard"
   | "opponentAttacks"
+  /** BT8-089: any player's Battle Card attacks (8-1-1), watched by every player's cards in play. The attacker is the `subject`. */
+  | "battleCardAttacks"
   /** BT7-003: an opponent's skill made your energy Active on their turn. */
   | "opponentEnergyActiveBySkill"
   /** SD8-09: the opponent's skill made their own energy Active on their turn. */
