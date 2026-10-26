@@ -1189,6 +1189,7 @@ function holds(ctx: EngineContext, game: GameDefinition, state: VmState, cond: C
         player: me,
         ...(card === null ? {} : { card }),
         ...(cond.bySkill === undefined ? {} : { bySkill: cond.bySkill }),
+        ...(cond.from === undefined ? {} : { from: cond.from }),
       });
       if (rule && found) Object.assign(found, rule);
       if (rule) return true;

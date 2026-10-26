@@ -582,6 +582,9 @@ DEFINE KEYWORD "Over Realm"
   REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, count([self] IN you.warp) >= 1])
   REFUSE oncePerTurn(what: "Over Realm") UNLESS any([NOT playerAttr(name: "overRealms", atLeast: 1), all([count("card with [Wormhole]" IN you.play) >= 1, NOT playerAttr(name: "overRealms", atLeast: 2)])])
   REFUSE condition(text: "{x} or more {dark?black }cards in your Drop Area") UNLESS any([all([NOT flag(value: $dark), count(IN you.drop) >= $x]), all([flag(value: $dark), count((colors = [Black]) IN you.drop) >= $x])])
+  -- 0-2-5, 9-2-3: "You can't send cards from Drop Areas to Warps" (BT6-028,
+  -- BT16-001) leaves the price unpayable, so the move is not offered.
+  REFUSE forbidden() UNLESS NOT forbidden(what: dropToWarp, from: drop)
   label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
   DO {
     setPlayerAttr(name: "overRealms", add: 1)
