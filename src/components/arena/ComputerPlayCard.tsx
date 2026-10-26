@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { Panel } from "@/components/ui";
+import { GameMark } from "@/components/GameMark";
 
 /**
  * "Play the computer" (#896): the built-in computer opponent as a first-class choice on the Arena
@@ -46,9 +47,9 @@ export function ComputerPlayCard() {
     <Panel className="space-y-3" aria-label="Play the computer" data-computer-play>
       <div>
         <p className="journey-eyebrow">BUILT-IN COMPUTER · FREE</p>
-        <h2 className="text-lg font-semibold text-space-50">Play the computer</h2>
+        <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-space-50">Play the computer <GameMark game="dbs" /></h2>
         <p className="mt-1 text-sm text-space-300">
-          A computer player built into the app, not Claude: no AI tokens and no connection once set up. The match runs on this device and is saved after every move.
+          Super starter decks, played by a computer player built into the app, not Claude: no AI tokens and no connection once set up. The match runs on this device and is saved after every move.
         </p>
       </div>
       {saved ? (

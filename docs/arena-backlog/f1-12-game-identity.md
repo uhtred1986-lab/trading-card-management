@@ -5,7 +5,9 @@ milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-ui, phase:fusion-world, model:sonnet-5
 stage: fusion-world
 priority: P2
-touches: next.config.ts, src/lib/catalog/games.ts, src/components/GameMark.tsx, src/app/arena/page.tsx, src/components/arena/PlayPicker.tsx, src/components/arena/Invitations.tsx, src/components/arena/GamesList.tsx, src/components/arena/ComputerPlayCard.tsx, src/components/arena/ArenaHeader.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/GameOver.tsx
+status: closed
+closed_at: 2026-10-26
+touches: next.config.ts, src/components/arena/GameSwitch.tsx, src/components/DeckDiscovery.tsx, src/lib/catalog/games.ts, src/components/GameMark.tsx, src/app/arena/page.tsx, src/components/arena/PlayPicker.tsx, src/components/arena/Invitations.tsx, src/components/arena/GamesList.tsx, src/components/arena/ComputerPlayCard.tsx, src/components/arena/ArenaHeader.tsx, src/components/arena/stage/ArenaStage.tsx, src/components/arena/GameOver.tsx
 ---
 Tracking: Arena F1 (#1193). Asked for by the owner on 26 Oct 2026 ("make it very obvious which game you play,
 maybe with icon"; icons: "fetch the official icons"). Priority P2, size M, Sonnet. Skill `screen-proof`.

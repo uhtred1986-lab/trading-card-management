@@ -27,6 +27,8 @@ import { PaceToggle } from "../PaceToggle";
 import { SkinToggle } from "../SkinToggle";
 import { usePace } from "@/lib/arena/pace";
 import { PhaseChips, TurnBanner, TurnPill } from "./TurnPresence";
+import { GameMark } from "@/components/GameMark";
+import { GAME_INFO, gameOr } from "@/lib/catalog/games";
 import { withShortOpponent } from "./opponent-name";
 import { useBoardFit, useCompactSqueeze, useFieldFit } from "./use-board-fit";
 import type { TurnCall } from "./useBeatPlayer";
@@ -1556,6 +1558,8 @@ export function ArenaStage({
           <div className={`arena-topbar sticky top-0 z-30 flex ${showConnectionIssue ? "h-[96px] flex-wrap content-start sm:h-[52px] sm:flex-nowrap sm:content-center lg:h-auto" : "h-[52px] sm:h-[52px] lg:h-auto"} min-w-0 items-center gap-1.5 pl-2.5 pr-0.5 sm:rounded-t-[14px] lg:min-h-[60px] lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:px-3 lg:py-1 lg:[grid-area:top]`}>
             {onExit ? <button type="button" onClick={onExit} className="tap min-h-11 px-1 text-xs font-semibold text-space-100">Exit</button> : <Link href="/arena" className="tap inline-flex min-h-11 items-center px-1 text-xs font-semibold text-space-100">Exit</Link>}
             <TurnPill view={view} />
+            <GameMark game={live.game.game} />
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ backgroundColor: GAME_INFO[gameOr(live.game.game)].art.accent }} />
             {playback.playing && <SkipChip onSkip={playback.skip} />}
             <PhaseChips view={view} cue={feedback.phase} className="arena-match-phases hidden min-w-0 border-0 lg:flex" />
             {showConnectionIssue && (

@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import { filterDecks, emptyDeckFilters, type DiscoveryDeck } from "@/lib/decks/discovery";
 import { CardImage } from "./CardImage";
 import { ColorPill } from "./ColorPill";
+import { GameMark } from "./GameMark";
 import { FilterBar } from "@/components/ui";
 
 export function DeckDescription({ text, missing = "No description yet. Add strategy notes in Deck details & notes." }: { text: string | null; missing?: string }) {
@@ -22,7 +23,7 @@ export function DeckFacts({ deck, missingDescription }: { deck: DiscoveryDeck; m
     <div className="flex items-start gap-3">
       <div className="w-16 shrink-0"><CardImage src={deck.leaderImage} alt="" sizes="64px" /></div>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="break-words text-base font-semibold text-space-50">{deck.name}</p>
+        <p className="break-words text-base font-semibold text-space-50">{deck.name}{deck.game && <> <GameMark game={deck.game} /></>}</p>
         <p className="break-words text-sm text-space-300">{deck.leaderName ?? "No leader yet"}{deck.leaderId ? ` · ${deck.leaderId}` : ""}</p>
         <p className="flex flex-wrap gap-1 text-xs text-space-300"><span>{deck.group} · {deck.mainCount} main cards{deck.status ? ` · ${deck.status}` : ""}</span>{deck.colors.map((c) => <ColorPill key={c} color={c} small />)}</p>
         {deck.locked && <p className="text-xs font-semibold text-loss">Locked — open rules need review</p>}
@@ -85,7 +86,7 @@ export function DeckDiscovery({ decks, label, value, onChange, readyOnly = false
             {d.note && <p className="text-xs text-space-300">{d.note}</p>}
           </> : <>
             <button type="button" data-deck-choice={d.id} aria-pressed={d.id === value} disabled={disabled || (disableLocked && d.locked)} onClick={() => onChange?.(d.id)} className="tap block w-full space-y-1 text-left disabled:opacity-50">
-              <span className="block break-words text-sm font-semibold text-space-50">{d.id === value ? "✓ " : ""}{d.name}</span>
+              <span className="block break-words text-sm font-semibold text-space-50">{d.id === value ? "✓ " : ""}{d.name}{d.game && <> <GameMark game={d.game} /></>}</span>
               <span className="block break-words text-xs text-space-300">{d.leaderName ?? "No leader yet"} · {d.leaderId} · {d.colors.join(" / ")} · {d.group} · {d.mainCount} cards{d.locked ? " · Locked" : ""}</span>
               <span className="block break-words text-xs text-space-300">{d.description?.trim() ? `${d.description.trim().slice(0,120)}${d.description.trim().length > 120 ? "…" : ""}` : missingDescription ?? "No description yet."}</span>
             </button>

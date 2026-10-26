@@ -93,7 +93,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <PageHeader title={deck.name} eyebrow={deck.game === "dbs" ? "Masters deck" : "Fusion World deck"} />
+            <PageHeader title={deck.name} eyebrow={`${GAME_INFO[deck.game].short} deck`} />
             <details className="relative">
               <summary className="tap cursor-pointer rounded-md border border-space-600 px-3 py-1.5 text-xs font-medium text-ki-300 hover:border-ki-500/60">Rename</summary>
               <form action={renameDeckForm} className="mt-2 grid w-full max-w-sm gap-2 rounded-lg border border-space-700 bg-space-900 p-3 sm:absolute sm:left-0 sm:z-20 sm:w-80">

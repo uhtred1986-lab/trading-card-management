@@ -130,7 +130,7 @@ export async function ArenaHeader({ side, kpis }: { side: "play" | "rules" | "te
 
       {side === "rules" && kpis ? (
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 sm:flex">
-          <p className="w-full text-xs text-space-400">Overview across all playable Masters decks and the catalog, skill by skill. The list below follows your selected scope.</p>
+          <p className="w-full text-xs text-space-400">Overview across all playable decks and the catalog, skill by skill. The list below follows your selected scope.</p>
           <div className="flex flex-wrap gap-4">
             <Kpi n={kpis.inDecks["text-only"]} label="text only in decks (engine does nothing)" tone={kpis.inDecks["text-only"] ? "text-loss" : ""} />
             <Kpi n={kpis.inDecks.incomplete} label="incomplete in decks" tone={kpis.inDecks.incomplete ? "text-ki-300" : ""} />

@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/fw/images/**" },
       // The original game's leaders deckplanet lacks, both faces (see src/lib/catalog/bandai.ts).
       { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/images/cardlist/cardimg/**" },
+      // Bandai's game-select tiles and wordmarks, hot-linked and never committed (see GAME_INFO.art).
+      { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/gameselect/images/**" },
+      { protocol: "https", hostname: "www.dbs-cardgame.com", pathname: "/fw/renewal01/images/common/**" },
       // TCGplayer product photos — fallback when a print has no deckplanet image.
       { protocol: "https", hostname: "tcgplayer-cdn.tcgplayer.com" },
       // CardTrader blueprint images — leader back sides for Masters-era sets.

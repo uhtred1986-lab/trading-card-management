@@ -323,6 +323,7 @@ export function PreviewStage({
         <div className="mx-auto mt-3 max-w-xl px-2">
           <GameOver
             gameId={snapshot.game.id}
+            game={snapshot.game.game}
             outcome={{ kind: "win", winner: snapshot.view.you.player, reason: "Claude's leader falls on turn 5." }}
             winnerName="Red Leader"
             turns={5}

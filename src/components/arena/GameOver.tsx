@@ -7,6 +7,7 @@ import type { GameReview } from "@/lib/arena/ai/review";
 import type { PublicOutcome } from "@/lib/arena/outcome";
 import { cardHref } from "@/lib/arena/rule-card";
 import { ReportBug } from "./ReportBug";
+import { GameMark } from "@/components/GameMark";
 
 /**
  * The end screen: who won, what it cost, and Claude's coaching.
@@ -19,6 +20,7 @@ import { ReportBug } from "./ReportBug";
  */
 export function GameOver({
   gameId,
+  game,
   outcome,
   winnerName,
   turns,
@@ -32,6 +34,7 @@ export function GameOver({
   cards,
 }: {
   gameId: number;
+  game: string;
   outcome: PublicOutcome;
   winnerName: string | null;
   turns: number;
@@ -65,7 +68,7 @@ export function GameOver({
           drawn at all for a draw, which has no winner to celebrate. */}
       {!draw && outcome.kind !== "interrupted" && outcome.kind !== "abandoned" && <span className="arena-fx-rays" aria-hidden />}
       <div className="text-center">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-space-400">{draw ? "Draw" : outcome.kind === "interrupted" || outcome.kind === "abandoned" ? "Status" : "Result"}</p>
+        <p className="flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.28em] text-space-400"><GameMark game={game} />{draw ? "Draw" : outcome.kind === "interrupted" || outcome.kind === "abandoned" ? "Status" : "Result"}</p>
         <p className="arena-fx-title mt-1 text-3xl font-bold tracking-tight text-ki-300 sm:text-4xl">{resultTitle}</p>
         <p className="mt-1 text-xs text-space-300">{outcome.reason}</p>
       </div>
