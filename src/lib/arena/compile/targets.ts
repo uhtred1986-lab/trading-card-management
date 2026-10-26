@@ -967,6 +967,13 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (pair && pairSides) return { area: pair[0], areas: pair, areaSides: pairSides, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
+  // #930, BT7-123: "your opponent reveals their hand, and you choose up to 2
+  // cards **from it**": the pool is the revealed cards, whoever holds them.
+  // The default side ("you") is the chooser, not an owner; kept on a choice
+  // from a pool, it is read as "the cards you control among them" (a pool's
+  // side test, `resolveSelector`) and offered none of the opponent's hand.
+  // Only "from it" with no owner named in the phrase.
+  if (fromVar && seen && /\bfrom it\b/.test(t) && !/\byour\b|\btheir\b|\bopponent/.test(t)) return { area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 
