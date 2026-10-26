@@ -1,27 +1,26 @@
--- The Dragon Ball Super Card Game itself: how a player starts, what a turn is
--- made of, and how the game ends.
+-- Dragon Ball Super Card Game Fusion World: how a player starts, what a turn is
+-- made of, and how the game ends. Cut down from the dbs file of the same name
+-- (F1-02); every line that differs from it cites the Fusion World Official Rule
+-- Manual (v1.10) as "FW manual p. N", by its printed page number.
 --
--- Sections are `docs/rules/rulemanual.txt`: §0-1-3 ending the game, §6-1 the
--- Leader Card and the decks, §6-2 pre-game preparations, §7-1 the turn,
--- §7-2 the Charge Phase, §7-3 the Main Phase, §7-4 the End Phase.
+-- What is different from the original game, in this file:
+--   * no Z-Deck: `zDeck: 0` and no `setupZDeck` step (FW manual p. 4: a deck is
+--     the Leader Card and a deck of Battle and Extra Cards, nothing else);
+--   * the deck is 50 to 60 cards, as in the original (FW manual p. 4) — `deck:`
+--     is one number and is read as the minimum;
+--   * the opening hand is 6 cards with one mulligan, 8 life cards, and only the
+--     player who goes second places an energy marker (FW manual p. 6).
 --
--- Three things the manual says here that the grammar has no field for are
--- left out rather than written wrongly, and each is recorded in the history
--- entry of 12 Sep 2026:
---   * the deck is 50 **to 60** cards (6-1-3) and a Z-Deck is **up to** 10
---     (6-1-4) — `deck:` and `zDeck:` are one number each, so they are read
---     below as the deck's minimum and the Z-Deck's maximum;
---   * a deck may hold up to 4 copies of a card number (6-1-5-1) — there is no
---     field for a copy limit;
---   * only the player who goes **second** places an energy marker (6-2-1-11)
---     — `startMarkers:` is one number for both players, so it is left out and
---     the setup step below is where that rule is said.
+-- `firstPlayerDraws: false`: the manual v1.10 has the first player skip the
+-- draw on turn one (FW manual p. 7, Charge Phase step 2: "draw 1 card", with no
+-- first-turn exception printed) and does not carry the 1 Jul 2024 change that lets the first
+-- player draw on turn one. The owner rules on it in F1-08; it is left false.
 
-DEFINE GAME dbs                                                           -- §6-1
-  title: "Dragon Ball Super Card Game"
+DEFINE GAME fusion                                                        -- FW manual p. 6
+  title: "Dragon Ball Super Card Game Fusion World"
   players: 2
   deck: 50
-  zDeck: 10
+  zDeck: 0
   hand: 6
   life: 8
   mulligan: true
@@ -66,7 +65,7 @@ DEFINE GAME dbs                                                           -- §6
 -- nothing declares. They arrive with `play.rules`.
 
 DEFINE PHASE setup                                                        -- §6-2
-  steps: [setupPresent, setupLeader, setupLeaderPending, setupFirstPlayer, setupShuffle, setupZDeck, setupHand, setupMulligan, setupLife, setupEnergyMarker, setupStart]
+  steps: [setupPresent, setupLeader, setupLeaderPending, setupFirstPlayer, setupShuffle, setupHand, setupMulligan, setupLife, setupEnergyMarker, setupStart]
   auto: false
   announce: false
   text: "the pre-game procedure, before the first turn: leaders down, first player chosen, hands drawn and life set out (6-2-1)"
@@ -97,7 +96,7 @@ DEFINE PHASE end                                                          -- §7
   auto: true
   announce: true
   skip: end
-  text: "the end of the turn: what answers to it is made pending, what lasted for the turn ends, and the other player becomes the turn player (7-4-1, 7-4-7)"
+  text: "the end of the turn, in the manual's five steps: your end-of-turn skills, then theirs, your \"for the turn\" expiries, then theirs, and the turn passes (FW manual p. 11)"
 
 DEFINE PHASE over                                                         -- §0-1-3
   steps: [gameEnd]
@@ -110,7 +109,7 @@ DEFINE PHASE over                                                         -- §0
 DEFINE STEP setupPresent                                                  -- §6-2-1-1
   phase: "setup"
   optional: false
-  text: "each player presents the Leader Card, deck and Z-Deck they will use, which must meet the deck construction rules (6-2-1-1, 6-1)"
+  text: "each player presents the Leader Card and deck they will use, which must meet the deck construction rules (FW manual p. 4)"
 
 DEFINE STEP setupLeader                                                   -- §6-2-1-2
   phase: "setup"
@@ -133,31 +132,26 @@ DEFINE STEP setupShuffle                                                  -- §6
   optional: false
   text: "each player shuffles their deck and places it face down in their Deck Area (6-2-1-7)"
 
-DEFINE STEP setupZDeck                                                    -- §6-2-1-8
-  phase: "setup"
-  optional: false
-  text: "each player places their Z-Deck face down in their Z-Deck Area (6-2-1-8)"
-
 DEFINE STEP setupHand                                                     -- §6-2-1-9
   phase: "setup"
   optional: false
-  text: "each player draws 6 cards from their deck as their opening hand (6-2-1-9)"
+  text: "each player draws 6 cards from their deck as their opening hand (FW manual p. 6)"
 
 DEFINE STEP setupMulligan                                                 -- §6-2-1-9-1
   phase: "setup"
   optional: true
   prompt: "mulligan"
-  text: "beginning with the starting player, each player may return their hand to their deck, shuffle, and draw 6 new cards — once (6-2-1-9, 6-2-1-9-1)"
+  text: "beginning with the starting player, each player may return their hand to their deck, shuffle, and draw 6 new cards — once (FW manual p. 6)"
 
 DEFINE STEP setupLife                                                     -- §6-2-1-10
   phase: "setup"
   optional: false
-  text: "each player places the top 8 cards of their deck face down in their Life Area (6-2-1-10)"
+  text: "each player places the top 8 cards of their deck face down in their Life Area (FW manual p. 6)"
 
 DEFINE STEP setupEnergyMarker                                             -- §6-2-1-11
   phase: "setup"
   optional: false
-  text: "the player who goes second places 1 energy marker in their Energy Area, and the player who goes first places none (6-2-1-11)"
+  text: "the player who goes second places 1 energy marker in their Energy Area, and the player who goes first places none (FW manual p. 6)"
 
 DEFINE STEP setupStart                                                    -- §6-2-1-12
   phase: "setup"
@@ -185,18 +179,18 @@ DEFINE STEP chargePending                                                 -- §7
 DEFINE STEP chargeActivate                                                -- §7-2-7
   phase: "charge"
   optional: false
-  text: "each player switches every card in their Leader, Battle, Energy and Unison Areas that is in Rest Mode to Active Mode (7-2-7)"
+  text: "each player switches every Rest Mode card in their Leader, Battle and Energy Areas to Active Mode (FW manual p. 7, Charge Phase step 1)"
 
 DEFINE STEP chargeDraw                                                    -- §7-2-9
   phase: "charge"
   optional: false
-  text: "the turn player draws 1 card, except the player who goes first, on their first turn (7-2-9, 7-2-9-1)"
+  text: "the turn player draws 1 card, except the player who goes first, on their first turn (FW manual p. 7; see the header on the 1 Jul 2024 change)"
 
 DEFINE STEP chargeEnergy                                                  -- §7-2-11
   phase: "charge"
   optional: true
   prompt: "charge"
-  text: "the turn player may place 1 card from their hand in their Energy Area (7-2-11)"
+  text: "the turn player may place 1 card from their hand face up in their Energy Area, or none (FW manual p. 8, Charge Phase step 2)"
 
 -- ── the Main Phase (§7-3) ─────────────────────────────────────────────────
 
@@ -209,7 +203,7 @@ DEFINE STEP mainActions                                                   -- §7
   phase: "main"
   optional: false
   prompt: "main"
-  text: "the turn player is granted a free timing: play a card, activate an [Activate : Main] skill, grow a Unison Card, attack, or end the Main Phase (7-3-4)"
+  text: "the turn player is granted a free timing: play a Battle Card, use an Extra Card, activate an [Activate:Main] skill, attack, or end the Main Phase (FW manual p. 8)"
 
 DEFINE STEP mainEndPending                                                -- §7-3-5-1-1
   phase: "mainEnd"
