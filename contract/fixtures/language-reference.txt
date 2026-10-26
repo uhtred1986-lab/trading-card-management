@@ -350,7 +350,8 @@
             "comboPower",
             "energyCost",
             "comboCost",
-            "specifiedCost"
+            "specifiedCost",
+            "zEnergyCost"
           ]
         },
         {
@@ -380,6 +381,13 @@
           "nullable": false,
           "offCard": "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
           "type": "amount"
+        },
+        {
+          "name": "owed",
+          "required": false,
+          "nullable": false,
+          "offCard": "with atMost: that many are owed, not offered — as many as possible up to the bound (5-2-5), none left to the chooser's discretion; phrasing batch 5, \"for every 5 cards in your Z-Energy, add 1 of your opponent's life to its owner's Z-Energy\" (BT23-109)",
+          "type": "boolean"
         },
         {
           "name": "exactly",
@@ -1062,7 +1070,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -1092,7 +1100,8 @@
             "auto",
             "activate",
             "counter",
-            "permanent"
+            "permanent",
+            "keyword"
           ]
         },
         {
@@ -1202,7 +1211,7 @@
     {
       "name": "negateSkillsOfKind",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateSkillsOfKind\",\"target\":TARGET,\"kind\":\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"until\":DURATION}",
+      "signature": "{\"op\":\"negateSkillsOfKind\",\"target\":TARGET,\"kind\":\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"until\":DURATION}",
       "fields": [
         {
           "name": "target",
@@ -1219,7 +1228,8 @@
             "auto",
             "activate",
             "counter",
-            "permanent"
+            "permanent",
+            "keyword"
           ]
         },
         {
@@ -1230,7 +1240,7 @@
         }
       ],
       "sentence": "negate the [Auto] skills of this card for the turn",
-      "doc": "\"negate that card's [Auto] skill for the turn\" — one kind, not the whole card (9-1-5)"
+      "doc": "\"negate that card's [Auto] skill for the turn\" — one kind, not the whole card (9-1-5). \"keyword\" (phrasing batch 5, owner's ruling of 26 Oct 2026 on P-327) is every keyword skill of the card, printed or granted, and nothing else"
     },
     {
       "name": "hidden",
@@ -3659,7 +3669,8 @@
             "comboPower",
             "energyCost",
             "comboCost",
-            "specifiedCost"
+            "specifiedCost",
+            "zEnergyCost"
           ]
         },
         {
@@ -4537,7 +4548,8 @@
     "comboPower",
     "energyCost",
     "comboCost",
-    "specifiedCost"
+    "specifiedCost",
+    "zEnergyCost"
   ],
   "costItems": [
     {
@@ -4651,6 +4663,10 @@
       "words": "when a Battle Card attacks"
     },
     {
+      "name": "yourCardAttacks",
+      "words": "when one of your cards attacks"
+    },
+    {
       "name": "opponentAttacksRedUnison2",
       "words": "when your opponent attacks your red Unison Card with a specified cost of 2"
     },
@@ -4721,6 +4737,26 @@
     {
       "name": "yourUnisonLeft",
       "words": "when a Unison leaves your Unison Area"
+    },
+    {
+      "name": "zEnergyToDrop",
+      "words": "when this card goes from your Z-Energy to the Drop"
+    },
+    {
+      "name": "yourCardRemovedByOpponent",
+      "words": "when one of your cards is removed from your Battle Area by an opponent's skill"
+    },
+    {
+      "name": "opponentLifeToZBySkill",
+      "words": "when your skill adds your opponent's life to their Z-Energy"
+    },
+    {
+      "name": "droppedFromHandByYou",
+      "words": "when one of your skills sends this card from your hand to the Drop"
+    },
+    {
+      "name": "dropToWarpBySkill",
+      "words": "when a skill sends this card from your Drop to the Warp"
     },
     {
       "name": "battleOrDeckToWarp",

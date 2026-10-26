@@ -252,8 +252,11 @@ const playCard = (s: EngineState, id: string) => settle(pay(playG(s, { type: "pl
     assert.deepEqual(got.unsupported, [], text);
     assert.ok(find(got.ops, "moveTo").some((m) => m.to === "zEnergy"), text);
   }
-  // Left unread on purpose: the effect's own choice has replaced "the chosen card" (P-504), and a life card is chosen unseen (BT23-103).
-  assert.ok(compile("[Auto] When this card is played, add 1 of your opponent's life to its owner's Z-Energy.").unsupported.length > 0, "a life card is not read");
+  // Left unread on purpose: the effect's own choice has replaced "the chosen card" (P-504). A card of the opponent's life
+  // (BT23-103) is read since phrasing batch 5: chosen unseen (3-9-2, `blind`), by position.
+  const lifeToZ = compile("[Auto] When this card is played, add 1 of your opponent's life to its owner's Z-Energy.");
+  assert.deepEqual(lifeToZ.unsupported, [], "a life card is read (phrasing batch 5)");
+  assert.ok(find(lifeToZ.ops, "choose").some((c) => c.blind && c.sel.area === "life" && c.sel.side === "opponent"), "…chosen unseen");
   const p504 = compile("[activate: main][limit 1]{u}, if your Leader is a blue <Uub>, you have 2 or more energy, and you choose 1 of your opponent's Battle Cards: Play this card from your hand and add the chosen card to your opponent's Z-Energy.");
   assert.ok(p504.unsupported.length > 0, "P-504: 'the chosen card' is the price's, which the effect's choice has replaced - unread");
 

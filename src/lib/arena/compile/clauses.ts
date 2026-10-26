@@ -148,6 +148,14 @@ export const BOTH_SIDES = /\b(?:your|you)\s+(?:and\/or|and|or)\s+your opponent'?
  * second half as a fragment naming no action at all.
  */
 const ASIDE_DASH = /[―—–]|--/y;
+/**
+ * Phrasing batch 5: "When an opponent's Battle Card is KO'd by this card's attack**, for every 5 cards in your
+ * Z-Energy,** add 1 of your opponent's life …" (BT23-109), "When this card attacks**, for each non-Leader card under
+ * this card,** this card gets +10000 power …": a count that leads the effect after a trigger. The comma before a "for
+ * each" usually hands a multiplier to the amount before it (BT27-123); after a trigger there is no amount, and joined
+ * there the count went with the trigger clause, which an [Auto] drops — the effect read as one flat step.
+ */
+const TRIGGER_THEN_COUNT = /^(?:when|whenever|at the (?:start|end|beginning) of)\b/i;
 
 export function splitClauses(text: string): string[] {
   return splitClausesJoined(text).clauses;
@@ -233,7 +241,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || /^,\s*for (?:each|every)\b/i.test(text.slice(i))))
+        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
@@ -691,7 +699,25 @@ export function anaphora(text: string): string {
       // Cards" are the card being played — one card, which "up to 1" lets the
       // player leave alone. Read as a fresh description it was any Battle Card in
       // the player's own Battle Area.
-      .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")      // "…it has its skills negated for the turn and is played in Rest Mode"
+      .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")
+      // Phrasing batch 5 (owner's ruling of 26 Oct 2026 on DB2-126, EX12-07): "[Counter: Play] **When the Battle Card is
+      // played, you may choose it** and switch it to Rest Mode": the moment repeated, and "it" is the card being played —
+      // the one choice DB1-020 makes. The switch is a real one, made once the card has landed (`switchOnLanding`).
+      .replace(/\bwhen the (battle|unison|extra) card is played,\s*you may choose it and switch it to (rest|active) mode\b/gi, "you may choose the $1 card being played and switch it to $2 Mode")
+      // Phrasing batch 5: "…then **choose cards in your life and add them to your hand until you have 6 life left**"
+      // (EX11-01, EX12-01) and "add cards from your life to your hand**,** until you have 6 life left" (P-743): the life
+      // brought down to that many, the cards going to the hand (21-3-2, `lifeDownTo`), said as the reader reads it.
+      .replace(/\bchoose cards in your life and add them to your hand until you have (\d+) life left\b/gi, "add cards from your life to your hand until you have $1 life left")
+      .replace(/\badd cards from your life to your hand, until you have (\d+) life left\b/gi, "add cards from your life to your hand until you have $1 life left")
+      // Phrasing batch 5: "choose **up to X** of your opponent's Battle Cards in Rest Mode, ignoring [Barrier], **where X is
+      // equal to the number of** yellow Unison Cards in your Drop Area, and KO them" (BT17-083), "…choose up to X of your
+      // opponent's Battle Cards, where X is the number of Extras in your Drop, and place them …" (BT18-037): any number
+      // of them up to that count, read off the board as the choice is made — BT29-139's "choose any number of … up to the
+      // number of …", which the choice reader takes (`atMost`).
+      .replace(/\bchoose up to x of (your opponent'?s [^,]+?)(, ignoring \[barrier\])?, where x is (?:equal to )?the number of ([^,]+?), and\b/gi, (_w, cards: string, barrier: string | undefined, counted: string) => `choose any number of ${cards} up to the number of ${counted}${barrier ?? ""}, and`)
+      // Phrasing batch 5: "This card gets -10000 power during your turn**, and gains [Barrier]** during your opponent's
+      // turn" (BT19-017): the second half has the same subject, said once.
+      .replace(/\b(this card) (gets [+-]\d+ power during your turn), and (gains \[)/gi, "$1 $2, and $1 $3")      // "…it has its skills negated for the turn and is played in Rest Mode"
       // (BT10-121): one play changed two ways. Cut at the "and" the second half
       // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
       .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")

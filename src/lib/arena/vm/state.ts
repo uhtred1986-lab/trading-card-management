@@ -213,6 +213,13 @@ export interface VmResolving {
   rest?: boolean;
   /** 9-1-5: "played with its skills negated for the turn" (`setPlayNegated`). */
   negated?: boolean;
+  /**
+   * Phrasing batch 5 (owner's ruling of 26 Oct 2026 on DB2-126, EX12-07): "[Counter: Play] When the Battle Card is
+   * played, you may choose it and switch it to Rest Mode" is a real switch, made once the card has landed — so the
+   * moments a switch to Rest Mode sets off happen (`switchOnLanding`). Not the manner of the arrival (`rest`). Which
+   * skill switched it and whose it was, for the switch's own moment. Additive: older states never carry one.
+   */
+  switchAfter?: { mode: "active" | "rest"; source: string; master: PlayerId };
   /** 9-6: the play was replaced (`replaceResolvingPlay`) — the card has already gone elsewhere, and the frame is dropped unrun. */
   replaced?: boolean;
   /**
