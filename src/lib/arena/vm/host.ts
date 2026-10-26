@@ -73,7 +73,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
@@ -179,6 +179,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
     namedCandidates: (frame, sel, picked, samePower) => namedCandidates(ctx, game, state, frame, sel, picked, samePower),
+    unionNames: (frame, name) => {
+      const id = frame.vars[name]?.[0];
+      return id && state.cards[id] ? unionNamesOf(ctx, state, id) : [];
+    },
 
     // ── what the program can change ──────────────────────────────────────
     note: (text) => {

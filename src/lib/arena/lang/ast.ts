@@ -89,6 +89,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   notSelf: "flag",
   differentNames: "flag",
   differentCharacters: "flag",
+  eachUnionName: "flag",
   distinctColors: "flag",
   notIn: "fromVar",
   sumAtMost: "sum",

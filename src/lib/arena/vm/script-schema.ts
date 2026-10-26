@@ -2013,6 +2013,7 @@ const SELECTOR_KEYS = {
   notSelf: 1,
   differentNames: 1,
   differentCharacters: 1,
+  eachUnionName: 1,
   distinctColors: 1,
   notIn: 1,
   sumAtMost: 1,
@@ -2065,7 +2066,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
   }
-  for (const k of ["differentNames", "differentCharacters", "distinctColors", "printed"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
+  for (const k of ["differentNames", "differentCharacters", "distinctColors", "printed", "eachUnionName"]) if (v[k] !== undefined && v[k] !== true) return wrong(k, "true or left out");
   // #970: the variables of earlier choices this one never repeats. Where they
   // must be bound, and that only a choose may carry them, is `programProblem`'s.
   if (v.notIn !== undefined && !(Array.isArray(v.notIn) && v.notIn.length > 0 && v.notIn.every((n) => typeof n === "string" && n !== ""))) return wrong("notIn", "a list of bound names");
@@ -2526,6 +2527,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
   if (f.sameCharacterAs) bits.push("with the same character name as the card you placed under this card");
+  if (f.unionNameOf) bits.push("with a character name the revealed card's [Union] skill requires");
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
 }
@@ -2715,6 +2717,8 @@ const describeNotSelf = (sel: Selector): string =>
   // "…and different card names" (BT29-030, BT18-104): about the set, so said after it.
   (sel.differentNames ? " with different card names" : "") +
   (sel.differentCharacters ? " with different character names" : "") +
+  // "for each character name required for the revealed card's [union] skill" (EX13-14, #930).
+  (sel.eachUnionName ? " for each character name the revealed card's [Union] skill requires, each card a name of its own" : "") +
   // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +

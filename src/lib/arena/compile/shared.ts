@@ -85,6 +85,13 @@ export interface Ctx {
    */
   pricePlacedUnder?: boolean;
   /**
+   * The name the skill's price bound the card it revealed to ("…choose 1 card in
+   * your hand with a [union-fusion] skill and reveal it", EX13-14; "…reveal 1
+   * card with [Union-Fusion] in your hand", SD19-03): what "the revealed card"
+   * in the effect means (#930). Absent when the price revealed nothing.
+   */
+  priceRevealed?: string;
+  /**
    * The cards this skill's own effect last switched to Hidden or Revealed
    * Mode — "then switch all the cards switched to Hidden Mode by this skill
    * to Revealed Mode" (BT29-139), where the price switched nothing.

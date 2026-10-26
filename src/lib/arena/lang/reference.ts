@@ -184,6 +184,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   otherThanSameName: "excludes every card with this card's card name — \"a <Broly> with a different card name\" (EX03-16)",
   differentNames: "the cards chosen may not share a card name (BT29-030's \"different card names\"); a count over it counts names, not cards (BT18-104)",
   differentCharacters: "differentNames on the character name (2-10): the cards chosen may not share character names (BT18-107's \"different character names\"); a count over it counts the distinct character names, not the cards (BT18-119)",
+  eachUnionName: "with the filter's unionNameOf: the count is per character name the revealed card's [Union-Fusion] requires, each card filling a name of its own (EX13-14's \"for each character name required for the revealed card's [union] skill\", #930)",
   distinctColors: "a count over it counts the different colors the cards have, not the cards (EX19-26's \"for each card color in your Energy Area\"); a multicolor card counts each of its colors (1-8-1-1)",
   asPrinted: "only cards matching the description printed on the line this program belongs to — [Evolve]{1}: <Nail>'s <Nail>; a `DEFINE KEYWORD` body's word, since one declaration serves every card printing the keyword",
 };

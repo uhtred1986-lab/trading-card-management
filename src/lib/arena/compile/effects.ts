@@ -6,6 +6,7 @@ import type { DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../
 import { parseConditionClause } from "./conditions";
 import { compileDisjointMove } from "./disjoint";
 import { compileNamedSet } from "./named-set";
+import { compileUnionNameSearch } from "./union-name-search";
 import { compileOpponentChoice } from "./opponent-choice";
 import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
@@ -960,6 +961,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       { op: "note", text: "Instruction acknowledged: you and your opponent compliment each other.", shown: true },
     ];
   }
+  // #930: "for each character name required for the revealed card's [union] skill, add up to 1 card with a
+  // matching character name …" (EX13-14), "add up to 1 Battle Card each … each with a character name that matches
+  // the [Union] skill conditions of the revealed card …" (SD19-03).
+  const unionSearch = compileUnionNameSearch(t, c);
+  if (unionSearch !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : unionSearch;
   const named = compileNamedSet(t, c);
   if (named !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : named;
   // #1015: "your opponent chooses 2 cards in their hand and places them at the
@@ -1319,6 +1325,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:your opponent reveals|reveal) (?:your|their) hand$/.exec(t))) {
     const side: Side | undefined = /your opponent reveals|their/.test(t) ? "opponent" : undefined;
     return [{ op: "reveal", sel: { side: side ?? "you", area: "hand" }, as: "revealed" }];
+  }
+  // "…choose 1 card in your hand with a [union-fusion] skill **and reveal it**" (EX13-14, #930): the card just
+  // chosen from the hand is shown (20-11-2) and stays there. Only straight after a choice of your own hand cards.
+  if (/^reveal (?:it|them)$/.test(t) && c.last) {
+    const chosen = c.choices.find((ch) => ch.var === c.last);
+    if (chosen && chosen.sel.side === "you" && chosen.sel.area === "hand" && !chosen.sel.areas?.length && !chosen.sel.special && !chosen.sel.fromVar)
+      return [{ op: "reveal", sel: { fromVar: c.last }, as: "revealed" }];
   }
   if ((m = /^reveal (.+)$/.exec(t))) {
     const sel = parseTarget(m[1]);
