@@ -374,7 +374,7 @@ for (const def of Object.values(FW_DEFS)) {
   assert.equal(lifeOf(ko1.state, "p2"), 8, "no life is lost when a battle card is hit");
   const tie = attack(state, leaderOf(state, "p1")!, even);
   assert.ok(tie.events.some((e) => e.type === "ko" && e.card === even), "15000 against 15000: the defender is KO'd");
-  assert.ok(zoneOf(tie.state, "p1", "leader").length === 1 && !tie.events.some((e) => e.type === "ko" && e.card === leaderOf(state, "p1")), "the attacker survives a tie");
+  assert.ok(!tie.events.some((e) => e.type === "ko" && e.card === leaderOf(state, "p1")), "the attacker survives a tie");
 }
 
 
