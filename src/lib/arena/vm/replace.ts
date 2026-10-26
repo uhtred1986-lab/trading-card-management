@@ -92,12 +92,14 @@ function causeMatches(game: GameDefinition, state: VmState, id: string, r: Repla
     const from = findCard(state, id)?.zone;
     if (!from || !r.from.some((zone) => zone === from) || from === requestedTo) return false;
   }
-  if (r.by === "skill" && reason !== "effect") return false;
+  // Fusion World's power-zero drop (FW manual p. 11) is a skill's doing, not a KO.
+  if (r.by === "skill" && reason !== "effect" && reason !== "powerZero") return false;
   if (r.by === "ko" && reason !== "ko") return false;
-  if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
+  if (r.by === "skillOrKo" && reason !== "effect" && reason !== "powerZero" && reason !== "ko") return false;
   // A skill's KO is asked with the skill's controller as the actor; the
-  // battle's KO (8-4-6-2) has none, and is not this rule's.
-  if (r.by === "skillOrKoBySkill" && reason !== "effect" && !(reason === "ko" && actor !== undefined)) return false;
+  // battle's KO (8-4-6-2) has none, and is not this rule's. Fusion World's
+  // power-zero drop is a skill's doing, as for "skill" above.
+  if (r.by === "skillOrKoBySkill" && reason !== "effect" && reason !== "powerZero" && !(reason === "ko" && actor !== undefined)) return false;
   if (r.requestedTo && r.requestedTo !== requestedTo) return false;
   if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(game, state, id))) return false;
   return true;

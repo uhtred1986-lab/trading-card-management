@@ -77,6 +77,23 @@ DEFINE COST energy                                                        -- §5
   }
   text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode, the coloured orbs matched in colour; an energy marker pays one energy of your Leader's colour in a card's place (5-3-3, 1-2-3, 1-14-2)"
 
+-- The price of a combo (§5-6, 5-7-3): the card's combo cost, read off
+-- `comboCostOf` so every reduction in force reaches it, paid the way an energy
+-- price is. `vm/battle.ts`' `comboPriceOf` asks the loaded game for it: a game
+-- that declares none (Fusion World, FW manual p. 10) offers every combo for
+-- nothing and plans no payment at all. The combo move itself is native
+-- (`applyCombo`), so no `ACTION` names this price; the declaration is what the
+-- engine reads.
+DEFINE COST combo                                                         -- §5-6, 5-7-3
+  TAKES (total: amount, orbs: colors)
+  consumes: energy
+  amount: "comboCostOf"
+  asks: choice
+  DO {
+    switchMode(target: IN you.energy active, mode: rest)
+  }
+  text: "a combo is paid like any energy price, for the card's combo cost as it stands after every reduction (5-6, 5-7-3, 20-21-2); a game that declares no such price offers its combos free"
+
 -- The other half of a Z-card's price (§5-4). It is a `cards` price like
 -- `payWith` below and the planner tells the two apart the way it tells any two
 -- prices apart — by reading the `DO`, never the name: this one's target names

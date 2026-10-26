@@ -288,6 +288,9 @@ export function costLayerGaps(game: GameDefinition): string[] {
   for (const [attr, layers] of Object.entries(LAYER_KINDS)) {
     const declared = game.attributes[attr];
     if (!declared) {
+      // A game with no price that reads this attribute has nothing to misread
+      // (Fusion World declares no Z-Energy price, so no `zEnergyCostOf`).
+      if (!Object.values(game.costs).some((cost) => cost.amount === attr)) continue;
       out.push(`${attr} is an attribute nothing declares, and a price is read off one`);
       continue;
     }
