@@ -753,7 +753,7 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // the card prints for itself, which nothing else in the engine applies.
   // Nor "you can't activate [Z-Awaken] unless …" (BT21-068's back, prohibition
   // batch 6): a ban on a keyword skill with its escape, read by `compileProhibition`.
-  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
   // *how* — "by skills from any area", "from any area except by skills" — are
   // not: nothing else in the engine applies them, and skipping them here was
@@ -4352,6 +4352,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // (P-032): the game's loss and win conditions do not end the game for
     // that player while the rule holds (`loseGame`, `winGame`).
     if (/^lose the game(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "loseGame", side, until, ...withUnless }];
+    // EB1-07 (prohibition batch 6): "you can't activate non-keyword Leader Card
+    // skills for the turn" — that player's Leader's [Auto] and [Activate] lines,
+    // not its keyword ones.
+    if (side !== "both" && /^activate non-keyword leader card skills(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "activateSkill", side, until, filter: { ...parseFilter(""), type: "LEADER" }, skillKinds: ["auto", "activate:main", "activate:battle", "activate:main/battle"], ...withUnless }];
+    // BT7-025 (prohibition batch 6): "…and you can't activate this skill for the
+    // duration of the game" — this line of this card is not activated again.
+    if (side === "you" && c.skillKind && /^activate this skill(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "activateSkill", until, target: { sel: { special: "self" } }, skillKinds: [c.skillKind], ...withUnless }];
     // "If your Leader Card is an ≪Android≫, the opponent cannot draw cards when
     // their Leader Card activates [Awaken]" (P-017, prohibition batch 6): the
     // draw of that player's [Awaken] does not happen; the [Awaken] still does.
@@ -5083,6 +5090,10 @@ export function taxWordings(text: string): string {
     // of theirs (one played later too), with the span and the escape after
     // the ban, so the sentence is not cut at its commas.
     .replace(/(,\s*(?:and\s+)?)until the start of your next main phase, as long as (the chosen card) is in (rest|active) mode, your opponent'?s cards can(?:'|no)t attack leader cards(?=\.|$)/gi, (_m, lead: string, chosen: string, mode: string) => `${lead}your opponent can't attack leader cards until the start of your next main phase as long as ${chosen} is in ${mode} mode`)
+    // Prohibition batch 6: "…you can't activate non-keyword Leader Card skills
+    // or skills on copies of this card for the turn" (EB1-07): two bans, each
+    // said as `compileProhibition` reads one.
+    .replace(/\byou can(?:'|no)t activate non-keyword leader card skills or skills on copies of this card((?:\s+(?:for|during|until)\b[^,.;]*)?)/gi, (_m, span: string) => `you can't activate non-keyword leader card skills${span}, and you can't activate skills on copies of this card${span}`)
     // Prohibition batch 6: "If <Gotenks> is under this card, and if there are
     // no cards in your opponent's Combo Area, this card cannot be KO'd"
     // (BT2-026): two conditions on one ban, said as one condition with "and".

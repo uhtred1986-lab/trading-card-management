@@ -180,6 +180,9 @@ const defs: Record<string, CardDef> = {
   NO_GAIN: C("NO_GAIN", { skill: "[Activate: Main] Your originally skill-less Battle Cards can't gain skills for the game." }),
   GIVER: C("GIVER", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and it gains [Blocker] for the turn." }),
   AURA_DS: C("AURA_DS", { skill: "[Permanent] All of your Battle Cards gain [Double Strike]." }),
+  ONCE_EVER: C("ONCE_EVER", { skill: "[Activate: Main] Draw 1 card, and you can't activate this skill for the duration of the game." }),
+  LOCK_LEADER: C("LOCK_LEADER", { skill: "[Activate: Main] Draw 1 card, and you can't activate non-keyword Leader Card skills or skills on copies of this card for the turn." }),
+  LACT: card("LACT", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: "[Activate: Main][Once per turn] Draw 1 card." }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -705,6 +708,36 @@ for (const me of SEATS) {
     assert.ok(!hasKeyword(ctx, game, s, bare, "Blocker"), `${me}: BT22-081 — no granted [Blocker]`);
     assert.ok(!hasKeyword(ctx, game, s, bare, "Strike"), `${me}: …nor the [Permanent]'s [Double Strike]`);
     assert.ok(hasKeyword(ctx, game, s, skilled, "Strike"), `${me}: a card with skills gains it (control)`);
+  }
+
+  // 23 (BT7-025): "you can't activate this skill for the duration of the game"
+  // — once used, the line is not offered again, a turn later included.
+  {
+    let s = game3(me);
+    const once = stage(s, me, "ONCE_EVER", "battle");
+    s = roundtrip(s);
+    const offered = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "activate" && l.action.card === id);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === once)!.action)));
+    s = roundtrip(endTurn(endTurn(s)));
+    assert.ok(!offered(s, once), `${me}: BT7-025 — not offered again`);
+  }
+
+  // 24 (EB1-07): for the turn, my Leader's [Activate: Main] is not offered, nor
+  // a copy of the card; the next turn it is (control).
+  {
+    let s = game3(me);
+    const leader = leaderOf(s, me);
+    s.cards[leader].cardId = "LACT";
+    const lock = stage(s, me, "LOCK_LEADER", "battle");
+    const copy = stage(s, me, "LOCK_LEADER", "battle");
+    s = roundtrip(s);
+    const offered = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "activate" && l.action.card === id);
+    assert.ok(offered(s, leader), `${me}: the Leader's skill is offered (control)`);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === lock)!.action)));
+    assert.ok(!offered(s, leader), `${me}: EB1-07 — no non-keyword Leader skill`);
+    assert.ok(!offered(s, copy), `${me}: …nor a copy of this card`);
+    s = roundtrip(endTurn(endTurn(s)));
+    assert.ok(offered(s, leader), `${me}: the next turn the Leader's skill is offered again`);
   }
 
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs

@@ -944,7 +944,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // of particular cards (BT23-140's "the skills of Battle Cards").
       if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        const which = op.extraCardActivation ? "Extra Cards" : `the skills of ${describeFilter(op.filter!, { plural: true })}`;
+        const which = op.extraCardActivation ? "Extra Cards" : `the ${op.skillKinds?.length ? "non-keyword " : ""}skills of ${describeFilter(op.filter!, { plural: true })}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
