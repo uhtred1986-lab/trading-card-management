@@ -3,7 +3,7 @@
  * READ-ONLY: it reads decks, cards and rule rows, and writes nothing to the database.
  *
  * What it reproduces is what every receipt in docs/arena-backlog/evidence/rules-review-2026-10-20/
- * re-derived by hand: the owner's decks plus ownerless ones, game `dbs`, not testing; the cards whose
+ * re-derived by hand: the owner's decks plus ownerless ones, game `dbs` (or the one `game` names), not testing; the cards whose
  * health (`cardHealthOf`, rules-store.ts) is `unchecked`; ordered by deck count, then id; minus every
  * card an earlier receipt already lists. Takes a `Db`, so `scripts/verify/rules-batch.mts` runs it on PGlite.
  */
@@ -16,6 +16,7 @@ import { rows as rowsOf } from "../../src/db/rows.ts";
 import { cardRules, cards, deckCards, decks } from "../../src/db/schema.ts";
 import { REVIEWABLE_CARD, cardHealthOf, ruleHealth } from "../../src/lib/arena/rules-store.ts";
 import { confirmBlocker } from "../../src/lib/rules-review/deck-review.ts";
+import type { Game } from "../../src/lib/catalog/games.ts";
 
 /** Refuses on any database that is not this app's: the shared cloud `DATABASE_URL` belongs to another app. */
 export async function assertThisAppsDb(db: Db): Promise<void> {
@@ -27,10 +28,10 @@ export async function assertThisAppsDb(db: Db): Promise<void> {
 
 const chunks = <T,>(xs: T[], n = 500): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 
-/** The owner name to select decks for: the one given, else the only named owner among the dbs decks. */
-export async function resolveOwner(db: Db, given?: string): Promise<string> {
+/** The owner name to select decks for: the one given, else the only named owner among that game's decks. */
+export async function resolveOwner(db: Db, given?: string, game: Game = "dbs"): Promise<string> {
   if (given) return given;
-  const all = await db.select({ owner: decks.owner }).from(decks).where(and(eq(decks.game, "dbs"), eq(decks.isTesting, false)));
+  const all = await db.select({ owner: decks.owner }).from(decks).where(and(eq(decks.game, game), eq(decks.isTesting, false)));
   const names = [...new Set(all.map((d) => d.owner).filter((o): o is string => !!o))];
   if (names.length !== 1) throw new Error(`cannot tell whose decks to use (owners found: ${names.join(", ") || "none"}); pass --owner NAME`);
   return names[0];
@@ -70,6 +71,8 @@ export interface BatchRow {
 }
 export interface BatchSelection {
   owner: string;
+  /** the game whose decks and cards were selected (F1-08, #1191: `fusion` reviews the Fusion World starters) */
+  game: Game;
   decks: number;
   unchecked: number;
   skippedListed: { id: string; file: string }[];
@@ -83,6 +86,8 @@ export interface BatchSelection {
 
 export interface SelectOptions {
   owner?: string;
+  /** the game to select decks and cards of; `dbs` when absent */
+  game?: Game;
   next: number;
   skip?: string[];
   /** ids from earlier receipts; empty to disable the skipping */
@@ -92,8 +97,9 @@ export interface SelectOptions {
 }
 
 export async function selectBatch(db: Db, opts: SelectOptions): Promise<BatchSelection> {
-  const owner = await resolveOwner(db, opts.owner);
-  const all = await db.select({ id: decks.id, owner: decks.owner }).from(decks).where(and(eq(decks.game, "dbs"), eq(decks.isTesting, false)));
+  const game: Game = opts.game ?? "dbs";
+  const owner = await resolveOwner(db, opts.owner, game);
+  const all = await db.select({ id: decks.id, owner: decks.owner }).from(decks).where(and(eq(decks.game, game), eq(decks.isTesting, false)));
   const deckIds = all.filter((d) => d.owner === owner || d.owner === null).map((d) => d.id);
   const decksOfCard = new Map<string, Set<number>>();
   for (const part of chunks(deckIds)) {
@@ -104,7 +110,7 @@ export async function selectBatch(db: Db, opts: SelectOptions): Promise<BatchSel
   const cardList: { id: string; name: string; skill: string | null; backSkill: string | null }[] = [];
   const rules: RuleRow[] = [];
   for (const part of chunks([...decksOfCard.keys()])) {
-    cardList.push(...(await db.select({ id: cards.id, name: cards.name, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(and(inArray(cards.id, part), eq(cards.game, "dbs"), REVIEWABLE_CARD))));
+    cardList.push(...(await db.select({ id: cards.id, name: cards.name, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(and(inArray(cards.id, part), eq(cards.game, game), REVIEWABLE_CARD))));
     rules.push(...(await db.select().from(cardRules).where(inArray(cardRules.cardId, part)).orderBy(asc(cardRules.cardId), asc(cardRules.side), asc(cardRules.skillIndex))));
   }
   const rulesOf = new Map<string, RuleRow[]>();
@@ -137,7 +143,7 @@ export async function selectBatch(db: Db, opts: SelectOptions): Promise<BatchSel
       rows.push({ cardId: c.id, cardName: c.name, side: r.side, skillIndex: r.skillIndex, printed: r.printed, state, blocker, status: r.status, source: r.source });
     }
   }
-  return { owner, decks: deckIds.length, unchecked: unchecked.length, skippedListed, skippedByHand, cardIds: chosen.map((c) => c.id), rows, queue: queue.map((c) => c.id) };
+  return { owner, game, decks: deckIds.length, unchecked: unchecked.length, skippedListed, skippedByHand, cardIds: chosen.map((c) => c.id), rows, queue: queue.map((c) => c.id) };
 }
 
 const flat = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -164,7 +170,7 @@ export function renderReceipt(sel: BatchSelection, opts: { date: string; batch: 
   );
   out.push("## Selection", "");
   out.push(
-    `Owner \`${sel.owner}\` plus ownerless decks, game \`dbs\`, not testing (${sel.decks} decks); cards whose health (\`ruleHealth\`, \`src/lib/arena/rules-store.ts\`) is \`unchecked\`: ${sel.unchecked}, ordered by deck count then id. ${listedLine}${handLine}` +
+    `Owner \`${sel.owner}\` plus ownerless decks, game \`${sel.game}\`, not testing (${sel.decks} decks); cards whose health (\`ruleHealth\`, \`src/lib/arena/rules-store.ts\`) is \`unchecked\`: ${sel.unchecked}, ordered by deck count then id. ${listedLine}${handLine}` +
       `The first ${sel.cardIds.length} of the remaining ${sel.queue.length}:`,
   );
   out.push(sel.cardIds.join(", ") + ".");
