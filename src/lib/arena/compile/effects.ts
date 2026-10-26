@@ -1489,7 +1489,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   {
     const REST = "(?:the|any) (?:remaining cards?|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (?:any|a random) order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
     // "…on the top or bottom of your deck in any order" / "…on the top and/or
     // bottom": owner's ruling of 26 Oct 2026 (phrasing batch 2) — EACH card goes
@@ -1537,6 +1537,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [{ op: "reveal", sel: { fromVar: c.last }, as: "revealed" }];
   }
   if ((m = /^reveal (.+)$/.exec(t))) {
+    // #1208, FS03-13: "look at 5 cards from the top of your deck, **reveal up to 1 <Paragus> or up to 1 Extra** and add it to
+    // your hand": after a look a description that names no area of its own is read from the cards looked at (20-12),
+    // as the choose, play and add clauses already do. Read bare it was a card in play.
+    const lookedAt = c.lastOp === "look" && c.lastSeen && !AREA_WORDS.some(([re]) => re.test(m![1].toLowerCase())) ? parseTarget(m[1], c.lastSeen) : null;
+    // The player picks which of them is shown (a choice among the cards looked at), then it is revealed; "the rest" is
+    // what that choice leaves of the look.
+    if (lookedAt && !lookedAt.special && lookedAt.fromVar === c.lastSeen) {
+      const v = `c${c.n++}`;
+      return [
+        { op: "choose", sel: lookedAt, as: v, reason: clause },
+        { op: "reveal", sel: { fromVar: v, ...(lookedAt.upTo ? { upTo: true as const } : {}) }, as: "revealed" },
+      ];
+    }
     const sel = parseTarget(m[1]);
     if (sel) return [{ op: "reveal", sel, as: "revealed" }];
     // "You may reveal **it**" (9-10, BT10-031/SD18-01): a bare pronoun is not
