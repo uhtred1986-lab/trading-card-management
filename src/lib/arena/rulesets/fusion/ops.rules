@@ -1,0 +1,554 @@
+-- The macros: every op the cards use that is not a primitive, written over
+-- the ones that are.
+--
+-- `docs/arena-ruleset-spec.md` §2 is the decision — the primitive and macro
+-- rows are classified by `OP_CLASS`. Each declared macro has a `DEFINE OP`;
+-- `mill` is the one native exception. A macro is not a deletion:
+-- `power(…)` keeps its `OP_SCHEMA` row,
+-- keeps printing as itself and keeps round-tripping by that name; this file
+-- says only what it *means*, and `rulesets/expand.ts` is what lowers a program
+-- written in these ops to a program written in the primitives.
+--
+-- **Every macro row but `mill` is declared; `mill` stays a native op, and the
+-- table below is why.** Writing a row that silently dropped an argument would
+-- be worse than none: it would validate, it would expand, the sweep in
+-- `scripts/verify/language.ts` would pass, and the rule it claimed to explain
+-- would be wrong. Each entry names what a row waited on and what answered it.
+--
+-- ── what each row waits on ────────────────────────────────────────────────
+--
+--   param     answered (#273): inside a DEFINE OP body `$name` may stand in
+--             every field position — a duration, a side, an area, a mode or
+--             any closed list (declared `word`), a list of strings
+--             (`strings`), a whole program (`ops`) — and in a selector's
+--             count, `TOP n`, side and area.
+--   count     answered (#137): a selector's `TOP n` and its plain `n IN …`
+--             count are one slot type, `count`, which a macro may fill with
+--             a `number` or an `amount` — X and `handUpTo(4)` included —
+--             because `draw`, `discard`, `damage` and `addLife` take `n` as
+--             an amount. No selector *runs* counted by an expression: the
+--             lowered move or choice is read back as the spelling it stands
+--             for first (`moveAs`, `discardAs`, `vm/script-schema.ts`).
+--   replace   answered (#125, #232, #436, and #137 for the two moments it
+--             added): `replace` is an op, its `event` names `attack` and
+--             `counter` beside the departures, and `replaceAs` reads an
+--             attack or a counter replaced by nothing back as
+--             `negateAttack`/`negateCounter`.
+--   subject   answered (#275): `modifyAttr` reaches a *player*
+--             (`energyMarkers`) and the *battle in progress* (`guard`) as
+--             well as a card, and the card's own six new attributes are
+--             declared in `attributes.rules` (spec §2.5-1, §2.5-3).
+--   branch    answered (#137): three rows mean different *acts* depending
+--             on which arguments the call gave, and a body may now say so —
+--             `GIVEN $p { … }` keeps its steps when the call gave `p` and it
+--             is not `false`, `GIVEN $p = word { … }` when `p` is that word,
+--             `UNLESS …` the other way (§3b; `Guard`, `lang/ast.ts`). The
+--             expander settles every guard before the body is a program.
+--             `resolvingPlay` is a replaced play with `instead` and the same
+--             play in another manner without it (9-6); `comboFrom` negates
+--             only when `negated`; `look` takes a `TOP` or a `BOTTOM` by
+--             `from`, and a whole area when `area` is not the deck.
+--   audience  answered (#137): `reveal` takes an `audience` (`you | both`,
+--             default `both`, 20-11) — `you` binds the cards and logs
+--             nothing — and `revealAs` reads the three shapes `look` lowers
+--             to back as `look`, whose case evaluates the count and takes one
+--             player's pile.
+--   maths     answered (#137): an amount subtracts — `a - n` is `a + -n`,
+--             the one operator's other sign, so nothing new is evaluated —
+--             and in a body the right of `+`/`-` may be a parameter, `life()`
+--             may take `$side`, and `TOP (…)` may hold a whole expression.
+--             "Until you have n life" is `TOP (life($side) - $n) IN
+--             $side.life`; `moveAs` reads that move back as `lifeDownTo`,
+--             whose case evaluates it and takes "both players" one pile at a
+--             time, which the count alone cannot.
+--   bind      `mill`'s `as` names the milled cards for a later clause outside
+--             the call ("if that card is red"). A string hole can carry the
+--             name into a `choose` or a `reveal` (`as: $as`), but the move
+--             after it would have to *read* that name as a ref, and a hole
+--             in a ref position is replaced by the argument — the string,
+--             not `{ var }` of it. The row waits on nothing this file's
+--             grammar could answer, so it stays a native op.
+--   cause     answered (#274) for `ko`, and (#137) for `comboFrom`: a move
+--             with the cause `combo` to the Combo Area, and the `negate`
+--             after it when the call said so, are folded back into one
+--             `comboFrom` by `comboFromAs` — its case is what checks 5-7-2
+--             (a battle on its master's side) and pends `youCombo` and
+--             `opponentCombos`, which a plain move neither checks nor pends.
+--
+-- ── the macro rows ────────────────────────────────────────────────────────
+--
+--   op                   lowers to                waits on
+--   draw                 move                     declared (#137)
+--   discard              choose + move            declared (#137)
+--   damage               move                     declared (#137)
+--   mill                 move                     bind — stays native
+--   addLife              move                     declared (#137)
+--   lifeDownTo           move                     declared (#137)
+--   energyMarker         modifyAttr               declared (#275)
+--   look                 reveal                   declared (#137)
+--   ko                   move                     declared (#274)
+--   switchMode           modifyAttr               declared (#275)
+--   power                modifyAttr               declared (#273)
+--   comboPower           modifyAttr               declared (#273)
+--   grant                modifyAttr               declared (#275)
+--   negateSkills         negate                   declared (#276)
+--   negateSkillsOfKind   negate                   declared (#276)
+--   negateChosenKeyword  negate                   declared (BT31-138)
+--   hidden               modifyAttr               declared (#275)
+--   redirectAttack       modifyAttr               declared (#275)
+--   comboFrom            move + negate            declared (#137)
+--   flip                 modifyAttr               declared (#275)
+--   faceUp               modifyAttr               declared (#275)
+--   addMarker            modifyAttr               declared (#275)
+--   removeMarker         modifyAttr               declared (#275)
+--   costReduction        costModifier             declared (#277)
+--   negateKeyword        negate                   declared (#276)
+--   gains                modifyAttr               declared (#275)
+--   replaceLeave         replace                  declared (#137)
+--   altCost              costModifier             declared (#277)
+--   resolvingPlay        replace                  declared (#137)
+--   negateAttack         replace                  declared (#137)
+--   negateCounter        replace                  declared (#137)
+--   negateOwnSkill       negate                   declared (#276)
+--   may                  chooseMode               declared (#273)
+--
+-- `mill` is the one row out, on `bind`, which no grammar change here would
+-- answer: it is a native op, and the record of why is the entry above.
+
+-- ── the two numbers a card changes (§2.3, 20-5) ────────────────────────────
+--
+-- A change to power or combo power is one act — one attribute of one card,
+-- by an expression, for a duration — and `modifyAttr` is that act. The two
+-- rows differ in nothing but which attribute they name, which is the whole of
+-- the argument the spec's table makes.
+
+-- §20-5 — "+5000 power for the turn", "+X power", "power +5000 for each …"
+DEFINE OP power
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: power, amount: $amount, until: $until)
+  }
+  text: "the card's power changes by the amount, for the duration"
+  doc: "what `power` means: one attribute of one card, changed by an expression until a moment"
+
+-- §20-5 — "+10000 combo power for the turn"
+DEFINE OP comboPower
+  TAKES (target: ref, amount: amount, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: comboPower, amount: $amount, until: $until)
+  }
+  text: "the card's combo power changes by the amount, for the duration"
+  doc: "the same act as `power`, on the other printed number"
+
+-- ── the offer to decline (§2.3, 20-16) ──────────────────────────────────────
+--
+-- "You may draw 1 card" is a `chooseMode` with two options, the second empty —
+-- the shape `chooseMode`'s own primitive case now reads (#273): it still asks
+-- when one branch is empty rather than dropping it, asks `chooser` in place of
+-- the master when the call names one, and binds `did(what: may)` from which
+-- branch was picked either way, so "if you do" / "if you don't" reads it.
+
+-- §20-16 — "You may draw 1 card", "your opponent may KO 1 of their cards"
+DEFINE OP may
+  TAKES (ops: ops, reason: string, chooser: side)
+  DO {
+    chooseMode(modes: ["Do it" $ops, "Don't" {}], reason: $reason, chooser: $chooser)
+  }
+  text: "the chooser may do the program, or not"
+  doc: "what `may` means: `chooseMode` with the declined branch empty — the primitive is the general form, this is the printed shape"
+
+-- ── a move told apart by its cause (§2.5-2, #274) ───────────────────────────
+--
+-- `damage`, `ko`, a plain `draw` and every other move that isn't just "an
+-- effect moved a card" are one primitive — `moveTo` — with `cause` naming
+-- which. `ko` came first (#274): its `target` is a `ref`. `draw`, `damage`
+-- and `addLife` followed once a selector's count could be handed an `amount`
+-- (#137, the `count` entry above): each is the top `n` cards of one pile,
+-- moved, and `moveAs` (`vm/script-schema.ts`) reads each of the three
+-- shapes back as its own spelling before either engine runs it — a draw from
+-- an empty deck, damage's own moments (21-3) and "both players" (the top `n`
+-- of *each* pile) are what those cases know and a plain move does not.
+-- `discard` is 20-7 written out: the hand's owner chooses, and the cards go —
+-- `discardAs` folds the two steps back into the one `discard` whose case asks
+-- each player in turn. `lifeDownTo` is the top `life - n` of a life, to the
+-- hand with no cause (1-13-2) — `moveAs` reads it back as the op whose case
+-- takes "both players" one pile at a time. `mill` stays native (`bind`).
+
+-- §20-5 — "draw 1 card", "your opponent draws 2 cards", "draw X cards",
+-- "draw cards until you have 4 cards in your hand"
+DEFINE OP draw
+  TAKES (n: amount, side: side)
+  DO {
+    moveTo(target: TOP $n IN $side.deck, to: hand, cause: draw)
+  }
+  text: "the top cards of the player's deck move to their hand, as a draw"
+  doc: "what `draw` means: the general move, from the top of the deck, with the cause a draw carries"
+
+-- §20-7 — "discard 1 card from your hand", "your opponent chooses 1 card in
+-- their hand and discards it", "…to the Warp"
+DEFINE OP discard
+  TAKES (n: amount, side: side, to: area)
+  DO {
+    choose(sel: $n IN $side.hand, as: "discarded", chooser: $side)
+    moveTo(target: $discarded, to: $to, reveal: true)
+  }
+  text: "the hand's owner chooses that many of its cards, and they go to the Drop Area or the Warp"
+  doc: "what `discard` means: a choice the hand's owner makes, then the move — the one row over two primitives"
+
+-- §21-3 — "deal 1 damage to your opponent"
+DEFINE OP damage
+  TAKES (n: amount, side: side)
+  DO {
+    moveTo(target: TOP $n IN $side.life, to: hand, cause: damage)
+  }
+  text: "the top life cards of the player move to their hand, as damage"
+  doc: "what `damage` means: the general move, from the life, with the cause damage carries — never Critical (21-3)"
+
+-- §3-9 — "add the top card of your deck to your life"
+DEFINE OP addLife
+  TAKES (n: amount, side: side)
+  DO {
+    moveTo(target: TOP $n IN $side.deck, to: life)
+  }
+  text: "the top cards of the player's deck move to their life"
+  doc: "what `addLife` means: the general move, from the top of the deck to the Life Area"
+
+-- §21-3-2 — "add cards from your life to your hand until you have 3 life"
+DEFINE OP lifeDownTo
+  TAKES (n: number, side: side)
+  DO {
+    moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)
+  }
+  text: "the player's life cards go to their hand until that many remain"
+  doc: "what `lifeDownTo` means: the general move, from the top of the life, of as many cards as are over the count — never damage (1-13-2)"
+
+-- §5-7 — "use it in a combo from your Drop Area (with its skills negated)".
+-- The move carries the cause a combo does; the negate is kept only when the
+-- call says `negated`. `comboFromAs` folds the two back into the one step
+-- whose case checks 5-7-2 and pends the combo moments.
+DEFINE OP comboFrom
+  TAKES (target: ref, negated: boolean)
+  DO {
+    moveTo(target: $target, to: combo, reveal: true, cause: combo)
+    GIVEN $negated {
+      negate(target: $target, what: skills)
+    }
+  }
+  text: "the card joins the battle as a combo, its skills negated when the call says so"
+  doc: "what `comboFrom` means: a move to the Combo Area with the cause a combo carries, and a negate of the card's skills only when `negated`"
+
+-- §1-13, §21-3-3 — "KO 1 of your opponent's Battle Cards." To the owner's
+-- Drop with the cause "when you KO'd a card" (20-16's `did`) and "when this
+-- card is KO'd" (9-6) both read. [Indestructible], "can't be KO'd by
+-- skills" and a KO's own replacement offers are the general move's business
+-- (9-10) — the macro says only the destination and the cause.
+DEFINE OP ko
+  TAKES (target: ref)
+  DO {
+    moveTo(target: $target, to: drop, cause: ko)
+  }
+  text: "the card moves to its owner's Drop Area"
+  doc: "what `ko` means: the general move, to the Drop, with the cause every KO carries"
+
+-- ── a rule that stops applying (§2.2, 9-1-5, #276) ──────────────────────────
+--
+-- Five spellings, one primitive: `negate(target, what: skills | kind | keyword
+-- | own, kind?, keyword?, chosen?, until?)` reads a card's skills, a printed
+-- kind of them, a named keyword everywhere, a keyword the master picks, or the
+-- skill resolving now, and stops it for a duration. `negateAs` (`vm/script-schema.ts`) is the interpreter's
+-- own reading in the other direction — a `negate(…)` call read back as one of
+-- the four — and each row here is built to invert it exactly, so a program
+-- written the declared way and one written the primitive's own way say the
+-- same thing (`verify/vm.ts`'s existing macro/primitive parity block).
+-- `comboFrom`'s negate half is declared beside the moves, above (#137).
+
+-- §9-1-5 — "negate that card's skills for the turn"
+DEFINE OP negateSkills
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: skills, until: $until)
+  }
+  text: "the target's skills stop applying, for the duration"
+  doc: "what `negateSkills` means: every skill of one card, negated (9-1-5)"
+
+-- §9-1-5 — "negate that card's [Auto] skill for the turn"
+DEFINE OP negateSkillsOfKind
+  TAKES (target: ref, kind: word, until: duration)
+  DO {
+    negate(target: $target, what: kind, kind: $kind, until: $until)
+  }
+  text: "the target's skills of the printed kind stop applying, for the duration"
+  doc: "what `negateSkillsOfKind` means: one printed kind of skill of one card, negated — not the whole card (9-1-5)"
+
+-- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
+DEFINE OP negateKeyword
+  TAKES (keyword: word, target: ref)
+  DO {
+    negate(target: $target, what: keyword, keyword: $keyword)
+  }
+  text: "the target loses the named keyword skill"
+  doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
+
+-- §9-1-5 — "choose up to 1 keyword skill on your opponent's Battle Card or
+-- Unison and negate that skill for the turn" (BT31-138): the keyword is the
+-- master's pick as the step resolves, among those the target has in force.
+DEFINE OP negateChosenKeyword
+  TAKES (target: ref, until: duration)
+  DO {
+    negate(target: $target, what: keyword, chosen: true, until: $until)
+  }
+  text: "the master picks one keyword skill the target has, and it stops applying, for the duration"
+  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5)"
+
+-- §9-1-5 — "negate this skill for the turn / battle / game"
+DEFINE OP negateOwnSkill
+  TAKES (until: duration)
+  DO {
+    negate(what: own, until: $until)
+  }
+  text: "this skill does not happen again, for the duration"
+  doc: "what `negateOwnSkill` means: the skill resolving now, negated for a span read off its own card — never a target, the way the other three take one"
+
+-- ── a price is not a number (§2.5-4, #277) ──────────────────────────────────
+--
+-- `costModifier(target, amount?, what?, colors?, skillKind?, pay?, n?, for?,
+-- alt?, orbs?, until?, onto?, uses?)` is the one primitive under both spellings —
+-- `costModifierAs` (`vm/script-schema.ts`) reads a call back as whichever
+-- it stands for, and each row here is built to invert it exactly: `pay`
+-- present means `altCost` (the price replaced), absent means `costReduction`
+-- (the price's number changed). The rules engine reads only the reduction
+-- half, through the `costOf`/`specifiedCost` layers `LAYER_KINDS` pairs it
+-- with (`vm/effects.ts`); `altCost` stays a documented gap there (#149).
+
+-- §20-21 — "reduce the energy cost of your <Son Goku> cards in your hand by
+-- 1", "…combo cost…", "…Z-Energy cost…", the specified (coloured) half
+-- (owner's BT19-039 ruling), and a skill's own orb price scoped by kind.
+-- `onto` scopes an [Evolve] price change to the card it is played onto
+-- (EX03-16: "when evolving this card into a <Broly> …", `onto: [self]`).
+DEFINE OP costReduction
+  TAKES (target: ref, amount: amount, what: word, skillKind: word, colors: colors, until: duration, onto: ref, uses: number)
+  DO {
+    costModifier(target: $target, amount: $amount, what: $what, skillKind: $skillKind, colors: $colors, until: $until, onto: $onto, uses: $uses)
+  }
+  text: "the target's price changes by the amount"
+  doc: "what `costReduction` means: the general price change, with nothing about what replaces it"
+
+-- §5-3 — "you can activate this card's [Counter] skill for nothing / by
+-- adding cards from your life to your hand / by a reduced energy price /
+-- by a program instead"
+DEFINE OP altCost
+  TAKES (pay: word, n: number, for: word, ops: ops, orbs: colors, target: ref, until: duration)
+  DO {
+    costModifier(target: $target, pay: $pay, n: $n, for: $for, alt: $ops, orbs: $orbs, until: $until)
+  }
+  text: "the target's price is replaced"
+  doc: "what `altCost` means: the general price change, naming what replaces the price rather than a number it moves by"
+
+-- ── a player and the battle in progress, as subjects (§2.5-1, §2.5-3, #275) ─
+--
+-- `modifyAttr` reached one card and six attributes before this issue; the
+-- nine rows below are what unblocked once it also reached a *player*
+-- (`side`, for `energyMarkers`) and the *battle in progress* (`target` read
+-- as the value being set rather than a locator — there is only one), and
+-- once `mode`, `markers`, `keywords`, `hidden`, `faceUp` and `flipped` were
+-- declared card attributes (`attributes.rules`). `modifyAttrAs`
+-- (`vm/script-schema.ts`) is the one reading of each spelling, so a
+-- program written either way runs the same case, puts the same effect in
+-- force (or none) and reads in the same words — the precedent `negateAs`
+-- and `costModifierAs` set for their own primitives.
+
+-- §1-14 — "gain 1 energy marker", "your opponent gains 2 energy markers"
+DEFINE OP energyMarker
+  TAKES (n: amount, side: side)
+  DO {
+    modifyAttr(subject: player, side: $side, attr: energyMarkers, amount: $n)
+  }
+  text: "the named player's energy markers change by the amount"
+  doc: "what `energyMarker` means: `modifyAttr`'s first widened subject — a player rather than a card (spec §2.5-1)"
+
+-- §8-1, §22-4-2 — "switch the target of the attack to it"
+DEFINE OP redirectAttack
+  TAKES (target: ref)
+  DO {
+    modifyAttr(subject: battle, attr: guard, target: $target)
+  }
+  text: "the target of the attack switches to the named card"
+  doc: "what `redirectAttack` means: `modifyAttr`'s other widened subject — the battle in progress, which has one attribute and needs no locator of its own (spec §2.5-1)"
+
+-- §1-10 — "switch it to Rest Mode", "switch it to Active Mode"
+DEFINE OP switchMode
+  TAKES (target: ref, mode: word)
+  DO {
+    modifyAttr(target: $target, attr: mode, mode: $mode)
+  }
+  text: "the card switches to the named mode"
+  doc: "what `switchMode` means: one of the six card attributes spec §2.5-3 adds — set to the named mode, no duration of its own (1-10)"
+
+-- §23-5 — "switch it to Hidden Mode", "switch it to Revealed Mode"
+DEFINE OP hidden
+  TAKES (target: ref, hidden: boolean)
+  DO {
+    modifyAttr(target: $target, attr: hidden, flag: $hidden)
+  }
+  text: "the card switches to Hidden Mode or Revealed Mode, as named"
+  doc: "what `hidden` means: set to the named boolean, no duration of its own (23-5)"
+
+-- §3-9-2-1 — "flip up to 1 card in your life face up", "…face down"
+DEFINE OP faceUp
+  TAKES (target: ref, faceUp: boolean)
+  DO {
+    modifyAttr(target: $target, attr: faceUp, flag: $faceUp)
+  }
+  text: "the card in life turns face up or face down, as named"
+  doc: "what `faceUp` means: set to the named boolean, no duration of its own (3-9-2-1)"
+
+-- §22-2-4 — "you may flip this card over"
+DEFINE OP flip
+  TAKES (target: ref)
+  DO {
+    modifyAttr(target: $target, attr: flipped)
+  }
+  text: "the card turns to its back side"
+  doc: "what `flip` means: the one card attribute with no value field of its own to name — the primitive's own case reads what a flip means (22-2-4)"
+
+-- §1-11 — "add 1 marker to this card"
+DEFINE OP addMarker
+  TAKES (target: ref, n: amount)
+  DO {
+    modifyAttr(target: $target, attr: markers, amount: $n, sign: add)
+  }
+  text: "the card's markers increase by the amount"
+  doc: "what `addMarker` means: a delta on the one attribute a marker count is (1-11); `sign` is which way `removeMarker` beside it moves the same delta"
+
+-- §1-11 — "remove 1 marker from this card"
+DEFINE OP removeMarker
+  TAKES (target: ref, n: amount)
+  DO {
+    modifyAttr(target: $target, attr: markers, amount: $n, sign: remove)
+  }
+  text: "the card's markers decrease by the amount"
+  doc: "the same act as `addMarker`, the other way (1-11)"
+
+-- §9-1-3, §22-1 — "this card gains [Blocker] for the turn"
+DEFINE OP grant
+  TAKES (target: ref, keyword: keyword, until: duration)
+  DO {
+    modifyAttr(target: $target, attr: keywords, keyword: $keyword, until: $until)
+  }
+  text: "the target gains the named keyword skill, for the duration"
+  doc: "what `grant` means: one card attribute, by the keyword it counts as having — `until` left out means the keyword is printed rather than granted, which nothing calls this row for (9-1-3, 22-1)"
+
+-- §20-1 — "this card also counts as ≪Saiyan≫", "…is also treated as
+-- red", "…is also treated as {Planet Namek}"
+DEFINE OP gains
+  TAKES (target: ref, traits: strings, characters: strings, colors: strings, names: strings, allAreas: boolean)
+  DO {
+    modifyAttr(target: $target, attr: traits, values: $traits, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: characters, values: $characters, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: colors, values: $colors, allAreas: $allAreas)
+    modifyAttr(target: $target, attr: alsoNames, values: $names, allAreas: $allAreas)
+  }
+  text: "the card also counts as the named traits, characters, colours and names, wherever it is"
+  doc: "what `gains` means: `modifyAttr`'s general row, one call per list attribute — a call that leaves one out leaves that call's own \"values\" out too, which the static reader (`collectStatics`/`permanents`) already treats as none of that list (docs/arena-ruleset-spec.md §2.3)"
+
+-- ── an event in another's place (§2.2, 9-10, #137) ──────────────────────────
+--
+-- `replace(event, with, by?, bySide?, to?, optional?, target?)` is the one
+-- primitive under three spellings here. `replaceLeave` is its redirect form:
+-- the departure happens, to somewhere else, and `with` is one move of the
+-- card itself — the shape `collectStatics` and `vm/effects.ts` already read
+-- as a redirect, so a [Permanent] written either way stands the same offer
+-- under the same kind. `by: ko` on a `leave` is the same moment as the `ko`
+-- event (the readers already store both as `by: "ko"`); it is spelled that
+-- way because a template cannot pick its `event` by the call's `by`. A
+-- `replaceLeave` to `play` or `under` — which the compiler never writes, and
+-- the sweep proves no record carries — would lower to a substitute rather
+-- than the native op's mapped redirect, the one boundary of this row.
+--
+-- `negateAttack` and `negateCounter` are the attack in progress and the
+-- [Counter] being answered, each replaced by nothing. Neither is a standing
+-- offer: `replaceAs` reads the call back as the spelling it stands for, so
+-- their own cases — 20-16's "if you negated a Leader Card's attack", 9-7's
+-- counter in flight — stay the one reading of either.
+--
+-- `resolvingPlay` is the play being resolved (9-6), replaced: by a move of
+-- the card elsewhere when the call names `instead`, and otherwise by the same
+-- play in another manner — rested, or its skills negated for the turn. The
+-- `GIVEN`/`UNLESS` guards are the header's `branch`; `replaceAs` reads both
+-- shapes back as `resolvingPlay`, whose case is the one reading.
+
+-- §9-10 — "if this card would be KO'd, place it in your Warp instead", "…
+-- would be removed from the Battle Area by your opponent's skill, you may
+-- return it to your hand instead"
+DEFINE OP replaceLeave
+  TAKES (to: area, from: strings, by: word, bySide: word, mode: word, position: word, optional: boolean, target: ref)
+  DO {
+    replace(event: leave, from: $from, by: $by, bySide: $bySide, optional: $optional, target: $target, with: { moveTo(target: [subject], to: $to, mode: $mode, position: $position) })
+  }
+  text: "if the card would leave the Battle Area, it goes to the named area instead"
+  doc: "what `replaceLeave` means: `replace`'s redirect form — the departure happens, to another area"
+
+-- §8-1-6-1 — "negate the attack"
+DEFINE OP negateAttack
+  TAKES ()
+  DO {
+    replace(event: attack, with: {})
+  }
+  text: "the attack in progress resolves to nothing"
+  doc: "what `negateAttack` means: the attack, replaced by nothing"
+
+-- §9-7 — "negate the [Counter] skill"
+DEFINE OP negateCounter
+  TAKES ()
+  DO {
+    replace(event: counter, with: {})
+  }
+  text: "the [Counter] this one answers resolves to nothing"
+  doc: "what `negateCounter` means: the counter being answered, replaced by nothing (9-7)"
+
+-- §9-6 — "negate the play of that card and place it at the bottom of its
+-- owner's deck", "it's played in Rest Mode", "…with its skills negated"
+DEFINE OP resolvingPlay
+  TAKES (instead: area, position: word, mode: word, negated: boolean)
+  DO {
+    GIVEN $instead {
+      replace(event: play, with: { moveTo(target: [resolving], to: $instead, position: $position) })
+    }
+    UNLESS $instead {
+      GIVEN $negated {
+        replace(event: play, with: { play(target: [resolving], mode: $mode, negated: turn) })
+      }
+      UNLESS $negated {
+        replace(event: play, with: { play(target: [resolving], mode: $mode) })
+      }
+    }
+  }
+  text: "the play being resolved goes elsewhere instead, or happens in another manner"
+  doc: "what `resolvingPlay` means: the play replaced — by a move of the card with `instead`, by the same play rested or negated for the turn without it ([Counter: Play] only, 9-6)"
+
+-- ── what a player sees (§2.2, 20-11, #137) ──────────────────────────────────
+--
+-- Looking is revealing to one player. `reveal`'s `audience: you` binds the
+-- cards and logs nothing; `revealAs` reads each of the three shapes below
+-- back as `look`, whose case evaluates the count and takes one player's pile.
+-- A whole area's count is not read — the area is the cards.
+
+-- §20-11 — "look at the top 3 cards of your deck", "…the bottom card…",
+-- "look at your opponent's hand"
+DEFINE OP look
+  TAKES (n: amount, as: string, side: side, from: word, area: area)
+  DO {
+    GIVEN $area = deck {
+      GIVEN $from = top {
+        reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
+      }
+      GIVEN $from = bottom {
+        reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
+      }
+    }
+    UNLESS $area = deck {
+      reveal(sel: IN $side.$area, as: $as, audience: you)
+    }
+  }
+  text: "the cards are shown to the player alone, and stay where they are"
+  doc: "what `look` means: a reveal whose audience is you — the top or bottom of a deck, or a whole other area (20-11)"

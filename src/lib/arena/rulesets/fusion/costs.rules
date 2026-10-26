@@ -1,0 +1,183 @@
+-- What a move costs, as declarations rather than as branches of one search.
+--
+-- Sections are `docs/rules/rulemanual.txt`: §5-3 paying an energy cost and
+-- §8-3-2-3 doing it in the Main Phase, §1-2-3 the specified (coloured) half of
+-- a cost, §1-14-2 energy markers standing in for energy of the Leader's
+-- colour, §3-8-2 the player's free choice of which energy to rest, §13-4 a
+-- Unison's marker cost, §20-5 an X price, §20-19 a card rested in the Energy
+-- Area's place, §21-3 life as a price, §22-27 [Burst X], and §22-30 [Warrior
+-- of Universe 7].
+--
+-- In the legacy engine payment is one function, `planPayment` in
+-- `engine/state.ts`, with a branch inside it for each of those: the coloured
+-- orbs, the either-orbs, X, the cards that may stand in for energy, and
+-- [Warrior of Universe 7] clearing the colours outright. It plays this game
+-- correctly and it can only ever play this game — a second game with a
+-- different resource has nowhere to say so. Here each is a `DEFINE COST`, and
+-- `vm/costs.ts` is one planner over the **declared** kinds (#148).
+--
+-- Two lines carry the whole of what an interpreter needs to charge a price it
+-- has never seen:
+--
+--   `consumes:`  the resource it takes — `energy`, `markers`, `life`, `mode`,
+--                `cards`, or `unreadable` for the half of a printed price no
+--                engine can charge itself. The planner switches on this word
+--                and never on the declaration's *name*, so a second game's
+--                `DEFINE COST mana / consumes: energy` is charged by the same
+--                search this file's `energy` is.
+--   `amount:`    the **card attribute** the price's amount is read off, when
+--                the move asking for it names a card (§20-21). `ACTION play
+--                COST [energy]` passes no arguments, so the number comes from
+--                the card being paid for, and this line is where the game says
+--                which number that is. It names the *derived* attribute
+--                (`costOf`, never `energyCost`), so every reduction in force
+--                reaches a play's price through the declared `layers:` rather
+--                than through a second path.
+--   `asks:`      how the payment puts its question (§3-8-2). `choice` is a
+--                price the payer is asked about whenever more than one
+--                genuinely different way to pay it exists — which is the
+--                `payCost` prompt the board already answers; `nothing` is a
+--                price with only ever one way to pay, which is settled without
+--                a question.
+--
+-- The `DO` program says two things at once, and both are read: its **target**
+-- is the pool the price is paid out of (the active cards in your Energy Area,
+-- the cards in your life), and the **op** is what paying does to what was
+-- taken from it. How *many* is the price's own amount and is never in the
+-- program — an action asks for a price by name and the amount comes off the
+-- card being paid for.
+--
+-- Two gaps are written here rather than papered over. `TAKES` names what each
+-- price is given, but `ACTION ... COST [energy]` passes no arguments, so where
+-- the values come from is the *thing being paid for*: a price paid for a card
+-- reads its amount off the card through `amount:` above, and a price paid for a
+-- **skill line** has it bound in by the interpreter that knows which line it is
+-- (#147, `vm/costs.ts`'s `BoundAmounts`) — which is where `marker`, `life` and
+-- `payWith` get their numbers and `text` gets bound away on a skill whose whole
+-- cost is orbs (#149: `activate`'s own `payWith` items, resolved off the
+-- record and rested where they stand). What still has nothing to bind it is
+-- the *[Permanent]* form of the same permission — "you can use this card to
+-- pay energy costs even when it's in your Battle Area" (BT3-039) — grants a
+-- payer to the whole board rather than to one price, so it is not bound to any
+-- price at all: `vm/effects.ts`' `permanents` collects it as a standing
+-- `payer`, and `vm/costs.ts`' `payersFor` adds it to the pool of *every*
+-- energy price, the legacy `payersFor`'s reading. And an **either-orb** ("{Red/Blue}", one orb payable with any one of the
+-- listed colours, §22-13) has no parameter type that can name it: `colors` is a
+-- flat list and the language knows no list of alternatives. The planner reads them off the price
+-- and charges them exactly; the parameter list below cannot say so, the way
+-- `attributes.rules` cannot say what is printed on a card's back side.
+
+DEFINE COST energy                                                        -- §5-3
+  TAKES (total: amount, orbs: colors, x: amount)
+  consumes: energy
+  amount: "costOf"
+  asks: choice
+  DO {
+    switchMode(target: IN you.energy active, mode: rest)
+  }
+  text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode, the coloured orbs matched in colour; an energy marker pays one energy of your Leader's colour in a card's place (5-3-3, 1-2-3, 1-14-2)"
+
+-- The other half of a Z-card's price (§5-4). It is a `cards` price like
+-- `payWith` below and the planner tells the two apart the way it tells any two
+-- prices apart — by reading the `DO`, never the name: this one's target names
+-- a **place** (`IN you.zEnergy`), so the cards come out of that pool and go
+-- where the op says; `payWith`'s names cards the price was handed, so they are
+-- rested where they stand. 5-4-3: the Z-Energy is spent, not rested — the
+-- cards are placed in the Drop Area — which is why the op is a move.
+-- `fromEnd` says which end of the pile the cards come off: the far end, the
+-- last placed first, which is the order the engine that has been playing
+-- spends Z-Energy in and therefore the order the Drop Area ends up in.
+DEFINE COST zEnergy                                                       -- §5-4
+  TAKES (n: amount)
+  consumes: cards
+  amount: "zEnergyCostOf"
+  asks: nothing
+  DO {
+    moveTo(target: IN you.zEnergy fromEnd, to: drop)
+  }
+  text: "a Z-card's Z-Energy price: that many cards are placed from the Z-Energy Area in the Drop Area, on top of the card's energy cost (5-4, 16-2-1)"
+
+-- [Burst X] (§22-27) is a price written as a tag in front of a skill: the top
+-- X cards of your deck are placed in your Drop Area, and with fewer than X
+-- cards in the deck it cannot be paid (22-27-3). It is a `cards` price out of
+-- a declared place like `zEnergy` above, read the same way — the pool is the
+-- op's target and paying does what the op says — with two differences, both
+-- read off the declaration rather than the name: the cards come off the
+-- **top** (no `fromEnd`), and the amount is not an attribute of the card,
+-- because a card prints a [Burst] on one skill line and not on itself. So it
+-- names no `amount:`, and the interpreter that knows which line is being
+-- paid for binds the number in (`vm/activate.ts`'s `boundFor`, #148), the way
+-- `marker` and `life` below get theirs. The deck is a hidden zone, so each
+-- card is shown as it goes.
+DEFINE COST burst                                                         -- §22-27
+  TAKES (n: amount)
+  consumes: cards
+  asks: nothing
+  DO {
+    moveTo(target: IN you.deck, to: drop)
+  }
+  text: "the price is paid by placing that many cards from the top of your deck in your Drop Area, each shown as it goes; with fewer cards in the deck it cannot be paid (22-27-2, 22-27-3)"
+
+DEFINE COST marker                                                        -- §13-4
+  TAKES (n: amount)
+  consumes: markers
+  asks: nothing
+  DO {
+    addMarker(target: [self], n: $n)
+  }
+  text: "the price is paid with the markers on the card whose skill is being used: a negative number removes that many, and the card may use no further marker skill this turn (13-4, 1-11)"
+
+-- [Spirit Boost X] (§22-43) is a marker price like 13-4's, written as a tag in
+-- front of a skill — but the markers come off the Unison Card in the Unison
+-- Area, not off the card whose skill is used. The planner reads which card
+-- from the op's target, as it reads a pool for `burst`: `[self]` is the card
+-- itself, a place is the card in it. The amount is the line's (the tag's X,
+-- negative to remove), bound by the activation (#157); the shortfall is asked
+-- among the activation's gates, beside [Burst]'s, in the legacy words.
+DEFINE COST spiritBoost                                                   -- §22-43
+  TAKES (n: amount)
+  consumes: markers
+  asks: nothing
+  DO {
+    addMarker(target: IN you.unison, n: $n)
+  }
+  text: "the price is paid by removing that many markers from your Unison Card; with fewer on it, it cannot be paid (22-43-2)"
+
+DEFINE COST life                                                          -- §21-3
+  TAKES (n: amount)
+  consumes: life
+  asks: nothing
+  DO {
+    moveTo(target: IN you.life, to: drop)
+  }
+  text: "the price is paid by placing that many cards from your life in your Drop Area (21-3)"
+
+DEFINE COST rest                                                          -- §8-4-1
+  TAKES ()
+  consumes: mode
+  asks: nothing
+  DO {
+    switchMode(target: [self], mode: rest)
+  }
+  text: "the price is paid by switching the card itself to Rest Mode, which a card already in Rest Mode cannot do (1-10-1)"
+
+DEFINE COST payWith                                                       -- §20-19
+  TAKES (cards: selector)
+  consumes: cards
+  asks: choice
+  DO {
+    switchMode(target: FROM $cards, mode: rest)
+  }
+  text: "cards outside the Energy Area that this price may be paid with instead, each rested where it stands and counting as energy of the colours the price says (20-19)"
+
+-- The price the engine does not charge, and the reason it is a declaration at
+-- all: a move whose price has no `DEFINE COST` would be offered for free, and
+-- a move whose price is *declared unreadable* is refused with an `unread`
+-- requirement naming the card — the same answer the legacy engine gives for a
+-- skill whose cost the compiler could not read.
+DEFINE COST text                                                          -- §4-3-3
+  TAKES (printed: string)
+  consumes: unreadable
+  asks: nothing
+  DO {}
+  text: "the price as printed, kept for the part no engine can charge itself; a move that asks for it is refused rather than offered free (4-3-3)"

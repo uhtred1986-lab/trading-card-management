@@ -1,6 +1,8 @@
 ---
 title: "Arena F1-01: a second game loads — rulesetFor(\"fusion\"), the state's game from the deck, per-game verifier expectations"
 issue: 1184
+status: closed
+closed_at: 2026-10-26
 milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-rulesets, area:arena-vm, phase:fusion-world, model:sonnet-5
 stage: fusion-world
