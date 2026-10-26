@@ -648,7 +648,20 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
+  /**
+   * `exactly` (#930, BT26-088): exactly this many, read off the board as the
+   * choice is made ("switch the same number of your green energy as that
+   * card's specified cost to Rest Mode"); the selector's count is not read.
+   * Too few candidates and nothing is bound — and inside an accepted "you
+   * may" the offer counts as not done (20-16-1), so "if you do" fails.
+   * `specifiedCostAtMost` (#930, BT26-088, owner's ruling of 26 Oct 2026):
+   * only the cards whose specified cost (1-2-3, its orbs) is at most this
+   * much, read off the board as the choice is made — "reveal 1 mono-green
+   * <Vegito> card … and switch the same number of your green energy as that
+   * card's specified cost": a Vegito the Active green energy cannot pay for
+   * is not on offer.
+   */
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -2284,6 +2297,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.
         const bounded = op.atMost !== undefined;
+        // #930, BT26-088: an exact count read off the board ("the same number of
+        // your green energy as that card's specified cost"). Too few cards and
+        // nothing is chosen: the act cannot be done in full, so an accepted
+        // offer it belongs to is not done either (20-16-1) and "if you do" fails.
+        const exact = op.exactly !== undefined ? Math.max(0, h.amount(frame, op.exactly)) : undefined;
+        if (exact !== undefined && frame.awaiting !== op.as && h.resolveSelector(frame, { ...op.sel, count: undefined }).length < exact) {
+          frame.vars[op.as] = [];
+          if (frame.did?.may) frame.did.may = false;
+          break;
+        }
         // #930 (EX13-14, SD19-03): "for each character name required for the
         // revealed card's [union] skill, add up to 1 card with a matching
         // character name" — `count` cards per name the revealed card's
@@ -2292,7 +2315,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const unionNames = unionOf ? h.unionNames(frame, unionOf).map(identityKey) : [];
         const perName = op.sel.count ?? 1;
         const fillsNames = (ids: string[]) => namesAssignable(ids.map((id) => h.defOf(id).characters.map(identityKey)), unionNames, perName);
-        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : unionOf ? perName * unionNames.length : (op.sel.count ?? 1);
+        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : unionOf ? perName * unionNames.length : exact ?? (op.sel.count ?? 1);
         // #720: inside a voluntary replacement's substitute the offer's "you
         // may" is already spent, so a choice it also made "up to" is exact.
         const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
@@ -2398,7 +2421,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
+        // #930, BT26-088: only a card whose specified cost the counted cards can pay.
+        const payable = op.specifiedCostAtMost !== undefined ? h.amount(frame, op.specifiedCostAtMost) : Infinity;
+        const specified = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "specifiedCost" });
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.

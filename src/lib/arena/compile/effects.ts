@@ -171,6 +171,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // "…play up to 1 card from under this card, and place this card under the
   // played card": the card this skill just played, if it played one; otherwise
   // the card the trigger was about ("When you play a <Goku> card, …").
+  // #930, BT26-088: "…play **the revealed card** on top of this card": the
+  // one card the skill's reveal bound (and nothing when it revealed none).
+  // The whole phrase only; "the revealed card's energy cost" is a measure.
+  if (/^\s*the revealed card\s*$/i.test(clause) && c.lastSeen) return { var: c.lastSeen };
   if (/\bthe played card\b|\bthe card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
@@ -1198,6 +1202,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if (/^make your opponent choose (\d+) cards? from their hand$/.test(t)) return [{ op: "discard", n: 1, side: "opponent" }];
   if (/^discard (?:it|them)$/.test(t) && c.last) return [{ op: "moveTo", target: { var: c.last }, to: "drop", reveal: true }];
   if ((m = /^both players choose (\d+) cards? (?:in|from) their hands?$/.exec(t))) return [{ op: "discard", n: Number(m[1]), side: "both" }];
+  // #930, BT29-150: "both players send cards from their hands to their owners'
+  // Warps until both hands have 7 cards" — each player gives up the excess of
+  // their own hand over N, chosen by that player (20-7), as BT7-105's "until
+  // they have 12 cards in hand" does for the opponent alone; a hand of N or
+  // fewer sends nothing (0-2-4-2). Each side its own `if`, because the excess
+  // differs per hand. Only the Warp, as printed. The turn player acts first
+  // (0-2-8; owner's ruling of 26 Oct 2026), whoever controls the skill — it
+  // can resolve on the opponent's turn (a Unison removed by their skill) — so
+  // the order is chosen by `isTurnPlayer` as the skill resolves.
+  if ((m = /^both players send cards from their hands to (?:their owners?'?s?|their) warps? until both hands have (\d+) cards$/.exec(t))) {
+    const keep = Number(m[1]);
+    const step = (side: "you" | "opponent"): Op => {
+      const hand: Selector = { side, area: "hand" };
+      return { op: "if", cond: { kind: "count", sel: hand, atLeast: keep + 1 }, then: [{ op: "discard", n: { plus: [{ count: hand }, -keep] }, side, to: "warp" }] };
+    };
+    return [{ op: "if", cond: { kind: "isTurnPlayer" }, then: [step("you"), step("opponent")], else: [step("opponent"), step("you")] }];
+  }
   // "Both players choose 1 card from their hand and 1 card from their Battle
   // Area, and place those cards in their Drop Areas" (BT1-057): two areas at
   // once, for both players, is more than the `discard` op says (hand only),
@@ -2273,10 +2294,33 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "control", target: ref, ...(m[1] === "your opponent" ? { to: "opponent" as const } : {}), ...(DURATION_TAIL.test(t) ? { until: durationOf(t) } : {}) }];
   }
 
+  // #930, BT26-088: "…reveal 1 mono-green <Vegito> card from your hand and
+  // **switch the same number of your green energy as that card's specified
+  // cost to Rest Mode**": exactly as many of your Active Mode energy of that
+  // colour as the revealed card's specified cost (1-2-3: the coloured part of
+  // its cost), counted as the choice is made (`choose`'s `exactly`). "That
+  // card" is the card a reveal just bound, and nothing else.
+  if ((m = /^switch the same number of your ((?:[a-z]+ )?)energy as that card's specified cost to rest mode$/.exec(t))) {
+    if (!c.lastSeen) return null;
+    const sel = parseTarget(`1 of your ${m[1]}energy`);
+    if (!sel || sel.side !== "you" || sel.area !== "energy" || sel.filter?.unreadable) return null;
+    const v = `c${c.n++}`;
+    const rest: Selector = { ...sel };
+    delete rest.count;
+    return [
+      { op: "choose", sel: { ...rest, mode: "active" }, exactly: { attr: { var: c.lastSeen }, name: "specifiedCost" }, as: v, reason: clause },
+      { op: "switchMode", target: { var: v }, mode: "rest" },
+    ];
+  }
+
   // Mode switches (1-10).
   // A few cards drop the word: "switch 1 of your Chilled Army tokens to rest".
   if ((m = /^switch (.*?) to (active|rest)(?: mode)?$/.exec(t))) {
     const mode = m[2] as "active" | "rest";
+    // "The same number of <cards> as <a measure>" is a count, never the card
+    // the measure is of: read as "that card" it switched the revealed card
+    // (BT26-088). Only the form above reads it.
+    if (/\bthe same number of\b/.test(m[1])) return null;
     // "Switch this card **and** up to 1 of your energy to Active Mode": one
     // verb, two targets, and `refFor` would collapse them to this card and
     // leave the energy standing. Each target keeps its own choice, because
@@ -2746,6 +2790,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // (3-8), which is what a move with no `owner` does.
     [/^(?:add|place) (.+?) (?:to|in) (?:its owner'?s?|their owners?'?s?) energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^(?:add|place) (.+?) (?:to|in) (?:its owner'?s?|their owners?'?s?) energy(?: area)?$/, "energy", { reveal: true }],
+    // #930, BT7-123: "your opponent reveals their hand, and you choose up to 2
+    // cards from it and **add them to their energy in Rest Mode**": the chosen
+    // cards and "their" Energy Area are the opponent's, so the cards go to
+    // their owner's area (3-8). Only a pronoun for the cards ("them", "it"):
+    // with a description in front, "their" could name another player.
+    [/^(?:add|place) (it|them) (?:to|in) their energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
     // The passive said the same as the active line above — "it's sent to its
@@ -5197,6 +5247,30 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         const text = JSON.stringify(got);
         const boundInside = JSON.stringify(mayBefore.ops).match(/"as":"([^"]+)"/g)?.map((x) => x.slice(6, -1)) ?? [];
         if (!boundInside.some((v) => text.includes(`"${v}"`))) {
+          mayBefore.ops.push(...got);
+          if (mayBefore.reason) mayBefore.reason = `${mayBefore.reason} and ${clause.trim().replace(/[.]$/, "")}`;
+          c.lastOp = "may";
+          pendingMay = mayBefore;
+          continue;
+        }
+        // #930, BT26-088: "you may reveal 1 mono-green <Vegito> card from your
+        // hand **and switch the same number of your green energy as that
+        // card's specified cost to Rest Mode**. If you do, …": the switch is
+        // counted off the revealed card and is part of what is offered (20-16)
+        // — "if you do" needs both. The counted reveal becomes a pick of the
+        // one card, then its reveal, so "that card" is one card and not every
+        // match in the hand.
+        const pay = got[0];
+        const shownFirst = mayBefore.ops[0];
+        if (
+          got.length === 2 && pay.op === "choose" && pay.exactly !== undefined && got[1].op === "switchMode" && "var" in got[1].target && got[1].target.var === pay.as &&
+          mayBefore.ops.length === 1 && shownFirst?.op === "reveal" && shownFirst.audience !== "you" && shownFirst.sel.area === "hand" && shownFirst.sel.count === 1 && !shownFirst.sel.upTo
+        ) {
+          // Only a card whose specified cost the Active energy the switch
+          // chooses from can pay in full is on offer (owner's ruling of 26 Oct
+          // 2026): an unpayable one is never revealed.
+          const pick: Op = { op: "choose", sel: shownFirst.sel, as: shownFirst.as, reason: mayBefore.reason ?? "reveal", specifiedCostAtMost: { count: pay.sel } };
+          mayBefore.ops.splice(0, 1, pick, { op: "reveal", sel: { fromVar: shownFirst.as }, as: shownFirst.as });
           mayBefore.ops.push(...got);
           if (mayBefore.reason) mayBefore.reason = `${mayBefore.reason} and ${clause.trim().replace(/[.]$/, "")}`;
           c.lastOp = "may";
