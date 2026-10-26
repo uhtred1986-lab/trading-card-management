@@ -203,7 +203,7 @@ export type Mode = "active" | "rest";
  * triggers resulting from the chosen Battle Card moving to a different area are
  * not made pending, nor does counter timing occur", so it announces no `moved`.
  */
-export type MoveReason = "ko" | "effect" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge" | "areaExtension";
+export type MoveReason = "ko" | "effect" | "powerZero" | "rule" | "cost" | "play" | "combo" | "damage" | "draw" | "charge" | "areaExtension";
 
 /**
  * A replacement effect that may change what happens when a card is about to

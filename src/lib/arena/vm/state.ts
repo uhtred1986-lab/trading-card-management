@@ -419,7 +419,7 @@ export interface VmState {
     attempts: number;
     limit: number;
     subjects: Record<string, number>;
-    pass: { id: string; event: number; reason: "rule" | "effect"; actor?: PlayerId; replacements: ReplacementChoice[] }[];
+    pass: { id: string; event: number; reason: "rule" | "effect" | "powerZero"; actor?: PlayerId; replacements: ReplacementChoice[] }[];
     index: number;
     used: Record<string, string[]>;
     awaiting?: { id: string; choices: ReplacementChoice[]; allowNone: boolean; actor?: PlayerId };
