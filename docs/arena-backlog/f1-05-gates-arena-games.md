@@ -5,6 +5,8 @@ milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-ui, area:arena-vm, phase:fusion-world, model:haiku-4-5
 stage: fusion-world
 priority: P2
+status: closed
+closed_at: 2026-10-26
 touches: src/lib/catalog/games.ts, src/lib/arena/load.ts, src/lib/arena/deck-api.ts, src/lib/arena/offline-decks.ts, src/lib/arena/matches.ts, src/lib/arena/rules-store.ts, src/lib/arena/rules-progress.ts, src/lib/arena/local/pack.ts, src/app/arena/page.tsx, src/app/arena/match/[id]/page.tsx, src/app/arena/rules/sandbox-actions.ts
 ---
 Tracking: Arena F1. Depends on F1-01 (the engine accepts a `game` from the deck). Plan:

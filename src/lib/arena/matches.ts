@@ -11,7 +11,8 @@
  * app is two brothers behind Basic Auth; a secret link would be a second auth
  * surface for no gain (`docs/arena-client-contract.md` §9).
  */
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { ARENA_GAMES } from "@/lib/catalog/games";
 import type { Db } from "@/db";
 import { arenaMatches, cards as cardsTable, deckCards, decks as decksTable } from "@/db/schema";
 import { DEFAULT_ENGINE } from "./engine-ids";
@@ -159,7 +160,7 @@ export async function sharedDecksOf(db: Db, hostDeckId: number | null): Promise<
   const rows = await db
     .select({ id: decksTable.id })
     .from(decksTable)
-    .where(and(eq(decksTable.owner, host.owner), eq(decksTable.shareable, true), eq(decksTable.game, "dbs")));
+    .where(and(eq(decksTable.owner, host.owner), eq(decksTable.shareable, true), inArray(decksTable.game, ARENA_GAMES)));
   return rows.map((r) => r.id);
 }
 

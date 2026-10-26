@@ -14,8 +14,10 @@
  * legal deck looks like, and how the model should be told which game it is
  * reasoning about.
  *
- * The arena engine is deliberately **not** parameterised: it reads the Masters
- * rule manual and only ever plays `dbs` decks (owner's decision).
+ * The arena plays the games flagged `arena` below, each by its own ruleset
+ * directory (`src/lib/arena/rulesets/<game>/`). Every gate that decides whether
+ * a deck or card may enter the arena asks `arenaPlays` / `ARENA_GAMES`, so
+ * turning a game on or off is the one flag.
  */
 
 export const GAMES = ["dbs", "fusion"] as const;
@@ -54,6 +56,8 @@ export interface GameInfo {
   deck: DeckRules;
   /** Card types that can never sit in a deck. */
   nonDeckTypes: string[];
+  /** Whether the arena plays this game. */
+  arena: boolean;
 }
 
 export const GAME_INFO: Record<Game, GameInfo> = {
@@ -67,6 +71,7 @@ export const GAME_INFO: Record<Game, GameInfo> = {
     // Rule Manual v4.00 §6-1: 1 leader, 50–60 main, up to 10 Z-cards, 4 copies.
     deck: { main: 50, mainMax: 60, zMax: 10, copies: 4, colorStrict: false },
     nonDeckTypes: ["TOKEN"],
+    arena: true,
   },
   fusion: {
     id: "fusion",
@@ -84,8 +89,17 @@ export const GAME_INFO: Record<Game, GameInfo> = {
      */
     deck: { main: 50, mainMax: 60, zMax: 0, copies: 4, colorStrict: true },
     nonDeckTypes: ["ENERGY MARKER", "TOKEN"],
+    arena: true,
   },
 };
+
+/** The games the arena plays: the one list every arena gate reads. */
+export const ARENA_GAMES: readonly Game[] = GAMES.filter((g) => GAME_INFO[g].arena);
+
+/** Whether the arena plays this game; false for anything that is not a known game. */
+export function arenaPlays(game: unknown): game is Game {
+  return isGame(game) && GAME_INFO[game].arena;
+}
 
 export function isGame(v: unknown): v is Game {
   return typeof v === "string" && (GAMES as readonly string[]).includes(v);

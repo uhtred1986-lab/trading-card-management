@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import { deckDetail, deckSummary, playableReason, type DeckDetail, type DeckSummary } from "../../src/lib/arena/deck-api";
 import { legality, type LegalityCard } from "../../src/lib/decks/legality";
+import { GAME_INFO } from "../../src/lib/catalog/games";
 
 const leaderCard = (over: Partial<LegalityCard> = {}): LegalityCard => ({
   cardId: "BT18-001",
@@ -66,15 +67,21 @@ const mainCard = (over: Partial<LegalityCard> = {}): LegalityCard => ({
 }
 
 {
-  // Not hidden, not silent: a Fusion World deck is listed and says why it
-  // cannot be played — `playable` still comes from the caller, never guessed.
+  // Not hidden, not silent: a deck of a game the arena does not play is listed and says why it
+  // cannot be played — `playable` still comes from the caller, never guessed. The gate is the
+  // `arena` flag in GAME_INFO, so the test flips it for Fusion World and puts it back.
   const rows = [leaderCard({ cardId: "FB01-001", name: "Fusion Leader" })];
-  const summary = deckSummary(
-    { id: 2, name: "Fusion starter", game: "fusion", isBuilt: false, leader: null, legality: legality(rows, "fusion") },
-    false,
-  );
-  assert.equal(summary.playable, false);
-  assert.match(summary.playableReason ?? "", /Fusion World/, "says which game, not just that it cannot play");
+  const input = { id: 2, name: "Fusion starter", game: "fusion" as const, isBuilt: false, leader: null, legality: legality(rows, "fusion") };
+  const was = GAME_INFO.fusion.arena;
+  GAME_INFO.fusion.arena = false;
+  try {
+    const summary = deckSummary(input, false);
+    assert.equal(summary.playable, false);
+    assert.match(summary.playableReason ?? "", /Fusion World/, "says which game, not just that it cannot play");
+  } finally {
+    GAME_INFO.fusion.arena = was;
+  }
+  assert.match(deckSummary(input, false).playableReason ?? "", /cannot be loaded/, "with the arena playing Fusion World the game is no longer the reason");
 }
 
 {
