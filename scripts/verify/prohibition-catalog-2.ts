@@ -153,7 +153,7 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
 // BT31-111, placing under, attack negation, BT15-016's price.
 {
   const bt31 = forbids(ops("[activate: main/battle] Draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and until the end of your opponent's turn, that card can't attack and your opponent can't activate its skills."));
-  assert.deepEqual(bt31.map((f) => [f.what, f.until, JSON.stringify(f.target)]), [["attack", "nextTurn", '{"var":"c0"}'], ["activateSkill", "nextTurn", '{"var":"c0"}']], "BT31-111: the leading duration covers both clauses");
+  assert.deepEqual(bt31.map((f) => [f.what, f.until, JSON.stringify(f.target)]), [["attack", "nextTurn", '{"var":"c0"}'], ["activateSkill", "nextTurn", '{"var":"c0"}'], ["block", "nextTurn", '{"var":"c0"}']], "BT31-111: the leading duration covers both clauses (A2: its [Blocker] too)");
   assert.ok(unread("[activate: main] Choose up to 1 of your opponent's Battle Cards, and that card can't attack and your opponent can't activate its skills.").length, "with no duration said anywhere it stays unread");
   assert.deepEqual(forbids(ops("[Permanent] You can't place cards under this card, except with this card's skill."))[0], { op: "forbid", what: "placeUnder", side: "you", until: "game", target: SELF, exceptOwnSkills: true }, "BT25-008");
   assert.deepEqual(ops("[Activate: Main] Choose 1 of your Battle Cards: For the turn, the chosen card gets +15000 power, can attack Battle Cards in Active Mode, can't have its attacks negated, and can't attack your opponent's Leader Card.").filter((o) => o.op === "permit").map((o) => (o.op === "permit" ? o.what : null)), ["attackActive", "attackUnnegatable"], "DB2-033");

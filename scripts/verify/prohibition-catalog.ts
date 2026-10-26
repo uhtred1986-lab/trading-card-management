@@ -75,7 +75,7 @@ const SELF = { sel: { special: "self" } };
 // Several actions in one prohibition.
 {
   const f = forbids(ops("[Auto] During your opponent's turn: When you play this card, choose up to 1 of your opponent's Battle Cards and it can't attack or activate skills for the duration of the turn."));
-  assert.deepEqual(f.map((x) => [x.what, x.until, JSON.stringify(x.target)]), [["attack", "turn", '{"var":"c0"}'], ["activateSkill", "turn", '{"var":"c0"}']], "BT9-071");
+  assert.deepEqual(f.map((x) => [x.what, x.until, JSON.stringify(x.target)]), [["attack", "turn", '{"var":"c0"}'], ["activateSkill", "turn", '{"var":"c0"}'], ["block", "turn", '{"var":"c0"}']], "BT9-071 (A2: its [Blocker] too)");
   const b = forbids(ops("[Activate: Main] Choose up to 2 of your opponent's Battle Cards, ignoring [Barrier], and until the end of your opponent's turn, they can't attack or activate the [Blocker] skill. Additionally, if you have a blue Z-Battle Card or blue Unison in play, draw 1 card."));
   assert.deepEqual(b.map((x) => [x.what, x.until]), [["attack", "nextTurn"], ["block", "nextTurn"]], "BT28-053: the leading duration covers both");
   const p = forbids(ops("[Activate: Main] [Once per turn] Choose up to 1 of your opponent's Battle Cards, and it can't attack or be placed in your opponent's Combo Area until the end of your opponent's next turn."));

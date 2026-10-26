@@ -223,6 +223,8 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   placeUnder: "have cards placed under them",
   loseGame: "lose the game",
   winGame: "win the game",
+  evolveOnto: "have cards evolve from them",
+  placeOnTop: "have cards placed on top of them",
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
@@ -724,13 +726,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the card counts as having these too, wherever it is ("gains ≪Saiyan≫ in all areas", "is also treated as red", 20-1); "names" is a whole card name it is also treated as ("also treated as {Planet M-2}"), never a replacement for its own',
   },
   replaceLeave: {
-    fields: [{ name: "from", type: { list: { enum: ["battle", "combo"] } } }, { name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "skillOrKoBySkill"] } }, { name: "bySide", type: { enum: ["opponent"] } }, { name: "mode", type: MODE }, { name: "position", type: { enum: ["top", "bottom"] } }, { name: "requestedTo", type: { enum: ["hand"] } }, { name: "until", type: "duration" }, { name: "optional", type: "boolean" }, SELF],
+    fields: [{ name: "from", type: { list: { enum: ["battle", "combo"] } } }, { name: "to", type: "area", required: true }, { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "skillOrKoBySkill"] } }, { name: "bySide", type: { enum: ["opponent", "you"] } }, { name: "mode", type: MODE }, { name: "position", type: { enum: ["top", "bottom"] } }, { name: "requestedTo", type: { enum: ["hand"] } }, { name: "until", type: "duration" }, { name: "optional", type: "boolean" }, SELF],
     sentence: (raw) => {
       const op = raw as OpOf<"replaceLeave">;
       // `bySide: "opponent"` is the opponent of the card's OWNER: aimed at their cards (BT29-040: "returned to its owner's hand by a skill on
       // your card") it is a skill of yours, not "an opponent's".
       const aimedAtTheirs = op.target && "sel" in op.target && op.target.sel.side === "opponent";
-      const whose = op.bySide === "opponent" ? (aimedAtTheirs ? "one of your skills" : "an opponent's skill") : "a skill";
+      const whose = op.bySide === "opponent" ? (aimedAtTheirs ? "one of your skills" : "an opponent's skill") : op.bySide === "you" ? (aimedAtTheirs ? "an opponent's skill" : "one of your skills") : "a skill";
       const cause = op.from ? `leave the ${op.from.join(" or ")} area` : op.by === "ko" ? "be KO'd" : op.by === "skill" ? `be removed from the Battle Area by ${whose}` : op.by === "skillOrKoBySkill" ? `be removed from the Battle Area or KO'd by ${whose}` : op.by === "skillOrKo" ? `be removed from the Battle Area by ${whose} or KO'd` : "leave the Battle Area";
       const request = op.requestedTo ? ` to the ${op.requestedTo}` : "";
       const duration = op.until ? DURATION_IN_WORDS[op.until] : "";
@@ -745,7 +747,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
       { name: "with", type: "ops", required: true },
       { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "skillOrKoBySkill", "attack"] } },
-      { name: "bySide", type: { enum: ["opponent"] } },
+      { name: "bySide", type: { enum: ["opponent", "you"] } },
       { name: "to", type: { enum: ["hand", "drop"] } },
       { name: "optional", type: "boolean" },
       SELF,
@@ -757,7 +759,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (as.op !== "replace") return describeScript([as], r);
       const op = raw as OpOf<"replace">;
       const who = describeRef(op.target ?? { sel: { special: "self" } });
-      const whose = op.bySide === "opponent" ? "an opponent's skill" : "a skill";
+      const whose = op.bySide === "opponent" ? "an opponent's skill" : op.bySide === "you" ? "one of your skills" : "a skill";
       const instead = `${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
       // 13-5-2: the one marker loss a replacement is read at (`by` is always "attack").
       if (op.event === "marker") return `if ${who} would lose a marker from an opponent's attack, ${instead}`;
@@ -861,7 +863,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "attackTarget", type: "filter" },
       { name: "attackOnly", type: "ref" },
       { name: "against", type: "ref" },
-      { name: "fromArea", type: { enum: ["hand", "battle", "drop", "deck"] } },
+      { name: "fromArea", type: { enum: ["hand", "battle", "drop", "deck", "energy", "any"] } },
       { name: "fromOwnArea", type: "boolean" },
       { name: "sameNameAsSelf", type: "boolean" },
       { name: "bySkill", type: "boolean" },
@@ -891,20 +893,38 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const measure = op.costVsEnergy ? ` (only cards whose energy cost is ${op.costVsEnergy === "above" ? "greater than" : "at least"} the number of cards in their controller's Energy Area)` : "";
       // 20-14-1's price, said from the payer's side: the program's "you" is
       // whoever takes the action, not this card's controller.
-      const escape = op.unless ? ` unless ${describeCond(op.unless)}` : op.unlessPay?.length ? ` unless, each time, the player doing it first pays: ${describeScript(op.unlessPay)}` : "";
+      // An escape that is a condition turned round ("…when this card is in a
+      // battle", BT14-097) is said the way the card says it.
+      // A price's "other than this card" is the card the price is paid for
+      // (the one being played, attacking or activated), never this one.
+      const priceSaid = op.unlessPay?.length ? describeScript(op.unlessPay).replace(/ other than this card\b/g, op.what === "attack" ? " other than the attacking card" : op.what === "play" ? " other than the card being played" : " other than the card whose skill it is") : "";
+      const escape = op.unless ? (op.unless.kind === "not" ? ` only while ${describeCond(op.unless.cond)}` : ` unless ${describeCond(op.unless)}`) : priceSaid ? ` unless, each time, the player doing it first pays: ${priceSaid}` : "";
       // #716: "you can't activate the [Counter: Play] skills of other cards".
       if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.filter || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter)}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
       if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        const which = op.extraCardActivation ? "Extra Cards" : `the skills of ${describeFilter(op.filter!)}`;
+        const which = op.extraCardActivation ? "Extra Cards" : `the skills of ${describeFilter(op.filter!, { plural: true })}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
+      // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
+      // activate skills" rule describes (BT18-019, BT14-097, P-093).
+      if (op.what === "block" && !op.target && op.filter) {
+        const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
+        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${escape}${forThe(op.until, r)}`;
+      }
+      // A move, KO, switch or choice a skill makes (`beMovedBySkill`,
+      // `beKOdBySkill`, `beRestedBySkill`, `beChosen`): `side` is whose skills
+      // (the acting player), never the subject — "your opponent can't be
+      // removed from a Battle Area …" said the opposite of the rule. The
+      // subject is the card(s), or the area `cardsOf`/`fromArea` names.
+      const passive = passiveSentence(op, escape, r);
+      if (passive) return passive;
       // A rule aimed at a card reads the other way round: the card is what is
       // played, not what plays. "You can't play …" is the player's version.
       const who = op.target ? describeRef(op.target) : op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
@@ -930,7 +950,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // BT8-051: whose skill it has to be.
       const by = op.byTypes?.length ? ` with the skill of ${op.byTypes.map((t) => (t === "LEADER" ? "a Leader Card" : t === "BATTLE" ? "a Battle Card" : t === "EXTRA" ? "an Extra Card" : "a Unison Card")).join(" or ")}` : "";
       // "…from the Battle Area", "…from your hand", "…from your Drop Area".
-      const from = op.fromArea ? ` from ${op.fromOwnArea ? "their own" : "the"} ${op.fromArea === "hand" ? "hand" : op.fromArea === "battle" ? "Battle Area" : op.fromArea === "deck" ? "deck" : "Drop Area"}` : "";
+      // BT18-052: "this card **in your Energy Area**" — where the card is, not where it comes from.
+      const from = op.fromArea === "energy" ? " while in the Energy Area" : op.fromArea === "any" ? "" : op.fromArea ? ` from ${op.fromOwnArea ? "their own" : "the"} ${op.fromArea === "hand" ? "hand" : op.fromArea === "battle" ? "Battle Area" : op.fromArea === "deck" ? "deck" : "Drop Area"}` : "";
       // "…the [Activate: Main] skill on copies of this card" (BT12-031).
       const KIND_WORDS: Record<string, string> = { "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]", auto: "[Auto]", permanent: "[Permanent]" };
       if ((op.what === "activateSkill" || op.what === "activateCounter") && op.sameNameAsSelf && !op.target) {
@@ -949,7 +970,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const kinds = op.what === "activateSkill" && op.skillKinds?.length ? ` (${op.skillKinds.map((k) => KIND_WORDS[k] ?? k).join(" or ")} skills only)` : "";
       return `${who} can't ${verb}${which ? ` ${which}` : ""}${kinds}${from}${whose}${to}${by}${against}${measure}${except}${budget}${escape}${forThe(op.until, r)}`;
     },
-    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "attackTarget" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; "attackOnly" (a ref, \`what\`:"attack" only, never beside "attackTarget") is the opposite — the only cards an attack by the rule\'s attackers may be declared against ("can only attack this card", #1005), resolved when the rule is read; "against" (a ref, \`what\`:"attack" only) narrows the rule to attacks on those cards ("…can't attack this card", BT15-122), also resolved when the rule is read; "fromArea" ("hand" | "battle" | "drop" | "deck") narrows a rule to cards used or moved from that area — a combo "from the Battle Area" (EB1-21), a play "from their owner's hands" (EX23-05), a move out of a Drop (BT6-028), a search of a deck (DB3-092) — and "fromOwnArea":true to the acting player's own such area ("from your Drop Area", BT16-001); "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what":"activateSkill" and "activateCounter" take an "unlessPay" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; "extraCardActivation":true narrows an "activateSkill" rule to 12-1-3's "activating an Extra Card" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). "skillKinds" (a list of line kinds such as "activate:main" or "auto") narrows an "activateSkill" rule to those lines ("you can't activate the [Activate: Main] skill on copies of this card", BT12-031). "exceptOwnSkills":true and "exceptSourceName" (a card name) let one skill through: the rule's own card's ("…by skills other than its own", EB1-27) or a card of that name's ("…other than {Jaguar's Island}'s skills", BT22-072). "toArea" ("hand" | "deck" | "drop" | "warp" | "energy" | "life", with "toBottom":true for the bottom of a deck) narrows a "beMovedBySkill" rule to a move there ("…can't be returned to your hand by your skills", DB2-040); a "beMovedBySkill" rule with no "fromArea" is about the Battle Area, and "fromArea":"hand" about cards in a hand. "byFilter" describes the card whose action it is — for "beKOdInBattle", the attacking card ("…can't be KO'd in battle against Battle Cards with energy costs of 3 or less", P-481). "cardsOf" ("you" | "opponent") narrows a rule about no card in particular to cards in that player's areas, wherever they come from — "cards in your hand can't be returned to your deck by your opponent's skills for the turn" (DB2-156) is the hand as a zone, a card drawn later included. "exceptKeyword" (a keyword name, "what":"play" with "bySkill":true) lets that keyword's own play through ("…with skills other than [Revive Blue/Green]"). "costVsEnergy" ("above" | "atLeast") narrows the rule to cards whose energy cost is greater than (or at least) the number of cards in their controller's Energy Area ("Battle Cards with energy costs greater than their current energy", P-219, P-299). "exceptUnion" (a list of "Fusion" | "Potara" | "Absorb", "what":"play" only) lets through only a [Union] play of those variants — "you can only play Battle Cards by using [Union-Fusion]" (P-069, P-226, #930) forbids every other play of those cards: declared, by any other skill, an evolution. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
+    doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "attackTarget" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; "attackOnly" (a ref, \`what\`:"attack" only, never beside "attackTarget") is the opposite — the only cards an attack by the rule\'s attackers may be declared against ("can only attack this card", #1005), resolved when the rule is read; "against" (a ref, \`what\`:"attack" only) narrows the rule to attacks on those cards ("…can't attack this card", BT15-122), also resolved when the rule is read; "fromArea" ("hand" | "battle" | "drop" | "deck" | "energy" | "any") narrows a rule to cards used or moved from that area — a combo "from the Battle Area" (EB1-21), a play "from their owner's hands" (EX23-05), a move out of a Drop (BT6-028), a search of a deck (DB3-092), a card's own rule while it is in the Energy Area (BT18-052), a move from any area at all (BT17-032) — and "fromOwnArea":true to the acting player's own such area ("from your Drop Area", BT16-001); "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what":"activateSkill" and "activateCounter" take an "unlessPay" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; "extraCardActivation":true narrows an "activateSkill" rule to 12-1-3's "activating an Extra Card" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). "skillKinds" (a list of line kinds such as "activate:main" or "auto") narrows an "activateSkill" rule to those lines ("you can't activate the [Activate: Main] skill on copies of this card", BT12-031). "exceptOwnSkills":true and "exceptSourceName" (a card name) let one skill through: the rule's own card's ("…by skills other than its own", EB1-27) or a card of that name's ("…other than {Jaguar's Island}'s skills", BT22-072). "toArea" ("hand" | "deck" | "drop" | "warp" | "energy" | "life", with "toBottom":true for the bottom of a deck) narrows a "beMovedBySkill" rule to a move there ("…can't be returned to your hand by your skills", DB2-040); a "beMovedBySkill" rule with no "fromArea" is about the Battle Area, and "fromArea":"hand" about cards in a hand. "byFilter" describes the card whose action it is — for "beKOdInBattle", the attacking card ("…can't be KO'd in battle against Battle Cards with energy costs of 3 or less", P-481). "cardsOf" ("you" | "opponent") narrows a rule about no card in particular to cards in that player's areas, wherever they come from — "cards in your hand can't be returned to your deck by your opponent's skills for the turn" (DB2-156) is the hand as a zone, a card drawn later included. "exceptKeyword" (a keyword name, "what":"play" with "bySkill":true) lets that keyword's own play through ("…with skills other than [Revive Blue/Green]"). "costVsEnergy" ("above" | "atLeast") narrows the rule to cards whose energy cost is greater than (or at least) the number of cards in their controller's Energy Area ("Battle Cards with energy costs greater than their current energy", P-219, P-299). "exceptUnion" (a list of "Fusion" | "Potara" | "Absorb", "what":"play" only) lets through only a [Union] play of those variants — "you can only play Battle Cards by using [Union-Fusion]" (P-069, P-226, #930) forbids every other play of those cards: declared, by any other skill, an evolution. "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
   immune: {
     fields: [UNTIL, SELF, { name: "from", type: "side" }, { name: "fromFilter", type: "filter" }],
@@ -2905,6 +2926,68 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   whileSourceInPlay: " while this card is in a Battle Area",
 };
 const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
+
+/** The card types of `byTypes` as one list: "Battle, Extra or Unison Cards". */
+function typeList(types: readonly string[]): string {
+  const words = types.map((t) => t.charAt(0) + t.slice(1).toLowerCase());
+  return `${words.length > 1 ? `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}` : words[0]} Cards`;
+}
+
+/** Whose skills a passive prohibition is about: "your opponent's skills", "the skills of your Battle Cards", "skills of non-blue non-green cards". */
+function whoseSkillsSaid(op: OpOf<"forbid">): string {
+  const owner = op.side === "opponent" ? "your opponent's " : op.side === "you" ? "your " : "";
+  if (op.byFilter) return `the skills of ${owner}${describeFilter(op.byFilter, { plural: true })}`;
+  if (op.byTypes?.length) return `the skills of ${owner}${typeList(op.byTypes)}`;
+  return owner ? `${owner}skills` : "skills";
+}
+
+const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "Drop Area", battle: "Battle Area", energy: "Energy Area", life: "life", warp: "Warp", any: "areas" };
+
+/**
+ * The passive prohibitions — a skill's move (`beMovedBySkill`), KO
+ * (`beKOdBySkill`), switch to Rest Mode (`beRestedBySkill`) and choice
+ * (`beChosen`) — said with the cards as the subject and the acting player as
+ * whose skills they are. Null for anything else.
+ */
+function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
+  if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
+  const by = ` by ${whoseSkillsSaid(op)}`;
+  const except = op.exceptOwnSkills ? " other than this card's own" : op.exceptSourceName ? ` other than {${op.exceptSourceName}}'s` : "";
+  const tail = `${except}${escape}${forThe(op.until, r)}`;
+  if (op.what !== "beMovedBySkill") {
+    const subject = op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards";
+    const verb = op.what === "beKOdBySkill" ? "be KO'd" : op.what === "beRestedBySkill" ? "be switched to Rest Mode" : "be chosen";
+    return `${subject} can't ${verb}${by}${tail}`;
+  }
+  const to = op.toArea;
+  const passiveVerb = !to
+    ? `be removed from ${op.fromArea && op.fromArea !== "battle" ? `the ${PILE_NAMES[op.fromArea] ?? op.fromArea}` : "a Battle Area"}`
+    : to === "hand" ? "be returned to the hand"
+    : to === "deck" ? (op.toBottom ? "be placed at the bottom of the deck" : "be returned to the deck")
+    : to === "warp" ? "be sent to the Warp"
+    : `be placed in the ${PILE_NAMES[to] ?? to}`;
+  // "Your opponent can't add cards from their deck to their hand using
+  // non-Leader Card skills" (DB3-092): the player whose cards they are is the
+  // one whose skills are bound, so it is said as what that player can't do.
+  if (!op.target && op.cardsOf && op.side === op.cardsOf) {
+    const who = op.side === "opponent" ? "your opponent" : "you";
+    const their = op.side === "opponent" ? "their" : "your";
+    const from = op.fromArea === "any" || !op.fromArea ? `any of ${their} areas` : `${their} ${PILE_NAMES[op.fromArea] ?? op.fromArea}`;
+    const verb = to === "hand" ? `add cards from ${from} to ${their} hand` : to ? `place cards from ${from} in ${their} ${to === "deck" && op.toBottom ? "deck (at the bottom)" : PILE_NAMES[to] ?? to}` : `remove cards from ${from}`;
+    const using = op.byFilter || op.byTypes?.length ? ` with ${whoseSkillsSaid({ ...op, side: undefined })}` : " with skills";
+    return `${who} can't ${verb}${using}${tail}`;
+  }
+  // "Cards in your hand can't be returned to your deck by your opponent's
+  // skills for the turn" (DB2-156): the area itself, a card that enters it later included.
+  const subject = op.target
+    ? describeRef(op.target)
+    : op.cardsOf
+      ? `cards in ${op.cardsOf === "opponent" ? "your opponent's" : "your"} ${op.fromArea && op.fromArea !== "any" ? PILE_NAMES[op.fromArea] ?? op.fromArea : "areas"}`
+      : op.filter ? describeFilter(op.filter, { plural: true }) : "cards";
+  // A target rule about cards in a hand says where they are, unless the subject already does.
+  const where = op.target && op.fromArea && to && !/\bin (?:your|your opponent's|their) /.test(subject) ? ` from the ${PILE_NAMES[op.fromArea] ?? op.fromArea}` : "";
+  return `${subject} can't ${passiveVerb}${where}${by}${tail}`;
+}
 
 /** Whether a field counts as given, for `{field? …}`: unset, false and an empty list are not. */
 function given(v: unknown): boolean {
