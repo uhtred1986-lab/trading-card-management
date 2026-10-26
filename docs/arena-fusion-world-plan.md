@@ -18,6 +18,14 @@ The owner's decision of 4 Sep 2026 ("the arena is `dbs`-only") was a scope choic
 in `docs/arena-ruleset-spec.md` §5 ("Fusion World as the worked hypothetical"). This plan is that
 hypothetical made real; the decision to run it is the owner's, taken by opening the milestone.
 
+**Done (26 Oct 2026).** Merged: #1198 (F1-01 `rulesetFor("fusion")`), #1200 (F1-02 the `fusion/*.rules`
+files), #1202 (F1-03 no combo price, `powerZero`; §6.1 answered: dbs already dropped power-0 cards
+without a KO), #1196 (F1-04 timing-tag aliases), #1201 (F1-05 `arenaPlays` gates), #1207 (F1-06 board
+words per declared zone), #1205 (F1-07 the suite and `arena:fuzz --game fusion`), #1206 (F1-08 agent
+part, the drafter). Remaining: the owner's data tasks on #1191, #1208 (FS02-03 and FS03-13 effects,
+skill-driven combos without a printed combo cost), and the owner's ruling on `firstPlayerDraws`
+(false in `fusion/game.rules`); the starter decklists in the fixtures are assumed.
+
 ## 2. What Fusion World is, next to what the engine plays
 
 From the manual, Fusion World is the original game with things removed. Same: one leader and a

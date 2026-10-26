@@ -93,7 +93,10 @@ The continuing programme is [O5, #637](arena-backlog/o5-tracking.md), which link
 single owners above rather than dispatching another overlapping queue.
 
 - The rules VM is the only engine; #118 retired the legacy engine.
-- Arena plays Masters (`dbs`), not Fusion World.
+- Arena plays Masters (`dbs`) and Fusion World (`fusion`), each by its own ruleset. Current work:
+  the [Arena F1 milestone](arena-fusion-world-plan.md), the four launch starter decks; it is done when
+  they play each other, hot-seat and against the local policy, in `npm test` and `arena:fuzz --game fusion`.
+  Open: the owner's data tasks (#1191) and the last starter gaps (#1208).
 - Player-selected automatic offline deck qualification is delivered in #793. The owner waived
   its remaining production phone test; do not reopen that test as a delivery requirement.
 - The approved phone design is delivered in #808. Prototype #788 and superseded draft PRs

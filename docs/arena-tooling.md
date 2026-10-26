@@ -347,6 +347,9 @@ In a merge, do **not** hand-merge these files — take either side and re-run
 npx tsx --env-file-if-exists=.env.local scripts/arena-fuzz.mts 40
 ```
 
+`npx tsx scripts/arena-fuzz.mts N --game fusion` (`npm run arena:fuzz -- N --game fusion`) plays the
+Fusion World starters from the fixtures and needs no database or snapshot.
+
 Plays N random complete games and reports crashes. **40 is the standing gate**;
 use 200 for anything touching the movement, payment or flow machinery, and
 **200 is #165's own gate** (0 crashes, checked into the
