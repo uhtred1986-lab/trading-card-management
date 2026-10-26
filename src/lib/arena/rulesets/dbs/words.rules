@@ -285,6 +285,13 @@ DEFINE WORDS untilNextMain
   you: "until the start of your next Main Phase"
   text: "until the start of {them}'s next Main Phase"
 
+-- "Until the end of your turn" (BT31-043, #930): ends at the end of the
+-- controller's own turn, the next one when it was made on the opponent's.
+DEFINE WORDS untilOwnTurn
+  of: until
+  you: "until the end of your turn"
+  text: "until the end of {them}'s turn"
+
 DEFINE WORDS untilGame
   of: until
   text: "for the rest of the game"

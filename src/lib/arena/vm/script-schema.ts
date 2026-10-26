@@ -121,7 +121,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -2833,6 +2833,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   afterNextCharge: " through your next Charge Phase",
   afterOpponentCharge: " through your opponent's next Charge Phase",
   nextMain: " until the start of your next Main Phase",
+  ownTurn: " until the end of your turn",
   game: " for the rest of the game",
   whileSourceInPlay: " while this card is in a Battle Area",
 };

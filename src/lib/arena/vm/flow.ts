@@ -57,7 +57,7 @@ import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./tr
 import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
 import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
@@ -261,6 +261,8 @@ const STEP_WORK: Record<string, Work> = {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
       returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
+      // #930: "until the end of your turn" ends only at the end of its master's turn.
+      returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
       state.programs.push(...dueDelays(state, "turnCleanup"));
     },
   },

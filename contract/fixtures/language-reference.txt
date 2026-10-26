@@ -4721,6 +4721,10 @@
       "words": "when your Unison goes to the Drop"
     },
     {
+      "name": "removedFromUnison",
+      "words": "when this card is removed from a Unison Area"
+    },
+    {
       "name": "addedToZEnergy",
       "words": "when this card is added to your Z-Energy"
     }
@@ -4751,7 +4755,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · nextMain · game · whileSourceInPlay",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · nextMain · ownTurn · game · whileSourceInPlay",
       "is": "a side, a zone, a duration"
     },
     {

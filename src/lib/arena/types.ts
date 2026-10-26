@@ -691,8 +691,8 @@ export interface ContinuousEffect {
    * `target` alone.
    */
   matching?: { sel: Selector; vars: Record<string, string[]> };
-  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163). */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "game" | "whileSourceInPlay";
+  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163); "ownTurn" ends at the end of the master's own turn (#930). */
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -956,6 +956,13 @@ export type Trigger =
   | "yourCardPlaced"
   | "energyToDrop"
   | "unisonToDrop"
+  /**
+   * #930: "When this card is removed from a Unison Area" (BT31-043, BT29-150 and the
+   * other Unisons that print it): this card leaving a Unison Area for any other
+   * area, by any cause — a skill, being replaced by a newly played Unison
+   * (13-2-1-3), or reaching zero markers (21-9-2).
+   */
+  | "removedFromUnison"
   | "markerRemoved"
   /**
    * "When you remove a marker from this card using a [Spirit Boost] skill"
