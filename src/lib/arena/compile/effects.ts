@@ -2,6 +2,7 @@ import { keywordOf, orbsIn } from "../text/cards";
 import { playTaxWording } from "../text/play-tax";
 import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import type { Amount, Cond, Duration, Op, Ref, Selector, Side, ScriptArea } from "../vm/script";
+import { taxPowerOnSelf } from "../vm/activation-price-support";
 import type { Color, DelayScope, DelayTiming, KeywordSkill, SkillKindPrefix } from "../types";
 import { parseConditionClause } from "./conditions";
 import { compileDisjointMove } from "./disjoint";
@@ -3785,6 +3786,33 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const colours = onlyColours[1].split(/,?\s+(?:or|and\/or)\s+|,\s*/).map((w) => (w[0].toUpperCase() + w.slice(1)) as Color);
     return [{ op: "forbid", what: "placeUnder", side: "you", until: durationOf(t), target: { sel: { special: "self" } }, byFilter: { ...parseFilter(""), notColors: colours } }];
   }
+  // "When a Battle Card attacks, the player who attacked can't attack with
+  // tokens or Battle Cards with energy costs of 7 or less other than the card
+  // they attacked with for the duration of the turn" (BT8-089): only the turn
+  // player attacks (8-1), so "the player who attacked" is whoever's turn it is
+  // (`turnPlayer`); the attackers are the tokens and the cost-7-or-less Battle
+  // Cards (`anyOf`), except the attacking card itself (`exceptCards`, read as
+  // the rule is put in force). Their Leader is not named, and still attacks.
+  {
+    const attacked = /^the player who attacked can'?t attack with (tokens or battle cards with energy costs? of (\d+) or less) other than the card they attacked with(?:\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+    if (attacked) {
+      const filter: CardFilter = { ...parseFilter(""), anyOf: [{ ...parseFilter(""), token: true }, { ...parseFilter(""), type: "BATTLE", costMax: Number(attacked[2]) }] };
+      return [{ op: "forbid", what: "attack", side: "both", turnPlayer: true, until: durationOf(t), filter, exceptCards: { sel: { special: "attacker" } } }];
+    }
+  }
+  // "Markers on your Unisons can't be removed by your opponent's skills"
+  // (P-676): a skill of that player's taking a marker off one of this
+  // player's Unison Cards (13-5) — asked of the Unison, with the skill's
+  // controller as the player. A marker paid as a cost of the Unison's own
+  // skill is its controller's, and not this rule's.
+  {
+    const markers = /^markers on (your|your opponent'?s) unisons? can'?t be removed by (your opponent'?s|your) skills?$/.exec(t.trim().replace(/[.]$/, ""));
+    if (markers) {
+      const cardsOf: Side = markers[1] === "your" ? "you" : "opponent";
+      const by: Side = markers[2] === "your" ? "you" : "opponent";
+      return [{ op: "forbid", what: "removeMarkers", side: by, until: durationOf(t), cardsOf, filter: { ...parseFilter(""), type: "UNISON" } }];
+    }
+  }
   const measured = /\s+with energy costs? (greater than(?: or equal to)?) (?:your|their) current energy\b/.exec(t);
   if (measured) {
     const inner = compileProhibition(t.slice(0, measured.index) + t.slice(measured.index + measured[0].length), c);
@@ -3796,7 +3824,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // until the end of **their** next turn" (BT13-054): the pronoun is the
   // opponent the skill names, as `durationOf` reads it when the same clause
   // says "your opponent".
-  const until = /\buntil the end of their(?: next)? turn\b/.test(t) && !/\byour opponent\b/.test(t) && /\byour opponent'?s?\b/i.test(c.raw) ? "nextTurn" : durationOf(t);
+  // "…until the end of your next turn" on a [Counter: Attack] (BT9-087): it
+  // resolves in the opponent's attack, on their turn, so the rule holds
+  // through it and through its controller's next turn (`ownTurn`, which ends
+  // with the first turn of its controller's after it is made).
+  const nextOwn = /\buntil the end of your next turn\b/.test(t) && c.skillKind === "counter:attack";
+  const until = nextOwn ? "ownTurn" : /\buntil the end of their(?: next)? turn\b/.test(t) && !/\byour opponent\b/.test(t) && /\byour opponent'?s?\b/i.test(c.raw) ? "nextTurn" : durationOf(t);
   const q = stripQualifiers(t);
   // "Your opponent can only attack **this card**" (DB2-068), "your opponent's
   // Battle Cards can only attack this card" (TB1-035; #1005): every attack of
@@ -3937,8 +3970,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   const tax = unlessTail && !unlessPlayBySkill ? taxProgram(priceSaid, c, taxOn) : null;
   // "…unless {Dormant Legend} is in your Drop Area" (BT7-115, BT7-116, BT9-078):
   // the card named is there, which the condition reader says as "you have …".
-  const escapeSaid = unlessTail ? unlessTail[1].trim().replace(/^(\{[^}]+\}|<[^>]+>(?: card)?) is in your (drop area|battle area|hand|warp)$/, "you have $1 in your $2") : "";
-  const unless = !unlessTail || unlessPlayBySkill || tax ? null : parseConditionClause(`if ${escapeSaid}`, true);
+  // "…unless {Display of Power Son Gohan} is in play in your Battle Area"
+  // (BT6-081) is the same; "…unless <Pan> is under this card" (BT3-016) is
+  // the card under this one, which the reader says as "there is a <Pan> under
+  // this card".
+  const escapeSaid = unlessTail ? unlessTail[1].trim().replace(/^(\{[^}]+\}|<[^>]+>(?: card)?) is (?:in play )?in your (drop area|battle area|hand|warp)$/, "you have $1 in your $2").replace(/^(\{[^}]+\}|<[^>]+>) is under this card$/, "there is a $1 under this card") : "";
+  // "…unless you have <A>, <B> and <C> in your Drop Area" (P-021): each of
+  // the named cards is there — read as one count per name, all of which have
+  // to hold. (The bare condition reader takes such a list as any one of them.)
+  const eachNamed = /^you have ((?:<[^>]+>,\s*)+<[^>]+>,? and <[^>]+>) in your (drop area|battle area|hand|warp)$/.exec(escapeSaid);
+  const eachConds = eachNamed ? [...eachNamed[1].matchAll(/<[^>]+>/g)].map((n) => parseConditionClause(`if you have ${n[0]} in your ${eachNamed[2]}`, true)?.cond ?? null) : null;
+  const unless = !unlessTail || unlessPlayBySkill || tax ? null : eachConds ? (eachConds.every((x) => x) ? { cond: { kind: "all" as const, conds: eachConds as Cond[] } } : null) : parseConditionClause(`if ${escapeSaid}`, true);
   if (unlessTail && !unlessPlayBySkill && !unless && !tax) return null;
   const rest = unlessTail && !unlessPlayBySkill ? rest0.slice(0, unlessTail.index).trim() : rest0;
   const withUnless = unless ? { unless: unless.cond } : {};
@@ -4119,10 +4161,22 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       const butKeyword = keywordException(what.replace(/^this card from any area\s+/, ""));
       if (/^this card from any area\b/.test(what) && butKeyword) return [{ op: "forbid", what: "play", side, until: "game", target: { sel: { special: "self" } }, bySkill: true, exceptKeyword: butKeyword, ...withUnless }];
       if (/^this card\b/.test(what) && /\bskills?\b/.test(what)) return null;
-      if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, target: { sel: { special: "self" } }, ...withUnless }];
+      // "…this card from any area" (P-021) is a rule of the card wherever it is, for the game — read from the hand it is played from.
+      if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until: /^this card from any area$/.test(what.trim()) ? "game" : until, target: { sel: { special: "self" } }, ...withUnless }];
       // "…play Battle Cards from their hand **with the skills of cards with
       // [Super Combo]**" (BT4-104): where the play comes from and what plays
       // it are not a description of the card, and read as one they were.
+      // Prohibition batch 5 reads that one wording whole: a play by a skill
+      // (`bySkill`) of a Battle Card from that player's hand (`fromArea`),
+      // when the skill's card has the keyword named (`byFilter`, asked of the
+      // card whose skill plays). A declared play, and another skill's, are not
+      // this rule's.
+      const byKeyword = /^(battle cards?) from (?:their|your) hands? with the skills? of (cards? with \[[^\]]+\])(?:\s+(?:for|during|until)\b.*)?$/.exec(what);
+      if (byKeyword) {
+        const byFilter = filterFor(byKeyword[2], null);
+        if (!byFilter || !byFilter.keywords.length || unreadFilterWords(byKeyword[2], byFilter).length) return null;
+        return [{ op: "forbid", what: "play", side, until, bySkill: true, fromArea: "hand", filter: { ...parseFilter(""), type: "BATTLE" }, byFilter, ...withUnless }];
+      }
       if (/\bfrom\b|\bskills? of\b|\bby (?:card )?skills?\b|\busing\b/.test(what)) return null;
       const filter = filterFor(what, null);
       const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
@@ -4132,6 +4186,29 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       if (filter === null) return null;
       if (!filter && !type) return null;
       return [{ op: "forbid", what: "play", side, until, filter: { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) }, ...withUnless }];
+    }
+    // "You can't place this card in your Combo Area from any area" (BT6-081):
+    // the card is never used in a combo (5-7), from the hand or the Battle
+    // Area alike.
+    if (side === "you" && /^place this card in your combo area from any area$/.test(rest)) return [{ op: "forbid", what: "combo", side, until: "game", target: { sel: { special: "self" } }, ...withUnless }];
+    // "Your opponent can't switch Battle Cards or Unisons to Active Mode during
+    // the next Charge Phase" (BT30-146): the Charge Phase's switch (7-2-7) of
+    // that player's cards in their Battle Area and Unison Area — a card in the
+    // Energy Area is not one (`fromArea`). A skill may still switch them later
+    // that turn, as with "it can't switch … during your opponent's next Charge
+    // Phase" (#539). Said on the turn of the card that says it, "the next
+    // Charge Phase" is the opponent's.
+    if (side === "opponent" && (mm = /^switch (battle cards|unisons|unison cards|battle cards (?:or|and) (?:unisons|unison cards)) to active mode during (?:the|your opponent'?s|their) next charge phase$/.exec(rest))) {
+      const kinds = [...(/battle cards/.test(mm[1]) ? ["BATTLE" as const] : []), ...(/unison/.test(mm[1]) ? ["UNISON" as const] : [])];
+      return kinds.map((type): Op => ({ op: "forbid", what: "switchToActiveInCharge", side, until: "afterOpponentCharge", filter: { ...parseFilter(""), type }, fromArea: type === "BATTLE" ? "battle" : "unison", ...withUnless }));
+    }
+    // "You may not activate [EX-Evolve] for the duration of the turn" (BT4-003):
+    // that keyword skill, on any of the player's cards (`keywordSkill`). An
+    // [Evolve] rule would be every [Evolve] skill (22-5-2-2); only the one
+    // keyword named is read.
+    if ((mm = /^activate \[(ex-evolve|xeno-evolve|evolve)\](?: skills?)?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      const keywordSkill = mm[1] === "ex-evolve" ? "EX-Evolve" : mm[1] === "xeno-evolve" ? "Xeno-Evolve" : "Evolve";
+      return [{ op: "forbid", what: "activateSkill", side, until, keywordSkill, ...withUnless }];
     }
     // 5-7: "your opponent can't combo for the battle", "…can't use a card in a
     // combo", "you can't combo with cards in your Battle Area" (BT10-154),
@@ -4668,7 +4745,19 @@ export function taxWordings(text: string): string {
       /\b(can(?:'|no)t activate [^.]*?) unless they choose (\d+) (cards?) in their hand and send (?:it|them) to their warp\b/gi,
       (_m, head: string, n: string, cards: string) => `${head} unless they send ${n} ${cards} from their hand to their warp`,
     )
-    .replace(CHOSEN_PRICE, chosenPrice);
+    .replace(CHOSEN_PRICE, chosenPrice)
+    // Prohibition batch 5: a [Permanent] ban whose escape is printed in front
+    // of it as a condition — "Unless {Display of Power Son Gohan} is in play in
+    // your Battle Area, you can't place this card in your Combo Area from any
+    // area" (BT6-081), "If <Pan> is not under this card, it cannot attack"
+    // (BT3-016), "If you don't have <Son Gohan: Adolescence>, <Son Goten> and
+    // <Trunks: Youth> in your Drop Area, you can't play this card from any
+    // area" (P-021). Each is the ban with that escape (20-14): said the way
+    // `compileProhibition` reads an escape, after the ban, so the sentence is
+    // not cut at its comma into a condition and a ban that would hold always.
+    .replace(/(^|\]\s*|[.:]\s+)unless ([^,.]+?), (you can(?:'|no)t (?:place this card in your combo area|play this card) from any area)(?=\.|$)/gi, (_m, lead: string, escape: string, ban: string) => `${lead}${ban} unless ${escape}`)
+    .replace(/(^|\]\s*|[.:]\s+)if (<[^>]+>|\{[^}]+\}) is not under this card, (?:it|this card) (can(?:'|no)t) attack(?=\.|$)/gi, (_m, lead: string, named: string, cant: string) => `${lead}this card ${cant} attack unless ${named} is under this card`)
+    .replace(/(^|\]\s*|[.:]\s+)if you (?:don'?t|do not) have ((?:<[^>]+>,\s*)+<[^>]+>,? and <[^>]+>) in your (drop area|battle area|hand|warp), (you can(?:'|no)t play this card from any area)(?=\.|$)/gi, (_m, lead: string, names: string, area: string, ban: string) => `${lead}${ban} unless you have ${names} in your ${area}`);
 }
 
 /**
@@ -4735,8 +4824,15 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
     clause = clause.replace(/^(\w+?)(?:(?<=(?:ch|sh|ss|x))es|s)\b/, "$1");
     clause = clause.replace(/\btheir\b/g, "your").replace(/\bthey\b/g, "you").replace(/\bthemselves\b/g, "yourself");
   }
+  // 20-14-1's own example (BT13-030): "…unless they give the attacking card
+  // -5000 power for the turn each time". The price is paid in the frame whose
+  // "this card" is the attacker, before the attack is declared — so "the
+  // attacking card" is that card, and the price is a power change to it, the
+  // only power change a price may make (`taxPowerOnSelf`).
+  if (on === "attack") clause = clause.replace(/^give (?:the attacking card|it) ([+-]\d+ power\b.*)$/, "this card gets $1");
   const read = compileClause(clause, { ...c, choices: [...c.choices] });
-  if (!read?.length || read.some((o) => !TAX_OPS.has(o.op) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
+  const taxOp = (o: Op) => TAX_OPS.has(o.op) || (on === "attack" && taxPowerOnSelf(o));
+  if (!read?.length || read.some((o) => !taxOp(o) || ("side" in o && o.side !== undefined && o.side !== "you"))) return null;
   // A play's price is paid while the card is still in the hand it is played
   // from (5-5-2-1): "send 1 card from your hand" is never the card itself.
   // A `discard` cannot say so, so it is said as the choice and the move it

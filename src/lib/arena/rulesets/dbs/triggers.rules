@@ -153,6 +153,15 @@ DEFINE TRIGGER opponentAttacks
   BIND "subject"
   text: "when your opponent attacks"
 
+-- §8-1-3 — when a Battle Card attacks (BT8-089, prohibition batch 5): any
+-- player's Battle Card, watched by every player's cards in play. The attacker's
+-- own moment (`role: attacker`) marks a Battle Card attacking from the Battle
+-- Area (`battleCard: true`, 8-1-1); a Leader's or a Unison's attack is not it.
+DEFINE TRIGGER battleCardAttacks
+  ON attackDeclared(role: attacker, battleCard: true, watcher: both)
+  BIND "subject"
+  text: "when a Battle Card attacks"
+
 -- SD15-01 — when the opponent attacks the specific red Unison named by the
 -- card. The target declaration is a separate role from the attacking card;
 -- its current attributes are carried on that target moment, while the Auto

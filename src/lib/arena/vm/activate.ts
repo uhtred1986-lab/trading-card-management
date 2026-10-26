@@ -91,12 +91,12 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
-import { activationPriceProblem, isFixedUnderHost } from "./activation-price-support";
+import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -539,7 +539,8 @@ export function activationRefusals(
   // everything else, and a declared `REFUSE` runs before all of these. The
   // gates of an activation are the legacy twin's in the legacy twin's order,
   // which is what makes the *first* requirement the same requirement.
-  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: line.kind });
+  // "You may not activate [EX-Evolve]" (BT4-003): a rule about one keyword skill asks the line's keyword.
+  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: line.kind, ...(sk.keyword ? { keyword: ("variant" in sk.keyword && typeof sk.keyword.variant === "string" ? sk.keyword.variant : sk.keyword.name) } : {}) });
   if (banned) before.push({ kind: "forbidden", ...banned });
   // #930: a keyword move that plays a card is not offered when 20-14 forbids
   // that play — "you can only play Battle Cards by using [Union-Fusion]"
@@ -547,6 +548,15 @@ export function activationRefusals(
   // [Union-Potara] not (`keywordPlayForbiddenBy`).
   const playBanned = banned ? null : keywordPlayForbiddenBy(ctx, game, state, player, card, sk.keyword);
   if (playBanned) before.push({ kind: "forbidden", ...playBanned });
+  // Owner ruling 26 Oct 2026 (A4 follow-up, 20-14-1): a keyword move that
+  // plays its own card ([Evolve], [Union-Fusion/Potara], [Arrival],
+  // [Successor], [Over Realm]) under a play tax nobody can pay on this board
+  // — read after the move's printed energy is spent — is not offered, so its
+  // own price is never paid for a play that cannot happen. A payable tax is
+  // asked by the `play` op; declining it there is a failed play (22-5-7).
+  const playTaxes = banned || playBanned ? [] : keywordPlayTaxes(ctx, game, state, player, card, sk.keyword);
+  const unpaidPlay = playTaxes.length ? unpaidActivationTaxAfter(ctx, game, state, player, card, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
+  if (unpaidPlay) before.push({ kind: "forbidden", by: unpaidPlay.by, until: unpaidPlay.until, unless: `you pay, each time: ${describeScript(unpaidPlay.ops).replace(/ other than this card\b/g, " other than the card being played")}` });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
   const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
@@ -1077,6 +1087,19 @@ export function isFusionPayment(line: Pick<ActivationLine, "skill" | "keyword">)
 /** Does this program say where an action price is paid? A keyword whose `DO` never says `payActionPrice` would play the line free. */
 function saysWhereItPays(ops: Op[]): boolean {
   return ops.some((op) => op.op === "payActionPrice" || (op.op === "if" && (saysWhereItPays(op.then) || saysWhereItPays(op.else ?? []))));
+}
+
+/**
+ * 20-14-1 (BT13-030, the rule manual's own example): can this **tax** be paid
+ * right now? `canPayPriceProgram`, with one more step a tax may take that an
+ * activation's price planner does not: lowering the acting card's own power
+ * ("…unless they give the attacking card -5000 power for the turn each
+ * time"). A tax is run as a frame of its own, where that step is an ordinary
+ * `power` op, and it can always be taken while the card is in play.
+ */
+export function canPayTaxProgram(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, ops: Script["ops"]): boolean {
+  const rest = ops.filter((o) => !taxPowerOnSelf(o));
+  return rest.length === ops.length ? canPayPriceProgram(ctx, game, state, player, card, ops) : !rest.length || canPayPriceProgram(ctx, game, state, player, card, rest);
 }
 
 /**

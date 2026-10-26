@@ -691,6 +691,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       if (/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(said)) return false;
       return !parseFilter(said).unreadable;
     }
+    // BT8-089: "When a Battle Card attacks" — any player's, said with nothing else.
+    case "battleCardAttacks":
+      return /^when a battle card attacks\s*(?:,|:|\.|$)/.test(head.toLowerCase());
     case "opponentAttacks":
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t)
         && !/when your opponent attacks your .+? with a specified cost of \d+\b/.test(head.toLowerCase());
