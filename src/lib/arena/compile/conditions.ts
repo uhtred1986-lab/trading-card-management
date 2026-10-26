@@ -363,6 +363,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
   const shaped = costConditionShape(t, allowBare);
   if (shaped !== undefined) return shaped;
+  const phrased = priceConditionPhrasing(t);
+  if (phrased !== undefined) return phrased;
   // #907 round 4: "if there is at least 1 <Son Goten>, <Trunks: Youth>, and <Videl> card in your Drop Area"
   // (BT7-054), "if you have at least 1 <Recoome>, <Jeice>, <Burter>, and <Guldo> card in play" (BT10-076),
   // "if you have 1 or more <Shroom> and <Salsa> card in your Combo Area" (EX23-42): one card of EACH name,
@@ -498,6 +500,15 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
+  // "If your Leader Card is a yellow <Boujack> card **on its front side**" (EX13-24, phrasing batch 1): the
+  // description and the side it shows — not awakened (22-2), the `leaderFlipped` question asked the other way.
+  if ((m = /^your leader(?: card)? is (.+?) on its (front|back) side$/.exec(t))) {
+    const leader = parseConditionClause(`your leader is ${m[1]}`, true);
+    if (!leader) return null;
+    return { cond: { kind: "all", conds: [leader.cond, { kind: "leaderFlipped", flipped: m[2] === "back" }] }, subject: leader.subject };
+  }
+  // "…your Leader's back side is {X}, **its front side is facing up**, …" (P-473): the Leader is not awakened.
+  if ((m = /^(?:its|your leader(?: card)?'s) (front|back) side is facing up$/.exec(t))) return { cond: { kind: "leaderFlipped", flipped: m[1] === "back" } };
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1], { measured: true });
@@ -960,6 +971,89 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
 }
 
 /**
+ * Phrasing batch 1 (26 Oct 2026): price conditions the sets print in words the
+ * readers above did not know, each the same question as a wording already read.
+ * - "you or your opponent has 3 or more energy" / "…has a Battle Card with 15000
+ *   power or more in play" (BT26-079, EX24-25, BT25-013…): either player's own
+ *   count, as "you or your opponent have …" in `costConditionShape`, which reads
+ *   only "have" and only behind a condition word.
+ * - "you or your opponent's life is at 2 or less" (P-411's sibling wordings):
+ *   either player's life.
+ * - "this card is in a/the Combo Area" (BT23-016, BT23-017, BT23-019): a card's
+ *   own Combo Area is the only one it can be in (8-1), so "your Combo Area".
+ * - "this card is in your Z-Energy", "a <Trunks: SH> card is in your Z-Energy"
+ *   (EX24-25, BT19-022…): the Warp's and the Energy Area's wording, in the
+ *   Z-Energy.
+ * - "all your energy is blue": "all of your energy is blue".
+ * - "your Leader Card and energy are all black" (BT16-018, BT16-125, EB1-46…):
+ *   the Leader is black and all of your energy is black — the two conditions
+ *   already read, said in one breath.
+ * - "there's a total of 3 or more energy between you and your opponent"
+ *   (EX19-28, EX19-35): one count across both Energy Areas.
+ * - "a [Field] Extra (Card) is in a (player's) Battle Area", "a player has a
+ *   [Field] Extra Card in their Battle Area" (P-487, BT15-073, BT27-080): a
+ *   count of at least one in either player's Battle Area.
+ * - "your Leader has both <Shroom> and <Salsa>" (P-654, P-709): the Leader
+ *   description "a card with both <A> and <B>" (`charactersAll`, #768).
+ * `undefined` when the text is none of these; `null` when it is but cannot be read.
+ */
+function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null | undefined {
+  let m: RegExpExecArray | null;
+  const atLeastOne = (sel: Selector | null): { cond: Cond } | null => {
+    if (!sel || sel.special || sel.fromVar || sel.filter?.unreadable) return null;
+    delete sel.count;
+    delete sel.upTo;
+    return { cond: { kind: "count", sel, atLeast: 1 } };
+  };
+  if ((m = /^you or your opponent (?:has|have) (.+)$/.exec(t))) {
+    const own = parseCountCondition(`you have ${m[1].replace(/\bin their\b/g, "in your")}`);
+    const theirs = parseCountCondition(`your opponent has ${m[1]}`);
+    return own && theirs ? { cond: { kind: "any", conds: [own, theirs] } } : null;
+  }
+  if ((m = /^you or your opponent'?s? life is (?:at )?(\d+) or (less|fewer|more)$/.exec(t))) {
+    const bound = /less|fewer/.test(m[2]) ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) };
+    return { cond: { kind: "any", conds: [{ kind: "life", side: "you", ...bound }, { kind: "life", side: "opponent", ...bound }] } };
+  }
+  // "you and your opponent have a total of 8 or less life" (BT10-012): both lives added up.
+  if ((m = /^you and your opponent have a total of (\d+) or (less|fewer|more) life$/.exec(t))) {
+    return { cond: { kind: "life", side: "both", ...(/less|fewer/.test(m[2]) ? { atMost: Number(m[1]) } : { atLeast: Number(m[1]) }) } };
+  }
+  // "your life is less than or equal to your opponent's" (BT15-067): the "life" after it left unsaid.
+  if (/^your life is (?:less than or equal to|at or below|no more than) your opponent's$/.test(t)) return { cond: { kind: "lifeVsOpponent", atMost: true } };
+  if ((m = /^this card is in (?:a|the|your) (combo area|z-energy)$/.exec(t))) {
+    const area = m[1] === "combo area" ? "combo" : "zEnergy";
+    return { cond: { kind: "count", sel: { special: "self", area, side: "you" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
+  }
+  if ((m = /^(.+?) (is|isn't|is not|are|aren't|are not) in your z-energy$/.exec(t)) && !/\b(?:the|that|those|these|this)\b/.test(m[1])) {
+    const sel = parseTarget(`${m[1]} in your z-energy`);
+    if (!sel || sel.special || sel.fromVar || sel.area !== "zEnergy" || (sel.side ?? "you") !== "you" || sel.filter?.unreadable) return null;
+    delete sel.count;
+    delete sel.upTo;
+    const counted: Selector = { ...sel, area: "zEnergy", side: "you" };
+    return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
+  }
+  if ((m = /^all your energy is (.+)$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
+  if ((m = /^your leader(?: card)? and (?:all of )?(?:your )?energy are all (.+)$/.exec(t))) {
+    const leader = parseConditionClause(`your leader is ${m[1]}`, true);
+    const energy = parseConditionClause(`all of your energy is ${m[1]}`, true);
+    return leader && energy && energy.cond.kind === "every" ? { cond: { kind: "all", conds: [leader.cond, energy.cond] } } : null;
+  }
+  if ((m = /^there(?: is|'s) a total of (\d+) or (more|less|fewer) energy between you and your opponent$/.exec(t))) {
+    return { cond: { kind: "count", sel: { side: "both", area: "energy" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) } };
+  }
+  if ((m = /^(?:an? (.+?) is in a(?: player's)? battle area|a player has an? (.+?) in their battle area)$/.exec(t))) {
+    const what = (m[1] ?? m[2]).replace(/\bcard$/, "").trim();
+    return atLeastOne(parseTarget(`${what} cards in each player's battle area`));
+  }
+  if ((m = /^your leader(?: card)? has both ((?:<[^>]+>|≪[^≫]+≫|\{[^}]+\}) and (?:<[^>]+>|≪[^≫]+≫|\{[^}]+\}))$/.exec(t))) {
+    const filter = parseFilter(`card with both ${m[1]}`);
+    if (filter.unreadable || filterIsBlank(filter)) return null;
+    return { cond: { kind: "leaderMatches", filter }, subject: { sel: { special: "leader" } } };
+  }
+  return undefined;
+}
+
+/**
  * "If you have 2 or more Battle Cards in play in Rest Mode", "if there are 5
  * or more cards in your Warp", "if there are no cards in your opponent's
  * Combo Area" — one shape, many areas, and the target phrase after the number
@@ -1115,7 +1209,10 @@ function parseCountCondition(t: string): Cond | null {
   const mine = /^you have/.test(t);
   const theirs = /^your opponent has/.test(t);
 
-  const parts = total ? [rest] : splitDisjunction(rest);
+  // "a red Battle Card with 30000 **power or more** in play" (BT25-013): the "or"
+  // ends the measure, as it does in a Leader description (`measured`, #990); cut
+  // there the count asked for the card or for "more in play".
+  const parts = total ? [rest] : splitDisjunction(rest, { measured: true });
   // "a **black** <Vegito> or <Vegito: Xeno> card in play" (BT31-087), "a red
   // <Gamma 1: SH> or <Gamma 2: SH> card" (BT22-025): one colour word in front of
   // two names, and the "or" cut it off the second. Nothing in the manual
