@@ -1,12 +1,12 @@
 -- What a move costs, as declarations rather than as branches of one search.
 --
--- Sections are `docs/rules/rulemanual.txt`: §5-3 paying an energy cost and
--- §8-3-2-3 doing it in the Main Phase, §1-2-3 the specified (coloured) half of
--- a cost, §1-14-2 energy markers standing in for energy of the Leader's
--- colour, §3-8-2 the player's free choice of which energy to rest, §13-4 a
--- Unison's marker cost, §20-5 an X price, §20-19 a card rested in the Energy
--- Area's place, §21-3 life as a price, §22-27 [Burst X], and §22-30 [Warrior
--- of Universe 7].
+-- Fusion World's prices (F1-02): `energy` (with the specified colour orbs among
+-- the rested cards, or a marker of the Leader's colour removed from the game —
+-- FW manual p. 8), `marker`, `life`, `rest`, `payWith` and `text`. The Z-Energy,
+-- [Burst] and [Spirit Boost] prices are gone, and **no combo price is declared**:
+-- a Fusion World combo costs nothing (FW manual p. 10); F1-03 makes
+-- `vm/battle.ts` honour the absence. Section numbers left below are the dbs
+-- manual's, kept where the rule is the original game's own.
 --
 -- In the legacy engine payment is one function, `planPayment` in
 -- `engine/state.ts`, with a branch inside it for each of those: the coloured
@@ -67,7 +67,7 @@
 -- and charges them exactly; the parameter list below cannot say so, the way
 -- `attributes.rules` cannot say what is printed on a card's back side.
 
-DEFINE COST energy                                                        -- §5-3
+DEFINE COST energy                                                        -- FW manual p. 8
   TAKES (total: amount, orbs: colors, x: amount)
   consumes: energy
   amount: "costOf"
@@ -77,48 +77,7 @@ DEFINE COST energy                                                        -- §5
   }
   text: "the price is paid by switching that many active cards in your Energy Area to Rest Mode, the coloured orbs matched in colour; an energy marker pays one energy of your Leader's colour in a card's place (5-3-3, 1-2-3, 1-14-2)"
 
--- The other half of a Z-card's price (§5-4). It is a `cards` price like
--- `payWith` below and the planner tells the two apart the way it tells any two
--- prices apart — by reading the `DO`, never the name: this one's target names
--- a **place** (`IN you.zEnergy`), so the cards come out of that pool and go
--- where the op says; `payWith`'s names cards the price was handed, so they are
--- rested where they stand. 5-4-3: the Z-Energy is spent, not rested — the
--- cards are placed in the Drop Area — which is why the op is a move.
--- `fromEnd` says which end of the pile the cards come off: the far end, the
--- last placed first, which is the order the engine that has been playing
--- spends Z-Energy in and therefore the order the Drop Area ends up in.
-DEFINE COST zEnergy                                                       -- §5-4
-  TAKES (n: amount)
-  consumes: cards
-  amount: "zEnergyCostOf"
-  asks: nothing
-  DO {
-    moveTo(target: IN you.zEnergy fromEnd, to: drop)
-  }
-  text: "a Z-card's Z-Energy price: that many cards are placed from the Z-Energy Area in the Drop Area, on top of the card's energy cost (5-4, 16-2-1)"
-
--- [Burst X] (§22-27) is a price written as a tag in front of a skill: the top
--- X cards of your deck are placed in your Drop Area, and with fewer than X
--- cards in the deck it cannot be paid (22-27-3). It is a `cards` price out of
--- a declared place like `zEnergy` above, read the same way — the pool is the
--- op's target and paying does what the op says — with two differences, both
--- read off the declaration rather than the name: the cards come off the
--- **top** (no `fromEnd`), and the amount is not an attribute of the card,
--- because a card prints a [Burst] on one skill line and not on itself. So it
--- names no `amount:`, and the interpreter that knows which line is being
--- paid for binds the number in (`vm/activate.ts`'s `boundFor`, #148), the way
--- `marker` and `life` below get theirs. The deck is a hidden zone, so each
--- card is shown as it goes.
-DEFINE COST burst                                                         -- §22-27
-  TAKES (n: amount)
-  consumes: cards
-  asks: nothing
-  DO {
-    moveTo(target: IN you.deck, to: drop)
-  }
-  text: "the price is paid by placing that many cards from the top of your deck in your Drop Area, each shown as it goes; with fewer cards in the deck it cannot be paid (22-27-2, 22-27-3)"
-
-DEFINE COST marker                                                        -- §13-4
+DEFINE COST marker                                                        -- FW manual p. 8
   TAKES (n: amount)
   consumes: markers
   asks: nothing
@@ -127,23 +86,7 @@ DEFINE COST marker                                                        -- §1
   }
   text: "the price is paid with the markers on the card whose skill is being used: a negative number removes that many, and the card may use no further marker skill this turn (13-4, 1-11)"
 
--- [Spirit Boost X] (§22-43) is a marker price like 13-4's, written as a tag in
--- front of a skill — but the markers come off the Unison Card in the Unison
--- Area, not off the card whose skill is used. The planner reads which card
--- from the op's target, as it reads a pool for `burst`: `[self]` is the card
--- itself, a place is the card in it. The amount is the line's (the tag's X,
--- negative to remove), bound by the activation (#157); the shortfall is asked
--- among the activation's gates, beside [Burst]'s, in the legacy words.
-DEFINE COST spiritBoost                                                   -- §22-43
-  TAKES (n: amount)
-  consumes: markers
-  asks: nothing
-  DO {
-    addMarker(target: IN you.unison, n: $n)
-  }
-  text: "the price is paid by removing that many markers from your Unison Card; with fewer on it, it cannot be paid (22-43-2)"
-
-DEFINE COST life                                                          -- §21-3
+DEFINE COST life                                                          -- FW manual p. 5, Life Area
   TAKES (n: amount)
   consumes: life
   asks: nothing
@@ -152,7 +95,7 @@ DEFINE COST life                                                          -- §2
   }
   text: "the price is paid by placing that many cards from your life in your Drop Area (21-3)"
 
-DEFINE COST rest                                                          -- §8-4-1
+DEFINE COST rest                                                          -- FW manual p. 9, Attack
   TAKES ()
   consumes: mode
   asks: nothing
@@ -161,7 +104,7 @@ DEFINE COST rest                                                          -- §8
   }
   text: "the price is paid by switching the card itself to Rest Mode, which a card already in Rest Mode cannot do (1-10-1)"
 
-DEFINE COST payWith                                                       -- §20-19
+DEFINE COST payWith                                                       -- FW manual p. 8
   TAKES (cards: selector)
   consumes: cards
   asks: choice
@@ -175,7 +118,7 @@ DEFINE COST payWith                                                       -- §2
 -- a move whose price is *declared unreadable* is refused with an `unread`
 -- requirement naming the card — the same answer the legacy engine gives for a
 -- skill whose cost the compiler could not read.
-DEFINE COST text                                                          -- §4-3-3
+DEFINE COST text                                                          -- FW manual p. 9
   TAKES (printed: string)
   consumes: unreadable
   asks: nothing

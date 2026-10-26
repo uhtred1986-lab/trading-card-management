@@ -1,3 +1,9 @@
+-- Fusion World (F1-02): unchanged from the dbs file. All 32 macros lower to
+-- primitives over zones Fusion World still declares, and the verifier's "every
+-- macro's primitives exist" check finds none dead, so none is deleted; the
+-- Unison, Warp and Evolve mentions in the comments below are the dbs cards' that
+-- the macros were written for (FW manual p. 12 keeps the op set the cards use).
+
 -- The macros: every op the cards use that is not a primitive, written over
 -- the ones that are.
 --

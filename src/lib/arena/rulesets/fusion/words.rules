@@ -1,3 +1,8 @@
+-- Fusion World's board words, cut down from the dbs file (F1-02): the Warp, Unison,
+-- Z-Deck and Z-Energy words and the Unison and Z play verbs are gone, and the
+-- modes and piles are called what the manual calls them — "Active Mode", "Rest
+-- Mode", "Drop", "Life", "Energy Area", "Combo Area" (FW manual p. 5).
+
 -- The words a board shows for a zone, a phase or beat, a mode or a colour —
 -- `wording.ts`'s refusals, `narration.ts`'s beats and `lighting.ts`'s room
 -- colours, gathered as `board-words.ts`'s `BoardWords` (Stage 8, #159).
@@ -19,7 +24,8 @@
 -- prefix because a name is unique across every `of:` (`charge` is already a
 -- phase, `main` and `defense` too).
 
--- §3: the twelve areas the manual counts, minus the two effect-language-only
+-- FW manual p. 5: the seven areas the manual counts (Leader, Deck, Battle,
+-- Combo, Energy, Drop, Life) plus `hand` and `removed`, minus the two effect-language-only
 -- routes (`under`, `play`) `zones.rules` also declares — a program needs to
 -- name them, but a board never shows them as a place a card sits, so
 -- `board-words.ts`'s own tables carry no entry for either and neither does
@@ -63,26 +69,6 @@ DEFINE WORDS life
   of: zone
   you: "your Life Area"
   text: "life"
-
-DEFINE WORDS warp
-  of: zone
-  you: "your Warp"
-  text: "the Warp"
-
-DEFINE WORDS unison
-  of: zone
-  you: "the Unison Area"
-  text: "the Unison Area"
-
-DEFINE WORDS zDeck
-  of: zone
-  you: "your Z-Deck"
-  text: "the Z-Deck"
-
-DEFINE WORDS zEnergy
-  of: zone
-  you: "your Z-Energy Area"
-  text: "Z-Energy"
 
 DEFINE WORDS removed
   of: zone
@@ -138,7 +124,7 @@ DEFINE WORDS over
   of: phase
   text: "The game is over"
 
--- §1-10: the only two tokens `zones.rules` declares for a zone's `modes:`.
+-- FW manual p. 7 (Active Mode and Rest Mode): the only two tokens `zones.rules` declares for a zone's `modes:`.
 DEFINE WORDS active
   of: mode
   text: "Active Mode"
@@ -196,14 +182,6 @@ DEFINE WORDS verbCombo
   text: "combo"
 
 DEFINE WORDS verbPlay
-  of: verb
-  text: "be played"
-
-DEFINE WORDS verbPlayUnison
-  of: verb
-  text: "be played"
-
-DEFINE WORDS verbPlayZ
   of: verb
   text: "be played"
 
@@ -307,3 +285,27 @@ DEFINE WORDS untilPermanent
   of: until
   text: "while {source} is in play"
   bare: "while its card is in play"
+
+-- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
+DEFINE WORDS warp
+  of: zone
+  you: "your Warp"
+  text: "the Warp"
+
+-- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
+DEFINE WORDS unison
+  of: zone
+  you: "the Unison Area"
+  text: "the Unison Area"
+
+-- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
+DEFINE WORDS zDeck
+  of: zone
+  you: "your Z-Deck"
+  text: "the Z-Deck"
+
+-- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
+DEFINE WORDS zEnergy
+  of: zone
+  you: "your Z-Energy Area"
+  text: "Z-Energy"

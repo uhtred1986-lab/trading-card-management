@@ -605,11 +605,18 @@ const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill
 // #134's `triggers.rules` and #135's `keywords.rules` make on their own.
 // words.rules and prompts.rules still wait on the owner's word on DEFINE
 // WORDS/PROMPT (#131).
-// What each game's definition is expected to declare. F1-02 edits the `fusion` row when it cuts the
-// zones to 9 and the keywords to 6; the dbs-only assertions below stay on the dbs definition.
+// What each game's definition is expected to declare. The `fusion` row is F1-02's: 11 zones of the
+// game plus the four `-- F1-03:` leftovers (`warp`, `unison`, `zDeck`, `zEnergy`, kept only because
+// `board-words.ts` names every area), the six Fusion World keywords, and no Z-Deck. The dbs-only
+// assertions below stay on the dbs definition.
 const EXPECTED = {
   dbs: { id: "dbs", players: 2, hand: 6, life: 8, mulligan: true, zones: 15, keywords: "all" },
-  fusion: { id: "fusion", players: 2, hand: 6, life: 8, mulligan: true, zones: null, keywords: "subset" },
+  fusion: {
+    id: "fusion", players: 2, hand: 6, life: 8, mulligan: true, zones: 15, zDeck: 0,
+    keywords: ["Awaken", "Blocker", "Critical", "Strike", "Super Combo", "Dragon Ball"],
+    gameZones: ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "removed", "under", "play"],
+    f103Zones: ["warp", "unison", "zDeck", "zEnergy"],
+  },
 } as const;
 
 const dbs = loadDbs();
@@ -796,6 +803,13 @@ if (fusion.ok) {
   assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
   const known: readonly string[] = KEYWORD_NAMES;
   for (const k of Object.keys(def.keywords)) assert.ok(known.includes(k), `the Fusion World ruleset declares [${k}], which the parser does not read`);
+  assert.equal(def.game?.zDeck, want.zDeck, "Fusion World has no Z-Deck (FW manual p. 4)");
+  assert.deepEqual(Object.keys(def.zones).sort(), [...want.gameZones, ...want.f103Zones].sort(), "the Fusion World zones are the manual's, plus the four F1-03 leftovers");
+  assert.equal(Object.keys(def.zones).length, want.zones);
+  assert.deepEqual(Object.keys(def.keywords).sort(), [...want.keywords].sort(), "the Fusion World keywords are the manual's glossary (p. 12)");
+  assert.ok(!("setupZDeck" in def.steps), "a game with no Z-Deck has no step that places one");
+  for (const [name, c] of Object.entries(def.costs)) assert.notEqual(c.amount, "comboCostOf", `COST ${name} reads the combo cost, and a Fusion World combo costs nothing (FW manual p. 10)`);
+  assert.ok(!("combo" in def.costs), "no combo price is declared for Fusion World");
 }
 
 // ── completeness against the legacy engine's remaining unions ───────────────
