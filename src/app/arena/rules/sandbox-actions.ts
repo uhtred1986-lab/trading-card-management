@@ -12,6 +12,7 @@
  * `arena:reprobe` holds the rule to it.
  */
 import { and, eq, ilike, inArray, or } from "drizzle-orm";
+import { ARENA_GAMES, arenaPlays } from "@/lib/catalog/games";
 import { db } from "@/db";
 import { cards } from "@/db/schema";
 import { isArenaAdmin, requireSl } from "@/lib/auth";
@@ -72,16 +73,16 @@ export async function sandboxSeedAction(ruleId: number, draftRule: unknown, boar
   const ids = [made.card.cardId, ...setupIds(wanted)];
   const rows = await db.select({ id: cards.id, game: cards.game, imageUrl: cards.imageUrl, backImageUrl: cards.backImageUrl }).from(cards).where(inArray(cards.id, ids));
   const art = Object.fromEntries(rows.map((r) => [r.id, { front: r.imageUrl, back: r.backImageUrl }]));
-  // The setup's cards are read from the catalog with their stored rules, so they play as in a game. Only the original game's.
-  const dbsIds = new Set(rows.filter((r) => r.game === "dbs").map((r) => r.id));
-  const kept = setupIds(wanted).filter((id) => dbsIds.has(id));
+  // The setup's cards are read from the catalog with their stored rules, so they play as in a game. Only the games the arena plays.
+  const arenaIds = new Set(rows.filter((r) => arenaPlays(r.game)).map((r) => r.id));
+  const kept = setupIds(wanted).filter((id) => arenaIds.has(id));
   const defs = await defsForCards(db, kept);
   const resolved: ResolvedSetup = { setup: wanted, defs, scripts: kept.length ? await rulesFor(db, defs) : {} };
   const seeded = sandboxSeed(made.rule, keyOf(boardKey), art, resolved);
   return { ...seeded, card: made.card };
 }
 
-/** Search the original game's catalog by name or number, for the "Set up the board" panel. Read-only. */
+/** Search the catalog of the games the arena plays by name or number, for the "Set up the board" panel. Read-only. */
 export async function searchSetupCardsAction(query: string, leadersOnly: boolean): Promise<{ error: string | null; hits: SetupCardHit[] }> {
   await requireSl();
   if (!(await isArenaAdmin())) return { error: REFUSED, hits: [] };
@@ -91,7 +92,7 @@ export async function searchSetupCardsAction(query: string, leadersOnly: boolean
   const rows = await db
     .select({ id: cards.id, name: cards.name, type: cards.cardType, colors: cards.colors, cost: cards.energyCost })
     .from(cards)
-    .where(and(eq(cards.game, "dbs"), or(ilike(cards.name, like), ilike(cards.id, like)), leadersOnly ? eq(cards.cardType, "LEADER") : undefined))
+    .where(and(inArray(cards.game, ARENA_GAMES), or(ilike(cards.name, like), ilike(cards.id, like)), leadersOnly ? eq(cards.cardType, "LEADER") : undefined))
     .orderBy(cards.id)
     .limit(SETUP_LIMITS.cards);
   return { error: null, hits: rows };

@@ -12,12 +12,15 @@ import type { CardDef, EngineContext, DeckInput } from "./types";
 import type { CardScripts } from "./vm/script";
 import type { GameDefinition } from "./rulesets/types";
 import { loadRuleset } from "./rulesets/load";
+import { GAMES, type Game } from "../catalog/games";
 import type { CardArt } from "./view";
 
 export const REPLAY_BUNDLE_FORMAT = 1;
 
 export interface ReplayBundlePayload {
   format: 1;
+  /** The game whose ruleset `rulesetFiles` hold. Absent means "dbs", so bundles made before Fusion World replay and hash as they did. */
+  game?: Game;
   rulesetFiles: Record<string, string>;
   defs: Record<string, CardDef>;
   scripts: Record<string, CardScripts>;
@@ -90,7 +93,8 @@ async function hashesOf(payload: ReplayBundlePayload, format: number, runtimeRev
     replayHash({ defs: payload.defs, art: payload.art }),
     replayHash(payload.scripts),
   ]);
-  const hash = await replayHash({ format, rulesetHash, catalogHash, programsHash, runtimeRevision });
+  // `game` joins the hash only when it is not dbs, so every existing bundle keeps its hash.
+  const hash = await replayHash({ format, rulesetHash, catalogHash, programsHash, runtimeRevision, ...(payload.game && payload.game !== "dbs" ? { game: payload.game } : {}) });
   return { rulesetHash, catalogHash, programsHash, hash };
 }
 
@@ -103,10 +107,13 @@ export async function makeReplayBundle(input: {
   scripts: Record<string, CardScripts>;
   art: Record<string, CardArt>;
   rulesetFiles: Record<string, string>;
+  /** Defaults to "dbs"; the field is only written to the payload for another game. */
+  game?: Game;
   runtime: string | null;
 }): Promise<ReplayBundle> {
   const payload: ReplayBundlePayload = {
     format: REPLAY_BUNDLE_FORMAT,
+    ...(input.game && input.game !== "dbs" ? { game: input.game } : {}),
     rulesetFiles: structuredClone(input.rulesetFiles),
     defs: structuredClone(input.defs),
     scripts: structuredClone(input.scripts),
@@ -123,6 +130,7 @@ export async function validateReplayBundle(bundle: ReplayBundle): Promise<boolea
     if (!bundle || typeof bundle !== "object" || bundle.format !== REPLAY_BUNDLE_FORMAT || bundle.payload?.format !== REPLAY_BUNDLE_FORMAT) return false;
     const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
     if (!record(bundle.payload.rulesetFiles) || !record(bundle.payload.defs) || !record(bundle.payload.scripts) || !record(bundle.payload.art)) return false;
+    if (bundle.payload.game !== undefined && !(GAMES as readonly string[]).includes(bundle.payload.game)) return false;
     if (!Object.values(bundle.payload.rulesetFiles).every((value) => typeof value === "string")) return false;
     if (bundle.runtimeRevision !== null && (typeof bundle.runtimeRevision !== "string" || !RUNTIME_REVISION_PATTERN.test(bundle.runtimeRevision))) return false;
     const expected = await hashesOf(bundle.payload, bundle.format, bundle.runtimeRevision);
@@ -144,7 +152,7 @@ export function assertInterpreterRevision(bundle: Pick<ReplayBundle, "runtimeRev
 
 /** Load the bundle's own ruleset files. Throws on an invalid ruleset; does not check hashes. */
 export function pinnedDefinition(bundle: ReplayBundle): GameDefinition {
-  const loaded = loadRuleset(bundle.payload.rulesetFiles, "dbs");
+  const loaded = loadRuleset(bundle.payload.rulesetFiles, bundle.payload.game ?? "dbs");
   if (!loaded.ok) {
     const first = loaded.errors[0];
     throw new Error(`the pinned ruleset is invalid${first ? `: ${first.file}:${first.line}:${first.col} ${first.message}` : ""}`);

@@ -124,8 +124,9 @@ async function liveDecks(db: Db, scope: OwnerScope, deckIds: number[]): Promise<
       warnings: (lg?.issues ?? []).filter((i) => i.severity === "warning").map((i) => i.message),
     };
     const base: OfflineDeckCheck = { deckId: d.id, key, name: d.name, ...(d.isTesting ? { isTesting: true } : {}), ready: false, problems: [], blocking: [], listHash: null };
+    // Offline packs are dbs-only in this milestone (local/pack.ts), whatever the arena plays online.
     if (d.game !== "dbs") {
-      base.problems.push("This is a Fusion World deck; the arena plays the original Dragon Ball Super Card Game only.");
+      base.problems.push("This is a Fusion World deck; offline play covers the original Dragon Ball Super Card Game only.");
       out.set(d.id, { check: base, deck: null, legality, defs: {}, scripts: {}, art: {} });
       continue;
     }

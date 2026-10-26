@@ -120,7 +120,7 @@ const [match] = await db.insert(schema.arenaMatches).values({ hostUser: "Pat", h
 assert.deepEqual((await sharedDecksOf(db, hostDeck)).sort(), [patShared], "only the host's shareable decks");
 assert.deepEqual(await sharedDecksOf(db, null), []);
 const fusion = await mk("Pat fusion", "Pat", true, "fusion");
-assert.ok(!(await sharedDecksOf(db, hostDeck)).includes(fusion), "original game only");
+assert.ok((await sharedDecksOf(db, hostDeck)).includes(fusion), "a shareable deck of any game the arena plays is offered");
 
 const refused = async (deck: number) => {
   await assert.rejects(() => joinMatch(db, match.id, "Maya", deck, "Maya"), /not yours/);
