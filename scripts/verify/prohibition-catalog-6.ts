@@ -152,6 +152,13 @@ const defs: Record<string, CardDef> = {
   TB1_077: C("TB1_077", { skill: "[permanent] If your Leader Card is yellow, your opponent's [counter] skills and non-keyword [auto]/[activate] skills cannot be activated unless they place 1 card from their life in their Drop Area." }),
   DRAWER: C("DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
   BT20_145: C("BT20_145", { skill: "[Activate: Main] Your opponent can't attack with non-Leaders for the turn unless they place 1 card each from their hand and Z-Energy in their owners' Drops each time." }),
+  LADV: card("LADV", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: null, back: { name: "LADV awakened", power: 15000, skill: "[Permanent] If your green ≪Adventure≫ <Bulma> card is in play in Rest Mode, your green non-<Bulma> ≪Adventure≫ cards can't be removed from a Battle Area by your opponent's skills." } }),
+  BULMA: C("BULMA", { colors: ["Green"], traits: ["Adventure"], characters: ["Bulma"] }),
+  ADVENT: C("ADVENT", { colors: ["Green"], traits: ["Adventure"], characters: ["Krillin"] }),
+  BT21_012: C("BT21_012", { skill: "[Permanent] This card can't be removed from under your Leader by a skill other than this card's skills." }),
+  DIGGER: C("DIGGER", { skill: "[Activate: Main] Choose up to 1 card under your Leader and add it to your hand." }),
+  BT22_113: C("BT22_113", { skill: "[Permanent] You can't place more than 1 card with the same character name under this card in your Battle Area.<br>[Activate: Main] Choose up to 1 card in your hand and place it under this card." }),
+  GOKU_A: C("GOKU_A", { characters: ["Son Goku"] }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -489,6 +496,54 @@ for (const me of SEATS) {
 
   // 12 (BT20-145): the opponent's Battle Cards attack only by paying a hand card
   // and a Z-Energy each time; their Leader attacks freely (control).
+  // 13 (BT27-044's back): with my green ≪Adventure≫ <Bulma> rested, the
+  // opponent's skill can't KO my other green ≪Adventure≫ card; with it in
+  // Active Mode it can (control).
+  for (const rested of [true, false]) {
+    let s = game3(you);
+    const leader = leaderOf(s, me);
+    s.cards[leader].cardId = "LADV"; s.cards[leader].flipped = true;
+    stage(s, me, "BULMA", "battle", rested ? "rest" : "active");
+    const adv = stage(s, me, "ADVENT", "battle");
+    const koer = stage(s, you, "KOER", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === koer)!.action), [adv], 0));
+    assert.equal(zoneOf(s, adv), rested ? "battle" : "drop", `${me}: BT27-044 — ${rested ? "protected while <Bulma> is rested" : "KO'd with <Bulma> active (control)"}`);
+  }
+
+  // 14 (BT21-012): another skill of mine can't take it from under my Leader;
+  // a card without the rule under the Leader can be taken (control).
+  for (const def of ["BT21_012", "PLAIN"]) {
+    let s = game3(me);
+    const leader = leaderOf(s, me);
+    const pile = s.sides[me].zones.deck[0]; s.cards[pile].cardId = def;
+    assert.ok(moveCard(s, game, pile, "under", { owner: me, under: leader } as never).ok);
+    const digger = stage(s, me, "DIGGER", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === digger)!.action), [pile], 0));
+    assert.equal(s.cards[leader].under.includes(pile), def === "BT21_012", `${me}: BT21-012 — ${def === "BT21_012" ? "stays under the Leader" : "taken (control)"}`);
+  }
+
+  // 15 (BT22-113): a second <Son Goku> is not placed under it; a card of
+  // another name is (control).
+  {
+    let s = game3(me);
+    const host = stage(s, me, "BT22_113", "battle");
+    const g1 = stage(s, me, "GOKU_A", "hand");
+    const g2 = stage(s, me, "GOKU_A", "hand");
+    const other = stage(s, me, "PLAIN", "hand");
+    s = roundtrip(s);
+    const place = (t: VmState, id: string) => roundtrip(settle(take(t, RULES.legalActions(ctx, t).find((l) => l.action.type === "activate" && l.action.card === host)!.action), [id], 0));
+    s = place(s, g1);
+    assert.ok(s.cards[host].under.includes(g1), `${me}: the first <Son Goku> goes under`);
+    s = roundtrip(endTurn(endTurn(s)));
+    s = place(s, g2);
+    assert.ok(!s.cards[host].under.includes(g2), `${me}: BT22-113 — a second <Son Goku> does not`);
+    s = roundtrip(endTurn(endTurn(s)));
+    s = place(s, other);
+    assert.ok(s.cards[host].under.includes(other), `${me}: another name does (control)`);
+  }
+
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs
   // naming "your opponent" — here, me — so the attacker is the activating seat's opponent.)
   {

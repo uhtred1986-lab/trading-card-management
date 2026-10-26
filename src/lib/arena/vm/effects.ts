@@ -90,7 +90,33 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
     if (sk.kind !== "permanent" || skillNegated(state, id, sk.index, sk.kind)) continue;
     const program = showing.scripts.bySkill[sk.index];
     if (!program || program.unsupported.length || !sparkingIsValid(state, master, sk.validity)) continue;
+    // Prohibition batch 6 (BT21-012, BT21-052): a rule about this card under
+    // another card — "this card can't be removed from under your Leader by a
+    // skill other than this card's skills" — is the card's own while it sits
+    // in that pile, which is no in-play area; one printed behind conditions
+    // ("If it's your turn and this card is under a Leader, …") holds while
+    // they do (`unless` the conditions fail).
+    const underRules: { op: Op; conds: Cond[] }[] = [];
+    const collectUnder = (ops: Op[], conds: Cond[]) => {
+      for (const o of ops) {
+        if (o.op === "forbid" && o.fromArea === "under") underRules.push({ op: o, conds });
+        else if (o.op === "if" && !o.else?.length) collectUnder(o.then, [...conds, o.cond]);
+      }
+    };
+    collectUnder(program.ops, []);
+    for (const { op, conds } of underRules) {
+      if (op.op !== "forbid" || op.until !== "game" || !op.target || !("sel" in op.target) || op.target.sel.special !== "self") continue;
+      const held: Cond | null = conds.length ? (conds.length === 1 ? conds[0] : { kind: "all", conds }) : null;
+      const escape: Cond | null = held && op.unless ? { kind: "any", conds: [{ kind: "not", cond: held }, op.unless] } : held ? { kind: "not", cond: held } : (op.unless ?? null);
+      out.push({
+        what: op.what,
+        fromArea: "under",
+        ...(escape ? { unless: escape, master } : {}),
+        ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}),
+      });
+    }
     for (const op of program.ops) {
+      if (op.op === "forbid" && op.fromArea === "under") continue;
       // BT18-052: "You can't switch this card in your Energy Area to Active
       // Mode" — a rule about itself where it is (9-1-3-3), which is no in-play area.
       const inEnergy = op.op === "forbid" && op.what === "switchToActive" && op.fromArea === "energy" && Object.values(state.sides).some((side) => side.zones.energy?.includes(id));
@@ -846,7 +872,7 @@ function collect(
       const attackOnly = op.attackOnly ? targets(frame, { ...op, target: op.attackOnly }) : undefined;
       // "…can't attack **this card**" (BT15-122): read as the cards it names, now.
       const against = op.against ? targets(frame, { ...op, target: op.against }) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: op.cardsOf === "opponent" ? otherPlayer(frame.master) : frame.master } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: targets(frame, { ...op, target: op.exceptCards }) } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: op.cardsOf === "opponent" ? otherPlayer(frame.master) : frame.master } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: targets(frame, { ...op, target: op.exceptCards }) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {

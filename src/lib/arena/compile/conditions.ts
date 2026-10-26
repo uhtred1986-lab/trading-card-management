@@ -444,6 +444,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // article or "this card" in front ("you have only 3 or less cards …" stays a
   // count); any other place keeps its reading. A description the target reader
   // cannot take in is a gap, never the old count.
+  // BT27-044's back (prohibition batch 6): "if your green ≪Adventure≫ <Bulma>
+  // card is in play in Rest Mode" — one of your cards so described, rested in
+  // your Battle Area, said the way "you have …" is.
+  {
+    const rested = /^your ((?!opponent\b).+? card) is in play in (rest|active) mode$/.exec(t);
+    if (rested) return parseConditionClause(`if you have a ${rested[1]} in ${rested[2]} mode in your battle area`, true);
+  }
   const onlyHave = /^you (?:have only|only have) ((?!\d|no\b|an?\b|any\b|one\b|this\b|these\b).+? cards) (?:in play(?: in your battle area)?|in your battle area)$/.exec(t);
   if (onlyHave) {
     return onlyInBattleArea(onlyHave[1]);

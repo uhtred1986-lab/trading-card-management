@@ -4372,6 +4372,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // "You can't place cards under this card, except with this card's skill"
     // (BT25-008, BT7-022; 23-2): a skill of this player's moving a card under
     // this one, unless the skill is this card's own (`exceptOwnSkills`).
+    // "You can't place more than 1 card with the same character name under
+    // this card in your Battle Area" (BT22-113, prohibition batch 6): a card
+    // is kept out from under this card while it is in the Battle Area only if
+    // one sharing a character name with it is there already.
+    if (/^place more than 1 card with the same character name under this card(?: in your battle area)?$/.test(rest)) {
+      return [{ op: "forbid", what: "placeUnder", side, until: "game", target: { sel: { special: "self" } }, sameCharacterUnder: true, ...(/in your battle area$/.test(rest) ? { fromArea: "battle" as const } : {}), ...withUnless }];
+    }
     if ((mm = /^place cards under this card(,? except with this card'?s skills?)?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
       return [{ op: "forbid", what: "placeUnder", side, until, target: { sel: { special: "self" } }, ...(mm[1] ? { exceptOwnSkills: true as const } : {}), ...withUnless }];
     }
@@ -4798,6 +4805,14 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   {
     const removed = /^be removed from (?:(?:a|the|your|their) battle areas?|battle areas) by (skills|your opponent'?s (?:card )?skills|an opponent'?s skill|the skills of your opponent'?s battle cards)(?:$|\s+(?:for|during|until)\b)/.exec(rest);
     if (removed) return removedBySkill({ ...(bySide ? { side: bySide } : {}), ...(/battle cards$/.test(removed[1]) ? { byTypes: ["BATTLE" as const] } : {}) });
+  }
+  // "This card can't be removed from under your Leader by a skill other than
+  // this card's skills" (BT21-012), "…can't be removed from the Leader Area by
+  // a skill other than this card's skills" while it is under a Leader
+  // (BT21-052; prohibition batch 6): a skill's move of it out from under its
+  // host (`fromArea: under`), unless the skill is this card's own.
+  if (/^be removed from (?:under (?:your|a|the|its) leader(?: card)?|the leader area) by (?:a |any )?(?:card )?skills? other than this card'?s skills$/.test(rest)) {
+    return [{ op: "forbid", what: "beMovedBySkill", until, target, fromArea: "under", exceptOwnSkills: true, ...withUnless }];
   }
   // "This card can't be removed from Battle Areas by skills other than
   // {Jaguar's Island}'s skills" (BT22-072): the same two rules, with the one

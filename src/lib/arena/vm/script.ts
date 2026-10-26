@@ -1182,7 +1182,7 @@ export type Op =
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
-      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
+      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
@@ -1215,6 +1215,8 @@ export type Op =
       costVsEnergy?: "above" | "atLeast";
       /** "You may not activate [EX-Evolve]" (`Prohibition.keywordSkill`). */
       keywordSkill?: string;
+      /** BT22-113: one card per character name under the host (`Prohibition.sameCharacterUnder`). */
+      sameCharacterUnder?: true;
       /** "…other than the card they attacked with" (`Prohibition.exceptCards`), resolved as the rule is put in force. */
       exceptCards?: Ref;
     }
@@ -2732,7 +2734,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // owner's deck by your opponent's skills" (P-672) — and a card in a
           // hand is asked too ("cards in your hand can't be returned to your
           // deck by your opponent's skills", DB2-156): `fromArea: hand`.
-          const leaving = h.areaOf(id);
+          // Prohibition batch 6: a card under another leaves "under" it —
+          // "this card can't be removed from under your Leader by a skill other
+          // than this card's skills" (BT21-012, BT21-052: `fromArea: under`).
+          const leaving = h.areaOf(id) ?? (h.hostOf(id) ? "under" : null);
           // "Your opponent can't add cards from their deck to their hand using
           // non-Leader Card skills" (DB3-092, BT9-077): a card in a deck too,
           // which only a rule naming the deck (`fromArea: deck`) is about.
@@ -2755,7 +2760,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (op.to === "under") {
             // 20-14: "you can't place cards under this card, except with this
             // card's skill" (BT25-008, BT7-022) — asked of the host.
-            if (host && h.forbids("placeUnder", { card: host, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
+            if (host && h.forbids("placeUnder", { card: host, player: master, moving: id, ...(frame.card ? { source: frame.card } : {}) })) {
               if (frame.saveVarsAs) frame.priceUnpaid ??= `cards can't be placed under ${h.nameOf(host)}`;
               frame.moveLoop.index++;
               continue;
@@ -3255,7 +3260,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3284,6 +3289,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}),
             ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}),
             ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}),
+            ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

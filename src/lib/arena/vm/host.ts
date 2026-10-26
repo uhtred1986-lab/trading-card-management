@@ -107,6 +107,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // equality is relied on, and `createGame` already refuses a definition
     // whose zone names the procedure cannot find.
     areaOf: (id) => (zoneOf(state, id) as Area | null) ?? null,
+    hostOf: (id) => hostOf(state, id),
     modeOf: (id) => (card(id).mode as Mode | null) ?? null,
     markersOf: (id) => card(id).markers,
     isFaceUp: (id) => card(id).faceUp,

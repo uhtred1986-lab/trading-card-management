@@ -457,7 +457,7 @@ export interface Prohibition {
    * their owner's hands**" (EX23-05). Matched against where the card is when
    * the action is asked about; a card the rule cannot place is not its.
    */
-  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
+  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
   /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
   fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
@@ -576,6 +576,14 @@ export interface Prohibition {
    * attacking card of that moment.
    */
   exceptCards?: string[];
+  /**
+   * `placeUnder` only (BT22-113, prohibition batch 6): "you can't place more
+   * than 1 card with the same character name under this card" — a card is
+   * kept out only when one with a character name it shares is under the host
+   * already. Asked with the card being placed (`moving` in the matchers'
+   * options); asked without it, the rule is read as not applying.
+   */
+  sameCharacterUnder?: boolean;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
