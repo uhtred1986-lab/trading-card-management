@@ -8,6 +8,7 @@ import { bondDescriptorOnly } from "../text/bond";
 import type { Color, Skill } from "../types";
 import type { Cond, CostRecord, Op, Ref, Script, SkillPrice, XCost } from "../vm/script";
 import { splitClauses, stripNotes } from "./clauses";
+import { parseFilter } from "../text/filters";
 import { allConditions, foldBothQualifier } from "./conditions";
 import { disjointMoveSpans } from "./disjoint-shape";
 import { namedSetSpans } from "./named-set-shape";
@@ -214,7 +215,10 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // an [Auto], a [Counter] and a keyword's move have their own payment
   // planners, and none of them matches cards across slots.
   const disjoint = sc.ops.some((op) => op.op === "choose" && op.sel.notIn);
-  const out = sc.unsupported.length || !sc.ops.length || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
+  // Phrasing batch 3: the effect's "send up to 1 <A> and 1 <B> from your deck to your Warp" (BT20-054, `named-set.ts`)
+  // is not a price: an "up to" send slot is one a price could pay with nothing (#970 keeps it unread there).
+  const upToSend = sc.ops.some((op) => op.op === "choose" && op.sel.notIn && op.sel.upTo && sc.ops.some((m) => m.op === "moveTo" && m.to === "warp" && "var" in m.target && m.target.var === op.as));
+  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
 }
@@ -360,11 +364,32 @@ function priceText(skill: Skill): string {
  * (BT24-139) — each read only when the action compiles whole, and the newly
  * read effects checked one by one. Not "add": BT21-103's "If you add 1 yellow
  * <Vegeta> … to your hand: … play this card under a yellow <Whis> Z-Battle
- * Card" would expose an effect read as a plain play. Not "switch": "if you
- * switch 5 yellow cards to Rest Mode" (BT24-096) does not say whether energy
- * counts among the cards (a ruling question), and reads as cards in play.
+ * Card" would expose an effect read as a plain play. "Switch" only in the one
+ * shape the owner ruled on (phrasing batch 3, 26 Oct 2026): "if you switch 5
+ * yellow cards to Rest Mode" (BT24-096) is any 5 of your Active Mode yellow
+ * cards, the energy included (`switchColourCardsPrice`).
  */
-export const IF_YOU_ACTION_PRICE = /^if you (?:discard|place|send|remove|return) \S.*$/i;
+export const IF_YOU_ACTION_PRICE = /^if you (?:discard|place|send|remove|return) \S.*$|^if you switch \d+ (?:mono-)?(?:red|blue|green|yellow|black|white) cards to rest mode$/i;
+
+/**
+ * Phrasing batch 3 (owner's ruling of 26 Oct 2026): "{y}{y}, **if you switch 5 yellow cards to Rest Mode**: …"
+ * (BT24-096). "Cards" with nothing but a colour is any of your Active Mode cards of that colour, the energy included —
+ * P-106's official Q&A counts the Leader, the Battle Area and the energy for Rest Mode, and "switch 2 of your cards to
+ * Rest Mode" (BT23-140) is any 2 Active Mode cards. So the price chooses that many from every area a card has a mode in
+ * (the Leader, Battle and Unison Areas, and the energy) and rests them; with fewer than that many it cannot be paid.
+ */
+const IF_YOU_SWITCH_COLOUR_CARDS = /^if you switch (\d+) ((?:mono-)?(?:red|blue|green|yellow|black|white)) cards to rest mode$/i;
+function switchColourCardsPrice(said: string): Script | null {
+  const m = IF_YOU_SWITCH_COLOUR_CARDS.exec(said.trim());
+  if (!m) return null;
+  const filter = parseFilter(`${m[2]} card`);
+  if (filter.unreadable || filter.colors.length !== 1) return null;
+  const ops: Op[] = [
+    { op: "choose", sel: { side: "you", areas: ["play", "energy"], filter, count: Number(m[1]), upTo: false, mode: "active" }, as: "switched", reason: said.trim() },
+    { op: "switchMode", target: { var: "switched" }, mode: "rest" },
+  ];
+  return { ops, unsupported: [] };
+}
 
 export function priceIsUnread(skill: Skill): boolean {
   if (skill.keyword || !/^(?:activate|auto|counter)/.test(skill.kind)) return false;
@@ -468,6 +493,8 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // all — the action is the price, as in the unprefixed "Discard 1 card from
   // your hand:". Read last, once it has failed to be a condition, for the
   // reason given above: charging an action is the stronger reading.
+  const switched = switchColourCardsPrice(said);
+  if (switched) return { conds: [], program: switched };
   const bareAction = IF_YOU_ACTION_PRICE.test(said) ? compileAction(said.replace(/^if\s+/i, ""), skill) : null;
   return bareAction ? { conds: [], program: bareAction } : NO_PRICE;
 }

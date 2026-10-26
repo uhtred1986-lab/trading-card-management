@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { triggersOf } from "../gaps";
 import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion } from "../text/triggers";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -803,6 +803,12 @@ function compileSkillText(skill: Skill): Script {
   }
   if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? "")) && !isComboDropReplacement(clauses[0] ?? "")) {
     const trigger = clauses.shift()!;
+    // Phrasing batch 3: the second moment of a trigger said after a comma — "When this card attacks**, or activates
+    // the [Blocker] skill**" (BT25-066, BT27-074), "At the end of your turn**, or when this card activates its
+    // [blocker] skill**" (BT13-018), "…**, or when you activate this card's [Blocker] skill**" (BT15-143, BT25-116).
+    // The trigger readers already answer to both moments (`blockerUsed` beside `attacks` or `turnEnd`); the comma
+    // only left the second one behind as a clause of its own, which is the trigger again and nothing to do.
+    if (clauses.length > 1 && /^or (?:when )?(?:this card activates (?:its |the )?|you activate this card['’]s |activates (?:its |the )?)\[blocker\](?: skill)?[.,]?$/i.test(clauses[0].trim()) && autoTriggerMatches(skill, "blockerUsed")) clauses.shift();
     // "When this card is played or removed from a Battle Area by a skill"
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
@@ -961,12 +967,13 @@ function compileSkillText(skill: Skill): Script {
     // which a trigger with no "your" in it never got — so those skills fired
     // for any card at all. "It" is still pointed at the subject only where
     // the trigger says "your", as before.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
       // card used in the combo, likewise.
-      if (/\byour\b/i.test(trigger) || /^when you (?:play|combo with) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
+      // "When you use a red skill-less Battle Card … in a combo, **it** gets +6000 combo power" (BT14-001b, phrasing batch 3).
+      if (/\byour\b/i.test(trigger) || /^when you (?:play|combo with|use) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that

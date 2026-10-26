@@ -362,7 +362,20 @@ export type ForbiddenAction =
    */
   | "loseGame"
   /** "…and the opponent cannot win the game" (P-032): no win for this player, asked with the would-be winner as `player`. */
-  | "winGame";
+  | "winGame"
+  /**
+   * "This card can't [Evolve] into other cards" (BT8-009, DB2-131, EX25-37):
+   * the card is no base for an [Evolve], [EX-Evolve] or [Xeno-Evolve] (22-5),
+   * asked of the base with the evolving player as `player` — where the base is
+   * chosen, before any price is paid, and again as the card is played onto it.
+   */
+  | "evolveOnto"
+  /**
+   * "You can't place cards on top of this card" (BT1-111, BT25-131): no card is
+   * played on top of it — an evolution of any kind or a [Union-Potara] (23-1) —
+   * asked of the card underneath, as `evolveOnto` is.
+   */
+  | "placeOnTop";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -423,7 +436,7 @@ export interface Prohibition {
    * their owner's hands**" (EX23-05). Matched against where the card is when
    * the action is asked about; a card the rule cannot place is not its.
    */
-  fromArea?: "hand" | "battle" | "drop" | "deck";
+  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "any";
   /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
   fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
@@ -1389,7 +1402,7 @@ export interface Replacement {
    * no known actor never matches — see `docs/arena-move-replacement-scope.md`
    * §1.4.
    */
-  bySide?: "opponent";
+  bySide?: "opponent" | "you";
   /**
    * #272: this is a `"life"` moment — a life card's own move to the hand or
    * the Drop Area (8-4-6-1's damage), not a Battle Area departure. Absent
