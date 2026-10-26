@@ -67,16 +67,16 @@ const tier = (input: number, cacheWrite5m: number, cacheWrite1h: number, cacheRe
 });
 
 /**
- * Read by the agent of #902 on 25 Oct 2026 from Anthropic's public pricing page (the "Model pricing"
+ * Read by the agent of #902 on 25 Oct 2026 and re-read on 26 Oct 2026 (Fable 5.1 added) from Anthropic's public pricing page (the "Model pricing"
  * table, its footnotes and the "Long context pricing" section) and the public models overview (API
  * ids). No paid call and no credential was used. The owner re-checks it against the Console before
  * the first paid call (#903), then sets `ownerVerified` and each model's `access`.
  */
 export const CAMPAIGN_RATES: RateSheet = {
   version: RATE_SHEET_VERSION,
-  verifiedOn: "2026-10-25",
+  verifiedOn: "2026-10-26",
   source: "https://platform.claude.com/docs/en/about-claude/pricing (redirected from docs.claude.com/en/docs/about-claude/pricing); ids: https://platform.claude.com/docs/en/about-claude/models/overview",
-  method: "public pricing page fetched by the #902 agent session and re-read by the #902 follow-up the same day (every row and footnote unchanged; the claude-api skill's table cached 6 Oct 2026 still lists Sonnet 5.5 cache hits at $0.20, the live page at $0.10, and the live page wins); not yet compared with the owner's Console or invoices",
+  method: "public pricing page fetched by the #902 agent session and re-read on 26 Oct 2026, when every existing row and footnote was unchanged and Claude Fable 5.1 was added (the table's footnote 1: its cache hits are 0.025x input; the claude-api skill's table cached 6 Oct 2026 still lists Sonnet 5.5 cache hits at $0.20, the live page at $0.10, and the live page wins); not yet compared with the owner's Console or invoices",
   assumptions: [
     "Claude API first party, global inference (no inference_geo: \"us\", which is 1.1x)",
     "synchronous Messages API: no Batch API discount, no fast mode",
@@ -93,6 +93,8 @@ export const CAMPAIGN_RATES: RateSheet = {
     { model: "claude-haiku-5-5", label: "Claude Haiku 5.5", access: "pending", tiers: [tier(0.1, 0.125, 0.2, 0.01, 0.5, 100_000), tier(0.5, 0.625, 1, 0.05, 2.5)] },
     // `SONNET_MODEL`: cache hits are 0.05x input on this model (models.ts agrees since 25 Oct 2026).
     { model: "claude-sonnet-5-5", label: "Claude Sonnet 5.5", access: "pending", tiers: [tier(2, 2.5, 4, 0.1, 10)] },
+    // Current top model: cache hits are 0.025x input (pricing page footnote 1), no long-context surcharge.
+    { model: "claude-fable-5-1", label: "Claude Fable 5.1", access: "pending", tiers: [tier(10, 12.5, 20, 0.25, 50)] },
     // `MODEL`, the Tournament tier's model today.
     { model: "claude-opus-5", label: "Claude Opus 5", access: "pending", tiers: [tier(5, 6.25, 10, 0.5, 25)] },
     { model: "claude-opus-5-5", label: "Claude Opus 5.5", access: "pending", tiers: [tier(4, 5, 8, 0.2, 20)] },
