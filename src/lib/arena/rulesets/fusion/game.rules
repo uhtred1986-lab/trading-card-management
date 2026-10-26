@@ -1,0 +1,276 @@
+-- Dragon Ball Super Card Game Fusion World: how a player starts, what a turn is
+-- made of, and how the game ends. Cut down from the dbs file of the same name
+-- (F1-02); every line that differs from it cites the Fusion World Official Rule
+-- Manual (v1.10) as "FW manual p. N", by its printed page number.
+--
+-- What is different from the original game, in this file:
+--   * no Z-Deck: `zDeck: 0` and no `setupZDeck` step (FW manual p. 4: a deck is
+--     the Leader Card and a deck of Battle and Extra Cards, nothing else);
+--   * the deck is 50 to 60 cards, as in the original (FW manual p. 4) — `deck:`
+--     is one number and is read as the minimum;
+--   * the opening hand is 6 cards with one mulligan, 8 life cards, and only the
+--     player who goes second places an energy marker (FW manual p. 6).
+--
+-- `firstPlayerDraws: false`: the manual v1.10 has the first player skip the
+-- draw on turn one (FW manual p. 7, Charge Phase step 2: "draw 1 card", with no
+-- first-turn exception printed) and does not carry the 1 Jul 2024 change that lets the first
+-- player draw on turn one. The owner rules on it in F1-08; it is left false.
+
+DEFINE GAME fusion                                                        -- FW manual p. 6
+  title: "Dragon Ball Super Card Game Fusion World"
+  players: 2
+  deck: 50
+  zDeck: 0
+  hand: 6
+  life: 8
+  mulligan: true
+  firstPlayerDraws: false
+  phases: [charge, main, mainEnd, end]
+  setupPhase: "setup"
+  overPhase: "over"
+
+-- ── the phases ────────────────────────────────────────────────────────────
+--
+-- A turn is three phases, each made of steps, and a phase or a step exists
+-- even when nothing happens in it (7-1-1). `setup` and `over` are not phases
+-- of a turn: they are the pre-game procedure (6-2) and the end of the game
+-- (0-1-3), which this engine runs as phases of their own and which is why
+-- `DEFINE GAME`'s `phases:` above lists four names and not six. They are
+-- named instead by `setupPhase:` and `overPhase:`, so the flow runner knows
+-- where a game begins and where it comes to rest without knowing either word
+-- (#140).
+--
+-- `announce:` is whether entering a phase is a moment of its own in the log —
+-- the beat the board narrates. Three of the six are announced, which is what
+-- the engine that has been playing announces: the Main Phase End Step passes
+-- inside the Main Phase as far as a player is concerned (7-3-5), and neither
+-- the pre-game procedure nor the finished game is a phase of a turn at all.
+--
+-- The manual makes the Main Phase End Step a step of the Main Phase
+-- (7-3-5); this engine has run it as a phase of its own since before the
+-- rules language existed, so it is declared as one here. The history entry of
+-- 12 Sep 2026 records the difference.
+--
+-- `skip:` is 20-13: the word a skill's `skip` entry names the phase by. A
+-- skipped phase is announced as skipped and then not performed (20-13-1..4),
+-- except for the steps declared `always:` — a continuous effect that ends in
+-- a phase ends when it is skipped (20-13-5), and the turn still passes at the
+-- end of a skipped End Phase. The Main Phase End Step says `skip: main` too,
+-- so a skipped Main Phase takes it along, as the manual's own 7-3-5 has it.
+-- The battle's Offense and Defense Steps are skipped by `vm/battle.ts`'s own
+-- native step work, beside the rest of what that work still does natively.
+--
+-- `actions:` is left off every phase: the moves a player may declare (7-3-4)
+-- are `DEFINE ACTION`s, and the loader refuses a phase naming one that
+-- nothing declares. They arrive with `play.rules`.
+
+DEFINE PHASE setup                                                        -- §6-2
+  steps: [setupPresent, setupLeader, setupLeaderPending, setupFirstPlayer, setupShuffle, setupHand, setupMulligan, setupLife, setupEnergyMarker, setupStart]
+  auto: false
+  announce: false
+  text: "the pre-game procedure, before the first turn: leaders down, first player chosen, hands drawn and life set out (6-2-1)"
+
+DEFINE PHASE charge                                                       -- §7-2
+  steps: [chargeTurnEffects, chargeContinuousEnd, chargePending, chargeActivate, chargeDraw, chargeEnergy]
+  auto: false
+  announce: true
+  skip: charge
+  text: "the rules processing at the start of a turn, with a checkpoint after each step (7-2-1, 7-2-6, 7-2-8, 7-2-10, 7-2-12)"
+
+DEFINE PHASE main                                                         -- §7-3
+  steps: [mainPending, mainActions]
+  auto: false
+  announce: true
+  skip: main
+  text: "the phase the turn player takes their moves in, returning to a checkpoint after each one (7-3-1, 7-3-4)"
+
+DEFINE PHASE mainEnd                                                      -- §7-3-5
+  steps: [mainEndPending, mainEndEffects]
+  auto: true
+  announce: false
+  skip: main
+  text: "the Main Phase End Step, which the manual counts as a step of the Main Phase and this engine runs as a phase (7-3-5)"
+
+DEFINE PHASE end                                                          -- §7-4
+  steps: [endPending, endRepeat, endEffects, endTurn]
+  auto: true
+  announce: true
+  skip: end
+  text: "the end of the turn, in the manual's five steps: your end-of-turn skills, then theirs, your \"for the turn\" expiries, then theirs, and the turn passes (FW manual p. 11)"
+
+DEFINE PHASE over                                                         -- §0-1-3
+  steps: [gameEnd]
+  auto: true
+  announce: false
+  text: "the game is over, which is not a phase of a turn: a player has lost and nothing further is played (0-1-3)"
+
+-- ── setup (§6-2-1) ────────────────────────────────────────────────────────
+
+DEFINE STEP setupPresent                                                  -- §6-2-1-1
+  phase: "setup"
+  optional: false
+  text: "each player presents the Leader Card and deck they will use, which must meet the deck construction rules (FW manual p. 4)"
+
+DEFINE STEP setupLeader                                                   -- §6-2-1-2
+  phase: "setup"
+  optional: false
+  text: "each player places their Leader Card front side up in their Leader Area (6-2-1-2)"
+
+DEFINE STEP setupLeaderPending                                            -- §6-2-1-3
+  phase: "setup"
+  optional: false
+  text: "trigger conditions for \"when this card is placed in a Leader Area\" skills enter pending (6-2-1-3)"
+
+DEFINE STEP setupFirstPlayer                                              -- §6-2-1-4
+  phase: "setup"
+  optional: false
+  prompt: "chooseFirst"
+  text: "by a random method one player is chosen, and that player chooses who goes first (6-2-1-4, 6-2-1-5)"
+
+DEFINE STEP setupShuffle                                                  -- §6-2-1-7
+  phase: "setup"
+  optional: false
+  text: "each player shuffles their deck and places it face down in their Deck Area (6-2-1-7)"
+
+DEFINE STEP setupHand                                                     -- §6-2-1-9
+  phase: "setup"
+  optional: false
+  text: "each player draws 6 cards from their deck as their opening hand (FW manual p. 6)"
+
+DEFINE STEP setupMulligan                                                 -- §6-2-1-9-1
+  phase: "setup"
+  optional: true
+  prompt: "mulligan"
+  text: "beginning with the starting player, each player may return their hand to their deck, shuffle, and draw 6 new cards — once (FW manual p. 6)"
+
+DEFINE STEP setupLife                                                     -- §6-2-1-10
+  phase: "setup"
+  optional: false
+  text: "each player places the top 8 cards of their deck face down in their Life Area (FW manual p. 6)"
+
+DEFINE STEP setupEnergyMarker                                             -- §6-2-1-11
+  phase: "setup"
+  optional: false
+  text: "the player who goes second places 1 energy marker in their Energy Area, and the player who goes first places none (FW manual p. 6)"
+
+DEFINE STEP setupStart                                                    -- §6-2-1-12
+  phase: "setup"
+  optional: false
+  text: "the first player begins the game and starts their turn (6-2-1-12)"
+
+-- ── the Charge Phase (§7-2) ───────────────────────────────────────────────
+
+DEFINE STEP chargeTurnEffects                                             -- §7-2-2
+  phase: "charge"
+  optional: false
+  text: "effects that last \"for the turn\" occur, for the turn player and then for the non-turn player (7-2-2, 7-2-3)"
+
+DEFINE STEP chargeContinuousEnd                                           -- §7-2-4
+  phase: "charge"
+  optional: false
+  always: true
+  text: "continuous effects that last \"until the start of your opponent's turn\" end (7-2-4)"
+
+DEFINE STEP chargePending                                                 -- §7-2-5
+  phase: "charge"
+  optional: false
+  text: "effects that read \"at the beginning of the turn\" and \"at the beginning of the Charge Phase\" enter pending (7-2-5)"
+
+DEFINE STEP chargeActivate                                                -- §7-2-7
+  phase: "charge"
+  optional: false
+  text: "each player switches every Rest Mode card in their Leader, Battle and Energy Areas to Active Mode (FW manual p. 7, Charge Phase step 1)"
+
+DEFINE STEP chargeDraw                                                    -- §7-2-9
+  phase: "charge"
+  optional: false
+  text: "the turn player draws 1 card, except the player who goes first, on their first turn (FW manual p. 7; see the header on the 1 Jul 2024 change)"
+
+DEFINE STEP chargeEnergy                                                  -- §7-2-11
+  phase: "charge"
+  optional: true
+  prompt: "charge"
+  text: "the turn player may place 1 card from their hand face up in their Energy Area, or none (FW manual p. 8, Charge Phase step 2)"
+
+-- ── the Main Phase (§7-3) ─────────────────────────────────────────────────
+
+DEFINE STEP mainPending                                                   -- §7-3-2
+  phase: "main"
+  optional: false
+  text: "effects that read \"at the beginning of the Main Phase\" enter pending (7-3-2)"
+
+DEFINE STEP mainActions                                                   -- §7-3-4
+  phase: "main"
+  optional: false
+  prompt: "main"
+  text: "the turn player is granted a free timing: play a Battle Card, use an Extra Card, activate an [Activate:Main] skill, attack, or end the Main Phase (FW manual p. 8)"
+
+DEFINE STEP mainEndPending                                                -- §7-3-5-1-1
+  phase: "mainEnd"
+  optional: false
+  text: "skills that read \"at the end of the Main Phase\" enter pending (7-3-5-1-1)"
+
+DEFINE STEP mainEndEffects                                                -- §7-3-5-1-3
+  phase: "mainEnd"
+  optional: false
+  text: "effects that last \"for the Main Phase\" end, for the turn player and then for the non-turn player (7-3-5-1-3, 7-3-5-1-4)"
+
+-- ── the End Phase (§7-4) ──────────────────────────────────────────────────
+
+DEFINE STEP endPending                                                    -- §7-4-2
+  phase: "end"
+  optional: false
+  text: "skills that read \"at the end of the turn\" enter pending, except any [Auto] whose trigger condition was already fulfilled this turn (7-4-2)"
+
+DEFINE STEP endRepeat                                                     -- §7-4-4
+  phase: "end"
+  optional: false
+  LIMIT 5
+  text: "if an \"at the end of the turn\" [Auto] has still not been fulfilled this turn, the End Phase is carried out again from the beginning (7-4-4)"
+
+DEFINE STEP endEffects                                                    -- §7-4-5
+  phase: "end"
+  optional: false
+  always: true
+  text: "every effect that lasts \"for the turn\" or \"until the end of the turn\" ends, for the turn player and then for the non-turn player (7-4-5, 7-4-6)"
+
+DEFINE STEP endTurn                                                       -- §7-4-7
+  phase: "end"
+  optional: false
+  always: true
+  text: "the turn ends, the non-turn player becomes the turn player, and play proceeds to the next turn's Charge Phase (7-4-7)"
+
+-- ── the game is over (§0-1-3) ─────────────────────────────────────────────
+
+DEFINE STEP gameEnd                                                       -- §0-1-3
+  phase: "over"
+  optional: false
+  prompt: "gameOver"
+  text: "a player has fulfilled a defeat condition and the game has ended (0-1-3, 0-1-3-1)"
+
+-- ── how the game ends (§0-1-3) ────────────────────────────────────────────
+--
+-- The two defeat conditions of 0-1-3-2. A player who fulfils either loses
+-- immediately (0-1-3-1), and a player whose opponent loses while they did not
+-- wins (0-1-3).
+--
+-- Two more ways the manual ends a game are not declared, because a condition
+-- in this language reads the board and neither of these is on it: conceding
+-- (0-1-3-4), which is a player's act and which no card may cause or replace
+-- (0-2-2-1), and a card that makes a player win or lose as its effect
+-- resolves (0-1-3-5). Nor can the draw of 0-1-3-3 be said, since "both
+-- players fulfil a defeat condition simultaneously" is a statement about the
+-- other declarations rather than about the board. All three are in the
+-- history entry of 12 Sep 2026.
+
+DEFINE WIN lifeOut                                                        -- §0-1-3-2
+  IF count(IN you.life) <= 0
+  result: lose
+  who: you
+  text: "there are no cards in your Life Area (0-1-3-2)"
+
+DEFINE WIN deckOut                                                        -- §0-1-3-2
+  IF count(IN you.deck) <= 0
+  result: lose
+  who: you
+  text: "there are no cards in your Deck Area (0-1-3-2)"

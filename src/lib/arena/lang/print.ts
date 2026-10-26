@@ -175,12 +175,14 @@ export function printSelector(sel: Selector): string {
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notInBattle) parts.push("notInBattle");
+  if (sel.atRandom) parts.push("atRandom");
   if (sel.ownedByOpponent) parts.push("ownedByOpponent");
   if (sel.notSelf === "card") parts.push("otherThanSelf");
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
   else if (sel.notSelf === "name") parts.push("otherThanSameName");
   if (sel.differentNames) parts.push("differentNames");
   if (sel.differentCharacters) parts.push("differentCharacters");
+  if (sel.eachUnionName) parts.push("eachUnionName");
   if (sel.distinctColors) parts.push("distinctColors");
   // `EXCEPT $c0 $c1` (#970): the cards earlier choices bound are not on offer again.
   if (sel.notIn !== undefined) parts.push(`EXCEPT ${sel.notIn.map((v) => `$${v}`).join(" ")}`);

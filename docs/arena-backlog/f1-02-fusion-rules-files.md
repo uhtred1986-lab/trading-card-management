@@ -4,6 +4,8 @@ issue: 1185
 milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-rulesets, phase:fusion-world, model:sonnet-5
 stage: fusion-world
+status: closed
+closed_at: 2026-10-26
 priority: P2
 touches: src/lib/arena/rulesets/fusion/game.rules, src/lib/arena/rulesets/fusion/zones.rules, src/lib/arena/rulesets/fusion/attributes.rules, src/lib/arena/rulesets/fusion/triggers.rules, src/lib/arena/rulesets/fusion/keywords.rules, src/lib/arena/rulesets/fusion/words.rules, src/lib/arena/rulesets/fusion/prompts.rules, src/lib/arena/rulesets/fusion/ops.rules, src/lib/arena/rulesets/fusion/actions.rules, src/lib/arena/rulesets/fusion/costs.rules, src/lib/arena/rulesets/fusion/battle.rules, scripts/verify/rulesets.ts
 ---

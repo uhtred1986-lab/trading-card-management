@@ -5,7 +5,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
-import { gameOr, type Game } from "@/lib/catalog/games";
+import { arenaPlays, gameOr, type Game } from "@/lib/catalog/games";
 import type { CardDef, CardType, Color, DeckInput } from "./types";
 import { parseSpecifiedCost } from "./specified-cost";
 
@@ -66,9 +66,8 @@ export async function defsForCards(db: Db, ids: string[]): Promise<Record<string
 export async function deckInputFor(db: Db, deckId: number): Promise<{ input: DeckInput; cardIds: string[]; game: Game } | null> {
   const deck = await db.query.decks.findFirst({ where: eq(decks.id, deckId) });
   if (!deck) return null;
-  // The engine implements the original game's rule manual only; a Fusion World
-  // deck is not playable here and must not be loaded as if it were.
-  if (deck.game !== "dbs") return null;
+  // A deck of a game the arena has no ruleset for is not playable here and must not be loaded as if it were.
+  if (!arenaPlays(deck.game)) return null;
   const rows = await db.select({ cardId: deckCards.cardId, zone: deckCards.zone, quantity: deckCards.quantity }).from(deckCards).where(eq(deckCards.deckId, deckId));
   const leader = rows.find((r) => r.zone === "leader")?.cardId;
   if (!leader) return null;

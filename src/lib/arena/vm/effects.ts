@@ -49,7 +49,7 @@ import { sparkingIsValid } from "./validity";
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame } from "./script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame, type Selector } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
 import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
@@ -101,6 +101,8 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
         ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
         ...(op.exceptEvolve ? { exceptEvolve: true } : {}),
         ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
+        // "…by skills other than its own" (EB1-27, DB2-008).
+        ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}),
       });
     }
   }
@@ -286,6 +288,9 @@ export function costLayerGaps(game: GameDefinition): string[] {
   for (const [attr, layers] of Object.entries(LAYER_KINDS)) {
     const declared = game.attributes[attr];
     if (!declared) {
+      // A game with no price that reads this attribute has nothing to misread
+      // (Fusion World declares no Z-Energy price, so no `zEnergyCostOf`).
+      if (!Object.values(game.costs).some((cost) => cost.amount === attr)) continue;
       out.push(`${attr} is an attribute nothing declares, and a price is read off one`);
       continue;
     }
@@ -528,6 +533,36 @@ function lifeSelfOps(ops: Op[]): Op[] {
   });
 }
 
+/** Does this selector name this card in the Warp ("this card in your hand and Warp", "this card in your Warp")? */
+function selfInWarp(sel: Selector | undefined): boolean {
+  return sel?.special === "self" && (sel.area === "warp" || !!sel.areas?.includes("warp"));
+}
+
+/** Does this program take this card out of the Warp ("remove this card in your Warp from the game")? */
+export function movesSelfOutOfWarp(ops: readonly Op[] | undefined): boolean {
+  return !!ops?.some((op) => (op.op === "moveTo" && !!op.target && "sel" in op.target && selfInWarp(op.target.sel)) || (op.op === "if" && (movesSelfOutOfWarp(op.then) || movesSelfOutOfWarp(op.else))) || (op.op === "may" && movesSelfOutOfWarp(op.ops)));
+}
+
+/**
+ * Deck flags 26 Oct 2026 (9-1-3-2: a skill naming the area it works in is valid there): what else of
+ * a [Permanent] holds while its card lies in the Warp — a change to this card's own cost that names
+ * the Warp ("reduce the energy cost of this card in your hand **and Warp** by 1", SD3-04), and a
+ * substitute that takes this card out of the Warp ("…you may remove **this card in your Warp** from
+ * the game instead", BT30-104). Kept inside the conditions they are printed under; nothing else.
+ */
+function warpSelfOps(ops: readonly Op[]): Op[] {
+  const out: Op[] = [];
+  for (const op of ops) {
+    if (op.op === "if") {
+      const then = warpSelfOps(op.then);
+      const other = op.else ? warpSelfOps(op.else) : [];
+      if (then.length || other.length) out.push({ ...op, then, ...(other.length ? { else: other } : {}) });
+    } else if (op.op === "costReduction" && op.target && "sel" in op.target && selfInWarp(op.target.sel)) out.push(op);
+    else if (op.op === "replace" && op.event !== "play" && movesSelfOutOfWarp(op.with)) out.push(op);
+  }
+  return out;
+}
+
 /**
  * What a card in a Combo Area can answer: its replacements of a departure from the Combo Area, kept
  * inside the conditions they are printed under ("If your Leader Card is …"), and nothing else of the program.
@@ -648,7 +683,7 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
             : zone === "life" ? lifeSelfOps(program.ops)
-            : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
+            : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
             : zone === "combo" ? comboDepartures(program.ops) : program.ops;
           if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
@@ -801,7 +836,9 @@ function collect(
       // and not from the chair of whoever is trying to act.
       // #1005: "…can only attack this card" — read as the cards it names, now.
       const attackOnly = op.attackOnly ? targets(frame, { ...op, target: op.attackOnly }) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player, bySkill: op.bySkill };
+      // "…can't attack **this card**" (BT15-122): read as the cards it names, now.
+      const against = op.against ? targets(frame, { ...op, target: op.against }) : undefined;
+      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {
@@ -964,7 +1001,10 @@ function collect(
       // life to add it to your hand…" (BT10-036, 9-1-3-3). It is valid while
       // that card lies in the Life Area, and only there.
       const lifeSelf = op.event === "life" && !!op.target;
-      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : op.from ? !explicitSource : !inPlayNow)) continue;
+      // BT30-104 (deck flags 26 Oct 2026): a substitute that removes this card from the Warp stands
+      // while this card is in the Warp, which is where `warpSelfOps` found it.
+      const warpSelf = !!state.sides[frame.master].zones.warp?.includes(frame.card) && movesSelfOutOfWarp(op.with);
+      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : warpSelf ? false : op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.

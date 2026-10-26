@@ -17,7 +17,7 @@ const SELF_AREA = "(hand|drop(?: area)?|deck|life|warp|energy(?: area)?|combo ar
  * (BT28-086, BT26-016) and is read as the hand it means.
  */
 const SELF_FROM_RE = new RegExp(
-  `\\bthis card (?:in (?:rest|active) mode |with \\d+ markers? on it )?from (?:your|its owner's|our) ${SELF_AREA}(?: or (?:from )?(?:your |its owner's )?${SELF_AREA})?\\b`,
+  `\\bthis card (?:in (?:rest|active) mode |with \\d+ markers? on it )?(?:from|in) (?:your|its owner's|our) ${SELF_AREA}(?: (?:or|and) (?:from |in )?(?:your |its owner's )?${SELF_AREA})?\\b`,
   "i",
 );
 
@@ -30,6 +30,10 @@ const SELF_FROM_RE = new RegExp(
  * from (the card is in another's pile, 23-2), and is left as it was.
  */
 export function selfFrom(phrase: string): Selector {
+  // "Add this card **from under your Leader** to your Z-Energy" (BT31-110
+  // front 10, deck flags 26 Oct 2026): this card while it lies in your
+  // Leader's pile (23-2), and nowhere else.
+  if (/\bthis card from under your leader(?: card)?\b/i.test(phrase)) return { special: "self", area: "under", underHost: { side: "you", area: "leader" } };
   const m = SELF_FROM_RE.exec(phrase);
   if (!m) return { special: "self" };
   const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);
@@ -354,6 +358,15 @@ function sumBoundOf(said: string): NonNullable<Selector["sumAtMost"]> | null {
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
+  // deck flags 26 Oct 2026): the words were read as nothing, so the player
+  // picked the cards. The official Q&A: chosen "without player involvement".
+  // Only a choice out of a hand, the one secret area a card prints it for.
+  const random = /\bat random\b/i.exec(phrase);
+  if (random) {
+    const sel = parseTarget(phrase.replace(random[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    return sel && sel.area === "hand" && !sel.areas?.length && !sel.special && !sel.fromVar ? { ...sel, atRandom: true } : null;
+  }
   // "…with an energy cost less than or equal to your current energy" (#979): a
   // measure of the card against the master's energy count, not an area. Read
   // off the rest of the phrase, which would take "your energy" for the Energy Area.
@@ -837,6 +850,17 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // `clauses.ts` turns the other forms of both into the pronoun.)
   if (/\bof those (?:battle|leader|unison|extra) cards\b/.test(t) || /\bthat extra cards?\b/.test(t)) return null;
   const fromVar = namesPool ? (seen ?? "looked") : looked;
+  // "Add up to 1 green **Unison Card** … among them to your hand" (SD13-04,
+  // deck flags 26 Oct 2026): the cards looked at or revealed are still where
+  // they were (20-11), so a card type said in the description is not an area
+  // for the pool's cards to be in — read as one, the choice had no candidate
+  // at all. Only an area a type noun stood for is set aside; an area the phrase
+  // names ("…in your Battle Area") is the phrase's own, and the type stays on
+  // the filter (`filterFor(…, null)` below keeps it).
+  if (namesPool && fromVar && area && areaMatch && !pair && !list && !/\barea\b|\bin play\b/.test(areaMatch[0]) && /\b(?:leaders?|battle cards?|unison cards?|unisons|cards)\b/.test(areaMatch[0])) {
+    area = null;
+    areaMatch = null;
+  }
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
@@ -891,8 +915,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   } else if (/\bone of (?:your|their|the|these|those)\b/.test(t)) {
     // "Choose one of your <Saibaiman> cards" (EB1-10) is a count spelled as a word: one card, not the plural's "all of them".
     count = 1;
-  } else if (/\bcards\b|\benergy\b/.test(t)) {
+  } else if (/\bcards\b|\benergy\b|\btokens\b/.test(t)) {
     // A plural with no number means all of them: "your Battle Cards get +5000 power".
+    // "Your opponent's Clone Tokens can't attack" (EB1-21) is every one of
+    // them too: a token is named by what it is (19), and "Tokens" is the plural.
     count = 99;
   }
 
@@ -967,6 +993,13 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (pair && pairSides) return { area: pair[0], areas: pair, areaSides: pairSides, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (pair) return { side, area: pair[0], areas: pair, filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   if (hiddenAnywhere) return { side, area: "battle", areas: ["battle", "energy", "unison"], filter, count, upTo, ...floor, mode, hidden, notSelf };
+  // #930, BT7-123: "your opponent reveals their hand, and you choose up to 2
+  // cards **from it**": the pool is the revealed cards, whoever holds them.
+  // The default side ("you") is the chooser, not an owner; kept on a choice
+  // from a pool, it is read as "the cards you control among them" (a pool's
+  // side test, `resolveSelector`) and offered none of the opponent's hand.
+  // Only "from it" with no owner named in the phrase.
+  if (fromVar && seen && /\bfrom it\b/.test(t) && !/\byour\b|\btheir\b|\bopponent/.test(t)) return { area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 

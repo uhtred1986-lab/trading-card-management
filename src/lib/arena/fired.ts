@@ -48,7 +48,7 @@ export async function firedInGame(db: Db, gameId: number): Promise<FiredSkill[]>
   };
 
   try {
-    const made = engine.createGame(ctx, { seed: row.seed, p1: a.input, p2: b.input });
+    const made = engine.createGame(ctx, { seed: row.seed, game: a.game, p1: a.input, p2: b.input });
     let state = made.state;
     collect(made.events, state.cards);
     for (const action of (row.actions as Action[]) ?? []) {

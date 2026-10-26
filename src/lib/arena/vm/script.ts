@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { canCombo, skillsOf, sumReachable } from "../text/cards";
+import { canCombo, identityKey, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
@@ -155,6 +155,14 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
+   * deck flags 26 Oct 2026): which cards is no player's choice — they are taken
+   * with the game's own seeded RNG (official Q&A on BT1-073: "completely random
+   * … without player involvement"); for an "up to" the master first picks how
+   * many, 0 to the count (owner's ruling of 26 Oct 2026).
+   */
+  atRandom?: true;
+  /**
    * "…Battle Cards **whose owner is your opponent**" (EX24-10): only cards the
    * chooser controls but does not own — the ones a control exchange (20-9)
    * brought over. Read off the card's owner, not the area it lies in.
@@ -195,6 +203,16 @@ export interface Selector {
    * by and is never counted or offered.
    */
   differentCharacters?: true;
+  /**
+   * "For **each character name** required for the revealed card's [union]
+   * skill, add up to 1 card with a matching character name …" (EX13-14,
+   * #930): with the filter's `unionNameOf`, `count` is per name the revealed
+   * card's [Union-Fusion] requires, and each card chosen fills a name of its
+   * own (`namesAssignable`). Without it, `unionNameOf` only says which names
+   * match and `count` is the whole choice (SD19-03's one card per place, owner
+   * ruling of 26 Oct 2026). Only a `choose`'s own selector reads it.
+   */
+  eachUnionName?: true;
   /**
    * "For each card color in your Energy Area" (EX19-26), "4 or more colors
    * among cards in your energy" (BT16-016): the count is of the different
@@ -243,6 +261,27 @@ export interface Selector {
    * writes it: the compiler reads a description into a filter itself.
    */
   printed?: true;
+}
+
+/**
+ * #930 (`unionNameOf`): can every card be given a required name it has, no
+ * name taking more than `per` cards? `cards` are each card's names, `names`
+ * the required ones, all as `identityKey`s. A small exact search — a
+ * [Union-Fusion] requires two names.
+ */
+export function namesAssignable(cards: string[][], names: string[], per: number): boolean {
+  const used = names.map(() => 0);
+  const place = (i: number): boolean => {
+    if (i === cards.length) return true;
+    for (let k = 0; k < names.length; k++) {
+      if (used[k] >= per || !cards[i].includes(names[k])) continue;
+      used[k]++;
+      if (place(i + 1)) return true;
+      used[k]--;
+    }
+    return false;
+  };
+  return place(0);
 }
 
 /**
@@ -472,7 +511,7 @@ export type Cond =
    * on both engines. `what` is the action; the card and the player it is asked
    * about are the candidate and the actor, which the declaration cannot name.
    */
-  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean }
+  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean; from?: "hand" | "battle" | "drop" }
   /**
    * A `DEFINE ATTRIBUTE of: player` fact, read (13-3, 7-2-11, issue #269):
    * "you have not already grown a Unison this turn" and "you have already had
@@ -617,7 +656,20 @@ export type Op =
    * (20-7) is their choice to make, not yours.
    */
   /** `bindX` binds X to *how many* were chosen, for the cards whose price is a choice and whose effect then counts it ("discard any number of cards: … X cards", 20-5). */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
+  /**
+   * `exactly` (#930, BT26-088): exactly this many, read off the board as the
+   * choice is made ("switch the same number of your green energy as that
+   * card's specified cost to Rest Mode"); the selector's count is not read.
+   * Too few candidates and nothing is bound — and inside an accepted "you
+   * may" the offer counts as not done (20-16-1), so "if you do" fails.
+   * `specifiedCostAtMost` (#930, BT26-088, owner's ruling of 26 Oct 2026):
+   * only the cards whose specified cost (1-2-3, its orbs) is at most this
+   * much, read off the board as the choice is made — "reveal 1 mono-green
+   * <Vegito> card … and switch the same number of your green energy as that
+   * card's specified cost": a Vegito the Active green energy cannot pay for
+   * is not on offer.
+   */
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -809,7 +861,7 @@ export type Op =
    */
   | { op: "negateChosenKeyword"; target: Ref; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
-  | { op: "hidden"; target: Ref; hidden: boolean }
+  | { op: "hidden"; target: Ref; hidden: boolean; sameHiding?: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
   /**
@@ -1011,7 +1063,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "attack"; bySide?: "opponent"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1125,6 +1177,11 @@ export type Op =
       attackTarget?: CardFilter;
       /** "…can only attack this card" (#1005): the only defenders an attack may be declared against. */
       attackOnly?: Ref;
+      /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
+      against?: Ref;
+      /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
+      fromArea?: "hand" | "battle" | "drop";
+      fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
       exceptEvolve?: boolean;
@@ -1138,6 +1195,16 @@ export type Op =
       counterKind?: CounterKind;
       otherCards?: true;
       extraCardActivation?: true;
+      /** "…the [Activate: Main] skill on copies of this card" (`Prohibition.skillKinds`). */
+      skillKinds?: string[];
+      /** "…by skills other than its own" / "…other than {X}'s skills" (`Prohibition.exceptSource`). */
+      exceptOwnSkills?: true;
+      exceptSourceName?: string;
+      /** `beMovedBySkill`: the destination it is about (`Prohibition.toArea`, `toBottom`). */
+      toArea?: "hand" | "deck" | "drop" | "warp" | "energy" | "life";
+      toBottom?: true;
+      /** A description of the card whose action it is (`Prohibition.byFilter`). */
+      byFilter?: CardFilter;
     }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
@@ -1789,6 +1856,8 @@ function defers(r: ReplacementResult | null | undefined): boolean {
 /** Steps whose effect is a recorded change of the game (a move, a draw, a KO, a play, a payment of life). */
 const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo"]);
 /** Steps that decide or look but change nothing on their own. */
+/** The Hidden Modes this program's own switches made, for a later `sameHiding` reveal (BT28-121). */
+const HIDDEN_HERE = "hiddenHere";
 const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
 
 /**
@@ -1849,7 +1918,7 @@ function priceTargetFits(h: ScriptHost, frame: ScriptFrame, variable: string, id
   const later = frame.ops.slice(frame.ip + 1);
   const on = (name: "ko" | "comboFrom") => later.some((o) => o.op === name && "var" in o.target && o.target.var === variable);
   if (on("ko")) {
-    if (h.areaOf(id) !== "battle" || h.forbids("beKOd", { card: id }) || h.forbids("beKOdBySkill", { player: master, card: id })) return false;
+    if (h.areaOf(id) !== "battle" || h.forbids("beKOd", { card: id }) || h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) return false;
     if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) return false;
     if (!h.replacementsFor(id, "ko", { actor: master, requestedTo: "drop" }).every((c) => c.optional)) return false;
   }
@@ -2253,7 +2322,25 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.
         const bounded = op.atMost !== undefined;
-        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : (op.sel.count ?? 1);
+        // #930, BT26-088: an exact count read off the board ("the same number of
+        // your green energy as that card's specified cost"). Too few cards and
+        // nothing is chosen: the act cannot be done in full, so an accepted
+        // offer it belongs to is not done either (20-16-1) and "if you do" fails.
+        const exact = op.exactly !== undefined ? Math.max(0, h.amount(frame, op.exactly)) : undefined;
+        if (exact !== undefined && frame.awaiting !== op.as && h.resolveSelector(frame, { ...op.sel, count: undefined }).length < exact) {
+          frame.vars[op.as] = [];
+          if (frame.did?.may) frame.did.may = false;
+          break;
+        }
+        // #930 (EX13-14, SD19-03): "for each character name required for the
+        // revealed card's [union] skill, add up to 1 card with a matching
+        // character name" — `count` cards per name the revealed card's
+        // [Union-Fusion] requires, each card filling a name of its own.
+        const unionOf = op.sel.eachUnionName ? (op.sel.filter?.unionNameOf ?? null) : null;
+        const unionNames = unionOf ? h.unionNames(frame, unionOf).map(identityKey) : [];
+        const perName = op.sel.count ?? 1;
+        const fillsNames = (ids: string[]) => namesAssignable(ids.map((id) => h.defOf(id).characters.map(identityKey)), unionNames, perName);
+        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : unionOf ? perName * unionNames.length : exact ?? (op.sel.count ?? 1);
         // #720: inside a voluntary replacement's substitute the offer's "you
         // may" is already spent, so a choice it also made "up to" is exact.
         const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
@@ -2305,6 +2392,40 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             choice: { reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`}${want - picked.length === 1 ? "" : ` (${want - picked.length} more)`}`, candidates: cands, min: 1, max: 1, continuation: op.as },
           });
           return "wait";
+        }
+
+        // "…choose up to 2 cards from your opponent's hand at random" (BT1-073,
+        // deck flags 26 Oct 2026): WHICH cards is nobody's choice — they are
+        // taken with the game's seeded RNG, so a replay from the same seed takes
+        // the same ones (official Q&A: "completely random … without player
+        // involvement"). HOW MANY, for an "up to", is the master's (owner's
+        // ruling of 26 Oct 2026): 0 to the count, capped by the cards there.
+        if (op.sel.atRandom) {
+          const pool = h.resolveSelector(frame, { ...op.sel, count: undefined });
+          const most = Math.min(want, pool.length);
+          let n = most;
+          const asking = `${op.as}#randomCount`;
+          if (upTo && most > 0) {
+            if (frame.awaiting === asking && h.lastMode() != null) {
+              const index = h.lastMode()!;
+              h.clearLastMode();
+              frame.awaiting = undefined;
+              if (index < 0 || index > most) throw new IllegalAction("that number of cards can no longer be taken");
+              n = most - index;
+            } else {
+              frame.awaiting = asking;
+              h.resume(frame);
+              h.ask({
+                kind: "chooseMode",
+                player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+                reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`} — how many, taken at random?`,
+                options: Array.from({ length: most + 1 }, (_, i) => `${most - i} at random`),
+              });
+              return "wait";
+            }
+          }
+          take(h.pickAtRandom(pool, n));
+          break;
         }
 
         // 22-38-3 (#155): a set whose measures add up to exactly `sumTo`,
@@ -2359,7 +2480,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && priceTargetFits(h, frame, op.as, id));
+        // #930, BT26-088: only a card whose specified cost the counted cards can pay.
+        const payable = op.specifiedCostAtMost !== undefined ? h.amount(frame, op.specifiedCostAtMost) : Infinity;
+        const specified = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "specifiedCost" });
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.
@@ -2386,6 +2510,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           for (const id of answer) {
             if (!cands.includes(id) || picked.includes(id)) continue;
             if ((op.sel.differentNames || byCharacters) && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            if (unionOf && !fillsNames([...picked, id])) continue;
             // A host handing several cards at once is held to the bound card
             // by card, the same as one answer at a time would be.
             if (bound) {
@@ -2461,7 +2586,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           // 20-14: the same thing spelled out on the card rather than keyworded.
-          if (h.forbids("beKOdBySkill", { player: master, card: id })) {
+          // The card whose skill it is answers "the skills of your opponent's
+          // Battle Cards" (BT10-058, `byTypes`), as the move below does.
+          if (h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
             frame.moveLoop.index++;
             continue;
@@ -2547,13 +2674,38 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           // 20-14: "can't be removed from a Battle Area by your opponent's
-          // skills". The rule is about the opponent's skills, so a card its
-          // own master moves is unaffected.
-          if (h.masterOf(id) !== master && h.areaOf(id) === "battle" && h.forbids("beMovedBySkill", { card: id })) {
+          // skills". The rule's `side` says whose skills — asked with this
+          // skill's controller, so "by your opponent's skills" leaves a card
+          // its own master moves alone and "by skills" (BT10-065) does not;
+          // the card whose skill it is answers "the skills of your opponent's
+          // Battle Cards" (BT10-058, `byTypes`).
+          // A rule may name where the card goes — "…can't be returned to your
+          // hand by your skills" (DB2-040), "…placed at the bottom of their
+          // owner's deck by your opponent's skills" (P-672) — and a card in a
+          // hand is asked too ("cards in your hand can't be returned to your
+          // deck by your opponent's skills", DB2-156): `fromArea: hand`.
+          const leaving = h.areaOf(id);
+          if ((leaving === "battle" || leaving === "hand") && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "hand" ? `${h.nameOf(id)} can't be moved from the hand` : `${h.nameOf(id)} can't be removed from the Battle Area`;
+            frame.moveLoop.index++;
+            continue;
+          }
+          // 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps"
+          // (BT6-028, BT16-001) — a move this skill's controller makes out of
+          // a Drop and into a Warp, by its effect or its price.
+          if (h.areaOf(id) === "drop" && op.to === "warp" && h.forbids("dropToWarp", { card: id, player: master })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} can't be sent from a Drop Area to a Warp`;
             frame.moveLoop.index++;
             continue;
           }
           if (op.to === "under") {
+            // 20-14: "you can't place cards under this card, except with this
+            // card's skill" (BT25-008, BT7-022) — asked of the host.
+            if (host && h.forbids("placeUnder", { card: host, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
+              if (frame.saveVarsAs) frame.priceUnpaid ??= `cards can't be placed under ${h.nameOf(host)}`;
+              frame.moveLoop.index++;
+              continue;
+            }
             if (host) { h.placeUnder(id, host); frame.acted = (frame.acted ?? 0) + 1; }
             frame.moveLoop.index++;
             continue;
@@ -2755,10 +2907,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // switch (0-2-4-1).
         for (const id of h.resolveRef(frame, op.target)) {
           if (!HIDEABLE.has(h.areaOf(id) ?? "") || h.isHidden(id) === op.hidden) continue;
+          // "Switch the card that was switched to Hidden Mode by this skill to
+          // Revealed Mode" (BT28-121, official Q&A): a card another skill has
+          // revealed and hidden again since is in another Hidden Mode, and stays.
+          if (op.sameHiding && !op.hidden && !(frame.vars[HIDDEN_HERE] ?? []).includes(h.hiddenStamp(id) ?? "")) continue;
           // The skill doing it is part of the moment, as with Rest Mode: "when
           // this card in a Battle Area is switched to Hidden Mode by one of
           // your skills" (BT28-116, -119).
           h.setHidden(id, op.hidden, { card: frame.card, master });
+          if (op.hidden) frame.vars[HIDDEN_HERE] = [...(frame.vars[HIDDEN_HERE] ?? []), h.hiddenStamp(id) ?? ""];
           h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;
@@ -3032,7 +3189,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3047,6 +3204,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             what: op.what,
             ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}),
             ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}),
+            ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}),
+            ...(op.fromArea ? { fromArea: op.fromArea } : {}),
+            ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
+            ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
@@ -3054,6 +3215,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.extraCardActivation ? { extraCardActivation: true } : {}),
             // #930: "you can only play Battle Cards by using [Union-Fusion]".
             ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
+            ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
@@ -3407,7 +3569,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}) }));
+        const targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}) }));
         // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card

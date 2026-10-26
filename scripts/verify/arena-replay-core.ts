@@ -17,8 +17,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { checkImportGraph, diskRead, scanSource } from "../lib/import-graph.ts";
 import { runReplayVectors } from "./arena-replay-vectors.ts";
-import { canonicalJson, replayHash } from "../../src/lib/arena/replay-core.ts";
+import { canonicalJson, makeReplayBundle, pinnedDefinition, replayHash, validateReplayBundle } from "../../src/lib/arena/replay-core.ts";
 import { DBS_FILES } from "../../src/lib/arena/rulesets/dbs/index.ts";
+import { FUSION_FILES } from "../../src/lib/arena/rulesets/fusion/index.ts";
 
 const ROOT = process.cwd();
 const ENTRY = path.join(ROOT, "src/lib/arena/replay-core.ts");
@@ -32,6 +33,23 @@ async function main() {
   assert.ok(results.length >= 25, "the vector suite ran");
   const nodeHash = createHash("sha256").update(canonicalJson(DBS_FILES)).digest("hex");
   assert.equal(await replayHash(DBS_FILES), nodeHash, "Web Crypto and node:crypto agree on the shipped DBS ruleset");
+
+  // 1b. The bundle carries its game. No game field is dbs, hashed exactly as before; fusion pins its own files under its own id.
+  const rev = "a640000000000000000000000000000000000001";
+  const base = { defs: {}, scripts: {}, art: {}, runtime: rev };
+  const dbsBundle = await makeReplayBundle({ ...base, rulesetFiles: DBS_FILES });
+  const dbsExplicit = await makeReplayBundle({ ...base, rulesetFiles: DBS_FILES, game: "dbs" });
+  assert.equal("game" in dbsBundle.payload, false, "a dbs bundle writes no game field");
+  assert.equal(dbsExplicit.hash, dbsBundle.hash, "naming dbs changes nothing: the hash is the one a bundle with no game has");
+  assert.equal(pinnedDefinition(dbsBundle).id, "dbs", "a bundle with no game loads as dbs");
+  const fusionBundle = await makeReplayBundle({ ...base, rulesetFiles: FUSION_FILES, game: "fusion" });
+  assert.equal(fusionBundle.payload.game, "fusion");
+  assert.ok(await validateReplayBundle(fusionBundle), "a fusion bundle validates");
+  assert.equal(pinnedDefinition(fusionBundle).id, "fusion", "a fusion bundle loads its files under the fusion id, not dbs");
+  const relabelled = structuredClone(fusionBundle);
+  delete relabelled.payload.game;
+  assert.equal(await validateReplayBundle(relabelled), false, "dropping the game from a fusion bundle breaks its hash");
+  assert.equal(await validateReplayBundle({ ...fusionBundle, payload: { ...fusionBundle.payload, game: "chess" as "dbs" } }), false, "an unknown game is refused");
 
   // 2. The walker catches each forbidden kind on a virtual graph.
   const fakeRoot = path.join(ROOT, "__virtual__");

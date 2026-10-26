@@ -73,7 +73,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { queueKeywordCost } from "./keyword-costs";
@@ -83,6 +83,7 @@ import { addSkip } from "./skips";
 import { uniqueFrame } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import type { VmState } from "./state";
+import { shuffle as shuffleItems } from "./rng";
 
 /**
  * The host for one call.
@@ -109,6 +110,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     markersOf: (id) => card(id).markers,
     isFaceUp: (id) => card(id).faceUp,
     isHidden: (id) => card(id).hidden,
+    hiddenStamp: (id) => (card(id).hidden ? `${id}@${card(id).zoneEpoch ?? 0}:${card(id).hiddenCount ?? 0}` : null),
     isFlipped: (id) => card(id).flipped,
     hasBack: (id) => !!ctx.defs[card(id).cardId]?.back,
     catalogIdOf: (id) => card(id).cardId,
@@ -179,6 +181,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
     namedCandidates: (frame, sel, picked, samePower) => namedCandidates(ctx, game, state, frame, sel, picked, samePower),
+    unionNames: (frame, name) => {
+      const id = frame.vars[name]?.[0];
+      return id && state.cards[id] ? unionNamesOf(ctx, state, id) : [];
+    },
 
     // ── what the program can change ──────────────────────────────────────
     note: (text) => {
@@ -281,6 +287,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // of the card alone and without the hooks, so [Servant]'s Charge-Phase
       // hook does not stop its own card standing by a skill.
       if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) return false;
+      // 20-14: "your cards can't be switched to Rest Mode by your opponent's
+      // skills" (P-680, DB2-138) — a skill's switch, asked with that skill's
+      // controller; a rest no skill makes (an attack's, 8-1-2) passes no `by`.
+      if (mode === "rest" && by && forbids(ctx, game, state, "beRestedBySkill", { card: id, player: by.master })) return false;
       inst.mode = mode;
       // 1-10-1: a skill doing the switching is part of the moment — `by:
       // skill`, or the keyword whose skill it is (`by: Alliance`, 22-32-3) —
@@ -301,6 +311,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setHidden: (id, hidden, by) => {
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
+      if (hidden) card(id).hiddenCount = (card(id).hiddenCount ?? 0) + 1;
       log(ev, { type: "hidden", card: id, hidden });
       // 21-16-2 / 9-9-2: the card keeps its Active or Rest Mode, but no
       // continuous effect on it carries over the flip — a [Permanent] is
@@ -349,6 +360,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     shuffleLives: (players) => {
       for (const p of players) shuffle(state, p, SETUP_ZONES.life);
+    },
+    pickAtRandom: (ids, n) => {
+      const mixed = shuffleItems(ids, state.rngState);
+      state.rngState = mixed.state;
+      return mixed.items.slice(0, Math.max(0, n));
     },
     setEnteredTurn: () => {},
     negateAll: (id) => {

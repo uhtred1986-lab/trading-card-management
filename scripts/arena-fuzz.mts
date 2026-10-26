@@ -16,13 +16,16 @@ const flags = new Map<string, string>();
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
   if (!arg.startsWith("--")) { positional.push(arg); continue; }
-  if (!["--snapshot", "--snapshot-out", "--report", "--replay"].includes(arg) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`unknown option or missing path: ${arg}`);
+  if (!["--snapshot", "--snapshot-out", "--report", "--replay", "--game"].includes(arg) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`unknown option or missing path: ${arg}`);
   flags.set(arg, argv[++i]);
 }
+const game = flags.get("--game") ?? "dbs";
+if (game !== "dbs" && game !== "fusion") throw new Error(`unknown game: ${game} (dbs or fusion)`);
+if (game === "fusion" && (flags.has("--snapshot") || flags.has("--replay"))) throw new Error("--game fusion builds its decks from the fixtures; it takes no --snapshot or --replay");
 const games = Number(positional[0] ?? 20);
 const fixed = positional.length === 3 ? [Number(positional[1]), Number(positional[2])] : null;
 if (!Number.isInteger(games) || games < 1 || (positional.length !== 0 && positional.length !== 1 && positional.length !== 3) || fixed?.some((id) => !Number.isInteger(id) || id < 1)) {
-  throw new Error("usage: arena-fuzz.mts [games] [deckA deckB] [--snapshot FILE] [--snapshot-out FILE] [--report FILE] | --replay FILE");
+  throw new Error("usage: arena-fuzz.mts [games] [deckA deckB] [--game dbs|fusion] [--snapshot FILE] [--snapshot-out FILE] [--report FILE] | --replay FILE");
 }
 if (flags.has("--replay") && (positional.length || flags.has("--snapshot") || flags.has("--snapshot-out"))) throw new Error("--replay cannot be combined with game selection or a snapshot");
 
@@ -53,7 +56,15 @@ if (flags.has("--replay")) {
 }
 
 let snapshot: FuzzSnapshot;
-if (flags.has("--snapshot")) {
+if (game === "fusion") {
+  // The four starters from scripts/verify/fixtures/arena-fusion-world: no database, no network.
+  const { STARTERS, fusionContext, starterDeck } = await import("./verify/fixtures/arena-fusion-world/load.mts");
+  const context = fusionContext();
+  snapshot = {
+    format: "arena-fuzz-snapshot-v1", context,
+    decks: STARTERS.map((code, i) => { const input = starterDeck(code); return { id: i + 1, name: code, input, cardIds: [input.leader, ...new Set(input.main)] }; }),
+  };
+} else if (flags.has("--snapshot")) {
   snapshot = JSON.parse(readFileSync(flags.get("--snapshot")!, "utf8")) as FuzzSnapshot;
   if (snapshot.format !== "arena-fuzz-snapshot-v1" || !snapshot.decks?.length || !snapshot.context?.defs || !snapshot.context.scripts) throw new Error("invalid fuzz snapshot");
 } else {
@@ -87,7 +98,7 @@ for (let g = 0; g < games; g++) {
   const defs = Object.fromEntries(ids.filter((id) => snapshot.context.defs[id]).map((id) => [id, snapshot.context.defs[id]]));
   const keys = ids.flatMap((id) => [id, `${id}#back`]);
   const scripts = Object.fromEntries(keys.filter((key) => snapshot.context.scripts?.[key]).map((key) => [key, snapshot.context.scripts![key]]));
-  const result = runFuzzGame({ defs, scripts }, { seed: Math.floor(rand() * 1e9), p1: a.input, p2: b.input }, {
+  const result = runFuzzGame({ defs, scripts }, { seed: Math.floor(rand() * 1e9), ...(game === "dbs" ? {} : { game }), p1: a.input, p2: b.input }, {
     random: rand, note: (text) => notes.set(text.slice(0, 60), (notes.get(text.slice(0, 60)) ?? 0) + 1),
   });
   results.push(result);

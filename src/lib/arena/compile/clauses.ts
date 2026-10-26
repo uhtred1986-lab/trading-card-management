@@ -1,5 +1,6 @@
 import { disjointMoveSpans } from "./disjoint-shape";
 import { namedPairPresenceSpans, namedSetSpans } from "./named-set-shape";
+import { unionNameSearchSpans } from "./union-name-search-shape";
 import { opponentChoiceSpans } from "./opponent-choice-shape";
 // ── clause splitting ───────────────────────────────────────────────────────
 
@@ -182,7 +183,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Warp" is one clause; its commas and "and"s are the list's own.
   // #907: "choose up to 1 <A> card, 1 <B> card, and 1 <C> card―all red―from
   // your hand and/or Drop and place them under this card" likewise.
-  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...namedPairPresenceSpans(text), ...opponentChoiceSpans(text)];
+  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...namedPairPresenceSpans(text), ...opponentChoiceSpans(text), ...unionNameSearchSpans(text)];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const whole = wholeMoves.find(([from, to]) => i > from && i < to);
@@ -669,6 +670,12 @@ export function anaphora(text: string): string {
       // (BT10-121): one play changed two ways. Cut at the "and" the second half
       // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
       .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")
+      // "…it gets +15000 power and has its skills negated **for the battle**" (BT15-030, phrasing batch 1): the
+      // span closes both halves. Cut at the "and", the power change was left to the default of the turn.
+      .replace(/\b(gets? [+-]\d+ power) and (has its skills negated) (for the (?:duration of the )?battle)\b/gi, "$1 $3 and $2 $3")
+      // "This card gains +5000 **and [Critical]**" (P-025): the measure the number changes is left unsaid before a
+      // keyword, and it is power (the only measure a card gains as a bare "+5000").
+      .replace(/\b(gains?|gets?) ([+-]\d+) and \[/gi, "$1 $2 power and [")
       // "**Reduce the combo cost by 1 and negate the [Energy-Exhaust] skill of** multicolor
       // <Pan> cards …" (BT25-098, BT25-103, BT29-085b, EX19-20): a bare "the combo cost"
       // names no card (the reducer refuses it, deliberately), but the one subject the

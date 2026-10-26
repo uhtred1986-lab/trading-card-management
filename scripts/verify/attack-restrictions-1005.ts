@@ -120,11 +120,11 @@ for (const [text, says] of family) {
   assert.equal(rec.reads, says, text);
 }
 // What cannot be said is reported, not dropped. These are all "unread" (and so
-// counted by the tally and the rule review), none is silent:
+// counted by the tally and the rule review), none is silent. ("Your opponent
+// cannot attack your other Battle Cards" and "…skill-less cards can't attack
+// this card" are read since the prohibition catalog: `prohibition-catalog.ts`.)
 for (const text of [
-  "[Permanent] If this card is in Rest Mode, your opponent cannot attack your other Battle Cards.", // "other" than this card: no identity filter on a defender
   "[permanent] When this card is in Rest Mode, your opponent's cards with 15000 power or more can only attack copies of this card.", // P-230: a name resolved per defender
-  "[Permanent] Your opponent's skill-less cards can't attack this card.", // one named defender
   "[permanent] When this card is in Rest Mode, your opponent's Battle Cards with energy costs greater than or equal to their current energy can't attack Leader Cards.", // P-299: a measure the filter cannot say
   "[Permanent] While this card is in Rest Mode, your opponent can't attack your Leader Card unless they choose 2 cards in their hand and discard them each time.", // a price on a defender-qualified attack
   "[Permanent] This card can't attack if you have 3 or less energy and the moon is up.",

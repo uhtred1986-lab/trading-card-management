@@ -100,6 +100,8 @@ export interface ScriptHost {
   isFaceUp(id: string): boolean;
   /** 1-10-2: Hidden Mode. */
   isHidden(id: string): boolean;
+  /** Which Hidden Mode this card is in (`CardInstance.hiddenCount`), or null while it is revealed. */
+  hiddenStamp(id: string): string | null;
   /** 1-9: turned to its back side. */
   isFlipped(id: string): boolean;
   /** Does the card have a back side to turn to at all? */
@@ -125,7 +127,7 @@ export interface ScriptHost {
   /** Which turn it is (7-1). */
   turn(): number;
   /** 0-2-5: is this action forbidden right now? */
-  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb" }): boolean;
+  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string }): boolean;
   /**
    * 20-14-1: the prices in force on this action (`Prohibition.pay`), each a
    * program the acting player runs in their own frame — the rules `forbids`
@@ -147,6 +149,8 @@ export interface ScriptHost {
   condHolds(frame: ScriptFrame, c: Cond): boolean;
   /** `choose … namedSet`: the cards among `sel` that can still be part of a complete set of the line's named characters, one printed power, given those already picked (22-13-4-2). */
   namedCandidates(frame: ScriptFrame, sel: Selector, picked: string[], samePower?: boolean): string[];
+  /** The character names the [Union-Fusion] skill of the card bound to `name` requires (#930, `unionNameOf`); none when nothing is bound. */
+  unionNames(frame: ScriptFrame, name: string): string[];
 
   // ── what the program can change ──────────────────────────────────────────
 
@@ -197,6 +201,8 @@ export interface ScriptHost {
   shuffleDecks(players: PlayerId[]): void;
   /** 5-11-2: shuffle life after it was searched, using the same persisted RNG. */
   shuffleLives(players: PlayerId[]): void;
+  /** "Choose … at random" (BT1-073): `n` of these cards picked with the game's own RNG, no player involved (official Q&A). */
+  pickAtRandom(ids: string[], n: number): string[];
   /** 12-2-4: currently eligible, cost-waived lines on one selected hand card. */
   invokableSkills(player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): { index: number; label: string }[];
   /** #926: put the strict frame that pays this keyword `DO` frame's printed action price in front of it (`payActionPrice`). */

@@ -3,7 +3,7 @@ import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
 import { recordedSkillIdentity } from "./skill-identity";
 import { NotYet } from "./errors";
-import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
+import { fusionMaterialsProblem, isFusionSkill, requireFusionMaterials } from "./fusion-materials";
 /**
  * What a program *means*, read against a `VmState`.
  *
@@ -1071,7 +1071,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -1083,6 +1083,19 @@ function ruleApplies(
   // this rule lets through. Asked with no defender it applies — nothing proves
   // the attacker has the one it is allowed.
   if (f.attackOnly && opts.attackTarget && f.attackOnly.includes(opts.attackTarget)) return false;
+  // "…can't attack **this card**" (BT15-122): only an attack on one of the
+  // named cards. Asked with no defender it applies, as `attackTarget` does.
+  if (f.against && opts.attackTarget && !f.against.includes(opts.attackTarget)) return false;
+  // "…from the Battle Area", "…from your hand": where the card is as the
+  // action is asked about (a play, a combo, a move out of a Drop). A card the
+  // rule cannot place is not its.
+  // A caller asking about a move out of an area the candidate is not in says
+  // which (`from`): [Over Realm]'s price, asked of the card in the hand.
+  if (f.fromArea) {
+    const at = opts.card ? findCard(state, opts.card) : null;
+    if ((opts.from ?? at?.zone) !== f.fromArea) return false;
+    if (f.fromOwnArea && opts.player && (!at || at.owner !== opts.player)) return false;
+  }
   // #677, 12-1-3: "activating an Extra Card" is an [Activate] or [Counter]
   // skill of one used from the hand (BT10-097) — the area it was used from,
   // which the caller names once the card has gone on to the Drop (12-2-2-2).
@@ -1095,6 +1108,27 @@ function ruleApplies(
   // of line, and never the card whose rule it is. Asked without a line, the
   // kind cannot exclude anything, so the rule is read as applying.
   if (f.counterKind && opts.skillKind !== undefined && counterKindOf(opts.skillKind) !== f.counterKind) return false;
+  // "…the [Activate: Main] skill on copies of this card" (BT12-031): only
+  // lines of that kind. Asked without a line, the rule applies.
+  if (f.skillKinds?.length && opts.skillKind !== undefined && !f.skillKinds.includes(opts.skillKind)) return false;
+  // "…by skills other than its own" (EB1-27), "…other than {Jaguar's
+  // Island}'s skills" (BT22-072): the one skill the rule lets through.
+  if (f.exceptSource && opts.source && state.cards[opts.source]) {
+    if (f.exceptSource.self && rule.source && opts.source === rule.source) return false;
+    if (f.exceptSource.name && nameShowing(ctx, state, opts.source)?.toLowerCase() === f.exceptSource.name.toLowerCase()) return false;
+  }
+  // A move by a skill: a rule that names no area of departure is about the
+  // Battle Area (20-14's "can't be removed from a Battle Area"), and one that
+  // names a destination only about a move there.
+  if (what === "beMovedBySkill") {
+    const from = opts.from ?? (opts.card ? findCard(state, opts.card)?.zone : undefined);
+    if (!f.fromArea && from !== undefined && from !== "battle") return false;
+    if (f.toArea && opts.to !== undefined && opts.to !== f.toArea) return false;
+    if (f.toBottom && opts.toBottom === false) return false;
+  }
+  // "…in battle against Battle Cards with energy costs of 3 or less" (P-481):
+  // a description of the card whose action it is. Asked without one, it applies.
+  if (f.byFilter && opts.source && state.cards[opts.source] && !predicateOf(f.byFilter, game)(attrsNow(ctx, game, state, opts.source))) return false;
   if (f.otherCards && rule.source && rule.source === opts.card) return false;
   // "By skills" and "except by skills" are opposite halves of one wording, and
   // a rule that names one of them says nothing about the other.
@@ -1151,7 +1185,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb" } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1169,7 +1203,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb" } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1225,9 +1259,9 @@ export function keywordPlayForbiddenBy(
   keyword: { name: string; variant?: string } | null | undefined,
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   if (!keyword) return null;
-  if (keyword.name === "Evolve") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: true });
+  if (keyword.name === "Evolve") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: true, source: card });
   if (keyword.name !== "Union") return null;
-  if (keyword.variant === "Fusion" || keyword.variant === "Potara") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: false, union: keyword.variant });
+  if (keyword.variant === "Fusion" || keyword.variant === "Potara") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: false, union: keyword.variant, source: card });
   if (keyword.variant !== "Absorb") return null;
   const bareBattle = (f: CardFilter | undefined) => !f || Object.entries(f).every(([k, v]) => (k === "type" ? v === "BATTLE" : v == null || v === false || (Array.isArray(v) && v.length === 0)));
   for (const rule of prohibitions(ctx, game, state)) {
@@ -1258,7 +1292,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1461,7 +1495,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // "From your hand or Warp" names two (9-1-3-2, #464), either of which will do.
     if ((sel.special || sel.fromVar) && (sel.area || sel.areas?.length)) {
       const wanted = (sel.areas?.length ? sel.areas : [sel.area as string]).flatMap((a) => (a === "play" ? inPlayZones(game) : [a as string]));
-      if (!wanted.includes(zoneOf(state, id) ?? "")) return false;
+      // "This card from under your Leader" (BT31-110): a card in a pile is in
+      // no zone (23-2); it is where the selector says while the card holding
+      // the pile is one `underHost` names.
+      const host = wanted.includes("under") ? hostOf(state, id) : null;
+      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost).includes(host));
+      if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     if (sel.fromVar && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
     // 23-5-2 again: a Hidden Mode card has none of its front-side information
@@ -1505,6 +1544,15 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       if (!placed || !state.cards[frame.card]?.under?.includes(against!)) return false;
       const printed = new Set(placed.characters.map(identityKey));
       if (!list(attrsNow(ctx, game, state, id).characters).some((n) => printed.has(identityKey(String(n))))) return false;
+    }
+    // "…with a matching character name" / "…each with a character name that
+    // matches the [Union] skill conditions of the revealed card" (EX13-14,
+    // SD19-03, #930): one of the names the revealed card's [Union-Fusion]
+    // requires, exactly (2-10-1-1). Nothing revealed, nothing to match.
+    if (sel.filter?.unionNameOf) {
+      const revealed = frame.vars[sel.filter.unionNameOf]?.[0] ?? null;
+      const names = new Set(revealed ? unionNamesOf(ctx, state, revealed).map(identityKey) : []);
+      if (!list(attrsNow(ctx, game, state, id).characters).some((n) => names.has(identityKey(String(n))))) return false;
     }
     // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
     // beChosen)`), checked on its own rather than through `forbids()`'s wider
@@ -1722,7 +1770,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // `vm/actions.ts` asks of a candidate, so a `REFUSE` and a program mean one
     // thing by the word.
     case "forbidden":
-      return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
+      return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }), ...(c.from === undefined ? {} : { from: c.from }) });
     case "playerAttr": {
       const value = state.sides[c.side === "opponent" ? other(frame.master) : frame.master].attrs[c.name];
       // #157: a counted fact, read against its threshold.
@@ -1843,6 +1891,24 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     return { name: n.name, accepts: (c: { attrs: Attrs; battle: boolean }) => c.battle && test(c.attrs) };
   });
   return namedSetCandidates(needs, pool, picked, samePower);
+}
+
+/**
+ * The character names a card's [Union-Fusion] skill requires (22-13-4-1), read
+ * off its typed material contract (`price.fusion.needs`, #907) — never the
+ * display text. A card whose contract is missing or malformed requires none
+ * that this can vouch for, so it answers nothing (#930: EX13-14, SD19-03).
+ */
+export function unionNamesOf(ctx: EngineContext, state: VmState, id: string): string[] {
+  const shown = skillsShowing(ctx, state, id);
+  const names: string[] = [];
+  for (const sk of shown.skills) {
+    if (!isFusionSkill(sk)) continue;
+    const fusion = shown.scripts.bySkill[sk.index]?.price?.fusion;
+    if (fusionMaterialsProblem(fusion)) continue;
+    for (const n of fusion!.needs) if (!names.some((x) => identityKey(x) === identityKey(n.name))) names.push(n.name);
+  }
+  return names;
 }
 
 /** The Potara slots survive source/display changes after activation. */

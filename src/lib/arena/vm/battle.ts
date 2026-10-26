@@ -1394,6 +1394,24 @@ function comboEligible(ctx: EngineContext, game: GameDefinition, state: VmState,
   return readingBoard(ctx, game, state, () => comboEligibleOnBoard(ctx, game, state, player));
 }
 
+/**
+ * The combo price the loaded game declares (`DEFINE COST` reading `comboCostOf`),
+ * or null for a game with none — Fusion World's combos cost nothing (FW manual
+ * p. 10). A null price means the combo path plans no payment at all, never a
+ * zero-energy one.
+ */
+export function comboPriceOf(game: GameDefinition): string | null {
+  for (const [name, def] of Object.entries(game.costs)) if (def.amount === "comboCostOf") return name;
+  return null;
+}
+
+/** The combo's price for `card`, or null when the game declares none. */
+function comboPriceFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, def: { comboCost?: number | null }) {
+  if (comboPriceOf(game) === null) return null;
+  const cost = Number(attrsNow(ctx, game, state, card).comboCostOf ?? def.comboCost ?? 0);
+  return priceFor(ctx, game, state, game.actions.play!, card, { energy: { total: cost, orbs: {}, either: [] }, markers: 0, unreadable: null });
+}
+
 function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId): string[] {
   const b = state.battle;
   if (!b) return [];
@@ -1407,11 +1425,10 @@ function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: V
   return [...hand, ...field].filter((id) => {
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];
-    if (!def || !canCombo(def)) return false;
+    if (!def || !canCombo(def, comboPriceOf(game) === null)) return false;
     if (forbids(ctx, game, state, "combo", { player, card: id })) return false;
-    const cost = Number(attrsNow(ctx, game, state, id).comboCostOf ?? def.comboCost ?? 0);
-    const price = priceFor(ctx, game, state, game.actions.play!, id, { energy: { total: cost, orbs: {}, either: [] }, markers: 0, unreadable: null });
-    return planCost(ctx, game, state, player, price, id).ok;
+    const price = comboPriceFor(ctx, game, state, id, def);
+    return price === null || planCost(ctx, game, state, player, price, id).ok;
   });
 }
 
@@ -1514,15 +1531,16 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!comboEligible(ctx, game, state, action.player).includes(action.card)) throw new IllegalAction("that card can't combo now");
   const inst = state.cards[action.card];
   const def = ctx.defs[inst.cardId];
-  const cost = Number(attrsNow(ctx, game, state, action.card).comboCostOf ?? def.comboCost ?? 0);
-  const price = priceFor(ctx, game, state, game.actions.play!, action.card, { energy: { total: cost, orbs: {}, either: [] }, markers: 0, unreadable: null });
-  const plan = planCost(ctx, game, state, action.player, price, action.card, action.pay);
-  if (!plan.ok) throw new IllegalAction(`can't pay the combo cost: ${plan.why[0]?.kind}`);
-  if (action.pay === undefined && plan.asks && plan.options.length > 1) {
-    state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe: `combo ${nameOf(ctx, state, action.card)}` };
-    return "asked";
+  const price = comboPriceFor(ctx, game, state, action.card, def);
+  if (price !== null) {
+    const plan = planCost(ctx, game, state, action.player, price, action.card, action.pay);
+    if (!plan.ok) throw new IllegalAction(`can't pay the combo cost: ${plan.why[0]?.kind}`);
+    if (action.pay === undefined && plan.asks && plan.options.length > 1) {
+      state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe: `combo ${nameOf(ctx, state, action.card)}` };
+      return "asked";
+    }
+    chargeCost(ctx, game, state, ev, action.player, plan.payment, action.card, ["energy"]);
   }
-  chargeCost(ctx, game, state, ev, action.player, plan.payment, action.card, ["energy"]);
   moved(ctx, game, state, ev, action.card, "combo", { owner: action.player, reveal: true });
   // 5-7-5-2/3 and 5-7-6-2/3: only an actual Combo Area arrival creates the
   // self and watcher moments before the next combo offer or combat comparison.
@@ -1611,7 +1629,10 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       const want = how.allMarkers ? inst.markers : (how.atLeast ?? 1);
       b.markerLoss = { remaining: Math.min(want, inst.markers), lost: 0 };
       return loseMarkers(ctx, game, state, ev);
-    } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible")) {
+    } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible") && !forbids(ctx, game, state, "beKOdInBattle", { card: b.guard, player: atkP, source: b.attacker })) {
+      // 20-14: "it can't be KO'd by your opponent's attacks for the battle"
+      // (BT13-118) — this KO, asked with the attacking side; a skill's KO is
+      // `beKOdBySkill`, read where a skill KOs.
       // 22-12: "can't be KO'd... as a result of battle" — battle's own KO,
       // not an effect's, so it is read directly rather than through the hook
       // contract's `koByEffect` (#154; that hook is for a *skill's* KO, and
@@ -1890,15 +1911,14 @@ function comboWhy(ctx: EngineContext, game: GameDefinition, state: VmState, play
     if (inst.hidden) why.push({ kind: "other", detail: "a face-down card cannot combo" });
   }
   const def = ctx.defs[inst.cardId];
-  const combos = !!def && canCombo(def);
+  const combos = !!def && canCombo(def, comboPriceOf(game) === null);
   if (!combos) why.push({ kind: "cardType", card, needs: "a Battle Card with a combo cost" });
   const banned = forbiddenBy(ctx, game, state, "combo", { player, card });
   if (banned) why.push({ kind: "forbidden", ...banned });
   if (combos) {
-    const cost = Number(attrsNow(ctx, game, state, card).comboCostOf ?? def.comboCost ?? 0);
-    const price = priceFor(ctx, game, state, game.actions.play!, card, { energy: { total: cost, orbs: {}, either: [] }, markers: 0, unreadable: null });
-    const plan = planCost(ctx, game, state, player, price, card);
-    if (!plan.ok) why.push(...plan.why);
+    const price = comboPriceFor(ctx, game, state, card, def);
+    const plan = price === null ? null : planCost(ctx, game, state, player, price, card);
+    if (plan && !plan.ok) why.push(...plan.why);
   }
   return why;
 }

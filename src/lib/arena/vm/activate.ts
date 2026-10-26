@@ -528,7 +528,7 @@ export function activationRefusals(
   // everything else, and a declared `REFUSE` runs before all of these. The
   // gates of an activation are the legacy twin's in the legacy twin's order,
   // which is what makes the *first* requirement the same requirement.
-  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card });
+  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: line.kind });
   if (banned) before.push({ kind: "forbidden", ...banned });
   // #930: a keyword move that plays a card is not offered when 20-14 forbids
   // that play — "you can only play Battle Cards by using [Union-Fusion]"
@@ -716,7 +716,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   for (const skill of showing.skills) {
     const keyword = keywordMoveOf(game, skill);
     if (keyword?.name !== "Field") continue;
-    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return "blocked";
+    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
     if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";
@@ -744,7 +744,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     const sk = line.skill;
     if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
     if (!requireSkillPayment(line.script.price).readable) return false;
-    if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
+    if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
@@ -1052,7 +1052,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const koable = (id: string): boolean => {
     const at = findCard(state, id);
     if (!at || at.zone !== "battle") return false;
-    if (forbiddenBy(ctx, game, state, "beKOd", { card: id }) || forbiddenBy(ctx, game, state, "beKOdBySkill", { player, card: id })) return false;
+    if (forbiddenBy(ctx, game, state, "beKOd", { card: id }) || forbiddenBy(ctx, game, state, "beKOdBySkill", { player, card: id, source: card })) return false;
     if (hasKeyword(ctx, game, state, id, "Indestructible") && masterOf(game, state, id) !== player) return false;
     return replacementChoices(ctx, game, state, id, "ko", { actor: player, requestedTo: "drop" }).every((c) => c.optional);
   };
@@ -1064,11 +1064,13 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     return !!b && (masterOf(game, state, b.attacker) === player || masterOf(game, state, b.guard) === player) && !!def && !!findCard(state, id)
       && findCard(state, id)?.zone !== "combo" && canCombo(def) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
   };
+  /** 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps" (BT6-028) — a price that needs that move can't be paid. */
+  const dropToWarpForbidden = (id: string, to: string): boolean => to === "warp" && findCard(state, id)?.zone === "drop" && !!forbiddenBy(ctx, game, state, "dropToWarp", { player, card: id });
   const movementPayable = (id: string, variable: string): boolean => {
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
     if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
-    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
+    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to) && !dropToWarpForbidden(id, movement.to));
   };
   // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
   // card, so a later choice of the same price can no longer pick it.
@@ -1141,7 +1143,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           break;
         }
         if ("var" in op.target) break;
-        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
+        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to) || dropToWarpForbidden(id, op.to))) return false;
         break;
       // #1117 (owner ruling 20 Oct 2026): a KO or a combo of a card the price chose was narrowed by its own
       // choice above; one of this card needs this card to be fit for it.
@@ -1162,6 +1164,9 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
       // from the hand is in the Drop by the time its price is paid, so it is not one of the cards it can show.
       case "reveal": {
         if (op.sel.upTo) break;
+        // "Choose 1 card in your hand … and reveal it" (EX13-14, #930): a reveal of what an earlier choice of
+        // this price bound (the static half checks it is one) was counted by that choice above.
+        if (op.sel.fromVar) break;
         const shown = resolveSelector(ctx, game, state, frame, op.sel).filter((id) => id !== card || !inHand || !isExtra(ctx, game, state, card));
         if (selectedCount(op.sel, shown, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;

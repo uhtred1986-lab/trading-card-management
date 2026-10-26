@@ -138,9 +138,11 @@ type Sel = { area?: string; areas?: string[]; side?: string; filter?: { costMin:
   assert.notDeepEqual(placed.unsupported, [], "P-440: 'the same name as the chosen card' is refused (it moved the chosen card itself)");
   assert.equal(find(placed.ops, "moveTo").length, 0);
 
+  // P-481 is read since prohibition batch 2: the battle's KO against those
+  // attackers only (`beKOdInBattle` with `byFilter`), never every KO.
   const ko = compile("[permanent] This card can't be KO'd in battle against Battle Cards with energy costs of 3 or less.");
-  assert.notDeepEqual(ko.unsupported, [], "P-481: a KO ban naming whose KO is refused, not read as every KO");
-  assert.equal(find(ko.ops, "forbid").length, 0);
+  assert.deepEqual(ko.unsupported, [], "P-481");
+  assert.deepEqual(find(ko.ops, "forbid").map((f) => f.what), ["beKOdInBattle"], "P-481: a KO ban naming whose KO is the battle's, against those cards, not every KO");
   assert.deepEqual(compile("[permanent] This card can't be KO'd by your opponent's skills.").unsupported, [], "the by-skills rule still reads");
 
   const total = compile("[Auto] When you play this card, choose up to 1 ≪Universe 9≫ in your hand with an energy cost less than or equal to your total energy and play it.");

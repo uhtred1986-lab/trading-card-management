@@ -61,7 +61,29 @@ export function compileSkill(skill: Skill): Script {
     if (!deck.rest) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: deck.unread };
     return compileSkillWithoutDeckBuilding({ ...skill, effect: `${deck.rest}.` });
   }
-  return compileSkillWithoutDeckBuilding(skill);
+  return counterPlaysThisCard(skill, compileSkillWithoutDeckBuilding(skill));
+}
+
+/**
+ * "[Counter: Attack] Play this card **from your hand**" (BT1-064 front 10, BT23-055, BT1-091; deck
+ * flags 26 Oct 2026): a [Counter] is activated from the hand and its card is placed in the Drop as it
+ * activates (22-10-7), so by the time the effect resolves "this card" is no longer in the hand. Kept
+ * on the selector, the area found nothing, nothing was played and the card stayed in the Drop. The
+ * hand is where the counter was used from, not where the effect finds the card: the play of this
+ * card names no area, as "[Counter: Play] Play this card" always has.
+ */
+function counterPlaysThisCard(skill: Skill, script: Script): Script {
+  if (!skill.kind.startsWith("counter")) return script;
+  const played = new Set(script.ops.flatMap((op) => (op.op === "play" && "var" in op.target ? [op.target.var] : [])));
+  let changed = false;
+  const ops = script.ops.map((op) => {
+    if (op.op !== "choose" || op.sel.special !== "self" || op.sel.area !== "hand" || op.sel.areas?.length || !played.has(op.as)) return op;
+    changed = true;
+    const { area: _hand, ...sel } = op.sel;
+    void _hand;
+    return { ...op, sel };
+  });
+  return changed ? { ...script, ops } : script;
 }
 
 /**
@@ -724,6 +746,9 @@ function compileSkillText(skill: Skill): Script {
       if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
     }
   }
+  // "The revealed card" (#930, EX13-14 / SD19-03) is what the price revealed.
+  const priceReveal = priceOps.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal");
+  if (priceReveal.length === 1) c.priceRevealed = priceReveal[0].as;
   // "The card that was switched to Hidden Mode by this skill" names the
   // price's card, possibly well after the effect has made choices of its own
   // ("Play this card, then switch the card that was switched to Hidden Mode
@@ -936,7 +961,9 @@ function compileSkillText(skill: Skill): Script {
     // for any card at all. "It" is still pointed at the subject only where
     // the trigger says "your", as before.
     else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
-      if (/\byour\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
+      // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
+      // one thing the sentence has named, so "it" is that card too.
+      if (/\byour\b/i.test(trigger) || /^when you play (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that
@@ -966,6 +993,9 @@ function compileSkillText(skill: Skill): Script {
       // [Union] any of them, a named variant only that one. `resolvePlay`
       // withdraws the Auto from any other play, or a card the description
       // refuses (`vm/triggers.ts` `unionPlayedGate`).
+      // "When you play a Battle Card **on your turn**" (BT13-026, phrasing batch 1): a card can be played on the
+      // opponent's turn too (a [Counter: Play], a skill's play), and the words say this one only counts on yours.
+      if (/^when you play [^,]+ on your turn$/i.test(trigger.trim())) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, { kind: "isTurnPlayer" }] } : { kind: "isTurnPlayer" };
       const byUnion = yourCardPlayedByUnion(trigger);
       if (byUnion) {
         const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };

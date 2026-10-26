@@ -1805,9 +1805,10 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.deepEqual(vegito.unsupported, [], "the whole skill reads");
   assert.deepEqual(
     vegito.ops.map((o) => o.op),
-    ["mill", "if"],
+    ["may", "if"],
+    "\"up to 1\" is an offer (owner's ruling of 20 Oct 2026 on BT3-120; deck flags 26 Oct 2026)",
   );
-  const milled = (vegito.ops[0] as { as: string }).as;
+  const milled = ((vegito.ops[0] as { ops: { as: string }[] }).ops[0]).as;
   const gate = vegito.ops[1] as { cond: { kind: string; var: string; filter: { colors: string[] } }; then: { op: string }[] };
   assert.equal(gate.cond.kind, "varMatches");
   assert.equal(gate.cond.var, milled, "the condition asks about the card the mill named");

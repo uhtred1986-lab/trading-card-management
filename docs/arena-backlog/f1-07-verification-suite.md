@@ -1,6 +1,8 @@
 ---
 title: "Arena F1-07: verification — a Fusion World suite in npm test and fuzz on the four starters"
 issue: 1190
+status: closed
+closed_at: 2026-10-26
 milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-vm, phase:fusion-world, model:sonnet-5
 stage: fusion-world
