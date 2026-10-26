@@ -66,7 +66,11 @@ assert.deepEqual(triggersOf("ATKONLY962"), ["attacks"]);
 assert.deepEqual(triggersOf("FROMZONE962"), ["played"], "'from your hand or Drop Area' is one moment with two origins");
 assert.deepEqual(autoRow("FROMZONE962").unread, []);
 assert.deepEqual(autoRow("COMBO962").unread, [], "'played or used in a combo' keeps its own reader");
-for (const id of ["ENERGY962", "TARGET962", "OPPATK962", "USING962", "REST962"]) {
+// Phrasing batch 4: "…played or your opponent attacks" is now a moment of its own (`opponentAttacks`) beside the play.
+assert.ok(!playedOrUnplacedAlternative(autoSkill("OPPATK962")), "OPPATK962: the opponent's attack is placed");
+assert.deepEqual([...triggersOf("OPPATK962")].sort(), ["opponentAttacks", "played"], "OPPATK962: both moments");
+assert.deepEqual(autoRow("OPPATK962").unread, []);
+for (const id of ["ENERGY962", "TARGET962", "USING962", "REST962"]) {
   assert.ok(playedOrUnplacedAlternative(autoSkill(id)), `${id}: an alternative nothing can place is refused`);
   assert.ok(autoRow(id).unread.length > 0, `${id}: an honest unread gap, not a bare played`);
   assert.deepEqual(autoRow(id).ops, [], `${id}: no half-skill`);
@@ -174,7 +178,7 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(b4, deckSize(t, seat), `${seat}: an attack-only Auto does not answer a play`);
   }
   // 5. A refused alternative does nothing at either moment (an unread gap, not half a skill).
-  for (const id of ["ENERGY962", "TARGET962", "OPPATK962", "USING962", "REST962"]) {
+  for (const id of ["ENERGY962", "TARGET962", "USING962", "REST962"]) {
     let s = fresh(seat);
     const c = stage(s, seat, id, "hand");
     const before = deckSize(s, seat);

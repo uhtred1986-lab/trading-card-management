@@ -169,11 +169,12 @@ const ops = (text: string): CostOp[] => {
   // BT26-043 prints "cost o this card".
   assert.deepEqual(one("[Permanent] If your Leader is a blue <Gogeta: Br> card, reduce the energy cost o this card in your hand by 2.").unsupported, []);
   // A leading "for each" hangs on the reducer; a count of markers, of other cards' costs, or across two places is not a count of cards.
+  // (Phrasing batch 4: cards of your own Z-Energy, Drop or Battle Area counted across two of them are — "For every 2 green
+  // Extras in your Battle Area and/or Drop" (P-430) reads, proved in the VM by `phrasing-batch-4.ts`.)
   const per = one("[Permanent] If your Leader is a green <Son Goku: GT> card, for each green <Son Goku: GT> card in your Warp, reduce the energy cost of this card in your hand by 1.");
   assert.deepEqual(per.unsupported, []);
   for (const text of [
     "[Permanent] For each marker on Unison Cards in play, reduce the energy cost of this card in your hand by 1.",
-    "[permanent] For every 2 green Extras in your Battle Area and/or Drop, reduce the energy cost of this card in your hand by 1.",
     "[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)",
   ]) {
     const s = one(text);

@@ -192,7 +192,8 @@ assert.ok(unreadOf("[Auto] When this card is played, look at up to 7 cards from 
   assert.equal(pilaf[0].sel.filter?.type, null, "BT5-015: the word in a name is not a card type");
   records += 8;
 }
-assert.ok(unreadOf("[Auto] When this card is played, add up to 1 <Pan> card or card with <GT> in its character name-both multicolor and with an energy cost of 4-from your Drop to your hand.").length > 0, "P-711: the aside of an \"or\" pair stays unread");
+// (P-711's "-both multicolor and with an energy cost of 4-" aside was left unread here for a ruling; the owner ruled on
+// 26 Oct 2026 that it describes both alternatives, and `phrasing-batch-4.ts` proves the reading.)
 
 // B4. Measures joined by "and" that a split lost.
 {

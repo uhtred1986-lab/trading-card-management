@@ -398,11 +398,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `moved` moment fires here, because the interpreter pends the token's
     // own `played` next (`stepScript`'s `token` case), exactly as it does
     // for the legacy host.
-    createToken: (p, name, power, comboCost, comboPower, colors) => {
+    createToken: (p, name, power, comboCost, comboPower, colors, mode) => {
       const id = `${p}#token${Object.keys(state.cards).length}`;
       state.cards[id] = newCard(id, tokenCardId(name, power, comboCost, comboPower, colors), p);
       const placed = moveCard(state, game, id, TOKEN_ZONE, { owner: p });
       if (!placed.ok) throw new RulesetBroken(state.game, `a token cannot be made in the ${TOKEN_ZONE}: ${placed.refused}`);
+      // Phrasing batch 4: "…in Rest Mode" is how the token arrives (5-5-3), not a switch after it.
+      if (mode && game.zones[TOKEN_ZONE]?.modes?.includes(mode)) state.cards[id].mode = mode;
       log(ev, { type: "token", card: id, owner: p });
       return id;
     },

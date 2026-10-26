@@ -167,6 +167,22 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
     (_, leader: string, description: string, color: string) => `${leader} is mono-${color} ${description}`);
+  // Phrasing batch 4: "…from your deck, hand, or Drop, **and if you looked at your deck, shuffle your deck**" (BT22-079,
+  // BT22-085, BT22-112, BT22-133) is the shuffle a search leaves behind, said with the condition first — the same as
+  // "shuffle your deck if you looked through it", which the `shuffle` op already only does after a look at the deck.
+  text = text.replace(/\bif you looked (?:at|through) your deck, shuffle (?:your|the) deck\b/gi, "shuffle your deck if you looked through it");
+  // Phrasing batch 4: "**look at your deck and life, add up to 2 [Dragon Ball] cards to your hand**, then shuffle any
+  // areas you looked through using this skill" (BT21-027, BT21-029, BT21-031) is a search of both areas (20-12): the
+  // same as "add up to 2 [Dragon Ball] cards from your deck or life to your hand", which reads.
+  text = text.replace(/\blook at your deck and (?:your )?life, add (up to \d+ [^,.;]+?) to your hand\b/gi, "add $1 from your deck or life to your hand");
+  // Phrasing batch 4: "**For each card in your Z-Energy and Drop**, reduce the energy cost of this card in your hand by 1"
+  // (BT21-147, BT23-139, P-430) is the count said first; the cost reduction reads it said last ("…by 1 for each …").
+  // Only counts of cards in your own Z-Energy, Drop or Battle Area: the rest of the family ("each Battle Card in
+  // play", "each marker on …", "each Z-Energy cost of …", "(Up to 2)") is counted otherwise and stays unread.
+  text = text.replace(
+    /\b(for (?:each|every)(?: \d+)? (?:(?:red|blue|green|yellow|black|white) )?(?:cards?|extras?)(?: in your (?:z-energy|drop|battle area)(?: (?:and|and\/or) (?:your )?(?:z-energy|drop|battle area))?)), (reduce the energy cost of this card in your hand by \d+)(?=[.;]|$)/gi,
+    (_w, each: string, reduce: string) => `${/^F/.test(each) ? reduce[0].toUpperCase() + reduce.slice(1) : reduce} ${each.toLowerCase()}`,
+  );
   const out: string[] = [];
   const joins: boolean[] = [];
   let nextJoined = false;
@@ -232,9 +248,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         !(/^this card (?:can't|cannot) attack$/i.test(text.slice(start, i).trim()) && /^ and gains?\s/i.test(text.slice(i))) &&
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
-        // (Phrasing batch 3: "…without [barrier] **and with** an energy cost of 4" (BT15-015) joins too — but not inside
-        // a "-both multicolor and with …-" aside (P-711), whose qualifier one alternative alone would keep.)
-        !((MEASURE_AFTER_AND.test(text.slice(i + 5)) || WITH_MEASURE_AFTER_AND.test(text.slice(i + 5))) && /\bwith(?:out)?\b/i.test(text.slice(start, i)) && !(/^with\b/i.test(text.slice(i + 5)) && /(?:[-―—–]|--)\s*(?:both|all)\b/i.test(text.slice(start, i)))) &&
+        // (Phrasing batch 3: "…without [barrier] **and with** an energy cost of 4" (BT15-015) joins too. Phrasing batch
+        // 4: so does the "and with" of a "-both multicolor and with …-" aside (P-711): the owner ruled on 26 Oct 2026
+        // that such an aside describes every alternative before it, which `parseFilter` reads.)
+        !((MEASURE_AFTER_AND.test(text.slice(i + 5)) || WITH_MEASURE_AFTER_AND.test(text.slice(i + 5))) && (/\bwith(?:out)?\b/i.test(text.slice(start, i)) || /(?:[-―—–]|--)\s*(?:both|all)\s+[^-―—–]*$/i.test(text.slice(start, i)))) &&
         // "Play up to 1 mono-blue Unison with a specified cost of 2 **and 1
         // marker on it** from your deck or hand" (BT28-039, #980): what the card
         // arrives with, said as a second measure of the card played.
@@ -673,8 +690,7 @@ export function anaphora(text: string): string {
       // Cards" are the card being played — one card, which "up to 1" lets the
       // player leave alone. Read as a fresh description it was any Battle Card in
       // the player's own Battle Area.
-      .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")
-      // "…it has its skills negated for the turn and is played in Rest Mode"
+      .replace(/\bwhen the (battle|unison|extra) card is played,\s*choose up to 1 of those \1 cards\b/gi, "you may choose the $1 card being played")      // "…it has its skills negated for the turn and is played in Rest Mode"
       // (BT10-121): one play changed two ways. Cut at the "and" the second half
       // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
       .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")
