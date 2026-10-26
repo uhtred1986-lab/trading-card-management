@@ -431,6 +431,19 @@ const NOT_RUNNABLE = new Set(["replaceLeave", "replace", "gains", "negateKeyword
  * run the program as a frame on the flow, so it can stop and ask, and
  * `replacementFor` leaves it unapplied at the 46 that cannot wait.
  */
+/**
+ * "Up to N, one card at a time" (owner's rulings of 20 Oct 2026): `may(step 1)`,
+ * then `if did(may): may(step 2)`, … Written flat — each later offer behind its
+ * own `if` — because only `may` sets the answer, so a decline ends the chain the
+ * same as nesting would, and a chain of five stays inside the validator's depth.
+ */
+function oneAtATime(steps: Op[][], reason: string): Op[] {
+  return steps.flatMap((ops, i): Op[] => {
+    const offer: Op = { op: "may", ops, reason };
+    return i === 0 ? [offer] : [{ op: "if", cond: { kind: "did", what: "may" }, then: [offer] }];
+  });
+}
+
 function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
@@ -1320,8 +1333,35 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
 
   // Deck manipulation.
-  if ((m = /^place (?:up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t)))
-    return [{ op: "mill", n: Number(m[1]), ...(m[2] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
+  if ((m = /^place (up to )?(\d+) cards? from the top of (your|your opponent's) deck in (?:your |their |its owner's |the )?drop(?: area)?$/.exec(t))) {
+    // "Place **up to** 2 cards from the top of your deck in the Drop Area"
+    // (BT3-119, BT3-120, BT2-001; owner's ruling of 20 Oct 2026, recorded on
+    // BT3-120 front 10): an optional choice made one card at a time — you may
+    // place 1, then if you did you may place 1 more, up to N (5-2-4) — never a
+    // forced mill of exactly N. Each card is its own `mill` of 1, so "that
+    // card" after N = 1 is the one placed, and nothing when it was declined.
+    if (m[1] && m[3] === "your") {
+      const n = Number(m[2]);
+      const vars = Array.from({ length: n }, () => `m${c.mills++}`);
+      // "If that card is red" after "up to 1" is the one card placed; after
+      // "up to 2" no single card is "that card", so nothing is named for it.
+      if (n === 1) c.lastNamed = vars[0];
+      return oneAtATime(vars.map((v): Op[] => [{ op: "mill", n: 1, as: v }]), "place 1 card from the top of your deck in the Drop Area");
+    }
+    return [{ op: "mill", n: Number(m[2]), ...(m[3] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
+  }
+  // "Send **up to** 3 cards from the top of your deck to your Warp" (BT12-122,
+  // BT16-099/103/104, BT18-130/132, BT29-086…093, TB2-015; owner's ruling of
+  // 20 Oct 2026, recorded on BT12-122 front 20, and of 26 Oct 2026): the same
+  // optional one-card-at-a-time shape as the Drop wording — the top card, then
+  // if you did the next one — never a free pick from the whole deck, which is
+  // what the generic "choose up to N cards in your deck" made of it.
+  if ((m = /^(?:send|place|put) up to (\d+) cards? from the top of your deck (?:to|in|into) (?:your |the |its owner's )?warp$/.exec(t))) {
+    const n = Number(m[1]);
+    const vars = Array.from({ length: n }, () => `w${c.mills++}`);
+    if (n === 1) c.lastNamed = vars[0];
+    return oneAtATime(vars.map((v): Op[] => [{ op: "look", n: 1, as: v }, { op: "moveTo", target: { var: v }, to: "warp" }]), "send the top card of your deck to your Warp");
+  }
   // "Draw cards until you have 4 cards in your hand".
   if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
@@ -2513,7 +2553,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return ref
       ? withChoice(ref, clause, c, (target) => {
           if ("var" in target) c.switchedHere = target.var;
-          return { op: "hidden", target, hidden };
+          // "…switch the card that was switched to Hidden Mode by this skill to
+          // Revealed Mode" (BT28-121, official Q&A): only while it is still in
+          // that Hidden Mode — not after another skill revealed it and it was
+          // hidden again.
+          return { op: "hidden", target, hidden, ...(!hidden && SWITCHED_BY_THIS_SKILL.test(m![1]) ? { sameHiding: true } : {}) };
         })
       : null;
   }
@@ -5532,7 +5576,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // hung a replacement on each buried card — a rule about cards that are
       // not in a Battle Area at all, so the printed skill did nothing. It is a
       // substitute, and falls through to the branch below.
-      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self";
+      // "…you may remove **this card in your Warp** from the game instead"
+      // (BT30-104, deck flags 26 Oct 2026, 9-10-1-1): this card, taken out of
+      // an area of its own, is not the card leaving the Battle Area — read as a
+      // redirect, the ≪Maiden Squadron≫ card the skill protects was itself
+      // removed from the game. It is a substitute, below.
+      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self" && !only.target.sel.area && !only.target.sel.areas?.length;
       if (replaceEvent !== "life" && replaceEvent !== "marker" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
