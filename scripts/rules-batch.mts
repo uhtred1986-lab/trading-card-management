@@ -1,5 +1,5 @@
 /**
- * `npm run rules:batch -- --next 30 [--skip ID,...] [--owner NAME] [--out FILE] [--batch "batch 6"] [--include-listed [ID,...]]`
+ * `npm run rules:batch -- --next 30 [--skip ID,...] [--owner NAME] [--out FILE] [--batch "batch 6"] [--include-listed [ID,...]] [--game dbs|fusion]`
  *
  * READ-ONLY. Picks the next N unchecked cards of the owner's decks exactly as the rules-review receipts
  * describe (docs/arena-backlog/evidence/**), and writes a receipt skeleton (stdout, or --out FILE).
@@ -8,6 +8,7 @@
  */
 import path from "node:path";
 import fs from "node:fs";
+import { isGame } from "../src/lib/catalog/games.ts";
 import { assertThisAppsDb, listedIds, renderReceipt, selectBatch } from "./lib/rules-batch.mts";
 
 const argv = process.argv.slice(2);
@@ -17,9 +18,13 @@ const flag = (name: string): string | undefined => {
 };
 const has = (name: string) => argv.includes(`--${name}`);
 
+if (flag("game") && !isGame(flag("game"))) {
+  console.error(`unknown game: ${flag("game")} (dbs or fusion)`);
+  process.exit(1);
+}
 const next = Number(flag("next") ?? 30);
 if (!Number.isInteger(next) || next < 1) {
-  console.error('Usage: npm run rules:batch -- --next 30 [--skip ID,...] [--owner NAME] [--out FILE] [--batch "batch 6"] [--include-listed [ID,...]]');
+  console.error('Usage: npm run rules:batch -- --next 30 [--skip ID,...] [--owner NAME] [--out FILE] [--batch "batch 6"] [--include-listed [ID,...]] [--game dbs|fusion]');
   process.exit(1);
 }
 const out = flag("out");
@@ -36,6 +41,7 @@ try {
     skip: (flag("skip") ?? "").split(","),
     listed: listedIds(evidence, out),
     includeListed,
+    game: flag("game") === "fusion" ? "fusion" : "dbs",
   });
   const text = renderReceipt(sel, { date: new Date().toISOString().slice(0, 10), batch: flag("batch") ?? "batch N", next });
   if (out) {

@@ -631,3 +631,37 @@ const FUZZ_GAMES = 40;
 
 
 console.log(`arena-fusion-world: ${rows.length} skill lines of 64 cards read`);
+
+// #1191 (review of the stored starter rules): the catalog's Fusion World rows carry no `characters` at all (the
+// deckplanet feed has no `card_character` for that game), and its names are spelled "Trunks: Youth", not the card
+// site's "Trunks : Youth" the fixtures use. `cardDefFrom` therefore makes a Fusion World card's name its character;
+// this proves it on catalog-shaped rows, through the filters the real stored rows compile to.
+{
+  const { cardDefFrom } = await import("../../src/lib/arena/load");
+  const { matches } = await import("../../src/lib/arena/text/filters");
+  const row = (id: string, name: string, cardType: string, energyCost: string | null, skill: string | null, game = "fusion") => ({
+    id, name, cardType, colors: ["Blue"], energyCost, zEnergyCost: null, power: 10000, comboCost: null, comboPower: 5000,
+    skill, characters: [] as string[], traits: [] as string[], backName: null, backPower: null, backSkill: null, specifiedCost: null, game,
+  });
+  const trunks = cardDefFrom(row("FS02-08", "Trunks: Youth", "BATTLE", "1", "[On Play] Draw 1 card."));
+  const goten = cardDefFrom(row("FS02-05", "Son Goten", "BATTLE", "1", null));
+  const broly = cardDefFrom(row("FS03-01", "Broly", "LEADER", null, null));
+  assert.deepEqual(trunks.characters, ["Trunks: Youth"], "a Fusion World card's name is its character");
+  assert.deepEqual(cardDefFrom(row("BT1-001", "Some Card", "BATTLE", "1", null, "dbs")).characters, [], "an original-game card keeps its own (empty) list");
+  // FS02-03 exactly as the catalog prints it, "?" where the feed lost the dashes.
+  const gotenks = cardDefFrom(row("FS02-03", "Gotenks", "BATTLE", "4", "[On Play] If you have 7 or fewer cards in your hand, add up to 1 &lt;Son Goten&gt; and up to 1 &lt;Trunks: Youth&gt;?both with a cost of 2 or less?from your Drop to your hand."));
+  const chooses: { sel?: { filter?: Parameters<typeof matches>[1] } }[] = [];
+  const walk = (ops: unknown): void => { if (Array.isArray(ops)) ops.forEach(walk); else if (ops && typeof ops === "object") { const o = ops as Record<string, unknown>; if (o.op === "choose") chooses.push(o as never); for (const v of Object.values(o)) walk(v); } };
+  walk((skillRecords(gotenks) as { ops: unknown[] }[]).map((r) => r.ops));
+  const named = chooses.filter((c) => c.sel?.filter?.characters?.length);
+  assert.equal(named.length, 2, "FS02-03 compiles to two named picks");
+  assert.ok(matches(goten, named[0].sel!.filter!) && !matches(trunks, named[0].sel!.filter!), "the first pick takes Son Goten, not Trunks");
+  assert.ok(matches(trunks, named[1].sel!.filter!) && !matches(goten, named[1].sel!.filter!), "the second pick takes Trunks: Youth, not Son Goten");
+  // FS03-06's "If your Leader is <Broly>" on the catalog's Broly leader.
+  const shamoian = cardDefFrom(row("FS03-06", "Paragus", "BATTLE", "2", "[Activate Main][Once per turn] If your Leader is &lt;Broly&gt; and you have no &lt;Shamoian&gt; Battle Cards, play up to 1 &lt;Shamoian&gt; with a cost of 1 from your Drop."));
+  const conds: { kind?: string; filter?: Parameters<typeof matches>[1] }[] = [];
+  const walkCond = (v: unknown): void => { if (Array.isArray(v)) v.forEach(walkCond); else if (v && typeof v === "object") { const o = v as Record<string, unknown>; if (o.kind === "leaderMatches") conds.push(o as never); for (const x of Object.values(o)) walkCond(x); } };
+  walkCond(skillRecords(shamoian));
+  assert.ok(conds.length >= 1 && conds.every((c) => matches(broly, c.filter!)), "\"your Leader is <Broly>\" holds for the catalog's Broly leader");
+  console.log("arena-fusion-world: catalog-shaped rows: names are characters; FS02-03's picks and FS03-06's leader check match");
+}
