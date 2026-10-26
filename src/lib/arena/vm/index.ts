@@ -148,12 +148,10 @@ export {
 } from "./zones";
 
 /**
- * The arena plays the original game only — the engine reads the Masters rule
- * manual and `deckInputFor` returns null for a Fusion World deck (owner's
- * decision, 4 Sep 2026). A second game is a second directory under
- * `rulesets/` and a second value here, not a second engine.
+ * The game a state is created for comes from the deck input (`GameOptions.game`,
+ * which `deckInputFor` returns beside the deck) and defaults to `dbs`. A game is
+ * a directory under `rulesets/`; `state.game` is the only place its id is stored.
  */
-const ARENA_GAME: Game = "dbs";
 
 /** The loaded definition, or a `RulesetBroken` naming the first thing wrong with it. */
 function definitionFor(game: Game, ctx?: EngineContext): GameDefinition {
@@ -194,27 +192,28 @@ function definitionFor(game: Game, ctx?: EngineContext): GameDefinition {
  * out of 6,500 must not be what stops a game.
  */
 function createGame(ctx: EngineContext, options: GameOptions): { state: VmState; events: GameEvent[] } {
-  const game = definitionFor(ARENA_GAME, ctx);
+  const gameId: Game = options.game ?? "dbs";
+  const game = definitionFor(gameId, ctx);
   const rules = game.game;
-  if (!rules) throw new RulesetBroken(ARENA_GAME, "it declares no DEFINE GAME, so there are no setup numbers to deal");
-  if ((rules.players ?? 2) !== 2) throw new RulesetBroken(ARENA_GAME, `it declares ${rules.players} players, and a game is played by the two the app seats`);
-  if (!rules.setupPhase) throw new RulesetBroken(ARENA_GAME, "it names no setupPhase, so the pre-game procedure has nowhere to begin");
+  if (!rules) throw new RulesetBroken(gameId, "it declares no DEFINE GAME, so there are no setup numbers to deal");
+  if ((rules.players ?? 2) !== 2) throw new RulesetBroken(gameId, `it declares ${rules.players} players, and a game is played by the two the app seats`);
+  if (!rules.setupPhase) throw new RulesetBroken(gameId, "it names no setupPhase, so the pre-game procedure has nowhere to begin");
   const places = new Set(placeZones(game));
   for (const zone of Object.values(SETUP_ZONES)) {
-    if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `the pre-game procedure puts cards in the ${zone}, which it declares no zone for`);
+    if (!places.has(zone)) throw new RulesetBroken(gameId, `the pre-game procedure puts cards in the ${zone}, which it declares no zone for`);
   }
   // 5-5: and every zone a play puts a card in. `PLAY_ZONES` and its two
   // neighbours in `vm/play.ts` are the pieces of the DBS definition that module
   // still names, and a name nothing declares is a play that would throw in the
   // middle of a game rather than at the making of one.
   for (const zone of PLAY_ZONE_NAMES) {
-    if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `a card is played into the ${zone}, which it declares no zone for`);
+    if (!places.has(zone)) throw new RulesetBroken(gameId, `a card is played into the ${zone}, which it declares no zone for`);
   }
   // The other half of the same promise: every step the interpreter still
   // carries out itself is a step this game really declares. A row in
   // `STEP_WORK` with no declaration is work that would silently never happen.
   for (const step of WORKED_STEPS) {
-    if (!game.steps[step]) throw new RulesetBroken(ARENA_GAME, `the interpreter carries out a step called ${step}, which nothing declares`);
+    if (!game.steps[step]) throw new RulesetBroken(gameId, `the interpreter carries out a step called ${step}, which nothing declares`);
   }
   // 9-1-2: and every zone an activation reads a keyword's pool out of, plus the
   // one window each such action offers. A `skills:` list whose kinds share no
@@ -223,12 +222,12 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // different lines' — both said at the making of a game rather than in the
   // middle of one (#147).
   for (const zone of ACTIVATION_ZONE_NAMES) {
-    if (!places.has(zone)) throw new RulesetBroken(ARENA_GAME, `a skill is used out of the ${zone}, which it declares no zone for`);
+    if (!places.has(zone)) throw new RulesetBroken(gameId, `a skill is used out of the ${zone}, which it declares no zone for`);
   }
   for (const def of Object.values(game.actions)) {
     if (!def.skills) continue;
     windowOf(game, def);
-    if (def.do.length) throw new RulesetBroken(ARENA_GAME, `DEFINE ACTION ${JSON.stringify(def.name)} is about skill lines and carries a DO, and the program a line runs is its own card_rules record's`);
+    if (def.do.length) throw new RulesetBroken(gameId, `DEFINE ACTION ${JSON.stringify(def.name)} is about skill lines and carries a DO, and the program a line runs is its own card_rules record's`);
   }
   // `turnPhases` is read here so a game with no turn declared is refused at
   // creation rather than when the first turn is due to begin.
@@ -243,7 +242,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // `attributes.rules` would otherwise leave a cost reducer read by nothing,
   // which is a card played for the wrong price and nothing saying so.
   const layerGaps = costLayerGaps(game);
-  if (layerGaps.length) throw new RulesetBroken(ARENA_GAME, `the cost layers this interpreter reads do not match the declarations: ${layerGaps.join("; ")}`);
+  if (layerGaps.length) throw new RulesetBroken(gameId, `the cost layers this interpreter reads do not match the declarations: ${layerGaps.join("; ")}`);
 
   const events: GameEvent[] = [];
   const state: VmState = {
@@ -283,7 +282,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
       const id = `${p}#${n++}`;
       state.cards[id] = newCard(id, cardId, p, isZ(ctx.defs[cardId]));
       const placed = moveCard(state, game, id, zone, { owner: p });
-      if (!placed.ok) throw new RulesetBroken(ARENA_GAME, `a card cannot be placed in the ${zone}: ${placed.refused}`);
+      if (!placed.ok) throw new RulesetBroken(gameId, `a card cannot be placed in the ${zone}: ${placed.refused}`);
       // 6-2-4: a card arriving somewhere is a `moved` moment even here, which
       // is how "when your Leader is placed" is answered without this function
       // naming a trigger — `moved(to: leader)` is a declaration and the leader

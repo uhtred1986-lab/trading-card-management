@@ -12,6 +12,7 @@
 
 import type { CardFilter } from "./text/filters";
 import type { CardScripts, Cond, Op, Selector } from "./vm/script";
+import type { Game } from "../catalog/games";
 
 export type PlayerId = "p1" | "p2";
 export const PLAYERS: PlayerId[] = ["p1", "p2"];
@@ -1417,6 +1418,8 @@ export interface DeckInput {
 
 export interface GameOptions {
   seed: number;
+  /** The game the state is created for (`deckInputFor` returns it beside the deck); `dbs` when absent. */
+  game?: Game;
   p1: DeckInput;
   p2: DeckInput;
 }

@@ -277,7 +277,7 @@ export async function startGame(
   await persistReplayBundle(db, bundle);
   const ctx = await pinnedContext(bundle);
   const seed = seedFrom(`${p1DeckId}:${p2DeckId}:${Date.now()}`);
-  const { state, events } = RULES.createGame(ctx, { seed, p1: a.input, p2: b.input });
+  const { state, events } = RULES.createGame(ctx, { seed, game: a.game, p1: a.input, p2: b.input });
   const [row] = await db
     .insert(arenaGames)
     .values({

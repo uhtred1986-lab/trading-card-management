@@ -1,0 +1,864 @@
+-- Every keyword skill KEYWORD_NAMES (vm/script-schema.ts) lists, in that
+-- order. TAKES is the arity KeywordSkill (types.ts) carries and
+-- keywordOf (text/cards.ts) reads back; scripts/verify/rulesets.ts checks
+-- both against this file. text: is the glossary's meaning line, verbatim
+-- (src/lib/arena/glossary.ts) — /arena/rules/keywords renders it from here
+-- rather than from glossary.ts since #163, and scripts/verify/game-page.ts
+-- holds the two equal so the page and the record cannot quietly disagree.
+--
+-- Nineteen HOOK bodies over eighteen keywords, written by Stage 7's four hook
+-- groups (#154-#157) against the contract #153 built, and [Ultimate]'s
+-- wouldLeave (1 Oct 2026): [Field]'s onEnter,
+-- [Indestructible]'s koByEffect, [Barrier]'s chooseable, [Deflect]'s
+-- counterWindow, [Servant]'s attrBonus and activeStep, [Energy-Exhaust]'s
+-- chargeLimit, [Unique]'s playRefused, [Warrior of Universe 7]'s and
+-- [Invoker]'s altPayment, [Empower]'s markerCarry, [Heroic]/[Villainous]'s
+-- afterSkill,
+-- [Critical]/[Strike]/[Victory Strike]'s beforeDamage and [Revenge]/
+-- [Attack]'s battleEnd. Every other keyword's
+-- own moments are still the engine's, and each one's trailing comment says
+-- which group looked at it and why it is deferred — the header used to say
+-- "no HOOK bodies yet", which stopped being true at #154 and was found by
+-- #166's pre-flip review.
+--
+-- Eighteen DO bodies, the whole-keyword activations that are no hook at all
+-- (docs/arena-ruleset-spec.md §4.4): [Overlord], [Evolve], [Union],
+-- [Successor], [Arrival], [Aegis], [Rejuvenate], [Z-Awaken], [Wish],
+-- [Awaken], [Over Realm] and [Swap] are moves (`offer:`),
+-- each offered as an [Activate: Main] — [Arrival] and [Aegis] an [Activate:
+-- Battle], [Wish] and [Awaken] both — line with its own REFUSE and menu
+-- words ([Wish] and [Awaken] with an AFTER as well), and [Offering],
+-- [Z-Stack], [Revive], [Alliance], [Revenge] and [Attack] answer a moment
+-- (`at:`), pended like an [Auto] — [Alliance] running its printed effect
+-- where its DO says (`printedEffect`), the last two with an empty DO,
+-- announced as the legacy engine announces them, their effect a battleEnd
+-- HOOK. 9-1-4 immunity printed as a [Permanent] is no keyword at all and is
+-- read beside the other statics (`vm/effects.ts`, #154). Any other of that
+-- shape still to write says what it is missing in its trailing comment.
+-- [Spirit Boost] needs no body: it is a price (costs.rules' spiritBoost).
+
+-- 22-2
+DEFINE KEYWORD Awaken
+  TAKES (surge: boolean)
+  text: "A Leader's own skill. Meet the printed condition, pay the cost, carry out the effect, then flip the Leader onto its awakened side. [Awaken: Surge] is the same skill under another name, and card text saying “[Awaken] skills” means both."
+  -- #156: [Wish]'s body under its own name (22-2-4 and 22-25-4 are the same
+  -- rule) — a move offered at the Main Phase and at the combo prompt from a
+  -- face-up Leader that prints an awakened side, while the printed condition
+  -- (the record's hoisted price condition) holds; the line's effect runs, and
+  -- `AFTER` flips the Leader once it has, even when the effect stopped to ask
+  -- something. [Awaken: Surge] is the same move: `surge` changes nothing the
+  -- engine does, on either engine, and the menu says "Awaken" for both.
+  offer: "activate:main/battle"
+  REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
+  REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
+  REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  label: "Awaken: {card} → {back}"
+  DO {}
+  AFTER {
+    flip(target: [self])
+  }
+
+-- 22-25
+DEFINE KEYWORD Wish
+  TAKES ()
+  text: "The same shape as [Awaken]: a condition, an effect, and then the Leader is flipped over."
+  -- #155: a move, offered at the Main Phase and at the combo prompt from a
+  -- face-up Leader that prints an awakened side, while the printed condition
+  -- holds (the record hoists it into the line's price, 9-1-3). The effect is
+  -- the line's own; the flip is the keyword's, and comes after it (`AFTER`,
+  -- 22-25-4) even when the effect stops to ask something — the legacy engine
+  -- queues it ahead for the same reason. [Awaken] (22-2) is the same body,
+  -- declared by #156.
+  offer: "activate:main/battle"
+  REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
+  REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
+  REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  label: "Wish: {card} → {back}"
+  DO {}
+  AFTER {
+    flip(target: [self])
+  }
+
+-- 22-3
+DEFINE KEYWORD Field
+  TAKES ()
+  text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
+  -- A move (2 Oct 2026), offered as an [Activate: Main] from the hand
+  -- (22-3-2) — and at [Activate: Battle] timings as well while a [Permanent]
+  -- permits it for this card (`permit(what: fieldBattle)`, BT29-041/-042),
+  -- which `vm/activate.ts`'s `activationsOf` reads as widening the line's
+  -- kind to `activate:main/battle`. The price is the Extra's own energy cost
+  -- (12-2-2, `boundFor`), and the Extra is not put in the Drop as an Extra
+  -- used from the hand otherwise is: the `DO` plays it into the Battle Area in
+  -- Active Mode, and the onEnter hook below drops the [Field] Extra already
+  -- out (22-3-5). One difference from the legacy engine, recorded: the label
+  -- does not add the cost in brackets.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  label: "Field: place {card}"
+  DO {
+    play(target: [self])
+  }
+  HOOK onEnter {
+    choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
+    moveTo(target: $t, to: drop)
+  }
+
+-- 22-4
+DEFINE KEYWORD Blocker
+  TAKES ()
+  text: "When one of your other cards is attacked, switch this card to Rest Mode to become the guard card instead."
+  -- Stage 7 (#153–#157)
+
+-- 22-6
+DEFINE KEYWORD Critical
+  TAKES ()
+  text: "Life damage this card deals by attacking goes to the opponent's Drop Area instead of their hand."
+  -- #156: read as the attacker's damage lands (`beforeDamage`, a query hook
+  -- so it changes this damage rather than a later one): the life cards go
+  -- to the Drop face up, and "when your life is placed in your Drop" hears
+  -- the move. Battle damage only, as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(to: drop)
+  }
+
+-- 22-7
+DEFINE KEYWORD Strike
+  TAKES (x: number)
+  text: "When this card would deal less than X life damage by attacking, it deals X instead — 2, 3 or 4."
+  -- #156: the same hook as [Critical]: X life damage to a Leader, and X
+  -- markers off a Unison guard (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(atLeast: $x)
+  }
+
+-- 22-8
+DEFINE KEYWORD Attack
+  TAKES (x: number)
+  text: "When this card attacks, it switches back to Active Mode at the end of the battle — X−1 times a turn."
+  -- #156: two halves, as the legacy engine has them. The line answers
+  -- `attacks` (`at:`), so it is announced as the card attacks, as the legacy
+  -- `keywordTriggers` case is. The stand is the `battleEnd` hook, run on the
+  -- attacker at the Battle End Step after a guard's [Revenge]: while the card
+  -- is still in play and has declared fewer than X attacks this turn — the
+  -- one ending included — it switches to Active Mode (22-8-3). The legacy
+  -- engine counts the stands granted (`extraAttacks`); this counts the
+  -- attacks (`attacked`), which is the same number on a card that has
+  -- attacked only with the keyword.
+  at: [attacks]
+  DO {}
+  HOOK battleEnd {
+    if(cond: all([inBattle(sel: [self], role: attacker), any([count([self] IN you.battle) >= 1, count([self] IN you.leader) >= 1]), NOT attacked(sel: [self], atLeast: $x)]), then: {
+      switchMode(target: [self], mode: active)
+    })
+  }
+
+-- 22-9
+DEFINE KEYWORD Revenge
+  TAKES ()
+  text: "When this card becomes the guard card, KO the attacking card at the end of the battle."
+  -- #156: two halves, as the legacy engine has them. The line answers
+  -- `attacked` (`at:`), so it pends and is announced as the card becomes the
+  -- guard — when it is attacked, or when it blocks — exactly as the legacy
+  -- `keywordTriggers` case is; its `DO` has nothing of its own to do. The KO
+  -- is the contract's own worked example, `HOOK battleEnd`, which
+  -- `vm/battle.ts`'s Battle End Step fires on both cards of the fight — the
+  -- body acts only on the one that is the guard then — after the combo cards
+  -- have gone to the Drop and before
+  -- `state.battle` clears — the legacy `battleCleanup` order. A Battle Card
+  -- attacker only, as there (a Leader is not KO'd by it). The Revenge card
+  -- need not survive the fight: a card KO'd by the battle still answers.
+  at: [attacked]
+  DO {}
+  HOOK battleEnd {
+    if(cond: all([inBattle(sel: [self], role: guard), count([attacker] IN opponent.battle) >= 1]), then: {
+      ko(target: [attacker])
+    })
+  }
+
+-- 22-12
+DEFINE KEYWORD Indestructible
+  TAKES ()
+  text: "This card can't be KO'd or moved out of your Battle Area by the opponent's skills or as a result of battle."
+  -- #154: the "as a result of battle" half is read directly in
+  -- `vm/battle.ts`'s `damageWork`, not through this hook — a battle's own KO
+  -- is not an effect's. A skill's KO is real since #146 (`vm/host.ts`), and
+  -- the shared interpreter's `ko` case skips an opponent's [Indestructible]
+  -- card itself, before this hook is asked — see docs/arena-ruleset-spec.md §4.3.
+  HOOK koByEffect {
+    forbid(what: beKOdBySkill, side: opponent, until: game)
+    forbid(what: beMovedBySkill, side: opponent, until: game)
+  }
+
+-- 22-16
+DEFINE KEYWORD Barrier
+  TAKES ()
+  text: "This card can't be chosen by the skills of cards your opponent masters."
+  HOOK chooseable {
+    forbid(what: beChosen, side: opponent, until: game)
+  }
+
+-- 22-20
+DEFINE KEYWORD Deflect
+  TAKES ()
+  text: "This card isn't affected by your opponent's [Counter: Play] skills. Valid in every area."
+  -- #150: asked of the card being played when its [Counter: Play] window
+  -- opens (`vm/battle.ts`'s `windowClosedBy`), read declaratively like every
+  -- query hook — a forbid on activating a counter empties the window, the
+  -- legacy `counterCandidates`' own first line.
+  HOOK counterWindow {
+    forbid(what: activateCounter, side: opponent, until: game)
+  }
+
+-- 22-39
+DEFINE KEYWORD Unique
+  TAKES ()
+  text: "While a card with [Unique] is in play you can't play another card with the same name. If two are somehow in play at once, their master keeps one and drops the rest."
+  -- #157: asked of every card in play when a play is checked
+  -- (`vm/program.ts`'s `forbiddenBy`) — the rule is the in-play card's, and it
+  -- refuses its master's declared play of a card with its name, as the legacy
+  -- `canPlay`/`whyNotPlay` do; a play a skill makes is not refused here, as it
+  -- is not there. 21-11's half — two in play at once, the master keeps one —
+  -- is interruptive rule processing, run by the interpreter itself
+  -- (`vm/unique.ts`, #730), not by a hook.
+  HOOK playRefused {
+    forbid(what: play, side: you, sameNameAsSelf: true, bySkill: false, until: game)
+  }
+
+-- 22-40
+DEFINE KEYWORD Servant
+  TAKES ()
+  text: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase."
+  -- #154 (hook group A) builds the power half (attrBonus); #155 (hook
+  -- group B) the Charge Phase half (activeStep).
+  HOOK attrBonus {
+    modifyAttr(target: [self], attr: power, amount: 10000)
+  }
+  HOOK activeStep {
+    forbid(what: switchToActive, until: game)
+  }
+
+-- 22-31
+DEFINE KEYWORD "Energy-Exhaust"
+  TAKES ()
+  text: "When this card is placed in an Energy Area, it arrives in Rest Mode. Valid in every area."
+  HOOK chargeLimit {
+    modifyAttr(target: [self], attr: mode, mode: rest)
+  }
+
+-- 22-18
+DEFINE KEYWORD "Victory Strike"
+  TAKES ()
+  text: "Deal life damage by attacking with this card and you win the game."
+  -- #156: the same hook: once its life damage has landed (and its moments
+  -- fired) the game ends in its master's favour (22-18-2), and against a
+  -- Unison guard it takes every marker (13-5-2-2), as on the legacy engine.
+  HOOK beforeDamage {
+    battleDamage(allMarkers: true, wins: true)
+  }
+
+-- 22-19
+DEFINE KEYWORD "Warrior of Universe 7"
+  TAKES ()
+  text: "Treat your ≪Universe 7≫ cards in every area as having no specified cost — the coloured part of a play's price."
+  -- #154: an `altPayment` body, read as a standing change the way a
+  -- [Permanent]'s program is (`vm/program.ts`'s statics): while the card is
+  -- your Leader or in your Battle Area — the legacy `playCost`'s two places —
+  -- your ≪Universe 7≫ cards where a price is asked, the hand and the Z-Deck,
+  -- have no specified cost, after every other change to it (22-19-2). The
+  -- total is untouched. The trait is matched as a trait, where the legacy
+  -- engine looks for "universe 7" anywhere in one.
+  HOOK altPayment {
+    if(cond: any([count([self] IN you.leader) >= 1, count([self] IN you.battle) >= 1]), then: {
+      costReduction(target: "≪Universe 7≫ card" IN you.hand|zDeck, amount: 0, what: specified, all: true)
+    })
+  }
+
+-- 22-14
+DEFINE KEYWORD Ultimate
+  TAKES ()
+  text: "A deck may hold at most one card with [Ultimate], and a card with it that leaves play is removed from the game rather than going anywhere else."
+  -- 22-14-3 is a replacement (9-10): the card leaving play or a Combo Area
+  -- for anywhere but another of those goes to `removed` *instead* — one move,
+  -- and the moments of that move. Owner's decision of 1 Oct 2026: it rides on
+  -- the 9-10 replacements (`vm/replace.ts`), not on an `onLeave` query. The
+  -- `wouldLeave` hook is read before the card goes anywhere, its leaf the
+  -- same `replace` record a [Permanent] prints, applied after any
+  -- [Permanent]'s replacement as the card's own rule — the legacy `move`
+  -- folds it into 14-1-4's Z-card line. The cards under it are not
+  -- redirected. The deck limit is `legality`'s, on both engines.
+  HOOK wouldLeave {
+    replace(event: leave, with: {
+      moveTo(target: [self], to: removed)
+    })
+  }
+
+-- 22-17
+DEFINE KEYWORD "Super Combo"
+  TAKES ()
+  text: "A deck may hold at most four cards with [Super Combo], counted across all of them."
+  -- Stage 7 (#153–#157)
+
+-- 22-28
+DEFINE KEYWORD "Dragon Ball"
+  TAKES ()
+  text: "As many copies of a [Dragon Ball] card as you like, as long as no more than seven [Dragon Ball] cards are in the deck all told."
+  -- #155: no body to write — a deck-building rule (`legality`), which no game
+  -- reads on either engine.
+
+-- 22-24
+DEFINE KEYWORD Wormhole
+  TAKES ()
+  text: "[Over Realm] and [Dark Over Realm] may be activated twice a turn between them instead of once."
+  -- #157: no body of its own. Its only effect is [Over Realm]'s limit, and
+  -- that keyword's `REFUSE oncePerTurn` reads it — a second use is allowed
+  -- while a card with [Wormhole] is in your Leader, Battle or Unison Area
+  -- (`count("card with [Wormhole]" IN you.play)`), as on the legacy engine.
+
+-- 22-37
+DEFINE KEYWORD Invoker
+  TAKES ()
+  text: "A Red/Blue multicolour Extra Card in your hand may be activated by switching one active Red/Blue multicolour energy to Rest Mode instead of paying its energy cost."
+  -- #155: an `altPayment` body, read as a standing change the way [Warrior
+  -- of Universe 7]'s is, off the card while it is in play (the legacy
+  -- `cardsInPlay`): your Red/Blue multicolour Extra Cards in the hand may be
+  -- played — which is how an Extra is used from there (4-2), so `DEFINE
+  -- ACTION activate` says `alt: "play"` — for one energy that only an active
+  -- Red/Blue multicolour card in your Energy Area may pay, rested where it
+  -- stands (`rest`). The line's own orbs are still paid, out of what is left.
+  HOOK altPayment {
+    altCost(target: (type = EXTRA AND colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.hand, pay: energy, orbs: [any], for: play, rest: (colors = [Red, Blue] AND multiColor = true AND notColors = [Green, Yellow, Black, White, Colorless]) IN you.energy active)
+  }
+
+-- 22-35
+DEFINE KEYWORD Heroic
+  TAKES ()
+  text: "When you play another Battle Card with [Heroic], or activate a [Heroic] Extra Card skill, draw 1 card, then negate the effects of this skill for the rest of the turn."
+  -- Hook frames carry the printed keyword skill index, so this uses the same
+  -- timed 9-1-5 negation as any other skill that negates itself.
+  HOOK afterSkill {
+    if(cond: any([count("Battle Card with [Heroic]" FROM $source) >= 1, count("Extra Card with [Heroic]" FROM $activatedExtra) >= 1]), then: {
+      draw(n: 1)
+      negateOwnSkill(until: turn)
+    })
+  }
+
+-- 22-36
+DEFINE KEYWORD Villainous
+  TAKES ()
+  text: "When you play another Battle Card with [Villainous], or activate a [Villainous] Extra Card skill, your opponent chooses a card in their hand and drops it; the skill is then negated for the rest of the turn."
+  -- Match the individual printed or granted identity carried by afterSkill.
+  HOOK afterSkill {
+    if(cond: any([count("Battle Card with [Villainous]" FROM $source) >= 1, count("Extra Card with [Villainous]" FROM $activatedExtra) >= 1]), then: {
+      choose(sel: 1 IN opponent.hand, chooser: opponent, as: "t")
+      moveTo(target: $t, to: drop)
+      negateOwnSkill(until: turn)
+    })
+  }
+
+-- 22-33
+DEFINE KEYWORD Offering
+  TAKES ()
+  text: "When this Battle Card is played, your opponent may put one of their life cards in their Drop Area. If they don't, you draw 2 cards."
+  -- A whole-keyword activation that answers a moment (`at:`): the line pends
+  -- at `played` as an [Auto] whose record said so would, and its `DO` runs as
+  -- it resolves. The question is the opponent's, worded as the legacy
+  -- engine's own `offering` prompt words its two answers, and the life card
+  -- that goes is the top one, as it is there; with no life left there is
+  -- nothing to ask and the draw simply happens (the legacy engine's own
+  -- shortcut). One difference, recorded rather than matched: the question
+  -- is the general `chooseMode` prompt here, not a prompt kind of its own.
+  at: [played]
+  DO {
+    if(cond: count(IN opponent.life) >= 1, then: {
+      chooseMode(modes: ["Drop 1 life (deny the draw)" {
+        moveTo(target: TOP 1 IN opponent.life, to: drop, reveal: true)
+      }, "Keep life (opponent draws 2)" {
+        draw(n: 2)
+      }], reason: "[Offering]: drop 1 life, or your opponent draws 2", chooser: opponent)
+    }, else: {
+      draw(n: 2)
+    })
+  }
+
+-- 22-5
+DEFINE KEYWORD Evolve
+  TAKES (variant: string)
+  text: "From hand: pay the cost, choose one of your Battle Cards matching the printed description, and play this card on top of it. [Xeno-Evolve] sends the chosen card to the Warp instead of stacking onto it."
+  -- A move (#157), offered as an [Activate: Main] used from the hand (22-5-2)
+  -- while a Battle Card matching the printed description is out — `asPrinted`
+  -- reads "<V1>" off the line, the legacy `parseFilter(sk.effect || sk.cost)`.
+  -- The price is the line's printed orbs. "when you use this card's [Evolve]
+  -- from your hand" is the move's `keywordActivated(from: hand)`. The stack
+  -- keeps the host's place, mode and power effects (`play … onto`,
+  -- `vm/play.ts`'s `stackOnto`). [Xeno-Evolve] sends the host to the Warp and
+  -- plays this card beside where it was (22-5-6). A base named with the
+  -- activation (`onto`, offered where a price change is scoped to that base —
+  -- EX03-16, `vm/activate.ts`'s `evolveOntoBases`) arrives already bound as
+  -- `$base`, and is not asked for again.
+  -- #825: resolution revalidates that bound base through the counter window.
+  -- The marked play announces `evolved` only on success; the Xeno play moves
+  -- the base to Warp immediately before landing, after the counter response.
+  -- #926: an action printed with the orbs ("{r}{r}{r}, draw 1 card",
+  -- BT13-024) is the skill cost too (22-5-3), paid first on the strict
+  -- action-price host (`payActionPrice`, `vm/keyword-costs.ts`); the move is
+  -- offered only while it can be paid in full, and announced once it is.
+  -- #917: BT19-077/078/081/082 print "This card's [EX-Evolve] can also be
+  -- activated from your Z-Energy" (a `permit` of `evolveFromZEnergy`, official
+  -- card Q&A on BT19-077): the evolving card may be used from the Z-Energy Area
+  -- as well as the hand. The base is still chosen in the Battle Area, the mode
+  -- is the ordinary one, and `keywordActivated(from: ...)` carries the real
+  -- source, so `evolveFromHandActivated` does not fire for a Z-Energy use.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, all([permits(what: evolveFromZEnergy), count([self] IN you.zEnergy) >= 1])])
+  REFUSE target(reason: "no specified evolution base in an allowed area") UNLESS any([count((type = BATTLE) IN you.battle asPrinted) >= 1, all([permits(what: evolveEnergyBases), count((type = BATTLE) IN you.energy asPrinted) >= 1])])
+  label: "{variant} {card} onto a {line}"
+  DO {
+    payActionPrice()
+    if(cond: count(FROM $base) <= 0, then: {
+      if(cond: permits(what: evolveEnergyBases), then: {
+        choose(sel: 1 (type = BATTLE) IN you.ANY(battle|energy) asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+      }, else: {
+        choose(sel: 1 (type = BATTLE) IN you.battle asPrinted, as: "base", reason: "[Evolve]: choose the card to evolve")
+      })
+    })
+    if(cond: oneOf(value: $variant, of: ["Xeno-Evolve"]), then: {
+      play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "Xeno-Evolve", counterWindow: true)
+    }, else: {
+      if(cond: oneOf(value: $variant, of: ["EX-Evolve"]), then: {
+        play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "EX-Evolve", counterWindow: true)
+      }, else: {
+        play(target: [self], onto: FROM $base (type = BATTLE) IN you.ANY(battle|energy) asPrinted, using: "Evolve", counterWindow: true)
+      })
+    })
+  }
+
+-- 22-13
+DEFINE KEYWORD Union
+  TAKES (variant: string)
+  text: "Three ways to play a Battle Card by naming characters. Fusion drops one of each named character from your hand, both of equal power. Potara plays this card on top of two named characters in your Battle Area. Absorb is activated from the Battle Area, and its text says which card is played onto this one."
+  -- A move (#157), one declaration for its three variants, told apart by
+  -- `oneOf(value: $variant, …)`. Fusion and Potara are used from the hand and
+  -- need each character the line names in ‹…› on a different card
+  -- (`eachNamed`) — in the hand, of one power, for Fusion (22-13-4); in the
+  -- Battle Area for Potara (22-13-5). Absorb is used from the Battle Area
+  -- (22-13-6-2) and its `DO` does nothing of its own: the line's printed
+  -- effect, which runs after the `DO` of every keyword move, is what says
+  -- which card is played onto this one. "when you activate a [Union] skill"
+  -- and "when this card's [Union-Absorb] is activated" are the move's
+  -- `keywordActivated` under both names. An action Fusion or Potara prints
+  -- with its orbs ("draw 1 card", "place the top card of your opponent's
+  -- deck into its owner's Drop") is paid where `payActionPrice` says, on the
+  -- strict action-price host (#926); the move is offered only while it can
+  -- be paid in full, and announced, its moments fired, once it is.
+  -- #929: the play is an activated skill with "play" in it, so the opponent's
+  -- [Counter: Play] is pending (22-10-3-1) at both counter timings the official
+  -- FAQ names (BT1-107 Q4/Q5/Q6, BT1-110 Q3/Q4/Q5): after the costs are paid
+  -- and before the card is placed (`counterWindow: true`), and again once it
+  -- is in play (`vm/host.ts`'s `playThen` opens the second for a `Union-*`
+  -- play). `using:` marks the play as this keyword's: the engine binds the
+  -- card, its host and its materials, and a card that fails to enter play
+  -- is placed in the Drop (22-13-4-5-1, 22-13-5-4-2), unless a counter's
+  -- "returned to its owner's hand instead of being played" took it.
+  offer: "activate:main"
+  REFUSE zone(area: battle) UNLESS any([NOT oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.battle) >= 1])
+  REFUSE zone(area: hand) UNLESS any([oneOf(value: $variant, of: ["Absorb"]), count([self] IN you.hand) >= 1])
+  REFUSE target(reason: "needs {names} in hand") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf)]), all([permits(what: unionFusionDropBottom), eachNamed(sel: "Battle Card" IN you.ANY(hand|drop) otherThanSelf)])])
+  REFUSE target(reason: "the two cards must have equal power") UNLESS any([NOT oneOf(value: $variant, of: ["Fusion"]), all([NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.hand otherThanSelf, samePower: true)]), all([permits(what: unionFusionAreas), eachNamed(sel: IN you.ANY(hand|battle|drop) otherThanSelf, samePower: true)]), all([permits(what: unionFusionWarp), eachNamed(sel: "Battle Card" IN you.ANY(hand|warp) otherThanSelf, samePower: true)]), all([permits(what: unionFusionDropBottom), eachNamed(sel: "Battle Card" IN you.ANY(hand|drop) otherThanSelf, samePower: true)])])
+  REFUSE target(reason: "needs {names} in your Battle Area") UNLESS any([NOT oneOf(value: $variant, of: ["Potara"]), eachNamed(sel: IN you.battle), all([permits(what: unionEnergy), NOT permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy))]), all([permits(what: unionFusionWarp), NOT permits(what: unionEnergy), eachNamed(sel: IN you.ANY(battle|warp))]), all([permits(what: unionEnergy), permits(what: unionFusionWarp), eachNamed(sel: IN you.ANY(battle|energy|warp))])])
+  REFUSE other(detail: "not yet: combining Drop-to-bottom Fusion permission with Warp or Battle/Drop-to-Warp permissions") UNLESS any([NOT permits(what: unionFusionDropBottom), all([NOT permits(what: unionFusionWarp), NOT permits(what: unionFusionAreas)])])
+  label: "Union-{variant} {card}"
+  DO {
+    if(cond: oneOf(value: $variant, of: ["Fusion"]), then: {
+      -- 22-13-4-2-1, BT31-001 (owner's ruling of 13 Oct 2026): a [Permanent]
+      -- that widens the choice to the Battle Area and the Drop. Each named card
+      -- then comes from any of the three areas; the hand's go to the Drop
+      -- (22-13-4-4) and the others to their owner's Warp.
+      -- This card's own permission (BT12-136/137, P-286) adds Warp;
+      -- each chosen card still goes to Drop, including hand/Warp mixes.
+      if(cond: permits(what: unionFusionDropBottom), then: {
+        choose(sel: 2 "Battle Card" IN you.ANY(hand|drop) otherThanSelf, as: "pair", namedSet: true, permission: unionFusionDropBottom, reason: "[Union-Fusion]: choose the named materials; chosen Drop cards go to your deck bottom in this chosen order")
+        moveTo(target: $pair MINUS $pairOutside, to: drop, cause: cost)
+        moveTo(target: $pairOutside, to: deck, position: bottom, cause: cost)
+      }, else: {
+      if(cond: permits(what: unionFusionWarp), then: {
+        choose(sel: 2 "Battle Card" IN you.ANY(hand|warp) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards from hand or Warp")
+        moveTo(target: $pair, to: drop, cause: cost)
+      }, else: {
+        if(cond: permits(what: unionFusionAreas), then: {
+          choose(sel: 2 IN you.ANY(hand|battle|drop) otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards")
+          moveTo(target: $pair MINUS $pairOutside, to: drop, cause: cost)
+          moveTo(target: $pairOutside, to: warp, cause: cost)
+        }, else: {
+          choose(sel: 2 IN you.hand otherThanSelf, as: "pair", namedSet: true, reason: "[Union-Fusion]: choose the named cards to drop")
+          moveTo(target: $pair, to: drop, cause: cost)
+        })
+      })
+      })
+      -- 22-13-4-4-1 (#926): with the materials in the Drop, the rest of the
+      -- skill cost — an action printed with the orbs, "draw 2 cards" — is paid.
+      payActionPrice()
+      play(target: [self], using: "Union-Fusion", counterWindow: true)
+    })
+    if(cond: oneOf(value: $variant, of: ["Absorb"]), then: {
+      -- 22-13-6-1 (#930): "cost : effect". The materials the cost places under
+      -- this card (BT3-070, BT17-052, ...) are paid in full, or the skill is not
+      -- activated; the printed effect, which runs after this `DO`, then says
+      -- which card is played onto this one.
+      payActionPrice()
+    })
+    if(cond: oneOf(value: $variant, of: ["Potara"]), then: {
+      -- 22-13-5-2 (#926): the skill cost is paid as it is activated.
+      payActionPrice()
+      -- 22-13-5-2 (#925): both cards are chosen before the card is played,
+      -- one distinct Battle Card per specified character, each meeting only
+      -- the words printed beside its own name, with no equal-power
+      -- requirement (`anyPower`: Potara asks for none). The card is played
+      -- onto the first chosen and the other goes under it (22-13-5-4, "in any
+      -- order"; #927, labelled best guess: the order picked is the stack,
+      -- top to bottom - the first directly beneath the card), in Active Mode
+      -- (the printed reminder "Place this card in Active Mode on top of the 2
+      -- specified cards", and the official keyword page). Power effects of
+      -- both materials and their piles carry over (22-13-5-4-1).
+      -- 22-13-5-2-1 (#930): a [Permanent] on this card widens where they are
+      -- chosen from - the energy (BT10-046 with 4 or more energy, BT10-053 with
+      -- 3 or more, P-220) or the Warp (BT10-132, P-230). Two more are read by
+      -- `namedCandidates` itself (#927): the pile under the master's black
+      -- Z-Unison (BT24-112 back) and Battle Cards the master owns in the
+      -- opponent's Battle Area (BT20-125).
+      if(cond: all([permits(what: unionEnergy), permits(what: unionFusionWarp)]), then: {
+        choose(sel: 2 IN you.ANY(battle|energy|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+      }, else: {
+        if(cond: permits(what: unionEnergy), then: {
+          choose(sel: 2 IN you.ANY(battle|energy), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+        }, else: {
+          if(cond: permits(what: unionFusionWarp), then: {
+            choose(sel: 2 IN you.ANY(battle|warp), as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+          }, else: {
+            choose(sel: 2 IN you.battle, as: "pair", namedSet: true, anyPower: true, reason: "[Union-Potara]: choose the named cards in the order they stack under this card (the first directly beneath it)")
+          })
+        })
+      })
+      -- 22-13-5-2-1-1 (#930): "first move any Battle Cards in that area to the
+      -- Battle Area, and then resolve the keyword skill normally"; the move
+      -- causes no area-movement Auto and no counter timing (`areaExtension`).
+      -- The cards from under a Unison and from the opponent's Battle Area (#927)
+      -- are brought the same way by `playThen`, as the play is declared; for
+      -- BT20-125, which is played in the opponent's Battle Area, every material
+      -- is brought there.
+      moveTo(target: FROM $pair IN you.ANY(energy|warp), to: battle, cause: areaExtension)
+      play(target: [self], onto: $pairFirst, alsoUnder: $pairRest, mode: active, using: "Union-Potara", counterWindow: true)
+    })
+  }
+
+-- 22-15, 22-23
+DEFINE KEYWORD "Over Realm"
+  TAKES (x: number, dark: boolean)
+  text: "With X or more cards in your Drop Area — X or more black cards, for the dark one — send your whole Drop Area to the Warp as the cost and play this card from hand. The two share one activation a turn. A card played with [Over Realm] goes to the Warp at the end of that turn."
+  -- A move (#157), offered as an [Activate: Main] from the hand, as the
+  -- legacy `activatable` case gates it: the two variants share one use a
+  -- turn, two while a card with [Wormhole] is in play (22-24) — a counted
+  -- player fact (`overRealms`, attributes.rules) — and want X or more cards
+  -- in the Drop, black ones for the dark variant (`flag(value: $dark)`).
+  -- The price is the line's printed orbs. Taken, the use is counted, the
+  -- whole Drop goes to the Warp as the cost, the card is scheduled back to
+  -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
+  -- ask for — the legacy engine's approximation, kept so the two agree), and
+  -- it is played through the [Counter: Play] window. "when you play a card
+  -- using [Over Realm]" is the move's `keywordActivated`; "when this card is
+  -- played using [Over Realm]" is the play's own `moved`, which `using:` marks
+  -- as this keyword's (`playedUsingOverRealm`). One difference,
+  -- recorded: the refusal for too few cards does not add "(N there)".
+  -- From the Warp as well (owner-approved 2 Oct 2026) while the card's own
+  -- [Permanent] says "This card's [Over Realm] skill can be activated from
+  -- its owner's Warp under the same conditions as if it were in your hand"
+  -- (BT31-150): a `permit` of `overRealmFromWarp`, read in the Warp. The
+  -- `activate` action's FOR names the Warp, and `vm/activate.ts`'s
+  -- `activationsOf` offers no line there but this one, and this one only
+  -- under that permission — so the zone gate below may accept the Warp, and
+  -- every other gate (the count, the shared limit, the whole-Drop cost, the
+  -- return to the Warp as the turn ends) is the hand's, unchanged.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS any([count([self] IN you.hand) >= 1, count([self] IN you.warp) >= 1])
+  REFUSE oncePerTurn(what: "Over Realm") UNLESS any([NOT playerAttr(name: "overRealms", atLeast: 1), all([count("card with [Wormhole]" IN you.play) >= 1, NOT playerAttr(name: "overRealms", atLeast: 2)])])
+  REFUSE condition(text: "{x} or more {dark?black }cards in your Drop Area") UNLESS any([all([NOT flag(value: $dark), count(IN you.drop) >= $x]), all([flag(value: $dark), count((colors = [Black]) IN you.drop) >= $x])])
+  -- 0-2-5, 9-2-3: "You can't send cards from Drop Areas to Warps" (BT6-028,
+  -- BT16-001) leaves the price unpayable, so the move is not offered.
+  REFUSE forbidden() UNLESS NOT forbidden(what: dropToWarp, from: drop)
+  label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
+  DO {
+    setPlayerAttr(name: "overRealms", add: 1)
+    moveTo(target: IN you.drop, to: warp, cause: cost)
+    delay(at: turnCleanup, ops: {
+      moveTo(target: [self] IN you.battle, to: warp)
+    }, label: "back to the Warp as the turn ends")
+    play(target: [self], counterWindow: true, using: "Over Realm")
+  }
+
+-- 22-22
+DEFINE KEYWORD Swap
+  TAKES (x: number)
+  text: "Return this Battle Card to your hand and play a named Battle Card with an energy cost of X from your hand in its place."
+  -- A move (#157), offered as an [Activate: Main] from the Battle Area while
+  -- a specified Battle Card with an energy cost of X is in the hand (22-22-3:
+  -- with none to choose it cannot be activated). "Specified" is the
+  -- description printed after the price (22-22-2) — ≪Goku's Lineage≫, "Mono-red
+  -- <Broly: Br>", "Yellow <Frieza> … and [Swap]" — read by `asPrinted` with the
+  -- compiler's filter grammar, on the offer and on the choice alike (#731);
+  -- the legacy engine reads the same description the same way. The price is
+  -- the line's printed orbs and condition; an action printed with them
+  -- (BT4-079) is paid after the energy on the strict action-price host by
+  -- the move's stored continuation (`vm/swap-costs.ts`, #729), before this
+  -- `DO` runs. The card returns to the hand as the cost whether or not one is
+  -- chosen, and the chosen card is played through the [Counter: Play] window.
+  offer: "activate:main"
+  REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
+  REFUSE target(reason: "no specified cost-{x} Battle Card in your hand") UNLESS count((type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted) >= 1
+  label: "Swap {card} for a cost-{x} card from hand"
+  DO {
+    choose(sel: UP TO 1 (type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted, as: "swapIn", reason: "[Swap]: the Battle Card to play in its place, or none")
+    moveTo(target: [self], to: hand, cause: cost)
+    play(target: $swapIn, counterWindow: true)
+  }
+
+-- 22-29
+DEFINE KEYWORD Arrival
+  TAKES (colors: colors)
+  text: "During a battle, when the original colours of the Battle Cards in your Combo Area cover every colour named, pay the cost and play this card from hand."
+  -- #155: a move, offered as an [Activate: Battle] at the combo prompt
+  -- (22-29-4) from the hand, once the cards in your Combo Area carry every original
+  -- colour it names between them (`covers`, 22-29-3). The price is the line's
+  -- printed orbs; the effect is the play itself (22-29-5), through the
+  -- [Counter: Play] window a declared play opens, as on the legacy engine.
+  offer: "activate:battle"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE condition(text: "Battle Cards whose original colours cover {colors:and} in your Combo Area") UNLESS covers(sel: IN you.combo, colors: $colors, original: true)
+  label: "Arrival {colors}: play {card}"
+  DO {
+    play(target: [self], counterWindow: true)
+  }
+
+-- 22-30
+DEFINE KEYWORD Aegis
+  TAKES (colors: colors)
+  text: "In the Defense Step of your opponent's turn, drop cards from your hand covering the named colours to switch up to two of your energy from Rest to Active Mode."
+  -- #154: a move, offered as an [Activate: Battle] at the combo prompt — so
+  -- only in a battle, and the one the non-turn player is asked is the
+  -- Defense Step's (22-30-4) — from a card in play, while the hand can cover
+  -- the original colours (`covers`, `original: true`), for the line's printed orbs, as the legacy
+  -- `activatable` case gates it. The VM's persisted #595 continuation first
+  -- pays the colour cards to Drop, then determines and pays any additional
+  -- cost from the resulting board (22-30-3). Only after the full payment do
+  -- up to two rested energy stand (22-30-5) and the combo prompt is put again.
+  -- Invalid or stale choices are rejected before their payment is applied.
+  offer: "activate:battle"
+  REFUSE timing(window: defense) UNLESS all([isTurnPlayer(who: opponent), asking(prompt: combo)])
+  REFUSE zone(area: battle) UNLESS count([self] IN you.play) >= 1
+  REFUSE condition(text: "cards whose original colours cover {colors:and} in your hand to drop, or an alternative payment a [Permanent] allows") UNLESS any([covers(sel: IN you.hand, colors: $colors, original: true), permits(what: aegisAlt)])
+  label: "Aegis {colors}: drop {colors:and} from hand, stand up to 2 energy"
+  DO {
+    choose(sel: UP TO 2 (originalColors = $colors) IN you.hand, as: "cost", reason: "[Aegis]: drop cards covering the named colours from your hand")
+    if(cond: covers(sel: FROM $cost, colors: $colors, original: true), then: {
+      moveTo(target: $cost, to: drop, cause: cost)
+      choose(sel: UP TO 2 IN you.energy rest, as: "stood", reason: "[Aegis]: energy to switch to Active Mode")
+      switchMode(target: $stood, mode: active)
+    }, else: {
+      note(text: "Aegis: the cards dropped did not cover the colours, so nothing happened")
+    })
+  }
+
+-- 22-32
+DEFINE KEYWORD Alliance
+  TAKES (colors: colors)
+  text: "When this card attacks, you may switch one or more of your other Battle Cards of the named colours to Rest Mode as the cost of the printed effect."
+  -- #154: a moment (`at:`), pended and announced as the card attacks, like
+  -- the legacy `keywordTriggers` case; a condition printed before the colon
+  -- is asked before anyone is asked anything. While the card is the
+  -- attacker, its owner picks any number of their other active Battle Cards
+  -- of the named colours, or none (22-32-3); those are rested as the cost,
+  -- and only then is the printed effect announced and run, with the rested
+  -- cards bound as `rested` — "the total power of the cards switched to Rest
+  -- Mode by this skill" reads them (`printedEffect`). Declined, nothing
+  -- happens. Each rested card answers "when this card is switched to Rest
+  -- Mode by an [Alliance] skill" and not "…by one of your skills", as on the
+  -- legacy engine: the switch names the keyword (`by: Alliance`, #157).
+  at: [attacks]
+  DO {
+    if(cond: inBattle(sel: [self], role: attacker), then: {
+      choose(sel: UP TO 99 (colors = $colors) IN you.battle active otherThanSelf, as: "rested", reason: "[Alliance]: Battle Cards to switch to Rest Mode, or none")
+      if(cond: count(FROM $rested) >= 1, then: {
+        switchMode(target: $rested, mode: rest, by: Alliance)
+        printedEffect()
+      })
+    })
+  }
+
+-- 22-34
+DEFINE KEYWORD Revive
+  TAKES (colors: colors)
+  text: "When this Battle Card is KO'd, drop cards from hand whose original colours cover both named colours to play it back from your Drop Area. [Revive] is then negated on it for the turn."
+  -- #155: a moment (`at:`), pended as the card is KO'd, like the legacy
+  -- `keywordTriggers` case. Asked only while the card is still in the Drop
+  -- and the hand can cover both colours (`covers`); the owner picks up to two
+  -- cards of those colours (`originalColors = $colors`) or none (22-34-3). Cards that
+  -- cover both go to the Drop as the cost, and the card is played back
+  -- through the [Counter: Play] window (22-34-4). The legacy engine remembers
+  -- the revival for the rest of the turn; here [Revive] is negated on the
+  -- card for the turn, as 22-34-4 says, so a second KO that turn pends
+  -- nothing — where the legacy engine announces the skill and does nothing.
+  -- #624 derives a stored hand-cost continuation from this body. Complete
+  -- colour payment precedes live additional Auto price planning; neither
+  -- announcement nor the negation/play effect occurs before full payment.
+  at: [koed]
+  DO {
+    if(cond: all([count([self] IN you.drop) >= 1, covers(sel: IN you.hand, colors: $colors, original: true)]), then: {
+      choose(sel: UP TO 2 (originalColors = $colors) IN you.hand, as: "cost", reason: "[Revive]: drop cards covering both colours to play this card back, or none")
+      if(cond: count(FROM $cost) >= 1, then: {
+        if(cond: all([covers(sel: FROM $cost, colors: $colors, original: true), count([self] IN you.drop) >= 1]), then: {
+          moveTo(target: $cost, to: drop, cause: cost)
+          negateOwnSkill(until: turn)
+          play(target: [self], counterWindow: true)
+        }, else: {
+          note(text: "Revive: the cards chosen did not cover the colours, so it stays in the Drop")
+        })
+      })
+    })
+  }
+
+-- 22-38
+DEFINE KEYWORD Successor
+  TAKES ()
+  text: "Drop any number of mono-green, mono-yellow or Green/Yellow Battle Cards from your Battle Area whose energy costs add up to exactly this card's printed cost, and play it from hand."
+  -- #155: a move, offered as an [Activate: Main] from the hand while the
+  -- green/yellow cards in your Battle Area can make the card's energy cost
+  -- exactly (`sumsTo`, 22-38-2). The cards are picked one at a time, and only
+  -- those that still leave a way to the exact sum are offered (`choose …
+  -- sumTo`, the legacy `successorAsk`); they go to the Drop as the cost and
+  -- the card is played through the [Counter: Play] window (22-38-3/4). The
+  -- price is the line's printed orbs.
+  offer: "activate:main"
+  REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
+  REFUSE target(reason: "no green/yellow Battle Cards adding up to its energy cost") UNLESS sumsTo(sel: (colors = [Green, Yellow] AND notColors = [Red, Blue, Black, White, Colorless]) IN you.battle, attr: energyCost, total: attr([self], energyCost))
+  label: "Successor: play {card} by dropping green/yellow Battle Cards"
+  DO {
+    choose(sel: (colors = [Green, Yellow] AND notColors = [Red, Blue, Black, White, Colorless]) IN you.battle, as: "paid", reason: "[Successor]: green/yellow Battle Cards to drop", sumTo: attr([self], energyCost))
+    if(cond: count(FROM $paid) >= 1, then: {
+      moveTo(target: $paid, to: drop, cause: cost)
+      play(target: [self], counterWindow: true)
+    })
+  }
+
+-- 22-41
+DEFINE KEYWORD Overlord
+  TAKES ()
+  text: "Put one of your Battle Cards with [Servant] at the bottom of your deck as the cost, and draw 1 card."
+  -- A whole-keyword activation that is a move (`offer:`): the line is an
+  -- [Activate: Main] in every sense the `activate` paragraph's gates read
+  -- (negation, 20-14, the window), plus the one requirement 22-41-2 adds.
+  -- The card that pays is chosen; with one [Servant] in play that choice is
+  -- forced and taken without a question, and with several the player picks —
+  -- 22-41-2 says "one of your Battle Cards", where the legacy engine takes
+  -- the first. "when you activate an [Overlord] skill" is the move's
+  -- `keywordActivated` moment (`triggers.rules`' `overlordActivated`).
+  offer: "activate:main"
+  REFUSE target(reason: "no [Servant] in your Battle Area") UNLESS count("card with [Servant]" IN you.battle) >= 1
+  REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
+  label: "Overlord: return a Servant to the deck, draw 1"
+  DO {
+    choose(sel: 1 "card with [Servant]" IN you.battle, as: "servant", reason: "[Overlord]: the [Servant] to put at the bottom of your deck")
+    moveTo(target: $servant, to: deck, position: bottom, cause: cost)
+    draw(n: 1)
+  }
+
+-- 22-42
+DEFINE KEYWORD Rejuvenate
+  TAKES (markers: number, lifeAtMost: number)
+  text: "A Unison Card with cards beneath it: drop one of them and pay the skill cost, then add the top card of your deck to your life."
+  -- #155: a move, offered at the Main Phase from the Unison Area while a card
+  -- is beneath it. 22-42-2 prints the skill cost after the tag, so the card
+  -- parser carries its two numbers as the keyword's parameters: `markers`
+  -- ("Remove N markers from this card") and `lifeAtMost` ("if your life is at
+  -- N or less", left out when the line prints none, and the gate then asks
+  -- nothing). The gates are 13-4's, in the legacy order: enough markers, and
+  -- one marker skill a turn — a move refused by `markerSkillUsed` on its own
+  -- card is a marker skill, so using it spends the lock. The order is the
+  -- legacy one too: DO drops the topmost card from beneath (the legacy
+  -- engine's stated approximation of the master's pick, kept), the line's
+  -- printed effect removes the markers, and AFTER adds the life (22-42-4).
+  offer: "activate:main"
+  REFUSE zone(area: unison) UNLESS count([self] IN you.unison) >= 1
+  REFUSE other(detail: "no card under it to drop") UNLESS count(UNDER ([self]) IN under) >= 1
+  REFUSE other(detail: "needs {markers} markers") UNLESS markers(sel: [self], atLeast: $markers)
+  REFUSE oncePerTurn(what: "marker skill") UNLESS NOT markerSkillUsed(sel: [self])
+  REFUSE condition(text: "your life is at {lifeAtMost} or less") UNLESS life(side: you, atMost: $lifeAtMost)
+  label: "Rejuvenate: {markers} markers and a card from under {card} → +1 life"
+  DO {
+    moveTo(target: UNDER ([self]) TOP 1 IN under, to: drop, cause: cost)
+  }
+  AFTER {
+    moveTo(target: TOP 1 IN you.deck, to: life)
+  }
+
+-- 22-43
+DEFINE KEYWORD "Spirit Boost"
+  TAKES (x: number)
+  text: "Part of a skill's cost: remove X markers from your Unison Card. A skill whose [Spirit Boost] can't be paid can't be activated."
+  -- #157: no body — a price, not a move or a hook. `DEFINE COST spiritBoost`
+  -- (costs.rules) is what paying it does, and the `activate` paragraph's COST
+  -- names it; the activation binds X off the line's tag.
+
+-- 22-45
+DEFINE KEYWORD Empower
+  TAKES (color: color, x: number)
+  text: "When you play this Unison Card over one whose colour matches, you may move up to Y markers from the Unison being replaced onto this one. An [Empower] naming no colour takes them from a Unison of any colour."
+  -- #157: a `markerCarry` HOOK, read as the Unison is played over another.
+  -- Its leaf says how many may come across and from a Unison of which
+  -- colour (any, for an [Empower] naming none); the master is asked how
+  -- many, from none to the least of that and what the old one has, before
+  -- it leaves (owner's ruling 9 Sep 2026, "asked, not assumed"), and the
+  -- carried markers land after the paid ones, naming the card they left —
+  -- the legacy `empowerCarry` prompt and beats.
+  HOOK markerCarry {
+    carryMarkers(upTo: $x, color: $color)
+  }
+
+-- 22-46
+DEFINE KEYWORD "Z-Awaken"
+  TAKES ()
+  text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
+  -- #155: a move, offered at the Main Phase (the legacy window; 22-46-1 also
+  -- allows a battle) from the Z-Deck, where `DEFINE ACTION activate` reads a
+  -- keyword's own move and nothing else, and paying the card's Z-Energy cost
+  -- after the line's orbs (the activation's `zEnergy` price, bound only from
+  -- the Z-Deck). Refused unless the Leader is awakened and no Z-card yet, and
+  -- matches the description the line prints (`asPrinted`). DO plays the card
+  -- onto the Leader: it takes the Leader Area, the old Leader and its pile go
+  -- under it, power effects and a battle role carry over (22-46-6-1), and
+  -- "when your Leader is placed" hears it (22-46-6-3). 22-46-4's once a turn
+  -- needs no count: once it has resolved the Leader is a Z-card, which the
+  -- third REFUSE already refuses, so a second [Z-Awaken] that turn is refused
+  -- by that reason rather than by the legacy `oncePerTurn` one.
+  offer: "activate:main"
+  REFUSE zone(area: zDeck) UNLESS count([self] IN you.zDeck) >= 1
+  REFUSE condition(text: "your Leader is awakened and not yet a Z-Leader") UNLESS all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1])
+  REFUSE target(reason: "your Leader is not {line}") UNLESS count(IN you.leader asPrinted) >= 1
+  label: "Z-Awaken: {card} on your Leader"
+  DO {
+    play(target: [self], onto: IN you.leader)
+  }
+
+-- 22-47
+DEFINE KEYWORD "Z-Stack"
+  TAKES (x: number)
+  text: "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top."
+  -- #155: a moment (`at:`), pended as the card is played and as it is placed
+  -- on the Leader, like the legacy `keywordTriggers` case. The candidates are
+  -- the Z-Deck cards the line's description matches (`asPrinted`), up to X of
+  -- them or none. One difference, recorded rather than copied: each card goes
+  -- straight under (23-2), where the legacy engine logs a move to the Battle
+  -- Area first and then lifts it out of the area again.
+  at: [played, leaderPlaced]
+  DO {
+    choose(sel: UP TO $x IN you.zDeck asPrinted, as: "stack", reason: "[Z-Stack]: cards from your Z-Deck to place under this card")
+    moveTo(target: $stack, to: under, under: [self])
+  }

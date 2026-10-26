@@ -41,7 +41,7 @@ import { AREA_NAMES, CARD_ATTRIBUTES, COLORS, KEYWORD_NAMES, OP_CLASS, OP_SCHEMA
 import type { CounterWindow, KeywordSkill, PlayerId } from "../../src/lib/arena/types";
 import { TRIGGERS, describeTrigger } from "../../src/lib/arena/gaps";
 import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule } from "../../src/lib/arena/lang";
-import { bindKeywordCond, bindKeywordParams, loadRuleset, loadDbs, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
+import { bindKeywordCond, bindKeywordParams, loadRuleset, loadDbs, loadFusion, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { optionsFor, whenMoments, words } from "../../src/lib/arena/rulesets/words";
 import { RULES } from "../../src/lib/arena/vm";
 import { HOOK_CONTRACT, fireHook, hookBodiesFor, queryHookStatics } from "../../src/lib/arena/vm/hooks";
@@ -605,6 +605,13 @@ const COUNTER_WINDOWS = ["play", "attack", "battleCardAttack", "counter", "skill
 // #134's `triggers.rules` and #135's `keywords.rules` make on their own.
 // words.rules and prompts.rules still wait on the owner's word on DEFINE
 // WORDS/PROMPT (#131).
+// What each game's definition is expected to declare. F1-02 edits the `fusion` row when it cuts the
+// zones to 9 and the keywords to 6; the dbs-only assertions below stay on the dbs definition.
+const EXPECTED = {
+  dbs: { id: "dbs", players: 2, hand: 6, life: 8, mulligan: true, zones: 15, keywords: "all" },
+  fusion: { id: "fusion", players: 2, hand: 6, life: 8, mulligan: true, zones: null, keywords: "subset" },
+} as const;
+
 const dbs = loadDbs();
 assert.ok(dbs.ok, `the DBS ruleset did not load: ${dbs.ok ? "" : JSON.stringify(dbs.errors, null, 2)}`);
 if (dbs.ok) {
@@ -770,7 +777,26 @@ if (dbs.ok) {
 }
 assert.equal(loadDbs(), dbs, "the ruleset is parsed again on every read");
 assert.equal(rulesetFor("dbs"), dbs, "a game's ruleset is not the one the loader cached");
-assert.equal(rulesetFor("fusion").ok, false, "Fusion World has no ruleset yet and must say so rather than load an empty one");
+
+// The second game: only what is true of both games. Zones a trigger or action names are resolved by
+// the loader, so `ok` covers them.
+const fusion = loadFusion();
+assert.ok(fusion.ok, `the Fusion World ruleset did not load: ${fusion.ok ? "" : JSON.stringify(fusion.errors, null, 2)}`);
+assert.equal(loadFusion(), fusion, "the ruleset is parsed again on every read");
+assert.equal(rulesetFor("fusion"), fusion, "a game's ruleset is not the one the loader cached");
+assert.equal(rulesetFor("fusion").ok, true);
+if (fusion.ok) {
+  const want = EXPECTED.fusion;
+  const { definition: def, vocabulary: vocab } = fusion;
+  assert.equal(def.id, want.id);
+  assert.equal(def.game?.players, want.players);
+  assert.equal(def.game?.hand, want.hand);
+  assert.equal(def.game?.life, want.life);
+  assert.equal(def.game?.mulligan, want.mulligan);
+  assert.deepEqual(vocab.areas, Object.keys(def.zones), "the vocabulary's areas are not the zones the game declared");
+  const known: readonly string[] = KEYWORD_NAMES;
+  for (const k of Object.keys(def.keywords)) assert.ok(known.includes(k), `the Fusion World ruleset declares [${k}], which the parser does not read`);
+}
 
 // ── completeness against the legacy engine's remaining unions ───────────────
 //
