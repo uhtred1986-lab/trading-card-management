@@ -431,6 +431,19 @@ const NOT_RUNNABLE = new Set(["replaceLeave", "replace", "gains", "negateKeyword
  * run the program as a frame on the flow, so it can stop and ask, and
  * `replacementFor` leaves it unapplied at the 46 that cannot wait.
  */
+/**
+ * "Up to N, one card at a time" (owner's rulings of 20 Oct 2026): `may(step 1)`,
+ * then `if did(may): may(step 2)`, … Written flat — each later offer behind its
+ * own `if` — because only `may` sets the answer, so a decline ends the chain the
+ * same as nesting would, and a chain of five stays inside the validator's depth.
+ */
+function oneAtATime(steps: Op[][], reason: string): Op[] {
+  return steps.flatMap((ops, i): Op[] => {
+    const offer: Op = { op: "may", ops, reason };
+    return i === 0 ? [offer] : [{ op: "if", cond: { kind: "did", what: "may" }, then: [offer] }];
+  });
+}
+
 function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
@@ -1333,14 +1346,21 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       // "If that card is red" after "up to 1" is the one card placed; after
       // "up to 2" no single card is "that card", so nothing is named for it.
       if (n === 1) c.lastNamed = vars[0];
-      let nested: Op[] = [];
-      for (const v of [...vars].reverse()) {
-        const offer: Op = { op: "may", ops: [{ op: "mill", n: 1, as: v }], reason: "place 1 card from the top of your deck in the Drop Area" };
-        nested = nested.length ? [offer, { op: "if", cond: { kind: "did", what: "may" }, then: nested }] : [offer];
-      }
-      return nested;
+      return oneAtATime(vars.map((v): Op[] => [{ op: "mill", n: 1, as: v }]), "place 1 card from the top of your deck in the Drop Area");
     }
     return [{ op: "mill", n: Number(m[2]), ...(m[3] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
+  }
+  // "Send **up to** 3 cards from the top of your deck to your Warp" (BT12-122,
+  // BT16-099/103/104, BT18-130/132, BT29-086…093, TB2-015; owner's ruling of
+  // 20 Oct 2026, recorded on BT12-122 front 20, and of 26 Oct 2026): the same
+  // optional one-card-at-a-time shape as the Drop wording — the top card, then
+  // if you did the next one — never a free pick from the whole deck, which is
+  // what the generic "choose up to N cards in your deck" made of it.
+  if ((m = /^(?:send|place|put) up to (\d+) cards? from the top of your deck (?:to|in|into) (?:your |the |its owner's )?warp$/.exec(t))) {
+    const n = Number(m[1]);
+    const vars = Array.from({ length: n }, () => `w${c.mills++}`);
+    if (n === 1) c.lastNamed = vars[0];
+    return oneAtATime(vars.map((v): Op[] => [{ op: "look", n: 1, as: v }, { op: "moveTo", target: { var: v }, to: "warp" }]), "send the top card of your deck to your Warp");
   }
   // "Draw cards until you have 4 cards in your hand".
   if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];

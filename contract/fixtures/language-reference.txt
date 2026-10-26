@@ -3779,7 +3779,7 @@
     },
     {
       "word": "atRandom",
-      "doc": "the cards are taken with the game's seeded RNG, no player choosing — \"from your opponent's hand at random\" (BT1-073)"
+      "doc": "which cards is the game's seeded RNG, never a player; for an \"up to\" the master picks how many (owner, 26 Oct 2026) —\"from your opponent's hand at random\" (BT1-073)"
     },
     {
       "word": "ownedByOpponent",

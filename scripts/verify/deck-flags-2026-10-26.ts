@@ -306,20 +306,78 @@ const no = (s: VmState): Action | undefined => {
   roundTripsInLanguage(r);
   // "At random" anywhere but a hand is not read as a choice at all.
   assert.ok(skillRecords(b({ id: "R_RANDOM", skill: "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards at random and KO it." }))[0].unread.length > 0);
+  // Owner's ruling of 26 Oct 2026: the master picks HOW MANY (0 to 2, capped by
+  // the hand), then that many are taken at random — never which ones.
   for (const p of ["p1", "p2"] as const) {
-    const results: string[][] = [];
-    for (const seed of [1026, 1026, 7]) {
+    /** Play BT1-073 and answer "how many" with `count`; returns the opponent's cards taken. */
+    const run = (seed: number, count: number, handSize?: number) => {
       let s = mainOf(p, seed);
       const id = stage(s, p, "F_BT1073", "hand");
+      if (handSize !== undefined) while (s.sides[other(p)].zones.hand.length > handSize) moveCard(s, game, s.sides[other(p)].zones.hand[0], "deck", { owner: other(p) });
       const theirs = [...s.sides[other(p)].zones.hand];
-      const before = s.sides[other(p)].zones.drop.length;
-      let asked = false;
-      s = drive(playFromHand(s, id), (x) => { if (x.prompt.kind === "chooseCards") asked = true; return undefined; });
-      assert.equal(asked, false, `${p}: nobody picks the cards`);
-      assert.equal(s.sides[other(p)].zones.drop.length - before, 2, `${p}: two of the opponent's hand cards go to the Drop`);
-      results.push(theirs.filter((c) => s.sides[other(p)].zones.drop.includes(c)));
+      let picked = false;
+      let options: string[] = [];
+      s = drive(playFromHand(s, id), (x) => {
+        const q = x.prompt as { kind: string; player: PlayerId; options?: string[] };
+        if (q.kind === "chooseCards") picked = true;
+        if (q.kind === "chooseMode" && /at random/.test(q.options?.[0] ?? "")) {
+          assert.equal(q.player, p, `${p}: the master says how many`);
+          options = q.options!;
+          return { type: "chooseMode", player: p, index: options.indexOf(`${count} at random`) } as Action;
+        }
+        return undefined;
+      });
+      assert.equal(picked, false, `${p}: nobody picks which cards`);
+      return { taken: theirs.filter((c) => s.sides[other(p)].zones.drop.includes(c)), options };
+    };
+    const two = run(1026, 2);
+    assert.deepEqual(two.options, ["2 at random", "1 at random", "0 at random"], `${p}: 0 to 2 offered`);
+    assert.equal(two.taken.length, 2, `${p}: two taken`);
+    assert.deepEqual(run(1026, 2).taken, two.taken, `${p}: the same seed takes the same cards (a replay reproduces it)`);
+    assert.equal(run(7, 1).taken.length, 1, `${p}: the master may take only 1`);
+    assert.equal(run(7, 0).taken.length, 0, `${p}: or none`);
+    const thin = run(1026, 1, 1);
+    assert.deepEqual(thin.options, ["1 at random", "0 at random"], `${p}: capped by a 1-card hand`);
+    assert.equal(thin.taken.length, 1);
+  }
+}
+
+// ── "send up to N cards from the top of your deck to your Warp" (owner, 20 and 26 Oct 2026) ──
+{
+  for (const [text, n] of [
+    ["[Auto] When you play this card, send up to 2 cards from the top of your deck to your Warp.", 2],
+    ["[Activate: Main][Once per turn] Send up to 5 cards from the top of your deck to your Warp.", 5],
+    ["[Auto] When you play this card, send up to 1 card from the top of your deck to your Warp.", 1],
+  ] as const) {
+    const r = rec(b({ id: "R_WARP", skill: text }), 0);
+    assert.deepEqual(r.unread, [], text);
+    assert.equal(JSON.stringify(r.ops).includes('"area":"deck"'), false, `${text}: no free pick from the deck`);
+    assert.deepEqual(r.ops.map((o) => o.op), ["may", ...Array(n - 1).fill("if")], `${text}: one card at a time, ${n} offers`);
+    assert.deepEqual((r.ops[0] as Extract<Op, { op: "may" }>).ops.map((o) => o.op), ["look", "moveTo"]);
+    roundTripsInLanguage(r);
+  }
+  defs.F_WARP3 = b({ id: "F_WARP3", colors: ["Black"], energyCost: 0, skill: "[Auto] When you play this card, send up to 3 cards from the top of your deck to your Warp." });
+  const wctx: EngineContext = { ...ctx, defs, scripts: rulesFromRows(rt(Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)))), defs) };
+  const wtake = (s: VmState, a: Action): VmState => RULES.apply(wctx, rt(s), a).state as VmState;
+  for (const p of ["p1", "p2"] as const) {
+    for (const answers of [[true, true, true], [true, false], [false]] as const) {
+      let s = mainOf(p);
+      const id = stage(s, p, "F_WARP3", "hand");
+      const top = s.sides[p].zones.deck.slice(0, 3);
+      const play = RULES.legalActions(wctx, s).find((l) => l.action.type === "play" && (l.action as { card: string }).card === id);
+      assert.ok(play);
+      s = wtake(s, play.action);
+      let asked = 0;
+      for (let i = 0; i < 40 && s.prompt.kind !== "main"; i++) {
+        const q = s.prompt as { kind: string; player: PlayerId; options?: string[] };
+        if (q.kind === "chooseMode" && /top card of your deck/i.test(q.options?.[0] ?? "")) s = wtake(s, { type: "chooseMode", player: p, index: answers[asked++] ? 0 : q.options!.length - 1 } as Action);
+        else if (q.kind === "orderPending") s = wtake(s, { type: "orderPending", player: q.player, index: 0 } as Action);
+        else assert.fail(`unexpected ${q.kind}`);
+      }
+      const k = answers.filter(Boolean).length;
+      assert.equal(asked, answers.length, `${p}: asked once per card, never again after a decline`);
+      assert.deepEqual(top.filter((c) => s.sides[p].zones.warp.includes(c)), top.slice(0, k), `${p}: ${answers.join("/")} sends the top ${k} cards, in order`);
     }
-    assert.deepEqual(results[0], results[1], `${p}: the same seed takes the same cards (a replay reproduces it)`);
   }
 }
 
@@ -548,4 +606,4 @@ const no = (s: VmState): Action | undefined => {
   assert.deepEqual(one("[Auto][Once per turn] When your opponent switches energy to Active Mode using a non-[Awaken] skill during their turn, choose up to 1 of your opponent's energy and place it in its owner's Drop Area.").trigger, ["opponentEnergyActiveBySkill", "opponentOwnEnergyActiveBySkill"]);
 }
 
-console.log("deck flags 26 Oct 2026: SD13-04 pooled Unison, up-to-N Drop placing, BT1-064 counter play, BT1-073 at random, BT30-082 Awaken, BT29-040 Drop, SD3-04 hand+Warp, BT28-121 same Hidden Mode, BT30-104 Warp substitute, BT31-110 from under the Leader; readings already right on main locked");
+console.log("deck flags 26 Oct 2026: SD13-04 pooled Unison, up-to-N Drop and Warp placing, BT1-064 counter play, BT1-073 how many then at random, BT30-082 Awaken, BT29-040 Drop, SD3-04 hand+Warp, BT28-121 same Hidden Mode, BT30-104 Warp substitute, BT31-110 from under the Leader; readings already right on main locked");

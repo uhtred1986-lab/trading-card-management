@@ -156,9 +156,10 @@ export interface Selector {
   notInBattle?: true;
   /**
    * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
-   * deck flags 26 Oct 2026): no player picks — the cards are taken with the
-   * game's own seeded RNG, as many as the count allows (official Q&A on
-   * BT1-073: "completely random … without player involvement").
+   * deck flags 26 Oct 2026): which cards is no player's choice — they are taken
+   * with the game's own seeded RNG (official Q&A on BT1-073: "completely random
+   * … without player involvement"); for an "up to" the master first picks how
+   * many, 0 to the count (owner's ruling of 26 Oct 2026).
    */
   atRandom?: true;
   /**
@@ -2383,14 +2384,37 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
 
-        // "…from your opponent's hand at random" (BT1-073, deck flags 26 Oct
-        // 2026): nobody is asked. As many of the candidates as the count says
-        // (all of them when there are fewer) are taken with the game's seeded
-        // RNG, so a replay from the same seed takes the same cards. The official
-        // Q&A: "completely random … without player involvement".
+        // "…choose up to 2 cards from your opponent's hand at random" (BT1-073,
+        // deck flags 26 Oct 2026): WHICH cards is nobody's choice — they are
+        // taken with the game's seeded RNG, so a replay from the same seed takes
+        // the same ones (official Q&A: "completely random … without player
+        // involvement"). HOW MANY, for an "up to", is the master's (owner's
+        // ruling of 26 Oct 2026): 0 to the count, capped by the cards there.
         if (op.sel.atRandom) {
           const pool = h.resolveSelector(frame, { ...op.sel, count: undefined });
-          take(h.pickAtRandom(pool, Math.min(want, pool.length)));
+          const most = Math.min(want, pool.length);
+          let n = most;
+          const asking = `${op.as}#randomCount`;
+          if (upTo && most > 0) {
+            if (frame.awaiting === asking && h.lastMode() != null) {
+              const index = h.lastMode()!;
+              h.clearLastMode();
+              frame.awaiting = undefined;
+              if (index < 0 || index > most) throw new IllegalAction("that number of cards can no longer be taken");
+              n = most - index;
+            } else {
+              frame.awaiting = asking;
+              h.resume(frame);
+              h.ask({
+                kind: "chooseMode",
+                player: op.chooser ? sideOf(master, op.chooser)[0] : master,
+                reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`} — how many, taken at random?`,
+                options: Array.from({ length: most + 1 }, (_, i) => `${most - i} at random`),
+              });
+              return "wait";
+            }
+          }
+          take(h.pickAtRandom(pool, n));
           break;
         }
 
