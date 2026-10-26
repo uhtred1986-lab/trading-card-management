@@ -478,6 +478,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "under", type: "ref" },
       { name: "owner", type: "side" },
       { name: "faceUp", type: "boolean" },
+      { name: "random", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
     ],
     // A move a macro lowered to reads as the spelling it stands for (#137,

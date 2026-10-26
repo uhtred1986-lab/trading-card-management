@@ -538,6 +538,83 @@ for (const def of Object.values(FW_DEFS)) {
   }
 }
 
+// F1-11 (#1220): the six rows the 26 Oct 2026 rules review flagged, on the real starter cards.
+{
+  // 1. [Super Combo] "when you use this card in a combo from your hand": the stored combo record asks for the hand.
+  for (const id of ["FS01-05", "FS02-10", "FS03-12", "FS04-09"]) {
+    const rec = (skillRecords(FW_DEFS[id]) as { kind: string; combo: { origins: string[] | null; turn: string } | null }[]).find((r) => r.kind === "auto");
+    assert.deepEqual(rec?.combo?.origins, ["hand"], `${id}: the Super Combo [Auto] is stored for a combo from the hand`);
+    assert.equal(rec?.combo?.turn, "opponent", `${id}: …on the opponent's turn`);
+  }
+  // …and the engine honours it: a Super Combo card that joins from the Battle Area gets no +10000, one from the hand does.
+  // (The engine lets only the attacker combo, so the stored turn is read as the controller's for this run.)
+  const FIELD = { ...FC, scripts: { ...FC.scripts } } as typeof FC;
+  const shin = JSON.parse(JSON.stringify(FC.scripts!["FS01-05"])) as { bySkill: Record<string, { kind: string; combo?: { turn: string } }> };
+  for (const sc of Object.values(shin.bySkill)) if (sc.kind === "auto" && sc.combo) sc.combo.turn = "controller";
+  FIELD.scripts!["FS01-05"] = shin as never;
+  const comboOf = (area: "hand" | "battle") => {
+    let state = mainOf("FS01", "FS02");
+    const attacker = put(state, "p1", "FS01-10", "battle"); // 15000
+    const super_ = put(state, "p1", "FS01-05", area); // Shin: combo power 10000
+    const guard = put(state, "p2", "FS02-04", "battle"); // Son Goku, 30000, rested
+    state.cards[guard].mode = "rest";
+    state = ftake(state, { type: "attack", player: "p1", attacker, target: guard }).state;
+    assert.equal(state.prompt.kind, "combo");
+    const row = IMPL.legalActions(FIELD, state).find((x) => x.action.type === "combo" && x.action.card === super_)!;
+    assert.ok(row, `Shin is offered from the ${area}`);
+    let r = IMPL.apply(FIELD, state, row.action);
+    for (let i = 0; i < 30 && r.state.prompt.kind !== "main" && r.state.phase !== "over"; i++) {
+      const rows = IMPL.legalActions(FIELD, r.state);
+      const pick = rows.find((x) => x.action.type === "choose" || x.action.type === "chooseMode" || x.action.type === "activate") ?? rows.find((x) => x.action.type === "pass") ?? rows[0];
+      const next = IMPL.apply(FIELD, r.state, pick.action);
+      r = { state: next.state, events: [...r.events, ...next.events] };
+    }
+    return r.events.some((e) => e.type === "ko" && e.card === guard);
+  };
+  assert.equal(comboOf("hand"), true, "FS01-05 from the hand: 15000 + 10000 + 10000 beats 30000");
+  assert.equal(comboOf("battle"), false, "FS01-05 from the Battle Area: no +10000, 15000 + 10000 does not beat 30000");
+
+  // 2. FS03-16 Destructive Strength: "add 1 card from the top of your deck to your energy" takes the top card, no choice.
+  {
+    const state = mainOf("FS03", "FS01");
+    for (let i = 0; i < 4; i++) { // enough green energy for the {g}{g}{g} cost
+      const id = zoneOf(state, "p1", "deck")[0];
+      state.sides.p1.zones.deck = zoneOf(state, "p1", "deck").filter((x) => x !== id);
+      state.cards[id].cardId = "FS03-16";
+      state.cards[id].mode = "active";
+      zoneOf(state, "p1", "energy").push(id);
+    }
+    const spell = put(state, "p1", "FS03-16", "hand");
+    const top = zoneOf(state, "p1", "deck")[0];
+    const energy = zoneOf(state, "p1", "energy").length;
+    const act = IMPL.legalActions(FC, state).find((x) => x.action.type === "activate" && JSON.stringify(x.action).includes(spell));
+    assert.ok(act, `FS03-16 is offered; offered: ${IMPL.legalActions(FC, state).map((x) => x.label).join(" | ")}`);
+    const out = settle(ftake(state, act.action).state, [], (rows) => rows.find((x) => x.action.type === "choose") ?? rows.find((x) => x.action.type !== "pass") ?? rows[0]);
+    assert.ok(zoneOf(out.state, "p1", "energy").includes(top), "FS03-16 adds the top card of the deck to the energy");
+    assert.equal(zoneOf(out.state, "p1", "energy").length, energy + 1, "…and only that one");
+  }
+
+  // 3. FS03-13 Moah: the rest go to the bottom in a random order from the seeded RNG.
+  {
+    const orderFor = (seed: number): string => {
+      const state = mainOf("FS03", "FS01", seed);
+      const moah = put(state, "p1", "FS03-13", "hand");
+      const top = zoneOf(state, "p1", "deck").slice(0, 5);
+      top.forEach((id, i) => { state.cards[id].cardId = i === 0 ? "FS03-06" : "FS01-10"; });
+      const played = ftake(state, { type: "play", player: "p1", card: moah });
+      const out = settle(played.state, played.events, (rows) => rows.find((r) => r.action.type === "choose" && JSON.stringify(r.action).includes(top[0])) ?? rows.find((r) => r.action.type === "choose") ?? rows[0]);
+      const bottom = zoneOf(out.state, "p1", "deck").slice(-4);
+      assert.deepEqual([...bottom].sort(), top.slice(1).sort(), "the other four are at the bottom");
+      return bottom.map((id) => top.indexOf(id)).join("");
+    };
+    const orders = new Set<string>();
+    for (let seed = 1; seed <= 12; seed++) orders.add(orderFor(seed));
+    assert.ok(orders.size > 1, `FS03-13's bottom order differs across seeds (${[...orders].join(" ")})`);
+    assert.ok([...orders].some((o) => o !== "1234"), "…and is not the looked-at order");
+    assert.equal(orderFor(5), orderFor(5), "the same seed gives the same order");
+  }
+}
+
 // [Awaken] at life 4 or less: offered in the Main Phase, draws, flips; not offered above.
 {
   const state = mainOf("FS01", "FS02");

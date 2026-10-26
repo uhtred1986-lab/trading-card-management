@@ -697,7 +697,7 @@ export type Op =
    * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
    * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; cause?: MoveReason }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -1720,6 +1720,11 @@ export interface ScriptFrame {
   };
 }
 
+/** "In a random order": the cards of one move in an order drawn from the game's seeded RNG (`pickAtRandom`). */
+function shuffledIds(h: ScriptHost, ids: string[]): string[] {
+  return ids.length > 1 ? h.pickAtRandom(ids, ids.length) : ids;
+}
+
 /** How each timing reads in the log when the card text does not say it better. */
 export const DELAY_LABELS: Record<DelayTiming, string> = {
   turnStart: "at the start of the turn",
@@ -2682,7 +2687,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const host = op.to === "under" ? (op.under ? (ambiguousHost ? undefined : hosts[0]) : frame.card) : null;
         frame.moveLoop ??= {
           kind: "moveTo",
-          ids: h.resolveRef(frame, op.target),
+          ids: op.random ? shuffledIds(h, h.resolveRef(frame, op.target)) : h.resolveRef(frame, op.target),
           index: 0,
           to: op.to === "play" ? "battle" : (op.to as Area),
           position: op.position,
