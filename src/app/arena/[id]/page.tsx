@@ -126,6 +126,7 @@ export default async function ArenaGamePage({ params, searchParams }: { params: 
       {snap.over && (
         <GameOver
           gameId={id}
+          game={game.game}
           outcome={snap.over}
           winnerName={snap.over.winner ? sideName(game.state, snap.over.winner) : null}
           turns={game.state.turn}

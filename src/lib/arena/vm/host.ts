@@ -75,7 +75,7 @@ import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
-import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -175,7 +175,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     comboFree: () => comboPriceOf(game) === null,
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
     taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
-    canPayTax: (player, card, ops) => canPayPriceProgram(ctx, game, state, player, card, ops),
+    canPayTax: (player, card, ops) => canPayTaxProgram(ctx, game, state, player, card, ops),
 
     // ── the language's own readings ──────────────────────────────────────
     resolveSelector: (frame, sel) => resolveSelector(ctx, game, state, frame, sel),

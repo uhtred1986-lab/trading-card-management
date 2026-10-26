@@ -54,6 +54,12 @@ export interface GameInfo {
   /** How to describe the game to Claude, so it never reasons across the two. */
   promptName: string;
   deck: DeckRules;
+  /**
+   * Bandai's own game art, hot-linked (the repository is public, so never committed; hosts are in
+   * `next.config.ts` `images.remotePatterns`). `tile` is the 470×666 game-select button, `logo` the white
+   * wordmark on transparent, `accent` the colour of the tile. `GameMark` falls back to `short` on `accent`.
+   */
+  art: { tile: string; logo: string; accent: string };
   /** Card types that can never sit in a deck. */
   nonDeckTypes: string[];
   /** Whether the arena plays this game. */
@@ -70,6 +76,12 @@ export const GAME_INFO: Record<Game, GameInfo> = {
     promptName: "Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World)",
     // Rule Manual v4.00 §6-1: 1 leader, 50–60 main, up to 10 Z-cards, 4 copies.
     deck: { main: 50, mainMax: 60, zMax: 10, copies: 4, colorStrict: false },
+    art: {
+      tile: "https://www.dbs-cardgame.com/gameselect/images/btn_master.jpg",
+      logo: "https://www.dbs-cardgame.com/gameselect/images/logo.png",
+      // Mean colour of the saturated orange pixels of btn_master.jpg (sharp, 2026-10-26).
+      accent: "#fe6e01",
+    },
     nonDeckTypes: ["TOKEN"],
     arena: true,
   },
@@ -88,6 +100,12 @@ export const GAME_INFO: Record<Game, GameInfo> = {
      * There is no Z-Deck.
      */
     deck: { main: 50, mainMax: 60, zMax: 0, copies: 4, colorStrict: true },
+    art: {
+      tile: "https://www.dbs-cardgame.com/gameselect/images/btn_fw.jpg",
+      logo: "https://www.dbs-cardgame.com/fw/renewal01/images/common/logo_fw_w.png",
+      // Mean colour of the saturated cyan pixels of btn_fw.jpg (sharp, 2026-10-26).
+      accent: "#01c6fe",
+    },
     nonDeckTypes: ["ENERGY MARKER", "TOKEN"],
     arena: true,
   },

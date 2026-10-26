@@ -933,6 +933,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (end) {
     take = end[2] ? Number(end[2]) : 1;
     if (end[1] === "bottom") fromEnd = true;
+  } else if (!upTo && area === "deck" && !fromVar) {
+    // "Add 1 card from the top of your deck to your energy" (FS03-16): the same position, said with the number first.
+    const from = /\b(\d+) cards? from the top of (?:your|their|your opponent's) deck\b/.exec(t);
+    if (from) take = Number(from[1]);
   }
 
   // Which mode the cards must be in. The sets say it two ways and only the

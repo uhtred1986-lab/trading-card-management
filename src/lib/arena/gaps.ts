@@ -101,6 +101,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   youPlayed: "when you play a card",
   youPlayedByThisCard: "when your card is played by this card's skill",
   opponentAttacks: "when your opponent attacks",
+  battleCardAttacks: "when a Battle Card attacks",
   opponentEnergyActiveBySkill: "when your opponent switches your energy to Active Mode using a non-[Awaken] skill during their turn",
   opponentOwnEnergyActiveBySkill: "when your opponent switches their energy to Active Mode using a non-[Awaken] skill during their turn",
   selfRestToActive: "when this card is switched from Rest Mode to Active Mode",

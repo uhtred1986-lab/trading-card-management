@@ -64,7 +64,7 @@ import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
-import { attrsNow, forbiddenForCard, forbids, hasKeyword, permissions, readingBoard, staticsNow, taxesOn } from "./program";
+import { attrsNow, chargeSwitchForbidden, forbiddenForCard, forbids, hasKeyword, keywordPlayTaxes, permissions, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
 import { BATTLE_STEP_WORK, openCounterCounterWindow, stepCounterCost } from "./battle";
 import { leaveRoute, replacementChoices, replacementIdentity } from "./replace";
@@ -306,6 +306,10 @@ const STEP_WORK: Record<string, Work> = {
           if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActive", id)) continue;
           // "…during your opponent's next Charge Phase" (#539): this step's switch alone.
           if (mode === "active" && forbiddenForCard(ctx, game, state, "switchToActiveInCharge", id)) continue;
+          // "Your opponent can't switch Battle Cards or Unisons to Active Mode
+          // during the next Charge Phase" (BT30-146): a rule about the player
+          // whose Charge Phase it is, and the cards it describes.
+          if (mode === "active" && chargeSwitchForbidden(ctx, game, state, id)) continue;
           card.mode = mode;
           // 1-10-1: the switch is a moment (`modeSwitched`), and this one has no
           // `by:` — the Charge Phase stands cards up as a rule of the turn, not
@@ -976,6 +980,15 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // `printedEffect` to announce and run where it says (#154).
     const printed = program && !program.unsupported.length && program.ops.length ? { ops: program.ops, text: skill.raw, inBattle: !!state.battle } : undefined;
     if (keyword.name === "Revive") {
+      // Owner ruling 26 Oct 2026 (A4 follow-up, 20-14-1): a play tax on the
+      // card that nobody can pay means [Revive] is not asked at all, so no
+      // hand card is dropped for a play that cannot happen. One that can be
+      // paid is asked by the `play` op once the colours are paid.
+      const unpaidPlay = unpaidActivationTax(ctx, game, state, next.master, next.card, keywordPlayTaxes(ctx, game, state, next.master, next.card, keyword));
+      if (unpaidPlay) {
+        log(ev, { type: "note", text: `${named}: [Revive] can't play it — the price a rule puts on playing it (20-14-1) can't be paid` });
+        return true;
+      }
       queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program);
       return true;
     }

@@ -16,7 +16,7 @@
  * to force it. The sealed pack's own `qualificationReasons` must agree, or the build throws.
  *
  * Scope: every read takes the looker's `OwnerScope` (`currentScope()`); a deck outside it is
- * reported as not found, never read. Only `dbs` decks: the arena does not play Fusion World.
+ * reported as not found, never read. Only `dbs` decks: the offline pack is Super only.
  *
  * The pack carries the deck lists and public card data only (`privateDataViolations`): a deck's
  * name and list, never its owner, its lots or anything of the collection.
