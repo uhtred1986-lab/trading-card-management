@@ -470,7 +470,11 @@ function parseSkillsUncached(text: string): Skill[] {
     // [Spirit Boost X] is a cost written as a tag (22-43), like [Burst X]: it
     // never names the skill it sits on, which keeps its own [Activate] type.
     const primary = keywords.find((k) => k.name !== "Spirit Boost") ?? null;
-    const { cost, effect } = splitCost(body, !keywords.length && tags.some((t) => /^(?:activate|auto)\b/i.test(t)));
+    let { cost, effect } = splitCost(body, !keywords.length && tags.some((t) => /^(?:activate|auto)\b/i.test(t)));
+    // Fusion World closes the [Awaken] condition with a comma, not a colon ("[Awaken] When your life is at 4 or less, draw 1
+    // card. Then, flip this card over."): without the split the condition rides in the effect and the Awaken is offered at any life.
+    const awaken = primary?.name === "Awaken" && !cost ? /^(when your life is at \d+ or less),\s*(?=\S)/i.exec(effect) : null;
+    if (awaken) [cost, effect] = [awaken[1], effect.slice(awaken[0].length)];
     out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
   }
   return linkQuotedGrants(out);
@@ -876,9 +880,12 @@ export function specifiedCostUnknown(def: CardDef): boolean {
   return def.energyCost === "X" && !def.specifiedCost;
 }
 
-/** 5-7-2: a card can only combo with both a non-negative combo cost and combo power. */
-export function canCombo(def: CardDef): boolean {
-  return baseType(def) === "BATTLE" && def.comboCost != null && def.comboPower != null && def.comboCost >= 0 && def.comboPower >= 0;
+/**
+ * 5-7-2: a card can only combo with both a non-negative combo cost and combo power. `free` is a game that declares
+ * no combo price (Fusion World: a combo costs nothing, and its cards print no combo cost), where the power alone decides.
+ */
+export function canCombo(def: CardDef, free = false): boolean {
+  return baseType(def) === "BATTLE" && (def.comboCost != null || free) && def.comboPower != null && (def.comboCost ?? 0) >= 0 && def.comboPower >= 0;
 }
 
 /**

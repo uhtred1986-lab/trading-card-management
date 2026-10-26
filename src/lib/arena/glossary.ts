@@ -1388,5 +1388,6 @@ export const FUSION_WORLD_SPELLINGS: FusionSpellingDoc[] = [
   { tag: "[Activate:Main] / [Activate:Battle]", reads: "[Activate: Main] / [Activate: Battle]", note: "No space after the colon; the same skill kinds." },
   { tag: "[Once Per Turn]", reads: "[Once per turn]", note: "The once-per-turn usage flag; capital P is the same tag." },
   { tag: "[Double Strike]", reads: "[Strike x] with x = 2", note: "Read already; kept under test." },
+  { tag: "[Awaken] When your life is at N or less, …", reads: "[Awaken] When your life is at N or less: …", note: "The condition is closed by a comma, not a colon; it is split off as the line's condition, so the [Awaken] is offered only while the life is at N or less." },
   { tag: "<clause> : <effect>", reads: "<clause>: <effect>", note: "An activation price closed by a spaced colon (“Place 1 of your energy in your Drop : …”, “Discard 1 card from your hand : …”) is the price, read by the same price readers as a dbs cost. Energy-icon prices are not read yet." },
 ];

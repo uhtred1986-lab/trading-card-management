@@ -23,7 +23,7 @@ FS01-08 | Son Goku (SR) | Battle | Red | 5(?) | 35000 | — | [Double Strike] [O
 FS01-09 | Son Gohan : Adolescence (SR) | Battle | Red | 4(?) | 25000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.
 FS01-10 | Tien Shinhan | Battle | Red | 1(?) | 15000 | 10000 | (no skill text)
 FS01-11 | Piccolo | Battle | Red | 3(?) | 25000 | 10000 | (no skill text)
-FS01-12 | Beerus | Battle | Red | 3(?) | 20000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 for the turn.
+FS01-12 | Beerus | Battle | Red | 3(?) | 20000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn.
 FS01-13 | Frieza | Battle | Red | 4(?) | 30000 | 10000 | (no skill text)
 FS01-14 | Vegeta | Battle | Red | 2(?) | 15000 | 10000 | [Critical]
 FS01-15 | Kamehameha | Extra | Red | 1(?) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.
@@ -130,7 +130,7 @@ Draw / hand
 Power modification
 - "this card gets +N power for the turn" — FS02-01 (+15000), FS03-01 (+5000)
 - "Choose up to 1 of your Battle Cards and it gets +5000 power for the battle" — FS01-01 back
-- "Choose up to 1 of your other Battle Cards and it gets +5000 for the turn" — FS01-12
+- "Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn" — FS01-12
 - "Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle." — 4: FS01-15, FS02-15, FS03-15, FS04-16 (the four 1-cost combat-trick Extras)
 - "that card gets +10000 power for the battle" (conditional second step) — FS03-15
 - "[Permanent] This card gets +N power" (unconditional in a timing window) — FS01-04 (+5000 Your Turn), FS01-06 (+5000 Opponent's Turn)

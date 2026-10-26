@@ -9,6 +9,19 @@ import { skillRecords } from "../../src/lib/arena/draft";
 import { skillLines, parseSkills, keywordOf, FUSION_SPELLINGS } from "../../src/lib/arena/text/cards";
 import { FUSION_WORLD_SPELLINGS } from "../../src/lib/arena/glossary";
 import { CTX, DEFS, IMPL, card, fifty, leaderOf, zoneOf } from "./harness";
+import { STARTERS, FW_DEFS, fusionContext, starterDeck, type Starter } from "./fixtures/arena-fusion-world/load.mts";
+import { compileCardCached } from "../../src/lib/arena/compile";
+import { energyMarkersOf } from "../../src/lib/arena/engine-state";
+import type { LegalAction } from "../../src/lib/arena/types";
+import { runFuzzGame, type FuzzResult } from "../lib/arena-fuzz-runner";
+import { nextRandom } from "../../src/lib/arena/vm/rng";
+import { localStep } from "../../src/lib/arena/policy/boundary";
+import { combatPolicy, localPolicy } from "../../src/lib/arena/policy/combat";
+import { uniformPolicy } from "../../src/lib/arena/policy/contract";
+import { localMemory, type LocalMemory } from "../../src/lib/arena/policy/main";
+import { policyRng } from "../../src/lib/arena/policy/rng";
+import { resolveOutcome } from "../../src/lib/arena/outcome";
+import type { PinnedMatch } from "../../src/lib/arena/browser";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { comboPriceOf } from "../../src/lib/arena/vm/battle";
 import type { Action, GameEvent, PlayerId } from "../../src/lib/arena/types";
@@ -39,9 +52,7 @@ type Row = { id: string; side: string; line: string; kind: string; trigger: stri
 const rows: Row[] = [];
 const cards: { id: string; type: string; faces: string[] }[] = [];
 for (const m of doc.matchAll(/^(FS0[1-4]-\d\d) \| [^|]+ \| (\w+) \| [^|]+ \| [^|]+ \| [^|]+ \| [^|]+ \| (.+)$/gm)) {
-  // FS01-12 is transcribed "it gets +5000 for the turn"; every other power line prints "power" (FS01-01, FS01-15 …), so the word the
-  // site dropped is put back rather than teaching the compiler a wording no card prints (noted in the PR).
-  const text = m[3].replace(/\(site shows[^)]*\)/, "").replace(REMINDER, "").replace(/(gets [+-]\d+) for the turn/g, "$1 power for the turn").trim();
+  const text = m[3].replace(/\(site shows[^)]*\)/, "").replace(REMINDER, "").trim();
   if (text === "(no skill text)") { cards.push({ id: m[1], type: m[2], faces: [] }); continue; }
   const leader = /^FRONT:\s*(.*?)\s*\/\/\s*BACK:\s*(.*)$/.exec(text);
   cards.push({ id: m[1], type: m[2], faces: leader ? [leader[1], leader[2]] : [text] });
@@ -57,7 +68,7 @@ for (const c of cards) {
     // A bare keyword line ("[Critical]") prints no effect and has no record; its tags must be keywords.
     for (const l of lines) if (!made.some((r) => r.printed === l)) assert.ok([...l.matchAll(/\[([^\]]+)\]/g)].every((m) => keywordOf(m[1])), `${c.id}: "${l}" is bare keywords`);
     made.forEach((r) => {
-      rows.push({ id: c.id, side: c.faces.length > 1 ? (i ? "back" : "front") : "", line: r.printed, kind: r.kind, trigger: r.trigger.join("+") || "-", cost: r.cost?.program && r.cost.readable ? "price" : r.cost?.text ? "UNREAD" : "-", unread: r.unread.length });
+      rows.push({ id: c.id, side: c.faces.length > 1 ? (i ? "back" : "front") : "", line: r.printed, kind: r.kind, trigger: r.trigger.join("+") || "-", cost: r.cost?.readable === false ? "UNREAD" : r.cost?.program ? "price" : "-", unread: r.unread.length });
     });
   });
 }
@@ -205,5 +216,362 @@ for (const game of ["fusion", "dbs"] as const) {
   assert.ok(!events.some((e) => e.type === "ko" && e.card === target), `${game}: no KO is logged for it`);
 }
 }
+
+
+// F1-07 (#1190): the four starters, played. Fixtures, compiled programs, scripted scenarios, full games.
+const FC = fusionContext();
+type Pick = (rows: LegalAction[], state: EngineState) => LegalAction | undefined;
+const by = (state: EngineState, a: Action) => IMPL.legalActions(FC, state).find((row) => JSON.stringify(row.action) === JSON.stringify(a));
+const ftake = (state: EngineState, action: Action): { state: EngineState; events: GameEvent[] } => {
+  assert.ok(by(state, action), `expected legal ${JSON.stringify(action)} at ${JSON.stringify(state.prompt)}; offered: ${IMPL.legalActions(FC, state).map((r) => r.label).join(" | ")}`);
+  return IMPL.apply(FC, state, action);
+};
+/** Opening to the first question: p1 goes first, both keep their hands. */
+function opening(a: Starter, b: Starter, seed = 7): EngineState {
+  let r = IMPL.createGame(FC, { seed, game: "fusion", p1: starterDeck(a, a), p2: starterDeck(b, b) }).state;
+  r = IMPL.apply(FC, r, { type: "chooseFirst", player: (r.prompt as { player: PlayerId }).player, first: "p1" }).state;
+  for (const p of ["p1", "p2"] as const) r = IMPL.apply(FC, r, { type: "mulligan", player: p, redraw: false }).state;
+  return r;
+}
+/** Charges the first card of the hand (a skipped charge when the hand is empty) for the player asked. */
+function charge(state: EngineState): EngineState {
+  const p = (state.prompt as { player: PlayerId }).player;
+  const row = IMPL.legalActions(FC, state).find((x) => x.action.type === "charge" && x.action.card);
+  return IMPL.apply(FC, state, row?.action ?? { type: "charge", player: p, card: null }).state;
+}
+/** To p1's Main Phase of turn 3: p1 has charged twice, p2 once and holds its marker. */
+function mainOf(a: Starter, b: Starter, seed = 7): EngineState {
+  let r = charge(opening(a, b, seed));
+  r = IMPL.apply(FC, r, { type: "endMain", player: "p1" }).state;
+  r = charge(r);
+  r = IMPL.apply(FC, r, { type: "endMain", player: "p2" }).state;
+  r = charge(r);
+  assert.equal(r.prompt.kind, "main");
+  assert.equal(r.turn, 3);
+  return r;
+}
+/** Swaps a card of the owner's deck for `cardId` and puts it in `area`; battle cards come in Active. */
+function put(state: EngineState, owner: PlayerId, cardId: string, area: "hand" | "battle"): string {
+  const id = zoneOf(state, owner, "deck")[0];
+  state.sides[owner].zones.deck = zoneOf(state, owner, "deck").filter((x) => x !== id);
+  state.cards[id].cardId = cardId;
+  zoneOf(state, owner, area).push(id);
+  if (area === "battle") state.cards[id].mode = "active";
+  return id;
+}
+/** Plays the prompts out with `pick` (the first legal answer by default) until the Main Phase or the end of the game. */
+function settle(state: EngineState, events: GameEvent[] = [], pick: Pick = (rows) => rows[0]): { state: EngineState; events: GameEvent[] } {
+  const all = [...events];
+  for (let i = 0; i < 30 && state.prompt.kind !== "main" && state.phase !== "over"; i++) {
+    const rows = IMPL.legalActions(FC, state);
+    const row = pick(rows, state) ?? rows[0];
+    const next = IMPL.apply(FC, state, row.action);
+    state = next.state;
+    all.push(...next.events);
+  }
+  return { state, events: all };
+}
+const passing: Pick = (rows) => rows.find((r) => r.action.type === "block" && !r.action.card) ?? rows.find((r) => r.action.type === "pass") ?? rows.find((r) => r.action.type === "choose" || r.action.type === "chooseMode");
+const lifeOf = (s: EngineState, p: PlayerId) => zoneOf(s, p, "life").length;
+const skillsOf = (events: GameEvent[], card: string) => events.filter((e) => e.type === "skill" && e.card === card);
+const attack = (s: EngineState, attacker: string, target: string, pick: Pick = passing) => {
+  const r = ftake(s, { type: "attack", player: "p1", attacker, target });
+  return settle(r.state, r.events, pick);
+};
+
+{
+// Fixtures: the 64 definitions, four lists of 50, and every program read.
+assert.equal(Object.keys(FW_DEFS).length, 64, "the 64 starter cards");
+for (const code of STARTERS) {
+  const deck = starterDeck(code);
+  assert.equal(deck.main.length, 50, `${code}: 50 main-deck cards`);
+  assert.ok(deck.main.every((id) => FW_DEFS[id] && FW_DEFS[id].type !== "LEADER"), `${code}: only main-deck cards`);
+  assert.equal(FW_DEFS[deck.leader].type, "LEADER");
+  const copies = new Map<string, number>();
+  for (const id of deck.main) copies.set(id, (copies.get(id) ?? 0) + 1);
+  assert.ok([...copies.values()].every((n) => n <= 4), `${code}: at most 4 copies`);
+  assert.ok(deck.main.filter((id) => (FC.scripts?.[id]?.bySkill ? Object.values(FC.scripts[id].bySkill).some((sc) => (sc as { kind: string }).kind === "keyword") : false) && /\[Super Combo\]/.test(FW_DEFS[id].skill ?? "")).length <= 4, `${code}: at most 4 [Super Combo]`);
+}
+for (const def of Object.values(FW_DEFS)) {
+  assert.equal(def.comboCost, null, `${def.id}: no combo price`);
+  assert.equal(def.specifiedCost, undefined, `${def.id}: no specified cost until F1-08`);
+  for (const side of def.back ? (["front", "back"] as const) : (["front"] as const)) {
+    const compiled = compileCardCached(def, side);
+    const unread = Object.entries(compiled.bySkill).filter(([, sc]) => (sc as { unsupported: string[] }).unsupported.length).map(([i]) => i);
+    if (unread.length) assert.ok(def.id in KNOWN_UNREAD, `${def.id} ${side}: skills ${unread} are unread`);
+    else assert.ok(!(def.id in KNOWN_UNREAD), `${def.id} is read now: take it off KNOWN_UNREAD`);
+  }
+}
+}
+
+// Setup.
+{
+  const created = IMPL.createGame(FC, { seed: 7, game: "fusion", p1: starterDeck("FS01"), p2: starterDeck("FS02") }).state;
+  assert.equal(created.game, "fusion");
+  let state = opening("FS01", "FS02");
+  for (const p of ["p1", "p2"] as const) {
+    assert.equal(zoneOf(state, p, "hand").length, 6, `${p}: a 6-card hand`);
+    assert.equal(lifeOf(state, p), 8, `${p}: 8 life`);
+    assert.equal(zoneOf(state, p, "deck").length, 36, `${p}: 50 - 6 - 8 left in the deck`);
+    assert.equal(zoneOf(state, p, "zDeck").length + zoneOf(state, p, "zEnergy").length, 0, `${p}: no Z-Deck`);
+  }
+  assert.equal(energyMarkersOf(state, "p1"), 0, "the first player has no energy marker");
+  assert.equal(energyMarkersOf(state, "p2"), 1, "the second player has one energy marker");
+  state = charge(state);
+  assert.equal(state.prompt.kind, "main");
+  assert.equal(zoneOf(state, "p1", "energy").length, 1, "the charged card is the first energy");
+  assert.ok(!IMPL.legalActions(FC, state).some((r) => r.action.type === "attack"), "the first player cannot attack on turn 1");
+}
+
+// Charge and play: a 1-cost card paid by resting one energy; a marker paying a cost.
+{
+  let state = mainOf("FS01", "FS02");
+  const roshi = put(state, "p1", "FS01-03", "hand");
+  const rested = (s: EngineState, p: PlayerId) => zoneOf(s, p, "energy").filter((id) => s.cards[id].mode === "rest").length;
+  const before = rested(state, "p1");
+  const played = ftake(state, { type: "play", player: "p1", card: roshi });
+  assert.equal(played.state.prompt.kind, "main");
+  assert.ok(zoneOf(played.state, "p1", "battle").includes(roshi), "Master Roshi is on the field");
+  assert.equal(rested(played.state, "p1"), before + 1, "one energy rested for the 1-cost card");
+  assert.equal(energyMarkersOf(played.state, "p1"), 0);
+  // Seat 2: one energy and the marker pay a 2-cost card; the marker is spent.
+  state = IMPL.apply(FC, charge(opening("FS01", "FS02")), { type: "endMain", player: "p1" }).state;
+  state = charge(state);
+  assert.equal((state.prompt as { player: PlayerId; kind: string }).kind, "main");
+  assert.equal((state.prompt as { player: PlayerId }).player, "p2");
+  const energy = zoneOf(state, "p2", "energy").length;
+  const two = put(state, "p2", "FS02-06", "hand");
+  assert.equal(energyMarkersOf(state, "p2"), 1, "the marker is still there");
+  const paid = ftake(state, { type: "play", player: "p2", card: two });
+  const out = settle(paid.state, paid.events);
+  assert.ok(zoneOf(out.state, "p2", "battle").includes(two), "the 2-cost card is played");
+  assert.equal(energyMarkersOf(out.state, "p2"), 0, "the marker paid and is gone");
+  assert.equal(rested(out.state, "p2"), energy, "the other cost came from resting energy");
+}
+
+
+// Attack and damage.
+{
+  let state = mainOf("FS01", "FS02");
+  const [mine, theirs] = [leaderOf(state, "p1")!, leaderOf(state, "p2")!];
+  const [life, hand] = [lifeOf(state, "p2"), zoneOf(state, "p2", "hand").length];
+  const top = zoneOf(state, "p2", "life")[0];
+  const hit = attack(state, mine, theirs);
+  assert.equal(hit.state.prompt.kind, "main");
+  assert.equal(lifeOf(hit.state, "p2"), life - 1, "a leader hit takes one life card");
+  assert.equal(zoneOf(hit.state, "p2", "hand").length, hand + 1, "…into the defender's hand");
+  assert.ok(zoneOf(hit.state, "p2", "hand").includes(top) && !zoneOf(hit.state, "p2", "drop").includes(top), "the top life card, not the Drop");
+
+  // A rested battle card attacked and KO'd (15000 leader against 5000), then a tie (15000 against 15000: the attacker wins).
+  state = mainOf("FS01", "FS02");
+  const weak = put(state, "p2", "FS02-08", "battle"); // Trunks : Youth, 5000
+  const even = put(state, "p2", "FS02-05", "battle"); // Son Goten, 15000
+  state.cards[weak].mode = "rest";
+  state.cards[even].mode = "rest";
+  const ko1 = attack(state, leaderOf(state, "p1")!, weak);
+  assert.ok(ko1.events.some((e) => e.type === "ko" && e.card === weak), "the 5000 card is KO'd");
+  assert.ok(zoneOf(ko1.state, "p2", "drop").includes(weak), "…to the Drop");
+  assert.equal(lifeOf(ko1.state, "p2"), 8, "no life is lost when a battle card is hit");
+  const tie = attack(state, leaderOf(state, "p1")!, even);
+  assert.ok(tie.events.some((e) => e.type === "ko" && e.card === even), "15000 against 15000: the defender is KO'd");
+  assert.ok(zoneOf(tie.state, "p1", "leader").length === 1 && !tie.events.some((e) => e.type === "ko" && e.card === leaderOf(state, "p1")), "the attacker survives a tie");
+}
+
+
+// Combo: a card from the hand and an active battle card of the field, nothing paid, both in the Drop at the end of the battle.
+{
+  let state = mainOf("FS01", "FS02");
+  const attacker = put(state, "p1", "FS01-10", "battle"); // Tien Shinhan, 15000
+  const fromHand = put(state, "p1", "FS01-02", "hand"); // Whis, combo power 10000
+  const fromField = put(state, "p1", "FS01-13", "battle"); // Frieza, combo power 10000
+  const guard = put(state, "p2", "FS02-04", "battle"); // Son Goku, 30000, rested
+  state.cards[guard].mode = "rest";
+  const energyBefore = zoneOf(state, "p1", "energy").map((id) => state.cards[id].mode).join();
+  let r = ftake(state, { type: "attack", player: "p1", attacker, target: guard });
+  state = r.state;
+  assert.equal(state.prompt.kind, "combo");
+  const offered = IMPL.legalActions(FC, state).filter((x) => x.action.type === "combo").map((x) => (x.action as { card: string }).card);
+  assert.ok(offered.includes(fromHand) && offered.includes(fromField), "the hand card and the active field card are offered");
+  assert.ok(!offered.includes(attacker), "the attacker is not");
+  const pay = (s: EngineState) => zoneOf(s, "p1", "energy").map((id) => s.cards[id].mode).join();
+  for (const card of [fromHand, fromField]) {
+    r = ftake(state, { type: "combo", player: "p1", card });
+    state = r.state;
+    assert.ok(zoneOf(state, "p1", "combo").includes(card), "in the Combo Area");
+    assert.equal(pay(state), energyBefore, "no payment: not one energy rested");
+    assert.notEqual(state.prompt.kind, "payCost");
+  }
+  const done = settle(state, [], (rows) => rows.find((x) => x.action.type === "pass") ?? rows[0]);
+  assert.equal(done.state.prompt.kind, "main");
+  assert.ok(zoneOf(done.state, "p1", "drop").includes(fromHand) && zoneOf(done.state, "p1", "drop").includes(fromField), "both combo cards are in the Drop after the battle");
+  assert.ok(done.events.some((e) => e.type === "ko" && e.card === guard), "15000 + 10000 + 10000 beats 30000");
+}
+
+// [Blocker] redirects; [Critical] sends the life card to the Drop; [Double Strike] takes two.
+{
+  const state = mainOf("FS01", "FS02");
+  const blocker = put(state, "p2", "FS02-12", "battle"); // Bulma, 5000, [Blocker]
+  const target = leaderOf(state, "p2")!;
+  const attacker = put(state, "p1", "FS01-10", "battle"); // vanilla 15000
+  const asked = ftake(state, { type: "attack", player: "p1", attacker, target });
+  assert.equal(asked.state.prompt.kind, "blocker");
+  const blocked = settle(ftake(asked.state, { type: "block", player: "p2", card: blocker }).state, [], passing);
+  assert.equal(lifeOf(blocked.state, "p2"), 8, "the blocker took the hit, not the leader");
+  assert.ok(zoneOf(blocked.state, "p2", "drop").includes(blocker), "Bulma (5000) lost to 15000 and is in the Drop");
+  assert.equal(blocked.state.cards[blocker].owner, "p2");
+}
+{
+  const state = mainOf("FS01", "FS02");
+  const crit = put(state, "p1", "FS01-14", "battle"); // Vegeta, [Critical]
+  const top = zoneOf(state, "p2", "life")[0];
+  const hit = attack(state, crit, leaderOf(state, "p2")!);
+  assert.equal(lifeOf(hit.state, "p2"), 7);
+  assert.ok(zoneOf(hit.state, "p2", "drop").includes(top), "[Critical]: the life card goes to the Drop");
+  assert.ok(!zoneOf(hit.state, "p2", "hand").includes(top));
+}
+{
+  const state = mainOf("FS01", "FS02");
+  const double = put(state, "p1", "FS01-08", "battle"); // Son Goku (SR), [Double Strike]
+  const hand = zoneOf(state, "p2", "hand").length;
+  const hit = attack(state, double, leaderOf(state, "p2")!);
+  assert.equal(lifeOf(hit.state, "p2"), 6, "[Double Strike]: two life cards");
+  assert.equal(zoneOf(hit.state, "p2", "hand").length, hand + 2, "…both into the hand");
+}
+
+
+// [On Play], [When Attacking], [When KO'd] and [End of Your Turn], each once, at the right moment.
+{
+  const state = mainOf("FS01", "FS04");
+  const roshi = put(state, "p1", "FS01-03", "hand"); // [On Play] Draw 1 card.
+  const hand = zoneOf(state, "p1", "hand").length;
+  const played = settle(ftake(state, { type: "play", player: "p1", card: roshi }).state, ftake(state, { type: "play", player: "p1", card: roshi }).events);
+  assert.equal(skillsOf(played.events, roshi).length, 1, "[On Play] fires once, on playing");
+  assert.equal(zoneOf(played.state, "p1", "hand").length, hand, "one card played, one drawn");
+
+  // [When Attacking] on the front of FS01-01: the leader's attack draws, once, and the draw happens at the attack.
+  const leader = leaderOf(state, "p1")!;
+  const [before, target] = [zoneOf(state, "p1", "hand").length, leaderOf(state, "p2")!];
+  const declared = ftake(state, { type: "attack", player: "p1", attacker: leader, target });
+  const mid = zoneOf(declared.state, "p1", "hand").length;
+  const swung = settle(declared.state, declared.events, passing);
+  assert.equal(skillsOf(swung.events, leader).length, 1, "[When Attacking] fires once");
+  assert.equal(zoneOf(swung.state, "p1", "hand").length, before + 1, "the leader's attack drew one card");
+  assert.ok(mid <= before + 1);
+
+  // [When KO'd]: Cui (FS04-02) is KO'd by a 30000 card and draws for its owner.
+  const cui = put(state, "p2", "FS04-02", "battle");
+  state.cards[cui].mode = "rest";
+  const owner = zoneOf(state, "p2", "hand").length;
+  const ko = attack(state, put(state, "p1", "FS01-13", "battle"), cui); // Frieza, 30000
+  assert.ok(ko.events.some((e) => e.type === "ko" && e.card === cui), "Cui (20000) is KO'd by 30000");
+  assert.equal(skillsOf(ko.events, cui).length, 1, "[When KO'd] fires once");
+  assert.equal(zoneOf(ko.state, "p2", "hand").length, owner + 1, "…and draws one for its owner");
+}
+{
+  // [End of Your Turn] on the back of FS04-01: up to 2 battle cards go Active at the end of the turn, not before.
+  const state = mainOf("FS04", "FS01");
+  const leader = leaderOf(state, "p1")!;
+  state.cards[leader].flipped = true;
+  const [a, b] = [put(state, "p1", "FS04-08", "battle"), put(state, "p1", "FS04-13", "battle")];
+  state.cards[a].mode = state.cards[b].mode = "rest";
+  const ended = ftake(state, { type: "endMain", player: "p1" });
+  const out = settle(ended.state, ended.events, (rows) => rows.find((x) => x.action.type === "choose") ?? rows[0]);
+  assert.equal(skillsOf(out.events, leader).length, 1, "[End of Your Turn] fires once");
+  assert.equal(out.state.cards[a].mode, "active", "the first battle card is Active again");
+  assert.equal(out.state.cards[b].mode, "active", "…and the second");
+}
+
+// [Awaken] at life 4 or less: offered in the Main Phase, draws, flips; not offered above.
+{
+  const state = mainOf("FS01", "FS02");
+  const leader = leaderOf(state, "p1")!;
+  const awakenRows = (s: EngineState) => IMPL.legalActions(FC, s).filter((x) => /^Awaken/.test(x.label));
+  assert.equal(awakenRows(state).length, 0, "not at 8 life");
+  for (const id of zoneOf(state, "p1", "life").slice(5)) { state.sides.p1.zones.life = zoneOf(state, "p1", "life").filter((x) => x !== id); zoneOf(state, "p1", "drop").push(id); }
+  assert.equal(lifeOf(state, "p1"), 5);
+  assert.equal(awakenRows(state).length, 0, "not at 5 life");
+  const last = zoneOf(state, "p1", "life")[0];
+  state.sides.p1.zones.life = zoneOf(state, "p1", "life").slice(1);
+  zoneOf(state, "p1", "drop").push(last);
+  assert.equal(lifeOf(state, "p1"), 4);
+  assert.equal(awakenRows(state).length, 1, "offered at 4 life, in the Main Phase");
+  const hand = zoneOf(state, "p1", "hand").length;
+  const done = settle(ftake(state, awakenRows(state)[0].action).state);
+  assert.equal(zoneOf(done.state, "p1", "hand").length, hand + 1, "[Awaken] draws 1");
+  assert.equal(done.state.cards[leader].flipped, true, "…and flips the leader");
+  assert.equal(awakenRows(done.state).length, 0, "an awakened leader cannot awaken again");
+}
+
+// The game ends: life-out and deck-out.
+{
+  const state = mainOf("FS01", "FS02");
+  state.sides.p2.zones.life = zoneOf(state, "p2", "life").slice(0, 1);
+  const end = attack(state, leaderOf(state, "p1")!, leaderOf(state, "p2")!);
+  assert.equal(end.state.phase, "over");
+  assert.equal(lifeOf(end.state, "p2"), 0);
+  assert.equal(end.state.winner, "p1", "the attacker wins on life-out");
+  assert.match(end.state.overReason ?? "", /Life Area/, "WIN lifeOut");
+}
+{
+  const state = mainOf("FS01", "FS02");
+  state.sides.p2.zones.deck = [];
+  const end = IMPL.apply(FC, state, { type: "endMain", player: "p1" });
+  const over = end.state.phase === "over" ? end : settle(end.state, end.events);
+  assert.equal(over.state.phase, "over", "an empty deck ends the game");
+  assert.equal(over.state.winner, "p1");
+  assert.match(over.state.overReason ?? "", /Deck Area/, "WIN deckOut");
+}
+
+
+// Full games. Forty random complete games (200 locally: `npm run arena:fuzz -- 200 --game fusion`): no crash, no stall, and an interruption
+// only on a card that is known to be unread (FS02-03 and FS03-13 above, the effect reader's gap and not this suite's).
+const FUZZ_GAMES = 40;
+{
+  let rng = 12345;
+  const rand = () => { const r = nextRandom(rng); rng = r.state; return r.value; };
+  const results: FuzzResult[] = [];
+  for (let g = 0; g < FUZZ_GAMES; g++) {
+    const a = STARTERS[Math.floor(rand() * STARTERS.length)], b = STARTERS[Math.floor(rand() * STARTERS.length)];
+    results.push(runFuzzGame(FC, { seed: Math.floor(rand() * 1e9), game: "fusion", p1: starterDeck(a, a), p2: starterDeck(b, b) }, { random: rand }));
+  }
+  const bad = results.filter((r) => r.status === "crash" || r.status === "action-limit" || (r.status === "interrupted" && !(r.interruption?.sourceCard && r.interruption.cardId && r.interruption.cardId in KNOWN_UNREAD)));
+  assert.deepEqual(bad.map((r) => `${r.status} seed ${r.seed} turn ${r.turn} after ${r.lastAction}: ${r.error ?? r.interruption?.detail}`), [], "the fuzz games run clean");
+  const done = results.filter((r) => r.status === "completed");
+  assert.ok(done.length >= FUZZ_GAMES / 2, `${done.length} of ${FUZZ_GAMES} fuzz games ran to a result`);
+  for (const r of done) assert.ok(r.outcome?.kind === "win" && /Life Area|Deck Area/.test(r.outcome.reason), `a result by life-out or deck-out: ${r.outcome?.reason}`);
+  console.log(`arena-fusion-world: ${FUZZ_GAMES} fuzz games: ${done.length} completed, ${results.length - done.length} interrupted on known-unread cards`);
+}
+
+// Local policy: one game per pair of starters, seat 2 on `localPolicy`, run to the end or to an interruption, which fails naming the decision.
+{
+  const seat1 = combatPolicy(uniformPolicy), seat2 = localPolicy();
+  const failures: string[] = [];
+  let pair = 0;
+  for (const [i, a] of STARTERS.entries()) for (const b of STARTERS.slice(i)) {
+    let match: PinnedMatch = { ctx: FC, state: IMPL.createGame(FC, { seed: 100 + pair, game: "fusion", p1: starterDeck(a, a), p2: starterDeck(b, b) }).state as PinnedMatch["state"], beats: null, art: {}, names: { p1: a, p2: b } };
+    const memory: Record<PlayerId, LocalMemory> = { p1: localMemory(policyRng(pair * 2 + 1)), p2: localMemory(policyRng(pair * 2 + 2)) };
+    let moves = 0, stopped: string | null = null;
+    for (; moves < 3000 && match.state.phase !== "over"; moves++) {
+      const seat = (match.state.prompt as { player?: PlayerId }).player;
+      if (!seat) { stopped = `no seat asked at ${match.state.prompt.kind}`; break; }
+      const step = localStep(match, seat, moves, memory[seat], seat === "p2" ? seat2 : seat1);
+      memory[seat] = step.memory;
+      if (!step.ok) { stopped = `${seat} ${step.reason}: ${step.detail}`; break; }
+      match = step.match;
+    }
+    const outcome = resolveOutcome(match.state);
+    if (outcome?.kind === "interrupted") {
+      const detail = (match.state.outcome?.privateContext ?? {}) as { sourceCard?: string; detail?: string };
+      const cardId = detail.sourceCard ? match.state.cards[detail.sourceCard]?.cardId : undefined;
+      const text = `${a} vs ${b}: interrupted at turn ${match.state.turn} on ${cardId ?? "?"} (${detail.detail ?? outcome.reason})`;
+      if (cardId && cardId in KNOWN_UNREAD) console.log(`arena-fusion-world: policy ${text} — known unread`);
+      else failures.push(text);
+    } else if (stopped || match.state.phase !== "over") failures.push(`${a} vs ${b}: ${stopped ?? `not over after ${moves} moves`}`);
+    else console.log(`arena-fusion-world: policy ${a} vs ${b}: ${outcome?.winner ?? "draw"} won after turn ${match.state.turn} (${moves} moves)`);
+    pair++;
+  }
+  assert.deepEqual(failures, [], "the policy games finish");
+}
+
 
 console.log(`arena-fusion-world: ${rows.length} skill lines of 64 cards read`);
