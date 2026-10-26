@@ -133,7 +133,9 @@ const BT21_105 = "[Auto] If you place 2 of your Z-Energy into your Drop: When on
   assert.ok(z.op === "choose" && "special" in z.sel && z.sel.special === "self" && z.sel.area === "under" && z.sel.underHost?.area === "leader", "BT21-105: this card from under your (Z-)Leader");
   records += 5;
 }
-assert.ok(unreadOf("[activate: main][limit 1]{y}{y}, if you switch 5 yellow cards to Rest Mode: Draw 1 card and play this card from your hand.").length > 0, "BT24-096: \"switch 5 yellow cards\" (energy or not?) stays unread");
+// Phrasing batch 3 (owner's ruling of 26 Oct 2026): "switch 5 yellow cards" is any 5 Active Mode yellow cards, the energy
+// included — read now (`scripts/verify/phrasing-batch-3.ts`).
+assert.deepEqual(unreadOf("[activate: main][limit 1]{y}{y}, if you switch 5 yellow cards to Rest Mode: Draw 1 card and play this card from your hand."), [], "BT24-096: read since the ruling");
 assert.ok(unreadOf("[Auto] If you add 1 yellow <Vegeta> with an energy cost of 2 to your hand: At the start of your Main Phase, play this card under a yellow <Whis> Z-Battle Card.").length > 0, "BT21-103: the \"add\" price stays unread (its effect is no plain play)");
 
 // B2. Misspellings corrected on the way in (`src/lib/catalog/errata.ts`), read once corrected.
@@ -180,7 +182,8 @@ const P_391 = "[permanent] While there are 2 or more cards under this card, it g
   assert.ok(conds(record(BT16_062, "BT16-062")).some((c) => c.kind === "count" && "side" in c.sel && c.sel.area === "battle" && c.atMost === 0), "BT16-062: no Battle Cards in play");
   assert.ok(deep(record(BT13_147, "BT13-147")).some((c) => c.kind === "count" && "side" in c.sel && c.sel.side === "opponent" && c.sel.area === "warp"), "BT13-147: the opponent's Warp, the subject carried");
   assert.ok(deep(record(BT25_148, "BT25-148")).some((c) => c.kind === "count" && "side" in c.sel && c.sel.side === "you" && c.sel.area === "zEnergy" && c.atLeast === 3), "BT25-148: 3 or more Z-Energy");
-  assert.ok(unreadOf("[Permanent] If your Leader is a red <Whis> card and you have 1 or more red cards and 1 or more yellow cards in your energy, reduce the energy cost of this card in your hand by 3.").length > 0, "BT24-132: the area the second count names may be the first's too — unread");
+  // Phrasing batch 3 (owner's ruling of 26 Oct 2026): both counts are in the energy — read now (`phrasing-batch-3.ts`).
+  assert.deepEqual(unreadOf("[Permanent] If your Leader is a red <Whis> card and you have 1 or more red cards and 1 or more yellow cards in your energy, reduce the energy cost of this card in your hand by 3."), [], "BT24-132: read since the ruling");
   assert.deepEqual(conds(record(BT20_095, "BT20-095")), [{ kind: "every", sel: { side: "you", area: "battle" }, matching: { side: "you", area: "battle", mode: "rest" } }], "BT20-095: every card in your Battle Area rested");
   assert.ok(conds(record(BT23_084, "BT23-084")).some((c) => c.kind === "count" && "side" in c.sel && c.sel.side === "both" && c.sel.area === "battle" && c.atLeast === 10), "BT23-084: one count over both Battle Areas");
   assert.ok(deep(record(EX06_17, "EX06-17")).some((c) => c.kind === "leaderFlipped" && c.flipped === true), "EX06-17: the Leader awakened");
