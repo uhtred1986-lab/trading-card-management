@@ -1229,7 +1229,7 @@
     {
       "name": "hidden",
       "class": "macro over `modifyAttr`",
-      "signature": "{\"op\":\"hidden\",\"target\":TARGET,\"hidden\":true|false}",
+      "signature": "{\"op\":\"hidden\",\"target\":TARGET,\"hidden\":true|false,\"sameHiding\"?:true|false}",
       "fields": [
         {
           "name": "target",
@@ -1242,10 +1242,16 @@
           "required": true,
           "nullable": false,
           "type": "boolean"
+        },
+        {
+          "name": "sameHiding",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "switch this card to Hidden Mode",
-      "doc": "Hidden Mode / Revealed Mode (23-5)"
+      "doc": "Hidden Mode / Revealed Mode (23-5). `sameHiding` (BT28-121, official Q&A): reveal only a card still in the Hidden Mode this skill switched it to — not one revealed by another skill and hidden again since"
     },
     {
       "name": "redirectAttack",
@@ -3658,6 +3664,10 @@
       "part": "flag"
     },
     {
+      "field": "atRandom",
+      "part": "flag"
+    },
+    {
       "field": "ownedByOpponent",
       "part": "flag"
     },
@@ -3726,6 +3736,10 @@
     {
       "word": "notInBattle",
       "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
+    },
+    {
+      "word": "atRandom",
+      "doc": "the cards are taken with the game's seeded RNG, no player choosing — \"from your opponent's hand at random\" (BT1-073)"
     },
     {
       "word": "ownedByOpponent",

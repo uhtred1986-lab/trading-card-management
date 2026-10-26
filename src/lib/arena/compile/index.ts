@@ -61,7 +61,29 @@ export function compileSkill(skill: Skill): Script {
     if (!deck.rest) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: deck.unread };
     return compileSkillWithoutDeckBuilding({ ...skill, effect: `${deck.rest}.` });
   }
-  return compileSkillWithoutDeckBuilding(skill);
+  return counterPlaysThisCard(skill, compileSkillWithoutDeckBuilding(skill));
+}
+
+/**
+ * "[Counter: Attack] Play this card **from your hand**" (BT1-064 front 10, BT23-055, BT1-091; deck
+ * flags 26 Oct 2026): a [Counter] is activated from the hand and its card is placed in the Drop as it
+ * activates (22-10-7), so by the time the effect resolves "this card" is no longer in the hand. Kept
+ * on the selector, the area found nothing, nothing was played and the card stayed in the Drop. The
+ * hand is where the counter was used from, not where the effect finds the card: the play of this
+ * card names no area, as "[Counter: Play] Play this card" always has.
+ */
+function counterPlaysThisCard(skill: Skill, script: Script): Script {
+  if (!skill.kind.startsWith("counter")) return script;
+  const played = new Set(script.ops.flatMap((op) => (op.op === "play" && "var" in op.target ? [op.target.var] : [])));
+  let changed = false;
+  const ops = script.ops.map((op) => {
+    if (op.op !== "choose" || op.sel.special !== "self" || op.sel.area !== "hand" || op.sel.areas?.length || !played.has(op.as)) return op;
+    changed = true;
+    const { area: _hand, ...sel } = op.sel;
+    void _hand;
+    return { ...op, sel };
+  });
+  return changed ? { ...script, ops } : script;
 }
 
 /**

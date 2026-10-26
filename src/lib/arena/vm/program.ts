@@ -1461,7 +1461,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // "From your hand or Warp" names two (9-1-3-2, #464), either of which will do.
     if ((sel.special || sel.fromVar) && (sel.area || sel.areas?.length)) {
       const wanted = (sel.areas?.length ? sel.areas : [sel.area as string]).flatMap((a) => (a === "play" ? inPlayZones(game) : [a as string]));
-      if (!wanted.includes(zoneOf(state, id) ?? "")) return false;
+      // "This card from under your Leader" (BT31-110): a card in a pile is in
+      // no zone (23-2); it is where the selector says while the card holding
+      // the pile is one `underHost` names.
+      const host = wanted.includes("under") ? hostOf(state, id) : null;
+      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost).includes(host));
+      if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     if (sel.fromVar && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
     // 23-5-2 again: a Hidden Mode card has none of its front-side information

@@ -49,7 +49,7 @@ import { sparkingIsValid } from "./validity";
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame } from "./script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame, type Selector } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
 import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
@@ -528,6 +528,36 @@ function lifeSelfOps(ops: Op[]): Op[] {
   });
 }
 
+/** Does this selector name this card in the Warp ("this card in your hand and Warp", "this card in your Warp")? */
+function selfInWarp(sel: Selector | undefined): boolean {
+  return sel?.special === "self" && (sel.area === "warp" || !!sel.areas?.includes("warp"));
+}
+
+/** Does this program take this card out of the Warp ("remove this card in your Warp from the game")? */
+export function movesSelfOutOfWarp(ops: readonly Op[] | undefined): boolean {
+  return !!ops?.some((op) => (op.op === "moveTo" && !!op.target && "sel" in op.target && selfInWarp(op.target.sel)) || (op.op === "if" && (movesSelfOutOfWarp(op.then) || movesSelfOutOfWarp(op.else))) || (op.op === "may" && movesSelfOutOfWarp(op.ops)));
+}
+
+/**
+ * Deck flags 26 Oct 2026 (9-1-3-2: a skill naming the area it works in is valid there): what else of
+ * a [Permanent] holds while its card lies in the Warp — a change to this card's own cost that names
+ * the Warp ("reduce the energy cost of this card in your hand **and Warp** by 1", SD3-04), and a
+ * substitute that takes this card out of the Warp ("…you may remove **this card in your Warp** from
+ * the game instead", BT30-104). Kept inside the conditions they are printed under; nothing else.
+ */
+function warpSelfOps(ops: readonly Op[]): Op[] {
+  const out: Op[] = [];
+  for (const op of ops) {
+    if (op.op === "if") {
+      const then = warpSelfOps(op.then);
+      const other = op.else ? warpSelfOps(op.else) : [];
+      if (then.length || other.length) out.push({ ...op, then, ...(other.length ? { else: other } : {}) });
+    } else if (op.op === "costReduction" && op.target && "sel" in op.target && selfInWarp(op.target.sel)) out.push(op);
+    else if (op.op === "replace" && op.event !== "play" && movesSelfOutOfWarp(op.with)) out.push(op);
+  }
+  return out;
+}
+
 /**
  * What a card in a Combo Area can answer: its replacements of a departure from the Combo Area, kept
  * inside the conditions they are printed under ("If your Leader Card is …"), and nothing else of the program.
@@ -648,7 +678,7 @@ export function permanents(
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
           const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
             : zone === "life" ? lifeSelfOps(program.ops)
-            : zone === "warp" ? program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op))
+            : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
             : zone === "combo" ? comboDepartures(program.ops) : program.ops;
           if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
@@ -964,7 +994,10 @@ function collect(
       // life to add it to your hand…" (BT10-036, 9-1-3-3). It is valid while
       // that card lies in the Life Area, and only there.
       const lifeSelf = op.event === "life" && !!op.target;
-      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : op.from ? !explicitSource : !inPlayNow)) continue;
+      // BT30-104 (deck flags 26 Oct 2026): a substitute that removes this card from the Warp stands
+      // while this card is in the Warp, which is where `warpSelfOps` found it.
+      const warpSelf = !!state.sides[frame.master].zones.warp?.includes(frame.card) && movesSelfOutOfWarp(op.with);
+      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : warpSelf ? false : op.from ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.

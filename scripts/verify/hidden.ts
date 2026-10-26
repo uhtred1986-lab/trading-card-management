@@ -69,7 +69,7 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   // BT29-139: as many as you like, up to a count read off the board.
   assert.equal(
     reads("[Counter: Attack] Negate the attack, choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards and switch them to Hidden Mode, then switch all the cards switched to Hidden Mode by this skill to Revealed Mode at the end of the turn."),
-    "negate the attack, choose any number of Battle Cards in your opponent's Battle Area, up to the number of your Hidden Mode cards, switch the chosen cards to Hidden Mode, at the end of the turn: switch the chosen cards to Revealed Mode",
+    "negate the attack, choose any number of Battle Cards in your opponent's Battle Area, up to the number of your Hidden Mode cards, switch the chosen cards to Hidden Mode, at the end of the turn: switch the chosen cards to Revealed Mode (only a card still in the Hidden Mode this skill switched it to)",
   );
   // BT29-148: two kinds, either player's, picked as a kind first.
   const twoSides = one("[Activate: Main] Draw 1 card, choose up to 1 of your white Battle Cards with an energy cost of 4 or less or up to 1 of your opponent's Battle Cards and switch it to Hidden Mode.");

@@ -155,6 +155,13 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
+   * deck flags 26 Oct 2026): no player picks — the cards are taken with the
+   * game's own seeded RNG, as many as the count allows (official Q&A on
+   * BT1-073: "completely random … without player involvement").
+   */
+  atRandom?: true;
+  /**
    * "…Battle Cards **whose owner is your opponent**" (EX24-10): only cards the
    * chooser controls but does not own — the ones a control exchange (20-9)
    * brought over. Read off the card's owner, not the area it lies in.
@@ -853,7 +860,7 @@ export type Op =
    */
   | { op: "negateChosenKeyword"; target: Ref; until: Duration }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
-  | { op: "hidden"; target: Ref; hidden: boolean }
+  | { op: "hidden"; target: Ref; hidden: boolean; sameHiding?: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
   | { op: "redirectAttack"; target: Ref }
   /**
@@ -1833,6 +1840,8 @@ function defers(r: ReplacementResult | null | undefined): boolean {
 /** Steps whose effect is a recorded change of the game (a move, a draw, a KO, a play, a payment of life). */
 const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo"]);
 /** Steps that decide or look but change nothing on their own. */
+/** The Hidden Modes this program's own switches made, for a later `sameHiding` reveal (BT28-121). */
+const HIDDEN_HERE = "hiddenHere";
 const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
 
 /**
@@ -2369,6 +2378,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
 
+        // "…from your opponent's hand at random" (BT1-073, deck flags 26 Oct
+        // 2026): nobody is asked. As many of the candidates as the count says
+        // (all of them when there are fewer) are taken with the game's seeded
+        // RNG, so a replay from the same seed takes the same cards. The official
+        // Q&A: "completely random … without player involvement".
+        if (op.sel.atRandom) {
+          const pool = h.resolveSelector(frame, { ...op.sel, count: undefined });
+          take(h.pickAtRandom(pool, Math.min(want, pool.length)));
+          break;
+        }
+
         // 22-38-3 (#155): a set whose measures add up to exactly `sumTo`,
         // picked one card at a time, and only cards that still leave a way to
         // the exact sum are offered — so the choice can never dead-end, the
@@ -2821,10 +2841,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // switch (0-2-4-1).
         for (const id of h.resolveRef(frame, op.target)) {
           if (!HIDEABLE.has(h.areaOf(id) ?? "") || h.isHidden(id) === op.hidden) continue;
+          // "Switch the card that was switched to Hidden Mode by this skill to
+          // Revealed Mode" (BT28-121, official Q&A): a card another skill has
+          // revealed and hidden again since is in another Hidden Mode, and stays.
+          if (op.sameHiding && !op.hidden && !(frame.vars[HIDDEN_HERE] ?? []).includes(h.hiddenStamp(id) ?? "")) continue;
           // The skill doing it is part of the moment, as with Rest Mode: "when
           // this card in a Battle Area is switched to Hidden Mode by one of
           // your skills" (BT28-116, -119).
           h.setHidden(id, op.hidden, { card: frame.card, master });
+          if (op.hidden) frame.vars[HIDDEN_HERE] = [...(frame.vars[HIDDEN_HERE] ?? []), h.hiddenStamp(id) ?? ""];
           h.note(`${op.hidden ? "a Battle Card" : h.nameOf(id)} is switched to ${op.hidden ? "Hidden" : "Revealed"} Mode`);
         }
         break;

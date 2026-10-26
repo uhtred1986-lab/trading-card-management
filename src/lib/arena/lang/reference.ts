@@ -178,6 +178,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   fromEnd: "count from the bottom of the area's order instead of the top",
   ignoringBarrier: "may target a card with [Barrier] all the same",
   notInBattle: "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)",
+  atRandom: "the cards are taken with the game's seeded RNG, no player choosing — \"from your opponent's hand at random\" (BT1-073)",
   ownedByOpponent: "only cards you control whose owner is your opponent — a control exchange's loans (20-9); EX24-10's \"Battle Cards whose owner is your opponent\"",
   otherThanSelf: "excludes this card",
   otherThanCopies: "excludes every copy of this card, not only this one",
