@@ -1092,7 +1092,9 @@ function dropEmptyUnisons(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "wait" | void {
   // 21-6 is DBS-specific until rulesets declare rule procedures themselves.
-  if (state.game !== "dbs") return;
+  // Fusion World has the same drop (FW manual p. 11: power reduced to 0 by a
+  // skill goes to the Drop, and is not a KO) and records it as `powerZero`.
+  if (state.game !== "dbs" && state.game !== "fusion") return;
   const battle = game.zones.battle ? "battle" : null;
   if (!battle) return;
   while (true) {
@@ -1121,7 +1123,7 @@ function resolveZeroPower(ctx: EngineContext, game: GameDefinition, state: VmSta
             const actor = causedByEffect
               ? reductions.find((reduction) => reduction.master !== targetMaster)?.master ?? reductions[0]?.master
               : undefined;
-            pass.push({ id, event: 0, reason: causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
+            pass.push({ id, event: 0, reason: state.game === "fusion" ? "powerZero" : causedByEffect ? "effect" : "rule", ...(actor ? { actor } : {}), replacements: [] });
           }
         }
         if (!pass.length) return { pass, totalCards: 0, replacementCeiling: 0 };

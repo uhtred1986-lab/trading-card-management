@@ -5,6 +5,8 @@ milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-vm, phase:fusion-world, model:sonnet-5
 stage: fusion-world
 priority: P2
+status: closed
+closed_at: 2026-10-26
 touches: src/lib/arena/vm/battle.ts, src/lib/arena/vm/effects.ts, src/lib/arena/vm/zones.ts, scripts/verify/arena-fusion-world.mts
 ---
 Tracking: Arena F1. Depends on F1-02 (the `fusion` definition declares no combo price). Plan:
