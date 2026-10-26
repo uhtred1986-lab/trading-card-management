@@ -61,7 +61,7 @@ export async function openPinnedBundle(bundle: ReplayBundleRecord, interpreterRe
 /** Create a game on a pinned bundle and run it to its first question. */
 export async function createPinnedMatch(input: CreatePinnedMatchInput): Promise<{ match: PinnedMatch; events: GameEvent[] }> {
   const ctx = await openPinnedBundle(input.bundle, input.interpreterRevision);
-  const made = RULES_ENGINE.createGame(ctx, { seed: input.seed, ...input.bundle.decks });
+  const made = RULES_ENGINE.createGame(ctx, { seed: input.seed, ...(input.bundle.payload.game ? { game: input.bundle.payload.game } : {}), ...input.bundle.decks });
   const state = made.state;
   const match: PinnedMatch = {
     ctx,
@@ -133,7 +133,7 @@ export interface PinnedReplayResult {
  */
 export async function replayWith(engine: Engine, input: { bundle: ReplayBundleRecord; seed: number; actions: Action[]; interpreterRevision: string | null }): Promise<PinnedReplayResult> {
   const ctx: EngineContext = await openPinnedBundle(input.bundle, input.interpreterRevision);
-  const created = engine.createGame(ctx, { seed: input.seed, ...input.bundle.decks });
+  const created = engine.createGame(ctx, { seed: input.seed, ...(input.bundle.payload.game ? { game: input.bundle.payload.game } : {}), ...input.bundle.decks });
   let state = created.state;
   const events = [...created.events];
   for (const action of input.actions) {

@@ -285,27 +285,3 @@ DEFINE WORDS untilPermanent
   of: until
   text: "while {source} is in play"
   bare: "while its card is in play"
-
--- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
-DEFINE WORDS warp
-  of: zone
-  you: "your Warp"
-  text: "the Warp"
-
--- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
-DEFINE WORDS unison
-  of: zone
-  you: "the Unison Area"
-  text: "the Unison Area"
-
--- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
-DEFINE WORDS zDeck
-  of: zone
-  you: "your Z-Deck"
-  text: "the Z-Deck"
-
--- F1-03: the word for a zone Fusion World does not have, kept with the zone (see zones.rules).
-DEFINE WORDS zEnergy
-  of: zone
-  you: "your Z-Energy Area"
-  text: "Z-Energy"

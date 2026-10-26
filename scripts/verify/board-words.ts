@@ -11,8 +11,8 @@
  * old against new. Part of `npm test`; run from `scripts/verify-arena.ts`.
  */
 import assert from "node:assert/strict";
-import { dbsWords, wordsFromRuleset } from "../../src/lib/arena/board-words";
-import { loadDbs } from "../../src/lib/arena/rulesets";
+import { dbsWords, hasArea, wordsFor, wordsFromRuleset } from "../../src/lib/arena/board-words";
+import { loadDbs, loadFusion } from "../../src/lib/arena/rulesets";
 import { refusal, sentence, type Reaching } from "../../src/lib/arena/wording";
 import { narrate, type Narrator } from "../../src/lib/arena/narration";
 import { describeStatic, untilWords } from "../../src/lib/arena/effects";
@@ -232,6 +232,26 @@ for (const gone of ["battle", "charge", "active"]) {
   // No `room: true` anywhere means no leader could light a room.
   const words = Object.fromEntries(Object.entries(dbs.definition.words).map(([k, w]) => [k, w.of === "color" ? { ...w, room: false } : w]));
   assert.throws(() => wordsFromRuleset({ ...dbs.definition, words }), /marks no colour room: true/);
+}
+
+// F1-06: a game that does not declare an area gets no word for it, and the board reads that as "no such area".
+{
+  const fusion = loadFusion();
+  assert.ok(fusion.ok, "the Fusion World ruleset did not load");
+  if (!fusion.ok) throw new Error("unreachable");
+  const fw = wordsFromRuleset(fusion.definition);
+  assert.deepEqual(wordsFor("fusion"), fw, "wordsFor(fusion) is the generated table (npm run arena:rulesets)");
+  assert.equal(wordsFor("dbs"), dbsWords());
+  for (const a of ["warp", "unison", "zDeck", "zEnergy"] as const) {
+    assert.ok(!hasArea(fw, a), `Fusion World has no ${a} area`);
+    assert.ok(!(a in fw.narrationArea), `Fusion World has no narration word for ${a}`);
+    assert.ok(hasArea(dbsWords(), a), `DBS still has ${a}`);
+  }
+  for (const a of ["deck", "hand", "drop", "leader", "battle", "combo", "energy", "life", "removed"] as const) assert.ok(hasArea(fw, a), `Fusion World words ${a}`);
+  assert.deepEqual(fw.mode, { active: "Active Mode", rest: "Rest Mode" });
+  // A word for an area the game does not declare is a stale declaration, not a quiet extra.
+  const words = { ...fusion.definition.words, warp: { ...dbs.definition.words.warp } };
+  assert.throws(() => wordsFromRuleset({ ...fusion.definition, words }), /does not declare/);
 }
 
 console.log("  board-words: the board's words are read from words.rules and every table says what it said before");

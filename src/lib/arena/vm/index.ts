@@ -165,6 +165,10 @@ function definitionFor(game: Game, ctx?: EngineContext): GameDefinition {
   return loaded.definition;
 }
 
+/** The areas only some games have: one a game does not declare is one its cards are never played into or used out of, so the creation-time checks skip it. */
+const OPTIONAL_AREAS: ReadonlySet<string> = new Set(["unison", "zDeck", "warp", "zEnergy"]);
+const isOptionalArea = (game: GameDefinition, zone: string): boolean => OPTIONAL_AREAS.has(zone) && !(zone in game.zones);
+
 /**
  * Make a game, and run it to its first question.
  *
@@ -199,15 +203,21 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   if ((rules.players ?? 2) !== 2) throw new RulesetBroken(gameId, `it declares ${rules.players} players, and a game is played by the two the app seats`);
   if (!rules.setupPhase) throw new RulesetBroken(gameId, "it names no setupPhase, so the pre-game procedure has nowhere to begin");
   const places = new Set(placeZones(game));
+  // A game that declares no Z-Deck (Fusion World, `DEFINE GAME zDeck: 0`) is dealt none, so its ruleset
+  // need not declare the zone; any other setup zone is required.
+  const needsZDeck = (rules.zDeck ?? 1) > 0;
   for (const zone of Object.values(SETUP_ZONES)) {
+    if (zone === SETUP_ZONES.zDeck && !needsZDeck) continue;
     if (!places.has(zone)) throw new RulesetBroken(gameId, `the pre-game procedure puts cards in the ${zone}, which it declares no zone for`);
   }
   // 5-5: and every zone a play puts a card in. `PLAY_ZONES` and its two
   // neighbours in `vm/play.ts` are the pieces of the DBS definition that module
   // still names, and a name nothing declares is a play that would throw in the
   // middle of a game rather than at the making of one.
+  // A play into an area the game does not declare (a Unison Area in Fusion World) is a play its cards never
+  // make: the zone is checked only where the game declares it.
   for (const zone of PLAY_ZONE_NAMES) {
-    if (!places.has(zone)) throw new RulesetBroken(gameId, `a card is played into the ${zone}, which it declares no zone for`);
+    if (!places.has(zone) && !isOptionalArea(game, zone)) throw new RulesetBroken(gameId, `a card is played into the ${zone}, which it declares no zone for`);
   }
   // The other half of the same promise: every step the interpreter still
   // carries out itself is a step this game really declares. A row in
@@ -222,7 +232,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // different lines' — both said at the making of a game rather than in the
   // middle of one (#147).
   for (const zone of ACTIVATION_ZONE_NAMES) {
-    if (!places.has(zone)) throw new RulesetBroken(gameId, `a skill is used out of the ${zone}, which it declares no zone for`);
+    if (!places.has(zone) && !isOptionalArea(game, zone)) throw new RulesetBroken(gameId, `a skill is used out of the ${zone}, which it declares no zone for`);
   }
   for (const def of Object.values(game.actions)) {
     if (!def.skills) continue;
