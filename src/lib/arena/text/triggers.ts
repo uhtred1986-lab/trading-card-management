@@ -185,7 +185,7 @@ export function comboEntryQualifier(sk: Skill): ComboEntryQualifier | null {
   if (sk.kind !== "auto") return null;
   const masked = maskNames(sk.effect);
   const head = effectHead(masked.text).replace(TURN_THEN_WHEN, "");
-  if (/^when this card is used in a combo from your hand\b/.test(head)) return { origins: ["hand"] };
+  if (/^when (?:this card is used|you use this card) in a combo from your hand\b/.test(head)) return { origins: ["hand"] };
   if (/^when this card in your (?:deck or hand|hand or deck) is used in a combo\b/.test(head)) return { origins: ["deck", "hand"] };
   const via = /^when you combo with this card from an? energy area using (\{\d+\})['’]s skill\s*(?:,|$)/.exec(head);
   if (via) return { origins: ["energy"], viaSkillOf: masked.unmask(via[1]).replace(/^\{|\}$/g, "") };

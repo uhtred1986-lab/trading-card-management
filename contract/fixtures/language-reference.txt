@@ -494,7 +494,7 @@
     {
       "name": "moveTo",
       "class": "primitive",
-      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…}",
+      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"random\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…}",
       "fields": [
         {
           "name": "target",
@@ -548,6 +548,12 @@
         },
         {
           "name": "faceUp",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
+          "name": "random",
           "required": false,
           "nullable": false,
           "type": "boolean"
