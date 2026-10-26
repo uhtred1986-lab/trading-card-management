@@ -235,6 +235,19 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "SB02-047": [[/your\s+life\s+dring\s+this\s+turn/g, "your life during this turn"]],
   "SB02-054": [[/by\s+an\s+ooponent's\s+skill/g, "by an opponent's skill"]],
   "ST01-027": [[/energy,\s+duing\s+this\s+turn/g, "energy, during this turn"]],
+
+  // Prohibition batch 5 (26 Oct 2026). NOT an official erratum: the catalog's copy runs three
+  // skills into one line ("[energy-exhaust] [arrival red/yellow]{y}, if your Leader is {Super
+  // Baby 2, Awakened Malevolence}: [permanent] This card can't [evolve] into other cards."), so
+  // the line was read as an [Energy-Exhaust] with the [Arrival] lost and the [Permanent] left
+  // unread. [Arrival] ends at its cost (22-29-2); each keyword and the [Permanent] is a skill of
+  // its own, as the card prints them on lines of their own (every other [Arrival] card's copy
+  // breaks the line there too). This moves the card's skill indices: [Arrival] #10,
+  // [Permanent] #20, [Activate: Battle] #30.
+  "EX25-37": [
+    [/\[energy-exhaust\]\s+\[arrival/g, "[energy-exhaust]<br>[arrival"],
+    [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
+  ],
 };
 
 /**

@@ -140,8 +140,9 @@ const SELF = { sel: { special: "self" } };
   for (const text of [
     // A comparison no selector says (it read as "the cards under this card").
     "[Permanent] Your opponent's Battle Cards with the same keyword skills as cards under this card can't attack or switch to Active Mode.",
-    // Where a play comes from and what plays it are not a description of the card.
-    "[Auto] When you play this card, draw 1 card, and your opponent may not play Battle Cards from their hand with the skills of cards with [Super Combo] for the duration of the game.",
+    // (BT4-104's "…from their hand with the skills of cards with [Super Combo]"
+    // is read since batch 5 — the area and the skill's card, not the card's
+    // description: prohibition-catalog-5.)
     // (BT1-031's [Counter]/[Blocker] during this card's attack, BT31-111's
     // leading duration, BT19-153's bare removal and BT22-072's exception are
     // read since batch 2: prohibition-catalog-2.)
