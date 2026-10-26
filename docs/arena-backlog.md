@@ -108,6 +108,7 @@ for compiler work (`move()` replacement prompting, #107 — built 10 and 13 Sep 
 | Arena M16 — Board redesign: play feel and card review | `docs/arena-board-redesign-spec.md` (owner's decisions of 30 Sep 2026) and the frames in `docs/arena-redesign/` |
 | Arena M17 — Arena home: Play and Rules Workbench | `docs/arena-home-spec.md` (owner's decisions of 30 Sep 2026) and the Arena home / Rules workbench rows of the "DBS Arena Redesign" canvas |
 | AI providers — one contract, API or subscription, any vendor | `docs/architecture/ai-providers.md`; #511/#518 and approved model-economy follow-up #381; current queue includes these without duplicating provider implementation |
+| Arena F1 — Fusion World: the four launch starter decks | `docs/arena-fusion-world-plan.md` (26 Oct 2026); the ruleset spec's "worked hypothetical" (`docs/arena-ruleset-spec.md` §5) made real: a second ruleset directory, the four FS01–FS04 starters |
 
 Offline programme milestone definitions (pending provisioning):
 
@@ -128,14 +129,14 @@ Offline programme milestone definitions (pending provisioning):
 
 **Phase** — `phase:rules-stage2` … `phase:rules-stage10`, `phase:rules-docs`, and the older
 `phase:hud-workflow`, `phase:battle-staging`, `phase:android-client`, `phase:capability-gap`,
-plus `phase:board-redesign` (M16) and `phase:arena-home` (M17).
+plus `phase:board-redesign` (M16), `phase:arena-home` (M17) and `phase:fusion-world` (Arena F1).
 
 **Workflow** — `backlog`, `ready-for-agent`, `needs-owner-ruling`, `blocked`, `epic` (a stage's
 tracking issue).
 
-**Model** — `model:opus-5`, `model:sonnet-5`: the plan's recommendation for who should run the
+**Model** — `model:opus-5`, `model:sonnet-5`, `model:haiku-4-5`: the plan's recommendation for who should run the
 issue (Opus for grammar, engine and keyword work, where a wrong reading of the manual costs a
-subsystem; Sonnet for mechanical ports, UI and documentation). Each stage ends with a
+subsystem; Sonnet for mechanical ports, UI and documentation; Haiku for a replacement or a docs edit with an exact list). Each stage ends with a
 `/code-review` pass on Opus before merge.
 
 ## 4. The issue set
