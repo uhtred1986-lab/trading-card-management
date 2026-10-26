@@ -788,6 +788,14 @@ function parseOneFilter(text: string): CardFilter {
   // (BT3-037). Not "character names **including** <SH>" (EX24-25), which
   // counts names rather than looking inside one — hence `includes?` and not
   // the participle.
+  // Phrasing batch 3: the negation said this way round too — "your opponent's Battle Cards … **that does not have a
+  // character name that includes** <Son Goku: GT>" (BT21-063). Read as the positive below it named the one card the
+  // sentence rules out.
+  t = t.replace(/(?:that |which )?does\s?n'?o?t have an? (character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
+    const value = token.slice(1, -1).trim();
+    (which.toLowerCase() === "character" ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
+    return " ";
+  });
   t = t.replace(/(character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
     const value = token.slice(1, -1).trim();
     (which.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding).push(value);
@@ -1020,7 +1028,9 @@ function parseOneFilter(text: string): CardFilter {
   }
   // "Non-Leader card" is the type it must not be, and reading it as the type
   // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
-  const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(lower) ? "no" : re.test(lower) ? "yes" : null);
+  // Phrasing batch 3: not a word inside a card's name — "{Pilaf, **Leader** of the Crew}" (BT5-015) is a Battle Card.
+  const typed = lower.replace(/\{[^{}]*\}/g, " ");
+  const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(typed) ? "no" : re.test(typed) ? "yes" : null);
   // The plural counts too. Anchored with a trailing `\b`, "Battle Card" did
   // not match "Battle **Cards**" — so every phrase that names the type in the
   // plural set no type at all and selected every card in the area, and
@@ -1161,6 +1171,9 @@ function parseOneFilter(text: string): CardFilter {
   // "with"/"and", so that "it gets +5000 power for the turn" is not read as a
   // bound on the target.
   else if ((m = /\b(?:with|and) ([\d,]+) power\b/.exec(pw))) f.powerMin = f.powerMax = num(m[1]);
+  // Phrasing batch 3: the same exact power said before its number — "…with an energy cost of 8 and **a power of
+  // 30000**" (BT21-139). Read with no bound it offered every power.
+  else if ((m = /(?<!original )\b(?:an? )?powers? of ([\d,]+)\b(?! or (?:less|more)\b)/.exec(pw))) f.powerMin = f.powerMax = num(m[1]);
   // "with power less than or equal to this card's power", "with power greater
   // than this card's power" — measured against the card the skill is on.
   if (

@@ -212,6 +212,10 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // "Add a marker to the chosen card": nothing to tell them apart, so it is
     // the last choice, as it has always been.
     if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    // Phrasing batch 3: "Choose 1 other ≪Namekian≫ card in your Battle Area: Place this card under **the chosen
+    // Battle Card**" (TB3-058, TB3-059): the card type names nothing the one choice made did not, so with one choice
+    // it is that one, as "the chosen card" is.
+    if (/\bthe chosen (?:battle|unison|leader) cards?\b/i.test(clause) && c.choices.length <= 1 && c.last) return { var: c.last };
     return null;
   }
   // "Add up to 1 <Son Goku> card among them to your hand" names its own target
@@ -1516,6 +1520,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
   }
   if (/^shuffle your deck(?: if you looked through it| afterwards?)?$/.test(t)) return [{ op: "shuffle" }];
+  // Phrasing batch 3: "Add up to 1 {Spirit} from your life to your hand, **then shuffle your life**" (BT30-007): the Life
+  // Area shuffled, as a search of it leaves it (the `shuffle` op's own area).
+  if (/^shuffle your life(?: area)?$/.test(t)) return [{ op: "shuffle", areas: ["life"] }];
   // "Declare a number from 0 to 3" (EX Android card), said in the effect itself.
   if ((m = /^declare (?:1|a|one) numbers?(?: (?:that'?s (\d+) or (?:less|fewer)|from (\d+) to (\d+)))?$/.exec(t))) {
     return [{ op: "declare", min: m[3] ? Number(m[2]) : 0, max: m[3] ? Number(m[3]) : m[1] ? Number(m[1]) : 10 }];
@@ -1533,7 +1540,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // op there would be a rule that reads and never runs - that one stays unread.
   if (!c.permanent && /^you lose the game$/.test(t)) return [{ op: "win", side: "opponent" }];
   // 20-12-3: a search of *their* deck is theirs to shuffle afterwards.
-  if (/^(?:your opponent|they) shuffles? (?:their|his|her) deck$/.test(t)) return [{ op: "shuffle", side: "opponent" }];
+  // Phrasing batch 3: "Your opponent reveals the top card of their deck, **then shuffles their deck**" (DB1-077): the verb
+  // the opponent's clause carries on with, its subject left behind the "then".
+  if (/^(?:(?:your opponent|they) shuffles? |shuffles )(?:their|his|her) deck$/.test(t)) return [{ op: "shuffle", side: "opponent" }];
   // Revealing (20-11-2). Unlike looking, both players see the cards, and they
   // stay where they are — the clauses after it act on what was turned up.
   // "When your opponent attacks a Leader Card, **they reveal their hand**" (BT13-024): the same reveal, its subject the
@@ -2315,6 +2324,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "The Battle Card played **has its skill negated** for the duration of the
     // turn" (BT1-107): the play goes ahead and the card arrives negated.
     if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
+    // Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT14-154): "[Counter: Play] Play this card, then … **The played
+    // Battle Card has its skills negated for the turn**" — the played card is the opponent's card whose play the counter
+    // answers (9-6), not this card, which the skill played itself. Only in a [Counter: Play]: anywhere else "the played
+    // card" is a play the skill made.
+    if (c.skillKind === "counter:play" && /^the played (?:battle |extra |unison )?card (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
   }
 
   // Negation (9-1).
@@ -2806,9 +2820,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "Choose 1 {Spaceship, Vessel of Hope} in your Unison Area **and place this
   // card under it**": "it" is the card the clause before just chose, which is
   // the only antecedent it can have — the host is never the card being placed.
+  // Phrasing batch 3: the host named by a counted description, chosen as #1123's "a {Spirit Bomb}" is (`hostChoice`) —
+  // "under **a {Dr.Uiro's Lab} in your Battle Area**" (BT8-058, P-370), "under **a <Majin Buu> card in your Battle
+  // Area**" (BT9-085), "under **one of your {Universal Tuffleization Plan} cards**" (BT21-041), "under **1 of your green
+  // <Broly: Br> cards**" (BT19-073) — and the Leader named with its description, "under **your <Fin> Leader**" (P-639).
   if (
     (m =
-      /^(?:place|put) (.+?) (?:face ?up )?under (the chosen [^,.]+|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?)$/.exec(
+      /^(?:place|put) (.+?) (?:face ?up )?under (the chosen [^,.]+|the played card|the card (?:that was |you )?played(?: with this skill)?|your leader(?: card)?|it|them|that card|those cards|\{[^}]+\}(?: in your battle area)?|(?:an?|1|one) (?:of your )?(?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:<[^<>]+>|\{[^{}]+\}|≪[^≪≫]+≫)(?: (?:battle )?cards?)? in your battle area|(?:1|one) of your (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:<[^<>]+>|\{[^{}]+\}|≪[^≪≫]+≫) (?:battle )?cards|your (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:<[^<>]+>|≪[^≪≫]+≫) leader(?: card)?|your (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:<[^<>]+>|≪[^≪≫]+≫|\{[^{}]+\}) battle card|your \{[^{}]+\})$/.exec(
         t,
       ))
   ) {
@@ -2819,7 +2837,19 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // counted description with no area stays unread.
     // "From the top of your deck", "from under this card", "among them" all
     // say where; "in its card name" does not.
-    if (/^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
+    // Phrasing batch 3: straight after a look, the counted description is among the cards looked at, as "look at up
+    // to 5 cards …, **add up to 1** … to your hand" reads — "Look at up to 5 cards from the top of your deck, place up
+    // to 1 red <Trunks: Future> card under a {Destroyed West City} in your Battle Area, then shuffle your deck" (P-555,
+    // BT23-030, BT21-035b, BT30-107b).
+    // Not a list of alternatives ("<Vegeta: GT> with an energy cost of 1 **or 1** mono-blue ≪Brainwashed≫", BT21-041),
+    // which one description cannot say.
+    const placed = /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:in|from|among)\b/.test(m[1].replace(/\bin (?:its|their) card names?\b/g, "")) && !/\bor (?:up to )?\d/.test(m[1]) && c.lastOp === "look" && c.lastSeen ? `${m[1]} among them` : m[1];
+    if (/^(?:up to )?(?:\d+|an?) /.test(placed) && !/\b(?:in|from|among)\b/.test(placed.replace(/\bin (?:its|their) card names?\b/g, ""))) return null;
+    // Phrasing batch 3: the host said by its description alone. "Your <Fin> **Leader**" is your Leader, when it is
+    // that (`leaderHost`); "your ≪Cell Games≫ Battle Card" (BT26-109) and "your {Majin Buu's Sealed Ball}" (BT2-024,
+    // BT2-003b) are one of yours the player picks.
+    const leaderHost = /^your (.+?) leader(?: card)?$/.exec(m[2]);
+    const hostSaid = leaderHost ? null : m[2].replace(/^your ((?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:<[^<>]+>|≪[^≪≫]+≫|\{[^{}]+\})) battle card$/, "1 of your $1 battle cards").replace(/^your (\{[^{}]+\})$/, "1 of your $1 cards");
     // "…then choose 1 of your red <Android 17> cards and 1 of your red <Android
     // 18> cards: Play up to 1 {…} from your hand or Drop, then place **all of the
     // chosen cards** under that card" (BT23-007): every card the price chose,
@@ -2832,9 +2862,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       if (!host || ("var" in host && chosenNames.includes(host.var))) return null;
       return chosenNames.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under", under: host }));
     }
-    const host = refFor(m[2], c);
-    const ref = refFor(m[1], c);
-    if (!host || !ref) return null;
+    let host: Ref | null;
+    if (leaderHost) {
+      const filter = filterFor(`${leaderHost[1]} card`, null);
+      host = filter ? { sel: { side: "you", area: "leader", filter } } : filter === undefined ? { sel: { side: "you", area: "leader" } } : null;
+    } else host = refFor(hostSaid ?? m[2], c);
+    if (!host) return null;
+    // Phrasing batch 3: "place **up to 1 card from the top of your deck** under your {Majin Buu's Sealed Ball}" (BT2-024,
+    // BT2-003b): the top card, if the player wants — not a card chosen from anywhere in the deck.
+    if (/^up to 1 card from the top of your deck$/.test(placed)) {
+      const { ops: chooseHost, host: under } = hostChoice(host, clause, c);
+      return [...chooseHost, { op: "may", ops: [{ op: "moveTo", target: { sel: { side: "you", area: "deck", take: 1 } }, to: "under", under }], reason: clause }];
+    }
+    const ref = refFor(placed, c);
+    if (!ref) return null;
     const ops = placeUnderOps(ref, host, clause, c);
     // Remember who the placed card went under (see `Ctx.underHost`); a host
     // chosen here (#1123) is the move's `under`, never a passenger of itself.
@@ -4803,7 +4844,8 @@ export function splitModal(text: string): { head: string; options: string[] } | 
   // Some sets print the full-width hyphen-minus after "choose one". Left out
   // of this class it is not consumed, and the text before the first bullet
   // becomes an option of its own — a dash, which compiles to nothing.
-  const m = /choose one\s*(?:[-–—―－ー?:]{1,2})?\s*/i.exec(text);
+  // Phrasing batch 3: "When this card attacks choose one**---**" (BT9-126b) prints three.
+  const m = /choose one\s*(?:[-–—―－ー?:]{1,3})?\s*/i.exec(text);
   if (!m) return null;
   const options = text
     .slice(m.index + m[0].length)
@@ -4868,6 +4910,10 @@ function track(o: Op, c: Ctx): void {
     // because the sentence is asking *about* the card — reading "it" in a
     // later clause as the milled card would move a card nothing named.
     c.lastNamed = o.as;
+  } else if (o.op === "moveTo" && o.to === "under" && o.under && "sel" in o.target && o.target.sel.special === "self") {
+    // Phrasing batch 3: "Place this card under the chosen Battle Card, **and that card** gets +5000 power" (TB3-058,
+    // TB3-059): once this card is under another it is out of play, and what the sentence goes on about is the host.
+    c.lastTarget = o.under;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
   if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
@@ -5271,7 +5317,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   // of its own, not one added to the first.
   let afterThen = false;
   /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
-  let countSubject: { said: string; area: boolean } | null = null;
+  let countSubject: { said: string; area: boolean; clause: string } | null = null;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
@@ -5914,13 +5960,29 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Warp**" (BT13-147), "If you have 3 or more energy **and 3 or more Z-Energy**" (BT25-148), "…and **a black Unison
     // in play**" (BT29-087): the "and" cut the count off the subject it shares with the one before it, which is said
     // again for it. Only straight after such a condition, and only a bare count. Not when this half names an area
-    // the first did not — "you have 1 or more red cards **and** 1 or more yellow cards **in your energy**" (BT24-132)
-    // may be counting both in the energy, and the first half was read as cards in play.
+    // the first did not — "you have 1 or more red cards **and** 1 or more yellow cards **in your energy**" (BT24-132):
+    // that area closes both counts (owner's ruling, phrasing batch 3, `closingArea` below).
     const areaNamed = (said: string) => /\b(?:in|from) (?:your|their|play|the|a|its)\b|\benergy\b|\bz-energy\b/i.test(said);
-    const sharedSubject: string | null = chaining && countSubject && /^(?:\d+ or (?:more|less|fewer)|an?|no|at least \d+) \S/i.test(clause.trim()) && !(!countSubject.area && /\bin (?:your|their)\b/i.test(clause)) ? countSubject.said : null;
+    const bareCount = /^(?:\d+ or (?:more|less|fewer)|an?|no|at least \d+) \S/i.test(clause.trim());
+    const sharedSubject: string | null = chaining && countSubject && bareCount && !(!countSubject.area && /\bin (?:your|their)\b/i.test(clause)) ? countSubject.said : null;
+    // Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT24-132): "If your Leader is a red <Whis> card and you have 1
+    // or more red cards and 1 or more yellow cards **in your energy**" counts both in the energy — the area closing the
+    // second count closes the first, which named none: one list of what you have there. Both are read with it.
+    const closingArea = chaining && countSubject && !countSubject.area && bareCount && open.conds.length ? /\s(in your (?:energy|z-energy|drop(?: area)?|warp|hand))$/i.exec(clause.trim().replace(/[.,]$/, ""))?.[1] : undefined;
+    const subjectBefore = countSubject as { said: string; area: boolean; clause: string } | null;
+    if (closingArea && subjectBefore) {
+      const first = parseConditionClause(`${subjectBefore.clause} ${closingArea}`, true);
+      const second = parseConditionClause(`${subjectBefore.said} ${clause.trim()}`, true);
+      if (first && second && first.cond.kind === "count" && second.cond.kind === "count") {
+        open.conds[open.conds.length - 1] = first.cond;
+        open.conds.push(second.cond);
+        countSubject = { said: subjectBefore.said, clause: subjectBefore.clause, area: true };
+        continue;
+      }
+    }
     const cond: ReturnType<typeof parseConditionClause> = parseConditionClause(clause, chaining) ?? (sharedSubject ? parseConditionClause(`${sharedSubject} ${clause.trim()}`, true) : null);
     const subjectHere = /^(?:(?:if|while|as long as) )?(you have|your opponent has)\b/i.exec(clause.trim())?.[1];
-    countSubject = subjectHere ? { said: subjectHere, area: areaNamed(clause) } : sharedSubject && cond ? countSubject : null;
+    countSubject = subjectHere ? { said: subjectHere, area: areaNamed(clause), clause: clause.trim().replace(/[.,]$/, "").replace(/^(?:if|while|as long as) /i, "") } : sharedSubject && cond ? countSubject : null;
     if (cond) {
       // The condition follows a timing phrase with nothing between them: it is
       // the delayed part's own, asked when that part runs. Read as a group of

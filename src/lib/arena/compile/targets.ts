@@ -1033,6 +1033,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // "When you combo with a skill-less card" (BT6-105b, `youCombo`): the card
     // used in the combo. Not "…using this card's skill", which is a means.
     /^you combo with (?:an?|1) ((?!.*\busing\b).+)$/.exec(t)?.[1] ??
+    // Phrasing batch 3: "When you use a red skill-less Battle Card with an energy cost of 2 in a combo" (BT14-001b).
+    /^you use (?:an?|1) ((?!.*\busing\b).+?) in a combo$/.exec(t)?.[1] ??
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?)(?:[-—–]\s*)?is played\b/.exec(t)?.[1] ??

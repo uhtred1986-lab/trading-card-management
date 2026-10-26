@@ -194,6 +194,13 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-621": [[/If\s+your\s+Leaderis\s+a/g, "If your Leader is a"]],
   "P-751": [[/into\s+its\s+owner'\s+Drop/g, "into its owner's Drop"]],
   "TB2-065": [[/≪World\s+Tournament≫Battle\s+Cards/g, "≪World Tournament≫ Battle Cards"]],
+  // Phrasing batch 3 (26 Oct 2026): three more misspellings the compiler reads literally.
+  "BT27-031": [
+    [/from\s+your\s+energy\s+to\s+you\s+hand:/g, "from your energy to your hand:"],
+    [/place\s+it\s+a\s+the\s+bottom\s+of/g, "place it at the bottom of"],
+  ],
+  "BT28-077": [[/Multi-Form\s+Tkoens/g, "Multi-Form Tokens"]],
+  "BT31-144": [[/of\s+your\s+energy\s+to\s+Activate\s+Mode/g, "of your energy to Active Mode"]],
 
   // ── Fusion World (display only — the arena does not play it) ──────────────
   "FB04-032": [[/Plce\s+this\s+card/g, "Place this card"]],

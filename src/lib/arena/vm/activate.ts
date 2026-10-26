@@ -612,7 +612,7 @@ export function activationRefusals(
   // legacy `whyNotActivate` asks it — after the condition, before the energy —
   // and in its words (#458).
   const priceOps = actionPriceOf(line);
-  if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
 
   // …the price goes here, and `vm/actions.ts` puts it there.
 
@@ -993,6 +993,32 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
 }
 
+/**
+ * Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT24-096): a price that rests Active Mode cards it chooses, the
+ * energy among them — "{y}{y}, if you switch 5 yellow cards to Rest Mode" — competes with the printed cost, which is
+ * paid first and rests energy of its own (4-3-3). A rested card pays neither twice (5-8-2-2), so the choice is
+ * payable only if `n` candidates are left once the orbs are paid: each coloured orb is paid off energy the choice does
+ * not want when there is such energy of its colour, and the generic ones off whatever such energy is left; the rest
+ * come out of the candidates.
+ */
+function restedEnoughBesideOrbs(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, payable: string[], orbs: Record<string, number>, n: number): boolean {
+  const energy = zone(state, player, ACTIVATION_ZONES.energy).filter((id) => state.cards[id]?.mode === "active");
+  const wanted = new Set(payable);
+  if (!energy.some((id) => wanted.has(id))) return true;
+  const spare = energy.filter((id) => !wanted.has(id));
+  let reserved = 0;
+  for (const [colour, count] of Object.entries(orbs)) {
+    if (colour === "any" || !count) continue;
+    const ofColour = spare.filter((id) => ((attrsNow(ctx, game, state, id).colors ?? []) as string[]).includes(colour));
+    const fromSpare = Math.min(count, ofColour.length);
+    for (const id of ofColour.slice(0, fromSpare)) spare.splice(spare.indexOf(id), 1);
+    reserved += count - fromSpare;
+  }
+  reserved += Math.max(0, (orbs.any ?? 0) - spare.length);
+  const fromEnergy = payable.filter((id) => energy.includes(id)).length;
+  return payable.length - fromEnergy + Math.max(0, fromEnergy - reserved) >= n;
+}
+
 /** Where a line's action price leaves what it chose for the effect — the legacy key, word for word. */
 const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
 
@@ -1062,7 +1088,7 @@ function saysWhereItPays(ops: Op[]): boolean {
  * target named by a variable is whatever the `choose` in front of it binds,
  * and that choice has already been checked.
  */
-export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, ops: Script["ops"]): boolean {
+export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, ops: Script["ops"], orbs?: Record<string, number>): boolean {
   if (activationPriceProblem(ops)) return false;
   const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player };
   const hand = zone(state, player, ACTIVATION_ZONES.hand);
@@ -1120,6 +1146,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           !then ? true : then.op === "switchMode" ? state.cards[id].mode !== then.mode : then.op === "hidden" ? state.cards[id].hidden !== then.hidden : true;
         const payable = resolveSelector(ctx, game, state, frame, op.sel).filter(switches).filter(id => movementPayable(id, op.as) && stillThere(id, op.as));
         if (selectedCount(op.sel, payable, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
+        if (orbs && then?.op === "switchMode" && then.mode === "rest" && !restedEnoughBesideOrbs(ctx, game, state, player, payable, orbs, op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;
       }
       case "discard":
