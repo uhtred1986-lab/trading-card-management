@@ -645,22 +645,31 @@ const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leader
  * pieces differ in more than the names an "or" already reads as either; "<Son
  * Goku> card or <Vegeta> card" stays one filter, as it always read.
  */
-function eitherFilter(text: string): CardFilter | null {
+function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null {
   // "…≪Namekian≫ or ≪Demon Clan≫ card―both green and with an energy cost of
   // 4 or less―or 1 green Unison with a specified cost of 2" (BT18-083, #980):
   // the aside belongs to the description in front of it, so it is folded into
   // that description before the alternatives are cut apart.
-  const t = expandSharedCardDescription(text.replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+  const plain = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  // Phrasing batch 4 (owner's ruling of 26 Oct 2026 on P-711): an aside that *ends* the whole description — "<Pan>
+  // card or card with <GT> in its character name-both multicolor and with an energy cost of 4-" — describes every
+  // alternative, not the last one alone. Taken off here and said again of each piece below.
+  // Only "both" said of two alternatives: an aside after a pair of names joined into one piece ("…or up to 1 ≪Saiyan≫
+  // or ≪Earthling≫ card—both yellow…—", BT24-092) is that piece's, as it always read (`endingAsideForAll` false).
+  const ending = endingAsideForAll ? /(?:--|[-—–―])\s*both\s+((?:(?!--|[—–―]|\bor (?!less\b|more\b)).)+?)\s*(?:--|[-—–―])?\s*$/i.exec(plain) : null;
+  const shared = ending && /\bor\b/i.test(plain.slice(0, ending.index)) ? ending[1] : null;
+  const whole = expandSharedCardDescription(plain);
   // "…with an energy cost of 1 or 5" (BT29-032, #537): two costs, either one.
   // Read as a bound it was the first number alone. "4 or less" is not this.
   // Not "…with an energy cost of 1 **or 1 yellow Unison** with a specified
   // cost of 1" (SD20-01, #728): there the second number is the next
   // description's count, and the "or" is between two descriptions.
-  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)(?!\s+(?:red|blue|green|yellow|black|white|mono|multi|card|unison|extra|battle|leader|z-|<|≪|\{))/i.exec(t);
+  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)(?!\s+(?:red|blue|green|yellow|black|white|mono|multi|card|unison|extra|battle|leader|z-|<|≪|\{))/i.exec(whole);
   if (costs) {
-    const at = (n: string) => parseFilter(t.slice(0, costs.index) + t.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
+    const at = (n: string) => parseFilter(whole.slice(0, costs.index) + whole.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
     return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
   }
+  const t = shared && ending ? expandSharedCardDescription(plain.slice(0, ending.index)) : whole;
   if (!/\bor\b/i.test(t)) return null;
   // Split at top level only: names carry commas and "or"s of their own.
   const pieces: string[] = [];
@@ -696,6 +705,7 @@ function eitherFilter(text: string): CardFilter | null {
   for (const [i, p] of pieces.entries()) {
     const nameOnly = i < pieces.length - 1 && !CARD_NOUN.test(p) && NAMES_ONLY.test(mask(p));
     if (nameOnly && STARTS_WITH_NAME.test(mask(pieces[i + 1]))) {
+      if (shared) return eitherFilter(text, false);
       carry = carry ? `${carry} or ${p}` : p;
       continue;
     }
@@ -705,7 +715,7 @@ function eitherFilter(text: string): CardFilter | null {
   if (joined.length < 2) return null;
   const cleaned = joined.map((p) => p.trim().replace(/^(?:a|an|1|up to \d+|any number of)\s+/i, ""));
   if (!cleaned.every((p) => CARD_NOUN.test(p) && !/^(?:less|more|fewer)\b/i.test(p))) return null;
-  const alts = cleaned.map((p) => parseOneFilter(p));
+  const alts = cleaned.map((p) => parseOneFilter(shared ? `${p} ${shared}` : p));
   if (alts.some((a) => a.unreadable)) return null;
   // Halves that are nothing but a card type name the areas of a pair —
   // "your opponent's Battle Cards or Unisons" is two areas, and the selector
@@ -1024,6 +1034,10 @@ function parseOneFilter(text: string): CardFilter {
     if (words.length) {
       f.token = true;
       f.names.push(words.join(" "));
+    } else if (/\b(?:your|their|opponent'?s) tokens\b/.test(lower)) {
+      // Phrasing batch 4: "choose up to 2 of your opponent's **Tokens**" (BT14-085, BT14-117): every token, whatever
+      // its name (19).
+      f.token = true;
     }
   }
   // "Non-Leader card" is the type it must not be, and reading it as the type
