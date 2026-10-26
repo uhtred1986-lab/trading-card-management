@@ -380,6 +380,20 @@
           "nullable": false,
           "offCard": "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
           "type": "amount"
+        },
+        {
+          "name": "exactly",
+          "required": false,
+          "nullable": false,
+          "offCard": "exactly this many of the selected cards, read off the board as the choice is made — \"switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088); the selector's count is not read; with too few cards nothing is chosen and an accepted \"you may\" around it counts as not done (20-16-1)",
+          "type": "amount"
+        },
+        {
+          "name": "specifiedCostAtMost",
+          "required": false,
+          "nullable": false,
+          "offCard": "only the selected cards whose specified cost (1-2-3) is at most this much, read off the board as the choice is made — \"reveal 1 mono-green <Vegito> card from your hand and switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088): a card the counted energy cannot pay for is not on offer",
+          "type": "amount"
         }
       ],
       "sentence": "choose 1 card in your Battle Area",

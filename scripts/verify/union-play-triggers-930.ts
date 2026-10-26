@@ -65,13 +65,13 @@ function language(rec: Rec, what: string): void {
   const plain = (v: unknown) => JSON.parse(JSON.stringify(v, (k, x) => (k === "upTo" && x === false ? undefined : x)));
   assert.deepEqual(plain(round.value), plain(rule), `${what}: …unchanged`);
 }
-/** Each card's [Auto], the program inside its gate, and what stays unread (BT7-123's "add them to their energy" was unread before and is not this change's). */
+/** Each card's [Auto], the program inside its gate, and what stays unread (none: BT7-123's "add them to their energy in Rest Mode" is read since `union-leftovers-930.ts`). */
 const CARDS: [string, number, unknown[], string[]][] = [
   ["BT14-114", 10, [{ op: "draw", n: 1 }], []],
   ["BT5-039", 20, [{ op: "draw", n: 2 }], []],
   ["BT2-085", 20, ["draw", "choose", "ko"], []],
   ["BT4-108", 20, ["discard", "grant"], []],
-  ["BT7-123", 30, ["reveal", "choose"], ["add them to their energy in Rest Mode"]],
+  ["BT7-123", 30, ["reveal", "choose", "moveTo"], []],
   ["P-109", 30, ["choose", "moveTo"], []],
   ["BT28-097", 20, ["choose", "negateSkills", "ko"], []],
   ["BT28-099", 20, [{ op: "grant", target: { sel: { special: "self" } }, keyword: { name: "Barrier" }, until: "nextTurn" }], []],

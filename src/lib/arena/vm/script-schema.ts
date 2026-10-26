@@ -366,6 +366,16 @@ const CHOOSE_FIELDS: OpField[] = [
         type: "amount",
         offCard: "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
       },
+      {
+        name: "exactly",
+        type: "amount",
+        offCard: "exactly this many of the selected cards, read off the board as the choice is made — \"switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088); the selector's count is not read; with too few cards nothing is chosen and an accepted \"you may\" around it counts as not done (20-16-1)",
+      },
+      {
+        name: "specifiedCostAtMost",
+        type: "amount",
+        offCard: "only the selected cards whose specified cost (1-2-3) is at most this much, read off the board as the choice is made — \"reveal 1 mono-green <Vegito> card from your hand and switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088): a card the counted energy cannot pay for is not on offer",
+      },
     ];
 
 export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
@@ -421,7 +431,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
         return `choose any number of ${cards}, up to ${bound}`;
       }
-      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      if (op.exactly !== undefined) {
+        const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
+        return `choose exactly ${describeAmount(op.exactly)} of ${cards}`;
+      }
+      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -2232,6 +2246,7 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
     if (v.sel.minCount !== undefined && (v.atMost !== undefined || v.sumTo !== undefined || v.namedSet || v.sel.sumAtMost !== undefined)) return `${at}: minCount cannot combine with another choice bound`;
+    if (v.exactly !== undefined && (v.atMost !== undefined || v.sumTo !== undefined || v.namedSet || v.sel.sumAtMost !== undefined || v.sel.minCount !== undefined || v.sel.upTo)) return `${at}: "exactly" is a count of its own and cannot combine with another choice bound or "up to"`;
     return strayBound(rest(v.sel, "sumAtMost"), at, false) ?? strayBound(rest(v, "sel"), at, false);
   }
   return strayBound(Object.values(v), at, false);
