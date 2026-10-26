@@ -1064,11 +1064,13 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     return !!b && (masterOf(game, state, b.attacker) === player || masterOf(game, state, b.guard) === player) && !!def && !!findCard(state, id)
       && findCard(state, id)?.zone !== "combo" && canCombo(def) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
   };
+  /** 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps" (BT6-028) — a price that needs that move can't be paid. */
+  const dropToWarpForbidden = (id: string, to: string): boolean => to === "warp" && findCard(state, id)?.zone === "drop" && !!forbiddenBy(ctx, game, state, "dropToWarp", { player, card: id });
   const movementPayable = (id: string, variable: string): boolean => {
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
     if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
-    return movement?.op !== "moveTo" || !lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to);
+    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to) && !dropToWarpForbidden(id, movement.to));
   };
   // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
   // card, so a later choice of the same price can no longer pick it.
@@ -1141,7 +1143,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           break;
         }
         if ("var" in op.target) break;
-        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to))) return false;
+        if (!resolveRef(ctx, game, state, frame, op.target).length || resolveRef(ctx, game, state, frame, op.target).some(id => lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, op.to) || dropToWarpForbidden(id, op.to))) return false;
         break;
       // #1117 (owner ruling 20 Oct 2026): a KO or a combo of a card the price chose was narrowed by its own
       // choice above; one of this card needs this card to be fit for it.

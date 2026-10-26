@@ -503,7 +503,7 @@ export type Cond =
    * on both engines. `what` is the action; the card and the player it is asked
    * about are the candidate and the actor, which the declaration cannot name.
    */
-  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean }
+  | { kind: "forbidden"; what: ForbiddenAction; bySkill?: boolean; from?: "hand" | "battle" | "drop" }
   /**
    * A `DEFINE ATTRIBUTE of: player` fact, read (13-3, 7-2-11, issue #269):
    * "you have not already grown a Unison this turn" and "you have already had
@@ -1169,6 +1169,11 @@ export type Op =
       attackTarget?: CardFilter;
       /** "…can only attack this card" (#1005): the only defenders an attack may be declared against. */
       attackOnly?: Ref;
+      /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
+      against?: Ref;
+      /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
+      fromArea?: "hand" | "battle" | "drop";
+      fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
       exceptEvolve?: boolean;
@@ -2613,9 +2618,21 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           // 20-14: "can't be removed from a Battle Area by your opponent's
-          // skills". The rule is about the opponent's skills, so a card its
-          // own master moves is unaffected.
-          if (h.masterOf(id) !== master && h.areaOf(id) === "battle" && h.forbids("beMovedBySkill", { card: id })) {
+          // skills". The rule's `side` says whose skills — asked with this
+          // skill's controller, so "by your opponent's skills" leaves a card
+          // its own master moves alone and "by skills" (BT10-065) does not;
+          // the card whose skill it is answers "the skills of your opponent's
+          // Battle Cards" (BT10-058, `byTypes`).
+          if (h.areaOf(id) === "battle" && h.forbids("beMovedBySkill", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} can't be removed from the Battle Area`;
+            frame.moveLoop.index++;
+            continue;
+          }
+          // 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps"
+          // (BT6-028, BT16-001) — a move this skill's controller makes out of
+          // a Drop and into a Warp, by its effect or its price.
+          if (h.areaOf(id) === "drop" && op.to === "warp" && h.forbids("dropToWarp", { card: id, player: master })) {
+            if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} can't be sent from a Drop Area to a Warp`;
             frame.moveLoop.index++;
             continue;
           }
@@ -3098,7 +3115,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), player: players[0] },
             });
           break;
         }
@@ -3113,6 +3130,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             what: op.what,
             ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}),
             ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}),
+            ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}),
+            ...(op.fromArea ? { fromArea: op.fromArea } : {}),
+            ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
+            ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
             ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
