@@ -55,7 +55,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const comboablePrice = (id: string, master: PlayerId): boolean => {
     const b = host.battle();
     return !!b && (host.masterOf(b.attacker) === master || host.masterOf(b.guard) === master)
-      && !!state.cards[id] && host.areaOf(id) !== "combo" && canCombo(host.defOf(id))
+      && !!state.cards[id] && host.areaOf(id) !== "combo" && canCombo(host.defOf(id), host.comboFree())
       && !host.forbids("combo", { player: master, card: id });
   };
   /** "This card gets -15000 power for the turn" (DB2-011). Power is read in

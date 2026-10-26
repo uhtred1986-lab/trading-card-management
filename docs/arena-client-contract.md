@@ -756,7 +756,7 @@ export interface DeckDetailCard {
 }
 ```
 
-A Fusion World deck (the arena only plays `dbs`, §1) or a deck with no leader yet is listed like any
+A deck of a game the arena does not play (`arenaPlays`; today both games are played) or a deck with no leader yet is listed like any
 other — `playable: false` and a `playableReason` saying which — rather than dropped from the list,
 so the Android app can grey it out with an explanation instead of a deck that is silently not there.
 Golden fixtures: `contract/fixtures/deck-list.json` and `deck-detail.json`, built and checked by

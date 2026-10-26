@@ -76,6 +76,7 @@ import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newC
 import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -171,6 +172,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // effect, and a card's own rule about itself wherever it sits (9-1-3-3).
     // The same predicate a `REFUSE` gates a move on, so an instruction and a
     // menu cannot disagree about what is forbidden.
+    comboFree: () => comboPriceOf(game) === null,
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
     taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
     canPayTax: (player, card, ops) => canPayPriceProgram(ctx, game, state, player, card, ops),

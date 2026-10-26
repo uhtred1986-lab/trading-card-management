@@ -1433,3 +1433,14 @@ function zoneOf(state: VmState, id: string): string | null {
 }
 
 const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
+
+/**
+ * The combo price the loaded game declares (`DEFINE COST` reading `comboCostOf`),
+ * or null for a game with none — Fusion World's combos cost nothing (FW manual
+ * p. 10). A null price means the combo path plans no payment at all, never a
+ * zero-energy one.
+ */
+export function comboPriceOf(game: GameDefinition): string | null {
+  for (const [name, def] of Object.entries(game.costs)) if (def.amount === "comboCostOf") return name;
+  return null;
+}

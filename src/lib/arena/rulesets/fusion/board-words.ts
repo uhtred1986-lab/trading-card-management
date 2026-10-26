@@ -15,11 +15,7 @@ export const FUSION_BOARD_WORDS: BoardWords = {
     "battle": "your Battle Area",
     "combo": "your Combo Area",
     "energy": "your Energy Area",
-    "unison": "the Unison Area",
     "leader": "the Leader Area",
-    "warp": "your Warp",
-    "zDeck": "your Z-Deck",
-    "zEnergy": "your Z-Energy Area",
     "removed": "out of the game"
   },
   "narrationArea": {
@@ -30,11 +26,7 @@ export const FUSION_BOARD_WORDS: BoardWords = {
     "battle": "the Battle Area",
     "combo": "the Combo Area",
     "energy": "the Energy Area",
-    "unison": "the Unison Area",
     "leader": "the Leader Area",
-    "warp": "the Warp",
-    "zDeck": "the Z-Deck",
-    "zEnergy": "Z-Energy",
     "removed": "out of the game"
   },
   "phase": {

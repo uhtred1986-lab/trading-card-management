@@ -113,7 +113,7 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     let colour: string | null = null;
     let measure = "";
     let adjective = "";
-    // ("both with energy costs of 1", BT20-079, says no colour at all.)
+    // ("both with energy costs of 1", BT20-079, says no colour at all; #1208, FS02-03: "…—both with a cost of 2 or less—".)
     const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(?:((?:mono-)?${COLOUR})|(?=with|without|skill-less))((?:,?\\s*(?:and\\s+)?(?:${ASIDE_PART}))*)\\s*,?\\s*${DASH}\\s*$`, "i").exec(list);
     if (aside) {
       colour = aside[1] ? aside[1].toLowerCase() : null;
@@ -147,7 +147,8 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // gives the cards no noun at all; the dashes' aside says what they are.
     // A list of names alone — "up to 1 <Gravy> and 1 <Putine>" (EX07-11) — names one card per name likewise.
     const noun = /\bcards?$/i.test(items[items.length - 1] ?? "") || items.every((x) => new RegExp(`^(?:up to )?(?:1 )?${NAME}$`, "i").test(x)) || (!!aside && items.every((x) => new RegExp(`${NAME}$`).test(x)));
-    const raw = items.map((x) => ((shape.required || noun) && !/\bcards?$/i.test(x) ? `${x} card` : x));
+    // #1208: Fusion World prints the bare name, "up to 1 <Son Goten> and up to 1 <Trunks : Youth>", with no "card".
+    const raw = items.map((x) => ((shape.required || noun || shape.dest === "hand") && !/\bcards?$/i.test(x) ? `${x} card` : x));
     if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?${NAME} cards?$`, "i").test(x))) return null;
     // Only the first slot says "up to 1"; every item is one named card. A colour in front of an
     // item (BT6-012) is that item's own and wins over the one the dashes give all of them.
@@ -165,13 +166,13 @@ export function namedSetWords(clause: string): NamedSetWords | null {
 }
 
 /** Phrasing batch 3: one thing a "both <colour> …" aside says of every card — a measure, a keyword it lacks, or no skills. */
-const ASIDE_PART = "with (?:an? )?(?:(?:original )?energy costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)(?: and \\d+ power)?|without \\[[^\\]]+\\]|skill-less";
+const ASIDE_PART = "with (?:an? )?(?:(?:original )?(?:energy )?costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)(?: and \\d+ power)?|without \\[[^\\]]+\\]|skill-less";
 
 const DASH_ANYWHERE = /[―—–]|--/;
 /** A place a "from your A and B" pair names. */
 const AREA = "(?:deck|drop(?: area)?|hand|warp|battle area|(?:z-)?energy(?: area)?|life)";
 /** One power or energy-cost measure, as `eachOfSlots` reads it. */
-const MEASURE = "with (?:an? )?(?:energy costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)";
+const MEASURE = "with (?:an? )?(?:energy )?(?:costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)";
 
 /**
  * #930: "choose **up to 1 each of blue {Super Saiyan Son Goku} and {Super
