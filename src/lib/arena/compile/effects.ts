@@ -4008,6 +4008,31 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" }, then: [rule] }];
     }
   }
+  // "…your originally skill-less Battle Cards can't gain skills for the game"
+  // (BT22-081, prohibition batch 6): a rule about those cards of that player's,
+  // one played later included — no keyword or skill is gained by them.
+  {
+    const gain = /^(your|your opponent'?s) (.+? cards) can'?t gain skills(?:\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+    if (gain) {
+      const filter = filterFor(gain[2], null);
+      if (!filter || unreadFilterWords(gain[2], filter).length) return null;
+      const type = /\bbattle cards\b/.test(gain[2]) ? { type: "BATTLE" as const } : /\bunison cards\b/.test(gain[2]) ? { type: "UNISON" as const } : {};
+      return [{ op: "forbid", what: "gainSkills", until, cardsOf: gain[1] === "your" ? "you" : "opponent", filter: { ...filter, ...type } }];
+    }
+  }
+  // "The power of your Battle Cards and Unisons can't be reduced by your
+  // opponent's skills" (P-668, prohibition batch 6): a negative power change
+  // by that player's skills — timed or a [Permanent] — is not applied to
+  // those cards; one rule per kind of card.
+  {
+    const power = /^the power of (your|your opponent'?s) (battle cards|unisons|unison cards|battle cards and unisons|battle cards and unison cards) can'?t be reduced by (your opponent'?s|your) skills$/.exec(t.trim().replace(/[.]$/, ""));
+    if (power) {
+      const cardsOf: Side = power[1] === "your" ? "you" : "opponent";
+      const by: Side = power[3] === "your" ? "you" : "opponent";
+      const kinds = [...(/battle cards/.test(power[2]) ? ["BATTLE" as const] : []), ...(/unison/.test(power[2]) ? ["UNISON" as const] : [])];
+      return kinds.map((type): Op => ({ op: "forbid", what: "powerReducedBySkill", side: by, until, cardsOf, filter: { ...parseFilter(""), type } }));
+    }
+  }
   // "Cards in your life can only be flipped face up by skills on mono-yellow
   // cards" (BT12-086, prohibition batch 6): a skill turning one of that
   // player's Life cards face up does not, unless its card is such a card.

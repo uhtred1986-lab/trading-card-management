@@ -192,10 +192,33 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
   if (readingStatics) return [];
   const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
   if (scope?.standing) return scope.standing;
-  const standing = readStatics(ctx, game, state);
+  const standing = withoutBarredGrants(ctx, game, state, readStatics(ctx, game, state));
   if (scope) scope.standing = standing;
   return standing;
 }
+
+/**
+ * BT22-081 (prohibition batch 6): a [Permanent]'s keyword grant to a card a
+ * `gainSkills` rule in force is about is not gained. Read straight off the
+ * rules (standing and timed), the cards as printed, so it cannot recur.
+ */
+function withoutBarredGrants(ctx: EngineContext, game: GameDefinition, state: VmState, standing: VmStatic[]): VmStatic[] {
+  const rules = [
+    ...standing.filter((e) => e.kind === "forbid").map((e) => ({ target: e.target, f: e.value as Prohibition })),
+    ...state.effects.filter((e) => e.kind === "forbid" && e.forbid).map((e) => ({ target: e.target, f: e.forbid as Prohibition })),
+  ].filter(({ f }) => f.what === "gainSkills" && !f.unless);
+  if (!rules.length) return standing;
+  return standing.filter((e) => e.kind !== "keyword" || !grantBarred(ctx, game, state, e.target, rules));
+}
+
+function grantBarred(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, rules: { target: string; f: Prohibition }[]): boolean {
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  if (!def) return false;
+  const owner = findCard(state, id)?.owner;
+  const printed = attrsOf(def, game).attrs;
+  return rules.some(({ target, f }) => (!target || target === id) && (!f.cardsOf || f.cardsOf === owner) && (!f.filter || predicateOf(f.filter, game)(printed)));
+}
+
 
 function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
@@ -468,8 +491,13 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
       : refusedNegation
         ? mine.filter((e) => e.kind !== "negateKeyword")
         : mine;
-    const layerTimed = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!skillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
-    const value = valueOf(game, base, name, name === "keywords" ? layerStatics.filter((e) => e.kind !== "keyword" || e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)) : layerStatics, layerTimed);
+    const layerTimed0 = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!skillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
+    // P-668 (prohibition batch 6): a reduction of this card's power by the
+    // skill of a player a rule in force names is not applied.
+    const shielded = name === "power" ? powerShield(ctx, game, state, id, standing) : null;
+    const layerTimed = shielded ? layerTimed0.filter((e) => !(e.kind === "power" && typeof e.value === "number" && e.value < 0 && shielded.has(e.master))) : layerTimed0;
+    const layerStatics0 = shielded ? layerStatics.filter((e) => !(e.kind === "power" && typeof e.value === "number" && e.value < 0 && shielded.has(e.master))) : layerStatics;
+    const value = valueOf(game, base, name, name === "keywords" ? layerStatics0.filter((e) => e.kind !== "keyword" || e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)) : layerStatics0, layerTimed);
     if (value !== undefined) out[name] = value;
   }
   // #154: a keyword's `attrBonus` hook is a further layer, read after the
@@ -485,6 +513,33 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (typeof current === "number") out[fact.attr] = current + fact.delta;
   }
   return out;
+}
+
+/**
+ * P-668 (prohibition batch 6): the players whose skills may not reduce this
+ * card's power — every `powerReducedBySkill` rule in force, timed or standing,
+ * about the card's controller's cards of its printed type. Read straight off
+ * the rules (never through `forbids`, which reads `attrsNow`), so a rule with
+ * an escape is not read here; null when no rule protects the card.
+ */
+function powerShield(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, standing: readonly VmStatic[]): Set<PlayerId> | null {
+  const rules = [
+    ...standing.filter((e) => e.kind === "forbid").map((e) => ({ target: e.target, f: e.value as Prohibition })),
+    ...state.effects.filter((e) => e.kind === "forbid" && e.forbid).map((e) => ({ target: e.target, f: e.forbid as Prohibition })),
+  ].filter(({ f }) => f.what === "powerReducedBySkill" && !f.unless);
+  if (!rules.length) return null;
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  if (!def) return null;
+  const controller = masterOf(game, state, id);
+  const type = baseType(def);
+  const out = new Set<PlayerId>();
+  for (const { target, f } of rules) {
+    if (target && target !== id) continue;
+    if (f.cardsOf && f.cardsOf !== controller) continue;
+    if (f.filter?.type && f.filter.type !== type) continue;
+    for (const p of ["p1", "p2"] as PlayerId[]) if (!f.player || f.player === p) out.add(p);
+  }
+  return out.size ? out : null;
 }
 
 /**

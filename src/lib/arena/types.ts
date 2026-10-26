@@ -404,7 +404,22 @@ export type ForbiddenAction =
    * the Life card with the skill's card as `source`; `exceptByFilter` names
    * the skills let through.
    */
-  | "flipLifeFaceUp";
+  | "flipLifeFaceUp"
+  /**
+   * "The power of your Battle Cards and Unisons can't be reduced by your
+   * opponent's skills" (P-668): a negative power change whose source is a
+   * card of `player` — a timed effect or a [Permanent] — is not applied to
+   * the cards the rule is about (`cardsOf`, `filter.type`). Read where power
+   * is layered (`attrsNow`), off the rules in force, card type as printed.
+   */
+  | "powerReducedBySkill"
+  /**
+   * "Your originally skill-less Battle Cards can't gain skills for the game"
+   * (BT22-081): a keyword or a skill given to such a card — by a skill's grant
+   * or by a [Permanent] — is not gained (the official Q&A: the card may still
+   * be chosen, and gains nothing). The cards are read as printed.
+   */
+  | "gainSkills";
 
 export interface Prohibition {
   what: ForbiddenAction;

@@ -22,7 +22,7 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { forbiddenBy } from "../../src/lib/arena/vm/program";
+import { attrsNow, forbiddenBy, hasKeyword } from "../../src/lib/arena/vm/program";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -173,6 +173,13 @@ const defs: Record<string, CardDef> = {
   RFLIP: C("RFLIP", { colors: ["Red"], skill: "[Activate: Main] Choose up to 1 card in your life and flip it face up." }),
   YFLIP: C("YFLIP", { colors: ["Yellow"], skill: "[Activate: Main] Choose up to 1 card in your life and flip it face up." }),
   LIFEPICK: C("LIFEPICK", { colors: ["Yellow"], skill: "[Activate: Main] Choose up to 1 card in your life and add it to your hand." }),
+  P668: C("P668", { skill: "[permanent] The power of your Battle Cards and Unisons can't be reduced by your opponent's skills." }),
+  SHRINK_THEIRS: C("SHRINK_THEIRS", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn." }),
+  SHRINK_MINE: C("SHRINK_MINE", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and it gets -5000 power for the turn." }),
+  AURA_DOWN: C("AURA_DOWN", { skill: "[Permanent] All of your opponent's Battle Cards get -3000 power." }),
+  NO_GAIN: C("NO_GAIN", { skill: "[Activate: Main] Your originally skill-less Battle Cards can't gain skills for the game." }),
+  GIVER: C("GIVER", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and it gains [Blocker] for the turn." }),
+  AURA_DS: C("AURA_DS", { skill: "[Permanent] All of your Battle Cards gain [Double Strike]." }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -232,6 +239,7 @@ function endTurn(s: VmState): VmState {
 }
 const activations = (s: VmState, id: string) => RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === id);
 const leaderOf = (s: VmState, p: PlayerId) => s.sides[p].zones.leader[0];
+const power = (s: VmState, id: string) => attrsNow(ctx, game, s, id).power as number;
 const zoneOf = (s: VmState, id: string) => (["p1", "p2"] as PlayerId[]).flatMap((p) => Object.entries(s.sides[p].zones).filter(([, ids]) => ids.includes(id)).map(([z]) => z))[0];
 /** Empty a pile into the Drop Area down to `keep` cards (a state fixture, not a game action). */
 function empty(s: VmState, p: PlayerId, zone: string, keep = 0): void {
@@ -659,6 +667,44 @@ for (const me of SEATS) {
     s = roundtrip(endTurn(endTurn(s)));
     s = use(s, pick, [second]);
     assert.equal(zoneOf(s, second), "hand", `${me}: a face-down one is (control)`);
+  }
+
+  // 21 (P-668): neither the opponent's skill nor their [Permanent] reduces my
+  // Battle Card's power; my own skill does (control); without P-668 theirs does.
+  for (const ruled of [true, false]) {
+    let s = game3(you);
+    if (ruled) stage(s, me, "P668", "battle");
+    const mine = stage(s, me, "PLAIN", "battle");
+    const shrink = stage(s, you, "SHRINK_THEIRS", "battle");
+    stage(s, you, "AURA_DOWN", "battle");
+    s = roundtrip(s);
+    const before = 30000;
+    assert.equal(power(s, mine), ruled ? before : before - 3000, `${me}: P-668 — the opponent's [Permanent] ${ruled ? "does not reduce it" : "reduces it (control)"}`);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === shrink)!.action), [mine], 0));
+    assert.equal(power(s, mine), ruled ? before : before - 8000, `${me}: P-668 — the opponent's skill ${ruled ? "does not reduce it" : "reduces it (control)"}`);
+    if (!ruled) continue;
+    s = roundtrip(endTurn(s));
+    const own = stage(s, me, "SHRINK_MINE", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === own)!.action), [mine], 0));
+    assert.equal(power(s, mine), before - 5000, `${me}: my own skill reduces it (control)`);
+  }
+
+  // 22 (BT22-081): an originally skill-less Battle Card gains neither a granted
+  // [Blocker] nor a [Permanent]'s [Double Strike]; a card with skills does (control).
+  {
+    let s = game3(me);
+    const lock = stage(s, me, "NO_GAIN", "battle");
+    const giver = stage(s, me, "GIVER", "battle");
+    const bare = stage(s, me, "PLAIN", "battle");
+    const skilled = stage(s, me, "CHARGER", "battle");
+    stage(s, me, "AURA_DS", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === lock)!.action)));
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === giver)!.action), [bare], 0));
+    assert.ok(!hasKeyword(ctx, game, s, bare, "Blocker"), `${me}: BT22-081 — no granted [Blocker]`);
+    assert.ok(!hasKeyword(ctx, game, s, bare, "Strike"), `${me}: …nor the [Permanent]'s [Double Strike]`);
+    assert.ok(hasKeyword(ctx, game, s, skilled, "Strike"), `${me}: a card with skills gains it (control)`);
   }
 
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs

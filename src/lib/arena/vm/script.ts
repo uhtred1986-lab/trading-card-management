@@ -3137,7 +3137,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "grant":
-        for (const id of h.resolveRef(frame, op.target)) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) {
+          // BT22-081 (prohibition batch 6): a card that can't gain skills gains nothing.
+          if (h.forbids("gainSkills", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) })) continue;
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
+        }
         break;
 
       case "copySkills": {
@@ -3185,7 +3189,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
         if (!picked.length) break;
-        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } });
+        // BT22-081 (prohibition batch 6): a card that can't gain skills copies none.
+        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } }).filter((id) => !h.forbids("gainSkills", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) }));
         for (const id of targets)
           for (const src of new Set(picked.map((x) => x.card))) {
             const mine = picked.filter((x) => x.card === src);

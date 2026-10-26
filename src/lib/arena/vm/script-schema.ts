@@ -230,6 +230,8 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   flipLeaderBack: "flip their Leader Card to its back",
   drawByAwaken: "draw cards with their Leader's [Awaken]",
   flipLifeFaceUp: "have cards in their life flipped face up by skills",
+  powerReducedBySkill: "have their power reduced by skills",
+  gainSkills: "gain skills",
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
@@ -961,6 +963,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           const whose = op.side === "opponent" ? "your opponent's skills" : op.side === "you" ? "your skills" : "skills";
           return `markers on ${cards} can't be removed by ${whose}${escape}${forThe(op.until, r)}`;
         }
+        // BT22-081: "your originally skill-less Battle Cards can't gain skills".
+        if (op.what === "gainSkills" && !op.target) return `${op.cardsOf === "opponent" ? "your opponent's" : "your"} ${op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't gain skills${escape}${forThe(op.until, r)}`;
+        // P-668: "the power of your Battle Cards … can't be reduced by your opponent's skills".
+        if (op.what === "powerReducedBySkill" && !op.target) return `the power of ${op.cardsOf === "opponent" ? "your opponent's" : "your"} ${op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't be reduced by ${op.side === "opponent" ? "your opponent's" : op.side === "you" ? "your" : ""} skills${escape}${forThe(op.until, r)}`.replace("by  skills", "by skills");
         // BT12-086: "you can't add face-up cards in your life to your hand".
         if (op.what === "addLifeToHand" && op.filter?.faceUp && !op.target) return `${who} can't add face-up cards in ${op.side === "opponent" ? "their" : "your"} life to ${op.side === "opponent" ? "their" : "your"} hand${escape}${forThe(op.until, r)}`;
         // BT12-086: Life cards turned face up only by the skills described.
