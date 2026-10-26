@@ -961,7 +961,9 @@ function compileSkillText(skill: Skill): Script {
     // for any card at all. "It" is still pointed at the subject only where
     // the trigger says "your", as before.
     else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
-      if (/\byour\b/i.test(trigger)) c.lastTarget = { sel: { special: "subject" } };
+      // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
+      // one thing the sentence has named, so "it" is that card too.
+      if (/\byour\b/i.test(trigger) || /^when you play (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that
@@ -991,6 +993,9 @@ function compileSkillText(skill: Skill): Script {
       // [Union] any of them, a named variant only that one. `resolvePlay`
       // withdraws the Auto from any other play, or a card the description
       // refuses (`vm/triggers.ts` `unionPlayedGate`).
+      // "When you play a Battle Card **on your turn**" (BT13-026, phrasing batch 1): a card can be played on the
+      // opponent's turn too (a [Counter: Play], a skill's play), and the words say this one only counts on yours.
+      if (/^when you play [^,]+ on your turn$/i.test(trigger.trim())) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, { kind: "isTurnPlayer" }] } : { kind: "isTurnPlayer" };
       const byUnion = yourCardPlayedByUnion(trigger);
       if (byUnion) {
         const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };

@@ -670,6 +670,12 @@ export function anaphora(text: string): string {
       // (BT10-121): one play changed two ways. Cut at the "and" the second half
       // has no subject, so it is said once, the way DB2-128 and EB1-46 print it.
       .replace(/\b(?:it|that card) has its skills negated(?: for the (?:duration of the )?turn)? and is played in rest mode\b/gi, "it's played in Rest Mode with its skills negated for the turn")
+      // "…it gets +15000 power and has its skills negated **for the battle**" (BT15-030, phrasing batch 1): the
+      // span closes both halves. Cut at the "and", the power change was left to the default of the turn.
+      .replace(/\b(gets? [+-]\d+ power) and (has its skills negated) (for the (?:duration of the )?battle)\b/gi, "$1 $3 and $2 $3")
+      // "This card gains +5000 **and [Critical]**" (P-025): the measure the number changes is left unsaid before a
+      // keyword, and it is power (the only measure a card gains as a bare "+5000").
+      .replace(/\b(gains?|gets?) ([+-]\d+) and \[/gi, "$1 $2 power and [")
       // "**Reduce the combo cost by 1 and negate the [Energy-Exhaust] skill of** multicolor
       // <Pan> cards …" (BT25-098, BT25-103, BT29-085b, EX19-20): a bare "the combo cost"
       // names no card (the reducer refuses it, deliberately), but the one subject the
