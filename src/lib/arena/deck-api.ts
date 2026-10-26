@@ -14,7 +14,7 @@
  * ever reaches this module. A deck owned by someone else is simply not among
  * the rows this file is asked to shape, so there is nothing to check here.
  */
-import { gameInfo, type Game } from "@/lib/catalog/games";
+import { arenaPlays, gameInfo, type Game } from "@/lib/catalog/games";
 import type { DeckFlag, DeckLegality, DeckStatus } from "@/lib/decks/legality";
 import type { Zone } from "@/lib/decks/queries";
 
@@ -72,12 +72,12 @@ export interface DeckDetail {
  * Why the arena will not load this deck, when it will not.
  *
  * Mirrors `deckInputFor`'s own two gates (`src/lib/arena/load.ts`) — a game
- * other than `dbs`, or no leader — in words rather than in a second decision:
+ * the arena does not play, or no leader — in words rather than in a second decision:
  * `playable` itself always comes from calling `deckInputFor`, never from this.
  */
 export function playableReason(game: Game, playable: boolean, hasLeader: boolean): string | null {
   if (playable) return null;
-  if (game !== "dbs") return `${gameInfo(game).short} decks are not played in the arena — it only plays the original game`;
+  if (!arenaPlays(game)) return `${gameInfo(game).short} decks are not played in the arena`;
   if (!hasLeader) return "needs a leader before it can be played";
   return "cannot be loaded into the arena";
 }

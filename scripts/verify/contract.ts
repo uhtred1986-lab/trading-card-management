@@ -11,6 +11,7 @@ import { isGhostAction } from "../../src/lib/arena/action-tone";
 import { deckDetail, deckSummary, type DeckDetail, type DeckListPayload } from "../../src/lib/arena/deck-api";
 import { legality, type LegalityCard } from "../../src/lib/decks/legality";
 import type { Zone } from "../../src/lib/decks/queries";
+import { GAME_INFO, type Game } from "../../src/lib/catalog/games";
 import {
   CTX,
   DEFAULT_LIGHTING,
@@ -579,6 +580,11 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
   const fusionLegality = legality([fusionLeader], "fusion");
   const emptyLegality = legality([], "dbs");
 
+  const withArenaOff = <T,>(game: Game, make: () => T): T => {
+    const was = GAME_INFO[game].arena;
+    GAME_INFO[game].arena = false;
+    try { return make(); } finally { GAME_INFO[game].arena = was; }
+  };
   const deckFixtures: Record<string, unknown> = {
     "deck-list": {
       decks: [
@@ -586,7 +592,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
           { id: 1, name: "Red aggro", game: "dbs", isBuilt: true, leader: { id: leader.cardId, name: leader.name, imageUrl: "https://storage.googleapis.com/deckplanet_card_images/BT18-001.png", colors: leader.colors }, legality: dbsLegality },
           true,
         ),
-        deckSummary({ id: 2, name: "Fusion starter", game: "fusion", isBuilt: false, leader: { id: fusionLeader.cardId, name: fusionLeader.name, imageUrl: null, colors: fusionLeader.colors }, legality: fusionLegality }, false),
+        // The fixture shows a deck the arena refuses; the arena plays Fusion World now, so the gate's flag is down for this one summary.
+        withArenaOff("fusion", () => deckSummary({ id: 2, name: "Fusion starter", game: "fusion", isBuilt: false, leader: { id: fusionLeader.cardId, name: fusionLeader.name, imageUrl: null, colors: fusionLeader.colors }, legality: fusionLegality }, false)),
         deckSummary({ id: 3, name: "Idea dump", game: "dbs", isBuilt: false, leader: null, legality: emptyLegality }, false),
       ],
     } satisfies DeckListPayload,

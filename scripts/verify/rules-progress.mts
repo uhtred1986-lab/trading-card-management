@@ -56,8 +56,8 @@ await db.insert(schema.deckCards).values([
 ]);
 
 const all = await loadProgress(db, undefined);
-assert.equal(all.total, 6, "no-skill card, keyword-only card, testing and fusion decks are out");
-assert.equal(all.done, 2, "BT1-001 and BT1-002 only: unchecked, open, flagged and missing do not count");
+assert.equal(all.total, 7, "no-skill card, keyword-only card and testing decks are out; the fusion deck is in, the arena plays it");
+assert.equal(all.done, 3, "BT1-001, BT1-002 and the fusion deck's BT1-008 only: unchecked, open, flagged and missing do not count");
 const byId = Object.fromEntries(all.cards.map((c) => [c.cardId, c]));
 assert.equal(byId["BT1-001"].appearances, 2);
 assert.equal(byId["BT1-002"].bucket, "done");
@@ -69,7 +69,7 @@ assert.equal(byId["BT1-005"].bucket, "incomplete", "a flagged rule is incomplete
 assert.equal(byId["BT1-007"].bucket, "text-only", "printed text and no rule row at all");
 assert.equal(byId["BT1-006"], undefined);
 assert.equal(byId["BT1-009"], undefined, "a keyword line needs no row: nothing to check");
-assert.deepEqual(all.skills, { "text-only": 2, incomplete: 1, unchecked: 1, done: 4 });
+assert.deepEqual(all.skills, { "text-only": 2, incomplete: 1, unchecked: 1, done: 5 });
 assert.equal(all.cards[0].appearances, 2, "sorted by deck appearances");
 const d = all.decks.find((x) => x.name === "Mine")!;
 assert.deepEqual([d.total, d.done, d.unchecked, d.incomplete, d["text-only"]], [6, 2, 1, 1, 2]);
@@ -78,10 +78,10 @@ assert.deepEqual([d.total, d.done, d.unchecked, d.incomplete, d["text-only"]], [
 const { saveRule } = await import("../../src/lib/arena/rules-store.ts");
 const edited = await saveRule(db, { cardId: "BT1-001", side: "front", skillIndex: 0, ops: draw as never, source: "user", status: "draft" });
 assert.equal(edited.confirmedAt, null, "writing a draft clears confirmed_at");
-assert.equal((await loadProgress(db, undefined)).done, 1, "…so Progress no longer counts BT1-001 as done");
+assert.equal((await loadProgress(db, undefined)).done, 2, "…so Progress no longer counts BT1-001 as done");
 const reconfirmed = await saveRule(db, { cardId: "BT1-001", side: "front", skillIndex: 0, ops: draw as never, source: "user", status: "confirmed" });
 assert.ok(reconfirmed.confirmedAt, "confirming stamps it again");
-assert.equal((await loadProgress(db, undefined)).done, 2);
+assert.equal((await loadProgress(db, undefined)).done, 3);
 
 const scoped = await loadProgress(db, "sam");
 assert.deepEqual([scoped.total, scoped.done], [2, 2]);
@@ -92,8 +92,8 @@ const now = await loadProgress(db, undefined);
 assert.equal((await recordAndReadSnapshots(db, now, "2026-10-17")).length, 1);
 const hist = await recordAndReadSnapshots(db, scoped, "2026-10-17"); // a second write the same day is ignored
 assert.equal(hist.length, 1);
-assert.equal(hist[0].confirmedCards, 2);
-assert.equal(hist[0].totalCards, 6);
+assert.equal(hist[0].confirmedCards, 3);
+assert.equal(hist[0].totalCards, 7);
 assert.deepEqual([hist[0].readSkills, hist[0].unreadSkills, hist[0].flagged], [1, 2, 1], "unchecked, text-only, incomplete skills");
 assert.equal((await recordAndReadSnapshots(db, now, "2026-10-18")).length, 2);
 
