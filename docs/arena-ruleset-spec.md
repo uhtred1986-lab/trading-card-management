@@ -1413,6 +1413,12 @@ adding Fusion World needs an interpreter change, the change is a *missing primit
 the first checklist — that is the diagnostic, and the reason the arena's `dbs`-only limit
 (owner's decision, 4 Sep 2026) is a scope choice and not an architectural one.
 
+It was done in Arena F1 (26 Oct 2026), and the diagnostic held only in part: the interpreter gained no
+primitive, but Fusion World needed engine code after all — creation-time zone checks that skip
+undeclared optional areas, the combo price lookup (a game with no combo price plans no combo
+payment), a game guard in `resolveZeroPower`, board-words optional areas, `canCombo`'s free flag for
+a combo with no printed combo cost, and the `[Awaken]` condition closed by a comma.
+
 ---
 
 ## 6. The oracle protocol

@@ -304,7 +304,7 @@
     "capability": "Select match mode/decks, resume games, inspect game history and invitations",
     "primaryHome": "Arena",
     "secondaryHome": "Decks",
-    "notes": "Play and Games secondary tabs (Games uses query state); preserve readiness and opponent choices. Engine plays Masters/dbs only.",
+    "notes": "Play and Games secondary tabs (Games uses query state); preserve readiness and opponent choices. Engine plays Masters (dbs) and Fusion World.",
     "access": "Signed-in player or SL; ownership scope applies where relevant",
     "kind": "page",
     "source": "src/app/arena/page.tsx",

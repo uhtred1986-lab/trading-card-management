@@ -5,6 +5,8 @@ milestone: Arena F1 — Fusion World: the four launch starter decks
 labels: backlog, ready-for-agent, area:arena-compiler, area:arena-vm, phase:fusion-world, model:sonnet-5
 stage: fusion-world
 priority: P2
+status: closed
+closed_at: 2026-10-26
 touches: src/lib/arena/compile/effects.ts, src/lib/arena/compile/targets.ts, src/lib/arena/vm/activate.ts, src/lib/arena/vm/auto-costs.ts, src/lib/arena/vm/script.ts, src/lib/arena/glossary.ts, scripts/verify/arena-fusion-world.mts
 ---
 Tracking: Arena F1 (#1193). Found by F1-04 (#1196) and F1-07 (#1205). Priority P2, size M, Sonnet, with a

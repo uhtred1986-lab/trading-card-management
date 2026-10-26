@@ -73,6 +73,7 @@ import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
 import { describeScript, markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, stepScript, taxLabel, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
+import { comboPriceOf } from "./costs";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs, costText } from "../compile";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
@@ -1401,16 +1402,7 @@ function comboEligible(ctx: EngineContext, game: GameDefinition, state: VmState,
   return readingBoard(ctx, game, state, () => comboEligibleOnBoard(ctx, game, state, player));
 }
 
-/**
- * The combo price the loaded game declares (`DEFINE COST` reading `comboCostOf`),
- * or null for a game with none — Fusion World's combos cost nothing (FW manual
- * p. 10). A null price means the combo path plans no payment at all, never a
- * zero-energy one.
- */
-export function comboPriceOf(game: GameDefinition): string | null {
-  for (const [name, def] of Object.entries(game.costs)) if (def.amount === "comboCostOf") return name;
-  return null;
-}
+export { comboPriceOf } from "./costs";
 
 /** The combo's price for `card`, or null when the game declares none. */
 function comboPriceFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, def: { comboCost?: number | null }) {

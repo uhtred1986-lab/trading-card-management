@@ -1937,7 +1937,7 @@ function priceTargetFits(h: ScriptHost, frame: ScriptFrame, variable: string, id
   if (on("comboFrom")) {
     const b = h.battle();
     if (!b || (h.masterOf(b.attacker) !== master && h.masterOf(b.guard) !== master)) return false;
-    if (h.areaOf(id) === "combo" || !canCombo(h.defOf(id)) || h.forbids("combo", { player: master, card: id })) return false;
+    if (h.areaOf(id) === "combo" || !canCombo(h.defOf(id), h.comboFree()) || h.forbids("combo", { player: master, card: id })) return false;
   }
   return true;
 }

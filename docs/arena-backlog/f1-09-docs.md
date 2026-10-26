@@ -1,4 +1,6 @@
 ---
+status: closed
+closed_at: 2026-10-26
 title: "Arena F1-09: docs — the arena plays two games (CLAUDE.md, architecture/arena.md, code map, games.ts, arena-CURRENT)"
 issue: 1192
 milestone: Arena F1 — Fusion World: the four launch starter decks

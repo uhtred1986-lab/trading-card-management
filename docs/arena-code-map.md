@@ -19,9 +19,9 @@ records how the rules engine was built and what it was held to at the time; the 
 
 ---
 
-- **Arena rules engine** (`src/lib/arena/vm/`; the hand-written predecessor in `engine/` was deleted by #118): **Dragon Ball Super
-  only — it does not play Fusion World**, so `deckInputFor` returns null for such a deck and the
-  arena's deck lists ask for `game: "dbs"`. Pure TypeScript, no React,
+- **Arena rules engine** (`src/lib/arena/vm/`; the hand-written predecessor in `engine/` was deleted by #118): **Dragon Ball Super and
+  Fusion World, each by its own ruleset**; `arenaPlays(game)` (`catalog/games.ts`) gates which decks
+  enter, so `deckInputFor` returns null for a game not flagged `arena`. Pure TypeScript, no React,
   no database. A game is a `GameState` plus an append-only event log; `apply(ctx, state, action)` is the
   only mutator and runs the flow (a data step list in `state.flow`) until the next `prompt`, so a game
   is storable mid-decision and reproducible from seed + actions. `legalActions()` drives both the UI
