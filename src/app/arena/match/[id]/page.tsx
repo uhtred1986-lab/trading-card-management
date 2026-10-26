@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { inviteView, matchById, sharedDecksOf } from "@/lib/arena/matches";
 import { isLocked, readiness } from "@/lib/arena/readiness";
+import { ARENA_GAMES, GAME_INFO } from "@/lib/catalog/games";
 import { listDecks } from "@/lib/decks/queries";
 import { currentScope, currentUser, getViewer, requireSignedInPage } from "@/lib/auth";
 import { CardImage } from "@/components/CardImage";
@@ -85,12 +86,13 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  // Guest: only the guest's own (visible) decks, the original game's only.
-  const own = me ? (await listDecks(db, { game: "dbs", viewer: await currentScope() })).filter((d) => d.leader && d.mainCount >= 50) : [];
+  // Guest: only the guest's own (visible) decks, the games the arena plays.
+  const own = me ? (await listDecks(db, { games: ARENA_GAMES, viewer: await currentScope() })).filter((d) => d.leader && d.mainCount >= 50) : [];
   // Plus the host's decks they marked shareable: the only foreign ones `joinMatch` accepts.
   const sharedIds = me ? new Set(await sharedDecksOf(db, match.hostDeckId)) : new Set<number>();
-  const shared = sharedIds.size && me ? (await listDecks(db, { game: "dbs" })).filter((d) => sharedIds.has(d.id) && d.leader && d.mainCount >= 50 && !own.some((o) => o.id === d.id)) : [];
+  const shared = sharedIds.size && me ? (await listDecks(db, { games: ARENA_GAMES })).filter((d) => sharedIds.has(d.id) && d.leader && d.mainCount >= 50 && !own.some((o) => o.id === d.id)) : [];
   const decks = [...own, ...shared];
+  const manyGames = new Set(decks.map((d) => d.game)).size > 1;
   const ready = await readiness(db, decks.map((d) => d.id));
   const firstReady = decks.find((d) => !isLocked(ready.get(d.id)))?.id;
 
@@ -129,6 +131,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-space-50">{d.name}</span>
                     <span className="block truncate text-xs text-space-400">
+                      {manyGames ? `${GAME_INFO[d.game].short} · ` : ""}
                       {shared.some((s) => s.id === d.id) ? `${match.hostUser}'s deck to borrow · ` : ""}
                       {d.leader?.name}
                       {locked && ` · Locked, ${ready.get(d.id)!.open} card${ready.get(d.id)!.open === 1 ? "" : "s"} with no rule`}

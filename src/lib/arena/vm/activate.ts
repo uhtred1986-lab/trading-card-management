@@ -539,7 +539,7 @@ export function activationRefusals(
   // everything else, and a declared `REFUSE` runs before all of these. The
   // gates of an activation are the legacy twin's in the legacy twin's order,
   // which is what makes the *first* requirement the same requirement.
-  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card });
+  const banned = forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: line.kind });
   if (banned) before.push({ kind: "forbidden", ...banned });
   // #930: a keyword move that plays a card is not offered when 20-14 forbids
   // that play — "you can only play Battle Cards by using [Union-Fusion]"
@@ -744,7 +744,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   for (const skill of showing.skills) {
     const keyword = keywordMoveOf(game, skill);
     if (keyword?.name !== "Field") continue;
-    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return "blocked";
+    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
     if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";
@@ -772,7 +772,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     const sk = line.skill;
     if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
     if (!requireSkillPayment(line.script.price).readable) return false;
-    if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card })) return false;
+    if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
@@ -1080,7 +1080,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
   const koable = (id: string): boolean => {
     const at = findCard(state, id);
     if (!at || at.zone !== "battle") return false;
-    if (forbiddenBy(ctx, game, state, "beKOd", { card: id }) || forbiddenBy(ctx, game, state, "beKOdBySkill", { player, card: id })) return false;
+    if (forbiddenBy(ctx, game, state, "beKOd", { card: id }) || forbiddenBy(ctx, game, state, "beKOdBySkill", { player, card: id, source: card })) return false;
     if (hasKeyword(ctx, game, state, id, "Indestructible") && masterOf(game, state, id) !== player) return false;
     return replacementChoices(ctx, game, state, id, "ko", { actor: player, requestedTo: "drop" }).every((c) => c.optional);
   };

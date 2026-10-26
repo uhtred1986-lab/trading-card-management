@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
+import { ARENA_GAMES, GAME_INFO } from "@/lib/catalog/games";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import { listDecks } from "@/lib/decks/queries";
@@ -25,12 +26,11 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
   const wanted = Number(sp.deck);
   const onGames = sp.tab === "games";
   const showTestingDecks = sp.testing === "1";
-  // The engine reads the original game's rule manual and nothing else, so
-  // Fusion World decks are simply not offered here (owner's decision).
+  // Only decks of the games the arena plays are offered here.
   const me = await currentUser();
   const scope = await currentScope();
   const [decks, games, playing, matches, users, playerCount] = await Promise.all([
-    listDecks(db, { game: "dbs", viewer: scope }),
+    listDecks(db, { games: ARENA_GAMES, viewer: scope }),
     listGames(db, 20, me, scope),
     listPlayingGames(db, 10, me, scope),
     listOpenMatches(db),
@@ -53,6 +53,8 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
     costs[mode] = `your average ~${Math.round(avg)}¢`;
   }
   const allPlayable = decks.filter((d) => d.leader && d.mainCount >= 50);
+  // A game badge in the pickers only once more than one arena game has decks.
+  const manyGames = new Set(allPlayable.map((d) => d.game)).size > 1;
   const playable = showTestingDecks ? allPlayable : allPlayable.filter((d) => !d.isTesting);
   // One query for every deck's rule readiness (#357).
   const ready = await readiness(
@@ -87,7 +89,7 @@ export default async function ArenaPage({ searchParams }: { searchParams: Promis
       defaultDeck={readyIds[0] ?? playable[0]?.id ?? 0}
       decks={playable.map((d) => ({
         id: d.id,
-        label: `${d.name} — ${d.leader?.name ?? "no leader"}${isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}`,
+        label: `${manyGames ? `[${GAME_INFO[d.game].short}] ` : ""}${d.name} — ${d.leader?.name ?? "no leader"}${isLocked(ready.get(d.id)) ? ` (${ready.get(d.id)!.open} open, locked)` : ""}`,
         locked: isLocked(ready.get(d.id)),
       }))}
     />
