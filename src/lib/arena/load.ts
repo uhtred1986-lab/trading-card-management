@@ -17,6 +17,8 @@ type CardRow = Pick<typeof cards.$inferSelect, "id" | "name" | "cardType" | "col
    * unknown, which is what the feed knows (issue #255).
    */
   specifiedCost?: string | null;
+  /** The card's game. A Fusion World card's character is its name (below); a feed record without it reads as `dbs`. */
+  game?: string | null;
 };
 
 const COLORS: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
@@ -46,7 +48,10 @@ export function cardDefFrom(row: CardRow): CardDef {
     comboCost: row.comboCost,
     comboPower: row.comboPower,
     skill: row.skill,
-    characters: row.characters,
+    // Fusion World prints no separate character name: a "<Son Goten>" in card text names cards called Son Goten
+    // (FW manual p. 12, glossary). The deckplanet feed carries no `card_character` for that game, so every Fusion
+    // World row has an empty list, and without this no "<Name>" filter or "your Leader is <Name>" check could match.
+    characters: row.characters.length || row.game !== "fusion" ? row.characters : [row.name],
     traits: row.traits,
     back: row.backName ? { name: row.backName, power: row.backPower, skill: row.backSkill } : null,
     ...(specifiedCost ? { specifiedCost } : {}),
