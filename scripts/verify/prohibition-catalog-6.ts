@@ -185,6 +185,8 @@ const defs: Record<string, CardDef> = {
   LACT: card("LACT", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: "[Activate: Main][Once per turn] Draw 1 card." }),
   P474: C("P474", { skill: "[Permanent] This card can't be added to a player's hand." }),
   RECALL: C("RECALL", { skill: "[Activate: Main] Choose up to 1 card in your Drop Area and add it to your hand." }),
+  ONLY_BLACK: C("ONLY_BLACK", { skill: "[Permanent] You can only play mono-black Battle Cards." }),
+  BLACK: C("BLACK", { colors: ["Black"] }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -758,6 +760,19 @@ for (const me of SEATS) {
     s.cards[top].cardId = "P474";
     s = roundtrip(endTurn(s));
     assert.equal(zoneOf(s, top), "hand", `${me}: P-474 — the draw is no skill's move, and draws it`);
+  }
+
+  // 26 (SD14-01, EX13-23's shape): a [Permanent] "you can only play mono-black
+  // Battle Cards" — a red one is not played, a mono-black one is.
+  {
+    let s = game3(me);
+    stage(s, me, "ONLY_BLACK", "battle");
+    const red = stage(s, me, "PLAIN", "hand");
+    const black = stage(s, me, "BLACK", "hand");
+    s = roundtrip(s);
+    const plays = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "play" && (l.action as { card: string }).card === id);
+    assert.ok(!plays(s, red), `${me}: SD14-01 — not a red Battle Card`);
+    assert.ok(plays(s, black), `${me}: a mono-black one`);
   }
 
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs

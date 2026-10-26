@@ -2520,7 +2520,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Phase"); it forbids the action just the same.
   // #930: "you can only play Battle Cards by using [Union-Fusion]" arrives
   // here as "only play …" — the leading "you can" is stripped above.
-  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
+  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b|^only play (?:<|mono|[a-z]+ cards)|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -4113,11 +4113,16 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // prohibition batch 6): every play but of the cards described; the subject
   // is the "you" of the list it is cut from.
   {
-    const only = /^(?:you )?can only play (.+? cards?)(?:\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+    const only = /^(?:(?:you )?can )?only play (.+? cards?)(?:\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
     if (only && !/\b(?:by|using|with|from)\b/.test(only[1])) {
-      const exceptFilter = filterFor(only[1], null);
-      if (!exceptFilter || unreadFilterWords(only[1], exceptFilter).length) return null;
-      return [{ op: "forbid", what: "play", side: "you", until, exceptFilter }];
+      // "…can only play <Trunks: Future> and <Vegito> cards" (BT7-025): cards of either name.
+      const said = only[1].replace(/^(<[^>]+>) and (<[^>]+>) (cards?)$/, "$1 or $2 $3");
+      const exceptFilter = filterFor(said, null);
+      if (!exceptFilter || unreadFilterWords(said, exceptFilter).length) return null;
+      // "You can only play mono-black Battle Cards" (SD14-01): a kind of card named
+      // narrows the rule to plays of that kind (LABELLED BEST GUESS, asked).
+      const kind = /\bbattle cards?\b/.test(said) ? "BATTLE" as const : /\bunison cards?\b/.test(said) ? "UNISON" as const : null;
+      return [{ op: "forbid", what: "play", side: "you", until, exceptFilter: kind ? { ...exceptFilter, type: kind } : exceptFilter, ...(kind ? { filter: { ...parseFilter(""), type: kind } } : {}) }];
     }
   }
   const m = /^(.*?)\s*(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
