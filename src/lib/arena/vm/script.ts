@@ -1181,7 +1181,7 @@ export type Op =
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
-      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "any";
+      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
@@ -1212,6 +1212,10 @@ export type Op =
       exceptKeyword?: string;
       /** "…with energy costs greater than (or equal to) their current energy" (`Prohibition.costVsEnergy`). */
       costVsEnergy?: "above" | "atLeast";
+      /** "You may not activate [EX-Evolve]" (`Prohibition.keywordSkill`). */
+      keywordSkill?: string;
+      /** "…other than the card they attacked with" (`Prohibition.exceptCards`), resolved as the rule is put in force. */
+      exceptCards?: Ref;
     }
   /**
    * 9-1-4: a card no skill may touch — stronger than `forbid: "beChosen"`,
@@ -3222,7 +3226,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3250,6 +3254,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}),
             ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}),
             ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}),
+            ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
@@ -3281,6 +3286,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "removeMarker": {
         const n = h.amount(frame, op.n) * (op.op === "addMarker" ? 1 : -1);
         for (const id of h.resolveRef(frame, op.target)) {
+          // 20-14 (P-676): "markers on your Unisons can't be removed by your
+          // opponent's skills" — the markers stay, and nothing is removed.
+          if (n < 0 && h.forbids("removeMarkers", { player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`${h.nameOf(id)}: its markers can't be removed by this skill`);
+            continue;
+          }
           h.changeMarkers(id, n);
           if (n < 0) h.pend("markerRemoved", id);
         }

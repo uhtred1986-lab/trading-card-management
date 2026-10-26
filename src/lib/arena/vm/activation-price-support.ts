@@ -54,6 +54,14 @@ function namedByPriceProblem(what: string, target: Extract<Op, { op: "ko" | "com
   return chosen ? null : `the activation payment planner cannot charge ${what} a card the price did not choose`;
 }
 
+/**
+ * 20-14-1 (BT13-030): a tax that lowers the acting card's own power — "…unless
+ * they give the attacking card -5000 power for the turn each time". The one
+ * power change a price may make; always payable while the card is in play.
+ * Not an activation price: `activationPriceProblem` still refuses it there.
+ */
+export const taxPowerOnSelf = (o: Op): boolean => o.op === "power" && "sel" in o.target && o.target.sel.special === "self" && typeof o.amount === "number" && o.amount < 0;
+
 /** Static refusals of canPayPriceProgram, shared with authoring; affordability still needs a board. */
 export function activationPriceProblem(ops: Op[]): string | null {
   for (const [at, op] of ops.entries()) {

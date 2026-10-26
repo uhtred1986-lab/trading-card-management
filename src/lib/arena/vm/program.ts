@@ -1142,6 +1142,11 @@ function ruleApplies(
   // "…with skills other than [Revive Blue/Green]": that keyword's own play
   // is the one skill play the rule lets through.
   if (f.exceptKeyword && opts.keyword === f.exceptKeyword) return false;
+  // "You may not activate [EX-Evolve]" (BT4-003): only a line of that keyword.
+  // "Evolve" is every [Evolve] skill, its variants included (22-5-2-2).
+  if (f.keywordSkill && !(opts.keyword === f.keywordSkill || (f.keywordSkill === "Evolve" && /^(?:EX-|Xeno-)?Evolve$/.test(opts.keyword ?? "")))) return false;
+  // "…other than the card they attacked with" (BT8-089): the cards let through.
+  if (f.exceptCards && opts.card && f.exceptCards.includes(opts.card)) return false;
   // "Battle Cards with energy costs greater than their current energy"
   // (P-219, P-299): the card's cost against its controller's Energy Area.
   if (f.costVsEnergy) {
@@ -1295,6 +1300,33 @@ export function keywordPlayForbiddenBy(
   return null;
 }
 
+/** The keyword moves and moments whose effect plays the card the keyword is on (22-5, 22-13, 22-29, 22-34, 22-38, [Over Realm]). */
+const SELF_PLAYING_KEYWORDS = new Set(["Evolve", "Arrival", "Successor", "Over Realm", "Revive"]);
+
+/**
+ * Owner ruling 26 Oct 2026 (the A4 follow-up, 20-14-1): the play taxes in force
+ * on the play a keyword makes of its own card — [Evolve] (all three variants),
+ * [Union-Fusion], [Union-Potara], [Arrival], [Successor], [Over Realm] and
+ * [Revive] — asked exactly as the `play` op will ask them when it plays the
+ * card (`bySkill`, the card its own source, [Revive]'s name as the keyword).
+ * The caller refuses the keyword when one can't be paid, so the keyword's own
+ * price is never paid for a play that cannot happen. [Union-Absorb] and
+ * [Swap] play a card chosen later; the `play` op asks about that card.
+ */
+export function keywordPlayTaxes(
+  ctx: EngineContext,
+  game: GameDefinition,
+  state: VmState,
+  player: PlayerId,
+  card: string,
+  keyword: { name: string; variant?: string } | null | undefined,
+): TaxInForce[] {
+  if (!keyword) return [];
+  const own = SELF_PLAYING_KEYWORDS.has(keyword.name) || (keyword.name === "Union" && (keyword.variant === "Fusion" || keyword.variant === "Potara"));
+  if (!own) return [];
+  return taxesOn(ctx, game, state, "play", { player, card, bySkill: true, source: card, ...(keyword.name === "Revive" ? { keyword: "Revive" } : {}) });
+}
+
 /** One price a rule in force charges for an action (20-14-1), with the words a refusal names it by. */
 export interface TaxInForce {
   ops: Op[];
@@ -1350,6 +1382,20 @@ export function forbiddenForCard(ctx: EngineContext, game: GameDefinition, state
     if (what === "switchToActiveInCharge" && rule.until === "afterOpponentCharge" && rule.master === state.turnPlayer) continue;
     if (escapeHolds(ctx, game, state, rule.forbid, { card }, rule.source)) continue;
     return true;
+  }
+  return false;
+}
+
+/**
+ * "Your opponent can't switch Battle Cards or Unisons to Active Mode during
+ * the next Charge Phase" (BT30-146): a rule about the player whose Charge
+ * Phase it is (no target), asked of each card the Charge Phase would stand
+ * up. A rule naming the card itself is `forbiddenForCard`'s.
+ */
+export function chargeSwitchForbidden(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  for (const rule of prohibitions(ctx, game, state, card, { hooks: false })) {
+    if (rule.target || rule.forbid.what !== "switchToActiveInCharge" || rule.forbid.pay || (rule.forbid.uses ?? 0) > 0) continue;
+    if (ruleApplies(ctx, game, state, "switchToActiveInCharge", rule, { player: state.turnPlayer, card })) return true;
   }
   return false;
 }
