@@ -555,6 +555,11 @@ function tidyEffect(effect: string): string {
     // the "then" was read as the word that starts the next step, which cut the clause in two
     // and left the first half choosing a Battle Card with no cost test at all.
     .replace(/\bless then or equal to\b/gi, "less than or equal to")
+    // BT31-052 prints its own Fusion materials as "**Mono green** <Son Goku: GT> card and mono-green
+    // <Vegeta: GT> card" (#930): the hyphen is missing, and every mono-colour reader looks for
+    // "mono-green" (or "monocolor"), so the material went unread. "Mono green", "mono colour" are the
+    // hyphenated words with a space; put the hyphen back. Outside a bracketed name only.
+    .replace(/(<[^>]*>|≪[^≫]*≫|\{[^}]*\}|\[[^\]]*\])|\b(mono)\s+(red|blue|green|yellow|black|white|colou?r(?:ed|s)?)\b/gi, (all: string, name: string | undefined, mono: string, word: string) => (name ? all : `${mono}-${word}`))
     .replace(/^activate this skill (when\b.*?)\.\s+(?=[A-Z])/i, "$1, ")
     .replace(/^if (your opponent activates an? \[counter[^\]]*\] skill(?: during a battle (?:with|in which) this card)?,)/i, (all: string, rest: string) => (/\bwhen\b/i.test(effect) ? all : `when ${rest}`));
 }
