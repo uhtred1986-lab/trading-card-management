@@ -41,6 +41,13 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   `loadGame` throws `LegacyGameRetired` and the API answers 410 "gone".
   **One rejection per card per action type, except an activation, which is one per skill line**
   (§3.2). Doc: `docs/arena-code-map.md`.
+- **Two rulesets** (Arena F1, 26 Oct 2026): `src/lib/arena/rulesets/dbs/` and `rulesets/fusion/`,
+  picked by `rulesetFor(game)`. The state's game comes from the deck (`GameOptions.game`, default
+  `"dbs"`), and `arenaPlays` / `ARENA_GAMES` (`catalog/games.ts`) gate which decks may enter; verifier
+  rows run per game (`scripts/verify/arena-fusion-world.mts`). Fusion World's two native differences
+  are data, not branches: it declares no combo price (so no combo payment is planned; dbs now
+  declares `DEFINE COST combo`), and power 0 drops a Battle Card with reason `powerZero` (dbs already
+  dropped it without a KO, rule 21-6, `resolveZeroPower`). Docs: `docs/arena-fusion-world-plan.md`.
 - **The browser-safe rules entry** (`src/lib/arena/browser.ts`, #641): create a game on a pinned
   replay bundle, apply moves, list legal moves and project one seat's masked `Snapshot`, with only
   the rules engine, `replay-core.ts` and the engine-neutral cores (`snapshot-core.ts`,

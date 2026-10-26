@@ -14,7 +14,7 @@ Masters rule manual). `dbs-tcg-app-feature-summary.md` is the original spec (bef
 
 - **The two games are kept apart by `game`** (`src/lib/catalog/games.ts`, `GAME_INFO`): on
   `card_sets`, denormalised onto `cards`, chosen once per deck. Nothing is mixed within a deck;
-  lists default to both with a `GameFilter` chip row. Only the arena is `dbs`-only.
+  lists default to both with a `GameFilter` chip row. The arena plays the games flagged `arena` in `GAME_INFO` (`dbs` and `fusion`), each by its own ruleset directory.
 - Owner is in Austria: display currency EUR; TCGplayer prices are USD, converted at the ECB rate in
   `fx_rates`. Price paid is entered in EUR.
 - **Auth** (`docs/architecture/auth.md`): SLs (admins) sign in with Google at `/login`; players join
@@ -31,7 +31,8 @@ Masters rule manual). `dbs-tcg-app-feature-summary.md` is the original spec (bef
 
 - **Neon is one database for production, preview and dev, with a spend limit: stay off it.**
   `npm test` runs on PGlite. An agent session does not run `db:*`, `sync:*`, `arena:diff`,
-  `arena:playthrough`, `arena:reprobe` or `arena:specified`; if an acceptance bullet can only be
+  `arena:playthrough`, `arena:reprobe`, `arena:specified`, or `arena:fuzz` without `--game fusion` (that one needs no
+  database and is allowed); if an acceptance bullet can only be
   proved against the database, the PR says which and the owner runs it. Live reads and the owner's
   own data tasks: `docs/agent-brief.md` → "Data".
 - **The cloud environment's `DATABASE_URL` is another app's database.** The SessionStart hook unsets
