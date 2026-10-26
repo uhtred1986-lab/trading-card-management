@@ -324,7 +324,27 @@ export type ForbiddenAction =
   /** "Can't be removed from a Battle Area by your opponent's skills" (20-14): a move by a skill, not by a battle. */
   | "beMovedBySkill"
   /** "This card's skills can't be negated in any area" (9-1-5). */
-  | "beNegated";
+  | "beNegated"
+  /**
+   * "Your cards can't be switched to Rest Mode by your opponent's skills"
+   * (P-680, DB2-138): a skill's switch of the card to Rest Mode, asked of the
+   * card with the skill's controller as `player`. Not a cost the card's own
+   * controller pays, and not the rest an attack makes (8-1-2).
+   */
+  | "beRestedBySkill"
+  /**
+   * "You can't send cards from Drop Areas to Warps" (BT6-028, BT16-001): a
+   * card moved from a Drop Area to a Warp by a skill or a price whose
+   * controller is `player`. `fromOwnArea` narrows it to the player's own
+   * Drop ("from your Drop Area to your Warp").
+   */
+  | "dropToWarp"
+  /**
+   * "It can't be KO'd by your opponent's attacks for the battle" (BT13-118):
+   * the KO a battle makes (8-4-6-2), asked of the guard with the attacking
+   * card's controller as `player`. A skill's KO is `beKOdBySkill`.
+   */
+  | "beKOdInBattle";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -371,6 +391,23 @@ export interface Prohibition {
    * Blocker's redirection is not a declaration, so it is not asked.
    */
   attackOnly?: string[];
+  /**
+   * Attack declarations only: the cards (resolved when the rule is read) the
+   * rule forbids attacking — "your opponent's skill-less cards can't attack
+   * **this card**" (BT15-122). The opposite of `attackOnly`: an attack against
+   * any other defender is not this rule's. Asked with no defender it applies.
+   */
+  against?: string[];
+  /**
+   * The area the card the rule is about is used or moved **from**: "can't be
+   * used in a combo **from the Battle Area**" (EB1-21), "you can't use cards
+   * **from your hand** in combos" (BT14-152), "can't play Battle Cards … **from
+   * their owner's hands**" (EX23-05). Matched against where the card is when
+   * the action is asked about; a card the rule cannot place is not its.
+   */
+  fromArea?: "hand" | "battle" | "drop";
+  /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
+  fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
   name?: string;
   /**

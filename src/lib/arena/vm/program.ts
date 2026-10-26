@@ -1083,6 +1083,19 @@ function ruleApplies(
   // this rule lets through. Asked with no defender it applies — nothing proves
   // the attacker has the one it is allowed.
   if (f.attackOnly && opts.attackTarget && f.attackOnly.includes(opts.attackTarget)) return false;
+  // "…can't attack **this card**" (BT15-122): only an attack on one of the
+  // named cards. Asked with no defender it applies, as `attackTarget` does.
+  if (f.against && opts.attackTarget && !f.against.includes(opts.attackTarget)) return false;
+  // "…from the Battle Area", "…from your hand": where the card is as the
+  // action is asked about (a play, a combo, a move out of a Drop). A card the
+  // rule cannot place is not its.
+  // A caller asking about a move out of an area the candidate is not in says
+  // which (`from`): [Over Realm]'s price, asked of the card in the hand.
+  if (f.fromArea) {
+    const at = opts.card ? findCard(state, opts.card) : null;
+    if ((opts.from ?? at?.zone) !== f.fromArea) return false;
+    if (f.fromOwnArea && opts.player && (!at || at.owner !== opts.player)) return false;
+  }
   // #677, 12-1-3: "activating an Extra Card" is an [Activate] or [Counter]
   // skill of one used from the hand (BT10-097) — the area it was used from,
   // which the caller names once the card has gone on to the Drop (12-2-2-2).
@@ -1151,7 +1164,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb" } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1169,7 +1182,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb" } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1731,7 +1744,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // `vm/actions.ts` asks of a candidate, so a `REFUSE` and a program mean one
     // thing by the word.
     case "forbidden":
-      return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }) });
+      return forbids(ctx, game, state, c.what, { player: frame.master, ...(frame.card ? { card: frame.card } : {}), ...(c.bySkill === undefined ? {} : { bySkill: c.bySkill }), ...(c.from === undefined ? {} : { from: c.from }) });
     case "playerAttr": {
       const value = state.sides[c.side === "opponent" ? other(frame.master) : frame.master].attrs[c.name];
       // #157: a counted fact, read against its threshold.
