@@ -226,6 +226,8 @@ export const FORBIDDEN_IN_WORDS: Record<ForbiddenAction, string> = {
   evolveOnto: "be the base of an [Evolve]",
   placeOnTop: "have cards placed on top of them",
   removeMarkers: "have markers removed by skills",
+  flipLeaderFront: "flip their Leader Card to its front",
+  flipLeaderBack: "flip their Leader Card to its back",
 };
 const FORBIDDEN_ACTIONS = Object.keys(FORBIDDEN_IN_WORDS) as readonly ForbiddenAction[];
 /** The actions a `forbid` may put a price on (`unlessPay`, 20-14-1): the ones both engines charge one where the action is taken. */
@@ -647,7 +649,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"place a Z-Extra from under this card on top of this card" (23-2, 21-5-2): the target, a card in this card\'s pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card\'s position, the continuous effects on its power and its seat in a battle; this card\'s other effects end. Never in a Leader Area',
   },
   comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
-  flip: { fields: [TARGET], sentence: "flip {target} over", doc: 'a Leader awakens ("flip this card over", 22-2-4)' },
+  flip: {
+    fields: [TARGET, { name: "to", type: { enum: ["front", "back"] } }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"flip">;
+      return `flip ${describeRef(op.target)} ${op.to === "front" ? "to its front" : op.to === "back" ? "to its back" : "over"}`;
+    },
+    doc: 'a Leader turned over (22-2-4): "to":"back" awakens it ("flip this card to its back side"), "to":"front" turns an awakened one back ("flip this card to its front", BT15-091); absent, it is turned over whichever side it shows ("flip this card over")',
+  },
   faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
   addMarker: { fields: [TARGET, n()], sentence: "add {n} marker" },
   removeMarker: { fields: [TARGET, n()], sentence: "remove {n} marker" },
@@ -946,6 +955,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           const cards = op.target ? describeRef(op.target) : `${op.cardsOf === "opponent" ? "your opponent's" : op.cardsOf === "you" ? "your" : "the"} ${op.filter ? describeFilter(op.filter, { plural: true }) : "cards"}`;
           const whose = op.side === "opponent" ? "your opponent's skills" : op.side === "you" ? "your skills" : "skills";
           return `markers on ${cards} can't be removed by ${whose}${escape}${forThe(op.until, r)}`;
+        }
+        // BT12-001, BT15-091: "you can't flip your Leader Card to its front (back)".
+        if ((op.what === "flipLeaderFront" || op.what === "flipLeaderBack") && !op.target) {
+          const whose = op.side === "opponent" ? "their" : op.side === "both" ? "their" : "your";
+          return `${who} can't flip ${whose} Leader Card to its ${op.what === "flipLeaderFront" ? "front" : "back"}${escape}${forThe(op.until, r)}`;
         }
         // BT8-089: the attackers, with the cards the rule lets through.
         if (op.what === "attack" && op.exceptCards && op.filter && !op.target) return `${who} can't attack with ${describeFilter(op.filter, { plural: true })} other than ${describeRef(op.exceptCards)}${escape}${forThe(op.until, r)}`;

@@ -381,7 +381,16 @@ export type ForbiddenAction =
    * (P-676): a skill taking markers off the card (13-5), asked of the card
    * with the skill's controller as `player`.
    */
-  | "removeMarkers";
+  | "removeMarkers"
+  /**
+   * "You can't flip your Leader Card to its front (back) for the turn"
+   * (BT12-001, BT15-091): a skill turning that player's Leader over (22-2-4)
+   * that way does not, and [Awaken] / [Wish] — a flip to the back — are not
+   * offered while the back is forbidden. Asked of the Leader with the flipping
+   * skill's controller as `player`.
+   */
+  | "flipLeaderFront"
+  | "flipLeaderBack";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -949,6 +958,10 @@ export type Trigger =
   | "opponentAttacks"
   /** BT8-089: any player's Battle Card attacks (8-1-1), watched by every player's cards in play. The attacker is the `subject`. */
   | "battleCardAttacks"
+  /** BT15-091: any player places a [Field] Extra Card (or another card the subject condition names) in a Battle Area. The card placed is the `subject`. */
+  | "aPlayerPlacesInBattle"
+  /** BT15-091's back: any player's card leaves a Battle Area, for anywhere. The card that left is the `subject`. */
+  | "aPlayersCardLeftBattle"
   /** BT7-003: an opponent's skill made your energy Active on their turn. */
   | "opponentEnergyActiveBySkill"
   /** SD8-09: the opponent's skill made their own energy Active on their turn. */

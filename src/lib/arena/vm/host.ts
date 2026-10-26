@@ -329,9 +329,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const cause: Record<string, string | boolean> = by ? { by: "skill", byOpponent: by.master !== controller } : {};
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
-    flip: (id) => {
-      card(id).flipped = true;
-      log(ev, { type: "flip", card: id, flipped: true });
+    flip: (id, toBack = true) => {
+      card(id).flipped = toBack;
+      log(ev, { type: "flip", card: id, flipped: toBack });
     },
     changeMarkers: (id, delta) => {
       const inst = card(id);

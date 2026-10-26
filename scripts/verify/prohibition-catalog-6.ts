@@ -44,7 +44,24 @@ function forbids(list: Op[]): Extract<Op, { op: "forbid" }>[] {
   }
   return out;
 }
-void ops; void reads; void forbids;
+const SELF = { sel: { special: "self" } };
+
+// BT12-001, BT15-091: the Leader flips and the bans on them.
+{
+  const bt12 = "[Auto] When a card in your life is flipped face up by one of your red card skills, you may flip this card over. If you do, draw 1 card and you can't flip your Leader Card to its front for the turn.";
+  assert.deepEqual(forbids(ops(bt12)), [{ op: "forbid", what: "flipLeaderFront", side: "you", until: "turn", cardsOf: "you" }], "BT12-001: the front");
+  assert.deepEqual(forbids(ops(bt12.replace("to its front", "to its back"))).map((f) => f.what), ["flipLeaderBack"], "BT12-001: the back");
+  const flip = ops(bt12)[0] as Extract<Op, { op: "may" }>;
+  assert.deepEqual(flip.ops, [{ op: "flip", target: SELF }], "\"flip this card over\": whichever side it shows");
+  const bt15b = "[Auto] When a player's [Field] Extra Card leaves a Battle Area, you may flip this card to its front. If you do, you can't flip your Leader Card to its back for the turn. If it's your opponent's turn, switch up to 1 of your yellow energy to Active Mode, and this card gets +5000 power for the turn.";
+  const back = record(bt15b);
+  assert.deepEqual(back.trigger, ["aPlayersCardLeftBattle"], "BT15-091's back: its moment");
+  assert.match(back.reads, /^if that card is an Extra Card with \[Field\]: you may: flip this card to its front, if the offer was taken: you can't flip your Leader Card to its back for the turn/);
+  assert.deepEqual(JSON.parse(JSON.stringify(back.cond, compact)), { kind: "count", sel: { special: "subject", filter: { keywords: ["Field"], type: "EXTRA" } }, atLeast: 1 }, "…of a [Field] Extra Card");
+  const front = record("[Auto] If you have 1 or more energy: When a player places a [Field] Extra Card in a Battle Area, you may flip this card over. If you do, switch up to 1 of your yellow energy to Active Mode, you can't flip your Leader Card to its front for the turn, and choose one-<br>・Draw 1 card.<br>・Add up to 1 yellow [Field] Extra Card with an energy cost of 1 from your Drop Area to your hand.");
+  assert.deepEqual(front.trigger, ["aPlayerPlacesInBattle"], "BT15-091: its moment");
+  assert.deepEqual(record("[Activate: Main] If your Leader Card is a yellow <Boujack> card on its front side, you have 2 or more energy, and you discard this card from your hand: Flip your Leader Card to its back side, then draw 2 cards.").ops[0], { op: "flip", target: { sel: { special: "leader" } }, to: "back" }, "EX13-24: one-way, to the back");
+}
 
 // ── 2. the VM, from both seats ───────────────────────────────────────────────
 
@@ -63,6 +80,20 @@ const defs: Record<string, CardDef> = {
   BIG_FUS: C("BIG_FUS", { power: 40000, energyCost: 1, characters: ["Gogeta: Br"], skill: "[Union-Fusion]{r}: <Son Goku: Br> and <Vegeta: Br>." }),
   GOKU: C("GOKU", { power: 10000, characters: ["Son Goku: Br"] }),
   VEGETA: C("VEGETA", { power: 10000, characters: ["Vegeta: Br"] }),
+  // BT12-001's shape, on an [Activate: Main] so a test can use it at will, with an [Awaken] beside it.
+  LFLIP: card("LFLIP", {
+    type: "LEADER", energyCost: null, comboCost: null, comboPower: null,
+    skill: "[Activate: Main] You may flip this card over. If you do, draw 1 card and you can't flip your Leader Card to its front for the turn.<br>[Awaken] When your life is at 8 or less: Draw 1 card and flip this card over.",
+    back: { name: "LFLIP awakened", power: 15000, skill: "[Activate: Main] You may flip this card over. If you do, draw 1 card and you can't flip your Leader Card to its back for the turn." },
+  }),
+  // BT15-091's two moments.
+  LFIELD: card("LFIELD", {
+    type: "LEADER", energyCost: null, comboCost: null, comboPower: null,
+    skill: "[Auto] When a player places a [Field] Extra Card in a Battle Area, you may flip this card over. If you do, draw 1 card.",
+    back: { name: "LFIELD awakened", power: 15000, skill: "[Auto] When a player's [Field] Extra Card leaves a Battle Area, you may flip this card to its front. If you do, you can't flip your Leader Card to its back for the turn." },
+  }),
+  FIELD: card("FIELD", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Field]" }),
+  CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
 // A bare keyword line ([Revive]) has no rule row of its own; the compiler's scripts stand in for it.
@@ -120,6 +151,7 @@ function endTurn(s: VmState): VmState {
   return settle(take(s, { type: "endMain", player: p }));
 }
 const activations = (s: VmState, id: string) => RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === id);
+const leaderOf = (s: VmState, p: PlayerId) => s.sides[p].zones.leader[0];
 const zoneOf = (s: VmState, id: string) => (["p1", "p2"] as PlayerId[]).flatMap((p) => Object.entries(s.sides[p].zones).filter(([, ids]) => ids.includes(id)).map(([z]) => z))[0];
 /** Empty a pile into the Drop Area down to `keep` cards (a state fixture, not a game action). */
 function empty(s: VmState, p: PlayerId, zone: string, keep = 0): void {
@@ -197,6 +229,69 @@ for (const me of SEATS) {
       assert.equal(zoneOf(no, fus), "drop", `${me}: declined — a failed play, the card in the Drop (22-13-4-5-1)`);
       for (const id of rest) assert.equal(zoneOf(no, id), "hand", `${me}: nothing of the tax is paid`);
     }
+  }
+
+  // 3 (BT12-001, BT15-091): "you can't flip your Leader Card to its front
+  // (back) for the turn". The front flips over and forbids the front: the back's
+  // own "flip this card over" then does nothing, and "if you do" is false. The
+  // next turn the back flips to the front and forbids the back: [Awaken] is not
+  // offered, and the front's flip does nothing. Controls: [Awaken] is offered on
+  // a board without the rule; the back turns to the front once the rule is gone.
+  {
+    let s = game3(me);
+    const leader = leaderOf(s, me);
+    s.cards[leader].cardId = "LFLIP";
+    s = roundtrip(s);
+    const awaken = () => RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === leader && /Awaken/.test(l.label ?? ""));
+    assert.equal(awaken().length, 1, `${me}: [Awaken] is offered with no rule in force (control)`);
+    const main = () => RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === leader && !/Awaken/.test(l.label ?? ""));
+    let hand = s.sides[me].zones.hand.length;
+    s = roundtrip(settle(take(s, main()[0].action), [], 0));
+    assert.equal(s.cards[leader].flipped, true, `${me}: the front flips over`);
+    assert.equal(s.sides[me].zones.hand.length, hand + 1, `${me}: and draws`);
+    hand = s.sides[me].zones.hand.length;
+    s = roundtrip(settle(take(s, main()[0].action), [], 0));
+    assert.equal(s.cards[leader].flipped, true, `${me}: BT12-001 — the back can't flip to the front this turn`);
+    assert.equal(s.sides[me].zones.hand.length, hand, `${me}: "if you do" is false — no draw`);
+    s = roundtrip(endTurn(endTurn(s)));
+    hand = s.sides[me].zones.hand.length;
+    s = roundtrip(settle(take(s, main()[0].action), [], 0));
+    assert.equal(s.cards[leader].flipped, false, `${me}: the next turn the back flips over to its front`);
+    assert.equal(s.sides[me].zones.hand.length, hand + 1, `${me}: and draws`);
+    empty(s, me, "life", 4);
+    s = roundtrip(s);
+    assert.equal(awaken().length, 0, `${me}: BT15-091 — [Awaken] is not offered while the back is forbidden`);
+    s = roundtrip(settle(take(s, main()[0].action), [], 0));
+    assert.equal(s.cards[leader].flipped, false, `${me}: nor does the front's own flip happen`);
+    s = roundtrip(endTurn(endTurn(s)));
+    assert.equal(awaken().length, 1, `${me}: the rule gone with the turn, [Awaken] is offered again`);
+  }
+
+  // 4 (BT15-091's moments): either player placing a [Field] Extra Card turns the
+  // front over; another card placed does not (control). Either player's [Field]
+  // leaving a Battle Area turns the back to its front.
+  {
+    let s = game3(you);
+    const leader = leaderOf(s, me);
+    s.cards[leader].cardId = "LFIELD";
+    const plain = stage(s, you, "PLAIN", "hand");
+    const field = stage(s, you, "FIELD", "hand");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, { type: "play", player: you, card: plain } as Action), [], 0));
+    assert.equal(s.cards[leader].flipped, false, `${me}: a Battle Card placed is not the moment (control)`);
+    const [placeField] = RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === field);
+    assert.ok(placeField, `${me}: the opponent's [Field] is offered`);
+    s = roundtrip(settle(take(s, placeField.action), [], 0));
+    assert.equal(zoneOf(s, field), "battle", `${me}: the [Field] is in the Battle Area`);
+    assert.equal(s.cards[leader].flipped, true, `${me}: BT15-091 — the opponent's [Field] placed turns the front over`);
+    s = roundtrip(endTurn(s));
+    const clear = stage(s, me, "CLEAR", "battle");
+    s = roundtrip(s);
+    const [use] = RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === clear);
+    assert.ok(use, `${me}: the remover is offered`);
+    s = roundtrip(settle(take(s, use.action), [field], 0));
+    assert.equal(zoneOf(s, field), "drop", `${me}: the [Field] left the Battle Area`);
+    assert.equal(s.cards[leader].flipped, false, `${me}: BT15-091's back — the [Field] leaving turns it to its front`);
   }
 }
 console.log("prohibition catalog 6: owner ruling (a keyword play's tax judged after its own hand costs — [Revive]'s colours, [Union-Fusion]'s materials) — enforced from both seats");

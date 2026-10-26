@@ -181,8 +181,8 @@ export interface ScriptHost {
   setFaceUp(id: string, faceUp: boolean): void;
   /** 23-5: switch a Battle Card between Hidden and Revealed Mode. */
   setHidden(id: string, hidden: boolean, by?: { card: string; master: PlayerId }): void;
-  /** 1-9: turn a Leader to its back side, and log it. */
-  flip(id: string): void;
+  /** 1-9: turn a Leader to its back side (or, `toBack` false, to its front), and log it. */
+  flip(id: string, toBack?: boolean): void;
   /** 1-11: add or remove markers, never below zero, and log the new total. Returns that total. */
   changeMarkers(id: string, delta: number): number;
   /** 6-2-1-11: change a player's energy markers, never below zero, and log the change asked for. */

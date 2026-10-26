@@ -891,7 +891,8 @@ export type Op =
    */
   | { op: "comboFrom"; target: Ref; negated?: boolean }
   /** "You may flip this card over" — a Leader awakens by a skill other than its [Awaken] (22-2-4). */
-  | { op: "flip"; target: Ref }
+  /** 22-2-4: turn a Leader over — `to` "back" or "front" only that way, absent either way ("flip this card over" on the awakened side turns it back to its front, BT12-001). */
+  | { op: "flip"; target: Ref; to?: "front" | "back" }
   /**
    * "Flip up to 1 card in your life face up" (3-9-2-1). The Life Area is
    * secret; a card turned face up in it is treated as being in an open area,
@@ -1871,7 +1872,7 @@ function defers(r: ReplacementResult | null | undefined): boolean {
  * to take it from, a move or KO of cards that are not there.
  */
 /** Steps whose effect is a recorded change of the game (a move, a draw, a KO, a play, a payment of life). */
-const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo"]);
+const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo", "flip"]);
 /** Steps that decide or look but change nothing on their own. */
 /** The Hidden Modes this program's own switches made, for a later `sameHiding` reveal (BT28-121). */
 const HIDDEN_HERE = "hiddenHere";
@@ -2959,8 +2960,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "flip":
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.isFlipped(id) || !h.hasBack(id) || h.areaOf(id) !== "leader") continue;
-          h.flip(id);
+          if (!h.hasBack(id) || h.areaOf(id) !== "leader") continue;
+          // "Flip this card over" turns the Leader whichever side it shows;
+          // "to its back" / "to its front" only that way (22-2-4).
+          const toBack = op.to === undefined ? !h.isFlipped(id) : op.to === "back";
+          if (h.isFlipped(id) === toBack) continue;
+          // 20-14, BT12-001, BT15-091: "you can't flip your Leader Card to its
+          // front (back) for the turn" — the flip does not happen, and "if you
+          // do" after it is false (`acted`).
+          if (h.forbids(toBack ? "flipLeaderBack" : "flipLeaderFront", { player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`${h.nameOf(id)} can't be flipped to its ${toBack ? "back" : "front"}`);
+            continue;
+          }
+          h.flip(id, toBack);
+          frame.acted = (frame.acted ?? 0) + 1;
         }
         break;
 

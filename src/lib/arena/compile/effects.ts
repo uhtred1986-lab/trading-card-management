@@ -2602,9 +2602,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // is the same one-way flip, said the long way — read for this card only:
   // the long form about "your Leader" or a card in the life is a separate
   // wording family, left for its own audit.
-  if ((m = /^(?:you may )?flip (.+?) (?:over|onto its back)$/.exec(t)) || (m = /^(?:you may )?flip (this card) to its back(?: side)?$/.exec(t))) {
+  // Prohibition batch 6: "flip this card over" turns it whichever side it
+  // shows (a Leader's back that prints it, BT12-001, turns back to the front),
+  // so the one-way forms say which way (`to`): "to its back (side)", "onto its
+  // back", and "to its front" (BT15-091's back).
+  if ((m = /^(?:you may )?flip (.+?) over$/.exec(t))) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "flip", target: ref }] : null;
+  }
+  if ((m = /^(?:you may )?flip (.+?) onto its back$/.exec(t)) || (m = /^(?:you may )?flip (this card) to its (back|front)(?: side)?$/.exec(t))) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "flip", target: ref, to: m[2] === "front" ? "front" : "back" }] : null;
   }
   // Phrasing batch 1, the Leader family of the same one-way flip (22-2-4):
   // "flip your Leader [Card] to its back side" (BT26-067, EX13-24, EX25-30),
@@ -2614,7 +2622,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // (EX19-08). Only Leaders, only to the back: "to its front side" turns an
   // awakened Leader back, which the `flip` op does not do, and stays unread.
   if ((m = /^(?:you may )?flip (?:over )?(your leader(?: card)?|(?:up to )?1 of your (?:.+? )?leader(?: card)?s|your .+? leader(?: card)?(?: with .+)?)(?: to its back(?: side)?)?$/.exec(t)) && (/ to its back(?: side)?$/.test(t) || /^(?:you may )?flip over /.test(t))) {
-    if (/^your leader(?: card)?$/.test(m[1])) return [{ op: "flip", target: { sel: { special: "leader" } } }];
+    // Prohibition batch 6: the Leader family is one-way, to the back, as it
+    // always was — "flip over up to 1 of your … Leader Cards" (EX19-08) is an
+    // awakening, not a turn back to the front.
+    const to = { to: "back" as const };
+    if (/^your leader(?: card)?$/.test(m[1])) return [{ op: "flip", target: { sel: { special: "leader" } }, ...to }];
     const sel = parseTarget(m[1].replace(/\bleader( card)?s\b/, "cards").replace(/\bleader( card)?\b/, "card"));
     if (!sel || sel.special || sel.fromVar || sel.filter?.unreadable || (sel.side ?? "you") !== "you") return null;
     const counted = /^(?:up to )?1 of /.test(m[1]);
@@ -2623,9 +2635,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (!counted) {
       delete leaders.count;
       delete leaders.upTo;
-      return [{ op: "flip", target: { sel: leaders } }];
+      return [{ op: "flip", target: { sel: leaders }, ...to }];
     }
-    return withChoice({ sel: { ...leaders, count: 1 } }, clause, c, (target) => ({ op: "flip", target }));
+    return withChoice({ sel: { ...leaders, count: 1 } }, clause, c, (target) => ({ op: "flip", target, ...to }));
   }
   // 3-9-2-1: a Life card turned face up stays in the Life Area and is still
   // taken as damage in its turn, but both players can see it and skills can
@@ -4158,6 +4170,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // (P-032): the game's loss and win conditions do not end the game for
     // that player while the rule holds (`loseGame`, `winGame`).
     if (/^lose the game(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "loseGame", side, until, ...withUnless }];
+    // "You can't flip your Leader Card to its front (back) for the turn"
+    // (BT12-001, BT15-091): that player's Leader is not turned over that way —
+    // by a skill's flip, or, to the back, by [Awaken] / [Wish] (22-2-4).
+    if (side !== "both" && (mm = /^flip (your|their) leader(?: card)? to its (front|back)(?: side)?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+      if ((mm[1] === "your") !== (side === "you")) return null;
+      return [{ op: "forbid", what: mm[2] === "front" ? "flipLeaderFront" : "flipLeaderBack", side, until, cardsOf: side, ...withUnless }];
+    }
     if (/^win the game(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "winGame", side, until, ...withUnless }];
     // "Your opponent can't use non-Leader Card skills to add cards from their
     // deck to their hand" (BT9-077), "…can't add cards from their deck to
