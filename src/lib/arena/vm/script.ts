@@ -900,7 +900,8 @@ export type Op =
   | { op: "faceUp"; target: Ref; faceUp?: boolean }
   | { op: "addMarker"; target: Ref; n: Amount }
   | { op: "removeMarker"; target: Ref; n: Amount }
-  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side; as?: string }
+  /** `mode: "rest"` (phrasing batch 4): "play 1 Ghost Token **in Rest Mode**" (P-683) — the tokens arrive rested, no switch. */
+  | { op: "token"; name: string; power: number; comboCost: number | null; comboPower: number | null; colors: Color[]; n: Amount; side?: Side; as?: string; mode?: "rest" }
   /**
    * A price is not a number (spec §2.5-4, #277): `costReduction` and `altCost`
    * are the two shapes a price changes, and this is the one primitive both
@@ -2359,6 +2360,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const minimum = op.sel.minCount ?? (upTo ? 0 : want);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
+          // Phrasing batch 4 (owner's approval of 26 Oct 2026; 5-8-2-2): an action price's exact "choose N" — not "up
+          // to", not "all", not a bound read off the board — is paid in full or not at all. Fewer cards than that at
+          // payment time (5-2-5's "as many as possible" is an effect's, never a price's) leaves the price unpaid: the
+          // rest of it is not paid with the short pick and the effect behind it does not happen.
+          if (frame.saveVarsAs && !upTo && exact === undefined && !unionOf && want < 99 && picked.length < minimum) {
+            frame.vars[op.as] = picked;
+            frame.priceUnpaid ??= `only ${picked.length} of the ${minimum} cards the price chooses could be chosen`;
+            frame.ip = frame.ops.length - 1;
+            return;
+          }
           frame.vars[op.as] = picked;
           // 20-5: "discard any number of cards: … X cards". X is how many were
           // taken, bound the moment the choice settles, so every later step of
@@ -3279,7 +3290,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // an earlier use of the name still held.
         const made: string[] = [];
         for (let i = 0; i < n; i++) {
-          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors);
+          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors, op.mode);
           made.push(id);
           h.pend("played", id);
         }

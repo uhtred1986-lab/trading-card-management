@@ -228,7 +228,8 @@ export interface ScriptHost {
   /** 20-13: skip a step, this time round or the next. */
   addSkip(p: PlayerId, what: SkipWhat, when: "this" | "next"): void;
   /** 19-1: make a token in this player's Battle Area, and log it. Returns its instance id. */
-  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[]): string;
+  /** `mode` (phrasing batch 4): the token arrives in Rest Mode ("play 1 Ghost Token in Rest Mode") — placed so, never switched. */
+  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[], mode?: "rest"): string;
 
   // ── moments ──────────────────────────────────────────────────────────────
 

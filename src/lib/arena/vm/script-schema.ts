@@ -658,9 +658,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       n(),
       SIDE,
       { name: "as", type: "string" },
+      { name: "mode", type: { enum: ["rest"] } },
     ],
-    sentence: "play {n} {name} ({power} power)",
-    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"',
+    sentence: "play {n} {name} ({power} power){mode? in {mode} mode}",
+    doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"; "mode":"rest" is "play 1 Ghost Token in Rest Mode" (P-683, phrasing batch 4): the tokens arrive rested',
   },
   costModifier: {
     fields: COST_MODIFIER_FIELDS,

@@ -376,6 +376,16 @@ function placeUnderOps(ref: Ref, named: Ref, clause: string, c: Ctx): Op[] {
   return [...target, ...chooseHost, { ...move, under: host }];
 }
 
+/**
+ * Phrasing batch 4 (owner's approval of 26 Oct 2026): "its **non-keyword** skills negated" — the card's [Auto],
+ * [Activate] and [Permanent] skills, one `negateSkillsOfKind` each; its keyword skills (22-1-1), [Counter] among them
+ * (9-7-1), go on working.
+ */
+const NON_KEYWORD_KINDS: SkillKindPrefix[] = ["auto", "activate", "permanent"];
+function negateNonKeyword(target: Ref, until: Duration): Op[] {
+  return NON_KEYWORD_KINDS.map((kind) => ({ op: "negateSkillsOfKind", target, kind, until }));
+}
+
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
   // "…and it can't activate skills while this card is in a Battle Area"
@@ -2223,6 +2233,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // whole of both: "This card gains all of the chosen card's keyword skills
   // for the turn" (BT26-139), "Gain all of the chosen card's skills for the
   // duration of the turn" (BT3-049).
+  // Phrasing batch 4: "…and this card gains **all skills of the chosen card** until the end of your opponent's turn"
+  // (BT31-074, BT31-075, BT31-076, BT31-077) is the same copy with the card after the noun.
+  if ((m = /^(.*?)\s*gains? all (?:of the )?(keyword )?skills of (the chosen card|that card|the chosen battle card)$/.exec(q))) {
+    const target = refFor(m[1] || "this card", c);
+    const from = copiedFrom(m[3], c);
+    if (target && from) return [{ op: "copySkills", target, from, which: "all", ...(m[2] ? { only: "keyword" as const } : {}), until: durationOf(t) }];
+    return null;
+  }
   if ((m = /^(.*?)\s*gains? all of (?:the )?(.+?)'s (keyword )?skills$/.exec(q))) {
     const target = refFor(m[1] || "this card", c);
     // "…all of **the chosen card's** skills": the possessive is stripped by
@@ -2285,9 +2303,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // being played" is the phrase that negates the play; without it the card is
   // played and only the manner changes.
   {
+    // Phrasing batch 4: "…it's **sent to** its owner's Warp instead of being played" (BT8-104, BT10-143, BT11-146) is
+    // the same move to the Warp as "placed in" it (3-10).
+    const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");
     const stopped =
       /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
-        t,
+        tSent,
       );
     // The same said actively: "place it in its owner's Drop **instead of
     // playing it**" (BT29-112) — only a play being resolved is something a
@@ -2355,6 +2376,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     const kind = m[2].split(":")[0].trim() as SkillKindPrefix;
     return ref ? [{ op: "negateSkillsOfKind", target: ref, kind, until: durationOf(t) }] : null;
+  }
+  // Phrasing batch 4 (owner's approval of 26 Oct 2026): "negate **its non-keyword skills**" (DB3-024), "negate that
+  // card's non-keyword skills" (BT21-063), "…and have their non-keyword skills negated for the duration of the turn"
+  // (BT8-115) switch off the [Auto], [Activate] and [Permanent] skills and leave the keyword skills — [Blocker],
+  // [Barrier], [Double Strike], [Counter] (9-7-1, 22-1-1) — working. They used to read as every skill of the card.
+  if ((m = /^negate (.*?)(?:'s)? non-keyword skills$/.exec(q)) || (m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) non-keyword skills negated(?: (?:for|until) .*)?$/.exec(q))) {
+    const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
+    return ref ? negateNonKeyword(ref, durationOf(t)) : null;
   }
   // #907 round 4: "...it gets +5000 power **and has its skills negated for the turn**" (BT13-117, BT15-057,
   // BT17-109, ...): the "and" cuts the clause, and the half left carries no subject - it is the card the
@@ -3117,8 +3146,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // and a card taken from a Life Area (BT23-103) is chosen unseen (3-9-2) -
     // both stay unread.
     [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) (?:its owner'?s?|their owners?'?s?) z-energy$/, "zEnergy", {}],
-    [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) your opponent'?s z-energy$/, "zEnergy", { owner: "opponent" }],
-    [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
+    [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) your opponent'?s z-energy$/, "zEnergy", { owner: "opponent" }],    [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
   ];
   // "Add up to 1 green Battle Card from your Drop to your Z-Energy **with its skills negated for the turn**"
   // (BT24-055b, BT26-068, BT30-010 …, phrasing batch 1): the move, then the moved card's skills negated for the
@@ -3137,7 +3165,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       // Drop Area" names two sources, and one selector reads only the last:
       // the life half of the price vanished. Two counted pieces are refused.
       if (/\b(?:from|in) (?:your|their|its owner'?s?) [a-z ]+? and (?:up to )?(?:\d+|an?) [^,]*\b(?:from|in) /.test(m[1])) return null;
-      const ref = refFor(m[1], c);
+      let ref = refFor(m[1], c);
+      // Phrasing batch 4: "Look at up to 5 cards from the top of your deck, **place up to 1 blue ≪Earthling≫ card into
+      // its owner's Drop**" (BT30-030, BT26-015): after a look, a description that names no area of its own is one of
+      // the cards looked at (20-12), as the `play`, `add … to your hand` and combo clauses already read it — no
+      // "among them" needed. Read bare it was a card already in play.
+      if ((to === "drop" || to === "warp") && c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+        const sel = parseTarget(m[1], c.lastSeen);
+        if (sel && !sel.special) ref = { sel };
+      }
       const moved = ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to, ...opts })) : null;
       if (zNegated && to === "zEnergy") {
         const move = moved?.find((o) => o.op === "moveTo");
@@ -3232,11 +3268,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Only a source that starts with a possessive ("from your deck", "from
   // your hand or Drop Area") and only after one of the host phrases below.
   const onTopFirst =
-    /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(?:turn|game|battle))?)?)$/.exec(t);
+    /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(?:turn|game|battle)| until the end of your opponent's next turn)?)?)$/.exec(t);
   const tOnTop = onTopFirst && !/\bon top of\b/.test(onTopFirst[3]) ? `${onTopFirst[1]} ${onTopFirst[3]} ${onTopFirst[2]}${onTopFirst[4]}` : t;
   if (
     (m =
-      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(
+      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) (non-keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(
         tOnTop,
       ))
   ) {
@@ -3255,8 +3291,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     }
     const mode = (m[2] ?? m[4]) as "rest" | "active" | undefined;
     // 9-1-5: the sets print "for game" as well as "for the game"; anything
-    // shorter than the game is an effect with a duration.
-    const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[5] === "game" ? "game" : "turn") : undefined;
+    // shorter than the game is an effect with a duration. Phrasing batch 4: the **non-keyword** skills alone, as the
+    // plain play below reads them (EX21-20, BT21-066).
+    const nonKeyword = !!m[5] && /skills negated/.test(t);
+    if (!nonKeyword && / until the end of your opponent's next turn$/.test(tOnTop)) return null;
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !nonKeyword ? (m[6] === "game" ? "game" : "turn") : undefined;
+    const thenNegate = (target: Ref): Op[] => (nonKeyword ? negateNonKeyword(target, durationOf(tOnTop.replace(/^.* with (?:its|their) non-keyword skills negated/, ""))) : []);
     if (!onto || !ref) return null;
     const extra = { onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
@@ -3265,9 +3305,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
+        ...thenNegate({ var: v }),
       ];
     }
-    return [{ op: "play", target: ref, ...extra }];
+    return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
   }
 
   // Playing a card by a skill (5-5-3).
@@ -3282,12 +3323,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // is read without it.
   const arrivesWith: { markers?: number } = {};
   const tp = /^play /.test(t)
-    ? t.replace(/\s+(?:with|and) (a|an|\d+) markers? on (?:it|them)\b/, (_w, n: string) => {
-        arrivesWith.markers = /^\d+$/.test(n) ? Number(n) : 1;
-        return "";
-      })
+    ? t
+        .replace(/\s+(?:with|and) (a|an|\d+) markers? on (?:it|them)\b/, (_w, n: string) => {
+          arrivesWith.markers = /^\d+$/.test(n) ? Number(n) : 1;
+          return "";
+        })
+        // Phrasing batch 4: "play 1 <Son Goku> or <Vegeta> card-both blue …-**in Rest Mode from your energy** with its
+        // skills negated" (EX25-14) says the mode before the place: the mode is the play's, as after it, and never the
+        // cards' the choice looks for (it read as a choice of rested energy, played in Active Mode).
+        .replace(/^(play .+?)(\s|--|[-—–―])in (rest|active) mode (from (?:your|their) (?:(?! with ).)+?)((?: with (?:its|their) .*)?)$/, (_w, a: string, gap: string, mode: string, from: string, rest: string) => `${a}${gap.trim() ? `${gap} ` : " "}${from} in ${mode} mode${rest}`)
     : t;
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(tp))) {
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (non-keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(tp))) {
     if (/token/.test(t)) return compileToken(clause, c);
     // "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**" (P-500,
     // P-508, P-548, P-694, BT1-051, BT7-069, EX06-03, EX25-02, P-208): a permission that lifts the life gate of a
@@ -3313,8 +3359,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (/\b(?:in|into) (?:your|their|an|the) opponent'?s battle areas?\b/.test(m[1])) return null;
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
-    // without the article before "game".
-    const negated: "turn" | "game" | undefined = /skills negated/.test(t) ? (m[3] === "game" ? "game" : "turn") : undefined;
+    // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
+    // negation of the card's [Auto], [Activate] and [Permanent] skills once it is played (`negateNonKeyword`), and
+    // may last "until the end of your opponent's next turn" (EX21-20); the play itself is plain.
+    const nonKeyword = !!m[3] && /skills negated/.test(t);
+    if (!nonKeyword && / until the end of your opponent's next turn$/.test(tp)) return null;
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !nonKeyword ? (m[4] === "game" ? "game" : "turn") : undefined;
+    const thenNegate = (target: Ref): Op[] => (nonKeyword ? negateNonKeyword(target, durationOf(t.replace(/^.* with (?:its|their) non-keyword skills negated/, ""))) : []);
     let ref = refFor(m[1], c);
     if (!ref) return null;
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
@@ -3354,9 +3405,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
+        ...thenNegate({ var: v }),
       ];
     }
-    return [{ op: "play", target: ref, ...extra }];
+    return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
   }
 
   // 5-2: the skill is yours, but the choice is *theirs* — "your opponent
@@ -4736,7 +4788,7 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
   // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
   // semicolon carries the sentence on as the comma does.
-  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after)
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:in rest mode\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after)
     // "Play **up to** 2 Cell Jr. Tokens …, and those cards get …" (BT21-088): the token op makes the number it is given,
     // so a sentence that goes on about the tokens of an "up to" play is not read as if all of them were made.
     && !/^play up to /i.test(m[0]);
@@ -4754,6 +4806,8 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
       comboPower: combo ? num(combo[2]) : 5000,
       colors: [],
       n: Number(m[1]),
+      // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
+      ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
     },
   ];
 }
@@ -4953,7 +5007,9 @@ const REDUCE_THAT_SKILL_COST = /^(?:then |and )?reduce (?:its|the|that card's|th
 /**
  * A count a cost reducer can hang on as it stands: one description in one place. Not "among" colours,
  * not the cost of other cards, not two places ("Battle Area and/or Drop"), not markers or tokens - those
- * are read wrongly as a plain count of cards, so they stay unread.
+ * are read wrongly as a plain count of cards, so they stay unread. (Phrasing batch 4: a count of cards of your own
+ * Z-Energy, Drop or Battle Area across two of them is folded to the trailing form before the clauses are cut —
+ * `splitClausesJoined` — and the reducer counts both areas there.)
  */
 const SIMPLE_COUNT = /^(?!.*\b(?:among|colou?rs?|costs?|markers?|tokens?|and|or)\b).+$/i;
 /** `SIMPLE_COUNT`, and not "in play" with no side named: "Battle Card in play" is both players' cards, which the target reader reads as yours. */
@@ -5535,6 +5591,37 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       joined.splice(i, 1, false, false);
       i--;
       continue;
+    }
+    // Phrasing batch 4: "…add them to your hand. **If you added 2 cards to your hand**, …" (P-108, P-242, EX19-24),
+    // "…under the chosen card. **If you placed a card**, …" (BT21-073), "…place them in your Drop Area, then shuffle your
+    // deck. **If you placed cards in your Drop Area**, …" (P-121), "**If you placed a Battle Card at the bottom of your
+    // deck**" (P-142): how many cards the move just before it took (20-16), counted off the choice that move took
+    // them from — and only when that move is the skill's last, goes where the words say, and moves exactly what the
+    // choice chose. Anything else ("…a card **from your hand** at the bottom of your deck", EX16-02) stays unread.
+    const counted = /^if you (added|placed) (a|an|1|2|3|4|5|1 or more|cards) ?(battle )?(?:cards?)?(?: (to your hand|(?:in|into) (?:your|the) drop(?: area)?|at the bottom of your deck))?[.,]?$/i.exec(clause.trim().toLowerCase());
+    // ("If you added **a card** to your hand" is `did addToHand`, the condition reader's, and stays so.)
+    if (counted && !(counted[1] === "added" && !/^[2-9]$/.test(counted[2]))) {
+      const open = groups[groups.length - 1];
+      const host = open.sink ?? open.ops;
+      // "…add up to 2 … among them to your hand, then place the rest at the bottom of your deck. If you added 2 cards
+      // to your hand" (EX19-24): the add, not the rest's move after it.
+      const moves = host.filter((o) => o.op === "moveTo" && (counted[1] !== "added" || o.to === "hand"));
+      const move = moves[moves.length - 1];
+      const chosen = move && move.op === "moveTo" && "var" in move.target && !move.target.minus ? c.choices.find((ch) => ch.var === (move.target as { var: string }).var) : undefined;
+      const place = counted[4] ?? "";
+      const where = !move || move.op !== "moveTo" ? false
+        : counted[1] === "added" ? move.to === "hand" && (!place || place === "to your hand")
+        : place.startsWith("at the bottom") ? move.to === "deck" && move.position === "bottom"
+        : place ? move.to === "drop"
+        : ["drop", "deck", "under", "warp", "energy"].includes(move.to);
+      const battleOnly = !counted[3] || chosen?.sel.filter?.type === "BATTLE";
+      const n = /^\d+$/.test(counted[2]) ? Number(counted[2]) : 1;
+      // One choice that can hold that many: "up to 1 <Son Goku: Br> card and 1 <Vegeta: Br> card … If you added 2 cards"
+      // (P-108) is two choices of one card each, which no count of either one answers.
+      if (chosen && where && battleOnly && c.last === chosen.var && (chosen.sel.count ?? 1) >= n) {
+        groups.push({ conds: [{ kind: "chose", var: chosen.var, atLeast: n }], ops: [] });
+        continue;
+      }
     }
     const conn = connective(clause);
     if (conn === "skip") continue;

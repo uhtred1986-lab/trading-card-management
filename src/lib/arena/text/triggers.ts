@@ -508,7 +508,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "When this card **attacks or activates [Blocker]**" (BT22-027 and its fourteen siblings, #907):
       // the second half of one skill is this moment, as "played or attacks" is `played` and `attacks`
       // (`attacks` reads the first half), so the skill answers to both and an attack is not a block.
-      return /when this card activates (?:its )?\[blocker\]|when you activate this card['’]s \[blocker\](?: skill)?|when this card attacks,? or activates (?:its |the |an? )?\[blocker\](?: skill)?/.test(t);
+      // Phrasing batch 4: the same second moment after a play — "When this card is played **or activates the [blocker]
+      // skill**" (P-699), "…played **or its [blocker] skill is activated**" (BT14-125).
+      return /when this card activates (?:its )?\[blocker\]|when you activate this card['’]s \[blocker\](?: skill)?|when this card attacks,? or activates (?:its |the |an? )?\[blocker\](?: skill)?|when this card is played,? or (?:(?:this card |it )?activates (?:its |the )?\[blocker\](?: skill)?|its \[blocker\] skill is activated)/.test(t);
     // Both wordings are the same moment: "when **this card** in your life is
     // flipped face up" is the card that was flipped, "when **a** card…" is
     // watched by that player's cards in play. The colour qualifier some of
@@ -692,7 +694,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return !parseFilter(said).unreadable;
     }
     case "opponentAttacks":
-      return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b/.test(t)
+      // Phrasing batch 4: also as the second moment of a play — "When this card is played **or one of your opponent's
+      // cards attacks**" (P-716), "…played **or your opponent attacks**" (BT16-145, BT16-146).
+      return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b|when (?:this card is played|you play this card),? or (?:when )?(?:your opponent attacks|one of your opponent's [a-z ]*cards? attacks)\b/.test(t)
         && !/when your opponent attacks your .+? with a specified cost of \d+\b/.test(head.toLowerCase());
     case "opponentEnergyActiveBySkill":
       return /when your opponent switches energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
@@ -804,6 +808,10 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   // Area" are one moment with two ways of arriving, not two moments.
   if (/^\[(?:dark )?over realm\]/.test(rest) || (qualifier && /^(?:your )?(?:drop|warp|deck|hand|energy)\b/.test(rest))) return false;
   if (/^(?:this card |it )?attacks\s*(?:,|:|\.|$)/.test(rest)) return !autoTriggerMatches(sk, "attacks");
+  // Phrasing batch 4: an opponent's attack and this card's [Blocker], each a moment of its own (`opponentAttacks`,
+  // `blockerUsed`), beside the play.
+  if (/^(?:your opponent attacks|one of your opponent's [a-z ]*cards? attacks)\s*(?:,|:|\.|$)/.test(rest)) return !autoTriggerMatches(sk, "opponentAttacks");
+  if (/^(?:(?:this card |it )?activates (?:its |the )?\[blocker\](?: skill)?|its \[blocker\] skill is activated)\s*(?:,|:|\.|$)/.test(rest)) return !autoTriggerMatches(sk, "blockerUsed");
   if (/^(?:used|use|combo)\b/.test(rest)) return false;
   // #969: a skill's discard (`droppedFromHand`), and a skill's move from a Battle Area to the Drop (`droppedFromBattle`).
   if (/^(?:(?:it|this card) is )?discarded by\b/.test(rest)) return !autoTriggerMatches(sk, "droppedFromHand") || (discardedBySkillCause(head) === null);
