@@ -15,18 +15,20 @@ export { ZONE_ARGS, loadRuleset, vocabularyOf } from "./load";
 export { bindKeywordCond, bindKeywordParams, expandMacros, opsIn, MacroError } from "./expand";
 export { HOOK_POINTS, isHookPoint, type HookPoint } from "./hooks";
 export { DBS_FILES, loadDbs } from "./dbs";
+export { FUSION_FILES, loadFusion } from "./fusion";
 export type { ActionDef, AttributeDef, CostDef, Def, GameDef, GameDefinition, KeywordDef, Loaded, OpDef, PhaseDef, PromptDef, RulesetError, StepDef, TriggerDef, Vocabulary, WinDef, WordsDef, ZoneDef } from "./types";
 
 import { loadDbs } from "./dbs";
+import { loadFusion } from "./fusion";
 import type { Loaded } from "./types";
 import type { Game } from "../../catalog/games";
 
 /**
- * A game's ruleset by id. Only `dbs` has files; Fusion World is the plan's
- * natural second and needs no code here when it arrives — a directory, a
- * regenerated `files.ts` and a row below.
+ * A game's ruleset by id: a directory, a regenerated `files.ts` and a row below.
+ * `fusion` is a copy of `dbs` until F1-02 cuts it to Fusion World's rules.
  */
 export function rulesetFor(game: Game): Loaded {
   if (game === "dbs") return loadDbs();
-  return { ok: false, errors: [{ file: `${game}/`, line: 1, col: 1, clause: "DEFINE", message: `there is no ruleset for ${game} yet`, expected: ["dbs"], lineText: "" }] };
+  if (game === "fusion") return loadFusion();
+  return { ok: false, errors: [{ file: `${game}/`, line: 1, col: 1, clause: "DEFINE", message: `there is no ruleset for ${game} yet`, expected: ["dbs", "fusion"], lineText: "" }] };
 }

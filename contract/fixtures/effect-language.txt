@@ -50,8 +50,8 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     "choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about
   {"op":"negateSkillsOfKind","target":TARGET,"kind":"auto"|"activate"|"counter"|"permanent","until":DURATION}
     "negate that card's [Auto] skill for the turn" — one kind, not the whole card (9-1-5)
-  {"op":"hidden","target":TARGET,"hidden":true|false}
-    Hidden Mode / Revealed Mode (23-5)
+  {"op":"hidden","target":TARGET,"hidden":true|false,"sameHiding"?:true|false}
+    Hidden Mode / Revealed Mode (23-5). `sameHiding` (BT28-121, official Q&A): reveal only a card still in the Hidden Mode this skill switched it to — not one revealed by another skill and hidden again since
   {"op":"redirectAttack","target":TARGET}
     "switch the target of the attack to it" (22-4-2)
   {"op":"swapBattle","target":TARGET}
