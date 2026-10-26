@@ -152,15 +152,17 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
     assert.ok((find(r.ops, "forbid")[0] as Forbid).unlessPay?.length, text);
   }
 
-  // The defender's description is not read: the tax is asked per attacker, so reading it would tax every attack.
+  // The defender's description is read since prohibition batch 3: the price is charged on an attack
+  // declared against such a defender (`attackTarget`), never on every attack (`prohibition-catalog-3.ts`).
   for (const text of [
     "[Auto] When this card is played, your opponent can't attack Leader Cards for the turn unless they choose 1 card in their hand and discard it each time.",
     "[Permanent] While this card is in Rest Mode, your opponent can't attack your Leader Card unless they choose 2 cards in their hand and discard them each time.",
     "[Auto] When this card is played, your opponent can't attack your non-Leader cards for the turn unless they choose 1 of their cards in Active Mode and switch it to Rest Mode each time.",
   ]) {
     const r = compile(text);
-    assert.deepEqual(r.ops, [], text);
-    assert.equal(r.unsupported.length, 1, text);
+    assert.deepEqual(r.unsupported, [], text);
+    const f = find(r.ops, "forbid")[0] as Forbid & { attackTarget?: unknown };
+    assert.ok(f.attackTarget && f.unlessPay?.length, text);
   }
 
   // BT26-127: "cards other than their Leader" is every card but the Leader.

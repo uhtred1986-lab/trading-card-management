@@ -68,7 +68,7 @@ import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey } from "./script";
-import { endGame } from "./flow";
+import { endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
@@ -205,7 +205,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       return drawn;
     },
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -348,7 +348,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     // 21-3: script.ts calls this only when it emits a damage event. A saved
     // game from before the counter existed stays unknown, even after a hit.
-    winGame: (p, reason) => endGame(ctx, game, state, ev, p, reason),
+    // 20-14 (P-032): a skill's win is refused while the winner may not win or the other may not lose.
+    winGame: (p, reason) => { if (!gameEndForbidden(ctx, game, state, p === "p1" ? "p2" : "p1", p)) endGame(ctx, game, state, ev, p, reason); },
     addDamageTaken: (p, n) => {
       if (state.damageTotals) state.damageTotals[p] += n;
     },
@@ -762,7 +763,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string;
+  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -777,7 +778,7 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) return;
   to = route.to;
-  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to)) return;
+  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source)) return;
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile

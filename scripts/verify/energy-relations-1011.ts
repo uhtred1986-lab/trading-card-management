@@ -86,8 +86,9 @@ const FLAGS = ["costAtMostEnergy", "costBelowEnergy", "costAtLeastEnergy", "cost
   // A description that reaches `parseFilter` whole — a forbid, a trigger subject — has nowhere to apply it.
   for (const c of CASES.filter((x) => x.flag !== "costAtMostEnergy" || x.opponent)) assert.equal(parseFilter(`Battle Card with an energy cost ${c.said}`).unreadable, true, `${c.said}: refused where it cannot be applied`);
   assert.equal(parseFilter("Battle Card with an energy cost less than or equal to your current energy").costAtMostEnergy, true, "#979 unchanged");
-  assert.ok(compile("[Permanent] When this card is in Rest Mode, your opponent's Battle Cards with energy costs greater than or equal to their current energy can't attack Leader Cards.").unsupported.length > 0, "P-299: a forbid stays unread");
-  assert.ok(compile("[Activate: Main] Your opponent can't attack with Battle Cards with energy costs greater than their current energy until the end of their next turn.").unsupported.length > 0, "EX12-02: stays unread");
+  // Since prohibition batch 3 an attack rule reads the measure itself, against the attacker's own controller (`costVsEnergy`, `prohibition-catalog-3.ts`).
+  assert.deepEqual(compile("[Permanent] When this card is in Rest Mode, your opponent's Battle Cards with energy costs greater than or equal to their current energy can't attack Leader Cards.").unsupported, [], "P-299: read as costVsEnergy");
+  assert.deepEqual(compile("[Activate: Main] Your opponent can't attack with Battle Cards with energy costs greater than their current energy until the end of their next turn.").unsupported, [], "EX12-02: read as costVsEnergy");
 
   // The skills themselves, whole.
   for (const [id, text] of [

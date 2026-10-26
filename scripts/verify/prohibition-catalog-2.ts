@@ -117,7 +117,8 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(forbids(ops("[permanent] This card can't be played from any area by skills other than its own."))[0], { op: "forbid", what: "play", until: "game", target: SELF, bySkill: true, exceptOwnSkills: true }, "EB1-27");
   assert.equal(forbids(ops("[permanent] This card can't be played from any area by card skills except its own."))[0].exceptOwnSkills, true, "DB2-008");
   assert.deepEqual(forbids(ops("[Permanent] You can't play this card from any area using skills, and if you have 5 or more mono-red energy, reduce the energy cost of this card in your hand by 3."))[0], { op: "forbid", what: "play", side: "you", until: "game", target: SELF, bySkill: true }, "BT14-152: a skill's play only — the bare reading banned the play from the hand");
-  assert.ok(unread("[permanent] You can't play this card from any area with skills other than [Revive Blue/Green].").length, "an exception it cannot say stays unread rather than becoming every play");
+  // Owner ruling 26 Oct 2026 (batch 3): the declared play is allowed, and only [Revive] may play it by a skill.
+  assert.deepEqual(forbids(ops("[permanent] You can't play this card from any area with skills other than [Revive Blue/Green]."))[0], { op: "forbid", what: "play", side: "you", until: "game", target: SELF, bySkill: true, exceptKeyword: "Revive" }, "the exception is the keyword's own play, never every play");
 }
 // Moves by skills to a named place.
 {
@@ -126,7 +127,8 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(forbids(ops("[Permanent] Your Battle Cards can't be placed in the Drop Area by your own skills.")).map((f) => f.what), ["beMovedBySkill", "beKOdBySkill"], "BT3-078");
   assert.deepEqual(forbids(ops("[permanent] Your Battle Cards can't be placed at the bottom of their owner's deck by your opponent's skills."))[0], { op: "forbid", what: "beMovedBySkill", until: "game", target: { sel: { side: "you", area: "battle", filter: { type: "BATTLE" }, count: 99 } }, side: "opponent", toArea: "deck", toBottom: true }, "P-672");
   assert.deepEqual(forbids(ops("[permanent] Cards in your hand can't be placed into their owner's Drop by your opponent's skills."))[0].fromArea, "hand", "P-676: cards in a hand");
-  assert.ok(unread("[Counter: Play] Play this card, draw 1 card, and cards in your hand can't be returned to your deck by your opponent's skills for the turn.").length, "DB2-156: a timed rule would bind only the cards in the hand as it resolves");
+  // Owner ruling 26 Oct 2026 (batch 3): the hand as a zone for the turn, a card that enters it later included.
+  assert.deepEqual(forbids(ops("[Counter: Play] Play this card, draw 1 card, and cards in your hand can't be returned to your deck by your opponent's skills for the turn."))[0], { op: "forbid", what: "beMovedBySkill", until: "turn", side: "opponent", cardsOf: "you", fromArea: "hand", toArea: "deck" }, "DB2-156");
   assert.deepEqual(forbids(ops("[Permanent] This card can't be removed from Battle Areas by skills other than {Jaguar's Island}'s skills.")).map((f) => [f.what, f.exceptSourceName]), [["beMovedBySkill", "jaguar's island"], ["beKOdBySkill", "jaguar's island"]], "BT22-072");
   assert.deepEqual(forbids(ops("[permanent] If you have 3 or less energy, this card can't attack or be removed from Battle Areas.")).map((f) => f.what), ["attack", "beMovedBySkill", "beKOd"], "BT19-153: no cause named — every KO");
 }

@@ -491,7 +491,8 @@ const no = (s: VmState): Action | undefined => {
   assert.deepEqual(r.cond, { kind: "isTurnPlayer" });
   const sub = r.ops[0] as Extract<Op, { op: "replace" }>;
   assert.equal(sub.op, "replace", "a substitute, not a redirect of the Maiden Squadron card");
-  assert.deepEqual([sub.event, sub.by, sub.bySide, sub.optional], ["leave", "skill", "opponent", true]);
+  // Owner ruling 26 Oct 2026 (prohibition batch 3): the opponent's skill's KO is a removal too.
+  assert.deepEqual([sub.event, sub.by, sub.bySide, sub.optional], ["leave", "skillOrKoBySkill", "opponent", true]);
   assert.deepEqual(sub.with, [{ op: "moveTo", target: { sel: { special: "self", area: "warp" } }, to: "removed" }]);
   roundTripsInLanguage(r);
   for (const p of ["p1", "p2"] as const) {

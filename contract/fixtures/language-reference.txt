@@ -1828,7 +1828,7 @@
     {
       "name": "replaceLeave",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"replaceLeave\",\"from\"?:[\"battle\"|\"combo\"],\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replaceLeave\",\"from\"?:[\"battle\"|\"combo\"],\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\",\"bySide\"?:\"opponent\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "from",
@@ -1855,7 +1855,8 @@
           "enumValues": [
             "skill",
             "ko",
-            "skillOrKo"
+            "skillOrKo",
+            "skillOrKoBySkill"
           ]
         },
         {
@@ -1917,7 +1918,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, it goes to the drop instead",
-      "doc": "9-10: \"to\" is the replacement destination; \"from\" explicitly names valid departure areas (including Combo), otherwise ordinary in-play departure scope applies; \"by\" narrows the cause, \"bySide\" narrows whose skill, and \"requestedTo\" narrows the original requested destination. \"position\" specifies top or bottom of a pile. Omit \"until\" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit \"target\" for this card"
+      "doc": "9-10: \"to\" is the replacement destination; \"from\" explicitly names valid departure areas (including Combo), otherwise ordinary in-play departure scope applies; \"by\" narrows the cause (\"skillOrKoBySkill\": a skill's move or a skill's KO, never the battle's — owner ruling 26 Oct 2026, \"if this card would be removed from the Battle Area by your opponent's skill, … instead\"), \"bySide\" narrows whose skill, and \"requestedTo\" narrows the original requested destination. \"position\" specifies top or bottom of a pile. Omit \"until\" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit \"target\" for this card"
     },
     {
       "name": "replace",
@@ -2221,7 +2222,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\",\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\"|\"deck\",\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER,\"cardsOf\"?:\"you\"|\"opponent\",\"exceptKeyword\"?:\"…\",\"costVsEnergy\"?:\"above\"|\"atLeast\"}",
       "fields": [
         {
           "name": "what",
@@ -2250,7 +2251,9 @@
             "beRestedBySkill",
             "dropToWarp",
             "beKOdInBattle",
-            "placeUnder"
+            "placeUnder",
+            "loseGame",
+            "winGame"
           ]
         },
         {
@@ -2303,7 +2306,8 @@
           "enumValues": [
             "hand",
             "battle",
-            "drop"
+            "drop",
+            "deck"
           ]
         },
         {
@@ -2447,10 +2451,32 @@
           "required": false,
           "nullable": false,
           "type": "filter"
+        },
+        {
+          "name": "cardsOf",
+          "required": false,
+          "nullable": false,
+          "type": "side"
+        },
+        {
+          "name": "exceptKeyword",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "costVsEnergy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "above",
+            "atLeast"
+          ]
         }
       ],
       "sentence": "you can't attack for the turn",
-      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"attackTarget\" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; \"attackOnly\" (a ref, `what`:\"attack\" only, never beside \"attackTarget\") is the opposite — the only cards an attack by the rule's attackers may be declared against (\"can only attack this card\", #1005), resolved when the rule is read; \"against\" (a ref, `what`:\"attack\" only) narrows the rule to attacks on those cards (\"…can't attack this card\", BT15-122), also resolved when the rule is read; \"fromArea\" (\"hand\" | \"battle\" | \"drop\") narrows a rule to cards used or moved from that area — a combo \"from the Battle Area\" (EB1-21), a play \"from their owner's hands\" (EX23-05), a move out of a Drop (BT6-028) — and \"fromOwnArea\":true to the acting player's own such area (\"from your Drop Area\", BT16-001); \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). With \"what\":\"activateCounter\", \"counterKind\" narrows it to one [Counter] kind (\"[Counter: Play] skills\") and \"otherCards\":true leaves the card that made the rule out of it (\"…of other cards\", BT10-008). \"what\":\"activateSkill\" and \"activateCounter\" take an \"unlessPay\" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; \"extraCardActivation\":true narrows an \"activateSkill\" rule to 12-1-3's \"activating an Extra Card\" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). \"skillKinds\" (a list of line kinds such as \"activate:main\" or \"auto\") narrows an \"activateSkill\" rule to those lines (\"you can't activate the [Activate: Main] skill on copies of this card\", BT12-031). \"exceptOwnSkills\":true and \"exceptSourceName\" (a card name) let one skill through: the rule's own card's (\"…by skills other than its own\", EB1-27) or a card of that name's (\"…other than {Jaguar's Island}'s skills\", BT22-072). \"toArea\" (\"hand\" | \"deck\" | \"drop\" | \"warp\" | \"energy\" | \"life\", with \"toBottom\":true for the bottom of a deck) narrows a \"beMovedBySkill\" rule to a move there (\"…can't be returned to your hand by your skills\", DB2-040); a \"beMovedBySkill\" rule with no \"fromArea\" is about the Battle Area, and \"fromArea\":\"hand\" about cards in a hand. \"byFilter\" describes the card whose action it is — for \"beKOdInBattle\", the attacking card (\"…can't be KO'd in battle against Battle Cards with energy costs of 3 or less\", P-481). \"exceptUnion\" (a list of \"Fusion\" | \"Potara\" | \"Absorb\", \"what\":\"play\" only) lets through only a [Union] play of those variants — \"you can only play Battle Cards by using [Union-Fusion]\" (P-069, P-226, #930) forbids every other play of those cards: declared, by any other skill, an evolution. \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchToActiveInCharge\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"energyCap\" | \"addLifeToHand\" | \"beMovedBySkill\" | \"beNegated\" | \"beRestedBySkill\" | \"dropToWarp\" | \"beKOdInBattle\" | \"placeUnder\""
+      "doc": "forbid an action (20-14): a \"target\" for a rule about particular cards, or a \"side\" for one about a player, narrowed by a \"filter\"; \"attackTarget\" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; \"attackOnly\" (a ref, `what`:\"attack\" only, never beside \"attackTarget\") is the opposite — the only cards an attack by the rule's attackers may be declared against (\"can only attack this card\", #1005), resolved when the rule is read; \"against\" (a ref, `what`:\"attack\" only) narrows the rule to attacks on those cards (\"…can't attack this card\", BT15-122), also resolved when the rule is read; \"fromArea\" (\"hand\" | \"battle\" | \"drop\" | \"deck\") narrows a rule to cards used or moved from that area — a combo \"from the Battle Area\" (EB1-21), a play \"from their owner's hands\" (EX23-05), a move out of a Drop (BT6-028), a search of a deck (DB3-092) — and \"fromOwnArea\":true to the acting player's own such area (\"from your Drop Area\", BT16-001); \"sameNameAsSelf\":true narrows a play rule to copies of this card; \"uses\" is how many times that action may still happen before the prohibition starts applying, and \"unless\" is the escape condition. \"unlessPay\" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame (\"you\" is whoever acts), before the action and every time they take it — refused when they cannot pay it; \"what\":\"attack\" (BT30-100), \"play\" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and \"switchEnergyToActive\" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. \"byTypes\" narrows a rule to an action a skill of those card types takes (\"the skill of a Battle Card or Extra Card\"), and \"turnPlayer\":true to whoever's turn it is (\"if the turn player would …\"). With \"what\":\"activateCounter\", \"counterKind\" narrows it to one [Counter] kind (\"[Counter: Play] skills\") and \"otherCards\":true leaves the card that made the rule out of it (\"…of other cards\", BT10-008). \"what\":\"activateSkill\" and \"activateCounter\" take an \"unlessPay\" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; \"extraCardActivation\":true narrows an \"activateSkill\" rule to 12-1-3's \"activating an Extra Card\" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). \"skillKinds\" (a list of line kinds such as \"activate:main\" or \"auto\") narrows an \"activateSkill\" rule to those lines (\"you can't activate the [Activate: Main] skill on copies of this card\", BT12-031). \"exceptOwnSkills\":true and \"exceptSourceName\" (a card name) let one skill through: the rule's own card's (\"…by skills other than its own\", EB1-27) or a card of that name's (\"…other than {Jaguar's Island}'s skills\", BT22-072). \"toArea\" (\"hand\" | \"deck\" | \"drop\" | \"warp\" | \"energy\" | \"life\", with \"toBottom\":true for the bottom of a deck) narrows a \"beMovedBySkill\" rule to a move there (\"…can't be returned to your hand by your skills\", DB2-040); a \"beMovedBySkill\" rule with no \"fromArea\" is about the Battle Area, and \"fromArea\":\"hand\" about cards in a hand. \"byFilter\" describes the card whose action it is — for \"beKOdInBattle\", the attacking card (\"…can't be KO'd in battle against Battle Cards with energy costs of 3 or less\", P-481). \"cardsOf\" (\"you\" | \"opponent\") narrows a rule about no card in particular to cards in that player's areas, wherever they come from — \"cards in your hand can't be returned to your deck by your opponent's skills for the turn\" (DB2-156) is the hand as a zone, a card drawn later included. \"exceptKeyword\" (a keyword name, \"what\":\"play\" with \"bySkill\":true) lets that keyword's own play through (\"…with skills other than [Revive Blue/Green]\"). \"costVsEnergy\" (\"above\" | \"atLeast\") narrows the rule to cards whose energy cost is greater than (or at least) the number of cards in their controller's Energy Area (\"Battle Cards with energy costs greater than their current energy\", P-219, P-299). \"exceptUnion\" (a list of \"Fusion\" | \"Potara\" | \"Absorb\", \"what\":\"play\" only) lets through only a [Union] play of those variants — \"you can only play Battle Cards by using [Union-Fusion]\" (P-069, P-226, #930) forbids every other play of those cards: declared, by any other skill, an evolution. \"what\" is one of \"attack\" | \"beAttacked\" | \"block\" | \"play\" | \"activateSkill\" | \"activateCounter\" | \"combo\" | \"beKOd\" | \"beKOdBySkill\" | \"beChosen\" | \"switchToActive\" | \"switchToActiveInCharge\" | \"switchEnergyToActive\" | \"placeEnergy\" | \"energyCap\" | \"addLifeToHand\" | \"beMovedBySkill\" | \"beNegated\" | \"beRestedBySkill\" | \"dropToWarp\" | \"beKOdInBattle\" | \"placeUnder\" | \"loseGame\" | \"winGame\""
     },
     {
       "name": "immune",
@@ -3340,7 +3366,9 @@
             "beRestedBySkill",
             "dropToWarp",
             "beKOdInBattle",
-            "placeUnder"
+            "placeUnder",
+            "loseGame",
+            "winGame"
           ]
         },
         {

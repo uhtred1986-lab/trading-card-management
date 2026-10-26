@@ -162,12 +162,13 @@ const forbidIn = (ops: Op[]): Forbid => {
   assert.deepEqual({ area: pick51.sel.area, count: pick51.sel.count }, { area: "drop", count: 5 });
 
   // What stays unread: a description of the cards read only in part
-  // (BT23-055), and half a price cut at its "and" (BT6-023).
+  // (BT23-055). BT6-023's price ("…as an additional cost") is read since
+  // prohibition batch 3 (`prohibition-catalog-3.ts`).
   assert.notDeepEqual(
     one("[Auto] When this card is played, until the end of your opponent's turn, your opponent can't play a Battle Card with an original power the same as your declared number unless they place 1 card from their hand at the bottom of their deck.").unsupported,
     [],
   );
-  assert.notDeepEqual(
+  assert.deepEqual(
     one("[Activate: Main] Draw 1 card, and for the duration of your opponent's next turn, your opponent can't play Battle Cards with 20000 power or less unless they choose 3 cards from their hand and place them in their Drop Area as an additional cost.").unsupported,
     [],
   );
