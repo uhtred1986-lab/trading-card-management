@@ -459,8 +459,14 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       // A count carries the same way: "you have 3 or more energy **and 2 or
       // more skill-less Battle Cards in play**", "your opponent has 8 or more
       // cards in their hand **and 3 or more energy**".
+      // "…you have 2 or more energy **and {Support Broadcast} in your Battle
+      // Area**" (BT30-082's [Awaken], deck flags 26 Oct 2026): a half that opens
+      // with a card's name and says where it is carries the "you have" too. Read
+      // bare it was no condition, and the count below made the whole sentence 2
+      // or more {Support Broadcast} cards in the Energy Area.
+      const namedPlaced = /^(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫)(?: cards?)? in (?:your|their|your opponent'?s) /.test(half);
       const namesACard =
-        /^(?:an?|\d+ or (?:more|less|fewer)) /.test(half) &&
+        (/^(?:an?|\d+ or (?:more|less|fewer)) /.test(half) || namedPlaced) &&
         !/\b(?:has|have|is|are)\b/.test(half) &&
         /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
