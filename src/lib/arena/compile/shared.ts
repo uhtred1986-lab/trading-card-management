@@ -98,6 +98,17 @@ export interface Ctx {
    */
   switchedHere?: string;
   /**
+   * The cards this skill's own effect last sent to a Warp, by the name the
+   * choice bound — "…send it to its owner's Warp. At the end of your opponent's
+   * next turn, return **the card sent to the Warp by this skill** to its owner's
+   * hand" (BT13-025, phrasing batch 1). Only a move of a bound choice sets it.
+   */
+  sentToWarp?: string;
+  /** The span of the last power change or grant read ("…for the battle"), for an "it also gains …" that prints none (BT12-083). */
+  lastUntil?: "battle" | "turn";
+  /** The name the last KO of a bound choice used: "if the KO'd card was a ≪Saiyan≫ card" (BT25-097). */
+  koed?: string;
+  /**
    * What "it"/"them" points at. Card text carries the subject from clause to
    * clause — "Switch this card to Active Mode and it gets +5000 power" means
    * this card — so the last target of any clause counts, not only a choice.
