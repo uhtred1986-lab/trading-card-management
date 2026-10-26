@@ -102,6 +102,8 @@ function causeMatches(game: GameDefinition, state: VmState, id: string, r: Repla
   if (r.by === "skillOrKoBySkill" && reason !== "effect" && reason !== "powerZero" && !(reason === "ko" && actor !== undefined)) return false;
   if (r.requestedTo && r.requestedTo !== requestedTo) return false;
   if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(game, state, id))) return false;
+  // "…by one of your skills" (BT12-056): the card's own controller's skill.
+  if (r.bySide === "you" && (actor === undefined || actor !== masterOf(game, state, id))) return false;
   return true;
 }
 
