@@ -82,6 +82,10 @@ export function redirectOf(ops: Op[]): { to: Area; mode?: "active" | "rest"; pos
   if (only.op !== "moveTo" || only.under || only.owner || only.to === "under" || only.to === "play") return null;
   const sel = "sel" in only.target ? only.target.sel : null;
   if (!sel || (sel.special !== "self" && sel.special !== "subject")) return null;
+  // "…remove this card **in your Warp** from the game instead" (BT30-104): this
+  // card taken out of an area of its own is not the card leaving play, so the
+  // move stands in the departure's place (a substitute), never redirects it.
+  if (sel.area || sel.areas?.length) return null;
   return { to: only.to as Area, ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}) };
 }
 
