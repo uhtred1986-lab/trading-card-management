@@ -1583,6 +1583,10 @@ THEN
   costReduction(target: [self], amount: -2, until: game)
 ```
 
+### Fusion World spellings
+
+Fusion World prints timing as a bracket tag (`[On Play]`, `[When Attacking]`, `[When KO'd]`, `[End of Your Turn]`, and `[Your Turn]` / `[Opponent's Turn]` beside `[Permanent]` or `[Auto]`) and closes an activation price with a spaced colon. The parser reads each as an alias of the original game's sentence, so both games compile to the same skill kind and trigger. The list, with the form each one reads as, is `FUSION_WORLD_SPELLINGS` in `src/lib/arena/glossary.ts` (rendered at `/arena/rules/reference#fusion-spellings`).
+
 ## 5. Errors
 
 **The first error wins.** A rule is five lines long, and a list of five complaints about one
