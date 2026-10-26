@@ -296,7 +296,12 @@ const hasDashConjunction = (text: string): boolean => splitDashConjunction(text)
 
 /** The right-hand side of a dash conjunction: alternatives, the subject of one carried to a bare next. */
 function dashAlternatives(right: string): Cond | null {
-  const parts = splitDisjunction(right.toLowerCase());
+  // "…and—your Leader is a Z-Leader, you have 3 or more Z-Energy, or you have
+  // a Z-Battle Card in play" (P-442, prohibition batch 6): a list whose "or"
+  // is printed only before its last item; each comma before a new subject is
+  // the same "or".
+  const listed = /,\s+or\s+/i.test(right) ? right.replace(/,\s+(?!or\b)(?=(?:you|your|there)\b)/gi, ", or ") : right;
+  const parts = splitDisjunction(listed.toLowerCase());
   const conds: Cond[] = [];
   let subject = "";
   for (const raw of parts) {
@@ -352,6 +357,22 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // 25 Oct 2026). Bare "[union]" only: a named variant is not read here.
   if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:a |the )?\[union\](?: skill)?$/.test(t)) {
     return { cond: { kind: "playedUsing", sel: { special: "self" }, what: "Union" } };
+  }
+  // BT25-037's back (prohibition batch 6): "…when your blue <Majin Buu> card
+  // attacks, draw 1 card. Additionally, **if the attacking card has an energy
+  // cost of 4**, …" — a measure of the card attacking (8-1), or of "that card"
+  // the moment named.
+  {
+    const measured = /^(the attacking card|that card) has an? (energy cost of \d+(?: or (?:more|less))?)$/.exec(t);
+    if (measured) {
+      const filter = parseFilter(`card with an ${measured[2]}`);
+      if (!filter.unreadable) return { cond: { kind: "count", sel: { special: measured[1] === "the attacking card" ? "attacker" : "subject", filter }, atLeast: 1 } };
+    }
+  }
+  // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
+  // the copy entered by an evolution of any kind (22-5-2-2), while it stays.
+  if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:an? |the )?\[evolve\](?: skill)?$/.test(t)) {
+    return { cond: { kind: "playedUsing", sel: { special: "self" }, what: "Evolve" } };
   }
   // "When you've sent 7 or more cards to your Warp, reduce the energy cost of this card in your hand and Warp by 1" (SD3-04, deck
   // audit 18 Oct 2026): LABELLED BEST GUESS. No manual rule, errata or official Q&A covers it (card FAQ searched 18 Oct 2026); the

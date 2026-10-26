@@ -1061,7 +1061,7 @@ function escapeHolds(ctx: EngineContext, game: GameDefinition, state: VmState, f
   if (!f.unless) return false;
   const card = source && state.cards[source] ? source : opts.card && state.cards[opts.card] ? opts.card : "";
   const master = f.master ?? (card ? masterOf(game, state, card) : undefined) ?? opts.player ?? "p1";
-  return condHolds(ctx, game, state, { ops: [], ip: 0, vars: {}, card, master }, f.unless);
+  return condHolds(ctx, game, state, { ops: [], ip: 0, vars: { ...(f.unlessVars ?? {}) }, card, master }, f.unless);
 }
 
 /** Does this rule apply to what is being asked about? The legacy `matchesProhibition`, test for test. */
@@ -1733,6 +1733,9 @@ export function countSelected(ctx: EngineContext, game: GameDefinition, state: V
  * own successful play; a named variant ("Union-Potara") only that one. No
  * entry answers nothing.
  */
+/** The `play … using:` of an evolution of any kind (22-5-2-2). */
+const EVOLVE_PLAY = /^(?:EX-|Xeno-)?Evolve$/;
+
 export function unionEntryMatches(what: string, using: string | undefined): boolean {
   if (!using?.startsWith("Union-")) return false;
   return what === "Union" || what === using;
@@ -1804,6 +1807,14 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         // ("when your <X> card is played by a [Union] skill", #930).
         if (c.sel.special === "subject" && !c.sel.filter && union(frame.subjectEnteredUsing)) return true;
         return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
+      }
+      // EX04-04 (prohibition batch 6): "if you played this card with
+      // [evolve]" — the copy's lasting memory of entering by an evolution of
+      // any kind (22-5-2-2), as [Union]'s is.
+      if (c.what === "Evolve") {
+        const evolved = (using: string | undefined) => !!using && EVOLVE_PLAY.test(using);
+        if (c.sel.special === "self" && evolved(frame.selfEnteredUsing)) return true;
+        return resolveSelector(ctx, game, state, frame, c.sel).some((id) => evolved(state.cards[id]?.enteredUsing));
       }
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
     }

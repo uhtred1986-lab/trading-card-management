@@ -17,10 +17,12 @@
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
+import { parseFilter } from "../../src/lib/arena/text/filters";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { forbiddenBy } from "../../src/lib/arena/vm/program";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -63,6 +65,36 @@ const SELF = { sel: { special: "self" } };
   assert.deepEqual(record("[Activate: Main] If your Leader Card is a yellow <Boujack> card on its front side, you have 2 or more energy, and you discard this card from your hand: Flip your Leader Card to its back side, then draw 2 cards.").ops[0], { op: "flip", target: { sel: { special: "leader" } }, to: "back" }, "EX13-24: one-way, to the back");
 }
 
+// The rest of the batch, each printed line read whole, with what it says.
+{
+  const sd10 = "[auto] When you play this card, choose all of your opponent's Battle Cards ignoring [barrier], and for the duration of the turn their skills are negated, and they can't be placed in a Combo Area from your opponent's Battle Area; this card gains [dual attack] for the duration of the turn.";
+  assert.deepEqual(ops(sd10).map((o) => o.op), ["choose", "negateSkills", "forbid", "grant"], "SD10-04: the negation, then the combo ban");
+  assert.equal((ops(sd10)[1] as { until: string }).until, "turn", "SD10-04: for the turn");
+  const bt25 = "[Auto]{u}, remove this card from the game: When your opponent plays a Battle Card, place up to 1 {Charging Ultra Buu Buu Volleyball} from your Z-Deck in your Battle Area, choose up to 1 of the placed cards, and it can't attack or be used in a combo for the turn.";
+  const placed = JSON.stringify(ops(bt25));
+  assert.match(placed, /"op":"choose","sel":\{"fromVar":"c0","count":1,"upTo":true\},"as":"c1"/, "BT25-047: a choice among the placed cards");
+  assert.deepEqual(forbids(ops(bt25)).map((f) => [f.what, JSON.stringify(f.target)]), [["attack", '{"var":"c1"}'], ["combo", '{"var":"c1"}']], "BT25-047: …and the bans on it");
+  assert.match(reads("[Auto][Limit 1] If your Leader is blue and—your Leader is a Z-Leader, you have 3 or more Z-Energy, or you have a Z-Battle Card in play: When this card is played, for the turn, your opponent can't attack with Battle Cards unless they choose 1 card in their hand and place it at the bottom of their deck each time."), /^if your leader is Blue and \(your leader is a match, or there are 3 or more cards in your Z-Energy Area, or there are 1 or more Z-Battle Cards in your Battle Area\)/, "P-442: the dash list without its first \"or\"");
+  assert.equal(reads("[permanent] If <Gotenks> is under this card, and if there are no cards in your opponent's Combo Area, this card cannot be KO'd."), "if there are 1 or more <gotenks> cards under this card: if there are no cards in your opponent's Combo Area: this card can't be KO'd", "BT2-026");
+  const ex04 = ops("[permanent] If you played this card with [evolve], it can't be KO'd by your opponent.");
+  const ex04Rec = record("[permanent] If you played this card with [evolve], it can't be KO'd by your opponent.");
+  assert.deepEqual(JSON.parse(JSON.stringify(ex04Rec.cond ?? (ex04[0] as { cond: unknown }).cond)), { kind: "playedUsing", sel: { special: "self" }, what: "Evolve" }, "EX04-04: the [Evolve] entry");
+  assert.deepEqual(forbids(ex04).map((f) => [f.what, f.side]), [["beKOdInBattle", undefined], ["beKOdBySkill", "opponent"]], "EX04-04: any battle, the opponent's skills");
+  const bt21 = forbids(ops("[Permanent] If your opponent's Leader is a green <Cell> and this card is in your Battle Area, your Earthling Tokens can't attack, and you can't use your Earthling Tokens or green <Android 17>/<Android 18> cards with an energy cost of 2 in a combo."));
+  assert.deepEqual(bt21.filter((f) => f.what === "combo").map((f) => [f.filter?.token, f.filter?.characters]), [[true, undefined], [undefined, ["android 17", "android 18"]]], "BT21-099: two kinds of card, one rule each");
+  const tb1 = forbids(ops("[permanent] If your Leader Card is yellow, your opponent's [counter] skills and non-keyword [auto]/[activate] skills cannot be activated unless they place 1 card from their life in their Drop Area."));
+  assert.deepEqual(tb1.map((f) => [f.what, f.side, f.skillKinds]), [["activateCounter", "opponent", undefined], ["activateSkill", "opponent", ["auto", "activate:main", "activate:battle", "activate:main/battle"]]], "TB1-077: the [Counter]s and the non-keyword [Auto]/[Activate] lines");
+  assert.ok(tb1.every((f) => JSON.stringify(f.unlessPay).includes('"area":"life"')), "TB1-077: each paid with a life card");
+  const bt20 = forbids(ops("[Auto] When this card is played, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], place it in its owner's Drop, and your opponent can't attack with non-Leaders for the turn unless they place 1 card each from their hand and Z-Energy in their owners' Drops each time."));
+  assert.deepEqual([bt20[0].filter?.notType, bt20[0].unlessPay?.filter((o) => o.op === "choose").map((o) => (o as { sel: { area: string } }).sel.area)], ["LEADER", ["hand", "zEnergy"]], "BT20-145: non-Leaders, a hand card and a Z-Energy");
+  const bt8 = forbids(ops("[Activate: Main][Once per turn] Choose 1 of your Blue/Green multicolor Battle Cards in Rest Mode, and until the start of your next Main Phase, as long as the chosen card is in Rest Mode, your opponent's cards can't attack Leader Cards."));
+  assert.deepEqual([bt8[0].side, bt8[0].until, bt8[0].attackTarget?.type, JSON.stringify(bt8[0].unless)], ["opponent", "nextMain", "LEADER", '{"kind":"not","cond":{"kind":"count","sel":{"fromVar":"c0","area":"battle","mode":"rest"},"atLeast":1}}'], "BT8-044's back");
+  const bt20125 = forbids(ops("[Auto] If your life is at 4 or more and your opponent's Leader is a black <Cumber> card: When this card is played, for the turn, if your opponent's <Evil Saiyan> or <Cumber> card—both black and with an energy cost of 8—is attacking and in a battle, you can't activate [Counter] skills."));
+  assert.deepEqual([bt20125[0].what, bt20125[0].until, (bt20125[0].unless as { cond: { kind: string; role: string } }).cond.role], ["activateCounter", "turn", "attacker"], "BT20-125: only while such a card is the attacking card");
+  const bt21b = forbids(ops("[Permanent] Unless there are 1 or more cards of both <Android 17> and <Android 18>―both green and with an energy cost of 2―under this card, you can't activate [Z-Awaken]."));
+  assert.deepEqual([bt21b[0].keywordSkill, (bt21b[0].unless as { kind: string; conds: unknown[] }).conds.length], ["Z-Awaken", 2], "BT21-068's back: both Androids");
+}
+
 // ── 2. the VM, from both seats ───────────────────────────────────────────────
 
 const C = (id: string, o: Partial<CardDef>) => card(id, { energyCost: 0, comboCost: 0, ...o });
@@ -93,6 +125,33 @@ const defs: Record<string, CardDef> = {
     back: { name: "LFIELD awakened", power: 15000, skill: "[Auto] When a player's [Field] Extra Card leaves a Battle Area, you may flip this card to its front. If you do, you can't flip your Leader Card to its back for the turn." },
   }),
   FIELD: card("FIELD", { type: "EXTRA", energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Field]" }),
+  // BT21-068's back: [Z-Awaken] only with both Androids under the Leader.
+  LZAW: card("LZAW", {
+    type: "LEADER", energyCost: null, comboCost: null, comboPower: null, characters: ["Son Goku"], skill: null,
+    back: { name: "LZAW awakened", power: 15000, skill: "[Permanent] Unless there are 1 or more cards of both <Android 17> and <Android 18>―both green and with an energy cost of 2―under this card, you can't activate [Z-Awaken]." },
+  }),
+  LZAW_FREE: card("LZAW_FREE", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, characters: ["Son Goku"], skill: null, back: { name: "LZAW_FREE awakened", power: 15000, skill: null } }),
+  ZL: card("ZL", { type: "Z-LEADER", energyCost: null, zEnergyCost: 1, power: 25000, comboCost: null, comboPower: null, skill: "[Z-Awaken] {1} : <Son Goku>" }),
+  A17: C("A17", { colors: ["Green"], energyCost: 2, characters: ["Android 17"] }),
+  A18: C("A18", { colors: ["Green"], energyCost: 2, characters: ["Android 18"] }),
+  A18_RED: C("A18_RED", { colors: ["Red"], energyCost: 2, characters: ["Android 18"] }),
+  // BT20-125's ban, put in force as the opponent plays a card.
+  NO_COUNTER: C("NO_COUNTER", { skill: "[Auto] When your opponent plays a card, for the turn, if your opponent's <Evil Saiyan> or <Cumber> card—both black and with an energy cost of 8—is attacking and in a battle, you can't activate [Counter] skills." }),
+  EVIL: C("EVIL", { colors: ["Black"], energyCost: 8, power: 10000, characters: ["Evil Saiyan"] }),
+  EVIL_RED: C("EVIL_RED", { colors: ["Red"], energyCost: 8, power: 10000, characters: ["Evil Saiyan"] }),
+  BT8_044: C("BT8_044", { skill: "[Activate: Main][Once per turn] Choose 1 of your Blue/Green multicolor Battle Cards in Rest Mode, and until the start of your next Main Phase, as long as the chosen card is in Rest Mode, your opponent's cards can't attack Leader Cards." }),
+  BLUEGREEN: C("BLUEGREEN", { colors: ["Blue", "Green"], power: 10000 }),
+  BABY: C("BABY", { characters: ["Baby"] }),
+  EVOKO: C("EVOKO", { power: 10000, energyCost: 1, characters: ["Baby"], skill: "[Evolve] {R}: <Baby><br>[permanent] If you played this card with [evolve], it can't be KO'd by your opponent." }),
+  KOER: C("KOER", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
+  GOTENKS_KO: C("GOTENKS_KO", { skill: "[permanent] If <Gotenks> is under this card, and if there are no cards in your opponent's Combo Area, this card cannot be KO'd." }),
+  GOTENKS: C("GOTENKS", { characters: ["Gotenks"] }),
+  BT21_099: C("BT21_099", { skill: "[Permanent] If your opponent's Leader is a green <Cell> and this card is in your Battle Area, your Earthling Tokens can't attack, and you can't use your Earthling Tokens or green <Android 17>/<Android 18> cards with an energy cost of 2 in a combo." }),
+  LCELL: card("LCELL", { type: "LEADER", colors: ["Green"], characters: ["Cell"], energyCost: null, comboCost: null, comboPower: null }),
+  LYELLOW: card("LYELLOW", { type: "LEADER", colors: ["Yellow"], energyCost: null, comboCost: null, comboPower: null }),
+  TB1_077: C("TB1_077", { skill: "[permanent] If your Leader Card is yellow, your opponent's [counter] skills and non-keyword [auto]/[activate] skills cannot be activated unless they place 1 card from their life in their Drop Area." }),
+  DRAWER: C("DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
+  BT20_145: C("BT20_145", { skill: "[Activate: Main] Your opponent can't attack with non-Leaders for the turn unless they place 1 card each from their hand and Z-Energy in their owners' Drops each time." }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -292,6 +351,173 @@ for (const me of SEATS) {
     s = roundtrip(settle(take(s, use.action), [field], 0));
     assert.equal(zoneOf(s, field), "drop", `${me}: the [Field] left the Battle Area`);
     assert.equal(s.cards[leader].flipped, false, `${me}: BT15-091's back — the [Field] leaving turns it to its front`);
+  }
+
+  // 5 (BT21-068's back): [Z-Awaken] is not offered until a green cost-2
+  // <Android 17> and a green cost-2 <Android 18> are both under the Leader; a
+  // red <Android 18> is not one (control); without the rule it is offered.
+  {
+    const board = (leaderDef: string, under: string[]) => {
+      const s = game3(me);
+      const leader = leaderOf(s, me);
+      s.cards[leader].cardId = leaderDef;
+      s.cards[leader].flipped = true;
+      const zl = stage(s, me, "ZL", "zDeck");
+      stage(s, me, "V1", "zEnergy");
+      stage(s, me, "V1", "energy");
+      for (const def of under) {
+        const id = s.sides[me].zones.deck[0]; s.cards[id].cardId = def;
+        assert.ok(moveCard(s, game, id, "under", { owner: me, under: leader } as never).ok);
+      }
+      const r = roundtrip(s);
+      return RULES.legalActions(ctx, r).some((l) => l.action.type === "activate" && l.action.card === zl);
+    };
+    assert.ok(board("LZAW_FREE", []), `${me}: [Z-Awaken] is offered without the rule (control)`);
+    assert.ok(!board("LZAW", []), `${me}: BT21-068 — not with nothing under the Leader`);
+    assert.ok(!board("LZAW", ["A17"]), `${me}: not with <Android 17> alone`);
+    assert.ok(!board("LZAW", ["A17", "A18_RED"]), `${me}: not with a red <Android 18>`);
+    assert.ok(board("LZAW", ["A17", "A18"]), `${me}: offered with both under it`);
+  }
+
+  // 6 (BT20-125): while a black cost-8 <Evil Saiyan> is the attacking card, my
+  // [Counter] is not offered; a red one attacking is no such card (control).
+  for (const [attackerDef, offered] of [["EVIL", false], ["EVIL_RED", true]] as const) {
+    let s = game3(you);
+    stage(s, me, "NO_COUNTER", "battle");
+    const counter = stage(s, me, "E-NEGATE", "hand");
+    stage(s, me, "V1", "energy");
+    const attacker = stage(s, you, attackerDef, "battle");
+    const played = stage(s, you, "PLAIN", "hand");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, { type: "play", player: you, card: played } as Action)));
+    s = take(s, { type: "attack", player: you, attacker, target: leaderOf(s, me) });
+    s = roundtrip(settle(s, [], 0, (t) => t.prompt.kind === "counter"));
+    // A window with nothing to offer is not opened at all.
+    const counters = s.prompt.kind !== "counter" ? [] : RULES.legalActions(ctx, s).filter((l) => l.action.type === "counter" && (l.action as { card: string | null }).card === counter);
+    assert.equal(counters.length > 0, offered, `${me}: BT20-125 — [Counter] ${offered ? "is" : "is not"} offered against ${attackerDef}`);
+  }
+
+  // 7 (BT8-044's back): until my next Main Phase, while the chosen card stays
+  // in Rest Mode, no card of the opponent's — one played later too — attacks a
+  // Leader; a rested Battle Card may still be attacked (control); once the
+  // chosen card stands up, the Leader may be attacked again.
+  {
+    let s = game3(me);
+    const chosen = stage(s, me, "BLUEGREEN", "battle", "rest");
+    const guard = stage(s, me, "PLAIN", "battle", "rest");
+    const bt8 = stage(s, me, "BT8_044", "battle");
+    s = roundtrip(s);
+    const [use] = RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === bt8);
+    assert.ok(use, `${me}: BT8-044's skill is offered`);
+    s = roundtrip(settle(take(s, use.action), [chosen], 0));
+    s = roundtrip(endTurn(s));
+    const late = stage(s, you, "PLAIN", "battle");
+    s = roundtrip(s);
+    const attacks = (t: VmState, target: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "attack" && (l.action as { attacker: string; target: string }).attacker === late && (l.action as { target: string }).target === target);
+    assert.ok(!attacks(s, leaderOf(s, me)), `${me}: BT8-044 — a card played after the rule can't attack the Leader`);
+    assert.ok(attacks(s, guard), `${me}: it may attack a rested Battle Card (control)`);
+    s.cards[chosen].mode = "active";
+    s = roundtrip(s);
+    assert.ok(attacks(s, leaderOf(s, me)), `${me}: with the chosen card in Active Mode, the Leader may be attacked`);
+  }
+
+  // 8 (EX04-04): evolved, it survives the opponent's KO skill; played any other
+  // way it does not (control).
+  for (const evolved of [true, false]) {
+    let s = game3(me);
+    let evo: string;
+    if (evolved) {
+      evo = stage(s, me, "EVOKO", "hand");
+      const base = stage(s, me, "BABY", "battle");
+      stage(s, me, "V1", "energy");
+      s = roundtrip(s);
+      s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === evo)!.action), [base], 0));
+      assert.equal(zoneOf(s, evo), "battle", `${me}: evolved`);
+    } else {
+      evo = stage(s, me, "EVOKO", "battle");
+      s = roundtrip(s);
+    }
+    s = roundtrip(endTurn(s));
+    const koer = stage(s, you, "KOER", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === koer)!.action), [evo], 0));
+    assert.equal(zoneOf(s, evo), evolved ? "battle" : "drop", `${me}: EX04-04 — ${evolved ? "played with [Evolve], the opponent's skill can't KO it" : "placed otherwise, it is KO'd (control)"}`);
+  }
+
+  // 9 (BT2-026): with <Gotenks> under it and the opponent's Combo Area empty,
+  // the opponent's skill can't KO it; without <Gotenks> it can (control).
+  for (const under of [true, false]) {
+    let s = game3(you);
+    const it = stage(s, me, "GOTENKS_KO", "battle");
+    if (under) {
+      const g = s.sides[me].zones.deck[0]; s.cards[g].cardId = "GOTENKS";
+      assert.ok(moveCard(s, game, g, "under", { owner: me, under: it } as never).ok);
+    }
+    const koer = stage(s, you, "KOER", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === koer)!.action), [it], 0));
+    assert.equal(zoneOf(s, it), under ? "battle" : "drop", `${me}: BT2-026 — ${under ? "not KO'd with <Gotenks> under it" : "KO'd without (control)"}`);
+  }
+
+  // 10 (BT21-099): against a green <Cell> Leader, the Earthling Tokens and the
+  // green cost-2 Androids can't be used in a combo; another card can (control).
+  {
+    let s = game3(me);
+    s.cards[leaderOf(s, you)].cardId = "LCELL";
+    stage(s, me, "BT21_099", "battle");
+    const a17 = stage(s, me, "A17", "hand");
+    const plain = stage(s, me, "PLAIN", "hand");
+    s = roundtrip(s);
+    assert.ok(forbiddenBy(ctx, game, s, "combo", { player: me, card: a17 }), `${me}: BT21-099 — a green cost-2 <Android 17> can't combo`);
+    assert.equal(forbiddenBy(ctx, game, s, "combo", { player: me, card: plain }), null, `${me}: another card can (control)`);
+  }
+
+  // 11 (TB1-077): with my Leader yellow, the opponent's non-keyword [Activate]
+  // costs them a life card; with it not yellow, nothing (control).
+  for (const yellow of [true, false]) {
+    let s = game3(you);
+    if (yellow) s.cards[leaderOf(s, me)].cardId = "LYELLOW";
+    stage(s, me, "TB1_077", "battle");
+    const drawer = stage(s, you, "DRAWER", "battle");
+    s = roundtrip(s);
+    const life = s.sides[you].zones.life.length;
+    const [use] = RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === drawer);
+    assert.ok(use, `${me}: the opponent's [Activate: Main] is offered`);
+    s = roundtrip(settle(take(s, use.action), [], 0));
+    assert.equal(s.sides[you].zones.life.length, yellow ? life - 1 : life, `${me}: TB1-077 — ${yellow ? "a life card paid" : "nothing paid (control)"}`);
+  }
+
+  // 12 (BT20-145): the opponent's Battle Cards attack only by paying a hand card
+  // and a Z-Energy each time; their Leader attacks freely (control).
+  // (Put in force on the opponent's own turn by an [Activate: Main] of theirs
+  // naming "your opponent" — here, me — so the attacker is the activating seat's opponent.)
+  {
+    let s = game3(you);
+    const tax = stage(s, you, "BT20_145", "battle");
+    const attacker = stage(s, me, "PLAIN", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === tax)!.action)));
+    s = roundtrip(endTurn(s));
+    // The rule is for the turn it was made in; asked again on my turn it is gone.
+    const canAttackNow = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "attack" && (l.action as { attacker: string }).attacker === id);
+    assert.ok(canAttackNow(s, attacker), `${me}: BT20-145 — the rule ends with the turn it was made in`);
+    // On the turn it holds: with no Z-Energy, a Battle Card can't attack; the Leader can.
+    let t = game3(me);
+    const tax2 = stage(t, you, "BT20_145", "battle");
+    const mine = stage(t, me, "PLAIN", "battle");
+    t = roundtrip(t);
+    const forced = roundtrip(t);
+    forced.effects.push({ id: 9999, master: you, source: tax2, target: "", kind: "forbid", value: 0, until: "turn", forbid: { what: "attack", player: me, filter: { ...parseFilter(""), notType: "LEADER" }, pay: (forbids(ops("[Activate: Main] Your opponent can't attack with non-Leaders for the turn unless they place 1 card each from their hand and Z-Energy in their owners' Drops each time."))[0].unlessPay ?? []) as Op[] } } as never);
+    empty(forced, me, "zEnergy");
+    const f1 = roundtrip(forced);
+    assert.ok(!canAttackNow(f1, mine), `${me}: with no Z-Energy to pay, the Battle Card can't attack`);
+    assert.ok(canAttackNow(f1, leaderOf(f1, me)), `${me}: the Leader can (control)`);
+    stage(forced, me, "V1", "zEnergy");
+    const f2 = roundtrip(forced);
+    assert.ok(canAttackNow(f2, mine), `${me}: with a hand card and a Z-Energy, it can`);
+    const hand = f2.sides[me].zones.hand.length;
+    const after = roundtrip(settle(take(f2, RULES.legalActions(ctx, f2).find((l) => l.action.type === "attack" && (l.action as { attacker: string }).attacker === mine)!.action)));
+    assert.deepEqual([after.sides[me].zones.hand.length, after.sides[me].zones.zEnergy.length], [hand - 1, 0], `${me}: one hand card and the Z-Energy paid`);
   }
 }
 console.log("prohibition catalog 6: owner ruling (a keyword play's tax judged after its own hand costs — [Revive]'s colours, [Union-Fusion]'s materials) — enforced from both seats");

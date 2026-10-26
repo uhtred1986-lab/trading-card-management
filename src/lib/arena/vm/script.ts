@@ -451,7 +451,7 @@ export type Cond =
    * played by a [Union] skill" (BT22-033, BT25-036 back, P-682) — it is the
    * same gate about the played card (`unionPlayedGate`).
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" }
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" | "Evolve" }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
@@ -1884,6 +1884,22 @@ const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
  * else that matters (a power change, a rest or a grant has no count, so a
  * block with those keeps the answer given).
  */
+/**
+ * Prohibition batch 6 (BT8-044's back): an escape that names a card the skill
+ * chose — "…as long as **the chosen card** is in Rest Mode, your opponent's
+ * cards can't attack Leader Cards" — keeps what that choice bound when the rule
+ * is made, since the escape is asked long after the skill has resolved.
+ */
+function escapeVars(cond: Cond, frame: ScriptFrame): { unlessVars?: Record<string, string[]> } {
+  const names = new Set<string>();
+  JSON.stringify(cond, (k, v) => {
+    if ((k === "fromVar" || k === "var") && typeof v === "string") names.add(v);
+    return v;
+  });
+  const kept = Object.fromEntries([...names].filter((n) => frame.vars[n]).map((n) => [n, [...frame.vars[n]]]));
+  return Object.keys(kept).length ? { unlessVars: kept } : {};
+}
+
 export function mayBlockWitnessable(ops: Op[]): boolean {
   let acting = false;
   const walk = (list: Op[]): boolean => {
@@ -3239,7 +3255,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3259,7 +3275,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
             ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
-            ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
+            ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
             ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}),
             ...(op.extraCardActivation ? { extraCardActivation: true } : {}),

@@ -424,6 +424,12 @@ export interface Prohibition {
    * chair — not from the chair of whoever is trying to act.
    */
   master?: PlayerId;
+  /**
+   * The cards an escape names by a skill's choice, kept as the rule was made
+   * (prohibition batch 6, BT8-044's "as long as the chosen card is in Rest
+   * Mode"): the escape is asked with these bound.
+   */
+  unlessVars?: Record<string, string[]>;
   /** Whose action is forbidden. Absent means either player's. */
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */
