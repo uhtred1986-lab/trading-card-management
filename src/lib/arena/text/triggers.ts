@@ -112,6 +112,30 @@ export function yourCardPlayedByUnion(head: string): { said: string; what: "Unio
   return { said: m[1] !== undefined ? `your ${m[1]}` : m[2], what: m[3] ? UNION_VARIANT_NAME[m[3].toLowerCase() as keyof typeof UNION_VARIANT_NAME] : "Union" };
 }
 
+/**
+ * Phrasing batch 5: "When this card **in your hand** is discarded by **one of your skills**" (BT26-015), "When this
+ * card is discarded by one of your skills": the discard by a skill of the card's own master (`droppedFromHandByYou`),
+ * not any skill's (`droppedFromHand`). Only the whole moment, nothing coordinated after it.
+ */
+const DISCARDED_BY_YOUR_SKILL = /^when this card(?: in your hand)? is discarded (?:from your hand )?by (?:one of )?your skills?\s*(?:,|:|\.|$)/;
+/** Phrasing batch 5: "…is placed in its owner's Drop from a Battle Area" (BT22-079) and "…in a Drop from Z-Energy or a Battle Area" (BT23-092), no cause named. */
+const DROP_FROM_BATTLE = /^when this card is placed (?:in|into) (?:a|your|its owner'?s|the) drop(?: area)? from (?:(?:your )?z-energy or )?(?:a|your|the) battle area(?:,|$)/;
+const DROP_FROM_Z_ENERGY = /^when this card is placed (?:in|into) (?:a|your|its owner'?s|the) drop(?: area)? from (?:your )?z-energy(?: or (?:a|your|the) battle area)?(?:,|$)/;
+/**
+ * Phrasing batch 5: another card of yours, described — "When your ≪Saiyan≫ card attacks" (BT27-001), "When your
+ * Battle Cards attack" (BT2-003); "When one of your red or blue Battle Cards is removed from your Battle Area by an
+ * opponent's skill" (DB2-174). The description becomes a condition on the subject (`subjectFilterOf`); one the filter
+ * cannot read whole leaves the skill unread rather than firing for every card.
+ */
+const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
+const YOUR_CARD_REMOVED_BY_OPPONENT = /^when (?:your|one of your) ((?!opponent)[^,]{1,160}?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?(?:,|$)/;
+/** A description the subject filter reads whole: no "or" it would read half of, nothing it leaves unread. */
+function readableSubject(effect: { unmask: (s: string) => string }, said: string): boolean {
+  const description = expandSharedCardDescription(effect.unmask(said));
+  if (/ or /.test(description.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) && !readsOr(description)) return false;
+  return !parseFilter(description).unreadable;
+}
+
 /** A moved subject qualified in its original Battle Area (BT29-029, 9-6-9-1-2). */
 export const RETURNED_FROM_YOUR_BATTLE = /^when (?:a|an|1) (.+?) is returned from your battle area to its owner'?s hand$/i;
 /** No cause restriction is printed (BT3-112), unlike deckToWarpBySkill. */
@@ -142,7 +166,7 @@ export function comboEntrySelf(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   if (COMBO_BATTLE_END.test(head)) return false;
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
-  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck))? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
+  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck)| in (?:a|your) battle area)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
 }
 /**
  * A self-combo entry Auto whose printed timing explicitly requires hand — "when
@@ -185,11 +209,13 @@ export function comboEntryQualifier(sk: Skill): ComboEntryQualifier | null {
   if (sk.kind !== "auto") return null;
   const masked = maskNames(sk.effect);
   const head = effectHead(masked.text).replace(TURN_THEN_WHEN, "");
-  if (/^when this card is used in a combo from your hand\b/.test(head)) return { origins: ["hand"] };
+  if (/^when (?:this card is used|you use this card) in a combo from your hand\b/.test(head)) return { origins: ["hand"] };
   if (/^when this card in your (?:deck or hand|hand or deck) is used in a combo\b/.test(head)) return { origins: ["deck", "hand"] };
   const via = /^when you combo with this card from an? energy area using (\{\d+\})['’]s skill\s*(?:,|$)/.exec(head);
   if (via) return { origins: ["energy"], viaSkillOf: masked.unmask(via[1]).replace(/^\{|\}$/g, "") };
   if (/^when you combo with this card from the battle area\s*(?:,|$)/.test(head)) return { origins: ["battle"] };
+  // Phrasing batch 5: "When this card **in your/a Battle Area** is used in a combo" (BT21-084, BT26-019, BT27-022).
+  if (/^when this card in (?:a|your) battle area is used in a combo\s*(?:,|$)/.test(head)) return { origins: ["battle"] };
   const company = /^when you combo with this card from your hand with (?:an?|1) (<[^>]+> card) in battle\s*(?:,|$)/.exec(head);
   if (company) return { origins: ["hand"], company: company[1] };
   return null;
@@ -369,7 +395,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // so the anchored readers below must see "when …" first. Only a turn phrase
   // directly followed by "when" is taken off: the end-of-battle combo wording
   // keeps its own "during your turn, at the end of …" prefix (`COMBO_BATTLE_END`).
-  const printed = effectHead(effect.text).replace(TURN_THEN_WHEN, "");
+  // Phrasing batch 5: a reminder in parentheses before the moment — "[Spirit Boost 1] **(You must remove a marker from
+  // your Unison Card to activate this skill.)** When you use a red skill-less Battle Card … in a combo" (BT14-001b) —
+  // says how the skill is paid, not when it happens (1-5-8); the head is the moment after it.
+  const printed = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   switch (trigger) {
@@ -447,12 +476,26 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "droppedFromHand":
       return /(?:when|if) this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill/.test(t)
         // "…is played [from your hand] or discarded by a <Shadow Dragon> card's skill" (#969): the second moment, only when the sentence stops there.
-        || new RegExp(String.raw`^when (?:(?:you play this card|this card is played)(?: from your hand)?,? or |this card is )${DISCARDED_BY_SKILL}`).test(head);
+        || (new RegExp(String.raw`^when (?:(?:you play this card|this card is played)(?: from your hand)?,? or |this card is )${DISCARDED_BY_SKILL}`).test(head) && !DISCARDED_BY_YOUR_SKILL.test(head));
+    case "droppedFromHandByYou":
+      return DISCARDED_BY_YOUR_SKILL.test(head);
     // The same sentence with no cause named at all, which is every cause: a
     // skill putting it there and a battle KO alike. Kept apart from the one
     // above because that one *does* name a cause, and a KO is not it.
     case "leftBattleToDrop":
-      return /when this card is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area(?!\s+by)/.test(head);
+      return /when this card is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area(?!\s+by)/.test(head) || DROP_FROM_BATTLE.test(head);
+    case "zEnergyToDrop":
+      return DROP_FROM_Z_ENERGY.test(head);
+    case "yourCardAttacks": {
+      const m = YOUR_CARD_ATTACKS.exec(head);
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardRemovedByOpponent": {
+      const m = YOUR_CARD_REMOVED_BY_OPPONENT.exec(head);
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "opponentLifeToZBySkill":
+      return /^when your opponent'?s life is added to (?:its owner'?s|their) z-energy by (?:one of )?your skills?(?:,|$)/.test(head);
     case "yourCardReturnedToHand":
       return RETURNED_FROM_YOUR_BATTLE.test(head.split(/,|\./, 1)[0]);
     case "battleOrDeckToWarp":
@@ -488,7 +531,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
         t,
       );
     case "leaderPlaced":
-      return /when this card is placed in (?:your|a) leader area|when you place this card in (?:your|a) leader area/.test(t);
+      // Phrasing batch 5: "When you place this card in **the** Leader Area" (BT2-100, BT2-003) is the same placing (6-2-4).
+      return /when this card is placed in (?:your|a|the) leader area|when you place this card in (?:your|a|the) leader area/.test(t);
     // 7-1: whose turn it is decides whether these happen at all, and "your" is
     // the card's controller, never the turn player. One trigger covered both
     // wordings and was pended for both players, so 164 cards that act "at the
@@ -599,6 +643,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // "…by your <Heles> card's skill", "…by one of your skills". Which card's
     // skill is a condition on the subject (`compileSkill`), so the moment is
     // any skill of yours. "By a skill" names either player's and is not this.
+    // Phrasing batch 5: "When this card is sent from your Drop Area to your Warp by a skill" (BT12-130, BT12-135): a
+    // skill's move, either player's.
+    case "dropToWarpBySkill":
+      return /^when this card is sent from (?:your|its owner'?s) drop(?: area)? to (?:your|its owner'?s) warp by (?:a|any) skill(?:,|$)/.test(head);
     case "deckToWarpBySkill":
       return /when this card (?:in your deck is sent (?:from your deck )?|is sent from your deck )to (?:your|its owner'?s) warp by (?:one of )?your\b[^,.]{0,60}?\bskills?\b/.test(t);
     case "hiddenToDrop":
@@ -679,7 +727,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Since #537 the filter reads "or" between colours, names and whole
       // descriptions (`anyOf`), so an "or" it reads in full no longer stands
       // in the way (XD1-01, owner's card review): only one it cannot read does.
-      return !/ or /.test(said) || readsOr(said);
+      // Phrasing batch 5: "a blue <Baby> with an energy cost of 4 **or more**" (BT21-066) is one bound, not two kinds.
+      return !/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) || readsOr(said);
     }
     // #1163: "When your ≪Ginyu Force≫ card is played by this card's skill"
     // (BT29-083): the play this card's own skill made, and no other — the
@@ -734,7 +783,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "youCombo":
       // Phrasing batch 3: "When you use **a red skill-less Battle Card with an energy cost of 2** in a combo" (BT14-001b):
       // the same moment, the card used described (the compiler reads the description as a condition on it).
-      return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
+      // Phrasing batch 5: "When you use **one of your** Red/Yellow multicolor ≪God≫ cards in a combo" (BT24-002, BT24-003).
+      return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1|one of your) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
     // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
     // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
     // both this and `played` answers a play once (`vm/triggers.ts`,

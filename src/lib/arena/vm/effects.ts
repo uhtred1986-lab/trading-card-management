@@ -529,6 +529,16 @@ export function skillNegated(state: VmState, id: string, index: number, kind?: s
   return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
+/**
+ * Are this card's **keyword** skills off — all of them, printed or granted (9-1-5, 22-1-1)? Either every skill of the
+ * card is negated, or the keyword kind is: phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327), "play it with
+ * its keyword skills negated", "has its keyword skills negated for the turn" (EB1-07). The keyword readers
+ * (`hasKeyword`, `keywordsInForce`, the keywords attribute, the keyword hooks) ask this rather than `skillsNegated`.
+ */
+export function keywordSkillsNegated(state: VmState, id: string): boolean {
+  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && e.value === "keyword");
+}
+
 /** Negation of one effect-granted keyword, keyed by its persisted effect ID. */
 export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
   return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId));

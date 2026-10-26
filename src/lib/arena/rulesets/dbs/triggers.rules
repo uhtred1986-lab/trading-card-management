@@ -179,6 +179,14 @@ DEFINE TRIGGER aPlayersCardLeftBattle
   BIND "subject"
   text: "when a player's card leaves a Battle Area"
 
+-- Phrasing batch 5 — when one of your cards attacks: "When your ≪Saiyan≫ card
+-- attacks" (BT27-001), "When your Battle Cards attack" (BT2-003). The attacking
+-- card is the subject; what the card says about it is a condition on it.
+DEFINE TRIGGER yourCardAttacks
+  ON attackDeclared(role: attacker, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards attacks"
+
 -- SD15-01 — when the opponent attacks the specific red Unison named by the
 -- card. The target declaration is a separate role from the attacking card;
 -- its current attributes are carried on that target moment, while the Auto
@@ -318,6 +326,47 @@ DEFINE TRIGGER yourUnisonLeft
   ON moved(from: unison, watcher: fromHolder)
   BIND "subject"
   text: "when a Unison leaves your Unison Area"
+
+-- Phrasing batch 5 — "When this card is placed in a Drop from Z-Energy or a
+-- Battle Area" (BT23-092, P-563): the Z-Energy half, whatever the cause; the
+-- Battle Area half is `leftBattleToDrop`.
+DEFINE TRIGGER zEnergyToDrop
+  ON moved(from: zEnergy, to: drop)
+  BIND "self"
+  text: "when this card goes from your Z-Energy to the Drop"
+
+-- Phrasing batch 5 — "When one of your red or blue Battle Cards is removed
+-- from your Battle Area by an opponent's skill" (DB2-174, BT15-062, EX16-01):
+-- `removedByOpponent` said of another card of yours, which is the subject.
+-- Pended by name from a skill's own move, as that one is.
+DEFINE TRIGGER yourCardRemovedByOpponent
+  ON moved(by: skill, byOpponent: true, from: battle, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is removed from your Battle Area by an opponent's skill"
+
+-- Phrasing batch 5 — "When your opponent's life is added to its owner's
+-- Z-Energy by your skill" (BT23-103): a card of their Life Area moved to their
+-- Z-Energy by a skill of yours. Pended by name from a skill's own move on the
+-- cards of the skill's master, the moved card the subject.
+DEFINE TRIGGER opponentLifeToZBySkill
+  ON moved(by: skill, byOpponent: true, from: life, to: zEnergy, watcher: opponent)
+  BIND "subject"
+  text: "when your skill adds your opponent's life to their Z-Energy"
+
+-- Phrasing batch 5 — "When this card in your hand is discarded by one of your
+-- skills" (BT26-015): `droppedFromHand` by a skill of the card's own master.
+DEFINE TRIGGER droppedFromHandByYou
+  ON moved(by: skill, byOpponent: false, from: hand, to: drop)
+  BIND "self"
+  text: "when one of your skills sends this card from your hand to the Drop"
+
+-- Phrasing batch 5 — "When this card is sent from your Drop Area to your Warp
+-- by a skill" (BT12-130, BT12-135): a skill's move, either player's. Pended by
+-- name from a skill's own move, as `deckToWarpBySkill` is.
+DEFINE TRIGGER dropToWarpBySkill
+  ON moved(by: skill, from: drop, to: warp)
+  BIND "self"
+  text: "when a skill sends this card from your Drop to the Warp"
 
 -- BT3-112: Battle Area OR deck, and no restriction on the movement's cause.
 DEFINE TRIGGER battleOrDeckToWarp

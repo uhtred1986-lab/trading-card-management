@@ -81,7 +81,7 @@ export async function updateTestingDeck(db: Db, input: DeckProgressUpdate): Prom
   const linkedDeckId = input.linkedDeckId === null ? null : integer(input.linkedDeckId, "linked deck", 1);
   if (linkedDeckId !== null) {
     const [linked] = await db.select({ game: decks.game }).from(decks).where(eq(decks.id, linkedDeckId));
-    if (!linked || linked.game !== "dbs") return fail("linked Masters deck");
+    if (!linked || linked.game !== "dbs") return fail("linked Super deck");
   }
   const [updated] = await db.update(arenaTestingDecks).set({ status: p.status, note: p.note, evidence: p.evidence, linkedDeckId,
     version: sql`${arenaTestingDecks.version} + 1`, updatedAt: new Date() }).where(and(eq(arenaTestingDecks.id, p.id), eq(arenaTestingDecks.version, p.expectedVersion))).returning();

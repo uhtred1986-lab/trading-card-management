@@ -147,6 +147,13 @@ export type SkillKind =
  */
 export type SkillKindPrefix = "auto" | "activate" | "counter" | "permanent";
 
+/**
+ * What a negation of one kind of skill may name: a `SkillKindPrefix`, or every **keyword** skill of the card (22-1-1) —
+ * phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327): "play it with its keyword skills negated" switches off
+ * the card's keyword skills alone, printed or granted, the inverse of batch 4's non-keyword split.
+ */
+export type NegatedSkillKind = SkillKindPrefix | "keyword";
+
 /** Keyword skills of §22 with their parameters. */
 export type KeywordSkill =
   | { name: "Awaken"; surge: boolean }
@@ -837,7 +844,7 @@ export interface ContinuousEffect {
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | SkillKindPrefix | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string };
+  value: number | KeywordSkill | KeywordSkill["name"] | NegatedSkillKind | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string };
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -1060,6 +1067,18 @@ export type Trigger =
   | "droppedByOpponent"
   /** The same sentence with no cause named, which is every cause: a skill and a battle KO alike. */
   | "leftBattleToDrop"
+  /** Phrasing batch 5: "…placed in a Drop from Z-Energy or a Battle Area" (BT23-092): the Z-Energy half, any cause. */
+  | "zEnergyToDrop"
+  /** Phrasing batch 5: "When one of your … cards is removed from your Battle Area by an opponent's skill" (DB2-174): the card removed is the subject. */
+  | "yourCardRemovedByOpponent"
+  /** Phrasing batch 5: "When your … card attacks" (BT27-001, BT2-003): the attacking card is the subject. */
+  | "yourCardAttacks"
+  /** Phrasing batch 5: "When your opponent's life is added to its owner's Z-Energy by your skill" (BT23-103). */
+  | "opponentLifeToZBySkill"
+  /** Phrasing batch 5: "When this card in your hand is discarded by one of your skills" (BT26-015). */
+  | "droppedFromHandByYou"
+  /** Phrasing batch 5: "When this card is sent from your Drop Area to your Warp by a skill" (BT12-130). */
+  | "dropToWarpBySkill"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another

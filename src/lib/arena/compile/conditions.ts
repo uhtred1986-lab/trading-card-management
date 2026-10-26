@@ -482,7 +482,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       // **in your Combo Area**" (BT25-128) is not red cards anywhere in play.
       const before = i > 0 ? parts[i - 1].trim() : "";
       const placed = /\b(?:energy|hand|drop|warp|life|deck|z-energy|area|in play)\b/.test(before.replace(/^(?:you have|your opponent has) /, ""));
-      const subject = placed ? /^(you have|your opponent has) /.exec(before) : null;
+      // Phrasing batch 5: "there is a {Hyperbolic Time Chamber} in your Battle Area **and a skill-less Battle Card in
+      // your Combo Area**" (BT21-084): the second half shares "there is" the same way, each with its own place. Read
+      // bare it fell through to the count below, which made the whole sentence one {Hyperbolic Time Chamber} that is a
+      // skill-less Battle Card in the Combo Area.
+      const subject = placed ? /^(you have|your opponent has|there (?:is|are)) /.exec(before) : null;
       const half = part.trim();
       // A count carries the same way: "you have 3 or more energy **and 2 or
       // more skill-less Battle Cards in play**", "your opponent has 8 or more

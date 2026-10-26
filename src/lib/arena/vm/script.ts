@@ -15,7 +15,7 @@ import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond
 import { IllegalAction, sideOf } from "./common";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
-import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, SkipWhat, Trigger } from "../types";
+import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, NegatedSkillKind, SkipWhat, Trigger } from "../types";
 
 // ── the language ───────────────────────────────────────────────────────────
 
@@ -336,7 +336,7 @@ export function selectedCount(
  * `energyCost`, and the reason it is a separate measure rather than a flag on
  * `power`.
  */
-export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "originalPower" | "specifiedCost";
+export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "originalPower" | "specifiedCost" | "zEnergyCost";
 
 /**
  * A number an effect needs — an *expression*, since 12 Sep 2026 (20-5).
@@ -669,7 +669,7 @@ export type Op =
    * card's specified cost": a Vegito the Active green energy cannot pay for
    * is not on offer.
    */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -697,7 +697,7 @@ export type Op =
    * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
    * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; cause?: MoveReason }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -835,7 +835,7 @@ export type Op =
    * rather than all of them. The printed tag is a prefix of `SkillKind`, so a
    * bare "[Counter]" covers every counter kind.
    */
-  | { op: "negateSkillsOfKind"; target: Ref; kind: SkillKindPrefix; until: Duration }
+  | { op: "negateSkillsOfKind"; target: Ref; kind: NegatedSkillKind; until: Duration }
   /**
    * 9-1-5, as the one primitive the four spellings are (docs/arena-ruleset-spec.md
    * §2.2, #276): a rule stops applying. `what` says which rule — every skill
@@ -849,7 +849,7 @@ export type Op =
    * keyword skills `target` has in force as the step resolves — that is
    * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: SkillKindPrefix; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
   /**
    * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
    * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
@@ -1731,6 +1731,11 @@ export interface ScriptFrame {
   };
 }
 
+/** "In a random order": the cards of one move in an order drawn from the game's seeded RNG (`pickAtRandom`). */
+function shuffledIds(h: ScriptHost, ids: string[]): string[] {
+  return ids.length > 1 ? h.pickAtRandom(ids, ids.length) : ids;
+}
+
 /** How each timing reads in the log when the card text does not say it better. */
 export const DELAY_LABELS: Record<DelayTiming, string> = {
   turnStart: "at the start of the turn",
@@ -2394,7 +2399,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : unionOf ? perName * unionNames.length : exact ?? (op.sel.count ?? 1);
         // #720: inside a voluntary replacement's substitute the offer's "you
         // may" is already spent, so a choice it also made "up to" is exact.
-        const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
+        // Phrasing batch 5 (BT23-109): a bound read off the board that is owed (`owed`) is no "up to": as many as
+        // possible up to it are taken (5-2-5).
+        const upTo = (bounded && !op.owed) || (!!op.sel.upTo && !owedInFull(frame, op));
         const minimum = op.sel.minCount ?? (upTo ? 0 : want);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
@@ -2716,7 +2723,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const host = op.to === "under" ? (op.under ? (ambiguousHost ? undefined : hosts[0]) : frame.card) : null;
         frame.moveLoop ??= {
           kind: "moveTo",
-          ids: h.resolveRef(frame, op.target),
+          ids: op.random ? shuffledIds(h, h.resolveRef(frame, op.target)) : h.resolveRef(frame, op.target),
           index: 0,
           to: op.to === "play" ? "battle" : (op.to as Area),
           position: op.position,
@@ -2823,6 +2830,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
           // gone once it has moved.
           const fromDeck = h.areaOf(id) === "deck";
+          // Phrasing batch 5 (BT23-103): a card of the opponent's Life Area, for "when your opponent's life is added to
+          // its owner's Z-Energy by your skill".
+          const fromTheirLife = h.areaOf(id) === "life" && h.masterOf(id) !== master;
+          // Phrasing batch 5 (BT12-130): "…sent from your Drop Area to your Warp by a skill".
+          const fromDrop = h.areaOf(id) === "drop";
           // 9-6-9-2: read before the move ends the effects on the card.
           const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
           h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
@@ -2841,7 +2853,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // went nowhere — a replacement sent it back — was not removed.
           if (leftBattle && h.areaOf(id) !== "battle") {
             h.pend("removedFromBattle", id, undefined, negatedThere);
-            if (h.masterOf(id) !== master) h.pend("removedByOpponent", id, undefined, negatedThere);
+            if (h.masterOf(id) !== master) {
+              h.pend("removedByOpponent", id, undefined, negatedThere);
+              // Phrasing batch 5 (DB2-174, BT15-062, EX16-01): the same moment, watched by the removed card's master's
+              // cards — "When one of your … Battle Cards is removed from your Battle Area by an opponent's skill". The
+              // removed card is the subject.
+              h.pend("yourCardRemovedByOpponent", id, id);
+            }
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
@@ -2853,7 +2871,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           // "When this card is placed in your Drop Area from your hand by a
           // skill" (SD13-05, BT7-127, BT11-022) — the hand's side of the above.
-          if (leftHand && h.areaOf(id) === "drop") h.pend("droppedFromHand", id, frame.card);
+          if (leftHand && h.areaOf(id) === "drop") {
+            h.pend("droppedFromHand", id, frame.card);
+            // Phrasing batch 5 (BT26-015): "…discarded by one of your skills" — the discarding skill is its master's.
+            if (h.masterOf(id) === master) h.pend("droppedFromHandByYou", id, frame.card);
+          }
+          // Phrasing batch 5 (BT23-103): the opponent's life added to their Z-Energy by this skill, watched by this
+          // skill's master's cards; the moved card is the subject.
+          if (fromTheirLife && h.areaOf(id) === "zEnergy") h.pend("opponentLifeToZBySkill", id, id);
+          if (fromDrop && h.areaOf(id) === "warp") h.pend("dropToWarpBySkill", id, frame.card);
           // Your own skill sent your own card from your deck to the Warp. The
           // skill's card is the subject, so "by your <Heles> card's skill" is
           // a condition the rule asks of it — the same way `restedBySkill`
@@ -2880,6 +2906,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "switchMode": {
         let switching = h.resolveRef(frame, op.target);
+        // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): "[Counter: Play] … you may choose it and
+        // switch it to Rest Mode" — the card being played is not in an area with modes yet; the switch is held and made
+        // once it lands (`switchOnLanding`), a real switch whose moments then happen.
+        const playing = h.resolvingCard();
+        if (playing && switching.includes(playing) && h.switchOnLanding(playing, op.mode, frame.card, master)) {
+          h.note(`${h.nameOf(playing)} will be switched to ${op.mode === "rest" ? "Rest" : "Active"} Mode once it has been played`);
+          switching = switching.filter((id) => id !== playing);
+        }
         // BT8-051, 20-14-1: "if the turn player would use the skill of a
         // Battle Card or Extra Card to switch energy to Active Mode, they
         // can't … unless they choose 5 cards from their Drop Area and send

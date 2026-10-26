@@ -198,7 +198,7 @@ export const EXPR_LITERALS = {
 } as const;
 
 /** The measures `attr` and `sumOf` may read off a card. Printed as bare words; a measure added to `AmountAttr` fails the typecheck until it is listed. */
-export const EXPR_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost", "specifiedCost"] as const satisfies readonly AmountAttr[];
+export const EXPR_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost", "specifiedCost", "zEnergyCost"] as const satisfies readonly AmountAttr[];
 type AttrMissing = Exclude<AmountAttr, (typeof EXPR_ATTRS)[number]>;
 const _everyAttrWritten: AttrMissing extends never ? true : never = true;
 void _everyAttrWritten;

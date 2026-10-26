@@ -9,6 +9,8 @@ export interface DiscoveryDeck {
   colors: string[];
   group: string;
   mainCount: number;
+  /** Set where a list can mix games (the arena pickers): a `GameMark` chip is drawn beside the name. */
+  game?: string;
   locked?: boolean;
   status?: string;
   note?: string;

@@ -14,7 +14,7 @@
  * Android app carries in Kotlin.
  */
 import { FORBIDDEN_IN_WORDS, describeFilter, describeCond, describeScript, whoseSkills, type Op } from "./vm/script";
-import type { AltCost, Color, ContinuousEffect, Replacement, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "./types";
+import type { AltCost, Color, ContinuousEffect, Replacement, EffectUntil, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, NegatedSkillKind, SkipWhat } from "./types";
 import { dbsWords, type BoardWords } from "./board-words";
 
 /** What a card counts as, once its skills have had their say (20-1). */
@@ -85,7 +85,7 @@ export interface EffectView {
 import { keywordName } from "./text/cards";
 export { keywordName };
 
-const KIND_WORDS: Record<SkillKindPrefix, string> = { auto: "Auto", activate: "Activate", counter: "Counter", permanent: "Permanent" };
+const KIND_WORDS: Record<NegatedSkillKind, string> = { auto: "[Auto]", activate: "[Activate]", counter: "[Counter]", permanent: "[Permanent]", keyword: "keyword" };
 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toLocaleString("en")}`;
 
@@ -161,7 +161,7 @@ export function describeEffect(e: ContinuousEffect): Pick<EffectView, "kind" | "
     case "negateGrantedSkill":
       return { kind: "negate", label: "one skill negated" };
     case "negateSkillKind":
-      return { kind: "negate", label: `[${KIND_WORDS[e.value as SkillKindPrefix]}] skills negated` };
+      return { kind: "negate", label: `${KIND_WORDS[e.value as NegatedSkillKind]} skills negated` };
     // The one keyword the master picked (9-1-5) — `describeStatic`'s own label
     // for the standing form, with a duration on it.
     case "negateKeyword":

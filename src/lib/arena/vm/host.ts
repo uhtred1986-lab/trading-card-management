@@ -67,7 +67,7 @@ import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken, NotYet } from "./errors";
-import { savedXKey } from "./script";
+import { savedXKey, type ScriptFrame } from "./script";
 import { endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
@@ -449,6 +449,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setPlayNegated: (id) => {
       if (state.resolving?.card === id && !state.resolving.landed) state.resolving.negated = true;
     },
+    // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): held on the play's own record and made by
+    // `playThen` once the card has landed, as a frame of the counter's own (`switchMode`), so its moments are pended.
+    switchOnLanding: (id, mode, source, master) => {
+      const r = state.resolving;
+      if (!r || r.card !== id || r.landed || r.replaced) return false;
+      r.switchAfter = { mode, source, master };
+      return true;
+    },
     // 9-6: the play happens differently — this program in its place. The
     // legacy reading exactly: the one shape it can put in a play's place is a
     // single move of the card itself, which goes where the program says from
@@ -677,6 +685,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // it lands — the window `vm/battle.ts` opens over a declared play. With
       // no counter they could use, nothing is asked and the play lands now.
       if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
+      const landedSwitches: ScriptFrame[] = [];
       for (const id of cards) {
         // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
         // replacing one that carries markers asks how many come across —
@@ -719,6 +728,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
+        // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): the [Counter: Play]'s switch of this card,
+        // held while it was being played, is made now that it has landed — a frame of the counter's, run before the
+        // rest of the play's, so "switched to Rest Mode" moments are pended as for any skill's switch.
+        if (played && r?.switchAfter) {
+          const sw = r.switchAfter;
+          landedSwitches.push({ ops: [{ op: "switchMode", target: { var: LANDED_VAR }, mode: sw.mode }], ip: 0, vars: { [LANDED_VAR]: [id] }, card: sw.source, master: sw.master, skillKind: "counter" });
+        }
         // 22-13-5-4: [Union-Potara]'s materials all go under the card in the play
         // itself (`resolvePlay`'s `under`), so a play that failed moved none of them.
         if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
@@ -726,14 +742,21 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         frame.unionBound = undefined;
         if (r) state.resolving = null;
         // FAQ BT1-107/BT1-110: the second counter timing, once the card is on the table.
-        if (played && union && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) return "wait";
+        if (played && union && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {
+          state.programs.unshift(...landedSwitches);
+          return "wait";
+        }
       }
       state.programs.unshift(frame);
+      state.programs.unshift(...landedSwitches);
     },
   };
 }
 
 // ── the pieces more than one method needs ───────────────────────────────────
+
+/** Phrasing batch 5: the variable a [Counter: Play]'s held switch names the landed card by. Never a name a card's program writes. */
+const LANDED_VAR = "§landed";
 
 /** 19-1-2: where a token is made — a Battle Area, by the name `DEFINE ZONE` gives it. */
 const TOKEN_ZONE = "battle";
@@ -920,8 +943,8 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // is the Life card whose transition happened. Match the declaration against
   // that event card while retaining `only`'s narrow answer-card filter. The
   // Life card's own call has `id` in Life and keeps that same event card.
-  const eventCard = trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life"
-    ? subject
+  const eventCard = (trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life") || (WATCHED_MOVE.has(trigger) && subject)
+    ? subject!
     : id;
   const controller = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
   const moment = MOMENT_OF[trigger];
@@ -941,7 +964,10 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // the legacy `pend(trigger, card, subject)` puts it, so "your <Heles>
   // card's skill" can be asked of it. It is not a pattern argument: written
   // over `by` it turned `by: skill` into a card id, which no declaration asks.
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}) }, (m) => m.card === id && m.trigger === trigger);
+  // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
+  // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
+  const watched = WATCHED_MOVE.has(trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
@@ -967,6 +993,15 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // 20-7: the hand's side of `droppedFromBattle`, pended by name from `moveTo`
   // for a card a skill's effect or price took out of the hand.
   droppedFromHand: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill" } },
+  // Phrasing batch 5: a skill's move of the card from the Drop to the Warp (BT12-130), pended by `moveTo`.
+  dropToWarpBySkill: { event: "moved", args: { from: "drop", to: "warp", asPlay: false, by: "skill" } },
+  // Phrasing batch 5: the same discard by a skill of the card's own master (BT26-015).
+  droppedFromHandByYou: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  // Phrasing batch 5: `removedByOpponent` watched by the removed card's master's other cards (DB2-174), and the
+  // opponent's life added to their Z-Energy by a skill, watched by the skill's master's cards (BT23-103). Both are
+  // pended on each watcher with the moved card as the subject, which is the card the moment is about.
+  yourCardRemovedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
+  opponentLifeToZBySkill: { event: "moved", args: { from: "life", to: "zEnergy", asPlay: false, by: "skill", byOpponent: true } },
   // 3-10: pended by `moveTo` when your skill sends your card from your deck to
   // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
   // name is what says a skill of yours did it.
@@ -996,7 +1031,9 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
  * ARRIVES case). The names whose declaration asks for more than the mover
  * says (`removedFromBattle`'s `by: skill`) still come through by name.
  */
-const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop"]);
+const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "zEnergyToDrop"]);
+/** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };

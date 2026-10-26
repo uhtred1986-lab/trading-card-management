@@ -8,7 +8,7 @@ import { keywordName } from "../text/cards";
 // them, which are lists), `AmountAttr` what an amount may *read as a number*.
 // Collapsing them would let `attr($t, colors)` stand where a number belongs.
 import type { Amount, AmountAttr, CardAttr, Cond, Duration, NegateScope, Op, Ref, ReplaceEvent, ScriptArea, Selector, Side, SpecialTarget } from "./script";
-import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, SkipWhat } from "../types";
+import type { Area, CardDef, Color, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, Phase, Prompt, SkillKindPrefix, NegatedSkillKind, SkipWhat } from "../types";
 
 // ── the schema: one row per op, read by everything that is not the interpreter ──
 
@@ -107,7 +107,7 @@ export interface RenderOptions {
 export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"] as const satisfies readonly Color[];
 
 /** The card measures an `Amount` may read off one card (`AmountAttr`) — `lang/ast.ts`'s `EXPR_ATTRS`, written out here because the schema cannot import the language. */
-const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost", "specifiedCost"] as const satisfies readonly AmountAttr[];
+const AMOUNT_ATTRS = ["power", "originalPower", "comboPower", "energyCost", "comboCost", "specifiedCost", "zEnergyCost"] as const satisfies readonly AmountAttr[];
 export const SIDES = ["you", "opponent", "both"] as const satisfies readonly Side[];
 export const SPECIAL_TARGETS = ["self", "attacker", "guard", "subject", "leader", "opponentLeader", "resolving", "onTop"] as const satisfies readonly SpecialTarget[];
 export const REPLACE_EVENTS = ["leave", "ko", "play", "life", "marker", "attack", "counter"] as const satisfies readonly ReplaceEvent[];
@@ -126,6 +126,8 @@ const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "batt
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
 const SKILL_KIND_PREFIXES = ["auto", "activate", "counter", "permanent"] as const satisfies readonly SkillKindPrefix[];
+/** Phrasing batch 5: what `negateSkillsOfKind` may name — a skill kind, or the card's keyword skills (`NegatedSkillKind`). */
+const NEGATED_KINDS = [...SKILL_KIND_PREFIXES, "keyword"] as const satisfies readonly NegatedSkillKind[];
 export const KEYWORD_NAMES = [
   "Awaken", "Wish", "Field", "Blocker", "Critical", "Strike", "Attack", "Revenge", "Indestructible", "Barrier", "Deflect", "Unique", "Servant", "Energy-Exhaust", "Victory Strike",
   "Warrior of Universe 7", "Ultimate", "Super Combo", "Dragon Ball", "Wormhole", "Invoker", "Heroic", "Villainous", "Offering", "Evolve", "Union", "Over Realm", "Swap", "Arrival", "Aegis",
@@ -324,7 +326,7 @@ const NEGATE_SCOPES = ["skills", "kind", "keyword", "own"] as const satisfies re
 const NEGATE_FIELDS: OpField[] = [
   SELF,
   { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
-  { name: "kind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "kind", type: { enum: NEGATED_KINDS } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
   { name: "chosen", type: "boolean" },
   { name: "until", type: "duration" },
@@ -380,6 +382,11 @@ const CHOOSE_FIELDS: OpField[] = [
         name: "atMost",
         type: "amount",
         offCard: "any number of the selected cards, up to this many read off the board as the choice is made — \"choose any number of your opponent's Battle Cards up to the number of your Hidden Mode cards\" (BT29-139); the selector's count is not read",
+      },
+      {
+        name: "owed",
+        type: "boolean",
+        offCard: "with atMost: that many are owed, not offered — as many as possible up to the bound (5-2-5), none left to the chooser's discretion; phrasing batch 5, \"for every 5 cards in your Z-Energy, add 1 of your opponent's life to its owner's Z-Energy\" (BT23-109)",
       },
       {
         name: "exactly",
@@ -441,6 +448,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"choose">;
       // "Any number of …, up to the number of …" (BT29-139): the selector's own
       // count is not read, so it is not said either.
+      if (op.atMost !== undefined && op.owed) {
+        // Phrasing batch 5 (BT23-109): a number owed, read off the board — "1 for every 5 cards in your Z-Energy".
+        const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
+        return `choose ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
+      }
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
@@ -485,6 +497,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "under", type: "ref" },
       { name: "owner", type: "side" },
       { name: "faceUp", type: "boolean" },
+      { name: "random", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
     ],
     // A move a macro lowered to reads as the spelling it stands for (#137,
@@ -636,9 +649,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"choose up to 1 keyword skill on your opponent\'s Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about',
   },
   negateSkillsOfKind: {
-    fields: [TARGET, { name: "kind", type: { enum: SKILL_KIND_PREFIXES }, required: true }, UNTIL],
-    sentence: "negate the [{kind:auto=Auto|activate=Activate|counter=Counter|permanent=Permanent}] skills of {target}{until}",
-    doc: '"negate that card\'s [Auto] skill for the turn" — one kind, not the whole card (9-1-5)',
+    fields: [TARGET, { name: "kind", type: { enum: NEGATED_KINDS }, required: true }, UNTIL],
+    sentence: "negate the {kind:auto=[Auto] |activate=[Activate] |counter=[Counter] |permanent=[Permanent] |keyword=keyword }skills of {target}{until}",
+    doc: '"negate that card\'s [Auto] skill for the turn" — one kind, not the whole card (9-1-5). "keyword" (phrasing batch 5, owner\'s ruling of 26 Oct 2026 on P-327) is every keyword skill of the card, printed or granted, and nothing else',
   },
   hidden: { fields: [TARGET, { name: "hidden", type: "boolean", required: true }, { name: "sameHiding", type: "boolean" }], sentence: "switch {target} to {hidden:Hidden|Revealed} Mode{sameHiding? (only a card still in the Hidden Mode this skill switched it to)}", doc: "Hidden Mode / Revealed Mode (23-5). `sameHiding` (BT28-121, official Q&A): reveal only a card still in the Hidden Mode this skill switched it to — not one revealed by another skill and hidden again since" },
   redirectAttack: { fields: [TARGET], sentence: "switch the target of the attack to {target}", doc: '"switch the target of the attack to it" (22-4-2)' },
@@ -2345,7 +2358,11 @@ function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
     const bad = selectorProblem(v[k], `${at}.${k}`);
     if (bad) return bad;
   }
-  if (v.attr !== undefined) {
+  // `sumOf`'s `attr` names the measure added up (an `AmountAttr`); only the one-card `attr` amount's is a card (phrasing batch
+  // 5: P-658's "for every Z-Energy cost of the Z-Cards …" is the first such sum a record validates).
+  if (v.sumOf !== undefined) {
+    if (typeof v.attr !== "string" || !(AMOUNT_ATTRS as readonly string[]).includes(v.attr)) return `${at}.attr is the measure added up, one of ${AMOUNT_ATTRS.join(", ")}`;
+  } else if (v.attr !== undefined) {
     const bad = refProblem(v.attr, `${at}.attr`);
     if (bad) return bad;
   }
@@ -2894,7 +2911,7 @@ function describeRef(ref: Ref): string {
  * noun sits next to the number rather than at the end of the sentence.
  */
 /** The measures `attr` and `sumOf` read, as a person names them. */
-const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost", specifiedCost: "specified cost" };
+const ATTR_NOUNS: Record<AmountAttr, string> = { power: "power", originalPower: "original power", comboPower: "combo power", energyCost: "energy cost", comboCost: "combo cost", specifiedCost: "specified cost", zEnergyCost: "Z-Energy cost" };
 
 /** "+2" / "-2": the sign a per-count change is printed with (EX19-26's "-2000 power for each" read "+-2000"). */
 const signedTimes = (times: number | undefined): string => ((times ?? 1) >= 0 ? `+${times ?? 1}` : `${times}`);

@@ -9,6 +9,8 @@ import { MatchSetup } from "./MatchSetup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckPreviewSheet } from "./DeckPreviewSheet";
 import { CardImage } from "@/components/CardImage";
+import { GameMark } from "@/components/GameMark";
+import { type Game } from "@/lib/catalog/games";
 import { Panel } from "@/components/ui";
 import "./journey-entry.css";
 
@@ -16,6 +18,7 @@ export interface PlayDeck {
   id: number;
   name: string;
   isTesting?: boolean;
+  game: Game;
   description?: string | null;
   colors?: string[];
   leaderId?: string | null;
@@ -95,7 +98,7 @@ export function PlayPicker({
   const choices: DiscoveryDeck[] = decks.map((d) => ({
     id: String(d.id), name: d.name, description: d.description ?? null,
     colors: d.colors ?? [], leaderId: d.leaderId, leaderName: d.leaderName, leaderImage: d.leaderImage,
-    group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, locked: locked(d), note: d.isTesting ? "Testing deck" : undefined,
+    game: d.game, group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, locked: locked(d), note: d.isTesting ? "Testing deck" : undefined,
   }));
   const own = <section aria-label="Your deck" className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -109,7 +112,7 @@ export function PlayPicker({
     <DeckPreviewSheet deckId={deck.id} deckName={deck.name} />
     <Link href={`/decks/${deck.id}`} className="tap inline-flex min-h-10 items-center text-xs font-medium text-ki-300 hover:text-ki-200">Open selected deck details →</Link>
     <details><summary className="tap cursor-pointer py-2 text-sm text-space-300">Rule readiness{isLocked ? " — locked" : ""}</summary><Readiness deck={deck} /></details>
-    <p className="text-xs text-space-400">Masters decks only. Fusion World uses different rules.</p>
+    <p className="text-xs text-space-400">Only decks of the game you chose are offered, so both sides play the same game.</p>
   </section>;
   const opponentSection = <div className="space-y-3">
       <section aria-label="Opponent" className="space-y-2">
@@ -280,16 +283,16 @@ export function JourneyDeckPicker({ decks, value, onChange, onContinue, disabled
   const query = search.trim().toLowerCase();
   const filtered = decks.filter((d) => [d.name, d.leaderName, d.leaderId, d.description, ...d.colors].filter(Boolean).join(" ").toLowerCase().includes(query));
   return <section aria-label="Choose a deck to play" className="space-y-4">
-    <div><p className="journey-eyebrow">DRAGON BALL · MASTERS ARENA</p><h2 className="text-2xl font-semibold text-space-50">Ready to play?</h2><p className="mt-1 text-sm text-space-300">Your cards. Your next match.</p></div>
+    <div><p className="journey-eyebrow">DRAGON BALL · ARENA</p><h2 className="text-2xl font-semibold text-space-50">Ready to play?</h2><p className="mt-1 text-sm text-space-300">Your cards. Your next match.</p></div>
     {selected && <div className="journey-deck-hero">
       <div className="journey-hero-art"><CardImage src={selected.leaderImage} alt={selected.leaderName ?? "Leader image unavailable"} sizes="140px" /></div>
-      <div className="min-w-0 space-y-2"><p className="journey-eyebrow">SELECTED DECK</p><h3 className="break-words text-xl font-semibold text-space-50">{selected.name}</h3><p className="break-words text-sm text-space-200">{selected.leaderName ?? "No leader yet"}</p><p className="text-xs text-space-300">{selected.colors.join(" / ")}{selected.colors.length ? " · " : ""}{selected.mainCount} main cards · Masters</p><span className={`journey-status ${selected.locked ? "text-loss" : "text-gain"}`}>{selected.locked ? "Open rules need review" : selected.locked === false ? "Ready to play" : "Device deck"}</span></div>
+      <div className="min-w-0 space-y-2"><p className="journey-eyebrow">SELECTED DECK</p><h3 className="break-words text-xl font-semibold text-space-50">{selected.name}{selected.game && <> <GameMark game={selected.game} /></>}</h3><p className="break-words text-sm text-space-200">{selected.leaderName ?? "No leader yet"}</p><p className="text-xs text-space-300">{selected.colors.join(" / ")}{selected.colors.length ? " · " : ""}{selected.mainCount} main cards</p><span className={`journey-status ${selected.locked ? "text-loss" : "text-gain"}`}>{selected.locked ? "Open rules need review" : selected.locked === false ? "Ready to play" : "Device deck"}</span></div>
       <button type="button" disabled={disabled} onClick={onContinue} className="journey-play tap">{selected.locked ? "Review selected deck" : "Play selected deck →"}</button>
     </div>}
     <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-space-100">Your decks</h3><span className="text-xs text-space-400">{decks.length} available</span></div>
     <label className="block"><span className="sr-only">Find a deck</span><input type="search" placeholder="Find a deck or leader…" value={search} disabled={disabled} onChange={(e) => { setSearch(e.target.value); setLimit(6); }} className="tap w-full rounded-xl border border-space-600 bg-space-900 px-4 py-3 text-sm text-space-100" /></label>
     <ul className="journey-decks">{filtered.slice(0, limit).map((d) => <li key={d.id}><button data-deck-choice={d.id} type="button" disabled={disabled} aria-pressed={d.id === value} onClick={() => onChange(d.id)} className="journey-deck tap">
-      <span className="journey-tile-art"><CardImage src={d.leaderImage} alt="" sizes="64px" /></span><span className="min-w-0 flex-1"><strong className="block break-words text-sm text-space-50">{d.name}</strong><span className="mt-1 block break-words text-xs text-space-300">{d.leaderName ?? "No leader yet"} · {d.mainCount} cards</span><span className="mt-2 block text-xs text-space-300">{d.id === value ? "✓ Selected" : d.locked ? "Rules to review" : d.colors.join(" / ") || d.group}</span></span><span aria-hidden className="text-ki-300">›</span>
+      <span className="journey-tile-art"><CardImage src={d.leaderImage} alt="" sizes="64px" /></span><span className="min-w-0 flex-1"><strong className="block break-words text-sm text-space-50">{d.name}{d.game && <> <GameMark game={d.game} /></>}</strong><span className="mt-1 block break-words text-xs text-space-300">{d.leaderName ?? "No leader yet"} · {d.mainCount} cards</span><span className="mt-2 block text-xs text-space-300">{d.id === value ? "✓ Selected" : d.locked ? "Rules to review" : d.colors.join(" / ") || d.group}</span></span><span aria-hidden className="text-ki-300">›</span>
     </button></li>)}</ul>
     {!filtered.length && <p role="status" className="text-sm text-space-300">No decks match. Try another name or leader.</p>}
     {filtered.length > limit && <button type="button" onClick={() => setLimit(limit + 6)} className="tap w-full rounded-lg border border-space-600 p-3 text-sm text-ki-300">Show more decks</button>}
