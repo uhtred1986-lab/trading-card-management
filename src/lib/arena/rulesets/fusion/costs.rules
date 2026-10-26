@@ -4,8 +4,8 @@
 -- the rested cards, or a marker of the Leader's colour removed from the game —
 -- FW manual p. 8), `marker`, `life`, `rest`, `payWith` and `text`. The Z-Energy,
 -- [Burst] and [Spirit Boost] prices are gone, and **no combo price is declared**:
--- a Fusion World combo costs nothing (FW manual p. 10); F1-03 makes
--- `vm/battle.ts` honour the absence. Section numbers left below are the dbs
+-- a Fusion World combo costs nothing (FW manual p. 10); `vm/battle.ts`
+-- honours the absence (F1-03). Section numbers left below are the dbs
 -- manual's, kept where the rule is the original game's own.
 --
 -- In the legacy engine payment is one function, `planPayment` in

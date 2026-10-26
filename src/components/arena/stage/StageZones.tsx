@@ -1,5 +1,6 @@
 "use client";
 
+import { hasArea, type BoardWords } from "@/lib/arena/board-words";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { untilWords } from "@/lib/arena/effects";
 import type { Action, PlayerId } from "@/lib/arena/types";
@@ -48,7 +49,7 @@ export function MenuSection({ title, children }: { title: string; children: Reac
   );
 }
 
-export function ReferenceCounts({ side }: { side: SideView }) {
+export function ReferenceCounts({ side, words }: { side: SideView; words: BoardWords }) {
   return (
     <div className="rounded-lg border border-space-700 bg-space-800/60 px-3 py-2">
       <p className="text-sm font-semibold text-space-100">{side.name}</p>
@@ -56,9 +57,9 @@ export function ReferenceCounts({ side }: { side: SideView }) {
         <Counter label="hand" value={side.handCount} />
         <Counter label="deck" value={side.deck} />
         <Counter label="drop" value={side.drop} />
-        {side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
-        {side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
-        {side.warp > 0 && <Counter label="warp" value={side.warp} />}
+        {hasArea(words, "zDeck") && side.zDeck > 0 && <Counter label="Z" value={side.zDeck} />}
+        {hasArea(words, "zEnergy") && side.zEnergy > 0 && <Counter label="Z energy" value={side.zEnergy} />}
+        {hasArea(words, "warp") && side.warp > 0 && <Counter label="warp" value={side.warp} />}
       </dl>
     </div>
   );
