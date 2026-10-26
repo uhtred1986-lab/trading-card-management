@@ -2859,10 +2859,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // (22-13-6-3). The host has to come off the phrase before the target is
   // read: "this card" at the end of it made `parseTarget` take the whole
   // thing for this card, and the skill played the card onto itself.
+  //
+  // #930, BT17-077: "Play up to 1 green <Piccolo> card with an energy cost of
+  // 4 **on top of this card from your deck**" prints the destination before
+  // the source. Same meaning, other order: the "from <area>" is moved in
+  // front of the destination, and the clause is read as the usual order is.
+  // Only a source that starts with a possessive ("from your deck", "from
+  // your hand or Drop Area") and only after one of the host phrases below.
+  const onTopFirst =
+    /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(?:turn|game|battle))?)?)$/.exec(t);
+  const tOnTop = onTopFirst && !/\bon top of\b/.test(onTopFirst[3]) ? `${onTopFirst[1]} ${onTopFirst[3]} ${onTopFirst[2]}${onTopFirst[4]}` : t;
   if (
     (m =
       /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(turn|game|battle))?)?$/.exec(
-        t,
+        tOnTop,
       ))
   ) {
     const onto = hostOf(m[3], c);
