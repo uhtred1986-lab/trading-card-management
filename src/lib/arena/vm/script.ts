@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { canCombo, skillsOf, sumReachable } from "../text/cards";
+import { canCombo, identityKey, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
@@ -243,6 +243,27 @@ export interface Selector {
    * writes it: the compiler reads a description into a filter itself.
    */
   printed?: true;
+}
+
+/**
+ * #930 (`unionNameOf`): can every card be given a required name it has, no
+ * name taking more than `per` cards? `cards` are each card's names, `names`
+ * the required ones, all as `identityKey`s. A small exact search — a
+ * [Union-Fusion] requires two names.
+ */
+export function namesAssignable(cards: string[][], names: string[], per: number): boolean {
+  const used = names.map(() => 0);
+  const place = (i: number): boolean => {
+    if (i === cards.length) return true;
+    for (let k = 0; k < names.length; k++) {
+      if (used[k] >= per || !cards[i].includes(names[k])) continue;
+      used[k]++;
+      if (place(i + 1)) return true;
+      used[k]--;
+    }
+    return false;
+  };
+  return place(0);
 }
 
 /**
@@ -2253,7 +2274,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.
         const bounded = op.atMost !== undefined;
-        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : (op.sel.count ?? 1);
+        // #930 (EX13-14, SD19-03): "for each character name required for the
+        // revealed card's [union] skill, add up to 1 card with a matching
+        // character name" — `count` cards per name the revealed card's
+        // [Union-Fusion] requires, each card filling a name of its own.
+        const unionOf = op.sel.filter?.unionNameOf ?? null;
+        const unionNames = unionOf ? h.unionNames(frame, unionOf).map(identityKey) : [];
+        const perName = op.sel.count ?? 1;
+        const fillsNames = (ids: string[]) => namesAssignable(ids.map((id) => h.defOf(id).characters.map(identityKey)), unionNames, perName);
+        const want = bounded ? Math.max(0, h.amount(frame, op.atMost!)) : unionOf ? perName * unionNames.length : (op.sel.count ?? 1);
         // #720: inside a voluntary replacement's substitute the offer's "you
         // may" is already spent, so a choice it also made "up to" is exact.
         const upTo = bounded || (!!op.sel.upTo && !owedInFull(frame, op));
@@ -2359,7 +2388,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const bound = op.sel.sumAtMost;
         const measure = (id: string) => (bound ? h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: bound.attr }) : 0);
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && priceTargetFits(h, frame, op.as, id));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.
@@ -2386,6 +2415,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           for (const id of answer) {
             if (!cands.includes(id) || picked.includes(id)) continue;
             if ((op.sel.differentNames || byCharacters) && picked.some((o) => nameKey(o) === nameKey(id))) continue;
+            if (unionOf && !fillsNames([...picked, id])) continue;
             // A host handing several cards at once is held to the bound card
             // by card, the same as one answer at a time would be.
             if (bound) {

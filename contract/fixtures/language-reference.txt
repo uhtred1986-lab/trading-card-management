@@ -4235,6 +4235,14 @@
       ]
     },
     {
+      "field": "unionNameOf",
+      "type": "variable",
+      "printed": "card with a character name the revealed card's [Union] skill requires",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
       "field": "z",
       "type": "tri",
       "printed": "Z-card",
