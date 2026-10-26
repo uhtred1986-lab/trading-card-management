@@ -62,7 +62,7 @@ import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } 
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
 import { copiedSkillIndex, programsOf } from "./common";
-import { NO_RULES, type CardScripts, type Cond, type Op } from "./script";
+import { NO_RULES, type CardScripts, type Cond, type Op, type Script } from "./script";
 import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
 import type { EngineContext } from "../types";
@@ -263,7 +263,12 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
   // A moment with no card is about the board rather than about a card (a phase
   // beginning), so everything in play hears it; `WHERE` is what makes it one
   // side's, which is 7-1's own framing of "your Charge Phase".
-  if (moment.card === undefined) return inPlay(game, state, [...PLAYERS]);
+  // BT31-110 (deck flags 26 Oct 2026, 9-1-3-2): "At the start of your Main
+  // Phase, add this card from under your Leader to your Z-Energy" works from
+  // the pile it names, so the cards under the cards in play hear a board
+  // moment too. They are only *asked* here; `pendAutos` keeps a pile card's
+  // skill when its record takes this card out of the pile (`fromPile`).
+  if (moment.card === undefined) return [...inPlay(game, state, [...PLAYERS]), ...inPiles(game, state, [...PLAYERS])];
   // Its own moment. 9-1-3-1, and the exception derived from the declaration:
   // a pattern that names a place has already said where the card is.
   const at = findCard(state, moment.card);
@@ -298,6 +303,26 @@ function namesAPlace(trigger: TriggerDef): boolean {
 }
 
 /** Every card in the in-play zones of these sides (9-1-3-1), in zone declaration order. */
+/** The cards under the cards in play (23-2) — in no zone, so `inPlay` never meets them. */
+function inPiles(game: GameDefinition, state: VmState, sides: PlayerId[]): string[] {
+  const out: string[] = [];
+  for (const host of inPlay(game, state, sides)) out.push(...(state.cards[host]?.under ?? []));
+  return out;
+}
+
+/**
+ * Does this [Auto]'s record take this card out of a pile — "add this card from
+ * under your Leader to your Z-Energy" (BT31-110)? The area is read off the
+ * compiled selector (`special: self`, `area: under`), never off the text.
+ */
+function fromPile(script: Script | undefined): boolean {
+  const walk = (ops: readonly Op[] | undefined): boolean => !!ops?.some((op) =>
+    ((op.op === "moveTo" || op.op === "play") && !!op.target && "sel" in op.target && op.target.sel.special === "self" && (op.target.sel.area === "under" || !!op.target.sel.areas?.includes("under")))
+    || (op.op === "if" && (walk(op.then) || walk(op.else)))
+    || (op.op === "may" && walk(op.ops)));
+  return walk(script?.ops);
+}
+
 function inPlay(game: GameDefinition, state: VmState, sides: PlayerId[]): string[] {
   const zones = inPlayZones(game);
   const out: string[] = [];
@@ -526,6 +551,11 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // asked for these skills alone; an in-play copy has nothing to take out.
       const outside = sk.kind === "auto" ? usableFrom(showing.scripts.bySkill[sk.index]) : [];
       const at = findCard(state, match.card)?.zone;
+      // BT31-110: a skill that takes this card out of a pile answers from the
+      // pile and from nowhere else; nothing else a pile card prints answers a
+      // board moment it was asked about only for that (`inPiles`).
+      const pileSkill = sk.kind === "auto" && fromPile(showing.scripts.bySkill[sk.index]);
+      if (at ? pileSkill : moment.card === undefined && !pileSkill) continue;
       if (match.handWatcher) {
         if (!at || !outside.includes(at as never)) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
