@@ -1,1181 +1,1241 @@
 {
- "notes": [
-  "Card text: docs/arena-fusion-world-starters.md (reminder texts dropped, bracket groups split onto their own lines, as arena-fusion-world.mts reads them).",
-  "game is fusion for every card (the suite creates games with game: \"fusion\"); comboCost is null (no combo price), specifiedCost is unset: F1-08 is the owner's data task, so the suite pays colourless until then.",
-  "Leader back faces are named '<name> (awakened)'; characters are the printed name without the (SR) mark."
- ],
- "cards": [
-  {
-   "id": "FS01-01",
-   "name": "Son Goku",
-   "type": "LEADER",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": null,
-   "power": 15000,
-   "comboPower": null,
-   "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
-   "back": {
-    "name": "Son Goku (awakened)",
-    "power": 20000,
-    "skill": "[When Attacking] Draw 1 card.<br>[Activate:Battle][Once Per Turn] Choose up to 1 of your Battle Cards and it gets +5000 power for the battle."
-   },
-   "characters": [
-    "Son Goku"
-   ]
-  },
-  {
-   "id": "FS01-02",
-   "name": "Whis",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 10000,
-   "skill": "[On Play] Choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.",
-   "characters": [
-    "Whis"
-   ]
-  },
-  {
-   "id": "FS01-03",
-   "name": "Master Roshi",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 5000,
-   "skill": "[On Play] Draw 1 card.",
-   "characters": [
-    "Master Roshi"
-   ]
-  },
-  {
-   "id": "FS01-04",
-   "name": "Krillin",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Permanent][Your Turn] This card gets +5000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
-   "characters": [
-    "Krillin"
-   ]
-  },
-  {
-   "id": "FS01-05",
-   "name": "Shin",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 7,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
-   "characters": [
-    "Shin"
-   ]
-  },
-  {
-   "id": "FS01-06",
-   "name": "Android 17",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 10000,
-   "skill": "[Permanent][Opponent's Turn] This card gets +5000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
-   "characters": [
-    "Android 17"
-   ]
-  },
-  {
-   "id": "FS01-07",
-   "name": "Android 18",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Android 18"
-   ]
-  },
-  {
-   "id": "FS01-08",
-   "name": "Son Goku",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 5,
-   "power": 35000,
-   "comboPower": null,
-   "skill": "[Double Strike]<br>[On Play] Choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.",
-   "characters": [
-    "Son Goku"
-   ]
-  },
-  {
-   "id": "FS01-09",
-   "name": "Son Gohan : Adolescence",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 25000,
-   "comboPower": 5000,
-   "skill": "[Critical]<br>[When Attacking] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.",
-   "characters": [
-    "Son Gohan : Adolescence"
-   ]
-  },
-  {
-   "id": "FS01-10",
-   "name": "Tien Shinhan",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Tien Shinhan"
-   ]
-  },
-  {
-   "id": "FS01-11",
-   "name": "Piccolo",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 25000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Piccolo"
-   ]
-  },
-  {
-   "id": "FS01-12",
-   "name": "Beerus",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[Critical]<br>[When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn.",
-   "characters": [
-    "Beerus"
-   ]
-  },
-  {
-   "id": "FS01-13",
-   "name": "Frieza",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 30000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Frieza"
-   ]
-  },
-  {
-   "id": "FS01-14",
-   "name": "Vegeta",
-   "type": "BATTLE",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Critical]",
-   "characters": [
-    "Vegeta"
-   ]
-  },
-  {
-   "id": "FS01-15",
-   "name": "Kamehameha",
-   "type": "EXTRA",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.",
-   "characters": [
-    "Kamehameha"
-   ]
-  },
-  {
-   "id": "FS01-16",
-   "name": "God Kamehameha",
-   "type": "EXTRA",
-   "colors": [
-    "Red"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Permanent] If you have no Battle Cards, reduce the cost of this card in your hand by 1.<br>[Activate:Main] Choose up to 1 of your opponent's Battle Cards with 30000 power or less and KO it.",
-   "characters": [
-    "God Kamehameha"
-   ]
-  },
-  {
-   "id": "FS02-01",
-   "name": "Vegeta",
-   "type": "LEADER",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": null,
-   "power": 15000,
-   "comboPower": null,
-   "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
-   "back": {
-    "name": "Vegeta (awakened)",
-    "power": 20000,
-    "skill": "[When Attacking] Draw 1 card.<br>[Activate:Main][Once Per Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power for the turn."
-   },
-   "characters": [
-    "Vegeta"
-   ]
-  },
-  {
-   "id": "FS02-02",
-   "name": "Gotenks",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 25000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Gotenks"
-   ]
-  },
-  {
-   "id": "FS02-03",
-   "name": "Gotenks",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 25000,
-   "comboPower": 5000,
-   "skill": "[On Play] If you have 7 or fewer cards in your hand, add up to 1 <Son Goten> and up to 1 <Trunks : Youth> —both with a cost of 2 or less— from your Drop to your hand.",
-   "characters": [
-    "Gotenks"
-   ]
-  },
-  {
-   "id": "FS02-04",
-   "name": "Son Goku",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 30000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Son Goku"
-   ]
-  },
-  {
-   "id": "FS02-05",
-   "name": "Son Goten",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Son Goten"
-   ]
-  },
-  {
-   "id": "FS02-06",
-   "name": "Son Goten",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[When Attacking] Add up to 1 card from your life to your hand. Then, if you have 7 or fewer cards in your hand, choose up to 1 of your opponent's Battle Cards with a cost of 2 or less and return it to its owner's hand.",
-   "characters": [
-    "Son Goten"
-   ]
-  },
-  {
-   "id": "FS02-07",
-   "name": "Son Gohan : Adolescence",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power.",
-   "characters": [
-    "Son Gohan : Adolescence"
-   ]
-  },
-  {
-   "id": "FS02-08",
-   "name": "Trunks : Youth",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 5000,
-   "skill": "[On Play] Draw 1 card.",
-   "characters": [
-    "Trunks : Youth"
-   ]
-  },
-  {
-   "id": "FS02-09",
-   "name": "Trunks : Youth",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +10000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
-   "characters": [
-    "Trunks : Youth"
-   ]
-  },
-  {
-   "id": "FS02-10",
-   "name": "Videl",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 7,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
-   "characters": [
-    "Videl"
-   ]
-  },
-  {
-   "id": "FS02-11",
-   "name": "Piccolo",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[On Play] If you have 7 or fewer cards in your hand, add up to 1 Extra from your Drop to your hand.",
-   "characters": [
-    "Piccolo"
-   ]
-  },
-  {
-   "id": "FS02-12",
-   "name": "Bulma",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 10000,
-   "skill": "[Blocker]",
-   "characters": [
-    "Bulma"
-   ]
-  },
-  {
-   "id": "FS02-13",
-   "name": "Vegeta",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 5,
-   "power": 35000,
-   "comboPower": null,
-   "skill": "[Double Strike]<br>[On Play] Choose up to 1 of your opponent's Battle Cards with a cost of 4 or less and place it at the bottom of its owner's deck.",
-   "characters": [
-    "Vegeta"
-   ]
-  },
-  {
-   "id": "FS02-14",
-   "name": "Majin Buu : Good",
-   "type": "BATTLE",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Majin Buu : Good"
-   ]
-  },
-  {
-   "id": "FS02-15",
-   "name": "Galick Gun",
-   "type": "EXTRA",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 7 or fewer cards in your hand, draw 1 card.",
-   "characters": [
-    "Galick Gun"
-   ]
-  },
-  {
-   "id": "FS02-16",
-   "name": "Final Flash",
-   "type": "EXTRA",
-   "colors": [
-    "Blue"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Permanent] If you have 7 or fewer cards in your hand, reduce the cost of this card in your hand by 1.<br>[Activate:Main] Discard 1 card from your hand : Choose up to 1 of your opponent's Battle Cards with a cost of 5 or less and place it at the bottom of its owner's deck.",
-   "characters": [
-    "Final Flash"
-   ]
-  },
-  {
-   "id": "FS03-01",
-   "name": "Broly",
-   "type": "LEADER",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": null,
-   "power": 15000,
-   "comboPower": null,
-   "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over.",
-   "back": {
-    "name": "Broly (awakened)",
-    "power": 25000,
-    "skill": "[Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn."
-   },
-   "characters": [
-    "Broly"
-   ]
-  },
-  {
-   "id": "FS03-02",
-   "name": "Angol",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Critical]",
-   "characters": [
-    "Angol"
-   ]
-  },
-  {
-   "id": "FS03-03",
-   "name": "Shamoian",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 5000,
-   "skill": "[Blocker]",
-   "characters": [
-    "Shamoian"
-   ]
-  },
-  {
-   "id": "FS03-04",
-   "name": "Turles",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 5,
-   "power": 30000,
-   "comboPower": 5000,
-   "skill": "[Critical]<br>[On Play] Add up to 1 card with a cost of 3 or more from your Drop to your energy.",
-   "characters": [
-    "Turles"
-   ]
-  },
-  {
-   "id": "FS03-05",
-   "name": "Nappa",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Nappa"
-   ]
-  },
-  {
-   "id": "FS03-06",
-   "name": "Paragus",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Activate:Main][Once Per Turn] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.",
-   "characters": [
-    "Paragus"
-   ]
-  },
-  {
-   "id": "FS03-07",
-   "name": "Paragus",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[On Play] Add up to 1 card from your life to your hand.<br>[When Attacking] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.",
-   "characters": [
-    "Paragus"
-   ]
-  },
-  {
-   "id": "FS03-08",
-   "name": "Broly",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 30000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Broly"
-   ]
-  },
-  {
-   "id": "FS03-09",
-   "name": "Broly",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 6,
-   "power": 40000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Broly"
-   ]
-  },
-  {
-   "id": "FS03-10",
-   "name": "Broly : BR",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 8,
-   "power": 45000,
-   "comboPower": null,
-   "skill": "[On Play] Draw 1 card. Then, choose up to 1 of your opponent's Battle Cards and KO it.<br>[When Attacking][Once Per Turn] Switch this card to Active Mode.",
-   "characters": [
-    "Broly : BR"
-   ]
-  },
-  {
-   "id": "FS03-11",
-   "name": "Vegeta",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[Critical]<br>[Permanent] If you have 6 or more energy, this card gets +5000 power.",
-   "characters": [
-    "Vegeta"
-   ]
-  },
-  {
-   "id": "FS03-12",
-   "name": "King Vegeta",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 7,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
-   "characters": [
-    "King Vegeta"
-   ]
-  },
-  {
-   "id": "FS03-13",
-   "name": "Moah",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 5000,
-   "skill": "[On Play] Look at 5 cards from the top of your deck, reveal up to 1 <Paragus> or up to 1 Extra and add it to your hand. Place the rest at the bottom of your deck in a random order.",
-   "characters": [
-    "Moah"
-   ]
-  },
-  {
-   "id": "FS03-14",
-   "name": "Raditz",
-   "type": "BATTLE",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Raditz"
-   ]
-  },
-  {
-   "id": "FS03-15",
-   "name": "Gigantic Meteor",
-   "type": "EXTRA",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 6 or more energy, that card gets +10000 power for the battle.",
-   "characters": [
-    "Gigantic Meteor"
-   ]
-  },
-  {
-   "id": "FS03-16",
-   "name": "Destructive Strength",
-   "type": "EXTRA",
-   "colors": [
-    "Green"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Main] Add 1 card from the top of your deck to your energy.",
-   "characters": [
-    "Destructive Strength"
-   ]
-  },
-  {
-   "id": "FS04-01",
-   "name": "Frieza",
-   "type": "LEADER",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": null,
-   "power": 15000,
-   "comboPower": null,
-   "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
-   "back": {
-    "name": "Frieza (awakened)",
-    "power": 20000,
-    "skill": "[When Attacking] Draw 1 card.<br>[End of Your Turn] Choose up to 2 of your Battle Cards and switch them to Active Mode."
-   },
-   "characters": [
-    "Frieza"
-   ]
-  },
-  {
-   "id": "FS04-02",
-   "name": "Cui",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[Blocker]<br>[When KO'd] Draw 1 card.",
-   "characters": [
-    "Cui"
-   ]
-  },
-  {
-   "id": "FS04-03",
-   "name": "Golden Frieza",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 5,
-   "power": 35000,
-   "comboPower": null,
-   "skill": "[Double Strike]<br>[When Attacking] Choose up to 1 of your opponent's Rest Mode Battle Cards and it can't switch to Active Mode during your opponent's next turn.",
-   "characters": [
-    "Golden Frieza"
-   ]
-  },
-  {
-   "id": "FS04-04",
-   "name": "King Cold",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 25000,
-   "comboPower": 10000,
-   "skill": "[Blocker]<br>[When KO'd] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 4 or less and KO it.",
-   "characters": [
-    "King Cold"
-   ]
-  },
-  {
-   "id": "FS04-05",
-   "name": "Zarbon",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[Blocker]<br>[On Play] Add up to 1 card from your life to your hand.",
-   "characters": [
-    "Zarbon"
-   ]
-  },
-  {
-   "id": "FS04-06",
-   "name": "Shisami",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 4,
-   "power": 30000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Shisami"
-   ]
-  },
-  {
-   "id": "FS04-07",
-   "name": "Sorbet",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 5000,
-   "comboPower": 5000,
-   "skill": "[On Play] Draw 1 card.",
-   "characters": [
-    "Sorbet"
-   ]
-  },
-  {
-   "id": "FS04-08",
-   "name": "Tagoma",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Tagoma"
-   ]
-  },
-  {
-   "id": "FS04-09",
-   "name": "Cheelai : BR",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 7,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
-   "characters": [
-    "Cheelai : BR"
-   ]
-  },
-  {
-   "id": "FS04-10",
-   "name": "Dodoria",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 10000,
-   "comboPower": 5000,
-   "skill": "[Blocker]",
-   "characters": [
-    "Dodoria"
-   ]
-  },
-  {
-   "id": "FS04-11",
-   "name": "Frieza",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 10000,
-   "comboPower": 10000,
-   "skill": "[On Play] Choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.",
-   "characters": [
-    "Frieza"
-   ]
-  },
-  {
-   "id": "FS04-12",
-   "name": "Frieza",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 2,
-   "power": 20000,
-   "comboPower": 5000,
-   "skill": "[When Attacking] Add up to 1 card from your life to your hand. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.",
-   "characters": [
-    "Frieza"
-   ]
-  },
-  {
-   "id": "FS04-13",
-   "name": "Frieza",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 3,
-   "power": 25000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Frieza"
-   ]
-  },
-  {
-   "id": "FS04-14",
-   "name": "Lemo : BR",
-   "type": "BATTLE",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": 15000,
-   "comboPower": 10000,
-   "skill": null,
-   "characters": [
-    "Lemo : BR"
-   ]
-  },
-  {
-   "id": "FS04-15",
-   "name": "Golden Death Beam",
-   "type": "EXTRA",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Main] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 3 or less and KO it.",
-   "characters": [
-    "Golden Death Beam"
-   ]
-  },
-  {
-   "id": "FS04-16",
-   "name": "Death Ball",
-   "type": "EXTRA",
-   "colors": [
-    "Yellow"
-   ],
-   "zEnergyCost": null,
-   "comboCost": null,
-   "traits": [],
-   "energyCost": 1,
-   "power": null,
-   "comboPower": null,
-   "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.",
-   "characters": [
-    "Death Ball"
-   ]
-  }
- ]
+  "notes": [
+    "Card text: docs/arena-fusion-world-starters.md (reminder texts dropped, bracket groups split onto their own lines, as arena-fusion-world.mts reads them).",
+    "game is fusion for every card (the suite creates games with game: \"fusion\"); comboCost is null (no combo price), specifiedCost is the printed orbs from Bandai's official card list (26 Oct 2026); leaders have none.",
+    "Leader back faces are named '<name> (awakened)'; characters are the printed name without the (SR) mark."
+  ],
+  "cards": [
+    {
+      "id": "FS01-01",
+      "name": "Son Goku",
+      "type": "LEADER",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": null,
+      "power": 15000,
+      "comboPower": null,
+      "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
+      "back": {
+        "name": "Son Goku (awakened)",
+        "power": 20000,
+        "skill": "[When Attacking] Draw 1 card.<br>[Activate:Battle][Once Per Turn] Choose up to 1 of your Battle Cards and it gets +5000 power for the battle."
+      },
+      "characters": [
+        "Son Goku"
+      ]
+    },
+    {
+      "id": "FS01-02",
+      "name": "Whis",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 10000,
+      "skill": "[On Play] Choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.",
+      "characters": [
+        "Whis"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-03",
+      "name": "Master Roshi",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 5000,
+      "skill": "[On Play] Draw 1 card.",
+      "characters": [
+        "Master Roshi"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-04",
+      "name": "Krillin",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Permanent][Your Turn] This card gets +5000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
+      "characters": [
+        "Krillin"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-05",
+      "name": "Shin",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 7,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
+      "characters": [
+        "Shin"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-06",
+      "name": "Android 17",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 10000,
+      "skill": "[Permanent][Opponent's Turn] This card gets +5000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
+      "characters": [
+        "Android 17"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-07",
+      "name": "Android 18",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Android 18"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-08",
+      "name": "Son Goku",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 5,
+      "power": 35000,
+      "comboPower": null,
+      "skill": "[Double Strike]<br>[On Play] Choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.",
+      "characters": [
+        "Son Goku"
+      ],
+      "specifiedCost": "{r}{r}"
+    },
+    {
+      "id": "FS01-09",
+      "name": "Son Gohan : Adolescence",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 25000,
+      "comboPower": 5000,
+      "skill": "[Critical]<br>[When Attacking] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.",
+      "characters": [
+        "Son Gohan : Adolescence"
+      ],
+      "specifiedCost": "{r}{r}"
+    },
+    {
+      "id": "FS01-10",
+      "name": "Tien Shinhan",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Tien Shinhan"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-11",
+      "name": "Piccolo",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 25000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Piccolo"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-12",
+      "name": "Beerus",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[Critical]<br>[When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn.",
+      "characters": [
+        "Beerus"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-13",
+      "name": "Frieza",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 30000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Frieza"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-14",
+      "name": "Vegeta",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Critical]",
+      "characters": [
+        "Vegeta"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-15",
+      "name": "Kamehameha",
+      "type": "EXTRA",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.",
+      "characters": [
+        "Kamehameha"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS01-16",
+      "name": "God Kamehameha",
+      "type": "EXTRA",
+      "colors": [
+        "Red"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Permanent] If you have no Battle Cards, reduce the cost of this card in your hand by 1.<br>[Activate:Main] Choose up to 1 of your opponent's Battle Cards with 30000 power or less and KO it.",
+      "characters": [
+        "God Kamehameha"
+      ],
+      "specifiedCost": "{r}"
+    },
+    {
+      "id": "FS02-01",
+      "name": "Vegeta",
+      "type": "LEADER",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": null,
+      "power": 15000,
+      "comboPower": null,
+      "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
+      "back": {
+        "name": "Vegeta (awakened)",
+        "power": 20000,
+        "skill": "[When Attacking] Draw 1 card.<br>[Activate:Main][Once Per Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power for the turn."
+      },
+      "characters": [
+        "Vegeta"
+      ]
+    },
+    {
+      "id": "FS02-02",
+      "name": "Gotenks",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 25000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Gotenks"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-03",
+      "name": "Gotenks",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 25000,
+      "comboPower": 5000,
+      "skill": "[On Play] If you have 7 or fewer cards in your hand, add up to 1 <Son Goten> and up to 1 <Trunks : Youth> —both with a cost of 2 or less— from your Drop to your hand.",
+      "characters": [
+        "Gotenks"
+      ],
+      "specifiedCost": "{u}{u}"
+    },
+    {
+      "id": "FS02-04",
+      "name": "Son Goku",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 30000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Son Goku"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-05",
+      "name": "Son Goten",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Son Goten"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-06",
+      "name": "Son Goten",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[When Attacking] Add up to 1 card from your life to your hand. Then, if you have 7 or fewer cards in your hand, choose up to 1 of your opponent's Battle Cards with a cost of 2 or less and return it to its owner's hand.",
+      "characters": [
+        "Son Goten"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-07",
+      "name": "Son Gohan : Adolescence",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power.",
+      "characters": [
+        "Son Gohan : Adolescence"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-08",
+      "name": "Trunks : Youth",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 5000,
+      "skill": "[On Play] Draw 1 card.",
+      "characters": [
+        "Trunks : Youth"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-09",
+      "name": "Trunks : Youth",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +10000 power.<br>[On Play] Add up to 1 card from your life to your hand.",
+      "characters": [
+        "Trunks : Youth"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-10",
+      "name": "Videl",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 7,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
+      "characters": [
+        "Videl"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-11",
+      "name": "Piccolo",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[On Play] If you have 7 or fewer cards in your hand, add up to 1 Extra from your Drop to your hand.",
+      "characters": [
+        "Piccolo"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-12",
+      "name": "Bulma",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 10000,
+      "skill": "[Blocker]",
+      "characters": [
+        "Bulma"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-13",
+      "name": "Vegeta",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 5,
+      "power": 35000,
+      "comboPower": null,
+      "skill": "[Double Strike]<br>[On Play] Choose up to 1 of your opponent's Battle Cards with a cost of 4 or less and place it at the bottom of its owner's deck.",
+      "characters": [
+        "Vegeta"
+      ],
+      "specifiedCost": "{u}{u}"
+    },
+    {
+      "id": "FS02-14",
+      "name": "Majin Buu : Good",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Majin Buu : Good"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-15",
+      "name": "Galick Gun",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 7 or fewer cards in your hand, draw 1 card.",
+      "characters": [
+        "Galick Gun"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS02-16",
+      "name": "Final Flash",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Permanent] If you have 7 or fewer cards in your hand, reduce the cost of this card in your hand by 1.<br>[Activate:Main] Discard 1 card from your hand : Choose up to 1 of your opponent's Battle Cards with a cost of 5 or less and place it at the bottom of its owner's deck.",
+      "characters": [
+        "Final Flash"
+      ],
+      "specifiedCost": "{u}"
+    },
+    {
+      "id": "FS03-01",
+      "name": "Broly",
+      "type": "LEADER",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": null,
+      "power": 15000,
+      "comboPower": null,
+      "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over.",
+      "back": {
+        "name": "Broly (awakened)",
+        "power": 25000,
+        "skill": "[Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn."
+      },
+      "characters": [
+        "Broly"
+      ]
+    },
+    {
+      "id": "FS03-02",
+      "name": "Angol",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Critical]",
+      "characters": [
+        "Angol"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-03",
+      "name": "Shamoian",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 5000,
+      "skill": "[Blocker]",
+      "characters": [
+        "Shamoian"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-04",
+      "name": "Turles",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 5,
+      "power": 30000,
+      "comboPower": 5000,
+      "skill": "[Critical]<br>[On Play] Add up to 1 card with a cost of 3 or more from your Drop to your energy.",
+      "characters": [
+        "Turles"
+      ],
+      "specifiedCost": "{g}{g}{g}"
+    },
+    {
+      "id": "FS03-05",
+      "name": "Nappa",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Nappa"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-06",
+      "name": "Paragus",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Activate:Main][Once Per Turn] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.",
+      "characters": [
+        "Paragus"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-07",
+      "name": "Paragus",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[On Play] Add up to 1 card from your life to your hand.<br>[When Attacking] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.",
+      "characters": [
+        "Paragus"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-08",
+      "name": "Broly",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 30000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Broly"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-09",
+      "name": "Broly",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 6,
+      "power": 40000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Broly"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-10",
+      "name": "Broly : BR",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 8,
+      "power": 45000,
+      "comboPower": null,
+      "skill": "[On Play] Draw 1 card. Then, choose up to 1 of your opponent's Battle Cards and KO it.<br>[When Attacking][Once Per Turn] Switch this card to Active Mode.",
+      "characters": [
+        "Broly : BR"
+      ],
+      "specifiedCost": "{g}{g}{g}{g}"
+    },
+    {
+      "id": "FS03-11",
+      "name": "Vegeta",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[Critical]<br>[Permanent] If you have 6 or more energy, this card gets +5000 power.",
+      "characters": [
+        "Vegeta"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-12",
+      "name": "King Vegeta",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 7,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
+      "characters": [
+        "King Vegeta"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-13",
+      "name": "Moah",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 5000,
+      "skill": "[On Play] Look at 5 cards from the top of your deck, reveal up to 1 <Paragus> or up to 1 Extra and add it to your hand. Place the rest at the bottom of your deck in a random order.",
+      "characters": [
+        "Moah"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-14",
+      "name": "Raditz",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Raditz"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-15",
+      "name": "Gigantic Meteor",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 6 or more energy, that card gets +10000 power for the battle.",
+      "characters": [
+        "Gigantic Meteor"
+      ],
+      "specifiedCost": "{g}"
+    },
+    {
+      "id": "FS03-16",
+      "name": "Destructive Strength",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Main] Add 1 card from the top of your deck to your energy.",
+      "characters": [
+        "Destructive Strength"
+      ],
+      "specifiedCost": "{g}{g}{g}"
+    },
+    {
+      "id": "FS04-01",
+      "name": "Frieza",
+      "type": "LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": null,
+      "power": 15000,
+      "comboPower": null,
+      "skill": "[When Attacking] Draw 1 card.<br>[Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over.",
+      "back": {
+        "name": "Frieza (awakened)",
+        "power": 20000,
+        "skill": "[When Attacking] Draw 1 card.<br>[End of Your Turn] Choose up to 2 of your Battle Cards and switch them to Active Mode."
+      },
+      "characters": [
+        "Frieza"
+      ]
+    },
+    {
+      "id": "FS04-02",
+      "name": "Cui",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[Blocker]<br>[When KO'd] Draw 1 card.",
+      "characters": [
+        "Cui"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-03",
+      "name": "Golden Frieza",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 5,
+      "power": 35000,
+      "comboPower": null,
+      "skill": "[Double Strike]<br>[When Attacking] Choose up to 1 of your opponent's Rest Mode Battle Cards and it can't switch to Active Mode during your opponent's next turn.",
+      "characters": [
+        "Golden Frieza"
+      ],
+      "specifiedCost": "{y}{y}"
+    },
+    {
+      "id": "FS04-04",
+      "name": "King Cold",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 25000,
+      "comboPower": 10000,
+      "skill": "[Blocker]<br>[When KO'd] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 4 or less and KO it.",
+      "characters": [
+        "King Cold"
+      ],
+      "specifiedCost": "{y}{y}"
+    },
+    {
+      "id": "FS04-05",
+      "name": "Zarbon",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[Blocker]<br>[On Play] Add up to 1 card from your life to your hand.",
+      "characters": [
+        "Zarbon"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-06",
+      "name": "Shisami",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 4,
+      "power": 30000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Shisami"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-07",
+      "name": "Sorbet",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 5000,
+      "comboPower": 5000,
+      "skill": "[On Play] Draw 1 card.",
+      "characters": [
+        "Sorbet"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-08",
+      "name": "Tagoma",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Tagoma"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-09",
+      "name": "Cheelai : BR",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 7,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": "[Super Combo]<br>[Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.",
+      "characters": [
+        "Cheelai : BR"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-10",
+      "name": "Dodoria",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 10000,
+      "comboPower": 5000,
+      "skill": "[Blocker]",
+      "characters": [
+        "Dodoria"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-11",
+      "name": "Frieza",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 10000,
+      "comboPower": 10000,
+      "skill": "[On Play] Choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.",
+      "characters": [
+        "Frieza"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-12",
+      "name": "Frieza",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 2,
+      "power": 20000,
+      "comboPower": 5000,
+      "skill": "[When Attacking] Add up to 1 card from your life to your hand. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.",
+      "characters": [
+        "Frieza"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-13",
+      "name": "Frieza",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 3,
+      "power": 25000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Frieza"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-14",
+      "name": "Lemo : BR",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": 15000,
+      "comboPower": 10000,
+      "skill": null,
+      "characters": [
+        "Lemo : BR"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-15",
+      "name": "Golden Death Beam",
+      "type": "EXTRA",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Main] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 3 or less and KO it.",
+      "characters": [
+        "Golden Death Beam"
+      ],
+      "specifiedCost": "{y}"
+    },
+    {
+      "id": "FS04-16",
+      "name": "Death Ball",
+      "type": "EXTRA",
+      "colors": [
+        "Yellow"
+      ],
+      "zEnergyCost": null,
+      "comboCost": null,
+      "traits": [],
+      "energyCost": 1,
+      "power": null,
+      "comboPower": null,
+      "skill": "[Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.",
+      "characters": [
+        "Death Ball"
+      ],
+      "specifiedCost": "{y}"
+    }
+  ]
 }

@@ -1,90 +1,89 @@
 # Fusion World starter decks FS01–FS04 — printed card text (reference for Arena F1)
 
-Reference data for the `Arena F1 — Fusion World` milestone (`docs/arena-fusion-world-plan.md`). Transcribed from the English card pages of fw.dbscards.fr on 26 Oct 2026; the authority is the printed card and the catalog row in `cards` (`game = "fusion"`). Specified costs are not listed by that site and are an owner data task (F1-08).
+Reference data for the `Arena F1 — Fusion World` milestone (`docs/arena-fusion-world-plan.md`). Transcribed from the English card pages of fw.dbscards.fr on 26 Oct 2026; the authority is the printed card and the catalog row in `cards` (`game = "fusion"`). Costs and specified costs (`{r}` = one red orb, `{u}` blue, `{g}` green, `{y}` yellow) were checked against Bandai's official card list (`dbs-cardgame.com/fw/en/cardlist/detail.php?card_no=…`) on 26 Oct 2026.
 
 Source: fw.dbscards.fr card pages (English text), fetched 2026-10-26. All 64 cards fetched; none missing.
 Format: `FSxx-yy | Name | type | colour | cost(spec) | power | combo | text`.
 Notes:
-- The site does not list a specified cost for any card, so `(spec)` is `(?)` throughout. Combo power is `—` where the site lists none (the 5-cost SRs and the 8-cost Broly : BR).
 - The site renders keywords as plain labels run together ("PermanentYour Turn", "Activate MainOnce per turn", "Auto[Opponent's Turn]"); they are normalised here to the bracketed form `[Permanent][Your Turn]`, `[Activate:Main][Once Per Turn]`, `[Auto][Opponent's Turn]`. Fusion World prints "On Play" (not "When Played"); kept as `[On Play]`.
 - Keyword reminder texts as printed: [Blocker] "(After an opponent's attack, you may switch this card to Rest Mode and change the target of the attack to this card.)"; [Critical] "(When this card inflicts damage with an attack, the life is placed in the Drop.)"; [Double Strike] "(This card inflicts 2 damage instead of 1 when attacking.)"; [Super Combo] "(A maximum of 4 cards with Super Combo can be placed in a deck.)". Omitted from the lines below for brevity.
 - 16 cards have no skill text (vanilla); marked `(no skill text)`.
 
 ## FS01 Starter Deck -Son Goku- (Red)
 
-FS01-01 | Son Goku | Leader | Red | —(?) | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [Activate:Battle][Once Per Turn] Choose up to 1 of your Battle Cards and it gets +5000 power for the battle.
-FS01-02 | Whis | Battle | Red | 1(?) | 5000 | 10000 | [On Play] Choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.
-FS01-03 | Master Roshi | Battle | Red | 1(?) | 5000 | 5000 | [On Play] Draw 1 card.
-FS01-04 | Krillin | Battle | Red | 2(?) | 15000 | 10000 | [Permanent][Your Turn] This card gets +5000 power. [On Play] Add up to 1 card from your life to your hand.
-FS01-05 | Shin | Battle | Red | 7(?) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
-FS01-06 | Android 17 | Battle | Red | 3(?) | 20000 | 10000 | [Permanent][Opponent's Turn] This card gets +5000 power. [On Play] Add up to 1 card from your life to your hand.
-FS01-07 | Android 18 | Battle | Red | 2(?) | 20000 | 10000 | (no skill text)
-FS01-08 | Son Goku (SR) | Battle | Red | 5(?) | 35000 | — | [Double Strike] [On Play] Choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.
-FS01-09 | Son Gohan : Adolescence (SR) | Battle | Red | 4(?) | 25000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.
-FS01-10 | Tien Shinhan | Battle | Red | 1(?) | 15000 | 10000 | (no skill text)
-FS01-11 | Piccolo | Battle | Red | 3(?) | 25000 | 10000 | (no skill text)
-FS01-12 | Beerus | Battle | Red | 3(?) | 20000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn.
-FS01-13 | Frieza | Battle | Red | 4(?) | 30000 | 10000 | (no skill text)
-FS01-14 | Vegeta | Battle | Red | 2(?) | 15000 | 10000 | [Critical]
-FS01-15 | Kamehameha | Extra | Red | 1(?) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.
-FS01-16 | God Kamehameha | Extra | Red | 2(?) | — | — | [Permanent] If you have no Battle Cards, reduce the cost of this card in your hand by 1. [Activate:Main] Choose up to 1 of your opponent's Battle Cards with 30000 power or less and KO it.
+FS01-01 | Son Goku | Leader | Red | — | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [Activate:Battle][Once Per Turn] Choose up to 1 of your Battle Cards and it gets +5000 power for the battle.
+FS01-02 | Whis | Battle | Red | 1({r}) | 5000 | 10000 | [On Play] Choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.
+FS01-03 | Master Roshi | Battle | Red | 1({r}) | 5000 | 5000 | [On Play] Draw 1 card.
+FS01-04 | Krillin | Battle | Red | 2({r}) | 15000 | 10000 | [Permanent][Your Turn] This card gets +5000 power. [On Play] Add up to 1 card from your life to your hand.
+FS01-05 | Shin | Battle | Red | 7({r}) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
+FS01-06 | Android 17 | Battle | Red | 3({r}) | 20000 | 10000 | [Permanent][Opponent's Turn] This card gets +5000 power. [On Play] Add up to 1 card from your life to your hand.
+FS01-07 | Android 18 | Battle | Red | 2({r}) | 20000 | 10000 | (no skill text)
+FS01-08 | Son Goku (SR) | Battle | Red | 5({r}{r}) | 35000 | — | [Double Strike] [On Play] Choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.
+FS01-09 | Son Gohan : Adolescence (SR) | Battle | Red | 4({r}{r}) | 25000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.
+FS01-10 | Tien Shinhan | Battle | Red | 1({r}) | 15000 | 10000 | (no skill text)
+FS01-11 | Piccolo | Battle | Red | 3({r}) | 25000 | 10000 | (no skill text)
+FS01-12 | Beerus | Battle | Red | 3({r}) | 20000 | 5000 | [Critical] [When Attacking] Choose up to 1 of your other Battle Cards and it gets +5000 power for the turn.
+FS01-13 | Frieza | Battle | Red | 4({r}) | 30000 | 10000 | (no skill text)
+FS01-14 | Vegeta | Battle | Red | 2({r}) | 15000 | 10000 | [Critical]
+FS01-15 | Kamehameha | Extra | Red | 1({r}) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.
+FS01-16 | God Kamehameha | Extra | Red | 2({r}) | — | — | [Permanent] If you have no Battle Cards, reduce the cost of this card in your hand by 1. [Activate:Main] Choose up to 1 of your opponent's Battle Cards with 30000 power or less and KO it.
 
 ## FS02 Starter Deck -Vegeta- (Blue)
 
-FS02-01 | Vegeta | Leader | Blue | —(?) | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [Activate:Main][Once Per Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power for the turn.
-FS02-02 | Gotenks | Battle | Blue | 3(?) | 25000 | 10000 | (no skill text)
-FS02-03 | Gotenks (SR) | Battle | Blue | 4(?) | 25000 | 5000 | [On Play] If you have 7 or fewer cards in your hand, add up to 1 <Son Goten> and up to 1 <Trunks : Youth> —both with a cost of 2 or less— from your Drop to your hand.
-FS02-04 | Son Goku | Battle | Blue | 4(?) | 30000 | 10000 | (no skill text)
-FS02-05 | Son Goten | Battle | Blue | 1(?) | 15000 | 10000 | (no skill text)
-FS02-06 | Son Goten | Battle | Blue | 2(?) | 15000 | 10000 | [When Attacking] Add up to 1 card from your life to your hand. Then, if you have 7 or fewer cards in your hand, choose up to 1 of your opponent's Battle Cards with a cost of 2 or less and return it to its owner's hand.
-FS02-07 | Son Gohan : Adolescence | Battle | Blue | 3(?) | 20000 | 5000 | [Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power.
-FS02-08 | Trunks : Youth | Battle | Blue | 1(?) | 5000 | 5000 | [On Play] Draw 1 card.
-FS02-09 | Trunks : Youth | Battle | Blue | 2(?) | 15000 | 10000 | [Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +10000 power. [On Play] Add up to 1 card from your life to your hand.
-FS02-10 | Videl | Battle | Blue | 7(?) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
-FS02-11 | Piccolo | Battle | Blue | 3(?) | 20000 | 5000 | [On Play] If you have 7 or fewer cards in your hand, add up to 1 Extra from your Drop to your hand.
-FS02-12 | Bulma | Battle | Blue | 1(?) | 5000 | 10000 | [Blocker]
-FS02-13 | Vegeta (SR) | Battle | Blue | 5(?) | 35000 | — | [Double Strike] [On Play] Choose up to 1 of your opponent's Battle Cards with a cost of 4 or less and place it at the bottom of its owner's deck.
-FS02-14 | Majin Buu : Good | Battle | Blue | 2(?) | 20000 | 10000 | (no skill text)
-FS02-15 | Galick Gun | Extra | Blue | 1(?) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 7 or fewer cards in your hand, draw 1 card.
-FS02-16 | Final Flash | Extra | Blue | 2(?) | — | — | [Permanent] If you have 7 or fewer cards in your hand, reduce the cost of this card in your hand by 1. [Activate:Main] Discard 1 card from your hand : Choose up to 1 of your opponent's Battle Cards with a cost of 5 or less and place it at the bottom of its owner's deck.
+FS02-01 | Vegeta | Leader | Blue | — | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [Activate:Main][Once Per Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power for the turn.
+FS02-02 | Gotenks | Battle | Blue | 3({u}) | 25000 | 10000 | (no skill text)
+FS02-03 | Gotenks (SR) | Battle | Blue | 4({u}{u}) | 25000 | 5000 | [On Play] If you have 7 or fewer cards in your hand, add up to 1 <Son Goten> and up to 1 <Trunks : Youth> —both with a cost of 2 or less— from your Drop to your hand.
+FS02-04 | Son Goku | Battle | Blue | 4({u}) | 30000 | 10000 | (no skill text)
+FS02-05 | Son Goten | Battle | Blue | 1({u}) | 15000 | 10000 | (no skill text)
+FS02-06 | Son Goten | Battle | Blue | 2({u}) | 15000 | 10000 | [When Attacking] Add up to 1 card from your life to your hand. Then, if you have 7 or fewer cards in your hand, choose up to 1 of your opponent's Battle Cards with a cost of 2 or less and return it to its owner's hand.
+FS02-07 | Son Gohan : Adolescence | Battle | Blue | 3({u}) | 20000 | 5000 | [Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +15000 power.
+FS02-08 | Trunks : Youth | Battle | Blue | 1({u}) | 5000 | 5000 | [On Play] Draw 1 card.
+FS02-09 | Trunks : Youth | Battle | Blue | 2({u}) | 15000 | 10000 | [Permanent][Your Turn] If you have 7 or fewer cards in your hand, this card gets +10000 power. [On Play] Add up to 1 card from your life to your hand.
+FS02-10 | Videl | Battle | Blue | 7({u}) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
+FS02-11 | Piccolo | Battle | Blue | 3({u}) | 20000 | 5000 | [On Play] If you have 7 or fewer cards in your hand, add up to 1 Extra from your Drop to your hand.
+FS02-12 | Bulma | Battle | Blue | 1({u}) | 5000 | 10000 | [Blocker]
+FS02-13 | Vegeta (SR) | Battle | Blue | 5({u}{u}) | 35000 | — | [Double Strike] [On Play] Choose up to 1 of your opponent's Battle Cards with a cost of 4 or less and place it at the bottom of its owner's deck.
+FS02-14 | Majin Buu : Good | Battle | Blue | 2({u}) | 20000 | 10000 | (no skill text)
+FS02-15 | Galick Gun | Extra | Blue | 1({u}) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 7 or fewer cards in your hand, draw 1 card.
+FS02-16 | Final Flash | Extra | Blue | 2({u}) | — | — | [Permanent] If you have 7 or fewer cards in your hand, reduce the cost of this card in your hand by 1. [Activate:Main] Discard 1 card from your hand : Choose up to 1 of your opponent's Battle Cards with a cost of 5 or less and place it at the bottom of its owner's deck.
 
 ## FS03 Starter Deck -Broly- (Green)
 
-FS03-01 | Broly | Leader | Green | —(?) | 15000 front / 25000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over. // BACK: [Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn. (site shows no [When Attacking] on the back side)
-FS03-02 | Angol | Battle | Green | 2(?) | 15000 | 10000 | [Critical]
-FS03-03 | Shamoian | Battle | Green | 1(?) | 5000 | 5000 | [Blocker]
-FS03-04 | Turles (SR) | Battle | Green | 5(?) | 30000 | 5000 | [Critical] [On Play] Add up to 1 card with a cost of 3 or more from your Drop to your energy.
-FS03-05 | Nappa | Battle | Green | 2(?) | 20000 | 10000 | (no skill text)
-FS03-06 | Paragus | Battle | Green | 2(?) | 15000 | 10000 | [Activate:Main][Once Per Turn] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.
-FS03-07 | Paragus | Battle | Green | 2(?) | 15000 | 10000 | [On Play] Add up to 1 card from your life to your hand. [When Attacking] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.
-FS03-08 | Broly | Battle | Green | 4(?) | 30000 | 10000 | (no skill text)
-FS03-09 | Broly | Battle | Green | 6(?) | 40000 | 10000 | (no skill text)
-FS03-10 | Broly : BR (SR) | Battle | Green | 8(?) | 45000 | — | [On Play] Draw 1 card. Then, choose up to 1 of your opponent's Battle Cards and KO it. [When Attacking][Once Per Turn] Switch this card to Active Mode.
-FS03-11 | Vegeta | Battle | Green | 3(?) | 20000 | 5000 | [Critical] [Permanent] If you have 6 or more energy, this card gets +5000 power.
-FS03-12 | King Vegeta | Battle | Green | 7(?) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
-FS03-13 | Moah | Battle | Green | 1(?) | 5000 | 5000 | [On Play] Look at 5 cards from the top of your deck, reveal up to 1 <Paragus> or up to 1 Extra and add it to your hand. Place the rest at the bottom of your deck in a random order.
-FS03-14 | Raditz | Battle | Green | 1(?) | 15000 | 10000 | (no skill text)
-FS03-15 | Gigantic Meteor | Extra | Green | 1(?) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 6 or more energy, that card gets +10000 power for the battle.
-FS03-16 | Destructive Strength | Extra | Green | 3(?) | — | — | [Activate:Main] Add 1 card from the top of your deck to your energy.
+FS03-01 | Broly | Leader | Green | — | 15000 front / 25000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over. // BACK: [Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn. (no [When Attacking] on the back: confirmed against Bandai's official card list, 26 Oct 2026)
+FS03-02 | Angol | Battle | Green | 2({g}) | 15000 | 10000 | [Critical]
+FS03-03 | Shamoian | Battle | Green | 1({g}) | 5000 | 5000 | [Blocker]
+FS03-04 | Turles (SR) | Battle | Green | 5({g}{g}{g}) | 30000 | 5000 | [Critical] [On Play] Add up to 1 card with a cost of 3 or more from your Drop to your energy.
+FS03-05 | Nappa | Battle | Green | 2({g}) | 20000 | 10000 | (no skill text)
+FS03-06 | Paragus | Battle | Green | 2({g}) | 15000 | 10000 | [Activate:Main][Once Per Turn] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.
+FS03-07 | Paragus | Battle | Green | 2({g}) | 15000 | 10000 | [On Play] Add up to 1 card from your life to your hand. [When Attacking] If your Leader is <Broly> and you have no <Shamoian> Battle Cards, play up to 1 <Shamoian> with a cost of 1 from your Drop.
+FS03-08 | Broly | Battle | Green | 4({g}) | 30000 | 10000 | (no skill text)
+FS03-09 | Broly | Battle | Green | 6({g}) | 40000 | 10000 | (no skill text)
+FS03-10 | Broly : BR (SR) | Battle | Green | 8({g}{g}{g}{g}) | 45000 | — | [On Play] Draw 1 card. Then, choose up to 1 of your opponent's Battle Cards and KO it. [When Attacking][Once Per Turn] Switch this card to Active Mode.
+FS03-11 | Vegeta | Battle | Green | 3({g}) | 20000 | 5000 | [Critical] [Permanent] If you have 6 or more energy, this card gets +5000 power.
+FS03-12 | King Vegeta | Battle | Green | 7({g}) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
+FS03-13 | Moah | Battle | Green | 1({g}) | 5000 | 5000 | [On Play] Look at 5 cards from the top of your deck, reveal up to 1 <Paragus> or up to 1 Extra and add it to your hand. Place the rest at the bottom of your deck in a random order.
+FS03-14 | Raditz | Battle | Green | 1({g}) | 15000 | 10000 | (no skill text)
+FS03-15 | Gigantic Meteor | Extra | Green | 1({g}) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, if you have 6 or more energy, that card gets +10000 power for the battle.
+FS03-16 | Destructive Strength | Extra | Green | 3({g}{g}{g}) | — | — | [Activate:Main] Add 1 card from the top of your deck to your energy.
 
 ## FS04 Starter Deck -Frieza- (Yellow)
 
-FS04-01 | Frieza | Leader | Yellow | —(?) | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [End of Your Turn] Choose up to 2 of your Battle Cards and switch them to Active Mode.
-FS04-02 | Cui | Battle | Yellow | 3(?) | 20000 | 5000 | [Blocker] [When KO'd] Draw 1 card.
-FS04-03 | Golden Frieza (SR) | Battle | Yellow | 5(?) | 35000 | — | [Double Strike] [When Attacking] Choose up to 1 of your opponent's Rest Mode Battle Cards and it can't switch to Active Mode during your opponent's next turn.
-FS04-04 | King Cold (SR) | Battle | Yellow | 4(?) | 25000 | 10000 | [Blocker] [When KO'd] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 4 or less and KO it.
-FS04-05 | Zarbon | Battle | Yellow | 2(?) | 20000 | 5000 | [Blocker] [On Play] Add up to 1 card from your life to your hand.
-FS04-06 | Shisami | Battle | Yellow | 4(?) | 30000 | 10000 | (no skill text)
-FS04-07 | Sorbet | Battle | Yellow | 1(?) | 5000 | 5000 | [On Play] Draw 1 card.
-FS04-08 | Tagoma | Battle | Yellow | 2(?) | 20000 | 10000 | (no skill text)
-FS04-09 | Cheelai : BR | Battle | Yellow | 7(?) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
-FS04-10 | Dodoria | Battle | Yellow | 1(?) | 10000 | 5000 | [Blocker]
-FS04-11 | Frieza | Battle | Yellow | 1(?) | 10000 | 10000 | [On Play] Choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.
-FS04-12 | Frieza | Battle | Yellow | 2(?) | 20000 | 5000 | [When Attacking] Add up to 1 card from your life to your hand. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.
-FS04-13 | Frieza | Battle | Yellow | 3(?) | 25000 | 10000 | (no skill text)
-FS04-14 | Lemo : BR | Battle | Yellow | 1(?) | 15000 | 10000 | (no skill text)
-FS04-15 | Golden Death Beam | Extra | Yellow | 1(?) | — | — | [Activate:Main] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 3 or less and KO it.
-FS04-16 | Death Ball | Extra | Yellow | 1(?) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.
+FS04-01 | Frieza | Leader | Yellow | — | 15000 front / 20000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, draw 1 card. Then, flip this card over. // BACK: [When Attacking] Draw 1 card. [End of Your Turn] Choose up to 2 of your Battle Cards and switch them to Active Mode.
+FS04-02 | Cui | Battle | Yellow | 3({y}) | 20000 | 5000 | [Blocker] [When KO'd] Draw 1 card.
+FS04-03 | Golden Frieza (SR) | Battle | Yellow | 5({y}{y}) | 35000 | — | [Double Strike] [When Attacking] Choose up to 1 of your opponent's Rest Mode Battle Cards and it can't switch to Active Mode during your opponent's next turn.
+FS04-04 | King Cold (SR) | Battle | Yellow | 4({y}{y}) | 25000 | 10000 | [Blocker] [When KO'd] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 4 or less and KO it.
+FS04-05 | Zarbon | Battle | Yellow | 2({y}) | 20000 | 5000 | [Blocker] [On Play] Add up to 1 card from your life to your hand.
+FS04-06 | Shisami | Battle | Yellow | 4({y}) | 30000 | 10000 | (no skill text)
+FS04-07 | Sorbet | Battle | Yellow | 1({y}) | 5000 | 5000 | [On Play] Draw 1 card.
+FS04-08 | Tagoma | Battle | Yellow | 2({y}) | 20000 | 10000 | (no skill text)
+FS04-09 | Cheelai : BR | Battle | Yellow | 7({y}) | 15000 | 10000 | [Super Combo] [Auto][Opponent's Turn] When you use this card in a combo from your hand, this card gets +10000 combo power.
+FS04-10 | Dodoria | Battle | Yellow | 1({y}) | 10000 | 5000 | [Blocker]
+FS04-11 | Frieza | Battle | Yellow | 1({y}) | 10000 | 10000 | [On Play] Choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.
+FS04-12 | Frieza | Battle | Yellow | 2({y}) | 20000 | 5000 | [When Attacking] Add up to 1 card from your life to your hand. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.
+FS04-13 | Frieza | Battle | Yellow | 3({y}) | 25000 | 10000 | (no skill text)
+FS04-14 | Lemo : BR | Battle | Yellow | 1({y}) | 15000 | 10000 | (no skill text)
+FS04-15 | Golden Death Beam | Extra | Yellow | 1({y}) | — | — | [Activate:Main] Choose up to 1 of your opponent's Rest Mode Battle Cards with a cost of 3 or less and KO it.
+FS04-16 | Death Ball | Extra | Yellow | 1({y}) | — | — | [Activate:Battle] Choose your Leader or up to 1 of your Battle Cards and it gets +15000 power for the battle. Then, choose up to 1 of your opponent's Battle Cards with a cost of 3 or less and switch it to Rest Mode.
 
 ## Tally (64 cards; a leader counts once even if the bracket is on both sides)
 
@@ -172,3 +171,12 @@ Leader
 
 Sequencing word: "Then, …" — 10 cards (FS01-01, 15; FS02-01, 06; FS03-01 (both sides), 10, 15; FS04-01, 12, 16).
 Not present in the starters: "can't be KO'd", [Counter], [Barrier], [Rush], "+N for each", energy markers, combo-cost text.
+
+## Official decklists (51 cards: 1 leader + 50)
+
+Bandai's product pages list only "16 types, 51-card deck"; these counts come from retailer and guide listings and match the owner's four starter decks in the app's database card for card (26 Oct 2026). The test fixtures (`scripts/verify/fixtures/arena-fusion-world/decks.json`) use the same lists.
+
+- **FS01**: FS01-01 ×1, FS01-02 ×4, FS01-03 ×4, FS01-04 ×2, FS01-05 ×4, FS01-06 ×4, FS01-07 ×4, FS01-08 ×2, FS01-09 ×2, FS01-10 ×4, FS01-11 ×4, FS01-12 ×2, FS01-13 ×4, FS01-14 ×4, FS01-15 ×2, FS01-16 ×4
+- **FS02**: FS02-01 ×1, FS02-02 ×4, FS02-03 ×2, FS02-04 ×4, FS02-05 ×4, FS02-06 ×4, FS02-07 ×2, FS02-08 ×4, FS02-09 ×4, FS02-10 ×2, FS02-11 ×4, FS02-12 ×4, FS02-13 ×2, FS02-14 ×4, FS02-15 ×2, FS02-16 ×4
+- **FS03**: FS03-01 ×1, FS03-02 ×4, FS03-03 ×4, FS03-04 ×2, FS03-05 ×4, FS03-06 ×4, FS03-07 ×2, FS03-08 ×4, FS03-09 ×4, FS03-10 ×2, FS03-11 ×2, FS03-12 ×4, FS03-13 ×4, FS03-14 ×4, FS03-15 ×2, FS03-16 ×4
+- **FS04**: FS04-01 ×1, FS04-02 ×4, FS04-03 ×2, FS04-04 ×2, FS04-05 ×2, FS04-06 ×4, FS04-07 ×4, FS04-08 ×4, FS04-09 ×4, FS04-10 ×4, FS04-11 ×4, FS04-12 ×2, FS04-13 ×4, FS04-14 ×4, FS04-15 ×4, FS04-16 ×2
