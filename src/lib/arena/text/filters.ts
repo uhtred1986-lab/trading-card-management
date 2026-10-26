@@ -601,6 +601,10 @@ export function hasEnergyBound(f: CardFilter): boolean {
 }
 
 export function parseFilter(text: string): CardFilter {
+  // Phrasing batch 2: "your other ≪Saiyan≫ Battle Cards in play **which are** ≪Universe 7≫ or ≪Universe 6≫" (TB1-004)
+  // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
+  // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
+  if (/\bwhich (?:are|is)\b/i.test(text)) return { ...parseOneFilter(text), unreadable: true };
   return eitherFilter(text) ?? parseOneFilter(text);
 }
 

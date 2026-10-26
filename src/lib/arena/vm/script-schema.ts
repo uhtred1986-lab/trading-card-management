@@ -2675,7 +2675,9 @@ export function describeSelector(sel: Selector, all = "all"): string {
           : sel.count === 99
           ? // "Choose any number of … whose total cost adds up to 5 or less"
             // (BT3-036): every card is not the choice when a sum bounds it.
-            sel.upTo && sel.sumAtMost
+            // Nor when the choice may stop short of it (`upTo`, minimum 0): "the cards to put on
+            // top, the rest to the bottom" (BT10-081, phrasing batch 2) is any number of them.
+            sel.upTo
             ? "any number of"
             : "all"
           : sel.minCount !== undefined
@@ -2691,7 +2693,7 @@ export function describeSelector(sel: Selector, all = "all"): string {
   const where = sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
   const mode = describeMode(sel);
   // 22-16-2: a choice that reaches past [Barrier] says so, or the reading of "ignoring [Barrier]" is the same words as a choice that does not.
-  return [count, words, where].filter(Boolean).join(" ") + mode + describeNotSelf(sel) + (sel.ignoreBarrier ? " ignoring [Barrier]" : "");
+  return [count, words, where].filter(Boolean).join(" ").replace(/^any number of of /, "any number of ") + mode + describeNotSelf(sel) + (sel.ignoreBarrier ? " ignoring [Barrier]" : "");
 }
 
 function describeUnderHost(sel: Selector): string {

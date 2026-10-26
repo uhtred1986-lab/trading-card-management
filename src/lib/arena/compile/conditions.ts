@@ -617,7 +617,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (/^you (?:chose not to|did ?n'?o?t|didn'?t) add (?:a card|1 or more cards?|any cards?|cards?) to your hand$/.test(t)) {
     return { cond: { kind: "not", cond: { kind: "did", what: "addToHand" } } };
   }
-  if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
+  // "If you played a card **with this skill**" (TB3-016, phrasing batch 2) asks the same.
+  if (/^you (?:chose to )?play(?:ed)? (?:a|1 or more|any|one or more) (?:battle )?cards?(?: this way| (?:with|using) this skill)?$/.test(t)) return { cond: { kind: "did", what: "play" } };
   // "If you didn't play a card" (BT12-005, -006, -009, -010, -024, P-314; #907):
   // the other half of the question above — the skill's earlier play did not
   // happen, whether the offer in front of it was declined or the play found no
@@ -1039,6 +1040,37 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
     return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
   }
   if ((m = /^all your energy is (.+)$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
+  // Phrasing batch 2: "your Leader Card and **all of your energy is** blue" (BT16-045, BT16-069), "your Leader and all
+  // of your energy are **mono-yellow ≪Universe 6≫ cards**" (BT23-124, EB1-46): the same two conditions.
+  if ((m = /^your leader(?: card)? and all (?:of )?your energy (?:is|are) (.+)$/.exec(t))) {
+    const said = m[1].replace(/^an? /, "").replace(/ cards$/, " card");
+    const carded = / card$/.test(said);
+    const leader = parseConditionClause(`your leader is ${carded ? `a ${said}` : said}`, true);
+    const energy = parseConditionClause(`all of your energy is ${carded ? `${said.replace(/ card$/, "")} cards` : said}`, true);
+    return leader && energy && energy.cond.kind === "every" ? { cond: { kind: "all", conds: [leader.cond, energy.cond] } } : null;
+  }
+  // Phrasing batch 2: "If **all cards in your Battle Area** are in Rest Mode" (BT20-095): every card there, whatever
+  // its type, in that mode.
+  if ((m = /^all (?:of the )?cards in your battle area are in (rest|active) mode$/.exec(t))) {
+    return { cond: { kind: "every", sel: { side: "you", area: "battle" }, matching: { side: "you", area: "battle", mode: m[1] as "rest" | "active" } } };
+  }
+  // Phrasing batch 2: "If **you and your opponent have a total of** 10 or more Battle Cards" (BT23-084): one count over
+  // both Battle Areas, as "a total of 3 or more energy between you and your opponent" is over both Energy Areas.
+  if ((m = /^you and your opponent have a total of (\d+) or (more|less|fewer) battle cards$/.exec(t))) {
+    return { cond: { kind: "count", sel: { side: "both", area: "battle", filter: parseFilter("Battle Card") }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) } };
+  }
+  // Phrasing batch 2: "If your Leader Card is a green <Son Goku> card **and it's flipped to its back**" (EX06-17): the
+  // Leader shows its back side (22-2-4) — only a Leader is flipped to a back side.
+  if (/^(?:it'?s|it is) flipped to its back(?: side)?$/.test(t)) return { cond: { kind: "leaderFlipped", flipped: true } };
+  // Phrasing batch 2: "if your Leader Card is red and **your life is 4 or lower**" (BT1-010): "your life is at 4 or less".
+  if ((m = /^your life is (\d+) or (lower|less|fewer)$/.exec(t))) return parseConditionClause(`your life is at ${m[1]} or less`, true);
+  // Phrasing batch 2: "if your energy is 5 or more" (EX22-08): "you have 5 or more energy".
+  if ((m = /^your energy is (\d+) or (more|less|fewer)$/.exec(t))) return parseConditionClause(`you have ${m[1]} or ${m[2]} energy`, true);
+  // Phrasing batch 2: a requirement whose "you" the "and" before it carried — "…you have 2 or more energy, and
+  // **have** a red <Android 13> card in your Z-Energy" (P-439), "…and you have 3 or more energy and **no Battle
+  // Cards in play**" (BT16-062).
+  if ((m = /^have (.+)$/.exec(t))) return parseConditionClause(`you have ${m[1]}`, true);
+  if ((m = /^no (.+? in play)$/.exec(t))) return parseConditionClause(`you have no ${m[1]}`, true);
   if ((m = /^your leader(?: card)? and (?:all of )?(?:your )?energy are all (.+)$/.exec(t))) {
     const leader = parseConditionClause(`your leader is ${m[1]}`, true);
     const energy = parseConditionClause(`all of your energy is ${m[1]}`, true);
@@ -1231,7 +1263,10 @@ function parseCountCondition(t: string): Cond | null {
   const sharedColour = parts.length > 1 ? /^(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)+(?=[<≪{])/i.exec(parts[0])?.[0] : undefined;
   if (sharedColour) for (let i = 1; i < parts.length; i++) if (/^[<≪{]/.test(parts[i])) parts[i] = sharedColour + parts[i];
   if (parts.length > 1) {
-    const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play))$/i.exec(parts[parts.length - 1]);
+    // Phrasing batch 2: "…red ≪God≫ or ≪Alien≫ cards in play in your Battle Area **other than this card**" (DB1-006):
+    // the exclusion closes the shared area and is shared with it — left on the last part alone, the first part
+    // counted this card.
+    const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play)(?: other than this card)?)$/i.exec(parts[parts.length - 1]);
     const trailingArea = trailingAreaMatch ? trailingAreaMatch[1] : null;
 
     const conds: Cond[] = [];

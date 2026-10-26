@@ -17,7 +17,7 @@ import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
-import { compileSkillPrice, IF_YOU_DISCARD_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
+import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
@@ -582,6 +582,7 @@ function compileSkillText(skill: Skill): Script {
     replacing: null,
     n: 0,
     raw: skill.effect,
+    skillKind: skill.kind,
     xBound: priceX(skill) !== null,
   };
   // A standing permission is one sentence, not a list of actions: "you can
@@ -963,7 +964,9 @@ function compileSkillText(skill: Skill): Script {
     else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
-      if (/\byour\b/i.test(trigger) || /^when you play (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
+      // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
+      // card used in the combo, likewise.
+      if (/\byour\b/i.test(trigger) || /^when you (?:play|combo with) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that
@@ -1120,7 +1123,7 @@ function compileSkillText(skill: Skill): Script {
   // "If you discard 1 card from your hand:" (BT22-054b) is an action price
   // whose only condition word is the "if" (`readPrice`): it read as an action,
   // so there is no condition left unread.
-  const ifThenAction = IF_YOU_DISCARD_PRICE.test(priced) &&!priceCond && !!compileCostProgram(skill);
+  const ifThenAction = IF_YOU_ACTION_PRICE.test(priced) &&!priceCond && !!compileCostProgram(skill);
   if (ops.length && !engineChecks && !ifThenAction && /^(?:if|when|while|during)\b/i.test(priced)) {
     return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }

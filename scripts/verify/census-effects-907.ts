@@ -59,8 +59,11 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
 
   const either = rest("[Auto] When this card is played, look at up to 2 cards from the top of your deck, add up to 1 mono-blue card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order. You can't play copies of this card for the turn.");
   assert.deepEqual(either.unsupported, [], "BT12-044: top or bottom");
-  const [mode] = find(either.ops, "chooseMode");
-  assert.deepEqual(mode.modes.map((m) => (m.ops[0] as { position?: string }).position), ["top", "bottom"]);
+  // Owner's ruling of 26 Oct 2026 (phrasing batch 2): each remaining card to the end the player chooses — a choice
+  // of the cards for the top, the rest to the bottom — no longer one end for the whole remainder.
+  assert.deepEqual(find(either.ops, "chooseMode"), [], "BT12-044: no single end for the whole remainder");
+  const ends = find(either.ops, "moveTo").filter((m) => m.to === "deck").map((m) => m.position);
+  assert.deepEqual(ends, ["top", "bottom"], "BT12-044: the cards chosen to the top, the others to the bottom");
   assert.equal(validateProgram(either.ops), true);
 }
 
@@ -76,17 +79,24 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
     s.cards[deck[2]].cardId = "C907-C";
     return deck.slice(0, 3);
   };
-  const run = (skill: string, answers: Action[] = []) => {
+  // `tops`: after the card taken to the hand, which of the rest the player keeps on top when the card lets each go to
+  // either end (owner's ruling of 26 Oct 2026) — "all" of them or "none".
+  const run = (skill: string, answers: Action[] = [], tops?: "all" | "none") => {
     def("C907-LOOK", { energyCost: 0, skill });
     let s = stagedG({ hand: ["C907-LOOK"] });
     const seen = top3(s);
     const before = zoneOf(s, "p1", "deck").length;
     s = playCard(s, "C907-LOOK");
     let taken: string | null = null;
-    for (let i = 0; i < 6 && (s.prompt.kind === "chooseCards" || s.prompt.kind === "chooseMode"); i++) {
+    for (let i = 0; i < 8 && (s.prompt.kind === "chooseCards" || s.prompt.kind === "chooseMode"); i++) {
       if (s.prompt.kind === "chooseCards") {
-        taken = s.prompt.choice.candidates[0];
-        s = playG(s, { type: "choose", player: "p1", cards: [taken] });
+        if (!taken) {
+          taken = s.prompt.choice.candidates[0];
+          s = playG(s, { type: "choose", player: "p1", cards: [taken] });
+        } else {
+          // One card per answer: "all" takes them one at a time, "none" stops at once.
+          s = playG(s, { type: "choose", player: "p1", cards: tops === "all" && s.prompt.choice.candidates.length ? [s.prompt.choice.candidates[0]] : [] });
+        }
       } else s = playG(s, answers.shift() ?? { type: "chooseMode", player: "p1", index: 0 });
     }
     assert.ok(taken, "one card is chosen from the three");
@@ -99,10 +109,10 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
   assert.deepEqual(zoneOf(onTop.s, "p1", "deck").slice(0, 2).sort(), [...onTop.rest].sort(), "BT12-031: the other two are back on top");
   const drop = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card to your hand, then place the remaining cards into their owner's Drop.");
   assert.ok(onTop.rest.length === 2 && drop.rest.every((id) => zoneOf(drop.s, "p1", "drop").includes(id)), "BT29-014: the other two are in the Drop");
-  const bottom = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [{ type: "chooseMode", player: "p1", index: 1 }]);
-  assert.deepEqual(zoneOf(bottom.s, "p1", "deck").slice(-2).sort(), [...bottom.rest].sort(), "BT12-044: 'bottom' was the answer, so they are last");
-  const top = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [{ type: "chooseMode", player: "p1", index: 0 }]);
-  assert.deepEqual(zoneOf(top.s, "p1", "deck").slice(0, 2).sort(), [...top.rest].sort(), "and 'top' puts them first");
+  const bottom = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [], "none");
+  assert.deepEqual(zoneOf(bottom.s, "p1", "deck").slice(-2).sort(), [...bottom.rest].sort(), "BT12-044: none kept on top, so they are last");
+  const top = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [], "all");
+  assert.deepEqual(zoneOf(top.s, "p1", "deck").slice(0, 2).sort(), [...top.rest].sort(), "and both kept on top puts them first");
 }
 
 // ── "you win the game" ──────────────────────────────────────────────────────

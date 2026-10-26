@@ -963,6 +963,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // #966: "place 1 card in your Drop Area from your life" (BT13-099) → "place
     // 1 card from your life in your Drop Area", the order the move patterns read.
     .replace(/^place (.+?) in ((?:your|their|its owner'?s) drop(?: area)?) (from (?:your|their) (?:life|hand|energy(?: area)?|battle area|combo area))$/, "place $1 $3 in $2")
+    // Phrasing batch 2: "place this card in your energy **from your Drop Area**" (DB3-028, DB3-033, DB3-119) and
+    // "add this card to your Z-Energy **from your Drop**" (BT18-029, BT20-054b): the same reorder, into the energy
+    // or the Z-Energy, from the Drop or the Warp.
+    .replace(/^(place|add) (this card|it) (in|to) ((?:your|its owner'?s) (?:energy|z-energy)(?: area)?) (from your (?:drop|warp)(?: area)?)$/, "$1 $2 $5 $3 $4")
+    // Phrasing batch 2, the same reorder for the other destinations a source is printed after:
+    // - "place this card at the bottom of its owner's deck **from the Battle Area**" (DB2-174);
+    // - "add up to 1 red <General Rilldo> card … **to your hand from your deck**" (P-381, P-377, P-378, BT17-063);
+    // - "place this card under your Leader Card **from your hand**" (BT15-040, BT15-041), "place up to 3 ≪Namekian≫
+    //   cards under it **from your Drop Area**" (P-397), "…place this card under it **from your Battle Area**" (EX19-08).
+    .replace(/^place (.+?) ((?:at|on) (?:the )?(?:top|bottom) of (?:your|its owner'?s) deck) (from the battle area)$/, "place $1 $3 $2")
+    .replace(/^add (.+?) to your hand (from your (?:deck|drop(?: area)?|warp))$/, "add $1 $2 to your hand")
+    .replace(/^(place|put) (.+?) under (it|your leader(?: card)?|the chosen [a-z' ]+?) (from (?:your|its owner'?s) (?:hand|drop(?: area)?|battle area|warp))$/, "$1 $2 $4 under $3")
     // Phrasing batch 1: "place this card at the bottom of your deck **from your Warp**" (BT16-122, P-288, P-287) →
     // "place this card from your Warp at the bottom of your deck", the order the move patterns read.
     .replace(/^place (.+?) ((?:at|on) (?:the )?(?:top|bottom) of (?:your|its owner'?s) deck) (from (?:your|its owner'?s) (?:warp|drop(?: area)?|hand|battle area|combo area))$/, "place $1 $3 $2")
@@ -970,6 +982,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     .replace(/^send (.+?) (to (?:your|their|its owner'?s?) warps?) (from (?:your|their) (?:drop(?: area)?|hand|battle area))$/, "send $1 $3 $2");
   let m: RegExpExecArray | null;
 
+  // Phrasing batch 2: "At the end of your opponent's next turn, **they add** all cards sent to their Warp by this
+  // skill **from their Warp to their hand**" (BT11-014, BT11-016): the cards this skill sent, back to their owner's
+  // hand — who does the adding changes nothing about where they go.
+  if ((m = /^(?:they|your opponent) adds? (.+?) from their warp to their hand$/.exec(t)) && SENT_TO_WARP_BY_THIS_SKILL.test(m[1])) {
+    const ref = refFor(m[1], c);
+    return ref ? [{ op: "moveTo", target: ref, to: "hand" }] : null;
+  }
+  // Phrasing batch 2: a keyword list with its subject left behind by the "and" that cut it off — "this card gets
+  // +5000 power **and gains [Critical] and [Double Strike] for the turn**" (BT31-079, DB1-006): the card the power
+  // change just before it named.
+  if ((m = /^gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(stripQualifiers(t))) && c.lastTarget && c.lastOp === "power") {
+    const kws = [...m[1].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
+    if (kws.length && kws.every((k) => k)) {
+      const until = durationOf(t);
+      return kws.map((k) => ({ op: "grant", target: c.lastTarget!, keyword: k!, until }) as Op);
+    }
+  }
   // Phrasing batch 1: "…it gets +20000 power for the battle; if …, **it also gains** [Double Strike]" (BT12-083): the
   // second grant prints no span of its own and is said as more of the same change, so it lasts as the one before it
   // did. Only when that one was a power change or a grant of this same clause list, for the battle or the turn.
@@ -1327,7 +1356,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Damage (5-10).
   // "Inflict 2 damage to your opponent" (BT1-011, BT1-015, BT2-006, EX03-03) is "deal 2 damage":
   // 1-13 treats the two verbs alike, as the "to your life" line below already does.
-  if ((m = /^(?:deal|inflict) (\d+) damage to (?:your opponent|your opponent's life|them)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
+  // Phrasing batch 2: "deal 1 damage to **their life**" (P-030, after "an opponent's Battle Card"), "inflict 1
+  // damage to **the opponent's life**" (BT2-028), "**it deals** 1 damage to your opponent's life" (BT3-123: the card
+  // the sentence is about, dealing it as the skill's), "deal 1 **additional** damage to your opponent" (BT9-104: one
+  // more damage of its own, after the damage the moment was about).
+  if ((m = /^(?:(?:it|this card) deals|deal|inflict) (\d+) (?:additional )?damage to (?:your opponent|your opponent's life|them|their life|the opponent'?s life|the opponent)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
   // "you may inflict 2 damage to your life" (EX03-11, P-015): damage to yourself is
   // the same 5-10 damage, taken from your own Life Area into your own hand.
   if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
@@ -1362,6 +1395,26 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (n === 1) c.lastNamed = vars[0];
     return oneAtATime(vars.map((v): Op[] => [{ op: "look", n: 1, as: v }, { op: "moveTo", target: { var: v }, to: "warp" }]), "send the top card of your deck to your Warp");
   }
+  // Phrasing batch 2: "**draw up to 2 cards**" (TB2-029): an optional draw a card at a time, as "place up to 2 cards
+  // from the top of your deck in the Drop Area" is (owner's ruling of 20 Oct 2026) — you may draw 1, then if you did,
+  // 1 more.
+  if ((m = /^draw up to (\d+) cards?$/.exec(t)) && Number(m[1]) >= 1 && Number(m[1]) <= 5) {
+    return oneAtATime(Array.from({ length: Number(m[1]) }, (): Op[] => [{ op: "draw", n: 1 }]), "draw 1 card");
+  }
+  // Phrasing batch 2: "…otherwise **return the card you looked at** to the bottom of your deck" (BT11-047): the card the
+  // look turned up, while it is still where it was looked at (the deck).
+  if ((m = /^return the card you looked at to the (top|bottom) of your deck$/.exec(t)) && c.lastSeen) {
+    return [{ op: "moveTo", target: { sel: { fromVar: c.lastSeen, area: "deck" } }, to: "deck", position: m[1] as "top" | "bottom" }];
+  }
+  // Phrasing batch 2: "When your opponent activates a [Counter] skill, **they discard 2 cards from their hand**"
+  // (BT20-143, BT18-071): the opponent's discard (20-7), as "your opponent discards …" reads.
+  if ((m = /^they discard (\d+) cards? from their hand$/.exec(t))) return compileClause(`your opponent discards ${m[1]} card${m[1] === "1" ? "" : "s"} from their hand`, c);
+  // Phrasing batch 2: "When your opponent activates a [Counter: Attack] skill, **they place 1 card from their hand at
+  // the bottom of their deck**" (BT17-049): they choose the card, from their own hand (TB3-019's two-clause wording).
+  if ((m = /^(?:they|your opponent) places? (\d+) cards? from their hand (?:at|on) the bottom of their deck$/.exec(t))) {
+    const v = `c${c.n++}`;
+    return [{ op: "choose", sel: { side: "opponent", area: "hand", count: Number(m[1]) }, as: v, chooser: "opponent", reason: clause.trim() }, { op: "moveTo", target: { var: v }, to: "deck", position: "bottom" }];
+  }
   // "Draw cards until you have 4 cards in your hand".
   if ((m = /^draw cards until you have (\d+) cards? in your hand$/.exec(t))) return [{ op: "draw", n: { handUpTo: Number(m[1]) } }];
   // "Place the top card of your deck in your Drop Area", "your opponent places
@@ -1386,11 +1439,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   //   card of your deck, place the card on the top or bottom of your deck"
   //   (EX10-03): one card, its owner's deck, the end the skill's player picks
   //   (the same choice as the remaining cards' "top or bottom" below).
-  // A plural "top or bottom" / "top and/or bottom" (BT9-037, BT10-081) may mean
-  // one end per card, and stays unread until that is ruled.
+  // - A plural "place them on the top or bottom of your deck in any order" /
+  //   "…on the top and/or bottom…" (BT9-037, BT10-080, BT10-081; owner's ruling
+  //   of 26 Oct 2026): EACH card goes to the top or the bottom as the player
+  //   chooses, in the order the player chooses — `topOrBottomEach`.
   if (c.lastOp === "look" && c.lastSeen) {
     const looked: Ref = { var: c.lastSeen };
     if (/^(?:place|put|return) them (?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck in any order$/.test(t)) return [{ op: "note", text: "the cards looked at go back on top of the deck, in any order" }];
+    if (/^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (?:or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.test(t)) return topOrBottomEach(c.lastSeen, c);
     if (/^(?:place|put|return) (?:it|the card|that card) (?:at|on) (?:the )?top or (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck$/.test(t))
       return [{
         op: "chooseMode", chooser: "you", reason: "Put the card on the top or the bottom of the deck",
@@ -1421,17 +1477,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in any order)?$`).exec(t)))
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
     // "…on the top or bottom of your deck in any order" / "…on the top and/or
-    // bottom": the player says which end. Best guess (no ruling prints it): one
-    // answer for the whole remainder, not one per card, since the order is
-    // theirs anyway and the engine keeps no order for a pile moved at once.
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (?:or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).exec(t)))
-      return [{
-        op: "chooseMode", chooser: "you", reason: "Put the remaining cards on the top or the bottom of the deck",
-        modes: [
-          { label: "Top of the deck", ops: [{ op: "moveTo", target: rest, to: "deck", position: "top" }] },
-          { label: "Bottom of the deck", ops: [{ op: "moveTo", target: rest, to: "deck", position: "bottom" }] },
-        ],
-      }];
+    // bottom": owner's ruling of 26 Oct 2026 (phrasing batch 2) — EACH card goes
+    // to the top or the bottom as the player chooses, in the order the player
+    // chooses (`topOrBottomEach`). Until then one answer covered the whole
+    // remainder (a best guess).
+    if (new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (?:or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).test(t))
+      return topOrBottomEach("looked", c);
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their owners?'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
     // "…then send the rest to their owner's Warp" (BT30-106, 3-10).
     if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
@@ -2227,6 +2278,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 
   // Negation (9-1).
   if (/^negate (?:the|that|this) attack$/.test(t)) return [{ op: "negateAttack" }];
+  // Phrasing batch 2: "…negate that attack **and this skill for the duration of the turn**" (BT6-002b, TB1-050b): the
+  // "and" left the second thing negated without its verb — this skill, for the turn, as "negate this skill for the turn".
+  if (/^this skill for the (?:duration of the )?turn$/.test(t) && c.lastOp === "negateAttack") return [{ op: "negateOwnSkill", until: "turn" }];
+  // Phrasing batch 2: "[Counter: Play] **When the Battle Card is played**, choose up to 2 of your opponent's Battle
+  // Cards …" (BT9-020): the [Counter: Play]'s own moment said again (9-6), which adds nothing to read.
+  if (/^when the (?:battle |unison |extra )?card is played$/.test(t) && c.skillKind === "counter:play") return [];
   // 9-1-5: a skill that switches itself off, for effects meant to happen once.
   // "For the game" is a mark on the instance; the two shorter durations are
   // continuous effects, because they have to come back.
@@ -2258,6 +2315,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) skills negated(?: (?:for|until) .*)?$/.exec(q)) && (m[1] || c.lastTarget)) {
     const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
+  }
+  // Phrasing batch 2: "…choose up to 2 ≪Frieza Clan≫ … from your hand and play them. **Their skills are negated** for
+  // the duration of the game" (BT2-103): the cards the sentence before named. Not "…until the end of your opponent's
+  // next turn, its skills are negated and it can't attack" (EX17-04): there the span opens the sentence and closes
+  // both halves, which the prohibition after it does not carry.
+  if (/^(?:their|its) skills? (?:are|is) negated(?: for .*)?$/.test(t) && c.lastTarget && !("sel" in c.lastTarget && c.lastTarget.sel.special === "self")) {
+    return [{ op: "negateSkills", target: c.lastTarget, until: durationOf(t) }];
   }
   // "Negate it for the duration of the turn": a card, so all of its skills (9-1-5).
   if ((m = /^negate (it|them|that card|those cards)$/.exec(q))) {
@@ -2942,6 +3006,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^(?:add|place) (it|them) (?:to|in) their energy(?: area)? in rest mode$/, "energy", { mode: "rest", reveal: true }],
     [/^add (.+?) to your hand$/, "hand", {}],
     [/^send (.+?) to (?:your|their|its owner'?s?|their owners?'?s?|the) warps?$/, "warp", {}],
+    // Phrasing batch 2: "choose 1 {Majin Buu's Sealed Ball} from your deck and **place it in the Battle Area in Active
+    // Mode**" (BT2-003, BT2-100): placed, not played (5-5), in the mode it says.
+    [/^place (it|them|that card|the chosen cards?) (?:in|into) (?:the|your) battle area in active mode$/, "battle", { mode: "active" }],
+    [/^place (it|them|that card|the chosen cards?) (?:in|into) (?:the|your) battle area in rest mode$/, "battle", { mode: "rest" }],
+    // Phrasing batch 2: "Add up to 1 Battle Card **in your opponent's Drop to their Z-Energy**" (BT21-034b, P-667).
+    [/^add (.+? in your opponent'?s drop(?: area)?) to (?:their|its owner'?s) z-energy$/, "zEnergy", { owner: "opponent" }],
+    // Phrasing batch 2: "send up to 1 red or black ≪Saiyan≫ card **from your Warp to its owner's Drop**" (BT27-001b).
+    [/^send (.+? from your warp) to (?:its owner'?s?|their owners?'?s?|your) drops?(?: area)?$/, "drop", { reveal: true }],
+    // Phrasing batch 2: "Add up to 1 {Vegeta, Warrior Spirit} or {Trunks, Warrior Spirit} **from your Combo Area to its
+    // owner's hand**" (BT25-072).
+    [/^add (.+? from your combo area) to (?:its owner'?s?|their owners?'?s?|your) hands?$/, "hand", {}],
     // The passive said the same as the active line above — "it's sent to its
     // owner's Warp" (9-10, ten cards) rather than "send it to Warp" — and the
     // subject is always the pronoun a replacement clause already resolved.
@@ -4282,8 +4357,10 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
 }
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
-  const m = /play (?:up to )?(\d+) (.+?) tokens?/i.exec(clause);
+  // "…then play **a** Chilled's Army Token with 10000 power" (BT13-062, phrasing batch 2): one token.
+  const m = /play (?:up to )?(\d+|an?) (.+?) tokens?/i.exec(clause);
   if (!m) return null;
+  if (/^an?$/i.test(m[1])) m[1] = "1";
   // The reminder text states the token's stats, and they were read as one
   // triad — power, then combo cost, then combo power. A reminder that gives
   // only the power failed the whole match, and the token was then built with a
@@ -4312,7 +4389,12 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
   // "play 1 Frieza's Army Token with 10000 power, and it gains…" (BT28-020) and
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
-  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:[,.]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|the tokens?|that (?:card|token))\b/i.test(after);
+  // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
+  // semicolon carries the sentence on as the comma does.
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after)
+    // "Play **up to** 2 Cell Jr. Tokens …, and those cards get …" (BT21-088): the token op makes the number it is given,
+    // so a sentence that goes on about the tokens of an "up to" play is not read as if all of them were made.
+    && !/^play up to /i.test(m[0]);
   // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
   // skill prints the token's power itself and that figure, not the 5000 default
   // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
@@ -4409,6 +4491,7 @@ function track(o: Op, c: Ctx): void {
   if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
   if (o.op === "ko" && "var" in o.target && !o.target.minus) c.koed = o.target.var;
+  if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.target.var;
 }
 
 /**
@@ -4448,6 +4531,16 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = described(m[1]);
     return filter ? { kind: "count", sel: { fromVar: c.priceChoice, area: "drop", filter }, atLeast: 1 } : null;
   }
+  // Phrasing batch 2: "…place up to 2 cards with [Dragon Ball] from your deck in your Drop Area, then shuffle your deck.
+  // **If you placed a card in your Drop Area using this skill**, draw 1 card" (EX19-11), "If you placed a [Dragon
+  // Ball] card in your Drop Area, …" (BT5-106): the cards this skill's own move took to the Drop, and only those
+  // still there — a card the move did not reach was not placed.
+  if ((m = /^if you placed (?:a|an|1 or more|any) (.*?)cards? in (?:your|a|the) drop(?: area)?(?: (?:using|with|by) this skill)?$/.exec(t)) && c.dropped) {
+    const said = m[1].trim();
+    const filter = said ? described(`${said} card`) : null;
+    if (said && !filter) return null;
+    return { kind: "count", sel: { fromVar: c.dropped, area: "drop", ...(filter ? { filter } : {}) }, atLeast: 1 };
+  }
   if ((m = /^if its power is (\d+) or (more|less)$/.exec(t)) && lastVar) {
     return { kind: "power", sel: { fromVar: lastVar, area: "play" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) };
   }
@@ -4456,6 +4549,25 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     return filter ? { kind: "varMatches", var: c.last, filter } : null;
   }
   return null;
+}
+
+/**
+ * Owner's ruling of 26 Oct 2026 (phrasing batch 2, BT9-037, BT10-081): "place
+ * them on the top and/or bottom of your deck in any order" with several cards
+ * sends EACH card to the top or the bottom as the player chooses, in the order
+ * the player chooses. Read as one choice of the pile's cards — any number, none
+ * included — that go on top, and the rest to the bottom; the order within each
+ * end is the player's, as for any pile moved at once (the engine keeps none).
+ * `pool` is the variable the look bound; a choice from it takes its picks out
+ * of it, so the bottom is what the top choice left.
+ */
+function topOrBottomEach(pool: string, c: Ctx): Op[] {
+  const v = `c${c.n++}`;
+  return [
+    { op: "choose", sel: { fromVar: pool, count: 99, upTo: true }, as: v, reason: "Choose the cards to put on the top of the deck (the rest go to the bottom)" },
+    { op: "moveTo", target: { var: v }, to: "deck", position: "top" },
+    { op: "moveTo", target: { var: pool, minus: v }, to: "deck", position: "bottom" },
+  ];
 }
 
 /** A clause that is nothing but a duration, split off from the effect it belongs to. */
@@ -4697,6 +4809,13 @@ function joinSplitPlacements(clauses: string[]): string[] {
 }
 
 /**
+ * "Choose up to 1 of your red <Son Goku: GT> cards **and it** gets +15000
+ * power" (BT26-027): the pronoun is the clause's own choice, named before it in
+ * the same clause — no back reference to what an earlier sentence did.
+ */
+const OWN_CHOICE_PRONOUN = /^choose (?:(?!\b(?:it|them|they|the rest|that card|those cards)\b).)+? and (?:it|they) (?:gets?|gains?|loses?)\b/i;
+
+/**
  * `rawJoined[k]` says clause k was cut from the one before it at an "and" of
  * the same sentence (`splitClausesJoined`). Omitted, every clause
  * starts a sentence of its own, which is what a caller that never asked meant.
@@ -4770,6 +4889,8 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   // that kept them under the opening condition. A "Then, if …" is a condition
   // of its own, not one added to the first.
   let afterThen = false;
+  /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
+  let countSubject: { said: string; area: boolean } | null = null;
   for (let i = 0; i < clauses.length; i++) {
     const clause = clauses[i];
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
@@ -4783,8 +4904,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // gain control of it", whose FAQ says it does not resolve when the Leader condition fails; BT3-086's "place
       // the rest in your Drop Area").
       const tail = clause.trim().replace(/^then,?\s*/i, "");
-      const tailOfCondition = /^shuffle\b/i.test(tail) || /\b(?:it|them|the rest|that card|those cards)\b/i.test(tail);
-      if (thenHere && !tailOfCondition && here.conds.length && here.ops.length && !here.delay && !here.sink) groups.push({ conds: [], ops: [] });
+      // A pronoun the clause binds itself ("choose up to 1 … and it gets …") points back at nothing.
+      const tailOfCondition = /^shuffle\b/i.test(tail) || (/\b(?:it|them|the rest|that card|those cards)\b/i.test(tail) && !OWN_CHOICE_PRONOUN.test(tail));
+      // Phrasing batch 2 (owner's ruling of 26 Oct 2026 on BT26-027): a new sentence — a clause opening on a capital
+      // letter, the way the catalog starts every sentence — that is not itself a condition, a connective or a
+      // timing is outside the condition the sentence before it opened, as a "Then," follow-up is (BT3-043's FAQ):
+      // "If your Leader is …, draw 2 cards and discard 2 cards from your hand. Choose up to 1 …" gates only the
+      // draw and the discard. The same back references stay inside.
+      const newSentence = /^[A-Z]/.test(clause.trim()) && !/^(?:If|When|While|Unless|Otherwise|Additionally|At|Then|Instead|Also|During|Until|For)\b/.test(clause.trim());
+      if ((thenHere || newSentence) && !tailOfCondition && here.conds.length && here.ops.length && !here.delay && !here.sink) groups.push({ conds: [], ops: [] });
     }
     // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
     // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
@@ -5400,7 +5528,17 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // both have to hold rather than the first being quietly dropped.
     const open = groups[groups.length - 1];
     const chaining = open.ops.length === 0 && (open.conds.length > 0 || !!open.innerConds?.length);
-    const cond = parseConditionClause(clause, chaining);
+    // Phrasing batch 2: the second count of "If your opponent has 2 or more energy **and 1 or more Battle Card in their
+    // Warp**" (BT13-147), "If you have 3 or more energy **and 3 or more Z-Energy**" (BT25-148), "…and **a black Unison
+    // in play**" (BT29-087): the "and" cut the count off the subject it shares with the one before it, which is said
+    // again for it. Only straight after such a condition, and only a bare count. Not when this half names an area
+    // the first did not — "you have 1 or more red cards **and** 1 or more yellow cards **in your energy**" (BT24-132)
+    // may be counting both in the energy, and the first half was read as cards in play.
+    const areaNamed = (said: string) => /\b(?:in|from) (?:your|their|play|the|a|its)\b|\benergy\b|\bz-energy\b/i.test(said);
+    const sharedSubject: string | null = chaining && countSubject && /^(?:\d+ or (?:more|less|fewer)|an?|no|at least \d+) \S/i.test(clause.trim()) && !(!countSubject.area && /\bin (?:your|their)\b/i.test(clause)) ? countSubject.said : null;
+    const cond: ReturnType<typeof parseConditionClause> = parseConditionClause(clause, chaining) ?? (sharedSubject ? parseConditionClause(`${sharedSubject} ${clause.trim()}`, true) : null);
+    const subjectHere = /^(?:(?:if|while|as long as) )?(you have|your opponent has)\b/i.exec(clause.trim())?.[1];
+    countSubject = subjectHere ? { said: subjectHere, area: areaNamed(clause) } : sharedSubject && cond ? countSubject : null;
     if (cond) {
       // The condition follows a timing phrase with nothing between them: it is
       // the delayed part's own, asked when that part runs. Read as a group of
@@ -5411,6 +5549,9 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       else if (chaining) open.conds.push(cond.cond);
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
+      // Phrasing batch 2: "[Permanent] While there are 2 or more cards under **this card**, **it** gets +15000 power"
+      // (P-391, P-392): with nothing named before it, "it" is the one card the condition spoke of.
+      else if (!c.lastTarget && c.last === null && /\bthis card\b/i.test(clause) && !/\bother than this card\b/i.test(clause)) c.lastTarget = { sel: { special: "self" } };
       continue;
     }
     // "Instead" is the word every replacement ends on, and it broke the anchor
