@@ -1162,6 +1162,9 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
       // from the hand is in the Drop by the time its price is paid, so it is not one of the cards it can show.
       case "reveal": {
         if (op.sel.upTo) break;
+        // "Choose 1 card in your hand … and reveal it" (EX13-14, #930): a reveal of what an earlier choice of
+        // this price bound (the static half checks it is one) was counted by that choice above.
+        if (op.sel.fromVar) break;
         const shown = resolveSelector(ctx, game, state, frame, op.sel).filter((id) => id !== card || !inHand || !isExtra(ctx, game, state, card));
         if (selectedCount(op.sel, shown, (id) => String(attrsNow(ctx, game, state, id).name ?? id), undefined, (id) => { const c = attrsNow(ctx, game, state, id).characters; return Array.isArray(c) ? c.map(String) : []; }) < (op.sel.minCount ?? op.sel.count ?? 1)) return false;
         break;

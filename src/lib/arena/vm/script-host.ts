@@ -147,6 +147,8 @@ export interface ScriptHost {
   condHolds(frame: ScriptFrame, c: Cond): boolean;
   /** `choose … namedSet`: the cards among `sel` that can still be part of a complete set of the line's named characters, one printed power, given those already picked (22-13-4-2). */
   namedCandidates(frame: ScriptFrame, sel: Selector, picked: string[], samePower?: boolean): string[];
+  /** The character names the [Union-Fusion] skill of the card bound to `name` requires (#930, `unionNameOf`); none when nothing is bound. */
+  unionNames(frame: ScriptFrame, name: string): string[];
 
   // ── what the program can change ──────────────────────────────────────────
 

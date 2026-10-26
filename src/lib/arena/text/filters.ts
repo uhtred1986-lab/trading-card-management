@@ -125,6 +125,21 @@ export interface CardFilter {
    * Optional and written only when read, like `traitsAll`.
    */
   sameCharacterAs?: string | null;
+  /**
+   * "For each character name required for the revealed card's [union] skill,
+   * add up to 1 card **with a matching character name** …" (EX13-14), "Add up
+   * to 1 Battle Card each … **each with a character name that matches the
+   * [Union] skill conditions of the revealed card** …" (SD19-03, #930): the
+   * variable the skill's price bound by revealing a card with [Union-Fusion]
+   * (`reveal … as revealed`). The candidate must have, exactly (2-10-1-1), one
+   * of the character names that card's [Union-Fusion] material contract
+   * requires (its typed `needs`, never the display text). In a `choose` it is
+   * also a bound on the *set*: up to `count` cards per required name, each
+   * card filling a name of its own (`vm/script.ts`). Applied where the
+   * revealed card is known (`resolveSelector`), not by `matches`. Optional and
+   * written only when read, like `sameCharacterAs`.
+   */
+  unionNameOf?: string | null;
   type:"LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
   /** "Non-Leader card under this card" — the type it must *not* be. */
   notType: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" | null;
@@ -439,6 +454,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   powerRel: "powerRel",
   nameInSkillTextOf: "variable",
   sameCharacterAs: "variable",
+  unionNameOf: "variable",
   z: "tri",
 };
 type FilterFieldMissing = Exclude<keyof CardFilter, keyof typeof FILTER_FIELDS>;
@@ -468,7 +484,10 @@ const KEYWORD_FAMILIES = new Set(["union"]);
  * family would also forbid the cards the description allows.
  */
 function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name"] }, printed: string, negated = false): void {
-  const exact = /\d/.test(printed);
+  // #930: "a card with a **[union-fusion]** skill" (EX13-14) names one variant
+  // of [Union], so a [Union-Potara] or [Union-Absorb] card is not one; only the
+  // bare "[Union]" is the family.
+  const exact = /\d/.test(printed) || (kw.name === "Union" && "variant" in kw && !!kw.variant);
   if (exact) {
     const key = negated ? "notKeywordsExact" : "keywordsExact";
     const name = keywordName(kw as KeywordSkill);

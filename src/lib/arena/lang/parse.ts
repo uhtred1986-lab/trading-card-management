@@ -46,6 +46,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   otherThanSameName: (s) => (s.notSelf = "name"),
   differentNames: (s) => (s.differentNames = true),
   differentCharacters: (s) => (s.differentCharacters = true),
+  eachUnionName: (s) => (s.eachUnionName = true),
   distinctColors: (s) => (s.distinctColors = true),
   asPrinted: (s) => (s.printed = true),
 };

@@ -3674,6 +3674,10 @@
       "part": "flag"
     },
     {
+      "field": "eachUnionName",
+      "part": "flag"
+    },
+    {
       "field": "distinctColors",
       "part": "flag"
     },
@@ -3746,6 +3750,10 @@
     {
       "word": "differentCharacters",
       "doc": "differentNames on the character name (2-10): the cards chosen may not share character names (BT18-107's \"different character names\"); a count over it counts the distinct character names, not the cards (BT18-119)"
+    },
+    {
+      "word": "eachUnionName",
+      "doc": "with the filter's unionNameOf: the count is per character name the revealed card's [Union-Fusion] requires, each card filling a name of its own (EX13-14's \"for each character name required for the revealed card's [union] skill\", #930)"
     },
     {
       "word": "distinctColors",
@@ -4244,6 +4252,14 @@
       "field": "sameCharacterAs",
       "type": "variable",
       "printed": "card with the same character name as the card you placed under this card",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
+      "field": "unionNameOf",
+      "type": "variable",
+      "printed": "card with a character name the revealed card's [Union] skill requires",
       "openTo": [
         "string"
       ]
