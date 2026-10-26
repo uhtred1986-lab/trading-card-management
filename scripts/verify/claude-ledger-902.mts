@@ -51,7 +51,7 @@ const fresh = (caps: CampaignCaps = APPROVED_CAPS) => {
 // ---------------------------------------------------------------------------------------------
 // 1. Rates.
 {
-  assert.equal(CAMPAIGN_RATES.verifiedOn, "2026-10-25");
+  assert.equal(CAMPAIGN_RATES.verifiedOn, "2026-10-26");
   assert.match(CAMPAIGN_RATES.source, /^https:\/\/platform\.claude\.com\/docs\/en\/about-claude\/pricing/);
   assert.equal(CAMPAIGN_RATES.ownerVerified, false, "the agent's reading is not the owner's verification");
   const haiku = rateFor("claude-haiku-4-5", { paid: false });
@@ -69,6 +69,10 @@ const fresh = (caps: CampaignCaps = APPROVED_CAPS) => {
   const sonnet = rateFor("claude-sonnet-5-5", { paid: false });
   assert.ok(sonnet.ok);
   assert.equal(chargeMicros(sonnet.rate, { input: 0, output: 0, cacheRead: M, cacheWrite: 0 }), 100_000, "Sonnet 5.5 cache hits are 0.05x input");
+  const fable = rateFor("claude-fable-5-1", { paid: false });
+  assert.ok(fable.ok);
+  assert.equal(chargeMicros(fable.rate, { input: 0, output: 0, cacheRead: M, cacheWrite: 0 }), 250_000, "Fable 5.1 cache hits are 0.025x input");
+  assert.equal(chargeMicros(fable.rate, { input: M, output: M, cacheRead: 0, cacheWrite: M }), 80_000_000, "Fable 5.1: $10 in, $50 out, $20 1-hour write");
   // The bound covers every charge it bounds, on every model and tier.
   let x = 12345;
   const rnd = (k: number) => { x = (Math.imul(x, 1103515245) + 12345) >>> 0; return x % k; };

@@ -24,6 +24,8 @@ export interface OpenMatch {
   hostUser: string;
   hostDeckId: number | null;
   hostDeckName: string | null;
+  /** The host deck's game: a guest can only join with a deck of the same one. */
+  hostGame: string | null;
   debug: boolean;
   createdAt: Date;
 }
@@ -53,6 +55,7 @@ export async function listOpenMatches(db: Db): Promise<OpenMatch[]> {
       hostUser: arenaMatches.hostUser,
       hostDeckId: arenaMatches.hostDeckId,
       hostDeckName: decksTable.name,
+      hostGame: decksTable.game,
       debug: arenaMatches.debug,
       createdAt: arenaMatches.createdAt,
     })

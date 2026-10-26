@@ -107,3 +107,20 @@ Try it boards (`tryRule(probeRuleOf(...))`); throwaway engine proofs on the **st
 - **Found during the review and fixed first (#1217):** all 2,104 Fusion World catalog rows had an empty `characters` list, so no `<Name>` filter or "your Leader is <Name>" check could match in a real game (FS02-03, FS03-06, FS03-07 f10, FS03-13). A Fusion World card's name is now its character. Those rows are confirmed on the strength of that fix.
 - **Engine gaps behind the flags (issues are the owner's call to open):** the Fusion World [Super Combo] [Auto] stores `combo.origins` null instead of `["hand"]` (4 rows); "add 1 card from the top of your deck" is read as a choice from the whole deck (FS03-16); "in a random order" is read as a fixed order (FS03-13).
 - **Not verified:** Try it boards were not used (the probe stages original-game boards); no live game against the database decks was played. The original-game fuzz on the database decks ran the same day: 40/40 completed, 0 crashes.
+
+## Addendum, 26 Oct 2026 evening: the six flagged rows, after #1225 (F1-11, #1220)
+
+The compiler fixes merged in #1225. Each flagged card was re-drafted (`npm run arena:draft -- --card <id>`). All six were
+compiler-owned drafts, so the drafter rewrote them in place: "1 compiler rows updated, 0 person-owned rows now differ".
+Each new reading was then checked against the printed text and confirmed through `confirmRule` (attribution
+`claude-review`), which also clears the review flag. The rows were saved before the re-draft (10 rows of the 6 cards) and
+diffed afterwards with `--expect combo,ops,pattern,reads,version,status,confirmedAt,confirmedBy,confirmNote,reviewFlag`:
+the result was `ok`. The six reviewed rows changed and the other 4 rows are untouched.
+
+| Row | New reading | Result |
+|---|---|---|
+| FS01-05 f10, FS02-10 f10, FS03-12 f10, FS04-09 f10 | `combo.origins: ["hand"]`: the +10000 combo power applies only when the card joins a combo from the hand | confirmed |
+| FS03-13 f0 | the rest go to the bottom of the deck with `random: true`, shuffled by the game's seeded RNG | confirmed |
+| FS03-16 f0 | `moveTo energy` of the top card of the deck (`take: 1`), not a choice from the whole deck | confirmed |
+
+**Totals for the four starter decks: 61 rows reviewed, 61 confirmed, 0 flagged.**

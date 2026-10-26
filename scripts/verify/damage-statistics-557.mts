@@ -132,7 +132,7 @@ assert.equal(finished.prompt.kind, "gameOver");
 assert.deepEqual(finished.damageTotals, { p1: 0, p2: 0 }, "a completed game with no damage reports real zero");
 
 const overProps: ComponentProps<typeof GameOver> = {
-  gameId: 557, outcome: { kind: "concession", winner: "p2", reason: "A player conceded." }, winnerName: "Claude",
+  gameId: 557, game: "dbs", outcome: { kind: "concession", winner: "p2", reason: "A player conceded." }, winnerName: "Claude",
   turns: 2, damage: { you: 0 as number | null, them: 0 as number | null },
   spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, review: null, aiEnabled: false,
   deckId: null, versus: false, draftFired: { count: 0, names: [] }, cards: [],

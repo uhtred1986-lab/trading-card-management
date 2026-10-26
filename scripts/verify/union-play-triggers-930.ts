@@ -72,7 +72,7 @@ const CARDS: [string, number, unknown[], string[]][] = [
   ["BT2-085", 20, ["draw", "choose", "ko"], []],
   ["BT4-108", 20, ["discard", "grant"], []],
   ["BT7-123", 30, ["reveal", "choose", "moveTo"], []],
-  ["P-109", 30, ["choose", "moveTo"], []],
+  ["P-109", 30, ["moveTo"], []],
   ["BT28-097", 20, ["choose", "negateSkills", "ko"], []],
   ["BT28-099", 20, [{ op: "grant", target: { sel: { special: "self" } }, keyword: { name: "Barrier" }, until: "nextTurn" }], []],
 ];

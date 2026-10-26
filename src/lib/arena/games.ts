@@ -593,6 +593,7 @@ const GAME_LIST_COLUMNS = {
   outcomeKind: sql<string | null>`${arenaGames.state}->'outcome'->>'kind'`,
   turn: arenaGames.turn,
   mode: arenaGames.mode,
+  game: arenaGames.game,
   costMicros: arenaGames.aiCostMicros,
   updatedAt: arenaGames.updatedAt,
   turnPlayer: sql<string | null>`${arenaGames.state}->>'turnPlayer'`,

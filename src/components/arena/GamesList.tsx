@@ -3,6 +3,7 @@ import { modeLabel, seatOf } from "@/lib/arena/games";
 import { RematchButton } from "./RematchButton";
 import { resolveOutcome } from "@/lib/arena/outcome";
 import { Panel } from "@/components/ui";
+import { GameMark } from "@/components/GameMark";
 
 /** The row shape `listGames` / `listPlayingGames` return. */
 export interface GameRowData {
@@ -17,6 +18,7 @@ export interface GameRowData {
   outcomeKind?: string | null;
   turn: number;
   mode: string;
+  game: string;
   turnPlayer: string | null;
 }
 
@@ -55,7 +57,7 @@ export function ContinueStrip({ game, me }: { game: GameRowData; me: string | nu
     <Panel className="p-0 border-ki-500/50 bg-ki-500/10"><Link href={`/arena/${game.id}`} className="tap flex min-h-16 items-center gap-3 rounded-xl px-4 py-2 hover:border-ki-500">
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-space-50">
-          {watching ? "Watch" : "Continue"} vs {opponentLabel(game, me)}
+          {watching ? "Watch" : "Continue"} vs {opponentLabel(game, me)} <GameMark game={game.game} />
         </span>
         <span className="block break-words text-xs text-space-300">
           turn {game.turn}
@@ -79,7 +81,7 @@ function GameRow({ g, me }: { g: GameRowData; me: string | null }) {
     <li><Panel className="flex min-h-16 items-center gap-3 px-3 py-2">
       <Link href={`/arena/${g.id}`} className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-space-50">
-          {g.p1Name} <span className="text-space-500">vs</span> {g.p2Name}
+          <GameMark game={g.game} /> {g.p1Name} <span className="text-space-500">vs</span> {g.p2Name}
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-space-400">
           <span>{opponentLabel(g, me)}</span>

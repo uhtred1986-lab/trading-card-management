@@ -386,6 +386,19 @@ const NON_KEYWORD_KINDS: SkillKindPrefix[] = ["auto", "activate", "permanent"];
 function negateNonKeyword(target: Ref, until: Duration): Op[] {
   return NON_KEYWORD_KINDS.map((kind) => ({ op: "negateSkillsOfKind", target, kind, until }));
 }
+/**
+ * Phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327): "its **keyword** skills negated" — the inverse split:
+ * every keyword skill of the card (22-1-1), printed or granted (`negateSkillsOfKind` kind `keyword`), and its
+ * [Counter] skills, which are keyword skills too (9-7-1). Its [Auto], [Activate] and [Permanent] skills go on working.
+ * It used to read as every skill negated.
+ */
+function negateKeywordSkills(target: Ref, until: Duration): Op[] {
+  return (["keyword", "counter"] as const).map((kind) => ({ op: "negateSkillsOfKind", target, kind, until }));
+}
+/** Which half of a card's skills a "…(non-)keyword skills negated" names, as the ops that negate it. */
+function negateHalf(half: string, target: Ref, until: Duration): Op[] {
+  return /^non-/.test(half) ? negateNonKeyword(target, until) : negateKeywordSkills(target, until);
+}
 
 function durationOf(clause: string): Duration {
   const t = clause.toLowerCase();
@@ -807,7 +820,11 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // reading it as `count` asked how many cards are named "this card" (always
   // 1) and printed a flat bonus with no markers in it at all.
   const markersOn = /^markers?\s+on\s+(.+)$/.exec(counted);
-  const what = markersOn ? markersOn[1] : counted;
+  // Phrasing batch 5: "for every **Z-Energy cost of** the Z-Cards in your Leader Area, Battle Area, and Unison Area"
+  // (P-658): a Z-Energy cost total (`sumOf`, `zEnergyCost`), not a count of the cards — in single steps only.
+  const zCostOf = markersOn ? null : /^z-energy costs? of (?:the )?(.+)$/.exec(counted);
+  if (zCostOf && step !== 1) return null;
+  const what = markersOn ? markersOn[1] : zCostOf ? zCostOf[1] : counted;
   // "For each marker on **it**" (P-377, P-378, DB3-144): the pronoun the
   // sentence has been using for the card all along. `parseTarget` reads "this
   // card" and not the bare pronoun, and teaching it the pronoun would change
@@ -828,7 +845,9 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   // A count (or a marker total) reads the whole area, not one card out of it.
   const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
-    markersOn ? { markers: broad, ...per, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...per, ...(printed === 1 ? {} : { times: printed }) };
+    zCostOf
+      ? { sumOf: broad, attr: "zEnergyCost", ...(printed === 1 ? {} : { times: printed }) }
+      : markersOn ? { markers: broad, ...per, ...(printed === 1 ? {} : { times: printed }) } : { count: broad, ...per, ...(printed === 1 ? {} : { times: printed }) };
   // "Draw cards equal to the number of …" prints no number at all, because the
   // count is the number. Only the trailing "equal to" form says this; the
   // leading marker form always prints a number to multiply.
@@ -899,6 +918,13 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
   }
   if ((op.op === "power" || op.op === "comboPower" || op.op === "costReduction") && typeof op.amount === "number") {
     return { ...op, amount: amountFor(op.amount) };
+  }
+  // Phrasing batch 5: "for every 5 cards in your Z-Energy, **add 1 of your opponent's life** to its owner's Z-Energy"
+  // (BT23-109): an exact choice of a counted number becomes that many per step, owed (`owed`: as many as possible, never
+  // fewer by choice). Only an exact count — "up to 1 … for each" would be a bound, and is left as it is.
+  if (op.op === "choose" && typeof op.sel.count === "number" && !op.sel.upTo && op.sel.count < 99 && !op.atMost && !op.exactly && !op.sumTo) {
+    const { count, ...sel } = op.sel;
+    return { ...op, sel, atMost: amountFor(count), owed: true };
   }
   return null;
 }
@@ -1265,6 +1291,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // gap it would replace is the better answer (DB3-138's "{u}(X)" is a price
   // notation this compiler does not read).
   if (c.xBound && /^draw x cards?$/.test(t)) return [{ op: "draw", n: { x: true } }];
+  // Phrasing batch 5: "Choose up to 2 cards in your hand and discard them: When this card is played, **draw cards equal
+  // to the number of cards you discarded with this skill**" (DB3-058) — as many as the price's choice discarded — and
+  // "…choose up to 2 of your opponent's Battle Cards … and return them to their owners' hands, **then draw that many
+  // cards**" (XD1-02) — as many as the choice before it took (20-5). Not "revealed by this skill" (P-749), whose next
+  // clause is a count of its own no reader takes.
+  if (/^draw cards equal to the number of cards (?:you discarded|(?:that were )?discarded) (?:with|by|using) this skill$/.test(t) && c.priceChoice && c.priceDiscarded) return [{ op: "draw", n: { var: c.priceChoice } }];
+  if (/^(?:then )?draw that many cards$/.test(t) && c.last && c.last !== c.priceChoice) return [{ op: "draw", n: { var: c.last } }];
   // "Have your opponent draw 1 card" leaves the verb uninflected once the
   // leading words are split off, and a few sets print it that way outright.
   if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
@@ -1517,8 +1550,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   {
     const REST = "(?:the|any) (?:remaining cards?|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (?:any|a random) order)?$`).exec(t)))
-      return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom" }];
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (any|a random) order)?$`).exec(t)))
+      // "In a random order" (FS03-13) is drawn from the game's seeded RNG; "in any order" keeps the looked-at order.
+      return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom", ...(m[2] === "a random" ? { random: true as const } : {}) }];
     // "…on the top or bottom of your deck in any order" / "…on the top and/or
     // bottom": owner's ruling of 26 Oct 2026 (phrasing batch 2) — EACH card goes
     // to the top or the bottom as the player chooses, in the order the player
@@ -1534,6 +1568,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Phrasing batch 3: "Add up to 1 {Spirit} from your life to your hand, **then shuffle your life**" (BT30-007): the Life
   // Area shuffled, as a search of it leaves it (the `shuffle` op's own area).
   if (/^shuffle your life(?: area)?$/.test(t)) return [{ op: "shuffle", areas: ["life"] }];
+  // Phrasing batch 5 (owner's ruling of 26 Oct 2026 on BT26-015): "…, **then shuffle your Drop**" does nothing — the
+  // Drop Area is public and has no order the game keeps (3-6), so there is nothing to shuffle.
+  if (/^shuffle your drop(?: area)?$/.test(t)) return [];
   // "Declare a number from 0 to 3" (EX Android card), said in the effect itself.
   if ((m = /^declare (?:1|a|one) numbers?(?: (?:that'?s (\d+) or (?:less|fewer)|from (\d+) to (\d+)))?$/.exec(t))) {
     return [{ op: "declare", min: m[3] ? Number(m[2]) : 0, max: m[3] ? Number(m[3]) : m[1] ? Number(m[1]) : 10 }];
@@ -2032,6 +2069,13 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // 9-1-5: negating one named keyword rather than silencing the card.
+  // Phrasing batch 5: "…and negate **its** [energy-exhaust] skill in all areas" (EX18-05): the possessive pronoun, the
+  // card the sentence is about — this card, in a [Permanent] that names no other.
+  const itsSelf = !c.lastTarget || ("sel" in c.lastTarget && c.lastTarget.sel.special === "self");
+  if ((m = /^negate its \[([a-z0-9\- ]+)\](?: skill)? in (?:all|any) areas?$/.exec(t)) && c.permanent && itsSelf) {
+    const kw = keywordOf(m[1]);
+    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } } }];
+  }
   if ((m = /^negate (.+?)'s \[([a-z0-9\- ]+)\](?: skill)?(?: in (?:all|any) areas?)?$/.exec(t))) {
     // A tag that names a *kind* of skill rather than a keyword ("[Auto]") is
     // read further down; failing here would take the whole clause with it.
@@ -2389,6 +2433,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // card's non-keyword skills" (BT21-063), "…and have their non-keyword skills negated for the duration of the turn"
   // (BT8-115) switch off the [Auto], [Activate] and [Permanent] skills and leave the keyword skills — [Blocker],
   // [Barrier], [Double Strike], [Counter] (9-7-1, 22-1-1) — working. They used to read as every skill of the card.
+  // (Phrasing batch 5 reads the inverse half, "its **keyword** skills", only where a play says it — `negateHalf`. Not
+  // here yet: EB1-07's "…and has its keyword skills negated for the turn" is followed by a "you can't activate …" that
+  // `connective` skips as a reminder, and BT31-002b's is a [Permanent], which no standing reader collects.)
   if ((m = /^negate (.*?)(?:'s)? non-keyword skills$/.exec(q)) || (m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) non-keyword skills negated(?: (?:for|until) .*)?$/.exec(q))) {
     const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
     return ref ? negateNonKeyword(ref, durationOf(t)) : null;
@@ -2760,6 +2807,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(m[1], c);
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "redirectAttack", target })) : null;
   }
+  // Phrasing batch 5: "Play this card from your hand in Rest Mode **and switch the attack card to this card**" (BT25-145,
+  // BT30-021): this card takes the attacking card's seat in the battle (8-1-7-2) — `swapBattle` on this card, which
+  // becomes the attack card in place of the one attacking.
+  if (/^switch the attack(?:ing)? card to this card$/.test(t) && c.skillKind?.startsWith("activate")) return [{ op: "swapBattle", target: { sel: { special: "self" } } }];
   // "Switch your card that's in a battle with this card / the chosen card"
   // (8-1-7-2): the named card takes your seat in the battle, attacking or
   // guarding (BT30-098, BT31-085).
@@ -3156,6 +3207,16 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) (?:its owner'?s?|their owners?'?s?) z-energy$/, "zEnergy", {}],
     [/^(?:add|place|send) (it|them|this card|that card|those cards) (?:in|into|to) your opponent'?s z-energy$/, "zEnergy", { owner: "opponent" }],    [/^remove (.+?) from the game(?: instead)?$/, "removed", {}],
   ];
+  // Phrasing batch 5: "**add 1 of your opponent's life to its owner's Z-Energy**" (BT23-103, BT23-109): a card of their
+  // Life Area, chosen unseen (3-9-2: the Life lies face down, so the candidates are offered by position, `blind`), to
+  // the Z-Energy Area of its owner — theirs. Exactly that many, or as many as their life has (5-2-5).
+  if ((m = /^add (\d+) of your opponent'?s life to (?:its owner'?s?|their owners?'?s?|their|your opponent'?s) z-energy$/.exec(t))) {
+    const v = `c${c.n++}`;
+    return [
+      { op: "choose", sel: { side: "opponent", area: "life", count: Number(m[1]) }, as: v, reason: clause, blind: true },
+      { op: "moveTo", target: { var: v }, to: "zEnergy" },
+    ];
+  }
   // "Add up to 1 green Battle Card from your Drop to your Z-Energy **with its skills negated for the turn**"
   // (BT24-055b, BT26-068, BT30-010 …, phrasing batch 1): the move, then the moved card's skills negated for the
   // turn (9-1-5's wording for a play, said of a card added to the Z-Energy).
@@ -3276,11 +3337,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Only a source that starts with a possessive ("from your deck", "from
   // your hand or Drop Area") and only after one of the host phrases below.
   const onTopFirst =
-    /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:non-keyword )?skills negated(?: for (?:the )?(?:turn|game|battle)| until the end of your opponent's next turn)?)?)$/.exec(t);
+    /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:(?:non-)?keyword )?skills negated(?: for (?:the )?(?:turn|game|battle)| until the end of your opponent's next turn)?)?)$/.exec(t);
   const tOnTop = onTopFirst && !/\bon top of\b/.test(onTopFirst[3]) ? `${onTopFirst[1]} ${onTopFirst[3]} ${onTopFirst[2]}${onTopFirst[4]}` : t;
   if (
     (m =
-      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) (non-keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(
+      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(
         tOnTop,
       ))
   ) {
@@ -3301,10 +3362,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // 9-1-5: the sets print "for game" as well as "for the game"; anything
     // shorter than the game is an effect with a duration. Phrasing batch 4: the **non-keyword** skills alone, as the
     // plain play below reads them (EX21-20, BT21-066).
-    const nonKeyword = !!m[5] && /skills negated/.test(t);
-    if (!nonKeyword && / until the end of your opponent's next turn$/.test(tOnTop)) return null;
-    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !nonKeyword ? (m[6] === "game" ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (nonKeyword ? negateNonKeyword(target, durationOf(tOnTop.replace(/^.* with (?:its|their) non-keyword skills negated/, ""))) : []);
+    // Phrasing batch 5: "…with its **keyword** skills negated", the inverse half (`negateHalf`).
+    const half = m[5] && /skills negated/.test(t) ? m[5].trim() : undefined;
+    if (!half && / until the end of your opponent's next turn$/.test(tOnTop)) return null;
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[6] === "game" ? "game" : "turn") : undefined;
+    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
     if (!onto || !ref) return null;
     const extra = { onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
@@ -3341,7 +3403,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
         // cards' the choice looks for (it read as a choice of rested energy, played in Active Mode).
         .replace(/^(play .+?)(\s|--|[-—–―])in (rest|active) mode (from (?:your|their) (?:(?! with ).)+?)((?: with (?:its|their) .*)?)$/, (_w, a: string, gap: string, mode: string, from: string, rest: string) => `${a}${gap.trim() ? `${gap} ` : " "}${from} in ${mode} mode${rest}`)
     : t;
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) (non-keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(tp))) {
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(tp))) {
     if (/token/.test(t)) return compileToken(clause, c);
     // "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**" (P-500,
     // P-508, P-548, P-694, BT1-051, BT7-069, EX06-03, EX25-02, P-208): a permission that lifts the life gate of a
@@ -3370,10 +3432,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
     // negation of the card's [Auto], [Activate] and [Permanent] skills once it is played (`negateNonKeyword`), and
     // may last "until the end of your opponent's next turn" (EX21-20); the play itself is plain.
-    const nonKeyword = !!m[3] && /skills negated/.test(t);
-    if (!nonKeyword && / until the end of your opponent's next turn$/.test(tp)) return null;
-    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !nonKeyword ? (m[4] === "game" ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (nonKeyword ? negateNonKeyword(target, durationOf(t.replace(/^.* with (?:its|their) non-keyword skills negated/, ""))) : []);
+    // Phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327): "…with its **keyword** skills negated" is the inverse
+    // half, its keyword skills and [Counter]s (`negateHalf`); it used to read as every skill negated.
+    const half = m[3] && /skills negated/.test(t) ? m[3].trim() : undefined;
+    if (!half && / until the end of your opponent's next turn$/.test(tp)) return null;
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[4] === "game" ? "game" : "turn") : undefined;
+    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
     let ref = refFor(m[1], c);
     if (!ref) return null;
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
@@ -5755,6 +5819,29 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       clauses.splice(i, 2, `${clauses[i + 1].trim().replace(/[.]$/, "")} for each ${countFirst[1]}`);
       i--;
       continue;
+    }
+    // Phrasing batch 5: the same count leading any other effect, after a trigger — "When … KO'd by this card's attack,
+    // **for every 5 cards in your Z-Energy**, add 1 of your opponent's life to its owner's Z-Energy" (BT23-109), "When
+    // this card attacks, **for each non-Leader card under this card**, this card gets +10000 power for the battle": put
+    // behind the effect it multiplies, where `compileForEach` reads it ("… for every 5 cards in your Z-Energy"). Not
+    // over a sentence end, and not onto an effect that counts something of its own. Only the clause right after an
+    // [Auto]'s moment (the one `TRIGGER_THEN_COUNT` cuts off), and only when `compileForEach` reads the pair whole —
+    // anything else leaves the count unread, as it was before the cut (BT15-063, P-597: a choice "for each …" is not
+    // a number `compileForEach` can multiply).
+    // (A list of areas keeps its commas — "…in your Leader Area, Battle Area, and Unison Area" (P-658); a comma before a
+    // verb is a clause the count is not.)
+    // The same count opening an [Activate]'s effect — "[Activate: Battle] For each card in your Warp, this card gets +5000
+    // power for the battle" (EX15-05, EX21-32) — reads the same way. Never a count "with different character names"
+    // (BT18-059b, BT18-091): that is how many names, which a count of cards is not.
+    const leadCount = (c.skillKind === "auto" || c.skillKind?.startsWith("activate")) && i === 0 ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
+    const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent (?:card |character )?names?\b/i.test(leadCount[2]);
+    if (leadCount && countOnly && i + 1 < clauses.length && !/\bfor (?:each|every)\b|\bequal to\b/i.test(clauses[i + 1])) {
+      const multiplied = compileForEach(`${clauses[i + 1].trim().replace(/[.]$/, "")} for ${leadCount[1].toLowerCase()} ${leadCount[2]}`, c);
+      if (multiplied) {
+        push(multiplied);
+        i++;
+        continue;
+      }
     }
     // "Otherwise, draw 1 card" — the else of the condition just before it,
     // printed without a break. Split so the two halves read as themselves.
