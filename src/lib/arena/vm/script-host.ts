@@ -257,6 +257,12 @@ export interface ScriptHost {
   setPlayRest(card: string): void;
   /** 5-5: the card being played arrives with its skills negated. */
   setPlayNegated(card: string): void;
+  /**
+   * Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126): a switch of the card being played, made by `source`'s
+   * skill, happens once the card has landed — a real switch, with its moments. False when the card is not one being
+   * played (nothing is held).
+   */
+  switchOnLanding(card: string, mode: "active" | "rest", source: string, master: PlayerId): boolean;
   /** 9-6: the play being resolved happens differently — this program in its place. */
   replaceResolvingPlay(ops: Op[]): void;
 

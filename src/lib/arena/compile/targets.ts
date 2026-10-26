@@ -100,6 +100,12 @@ const AREA_NAMED: Record<string, ScriptArea> = {
   "z-energy": "zEnergy",
   "combo area": "combo",
 };
+/**
+ * Phrasing batch 5: "the Z-Cards in your **Leader Area**, Battle Area, and **Unison Area**" (P-658) — the areas a list of
+ * three or more may name besides those, read only in such a list. A pair ("in your Battle Area or Leader Area", BT3-087)
+ * stays the cards you have in play, as it always read.
+ */
+const AREA_LISTED: Record<string, ScriptArea> = { ...AREA_NAMED, "leader area": "leader", "unison area": "unison" };
 
 /**
  * "...for each green Extra Card in your Battle Area **and** Drop Area" (BT13-073, BT13-076, BT13-077,
@@ -114,7 +120,7 @@ export function countAreasSaidWithAnd(phrase: string): string {
     /\b((?:in|from|of|into) (?:your|their)(?: opponent'?s)? )((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)*),? and (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/,
     (all, pre: string, first: string, last: string) => {
       const words = [...first.split(/,\s*/), last].map((w) => w.trim());
-      if (!words.every((w) => AREA_NAMED[w])) return all;
+      if (!words.every((w) => (words.length >= 3 ? AREA_LISTED : AREA_NAMED)[w])) return all;
       return first.includes(",") ? `${pre}${first}, or ${last}` : `${pre}${first} or ${last}`;
     },
   );
@@ -771,7 +777,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // area word the table lacks, or the same area twice, is not read at all
   // here, and falls back to what it always did.
   const listed = AREA_LIST_RE.exec(tTarget) ?? AREA_LIST_RE.exec(t);
-  const listAreas = listed ? listed[1].split(/,\s*(?:(?:and\/or|or)\s+)?|\s+(?:and\/or|or)\s+/).map((w) => AREA_NAMED[w.trim()]) : [];
+  const listAreas = listed ? listed[1].split(/,\s*(?:(?:and\/or|or)\s+)?|\s+(?:and\/or|or)\s+/).map((w) => AREA_LISTED[w.trim()]) : [];
   const list: ScriptArea[] | null = listed && listAreas.length >= 3 && listAreas.every((a) => a) && new Set(listAreas).size === listAreas.length ? listAreas : null;
   const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null);
 
@@ -1038,14 +1044,19 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // used in the combo. Not "…using this card's skill", which is a means.
     /^you combo with (?:an?|1) ((?!.*\busing\b).+)$/.exec(t)?.[1] ??
     // Phrasing batch 3: "When you use a red skill-less Battle Card with an energy cost of 2 in a combo" (BT14-001b).
-    /^you use (?:an?|1) ((?!.*\busing\b).+?) in a combo$/.exec(t)?.[1] ??
+    // Phrasing batch 5: "When you use **one of your** Red/Yellow multicolor ≪God≫ cards in a combo" (BT24-002, BT24-003).
+    /^you use (?:an?|1|one of your) ((?!.*\busing\b).+?) in a combo$/.exec(t)?.[1] ??
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?)(?:[-—–]\s*)?is played\b/.exec(t)?.[1] ??
     // "When a blue or yellow ≪Universe 6≫ card is played in your Battle Area"
     // (XD1-01, #539): the card played, said the passive way.
     /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
-    /^(?:your|your opponent's) (.+?) attacks\b/.exec(t)?.[1] ??
+    // Phrasing batch 5: "when one of your … cards attacks", "when your Battle Cards **attack**" (BT2-003, `yourCardAttacks`).
+    /^(?:your|your opponent's|one of your) (.+?) attacks?\b/.exec(t)?.[1] ??
+    // Phrasing batch 5: "When one of your red or blue Battle Cards is removed from your Battle Area by an opponent's
+    // skill" (DB2-174, `yourCardRemovedByOpponent`): the card removed.
+    /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
     /^(?:your|your opponent's|an opponent's|one of your|one of your opponent's) (.+?) (?:is|are) ko'd\b/.exec(t)?.[1] ??

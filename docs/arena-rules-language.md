@@ -75,7 +75,7 @@ term   := number | "$" name | call ( "/" number )? ( "*" number )?   "/" on coun
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
         | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
-attr   := "power" | "originalPower" | "comboPower" | "energyCost" | "comboCost" | "specifiedCost"
+attr   := "power" | "originalPower" | "comboPower" | "energyCost" | "comboCost" | "specifiedCost" | "zEnergyCost"
 REF    := "$" name ( "MINUS" "$" name )? | SEL
 SEL    := part+                                    parts in any order; "any" when there are none
 part   := "[" special "]" | "FROM" "$" name | number | "UP TO" number? | "TOP" number

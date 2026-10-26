@@ -669,7 +669,12 @@ function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null
     const at = (n: string) => parseFilter(whole.slice(0, costs.index) + whole.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
     return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
   }
-  const t = shared && ending ? expandSharedCardDescription(plain.slice(0, ending.index)) : whole;
+  // Phrasing batch 5 (EX16-02): the place the cards are in — "…**in your hand or Drop Area**", "…**from your deck or
+  // hand**" — is the selector's (`parseTarget` reads it), not a description: its "or" joins two areas, and cut there the
+  // last piece was an area with no card noun, which refused the alternatives and left one merged description ("1
+  // <Dark Broly> card … or 1 non-black Battle Card with <Xeno> …" read as one card with both).
+  const AREA_TAIL = /\s+(?:in|from) (?:your|their|your opponent'?s) (?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area)(?:(?:,|,? and\/or|,? or|,? and) (?:your |their )?(?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area))*$/i;
+  const t = (shared && ending ? expandSharedCardDescription(plain.slice(0, ending.index)) : whole).replace(AREA_TAIL, "");
   if (!/\bor\b/i.test(t)) return null;
   // Split at top level only: names carry commas and "or"s of their own.
   const pieces: string[] = [];
