@@ -20,12 +20,15 @@
  *    with [Union-Fusion] in your hand: Add up to 1 Battle Card each from your
  *    deck and/or Drop to your hand, each with a character name that matches the
  *    [Union] skill conditions of the revealed card and an energy cost between 3
- *    and 7, then shuffle your deck if you looked through it." The same search,
- *    Battle Cards from the deck and/or the Drop.
+ *    and 7, then shuffle your deck if you looked through it." One choice per
+ *    place — up to 1 from the deck, then up to 1 from the Drop — each a Battle
+ *    Card with one of the revealed card's [Union] names (the same name may come
+ *    from both places).
  *
- * Labelled best guesses (see `compile/union-name-search.ts`): "up to 1" is per
- * name; SD19-03's "each" is per name, not per place; only the character name
- * of the [Union] conditions is matched, exactly (2-10-1-1).
+ * Owner rulings of 26 Oct 2026 (#930): "up to 1" is per name (EX13-14);
+ * SD19-03's "each" is one per place (deck, Drop); only the character name of
+ * the [Union] conditions is matched, exactly (2-10-1-1), the printed energy
+ * cost still applies.
  *
  * Proved here: the records (nothing unread, the JSON round trip, the rules
  * language's print and reparse), and in the VM for both seats with every step
@@ -116,6 +119,7 @@ const noFilterNoise = (f: unknown) => Object.fromEntries(Object.entries((f ?? {}
   assert.equal(search.sel.area, "deck");
   assert.equal(search.sel.count, 1);
   assert.equal(search.sel.upTo, true, "up to 1 per name");
+  assert.equal(search.sel.eachUnionName, true, "…for each character name");
   assert.deepEqual(noFilterNoise(search.sel.filter), { costMin: 3, costMax: 7, unionNameOf: "revealed" }, "a matching character name, energy cost 3 to 7");
   assert.ok(move.op === "moveTo" && move.to === "hand" && "var" in move.target && move.target.var === search.as);
   assert.equal(shuffle.op, "shuffle");
@@ -134,13 +138,17 @@ const noFilterNoise = (f: unknown) => Object.fromEntries(Object.entries((f ?? {}
   const show = price.at(-1)!;
   assert.ok(show.op === "reveal" && show.as === "revealed" && "side" in show.sel, "the price reveals a card in the hand");
   assert.deepEqual(noFilterNoise((show.sel as { filter?: unknown }).filter), { keywords: ["Union"], keywordsExact: ["Union-Fusion"] }, "…with [Union-Fusion]");
-  const [search, move, shuffle] = r.ops;
-  if (search.op !== "choose" || !("side" in search.sel)) throw new Error("a description");
-  assert.deepEqual(search.sel.areas, ["deck", "drop"], "from the deck and/or the Drop");
-  assert.equal(search.sel.count, 1);
-  assert.equal(search.sel.upTo, true);
-  assert.deepEqual(noFilterNoise(search.sel.filter), { type: "BATTLE", costMin: 3, costMax: 7, unionNameOf: "revealed" }, "Battle Cards whose name matches, energy cost 3 to 7");
-  assert.ok(move.op === "moveTo" && move.to === "hand");
+  const [fromDeck, fromDrop, moveA, moveB, shuffle] = r.ops;
+  for (const [ch, area] of [[fromDeck, "deck"], [fromDrop, "drop"]] as const) {
+    if (ch.op !== "choose" || !("side" in ch.sel)) throw new Error("a description");
+    assert.equal(ch.sel.area, area, `one choice from the ${area}`);
+    assert.equal(ch.sel.areas, undefined);
+    assert.equal(ch.sel.count, 1);
+    assert.equal(ch.sel.upTo, true, "up to 1");
+    assert.equal(ch.sel.eachUnionName, undefined, "one per place, not per name");
+    assert.deepEqual(noFilterNoise(ch.sel.filter), { type: "BATTLE", costMin: 3, costMax: 7, unionNameOf: "revealed" }, "a Battle Card whose name matches, energy cost 3 to 7");
+  }
+  assert.deepEqual([moveA, moveB].map((m) => m.op === "moveTo" && m.to), ["hand", "hand"]);
   assert.equal(shuffle.op, "shuffle");
 }
 {
@@ -317,40 +325,84 @@ for (const seat of ["p1", "p2"] as const) {
     cases++;
   }
 
-  // ── SD19-03 front#20 ──
-  // (a) A card to the bottom of the deck, the Fusion revealed; Battle Cards named Son Goku or
-  // Vegeta, cost 3 to 7, from the deck and the Drop; one per name; both to the hand.
-  {
-    let s = fresh(seat, seed(4));
+  // ── SD19-03 front#20 ── (owner ruling of 26 Oct 2026: up to 1 from the deck and up to 1 from the Drop)
+  /** Stage SD19-03 with a card to put under the deck and the two [Union] cards in hand; activate it. */
+  const sd = (n: number, deckCards: string[], dropCards: string[], answer: (q: Ask, asked: string[][]) => string[]) => {
+    let s = fresh(seat, seed(n));
     const gogeta = stage(s, seat, "SD1903", "unison", 1);
     const fodder = stage(s, seat, "G-E", "hand");
     const fus = stage(s, seat, "FUS", "hand");
     const pot = stage(s, seat, "POT", "hand");
-    const goku4 = stage(s, seat, "GOKU-4", "deck");
-    const veg6 = stage(s, seat, "VEG-6", "drop");
-    const extra = stage(s, seat, "VEG-EXTRA", "drop");
-    const goku2 = stage(s, seat, "GOKU-2", "drop");
-    const trunks = stage(s, seat, "TRUNKS-4", "drop");
+    const deck = deckCards.map((d) => stage(s, seat, d, "deck"));
+    const drop = dropCards.map((d) => stage(s, seat, d, "drop"));
     const a = offer(s, gogeta, activateLine("SD1903"));
     assert.ok(a, `${seat}: SD19-03's [+1][Activate: Main] is offered`);
     const asked: string[][] = [];
     s = settle(take(s, a.action), (q) => {
       const c = sorted(q.choice.candidates);
-      asked.push(c);
       if (c.includes(fodder) && c.includes(fus)) return [fodder];
       if (c.includes(fus)) {
         assert.ok(!c.includes(pot), "the [Union-Potara] card cannot be revealed");
         return [fus];
       }
-      return c.includes(veg6) ? [veg6] : c.slice(0, 1);
+      asked.push(c);
+      assert.equal(q.choice.max, 1, "one card from each place");
+      return answer(q, asked);
     });
-    assert.ok(zones(s).deck.includes(fodder) && !zones(s).hand.includes(fodder), "the price: the card went from the hand to the deck (since shuffled, the deck was looked through)");
+    assert.ok(zones(s).deck.includes(fodder) && !zones(s).hand.includes(fodder), "the price: the card went from the hand to the deck");
     assert.equal(s.cards[gogeta].markers, 2, "[+1]");
-    assert.ok(asked.some((c) => JSON.stringify(c) === JSON.stringify(sorted([goku4, veg6]))), "first pick: the Son Goku in the deck and the Vegeta in the Drop, nothing else");
-    assert.ok(asked.some((c) => JSON.stringify(c) === JSON.stringify([goku4])), "second pick: only the Son Goku is left");
-    assert.ok(zones(s).hand.includes(goku4) && zones(s).hand.includes(veg6), "both reach the hand");
     assert.ok(zones(s).hand.includes(fus), "the revealed card stays in the hand");
+    return { s, deck, drop, asked };
+  };
+  // (a) One from the deck and one from the Drop; only matching Battle Cards of cost 3 to 7 offered.
+  {
+    const { s, deck: [goku4, veg5Deck, goku2Deck], drop: [veg6, extra, goku2, trunks], asked } = sd(4, ["GOKU-4", "VEG-6", "GOKU-2"], ["VEG-6", "VEG-EXTRA", "GOKU-2", "TRUNKS-4"], (q) => [sorted(q.choice.candidates)[0]]);
+    assert.deepEqual(asked[0], sorted([goku4, veg5Deck]), "from the deck: the Son Goku and the Vegeta of cost 3 to 7");
+    assert.deepEqual(asked[1], [veg6], "from the Drop: only the Vegeta Battle Card of cost 6");
+    const tookFromDeck = asked[0][0];
+    assert.ok(zones(s).hand.includes(tookFromDeck) && zones(s).hand.includes(veg6), "one from the deck and one from the Drop reach the hand");
+    assert.ok(zones(s).deck.includes(asked[0][1]), "the second deck card is not taken: only one from the deck");
+    assert.ok(zones(s).deck.includes(goku2Deck));
     for (const d of [extra, goku2, trunks]) assert.ok(zones(s).drop.includes(d), "the Extra, the cost-2 Goku and the Trunks stay in the Drop");
+    cases++;
+  }
+  // (b) Two from the deck refused: handing both deck cards at once still takes only one, or is refused.
+  {
+    let s = fresh(seat, seed(5));
+    const gogeta = stage(s, seat, "SD1903", "unison", 1);
+    const fodder = stage(s, seat, "G-E", "hand");
+    const fus = stage(s, seat, "FUS", "hand");
+    const goku4 = stage(s, seat, "GOKU-4", "deck");
+    const veg6 = stage(s, seat, "VEG-6", "deck");
+    const a = offer(s, gogeta, activateLine("SD1903"));
+    assert.ok(a);
+    s = take(s, a.action);
+    for (let i = 0; i < 10 && s.prompt.kind === "chooseCards"; i++) {
+      const q = s.prompt as Ask;
+      const c = q.choice.candidates;
+      if (c.includes(goku4)) break;
+      s = take(s, { type: "choose", player: q.player, cards: [c.includes(fodder) && c.includes(fus) ? fodder : fus] });
+    }
+    const q = s.prompt as Ask;
+    assert.equal(q.kind, "chooseCards");
+    assert.deepEqual(sorted(q.choice.candidates), sorted([goku4, veg6]), "the deck choice");
+    let both: VmState | null = null;
+    try {
+      both = take(s, { type: "choose", player: q.player, cards: [goku4, veg6] });
+    } catch {
+      both = null;
+    }
+    if (both) {
+      const done = settle(both, (qq) => (qq.choice.min ? qq.choice.candidates.slice(0, qq.choice.min) : []));
+      assert.ok(!(zones(done).hand.includes(goku4) && zones(done).hand.includes(veg6)), "two cards from the deck are never both taken");
+    }
+    cases++;
+  }
+  // (c) The same name from both places: a Son Goku from the deck and a Son Goku from the Drop.
+  {
+    const { s, deck: [goku4], drop: [goku5], asked } = sd(6, ["GOKU-4"], ["GOKU-5"], (q) => q.choice.candidates.slice(0, 1));
+    assert.deepEqual(asked, [[goku4], [goku5]], "a Son Goku offered from each place");
+    assert.ok(zones(s).hand.includes(goku4) && zones(s).hand.includes(goku5), "both Son Goku cards reach the hand");
     cases++;
   }
 }

@@ -16,12 +16,12 @@ const EACH_WITH = new RegExp(
 );
 
 /** The words of one such clause, or `null`. */
-export function unionNameSearchWords(clause: string): { n: number; noun: string; measure: string; source: string } | null {
+export function unionNameSearchWords(clause: string): { n: number; noun: string; measure: string; source: string; perPlace: boolean } | null {
   const t = clause.trim().replace(/[.]$/, "");
   let m = FOR_EACH.exec(t);
-  if (m) return { n: Number(m[1]), noun: m[2], measure: m[3], source: m[4] };
+  if (m) return { n: Number(m[1]), noun: m[2], measure: m[3], source: m[4], perPlace: false };
   m = EACH_WITH.exec(t);
-  if (m) return { n: Number(m[1]), noun: m[2], source: m[3], measure: m[4] };
+  if (m) return { n: Number(m[1]), noun: m[2], source: m[3], measure: m[4], perPlace: true };
   return null;
 }
 

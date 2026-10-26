@@ -196,6 +196,16 @@ export interface Selector {
    */
   differentCharacters?: true;
   /**
+   * "For **each character name** required for the revealed card's [union]
+   * skill, add up to 1 card with a matching character name …" (EX13-14,
+   * #930): with the filter's `unionNameOf`, `count` is per name the revealed
+   * card's [Union-Fusion] requires, and each card chosen fills a name of its
+   * own (`namesAssignable`). Without it, `unionNameOf` only says which names
+   * match and `count` is the whole choice (SD19-03's one card per place, owner
+   * ruling of 26 Oct 2026). Only a `choose`'s own selector reads it.
+   */
+  eachUnionName?: true;
+  /**
    * "For each card color in your Energy Area" (EX19-26), "4 or more colors
    * among cards in your energy" (BT16-016): the count is of the different
    * colors the cards found have, not of the cards. A multicolor card has each
@@ -2278,7 +2288,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // revealed card's [union] skill, add up to 1 card with a matching
         // character name" — `count` cards per name the revealed card's
         // [Union-Fusion] requires, each card filling a name of its own.
-        const unionOf = op.sel.filter?.unionNameOf ?? null;
+        const unionOf = op.sel.eachUnionName ? (op.sel.filter?.unionNameOf ?? null) : null;
         const unionNames = unionOf ? h.unionNames(frame, unionOf).map(identityKey) : [];
         const perName = op.sel.count ?? 1;
         const fillsNames = (ids: string[]) => namesAssignable(ids.map((id) => h.defOf(id).characters.map(identityKey)), unionNames, perName);
