@@ -47,9 +47,15 @@ const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 // #907 round 4: the plural "energy costs of 3 or less" and the measure said before its number
 // ("power of 35000 or less", BT7-017's "an energy cost of 3 or more **and power of 35000 or
 // less** in your Drop Area") are the same second measure.
-const MEASURE_AFTER_AND = /^(?:(?:an? )?energy costs? of \d+|powers? of [\d,]+|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
 
 /** A comma (and its "and") in front of a measure of the same description: see `commaJoinsMeasure`. */
+/**
+ * Phrasing batch 3: a second measure said with its own "with" — "…card without [barrier] **and with** an energy cost of
+ * 4" (BT15-015). Joined at an "and" only (never at a comma, `MEASURE_COMMA`, where ", with" opens an aside's list).
+ */
+const WITH_MEASURE_AFTER_AND = /^with (?:an? )?(?:original )?(?:energy |combo )costs? of \d+/i;
+
 const MEASURE_COMMA = new RegExp(`,\\s+(?:and\\s+)?(?=${MEASURE_AFTER_AND.source.slice(1)})`, "gi");
 
 /**
@@ -226,7 +232,9 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         !(/^this card (?:can't|cannot) attack$/i.test(text.slice(start, i).trim()) && /^ and gains?\s/i.test(text.slice(i))) &&
         !text.startsWith(" and [", i) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
-        !(MEASURE_AFTER_AND.test(text.slice(i + 5)) && /\bwith\b/i.test(text.slice(start, i))) &&
+        // (Phrasing batch 3: "…without [barrier] **and with** an energy cost of 4" (BT15-015) joins too — but not inside
+        // a "-both multicolor and with …-" aside (P-711), whose qualifier one alternative alone would keep.)
+        !((MEASURE_AFTER_AND.test(text.slice(i + 5)) || WITH_MEASURE_AFTER_AND.test(text.slice(i + 5))) && /\bwith(?:out)?\b/i.test(text.slice(start, i)) && !(/^with\b/i.test(text.slice(i + 5)) && /(?:[-―—–]|--)\s*(?:both|all)\b/i.test(text.slice(start, i)))) &&
         // "Play up to 1 mono-blue Unison with a specified cost of 2 **and 1
         // marker on it** from your deck or hand" (BT28-039, #980): what the card
         // arrives with, said as a second measure of the card played.
@@ -710,6 +718,28 @@ export function anaphora(text: string): string {
       // sentence has is the cards the second half acts on, so it is said of them:
       // both halves reach the same cards (#907).
       .replace(/\b(reduce the combo costs?) by (\d+) and negate the (\[[^\]]+\]) skills? (of|on) ([^.]+?)(?=\.|$)/gi, (_all, reduce: string, n: string, kw: string, prep: string, who: string) => `${reduce} of ${who} by ${n} and negate the ${kw} skill ${prep} ${who}`)
+      // Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT15-125): "If it's your opponent's turn **and they have a
+      // skill-less Battle Card or Unison Card in play**": "they" is the opponent the condition before it named, and
+      // "skill-less" describes both kinds of card.
+      // Phrasing batch 3: both players doing one thing — "**you and your opponent both draw 2 cards and discard 1 card
+      // from your hands**" (EX25-33), "**you and your opponent place the top card of your decks in your Drop Areas**"
+      // (BT14-121) — said once per player, as the readers read each.
+      .replace(/\byou and your opponent (?:both |each )?draw (\d+) cards? and discard (\d+) cards? from your hands\b/gi, (_, d: string, x: string) => `draw ${d} cards, your opponent draws ${d} cards, discard ${x} card${x === "1" ? "" : "s"} from your hand, and your opponent discards ${x} card${x === "1" ? "" : "s"} from their hand`)
+      .replace(/\byou and your opponent (?:both |each )?place the top card of your decks in your drop areas\b/gi, "place the top card of your deck in your Drop Area, and your opponent places 1 card from the top of their deck in their Drop Area")
+      // Phrasing batch 3: "Choose 1 of your red <Son Goku: GT> cards **and you may give it -15000 power for the battle**.
+      // If you do, …" (BT26-028): the offer is the power change, as "you may have it get …" says it.
+      .replace(/\byou may give (it|that card|them) ([+-]\d+) (power|combo power)\b/gi, "you may have $1 get $2 $3")
+      // Phrasing batch 3: "Choose up to 1 Battle Card … from it **and place it in your opponent's Drop Area**" (P-134,
+      // P-177): a card goes only to its owner's Drop Area (3-1-2), and the opponent's is that card's owner's.
+      .replace(/\b(place|put) (it|them|that card|those cards) in your opponent'?s drop area\b/gi, "$1 $2 in its owner's Drop Area")
+      // Phrasing batch 3: "At the start of **your next turn's Main Phase**, play this card from your Warp" (BT19-091): the
+      // Main Phase of your next turn, which is your next Main Phase.
+      .replace(/\byour next turn'?s main phase\b/gi, "your next Main Phase")
+      // Phrasing batch 3: "**Add 2 yellow ≪Cell Games≫ cards … from your Drop to your deck, then shuffle your deck**:"
+      // (P-662): the cards shuffled into the deck, as "shuffle … into your deck" says it.
+      .replace(/\badd (\d+) ([^:.;]+?) from your drop(?: area)? to your deck, then shuffle your deck\b/gi, "shuffle $1 $2 from your Drop into your deck")
+      .replace(/\b(it'?s your opponent'?s turn) and they have\b/gi, "$1 and your opponent has")
+      .replace(/\bskill-less (battle|unison) (cards?) or (battle|unison) (cards?)\b/gi, "skill-less $1 $2 or skill-less $3 $4")
       .replace(/\b([Tt])hat (?:battle|leader|unison) card\b(?!\s+(?:with|whose|in|from|among)\b)/gi, "$1hat card")
       // "those Battle Cards" is the plural pronoun said with its noun, as "that
       // Battle Card" is the singular (BT7-025b has no antecedent to bind and is

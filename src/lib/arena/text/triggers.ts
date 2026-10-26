@@ -713,7 +713,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // skill and belongs to `comboUsed`, so the possessive has to be excluded
     // here or every combo card would fire twice.
     case "youCombo":
-      return /when you (?:use a card in a combo|combo)\b/.test(t) && !/when you combo with this card/.test(t);
+      // Phrasing batch 3: "When you use **a red skill-less Battle Card with an energy cost of 2** in a combo" (BT14-001b):
+      // the same moment, the card used described (the compiler reads the description as a condition on it).
+      return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
     // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
     // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
     // both this and `played` answers a play once (`vm/triggers.ts`,
