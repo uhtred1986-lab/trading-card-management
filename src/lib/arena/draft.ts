@@ -13,7 +13,7 @@ import { eq, inArray, and } from "drizzle-orm";
 import type { Db } from "@/db";
 import { arenaFeedback, cardRules, cards as cardsTable, settings } from "@/db/schema";
 import { hasAnthropic } from "@/lib/ai/client";
-import { DEFAULT_GAME } from "@/lib/catalog/games";
+import { ARENA_GAMES } from "@/lib/catalog/games";
 import { compileCardCached, compileSkill } from "./compile";
 import { parseSkills, skillLines } from "./text/cards";
 import { type CardDef, type KeywordSkill } from "./types";
@@ -215,7 +215,7 @@ export async function cardsRebuildWouldChange(db: Db, ids: string[]): Promise<Se
     const rows = await db
       .select()
       .from(cardsTable)
-      .where(and(inArray(cardsTable.id, slice), eq(cardsTable.game, DEFAULT_GAME), REVIEWABLE_CARD));
+      .where(and(inArray(cardsTable.id, slice), inArray(cardsTable.game, ARENA_GAMES), REVIEWABLE_CARD));
     const existing = new Map((await loadRules(db, slice)).map((r) => [`${r.cardId}#${r.side}#${r.skillIndex}`, r]));
     for (const row of rows) {
       for (const rec of skillRecords(cardDefFrom(row))) {
@@ -237,12 +237,12 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
   const unique = [...new Set(ids)];
   for (let i = 0; i < unique.length; i += 400) {
     const slice = unique.slice(i, i + 400);
-    // Only playable Masters cards get skill rows. Filter reminders before
+    // Only playable cards of the games the arena plays get skill rows. Filter reminders before
     // iteration so pruning obsolete skills also preserves their legacy rows.
     const rows = await db
       .select()
       .from(cardsTable)
-      .where(and(inArray(cardsTable.id, slice), eq(cardsTable.game, DEFAULT_GAME), REVIEWABLE_CARD));
+      .where(and(inArray(cardsTable.id, slice), inArray(cardsTable.game, ARENA_GAMES), REVIEWABLE_CARD));
     const existing = new Map((await loadRules(db, slice)).map((r) => [`${r.cardId}#${r.side}#${r.skillIndex}`, r]));
     const inserts: (typeof cardRules.$inferInsert)[] = [];
     const seen = new Set<string>();
@@ -324,12 +324,12 @@ export async function draftCards(db: Db, ids: string[], opts: { onlyOpen?: boole
   return summary;
 }
 
-/** Every card of the original game, optionally one set. */
+/** Every card of the games the arena plays, optionally one set. */
 export async function catalogIds(db: Db, set?: string): Promise<string[]> {
   const rows = await db
     .select({ id: cardsTable.id })
     .from(cardsTable)
-    .where(and(REVIEWABLE_CARD, eq(cardsTable.game, DEFAULT_GAME), set ? eq(cardsTable.setCode, set) : undefined));
+    .where(and(REVIEWABLE_CARD, inArray(cardsTable.game, ARENA_GAMES), set ? eq(cardsTable.setCode, set) : undefined));
   return rows.map((r) => r.id);
 }
 

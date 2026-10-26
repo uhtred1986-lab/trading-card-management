@@ -429,6 +429,25 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.equal(met?.brief?.startsWith("## Wording"), true, "with the work item on the group");
 }
 
+// ── A Fusion World card gets a draft row too (F1-08, #1191) ──
+// `draftTouched` hands the drafter every touched card of every game the arena
+// plays; the drafter itself must therefore not filter on the original game.
+{
+  const { eq } = await import("drizzle-orm");
+  const { draftCards } = await import("../src/lib/arena/draft.ts");
+  await db.insert(schema.cardSets).values({ code: "FS01", name: "Starter Deck FS01", game: "fusion", line: "fusion", sortKey: 101 });
+  const fusion = { ...card("FS01-90", "Synthetic Fusion Card"), setCode: "FS01", game: "fusion" as const, skill: "[On Play] Draw 1 card." };
+  await db.insert(schema.cards).values([fusion]);
+  const d = await draftCards(db, ["FS01-90"]);
+  assert.deepEqual([d.cards, d.skills, d.inserted], [1, 1, 1], "the drafter reads a fusion card");
+  const rules = await db.select().from(schema.cardRules).where(eq(schema.cardRules.cardId, "FS01-90"));
+  assert.equal(rules.length, 1);
+  assert.equal(rules[0].kind, "auto", "[On Play] is an [Auto]");
+  assert.ok(rules[0].trigger?.includes("played"), "on the played trigger");
+  assert.deepEqual(rules[0].unread, [], "with no unread text");
+  assert.equal(rules[0].status, "draft");
+}
+
 // ── The worklist over the whole catalog: filtered, paged, confirmed in bulk ──
 // The decks page holds its whole list in memory; this one cannot, so the page
 // and the count come from the database and a bulk confirm is aimed at the
