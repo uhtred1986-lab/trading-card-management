@@ -155,7 +155,7 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
       markerLoss: target === "unison" && hit ? Math.min(markers, how.allMarkers ? markers : Math.max(1, how.atLeast ?? 1)) : 0,
       critical: how.to === "drop", victoryStrike: !!how.wins,
       potentialLethal: lifeDamage > 0 && (lifeDamage >= life || !!how.wins),
-      koPrevented: target === "battle" && (hasKeyword(ctx, game, state, b.guard, "Indestructible") || forbids(ctx, game, state, "beKOd", { card: b.guard }) || forbids(ctx, game, state, "beKOdInBattle", { card: b.guard, player: masterOf(game, state, b.attacker) })),
+      koPrevented: target === "battle" && (hasKeyword(ctx, game, state, b.guard, "Indestructible") || forbids(ctx, game, state, "beKOd", { card: b.guard }) || forbids(ctx, game, state, "beKOdInBattle", { card: b.guard, player: masterOf(game, state, b.attacker), source: b.attacker })),
       assumption: "At current totals, with no further responses. Pending skills and replacements can change this result.",
     } } : {}),
     ...(counters.length ? { counters: counters.map((c) => ({ card: cardView(ctx, game, state, c.card, images, availability, viewer), by: c.by, after: c.after })) } : {}),

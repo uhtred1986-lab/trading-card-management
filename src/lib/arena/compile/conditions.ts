@@ -569,6 +569,18 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // beginning and the compiler has never once emitted it.
   if (/^(?:it's |it is )?your turn$/.test(t) || /^during your turn$/.test(t)) return { cond: { kind: "isTurnPlayer" } };
   if (/^(?:it's |it is )?your opponent's turn$/.test(t) || /^during your opponent's turn$/.test(t)) return { cond: { kind: "isTurnPlayer", who: "opponent" } };
+  // 20-14 [Permanent]s: "During battles when this card attacks" (BT4-094),
+  // "…in which this card attacked" (BT14-152): while this card is the attack
+  // card of the battle (8-1). "…where this card is attacking a Battle Card in
+  // Rest Mode" (TB2-050) asks about the guard card too.
+  if (/^(?:the )?battles (?:when|in which|where) this card (?:attacks|attacked|is attacking)$/.test(t)) return { cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" } };
+  if ((m = /^(?:the )?battles (?:when|in which|where) this card is attacking (?:a|an) (.+)$/.exec(t))) {
+    const guard = parseTarget(`your opponent's ${m[1]}`);
+    if (!guard || guard.special) return null;
+    delete guard.count;
+    delete guard.upTo;
+    return { cond: { kind: "all", conds: [{ kind: "inBattle", sel: { special: "self" }, role: "attacker" }, { kind: "inBattle", sel: guard, role: "guard" }] } };
+  }
 
   // "If the Battle Card being played has an energy cost of 7 or less" — a
   // [Counter: Play] asking about the card it is answering (9-6). The card is

@@ -915,8 +915,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   } else if (/\bone of (?:your|their|the|these|those)\b/.test(t)) {
     // "Choose one of your <Saibaiman> cards" (EB1-10) is a count spelled as a word: one card, not the plural's "all of them".
     count = 1;
-  } else if (/\bcards\b|\benergy\b/.test(t)) {
+  } else if (/\bcards\b|\benergy\b|\btokens\b/.test(t)) {
     // A plural with no number means all of them: "your Battle Cards get +5000 power".
+    // "Your opponent's Clone Tokens can't attack" (EB1-21) is every one of
+    // them too: a token is named by what it is (19), and "Tokens" is the plural.
     count = 99;
   }
 
