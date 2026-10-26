@@ -166,7 +166,7 @@ disagree or if a row is missing from either.
 | `negateSkills` | macro over `negate` | Scope: every skill of a card (9-1-5). |
 | `negateSkillsOfKind` | macro over `negate` | Scope: one printed skill kind of a card. |
 | `negateChosenKeyword` | macro over `negate` | Scope: one keyword skill the master picks among those the target cards have in force (`chosen: true`), negated on that card for a span (BT31-138). |
-| `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. |
+| `negateKeyword` | macro over `negate` | Scope: one named keyword, in every area. Standing (a [Permanent]'s) without `until`; with it (phrasing batch 6, "negate [Indestructible], and KO it", BT23-081) made as the step runs and lasting that span. |
 | `negateOwnSkill` | macro over `negate` | Scope: the skill resolving now, for the turn, the battle or the game. |
 | `hidden` | macro over `modifyAttr` | Attribute `hidden`: Hidden Mode and Revealed Mode (23-5). |
 | `redirectAttack` | macro over `modifyAttr` | The guard is an attribute of the **battle in progress** (8-1, 22-4-2) — the second widening in §2.5. |
@@ -230,6 +230,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `did` | primitive | The resolution's own record (20-16). No amount of counting the board says whether *this skill* drew a card. |
 | `not` | primitive | Negation. |
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
+| `choseFrom` | primitive | Phrasing batch 6: did a choice over more than one area take a card from one of `areas` — "If you placed a card from your hand at the bottom of your deck" (EX16-02)? Where each card was as it was chosen, kept on the frame (`chosenFrom`): the move after the choice has taken it elsewhere, so nothing counted on the board now says it. |
 | `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
 | `varAttrIsX` | primitive | "If the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal bound, measured against the X a `declare` bound. A comparison between a card's measure and a number the program holds, which `count` (a bound written into the program) cannot say. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |

@@ -614,7 +614,11 @@ export function activationRefusals(
   // 9-4: the condition the record hoisted out of the price, asked where the
   // legacy engine asks it — before the energy is counted, so a skill whose
   // condition fails says so rather than "1 short".
-  const condition = line.script?.price?.condition ?? null;
+  const printedCondition = line.script?.price?.condition ?? null;
+  // Phrasing batch 6: "you can activate your Leader's [Awaken] even if your life is at 6 or less" (`awakenLife`) raises
+  // the life ceiling of this Leader's [Awaken] condition while it lasts; the rest of the condition is asked as printed.
+  const ceiling = printedCondition && line.keyword?.name === "Awaken" ? awakenCeiling(ctx, game, state, player, card) : null;
+  const condition = printedCondition && ceiling !== null ? raiseLifeCeiling(printedCondition, ceiling) : printedCondition;
   if (condition && !vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition)) {
     before.push({ kind: "condition", text: sk.cost });
   }
@@ -645,6 +649,27 @@ export function activationRefusals(
     if (!from.includes(at as Area)) after.push({ kind: "zone", card, area: from[0] });
   } else if (at === ACTIVATION_ZONES.hand && !isExtra(ctx, game, state, card) && !line.keyword) after.push({ kind: "zone", card, area: "battle" });
   return { before, after };
+}
+
+/**
+ * Phrasing batch 6: the highest life ceiling an `awakenLife` permission of this player's gives this Leader's [Awaken]
+ * ("…even if your life is at 6 or less": 6; "…even if you have 5 or more life": 99, none), or null for none in force.
+ */
+function awakenCeiling(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): number | null {
+  const lifted = permissions(ctx, game, state, "awakenLife").filter((p) => p.master === player && p.target === card);
+  return lifted.length ? Math.max(...lifted.map((p) => p.n ?? 99)) : null;
+}
+
+/** The condition with every ceiling on your own life raised to `n` (dropped at 99), and nothing else changed. */
+function raiseLifeCeiling(c: Cond, n: number): Cond {
+  if (c.kind === "all" || c.kind === "any") return { ...c, conds: c.conds.map((x) => raiseLifeCeiling(x, n)) };
+  if (c.kind !== "life" || (c.side ?? "you") !== "you" || c.atMost === undefined) return c;
+  if (n >= 99) {
+    const { atMost: _atMost, ...rest } = c;
+    void _atMost;
+    return rest.atLeast === undefined ? { kind: "life", side: "you", atLeast: 0 } : rest;
+  }
+  return { ...c, atMost: Math.max(c.atMost, n) };
 }
 
 /** The ops that take a card out of the area it is in: a move, a play, a combo use, a KO (9-1-3-2's "play this card from your hand", "send this card from your Drop to your Warp"). */

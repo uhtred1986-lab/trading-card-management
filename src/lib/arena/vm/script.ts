@@ -490,6 +490,13 @@ export type Cond =
    * the two readings have to be told apart. Defaults to 1.
    */
   | { kind: "chose"; var: string; atLeast?: number }
+  /**
+   * Phrasing batch 6 (owner's ruling, 26 Oct 2026): "…in your hand or Drop Area and place it at the bottom of your deck.
+   * **If you placed a card from your hand** at the bottom of your deck, draw 1 card" (EX16-02): did an earlier choice of
+   * this skill, made over more than one area, take a card **from** one of `areas`? Answered by where each card was when it
+   * was chosen (`ScriptFrame.chosenFrom`), not where it is now — the move after the choice has taken it elsewhere.
+   */
+  | { kind: "choseFrom"; var: string; areas: ScriptArea[] }
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
   | { kind: "varMatches"; var: string; filter: CardFilter }
   /** "If the revealed card's energy cost is the same as the declared number" (BT22-090): a card a reveal or a look bound has this measure equal to the X a `declare` bound. */
@@ -1013,7 +1020,17 @@ export type Op =
    * silences everything, this names one — "negate this card's
    * [Energy-Exhaust] skill in all areas".
    */
-  | { op: "negateKeyword"; keyword: KeywordSkill["name"]; target?: Ref }
+  | {
+      op: "negateKeyword";
+      keyword: KeywordSkill["name"];
+      target?: Ref;
+      /**
+       * Phrasing batch 6 (owner's ruling, 26 Oct 2026): a negation an [Auto] or [Activate] makes as it resolves — "choose up
+       * to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it" (BT23-081) — is put in force for this span
+       * (the turn when none is printed). Absent, the op is standing: a [Permanent]'s, read by the statics walk.
+       */
+      until?: Duration;
+    }
   /**
    * 20-1: the card counts as having these too, wherever it is — "this card
    * gains ≪Saiyan≫ in all areas", "this card is also treated as red". It is
@@ -1256,7 +1273,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1609,6 +1626,12 @@ export interface ScriptFrame {
   ops: Op[];
   ip: number;
   vars: Record<string, string[]>;
+  /**
+   * Phrasing batch 6: for a `choose` over more than one area, the area each chosen card was in as it was chosen, in the
+   * order of `vars[as]` — what `choseFrom` asks ("if you placed a card from your hand …", EX16-02). Additive: older frames
+   * and single-area choices carry none.
+   */
+  chosenFrom?: Record<string, string[]>;
   card: string;
   master: PlayerId;
   trigger?: Trigger;
@@ -1920,6 +1943,19 @@ function firstStepImpossible(h: ScriptHost, frame: ScriptFrame, master: PlayerId
     default:
       return false;
   }
+}
+
+/**
+ * Phrasing batch 6: the [Union] variant of the line this frame runs, or null — read off the frame's own card and line
+ * (`skillIndex`), the printed face it is on, so a [Union-Fusion]'s discard of its materials is known to be one ("When
+ * this card is discarded from your hand by a [Union-Fusion] skill", P-246).
+ */
+function lineUnionVariant(h: ScriptHost, frame: ScriptFrame): "Fusion" | "Potara" | "Absorb" | null {
+  if (frame.skillIndex === undefined || !frame.card || !h.exists(frame.card)) return null;
+  const def = h.defOf(frame.card);
+  const side = h.isFlipped(frame.card) && def.back ? "back" : "front";
+  const kw = skillsOf(def, side).find((sk) => sk.index === frame.skillIndex)?.keyword;
+  return kw?.name === "Union" ? kw.variant : null;
 }
 
 /** The substitute as a program of its own: the card whose departure it replaced is its `subject` (9-10-1-1). */
@@ -2386,6 +2422,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return;
           }
           frame.vars[op.as] = picked;
+          // Phrasing batch 6 (EX16-02): where each card was as it was chosen, for a later `choseFrom`.
+          if ((op.sel.areas?.length ?? 0) > 1) frame.chosenFrom = { ...(frame.chosenFrom ?? {}), [op.as]: picked.map((id) => h.areaOf(id) ?? "") };
           // 20-5: "discard any number of cards: … X cards". X is how many were
           // taken, bound the moment the choice settles, so every later step of
           // this program reads the same number.
@@ -2842,6 +2880,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.pend("droppedFromHand", id, frame.card);
             // Phrasing batch 5 (BT26-015): "…discarded by one of your skills" — the discarding skill is its master's.
             if (h.masterOf(id) === master) h.pend("droppedFromHandByYou", id, frame.card);
+            // Phrasing batch 6: "When this card is discarded from your hand by a [Union] skill" (BT11-079, BT19-052,
+            // P-683), "…by a [Union-Fusion] skill" / "…as a result of [Union-Fusion]" (P-246, SD6-02, BT18-085): the
+            // skill moving it is a [Union] line — its materials (22-13-4-2) or its printed effect.
+            const union = lineUnionVariant(h, frame);
+            if (union) {
+              h.pend("droppedFromHandByUnion", id, frame.card);
+              if (union === "Fusion") h.pend("droppedFromHandByFusion", id, frame.card);
+            }
           }
           // Phrasing batch 5 (BT23-103): the opponent's life added to their Z-Energy by this skill, watched by this
           // skill's master's cards; the moved card is the subject.
@@ -3234,6 +3280,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (picked) h.addEffect({ master: frame.master, source: frame.card, target: picked.card, kind: "negateKeyword", value: picked.keyword, until: op.until });
         break;
       }
+
+      case "negateKeyword":
+        // 9-1-5, phrasing batch 6: a timed negation of one named keyword, made as the step resolves. A standing one (no
+        // `until`) is a [Permanent]'s and does nothing here — the statics walk reads it.
+        if (op.until)
+          for (const id of op.target ? h.resolveRef(frame, op.target) : [frame.card]) {
+            if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+            h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateKeyword", value: op.keyword, until: op.until });
+          }
+        break;
 
       case "negateSkillsOfKind":
         // 9-1-5: one kind of skill, not the card. Kept as an effect for the

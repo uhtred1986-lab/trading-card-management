@@ -1033,6 +1033,9 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     .replace(/[,.]\s*$/, "")
     .trim();
   const phrase =
+    // Phrasing batch 6: "When your or your opponent's <Majin Buu> card is played" (BT28-100, `eitherCardPlayed`): the
+    // card played, either side's. Read before "your … is played" below, which would take "or your opponent's …" as it.
+    /^your or your opponent'?s (.+?) (?:is|are) played$/.exec(t)?.[1] ??
     // "With an energy cost of 4" is part of the description and stays in it;
     // a place ("from your Drop") or a means ("using [Over Realm]", "by a
     // skill") is not, and is what the trigger itself answers or refuses.
@@ -1057,6 +1060,13 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // Phrasing batch 5: "When one of your red or blue Battle Cards is removed from your Battle Area by an opponent's
     // skill" (DB2-174, `yourCardRemovedByOpponent`): the card removed.
     /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/.exec(t)?.[1] ??
+    // Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089, `unionAbsorbUsed`).
+    /^(?:one of your|your) ((?!opponent).+?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?$/.exec(t)?.[1] ??
+    // Phrasing batch 6: "When one of your opponent's Battle Cards is played by a skill" (BT21-105), "When your or your
+    // opponent's <Majin Buu> card is played" (BT28-100), "When {X} is played from your hand" (TB2-045), "When a
+    // <Son Goku: GT> card is played from your Drop" (BT26-001b): the card played.
+    /^(?:one of )?your opponent'?s ((?!skill).+?) (?:is|are) played by (?:a|any) skill$/.exec(t)?.[1] ??
+    /^(?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent).+?) (?:is|are) played from your (?:hand|drop)(?: area)?$/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
     /^(?:your|your opponent's|an opponent's|one of your|one of your opponent's) (.+?) (?:is|are) ko'd\b/.exec(t)?.[1] ??

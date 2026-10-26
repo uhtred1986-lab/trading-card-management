@@ -996,6 +996,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   dropToWarpBySkill: { event: "moved", args: { from: "drop", to: "warp", asPlay: false, by: "skill" } },
   // Phrasing batch 5: the same discard by a skill of the card's own master (BT26-015).
   droppedFromHandByYou: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  // Phrasing batch 6: the same move made by a [Union] line (BT11-079), and by a [Union-Fusion] (P-246), pended by `moveTo`.
+  droppedFromHandByUnion: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", union: true } },
+  droppedFromHandByFusion: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", union: "Fusion" } },
   // Phrasing batch 5: `removedByOpponent` watched by the removed card's master's other cards (DB2-174), and the
   // opponent's life added to their Z-Energy by a skill, watched by the skill's master's cards (BT23-103). Both are
   // pended on each watcher with the moved card as the subject, which is the card the moment is about.

@@ -475,7 +475,13 @@ function parseSkillsUncached(text: string): Skill[] {
     // card. Then, flip this card over."): without the split the condition rides in the effect and the Awaken is offered at any life.
     const awaken = primary?.name === "Awaken" && !cost ? /^(when your life is at \d+ or less),\s*(?=\S)/i.exec(effect) : null;
     if (awaken) [cost, effect] = [awaken[1], effect.slice(awaken[0].length)];
-    out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(cost || effect) : primary, cost, effect, line));
+    // Phrasing batch 6 (owner's ruling, 26 Oct 2026): "[Rejuvenate] If your Leader Card is green and you remove 4 markers from
+    // this card." (BT12-057, BT13-124) — the condition is a gate on using the keyword, so it becomes the line's price condition
+    // (9-4: the move is not offered while it fails) and the marker removal stays the printed price the line's program pays.
+    const rejuvenate = primary?.name === "Rejuvenate" && !cost ? /^(if .+?),?\s+and (?:you )?(remove \d+ markers? from this card\b[\s\S]*)$/i.exec(effect) : null;
+    const whole = `${cost} ${effect}`;
+    if (rejuvenate) [cost, effect] = [rejuvenate[1], rejuvenate[2][0].toUpperCase() + rejuvenate[2].slice(1)];
+    out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(rejuvenate ? whole : cost || effect) : primary, cost, effect, line));
   }
   return linkQuotedGrants(out);
 }

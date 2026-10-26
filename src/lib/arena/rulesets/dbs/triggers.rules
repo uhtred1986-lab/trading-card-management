@@ -97,6 +97,35 @@ DEFINE TRIGGER opponentPlayedBySkill
   BIND "subject"
   text: "when your opponent uses a skill to play a card"
 
+-- Phrasing batch 6 — "When one of your opponent's Battle Cards is played by a
+-- skill" (BT21-105): any skill, either player's — `opponentPlayedBySkill` is
+-- their own.
+DEFINE TRIGGER opponentCardPlayedBySkill
+  ON moved(asPlay: true, by: skill, to: [battle, unison], watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's cards is played by a skill"
+
+-- Phrasing batch 6 — another card of yours played from a place the card names:
+-- "When {Destined Conclusion Piccolo Jr.} is played from your hand" (TB2-045),
+-- "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). The card
+-- played is the subject; what the text says about it is a condition on it.
+DEFINE TRIGGER yourCardPlayedFromHand
+  ON moved(asPlay: true, from: hand, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is played from your hand"
+
+DEFINE TRIGGER yourCardPlayedFromDrop
+  ON moved(asPlay: true, from: drop, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is played from your Drop"
+
+-- Phrasing batch 6 — "When your or your opponent's <Majin Buu> card is played"
+-- (BT28-100): a play on either side of the table.
+DEFINE TRIGGER eitherCardPlayed
+  ON moved(asPlay: true, to: [battle, unison], watcher: both)
+  BIND "subject"
+  text: "when a card is played by either player"
+
 -- #1163 — when your card is played by this card's skill (BT29-083): your own
 -- skill's play (`by: skill, byOpponent: false`), and only the one the watching
 -- card's own skill made — `byWatcher: true` asks that the card whose skill
@@ -351,6 +380,46 @@ DEFINE TRIGGER dropToWarpBySkill
   BIND "self"
   text: "when a skill sends this card from your Drop to the Warp"
 
+-- Phrasing batch 6 — "When this card is discarded from your hand by a [Union]
+-- skill" (BT11-079, BT19-052), "…placed from a hand into its owner's Drop by a
+-- [Union] skill" (P-683): a [Union] line's own move of it, its materials
+-- (22-13-4-2) or its printed effect. Pended by name from a skill's own move,
+-- which knows the line it runs (`union`).
+DEFINE TRIGGER droppedFromHandByUnion
+  ON moved(by: skill, from: hand, to: drop, union: true)
+  BIND "self"
+  text: "when a [Union] skill sends this card from your hand to the Drop"
+
+-- Phrasing batch 6 — the same move by a [Union-Fusion]: "…discarded from your
+-- hand by a [Union-Fusion] skill" (P-246, P-247), "…placed in your Drop Area
+-- from your hand as a result of [Union-Fusion]" (SD6-02, SD6-03, BT18-085).
+DEFINE TRIGGER droppedFromHandByFusion
+  ON moved(by: skill, from: hand, to: drop, union: Fusion)
+  BIND "self"
+  text: "when a [Union-Fusion] skill sends this card from your hand to the Drop"
+
+-- Phrasing batch 6 — "When a card in a Battle Area is returned to its owner's
+-- hand by a skill" (BT12-029): either side's card, any skill (a card only
+-- leaves a Battle Area for the hand by one). The returned card is the subject.
+DEFINE TRIGGER battleCardReturnedToHand
+  ON moved(from: battle, to: hand, watcher: both)
+  BIND "subject"
+  text: "when a card in a Battle Area is returned to its owner's hand"
+
+-- Phrasing batch 6 — "When your energy is placed at the bottom of its owner's
+-- deck" (BT30-030): a card of your Energy Area moved to the deck, any cause.
+DEFINE TRIGGER yourEnergyToDeck
+  ON moved(from: energy, to: deck, watcher: controller)
+  BIND "subject"
+  text: "when your energy is placed in its owner's deck"
+
+-- Phrasing batch 6 — "When one of your opponent's cards is added to their
+-- Z-Energy" (BT21-038): any card of theirs, any cause.
+DEFINE TRIGGER opponentCardToZEnergy
+  ON moved(to: zEnergy, watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's cards is added to their Z-Energy"
+
 -- BT3-112: Battle Area OR deck, and no restriction on the movement's cause.
 DEFINE TRIGGER battleOrDeckToWarp
   ON moved(from: [battle, deck], to: warp)
@@ -372,6 +441,15 @@ DEFINE TRIGGER dealtDamage
   ON damage(role: source)
   BIND "self"
   text: "when this card deals damage"
+
+-- Phrasing batch 6 — "When one of your cards deals damage to your opponent"
+-- (BT9-104): the battle damage one of your cards deals, the attacker the
+-- subject. A skill's damage reaches no `damage` moment yet, as for
+-- `dealtDamage`.
+DEFINE TRIGGER yourCardDealtDamage
+  ON damage(role: source, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards deals battle damage"
 
 -- §21-3 — when you take damage from a skill
 DEFINE TRIGGER youTookDamage
@@ -515,6 +593,28 @@ DEFINE TRIGGER unionAbsorbActivated
   ON keywordActivated(keyword: "Union-Absorb")
   BIND "self"
   text: "when this card's [Union-Absorb] is activated"
+
+-- Phrasing batch 6 — "When you activate [Union-Fusion]" (BT10-092b): one of
+-- your cards' [Union-Fusion], the [Union] card the subject.
+DEFINE TRIGGER unionFusionActivated
+  ON keywordActivated(keyword: "Union-Fusion", watcher: controller)
+  BIND "subject"
+  text: "when you activate a [Union-Fusion] skill"
+
+-- Phrasing batch 6 — "When you activate [Union Absorb]" (BT30-044b), "When one
+-- of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089): any of your
+-- cards' [Union-Absorb], not only this card's (`unionAbsorbActivated`).
+DEFINE TRIGGER unionAbsorbUsed
+  ON keywordActivated(keyword: "Union-Absorb", watcher: controller)
+  BIND "subject"
+  text: "when you activate a [Union-Absorb] skill"
+
+-- Phrasing batch 6 — "When you activate an [Evolve] or [Union] skill"
+-- (BT14-094), "…[Evolve] or [Union Absorb]" (BT17-002b): any of your [Evolve]s.
+DEFINE TRIGGER evolveActivated
+  ON keywordActivated(keyword: Evolve, watcher: controller)
+  BIND "subject"
+  text: "when you activate an [Evolve] skill"
 
 -- §22-41 — when you activate an [Overlord] skill
 DEFINE TRIGGER overlordActivated

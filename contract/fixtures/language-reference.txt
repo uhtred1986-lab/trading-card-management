@@ -1731,7 +1731,7 @@
     {
       "name": "negateKeyword",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"target\"?:TARGET,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "keyword",
@@ -1786,10 +1786,16 @@
           "nullable": false,
           "defaultText": "{\"sel\":{\"special\":\"self\"}}",
           "type": "ref"
+        },
+        {
+          "name": "until",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
         }
       ],
       "sentence": "negate the [Awaken] skill of this card",
-      "doc": "take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\""
+      "doc": "take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\". With \"until\" (phrasing batch 6, owner's ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — \"choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it\" (BT23-081) is \"turn\"; without, it is standing (a [Permanent]'s)"
     },
     {
       "name": "gains",
@@ -2586,7 +2592,8 @@
             "unionSourceOpponentBattle",
             "playInOpponentBattle",
             "startLife",
-            "absorbMaterialUnder"
+            "absorbMaterialUnder",
+            "awakenLife"
           ]
         },
         {
@@ -2643,7 +2650,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "\"evolveFromZEnergy\" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. \"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is \"its attacks can't be negated\": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
+      "doc": "\"awakenLife\" (phrasing batch 6: \"you can activate your Leader's [Awaken] even if your life is at 6 or less\", P-500; \"…even if you have 5 or more life\", BT1-051) raises the target Leader's [Awaken] life ceiling to \"n\" (99: none) while it lasts; the [Awaken]'s other conditions still hold. \"evolveFromZEnergy\" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. \"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is \"its attacks can't be negated\": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -3310,6 +3317,45 @@
       ],
       "sentence": "you took that choice",
       "doc": "\"If you do so\" (20-16): whether an earlier choice was answered, and with how many"
+    },
+    {
+      "kind": "choseFrom",
+      "class": "primitive",
+      "signature": "{\"kind\":\"choseFrom\",\"var\":\"…\",\"areas\":[…]}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "areas",
+          "required": true,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "hand",
+            "deck",
+            "drop",
+            "life",
+            "battle",
+            "combo",
+            "energy",
+            "unison",
+            "leader",
+            "warp",
+            "zDeck",
+            "zEnergy",
+            "under",
+            "play",
+            "removed"
+          ]
+        }
+      ],
+      "sentence": "you chose a card from your ",
+      "doc": "\"…in your hand or Drop Area and place it at the bottom of your deck. If you placed a card from your hand at the bottom of your deck, draw 1 card\" (EX16-02; phrasing batch 6, owner's ruling of 26 Oct 2026): did an earlier choice of this skill, made over more than one area, take a card from one of these areas? Where each card was as it was chosen, kept on the frame (`chosenFrom`); a choice over one area keeps none and answers false"
     },
     {
       "kind": "varAttrIsX",
@@ -4635,6 +4681,22 @@
       "words": "when your opponent uses a skill to play a card"
     },
     {
+      "name": "opponentCardPlayedBySkill",
+      "words": "when one of your opponent's cards is played by a skill"
+    },
+    {
+      "name": "yourCardPlayedFromHand",
+      "words": "when one of your cards is played from your hand"
+    },
+    {
+      "name": "yourCardPlayedFromDrop",
+      "words": "when one of your cards is played from your Drop"
+    },
+    {
+      "name": "eitherCardPlayed",
+      "words": "when a card is played by either player"
+    },
+    {
       "name": "youPlayedByThisCard",
       "words": "when your card is played by this card's skill"
     },
@@ -4759,6 +4821,26 @@
       "words": "when a skill sends this card from your Drop to the Warp"
     },
     {
+      "name": "droppedFromHandByUnion",
+      "words": "when a [Union] skill sends this card from your hand to the Drop"
+    },
+    {
+      "name": "droppedFromHandByFusion",
+      "words": "when a [Union-Fusion] skill sends this card from your hand to the Drop"
+    },
+    {
+      "name": "battleCardReturnedToHand",
+      "words": "when a card in a Battle Area is returned to its owner's hand"
+    },
+    {
+      "name": "yourEnergyToDeck",
+      "words": "when your energy is placed in its owner's deck"
+    },
+    {
+      "name": "opponentCardToZEnergy",
+      "words": "when one of your opponent's cards is added to their Z-Energy"
+    },
+    {
       "name": "battleOrDeckToWarp",
       "words": "when this card goes from your Battle Area or deck to the Warp"
     },
@@ -4769,6 +4851,10 @@
     {
       "name": "dealtDamage",
       "words": "when this card deals damage"
+    },
+    {
+      "name": "yourCardDealtDamage",
+      "words": "when one of your cards deals battle damage"
     },
     {
       "name": "youTookDamage",
@@ -4853,6 +4939,18 @@
     {
       "name": "unionAbsorbActivated",
       "words": "when this card's [Union-Absorb] is activated"
+    },
+    {
+      "name": "unionFusionActivated",
+      "words": "when you activate a [Union-Fusion] skill"
+    },
+    {
+      "name": "unionAbsorbUsed",
+      "words": "when you activate a [Union-Absorb] skill"
+    },
+    {
+      "name": "evolveActivated",
+      "words": "when you activate an [Evolve] skill"
     },
     {
       "name": "overlordActivated",
