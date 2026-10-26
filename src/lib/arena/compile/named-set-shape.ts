@@ -94,15 +94,18 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // "…and 1 <Bollarator> card―all red―": one colour for every slot. #930, EX23-11: "1 <Son Goku>
     // card and 1 <Vegeta> card―both blue and with 20000 power―" adds one power or energy-cost
     // measure, said once for both as the colour is.
-    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(${COLOUR})(?:\\s+and\\s+(${MEASURE}))?\\s*${DASH}\\s*$`, "i").exec(list);
+    // #1208, FS02-03: "…—both with a cost of 2 or less—" says only the measure, no colour.
+    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(?:(${COLOUR})(?:\\s+and\\s+(${MEASURE}))?|(${MEASURE}))\\s*${DASH}\\s*$`, "i").exec(list);
     if (aside) {
-      colour = aside[1].toLowerCase();
-      measure = aside[2] ? ` ${aside[2].toLowerCase()}` : "";
+      colour = aside[1] ? aside[1].toLowerCase() : null;
+      const said = aside[2] ?? aside[3];
+      measure = said ? ` ${said.toLowerCase()}` : "";
       list = list.slice(0, aside.index);
     }
     if (DASH_ANYWHERE.test(list)) return null;
     // "1 <Android 14> and <Android 15> card" says "card" once, at the end.
-    const raw = listItems(list).map((x) => (shape.required && !/\bcards?$/i.test(x) ? `${x} card` : x));
+    // #1208: Fusion World prints the bare name, "up to 1 <Son Goten> and up to 1 <Trunks : Youth>", with no "card".
+    const raw = listItems(list).map((x) => (!/\bcards?$/i.test(x) && (shape.required || shape.dest === "hand") ? `${x} card` : x));
     if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:${COLOUR} )?${NAME} cards?$`, "i").test(x))) return null;
     // Only the first slot says "up to 1"; every item is one named card. A colour in front of an
     // item (BT6-012) is that item's own and wins over the one the dashes give all of them.
@@ -123,7 +126,7 @@ const DASH_ANYWHERE = /[―—–]|--/;
 /** A place a "from your A and B" pair names. */
 const AREA = "(?:deck|drop(?: area)?|hand|warp|battle area|(?:z-)?energy(?: area)?|life)";
 /** One power or energy-cost measure, as `eachOfSlots` reads it. */
-const MEASURE = "with (?:an? )?(?:energy costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)";
+const MEASURE = "with (?:an? )?(?:energy )?(?:costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)";
 
 /**
  * #930: "choose **up to 1 each of blue {Super Saiyan Son Goku} and {Super

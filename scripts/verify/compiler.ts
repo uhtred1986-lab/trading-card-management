@@ -1265,10 +1265,11 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   // `causeMatches` refuses a departure whose actor is unknown.
   const theirs = one("[Permanent] If this card would be removed from your Battle Area by an opponent's skill, send it to your Warp instead.");
   assert.deepEqual(theirs.unsupported, []);
-  assert.deepEqual(theirs.ops, [{ op: "replaceLeave", to: "warp", by: "skill", bySide: "opponent", target: { sel: { special: "self" } } }]);
+  // Owner ruling 26 Oct 2026 (prohibition batch 3): a skill's KO is a removal, so `skillOrKoBySkill`.
+  assert.deepEqual(theirs.ops, [{ op: "replaceLeave", to: "warp", by: "skillOrKoBySkill", bySide: "opponent", target: { sel: { special: "self" } } }]);
   // The same sentence about the player's own skills is not narrowed at all.
   const mine = one("[Permanent] If this card would be removed from your Battle Area by a skill, send it to your Warp instead.");
-  assert.deepEqual(mine.ops, [{ op: "replaceLeave", to: "warp", by: "skill", target: { sel: { special: "self" } } }]);
+  assert.deepEqual(mine.ops, [{ op: "replaceLeave", to: "warp", by: "skillOrKoBySkill", target: { sel: { special: "self" } } }]);
 
   // 9-10-3, #107: "you may … instead" where what happens instead is a program
   // rather than a destination — an *optional substitute*. It compiles now
@@ -1279,7 +1280,7 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   const theirOffer = offer.ops[0] as { op: string; event: string; by?: string; bySide?: string; optional?: boolean };
   assert.equal(theirOffer.op, "replace");
   assert.equal(theirOffer.event, "leave");
-  assert.equal(theirOffer.by, "skill");
+  assert.equal(theirOffer.by, "skillOrKoBySkill"); // owner ruling 26 Oct 2026: a skill's KO is a removal
   assert.equal(theirOffer.bySide, "opponent");
   assert.equal(theirOffer.optional, true);
 

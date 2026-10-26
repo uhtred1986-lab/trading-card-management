@@ -125,12 +125,22 @@ for (const [text, says] of family) {
 // this card" are read since the prohibition catalog: `prohibition-catalog.ts`.)
 for (const text of [
   "[permanent] When this card is in Rest Mode, your opponent's cards with 15000 power or more can only attack copies of this card.", // P-230: a name resolved per defender
-  "[permanent] When this card is in Rest Mode, your opponent's Battle Cards with energy costs greater than or equal to their current energy can't attack Leader Cards.", // P-299: a measure the filter cannot say
-  "[Permanent] While this card is in Rest Mode, your opponent can't attack your Leader Card unless they choose 2 cards in their hand and discard them each time.", // a price on a defender-qualified attack
   "[Permanent] This card can't attack if you have 3 or less energy and the moon is up.",
 ]) {
   const { sk, script } = reading(text);
   assert.ok(script.unsupported.length, `unread, and says so: ${text}`);
+  assert.ok(!readsAsNothingSilently(sk, script));
+}
+// Read since prohibition batch 3 (`prohibition-catalog-3.ts`): P-299's measure
+// of the attacker against its controller's energy (`costVsEnergy`) and
+// BT14-076's price on attacking a particular defender (`attackTarget` +
+// `unlessPay`, charged once the defender is known).
+for (const text of [
+  "[permanent] When this card is in Rest Mode, your opponent's Battle Cards with energy costs greater than or equal to their current energy can't attack Leader Cards.",
+  "[Permanent] While this card is in Rest Mode, your opponent can't attack your Leader Card unless they choose 2 cards in their hand and discard them each time.",
+]) {
+  const { sk, script } = reading(text);
+  assert.deepEqual(script.unsupported, [], `reads whole: ${text}`);
   assert.ok(!readsAsNothingSilently(sk, script));
 }
 // The check itself: an empty program with nothing unread is flagged, a

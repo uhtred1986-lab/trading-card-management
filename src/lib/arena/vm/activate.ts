@@ -90,7 +90,7 @@ import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem, isFixedUnderHost } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
@@ -145,7 +145,7 @@ export interface ActivationLine {
  * rather than reading a keyword's price off nothing. What would replace them is
  * `DEFINE KEYWORD` bodies naming their own pools, which is Stage 7's (#153).
  */
-export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy", overRealmWarp: "warp" } as const;
+export const ACTIVATION_ZONES = { bond: "battle", sparking: "drop", marker: "unison", hand: "hand", drop: "drop", burst: "deck", spiritBoost: "unison", zDeck: "zDeck", zEnergy: "zEnergy", overRealmWarp: "warp", combo: "combo", energy: "energy" } as const;
 
 /** Every zone this module names, for the check `createGame` makes against the declarations. */
 export const ACTIVATION_ZONE_NAMES = [...new Set(Object.values(ACTIVATION_ZONES))];
@@ -243,9 +243,20 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     if (findCard(state, card)?.zone === ACTIVATION_ZONES.overRealmWarp &&
       !(game && keyword?.name === "Over Realm" && overRealmFromWarp(ctx, game, state, card)) &&
       (keyword || !usableFrom(showing.scripts.bySkill[skill.index]).includes("warp"))) continue;
-    // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, and only that, when its [Permanent]
-    // says it "can also be activated from your Z-Energy". Everything else printed there stays inert.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.zEnergy && (showing.scripts.bySkill[skill.index]?.price?.evolution || !(game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card)))) continue;
+    // BT19-077/078/081/082: a Z-Energy card's own [Evolve] line, when its [Permanent] says it "can also be
+    // activated from your Z-Energy". Phrasing batch 2: and a printed line the card's own text ties to the
+    // Z-Energy (`usedHere`, BT19-048, BT24-018). Everything else printed there stays inert.
+    const zone = findCard(state, card)?.zone;
+    if (zone === ACTIVATION_ZONES.zEnergy) {
+      const evolveLine = !showing.scripts.bySkill[skill.index]?.price?.evolution && !!game && keyword?.name === "Evolve" && evolveFromZEnergy(ctx, game, state, card);
+      if (!evolveLine && (keyword || !usedHere(showing.scripts.bySkill[skill.index], "zEnergy"))) continue;
+    }
+    // Phrasing batch 2 (9-1-3-1 "unless otherwise specified", 9-1-3-2): the Combo Area and the Energy Area are
+    // where a printed line is used from only when the card's own text says the card there uses it (`usedHere`):
+    // "…if … this card is in a Combo Area: …" (BT23-016, P-710), "Place this card in its owner's Drop Area from
+    // your Combo Area: …" (EX19-12), "You may place this card in its owner's Drop Area from your energy" (EX17-05).
+    // A Combo Area holds cards only during a battle (21-4-2), so its lines come at the combo prompt.
+    if ((zone === ACTIVATION_ZONES.combo || zone === ACTIVATION_ZONES.energy) && (keyword || !usedHere(showing.scripts.bySkill[skill.index], zone))) continue;
     out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
@@ -681,6 +692,23 @@ export function usableFrom(script: Script | undefined): Area[] {
 }
 
 /**
+ * Phrasing batch 2: is this line used by its card while the card is in `area`
+ * — an area 9-1-3-1 gives no skills to (the Combo Area, the Energy Area, the
+ * Z-Energy) — because the card's own text says so? Either the line's price or
+ * effect takes this card out of that area (`usableFrom`, 9-1-3-2), or the
+ * condition its price states asks that this card be there ("…and this card is
+ * in a Combo Area", "…this card is in your Z-Energy", 9-1-3-1's "unless
+ * otherwise specified"). Read off the record, never the text.
+ */
+export function usedHere(script: Script | undefined, area: Area): boolean {
+  if (!script) return false;
+  if (usableFrom(script).includes(area)) return true;
+  const asksSelfHere = (cond: Cond | null | undefined): boolean =>
+    !!cond && (cond.kind === "all" ? cond.conds.some(asksSelfHere) : cond.kind === "count" && "special" in cond.sel && cond.sel.special === "self" && cond.sel.area === area && (cond.atLeast ?? 0) >= 1 && cond.atMost === undefined);
+  return asksSelfHere(script.price?.condition);
+}
+
+/**
  * Can the effect after the colon be resolved at all? The legacy `canResolve`,
  * with no referee: a line with no effect resolves to nothing, and a line with
  * one needs a record whose every clause the compiler read.
@@ -1062,7 +1090,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];
     return !!b && (masterOf(game, state, b.attacker) === player || masterOf(game, state, b.guard) === player) && !!def && !!findCard(state, id)
-      && findCard(state, id)?.zone !== "combo" && canCombo(def) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
+      && findCard(state, id)?.zone !== "combo" && canCombo(def, comboPriceOf(game) === null) && !forbiddenBy(ctx, game, state, "combo", { player, card: id });
   };
   /** 20-14, 0-2-5: "You can't send cards from Drop Areas to Warps" (BT6-028) — a price that needs that move can't be paid. */
   const dropToWarpForbidden = (id: string, to: string): boolean => to === "warp" && findCard(state, id)?.zone === "drop" && !!forbiddenBy(ctx, game, state, "dropToWarp", { player, card: id });

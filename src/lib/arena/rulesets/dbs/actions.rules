@@ -340,7 +340,7 @@ DEFINE ACTION playZ                                                       -- §1
 DEFINE ACTION activate                                                    -- §9-1-2
   WHEN [main]
   prompts: [main]
-  FOR 1 IN you.hand|leader|unison|battle|zDeck|zEnergy|warp|drop               -- zDeck: a keyword's own move only, [Z-Awaken] (22-46-5); zEnergy: an [Evolve] line only, and only while its card's [Permanent] permits it (`evolveFromZEnergy`, BT19-077/078/081/082, #917); warp: [Over Realm] only, and only while its card's [Permanent] permits it (`overRealmFromWarp`, BT31-150)
+  FOR 1 IN you.hand|leader|unison|battle|zDeck|zEnergy|warp|drop|combo|energy  -- zDeck: a keyword's own move only, [Z-Awaken] (22-46-5); zEnergy: an [Evolve] line only, and only while its card's [Permanent] permits it (`evolveFromZEnergy`, BT19-077/078/081/082, #917), or a printed line the card's own text ties to the Z-Energy; warp: [Over Realm] only, and only while its card's [Permanent] permits it (`overRealmFromWarp`, BT31-150); combo, energy: a printed line the card's own text ties to that area (9-1-3-1, 9-1-3-2; `usedHere`, phrasing batch 2)
   BIND "card"
   skills: ["activate:main", "activate:main/battle"]
   COST [marker, burst, spiritBoost, energy, zEnergy, payWith, text]       -- zEnergy: bound to 0 but from the Z-Deck (22-46-3)

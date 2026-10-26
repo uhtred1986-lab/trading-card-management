@@ -126,8 +126,10 @@ export interface ScriptHost {
   playerName(p: PlayerId): string;
   /** Which turn it is (7-1). */
   turn(): number;
+  /** #1208: the game declares no combo price, so a card with no printed combo cost may join a combo free (`canCombo`'s `free`). */
+  comboFree(): boolean;
   /** 0-2-5: is this action forbidden right now? */
-  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string }): boolean;
+  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string; keyword?: string }): boolean;
   /**
    * 20-14-1: the prices in force on this action (`Prohibition.pay`), each a
    * program the acting player runs in their own frame — the rules `forbids`

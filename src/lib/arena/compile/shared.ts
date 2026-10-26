@@ -108,6 +108,8 @@ export interface Ctx {
   lastUntil?: "battle" | "turn";
   /** The name the last KO of a bound choice used: "if the KO'd card was a ≪Saiyan≫ card" (BT25-097). */
   koed?: string;
+  /** The name the last move of a bound choice to a Drop used: "If you placed a card in your Drop Area using this skill" (EX19-11, phrasing batch 2). */
+  dropped?: string;
   /**
    * What "it"/"them" points at. Card text carries the subject from clause to
    * clause — "Switch this card to Active Mode and it gets +5000 power" means
@@ -141,7 +143,7 @@ export interface Ctx {
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).
    */
-  replacing: { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo"; bySide?: "opponent"; subject?: string; subjectSide?: Side; event?: "life" | "marker"; to?: "hand" | "drop"; lifeSelf?: true; requestedTo?: "hand"; until?: Duration } | null;
+  replacing: { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent"; subject?: string; subjectSide?: Side; event?: "life" | "marker"; to?: "hand" | "drop"; lifeSelf?: true; requestedTo?: "hand"; until?: Duration } | null;
   /**
    * The steps of a replacement's body read so far, when the sentence runs past
    * one clause and the word "instead" has not arrived yet (9-10, #107). Held
@@ -175,6 +177,8 @@ export interface Ctx {
   costs: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
+  /** The kind of the skill being read (`counter:play`, …): a [Counter: Play] restating its own moment says nothing more (phrasing batch 2). */
+  skillKind?: string;
   /**
    * Does this skill's price charge an X (20-5)? Only then may a clause read
    * `X` as an amount.

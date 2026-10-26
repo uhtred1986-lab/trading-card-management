@@ -37,16 +37,8 @@ function linesOf(text: string): string[] {
   return text.replace(/\]\s+(?=\[)/g, "]<br>").replace(/\.\s+(?=\[)/g, ".<br>").split("<br>").map((l) => l.trim()).filter(Boolean);
 }
 
-/**
- * Effects that stay unread, with the tag already read. Not a tag problem: the same effect spelled the dbs way
- * ("[Auto] When this card is played, if …, add up to 1 <Son Goten> and up to 1 <Trunks : Youth> —both with a cost of 2 or less—
- * from your Drop to your hand") is unread too (FS03-13 likewise), so the gap is the effect reader's (two named cards joined by "and" sharing an
- * aside; a look-at-5 reveal of a name or Extra) and out of F1-04's scope. Handed to the coordinator in the PR.
- */
-const KNOWN_UNREAD: Record<string, string> = {
-  "FS02-03": "two named cards from the Drop under one shared aside",
-  "FS03-13": "look at 5, reveal up to 1 <Paragus> or up to 1 Extra",
-};
+/** Cards whose skills stay unread, with the reason. None: FS02-03 and FS03-13 read since F1-10 (#1208). */
+const KNOWN_UNREAD: Record<string, string> = {};
 
 type Row = { id: string; side: string; line: string; kind: string; trigger: string; cost: string; unread: number };
 const rows: Row[] = [];
@@ -481,6 +473,61 @@ for (const def of Object.values(FW_DEFS)) {
   assert.equal(out.state.cards[b].mode, "active", "…and the second");
 }
 
+// F1-10 (#1208): the two effects the shared readers could not take. A shared aside for two named picks, and a look-at-N reveal of a name or a type.
+{
+  // FS02-03 Gotenks [On Play]: if 7 or fewer cards are in the hand, add up to 1 <Son Goten> and up to 1 <Trunks : Youth>, both cost 2 or less, from the Drop.
+  const withEnergy = (state: EngineState, owner: PlayerId, n: number) => {
+    for (let i = 0; i < n; i++) {
+      const id = zoneOf(state, owner, "deck")[0];
+      state.sides[owner].zones.deck = zoneOf(state, owner, "deck").filter((x) => x !== id);
+      state.cards[id].mode = "active";
+      zoneOf(state, owner, "energy").push(id);
+    }
+  };
+  const drop = (state: EngineState, owner: PlayerId, cardId: string) => {
+    const id = put(state, owner, cardId, "hand");
+    state.sides[owner].zones.hand = zoneOf(state, owner, "hand").filter((x) => x !== id);
+    zoneOf(state, owner, "drop").push(id);
+    return id;
+  };
+  const gotenks = (hand: number) => {
+    const state = mainOf("FS02", "FS01");
+    withEnergy(state, "p1", 4);
+    const [goten, trunks, big] = [drop(state, "p1", "FS02-06"), drop(state, "p1", "FS02-09"), drop(state, "p1", "FS02-05")];
+    const card = put(state, "p1", "FS02-03", "hand");
+    // `hand` cards in all, Gotenks among them; the condition is asked after it has left the hand.
+    state.sides.p1.zones.hand = zoneOf(state, "p1", "hand").filter((x) => x === card).concat(zoneOf(state, "p1", "hand").filter((x) => x !== card).slice(0, hand - 1));
+    while (zoneOf(state, "p1", "hand").length < hand) zoneOf(state, "p1", "hand").push(zoneOf(state, "p1", "deck").shift()!);
+    const played = ftake(state, { type: "play", player: "p1", card });
+    const out = settle(played.state, played.events, (rows) => rows.find((r) => r.action.type === "choose") ?? rows[0]);
+    return { out, goten, trunks, big };
+  };
+  const { out, goten, trunks } = gotenks(8); // 7 left after Gotenks is played: the limit
+  assert.ok(zoneOf(out.state, "p1", "hand").includes(goten) && zoneOf(out.state, "p1", "hand").includes(trunks), "FS02-03 adds both the <Son Goten> and the <Trunks : Youth> from the Drop");
+  assert.equal(skillsOf(out.events, zoneOf(out.state, "p1", "battle").find((id) => out.state.cards[id].cardId === "FS02-03")!).length, 1, "[On Play] fires once");
+  const full = gotenks(9); // 8 left after Gotenks is played
+  assert.ok(!zoneOf(full.out.state, "p1", "hand").includes(full.goten), "with more than 7 cards in the hand FS02-03 adds nothing");
+
+  // FS03-13 Moah [On Play]: look at 5, reveal up to 1 <Paragus> or up to 1 Extra, add it; the rest go to the bottom of the deck.
+  for (const [want, label] of [["FS03-06", "a <Paragus>"], ["FS03-15", "an Extra"]] as const) {
+    const state = mainOf("FS03", "FS01");
+    const moah = put(state, "p1", "FS03-13", "hand");
+    const top = zoneOf(state, "p1", "deck").slice(0, 5);
+    state.cards[top[0]].cardId = "FS03-06";
+    state.cards[top[1]].cardId = "FS03-15";
+    const deckBefore = zoneOf(state, "p1", "deck").length;
+    const handBefore = zoneOf(state, "p1", "hand").length;
+    const played = ftake(state, { type: "play", player: "p1", card: moah });
+    const out = settle(played.state, played.events, (rows) => rows.find((r) => r.action.type === "choose" && JSON.stringify(r.action).includes(want === "FS03-06" ? top[0] : top[1])) ?? rows.find((r) => r.action.type === "choose") ?? rows[0]);
+    const taken = want === "FS03-06" ? top[0] : top[1];
+    assert.ok(zoneOf(out.state, "p1", "hand").includes(taken), `FS03-13 reveals and adds ${label}`);
+    assert.equal(zoneOf(out.state, "p1", "hand").length, handBefore, "one card played, one added");
+    assert.equal(zoneOf(out.state, "p1", "deck").length, deckBefore - 1, "only the added card left the deck");
+    const rest = top.filter((id) => id !== taken);
+    assert.deepEqual(zoneOf(out.state, "p1", "deck").slice(-4).sort(), [...rest].sort(), "the other four are at the bottom of the deck");
+  }
+}
+
 // [Awaken] at life 4 or less: offered in the Main Phase, draws, flips; not offered above.
 {
   const state = mainOf("FS01", "FS02");
@@ -523,8 +570,7 @@ for (const def of Object.values(FW_DEFS)) {
 }
 
 
-// Full games. Forty random complete games (200 locally: `npm run arena:fuzz -- 200 --game fusion`): no crash, no stall, and an interruption
-// only on a card that is known to be unread (FS02-03 and FS03-13 above, the effect reader's gap and not this suite's).
+// Full games. Forty random complete games (200 locally: `npm run arena:fuzz -- 200 --game fusion`): no crash, no stall, and an interruption.
 const FUZZ_GAMES = 40;
 {
   let rng = 12345;

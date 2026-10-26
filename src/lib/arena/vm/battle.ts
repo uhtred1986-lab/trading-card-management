@@ -73,6 +73,7 @@ import { canCombo } from "../text/cards";
 import type { Action, PlayerId, Prompt, ReplacementResult, Requirement, Skill } from "../types";
 import { describeScript, markerReplacementPrompt, markerSubstituteFrame, replacementPrompt, routeOf, stepScript, taxLabel, type Op, type ScriptFrame } from "./script";
 import type { ActionDef, GameDefinition } from "../rulesets";
+import { comboPriceOf } from "./costs";
 import { applyDeclared, keyOf, legalActionsOf, rejectionsOf } from "./actions";
 import { costIsOnlyOrbs, costText } from "../compile";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
@@ -81,7 +82,7 @@ import { actionCostOf, altCostFor, programAltsFor, cardPrice, chargeCost, payAlt
 import { dueDelays, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
-import { endGame, enterPhase, moved, other, requirePrompt, type Work } from "./flow";
+import { endGame, enterPhase, gameEndForbidden, moved, other, requirePrompt, type Work } from "./flow";
 import { activationTaxGate, activationTaxes, canPayPriceProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
@@ -99,7 +100,7 @@ export function attackLegalActions(ctx: EngineContext, game: GameDefinition, sta
   const out: LegalAction[] = [];
   for (const attacker of eligibleAttackers(ctx, game, state, player)) {
     for (const target of targetsFor(ctx, game, state, player, attacker)) {
-      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})${taxLabel(taxesOn(ctx, game, state, "attack", { player, card: attacker }).map((t) => t.ops))}`;
+      const label = `Attack ${nameOf(ctx, state, target)} with ${nameOf(ctx, state, attacker)} (${powerOf(ctx, game, state, attacker)} vs ${powerOf(ctx, game, state, target)})${taxLabel(taxesOn(ctx, game, state, "attack", { player, card: attacker, attackTarget: target }).map((t) => t.ops))}`;
       out.push({ action: { type: "attack", player, attacker, target }, label });
     }
   }
@@ -136,7 +137,8 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
   // the attacking player and in their own frame, and the attack is taken after
   // it. The programs go in front of the battle the attack opens, so they run
   // before the Attack Step's first checkpoint resolves anything.
-  const taxes = taxesOn(ctx, game, state, "attack", { player: action.player, card: attacker });
+  // A price on attacking particular defenders (BT13-082) is asked of this one.
+  const taxes = taxesOn(ctx, game, state, "attack", { player: action.player, card: attacker, attackTarget: action.target });
   for (const tax of taxes.reverse()) state.programs.unshift({ ops: tax.ops, ip: 0, vars: {}, card: attacker, master: action.player });
   setMode(ctx, game, state, ev, attacker, "rest");
   // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
@@ -178,8 +180,12 @@ function targetsFor(ctx: EngineContext, game: GameDefinition, state: VmState, pl
       if (lifts.some((p) => permitted(ctx, game, state, p.filter, id))) out.push(id);
     }
   }
+  // 20-14-1: a price on attacking this defender that nobody can pay
+  // (BT13-082's "can't attack Leader Cards unless they discard 1 card each
+  // time" with an empty hand) leaves the defender off the list.
   return out.filter((id) => !forbids(ctx, game, state, "beAttacked", { player: opp, card: id }) &&
-    (!attacker || !forbids(ctx, game, state, "attack", { player, card: attacker, attackTarget: id })));
+    (!attacker || !forbids(ctx, game, state, "attack", { player, card: attacker, attackTarget: id })) &&
+    (!attacker || taxesOn(ctx, game, state, "attack", { player, card: attacker, attackTarget: id }).every((t) => !t.defender || canPayPriceProgram(ctx, game, state, player, attacker, t.ops))));
 }
 
 /** The `whyNotAttack` reading (8-1): timing first, then mode, then a prohibition, then whether anything at all may be hit — `whyNotCharge`'s own order, board-fact-before-card-fact where the two could otherwise disagree about which is first. */
@@ -198,6 +204,8 @@ function attackWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pla
   if (banned) why.push({ kind: "forbidden", ...banned });
   // 20-14-1: a tax nobody can pay is a ban — "if action B is not taken … action A can't be declared".
   for (const tax of taxesOn(ctx, game, state, "attack", { player, card: attacker })) {
+    // A defender's price is asked of each defender (`targetsFor`).
+    if (tax.defender) continue;
     if (!canPayPriceProgram(ctx, game, state, player, attacker, tax.ops)) why.push({ kind: "forbidden", by: tax.by, until: tax.until, unless: `you pay, each time: ${describeScript(tax.ops)}` });
   }
   if (!why.length && !targets.length) why.push({ kind: "target", reason: "nothing may be attacked" });
@@ -1394,16 +1402,7 @@ function comboEligible(ctx: EngineContext, game: GameDefinition, state: VmState,
   return readingBoard(ctx, game, state, () => comboEligibleOnBoard(ctx, game, state, player));
 }
 
-/**
- * The combo price the loaded game declares (`DEFINE COST` reading `comboCostOf`),
- * or null for a game with none — Fusion World's combos cost nothing (FW manual
- * p. 10). A null price means the combo path plans no payment at all, never a
- * zero-energy one.
- */
-export function comboPriceOf(game: GameDefinition): string | null {
-  for (const [name, def] of Object.entries(game.costs)) if (def.amount === "comboCostOf") return name;
-  return null;
-}
+export { comboPriceOf } from "./costs";
 
 /** The combo's price for `card`, or null when the game declares none. */
 function comboPriceFor(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, def: { comboCost?: number | null }) {
@@ -1765,7 +1764,7 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   log(ev, { type: "damage", player: defender, amount: taken.length, critical: d.critical, cards: taken });
   const attacker = b.attacker;
   fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
-  if (d.wins) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
+  if (d.wins && !gameEndForbidden(ctx, game, state, defender, other(defender))) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
 }
 
 /**

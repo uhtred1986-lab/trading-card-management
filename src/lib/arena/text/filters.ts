@@ -601,6 +601,10 @@ export function hasEnergyBound(f: CardFilter): boolean {
 }
 
 export function parseFilter(text: string): CardFilter {
+  // Phrasing batch 2: "your other ≪Saiyan≫ Battle Cards in play **which are** ≪Universe 7≫ or ≪Universe 6≫" (TB1-004)
+  // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
+  // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
+  if (/\bwhich (?:are|is)\b/i.test(text)) return { ...parseOneFilter(text), unreadable: true };
   return eitherFilter(text) ?? parseOneFilter(text);
 }
 
@@ -1060,12 +1064,13 @@ function parseOneFilter(text: string): CardFilter {
     } else f.originalCostMin = f.originalCostMax = Number(original[5]);
     costText = costText.replace(original[0], " ");
   }
-  if ((m = /energy costs? (?:of )?(\d+) or less/.exec(costText))) f.costMax = Number(m[1]);
-  else if ((m = /energy costs? (?:of )?(\d+) or more/.exec(costText))) f.costMin = Number(m[1]);
-  else if ((m = /energy costs? (?:of )?between (\d+) and (\d+)/.exec(costText))) {
+  // #1208: Fusion World prints the bare "cost" for the energy cost (FS02-03 "with a cost of 2 or less"); the combo cost is said as such.
+  if ((m = /(?<!combo |z-|specific |specified |total )(?:energy )?costs? (?:of )?(\d+) or less/.exec(costText))) f.costMax = Number(m[1]);
+  else if ((m = /(?<!combo |z-|specific |specified |total )(?:energy )?costs? (?:of )?(\d+) or more/.exec(costText))) f.costMin = Number(m[1]);
+  else if ((m = /(?<!combo |z-|specific |specified |total )(?:energy )?costs? (?:of )?between (\d+) and (\d+)/.exec(costText))) {
     f.costMin = Number(m[1]);
     f.costMax = Number(m[2]);
-  } else if ((m = /energy costs? (?:of )?(\d+)\b/.exec(costText))) f.costMin = f.costMax = Number(m[1]);
+  } else if ((m = /(?<!combo |z-|specific |specified |total )(?:energy )?costs? (?:of )?(\d+)\b/.exec(costText))) f.costMin = f.costMax = Number(m[1]);
   // "Battle Cards with power between 30000 and 35000", "up to 2 black Battle
   // Cards with powers between 20000 and 30000" — the same range the cost line
   // above already reads, which the sets also write for power. Read before the

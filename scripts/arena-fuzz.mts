@@ -76,7 +76,8 @@ if (game === "fusion") {
   const usable: FuzzSnapshot["decks"] = [];
   for (const d of all) {
     const loaded = await deckInputFor(db, d.id);
-    if (loaded && loaded.input.main.length >= 50) usable.push({ ...d, input: loaded.input, cardIds: loaded.cardIds });
+    // Since #1201 deckInputFor also loads Fusion World decks; a Masters run pairs Masters decks only, as the arena itself does (startGame refuses two games).
+    if (loaded && loaded.game === "dbs" && loaded.input.main.length >= 50) usable.push({ ...d, input: loaded.input, cardIds: loaded.cardIds });
   }
   const defs = await defsForCards(db, usable.flatMap((d) => d.cardIds));
   snapshot = { format: "arena-fuzz-snapshot-v1", decks: usable, context: { defs, scripts: await rulesFor(db, defs) } };
