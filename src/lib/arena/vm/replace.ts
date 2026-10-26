@@ -95,6 +95,9 @@ function causeMatches(game: GameDefinition, state: VmState, id: string, r: Repla
   if (r.by === "skill" && reason !== "effect") return false;
   if (r.by === "ko" && reason !== "ko") return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "ko") return false;
+  // A skill's KO is asked with the skill's controller as the actor; the
+  // battle's KO (8-4-6-2) has none, and is not this rule's.
+  if (r.by === "skillOrKoBySkill" && reason !== "effect" && !(reason === "ko" && actor !== undefined)) return false;
   if (r.requestedTo && r.requestedTo !== requestedTo) return false;
   if (r.bySide === "opponent" && (actor === undefined || actor === masterOf(game, state, id))) return false;
   return true;

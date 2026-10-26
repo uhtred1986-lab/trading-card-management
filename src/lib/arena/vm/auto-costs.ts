@@ -44,9 +44,9 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const unpaid = () => { throw new IllegalAction("the Auto skill cost cannot be paid in its entirety"); };
   /** The interpreter's KO skips these cards silently (`stepScript`'s `ko`,
    * `koCard`'s 20-14 read); a skipped KO is no payment (5-8-2-2). */
-  const koablePrice = (id: string, master: PlayerId): boolean => !!state.cards[id] && host.areaOf(id) === "battle"
+  const koablePrice = (id: string, master: PlayerId, source?: string): boolean => !!state.cards[id] && host.areaOf(id) === "battle"
     && !(host.hasKeyword(id, "Indestructible") && host.masterOf(id) !== master)
-    && !host.forbids("beKOd", { card: id }) && !host.forbids("beKOdBySkill", { player: master, card: id });
+    && !host.forbids("beKOd", { card: id }) && !host.forbids("beKOdBySkill", { player: master, card: id, ...(source ? { source } : {}) });
   /** "Use 1 card from under this card in a combo" (BT29-030). The interpreter's
    * `comboFrom` skips a card when no battle has the master in it (5-7-1), and
    * a card already in a Combo Area; 5-7-2 admits only a Battle Card with a
@@ -86,7 +86,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
         // 5-12-1: only a Battle Card in the Battle Area can be KO'd. "Your
         // <Vegeta> cards" also reads the Leader, which no KO can move.
-        if (following?.op === "ko") found = found.filter((id) => koablePrice(id, f.master));
+        if (following?.op === "ko") found = found.filter((id) => koablePrice(id, f.master, f.card));
         if (following?.op === "comboFrom") found = found.filter((id) => comboablePrice(id, f.master));
         const next = f.ops[f.ip + 1];
         if (next?.op === "faceUp" && "var" in next.target && next.target.var === op.as && sel.side === "you" && sel.area === "life")
@@ -120,7 +120,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       }
       // A KO price names Battle Cards that can actually be KO'd now; the
       // interpreter would otherwise skip the rest without moving anything.
-      if (op?.op === "ko" && ref === op.target && (!found.length || found.some((id) => !koablePrice(id, f.master)))) unpaid();
+      if (op?.op === "ko" && ref === op.target && (!found.length || found.some((id) => !koablePrice(id, f.master, f.card)))) unpaid();
       if (op?.op === "comboFrom" && ref === op.target && (!found.length || found.some((id) => !comboablePrice(id, f.master)))) unpaid();
       // An empty target would add no effect at all: no payment.
       if (op?.op === "power" && ref === op.target && (found.length !== 1 || !poweredPrice(found[0]))) unpaid();
