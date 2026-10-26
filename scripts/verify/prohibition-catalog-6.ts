@@ -664,15 +664,15 @@ for (const me of SEATS) {
     const pick = stage(s, me, "LIFEPICK", "battle");
     s = roundtrip(s);
     const [first, second] = s.sides[me].zones.life;
-    const use = (t: VmState, id: string, cards: string[]) => roundtrip(settle(take(t, RULES.legalActions(ctx, t).find((l) => l.action.type === "activate" && l.action.card === id)!.action), cards, 0));
-    s = use(s, red, [first]);
+    const activateBy = (t: VmState, id: string, cards: string[]) => roundtrip(settle(take(t, RULES.legalActions(ctx, t).find((l) => l.action.type === "activate" && l.action.card === id)!.action), cards, 0));
+    s = activateBy(s, red, [first]);
     assert.equal(s.cards[first].faceUp, false, `${me}: BT12-086 — a red card's skill turns no Life card face up`);
-    s = use(s, yellow, [first]);
+    s = activateBy(s, yellow, [first]);
     assert.equal(s.cards[first].faceUp, true, `${me}: a mono-yellow card's skill does (control)`);
-    s = use(s, pick, [first]);
+    s = activateBy(s, pick, [first]);
     assert.equal(zoneOf(s, first), "life", `${me}: BT12-086 — the face-up Life card is not added to the hand`);
     s = roundtrip(endTurn(endTurn(s)));
-    s = use(s, pick, [second]);
+    s = activateBy(s, pick, [second]);
     assert.equal(zoneOf(s, second), "hand", `${me}: a face-down one is (control)`);
   }
 
