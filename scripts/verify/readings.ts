@@ -486,7 +486,8 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // "Would be KO'd" replaces the KO and nothing else; "would leave the Battle
   // Area" replaces every departure, so it carries no cause at all.
   assert.equal((one("[Permanent] If this card would leave the Battle Area, return it to its owner's hand instead.").ops[0] as { by?: string }).by, undefined);
-  assert.equal((one("[Permanent] If this card would be removed from the Battle Area by a skill, send it to the Warp instead.").ops[0] as { by?: string }).by, "skill");
+  // Owner ruling 26 Oct 2026 (prohibition batch 3): a skill's KO is a removal too.
+  assert.equal((one("[Permanent] If this card would be removed from the Battle Area by a skill, send it to the Warp instead.").ops[0] as { by?: string }).by, "skillOrKoBySkill");
 
   // BT30-016: other cards by filter, both causes, and the mode it arrives in.
   const earthling = one("[Permanent] If your blue ≪Earthling≫ card would be removed from a Battle Area by a skill or KO'd, add that card to your energy in Rest Mode instead.");

@@ -976,10 +976,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // `printedEffect` to announce and run where it says (#154).
     const printed = program && !program.unsupported.length && program.ops.length ? { ops: program.ops, text: skill.raw, inBattle: !!state.battle } : undefined;
     if (keyword.name === "Revive") {
-      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}) }, keyword, skill, program);
+      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program);
       return true;
     }
-    queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}) }, skill, program);
+    queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}), viaKeyword: keyword.name }, skill, program);
     return true;
   }
   // 9-4: a condition the record hoisted out of the price is asked before
@@ -1650,6 +1650,11 @@ function fromZone(state: VmState, id: string): string | null {
 // ── the game ending ─────────────────────────────────────────────────────────
 
 /** A game comes to rest in its over phase, which is a phase like any other: it has a step, and that step asks the question nobody answers. */
+/** 20-14 (P-032): may this player not lose, or the other not win, right now? */
+export function gameEndForbidden(ctx: EngineContext, game: GameDefinition, state: VmState, loser: PlayerId, winner: PlayerId): boolean {
+  return forbids(ctx, game, state, "loseGame", { player: loser }) || forbids(ctx, game, state, "winGame", { player: winner });
+}
+
 export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], winner: PlayerId | null, reason: string, outcome?: StoredOutcome): void {
   const over = game.game?.overPhase;
   if (!over) throw new RulesetBroken(state.game, "DEFINE GAME names no overPhase, so a finished game has nowhere to come to rest");
@@ -1692,6 +1697,10 @@ function checkWins(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
       if (holds(game, state, win.if, p)) lost.push({ player: p, win });
     }
   }
+  // 20-14 (P-032): "you cannot lose the game and the opponent cannot win the
+  // game for the turn" — the loss does not happen while the rule holds; the
+  // condition is asked again at the next check, once it has gone.
+  for (let i = lost.length - 1; i >= 0; i--) if (gameEndForbidden(ctx, game, state, lost[i].player, other(lost[i].player))) lost.splice(i, 1);
   if (!lost.length) return;
   const losers = [...new Set(lost.map((l) => l.player))];
   if (losers.length === 2) return endGame(ctx, game, state, ev, null, "both players lost at once");

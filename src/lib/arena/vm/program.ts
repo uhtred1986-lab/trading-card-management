@@ -1071,7 +1071,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -1130,6 +1130,25 @@ function ruleApplies(
   // a description of the card whose action it is. Asked without one, it applies.
   if (f.byFilter && opts.source && state.cards[opts.source] && !predicateOf(f.byFilter, game)(attrsNow(ctx, game, state, opts.source))) return false;
   if (f.otherCards && rule.source && rule.source === opts.card) return false;
+  // "Cards in your hand … for the turn" (DB2-156): the side whose area the
+  // card is in, a card that arrives later included. A card the rule cannot
+  // place is not its.
+  if (f.cardsOf) {
+    const at = opts.card ? findCard(state, opts.card) : null;
+    if (!at || at.owner !== f.cardsOf) return false;
+  }
+  // "…with skills other than [Revive Blue/Green]": that keyword's own play
+  // is the one skill play the rule lets through.
+  if (f.exceptKeyword && opts.keyword === f.exceptKeyword) return false;
+  // "Battle Cards with energy costs greater than their current energy"
+  // (P-219, P-299): the card's cost against its controller's Energy Area.
+  if (f.costVsEnergy) {
+    if (!opts.card || !state.cards[opts.card]) return false;
+    const cost = attrsNow(ctx, game, state, opts.card).energyCost;
+    if (typeof cost !== "number") return false;
+    const energy = state.sides[masterOf(game, state, opts.card)].zones.energy?.length ?? 0;
+    if (f.costVsEnergy === "above" ? !(cost > energy) : !(cost >= energy)) return false;
+  }
   // "By skills" and "except by skills" are opposite halves of one wording, and
   // a rule that names one of them says nothing about the other.
   if (f.bySkill !== undefined && opts.bySkill !== undefined && f.bySkill !== opts.bySkill) return false;
@@ -1185,7 +1204,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1203,7 +1222,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1281,6 +1300,14 @@ export interface TaxInForce {
   until: EffectUntil;
   /** #677: the rule's stable identity (`RuleInForce.key`). */
   key: string;
+  /**
+   * A price on attacking **particular defenders** — "your opponent can't attack
+   * Leader Cards unless they discard 1 card each time" (BT13-082, BT14-076,
+   * BT18-099): it is charged on an attack declared against one of them, and
+   * one nobody can pay takes that defender off the attacker's list rather
+   * than the attacker out of the attack.
+   */
+  defender?: true;
 }
 
 /**
@@ -1292,7 +1319,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1300,7 +1327,8 @@ export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState
     // once the use is gone.
     if (!rule.forbid.pay?.length || ((rule.forbid.uses ?? 0) > 0) !== !!opts.counted) continue;
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
-    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key });
+    const defender = !!(rule.forbid.attackTarget || rule.forbid.against || rule.forbid.attackOnly);
+    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key, ...(defender ? { defender: true as const } : {}) });
   }
   return out;
 }
