@@ -4957,6 +4957,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const removed = /^be removed from (?:(?:a|the|your|their) battle areas?|battle areas) by (skills|your opponent'?s (?:card )?skills|an opponent'?s skill|the skills of your opponent'?s battle cards)(?:$|\s+(?:for|during|until)\b)/.exec(rest);
     if (removed) return removedBySkill({ ...(bySide ? { side: bySide } : {}), ...(/battle cards$/.test(removed[1]) ? { byTypes: ["BATTLE" as const] } : {}) });
   }
+  // "This card can't be added to a player's hand" (P-474, prohibition batch 6;
+  // LABELLED BEST GUESS, asked of the owner): a skill's move of it into any
+  // hand, from wherever it is — an effect's or a price's. A draw and a damage
+  // check are no skill's move and are not stopped.
+  if (c.permanent && "sel" in target && target.sel.special === "self" && /^be added to (?:a player'?s|your|its owner'?s|their|any player'?s) hand$/.test(rest)) {
+    return [{ op: "forbid", what: "beMovedBySkill", until: "game", target, fromArea: "any", toArea: "hand", ...withUnless }];
+  }
   // "This card can't be removed from under your Leader by a skill other than
   // this card's skills" (BT21-012), "…can't be removed from the Leader Area by
   // a skill other than this card's skills" while it is under a Leader

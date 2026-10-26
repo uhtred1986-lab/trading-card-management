@@ -3047,7 +3047,7 @@ function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): 
   const to = op.toArea;
   const passiveVerb = !to
     ? `be removed from ${op.fromArea === "under" ? "under the card it is under" : op.fromArea && op.fromArea !== "battle" ? `the ${PILE_NAMES[op.fromArea] ?? op.fromArea}` : "a Battle Area"}`
-    : to === "hand" ? "be returned to the hand"
+    : to === "hand" ? (op.fromArea === "any" ? "be added to a hand" : "be returned to the hand")
     : to === "deck" ? (op.toBottom ? "be placed at the bottom of the deck" : "be returned to the deck")
     : to === "warp" ? "be sent to the Warp"
     : `be placed in the ${PILE_NAMES[to] ?? to}`;
@@ -3070,7 +3070,7 @@ function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): 
       ? `cards in ${op.cardsOf === "opponent" ? "your opponent's" : "your"} ${op.fromArea && op.fromArea !== "any" ? PILE_NAMES[op.fromArea] ?? op.fromArea : "areas"}`
       : op.filter ? describeFilter(op.filter, { plural: true }) : "cards";
   // A target rule about cards in a hand says where they are, unless the subject already does.
-  const where = op.target && op.fromArea && to && !/\bin (?:your|your opponent's|their) /.test(subject) ? ` from the ${PILE_NAMES[op.fromArea] ?? op.fromArea}` : "";
+  const where = op.target && op.fromArea && op.fromArea !== "any" && to && !/\bin (?:your|your opponent's|their) /.test(subject) ? ` from the ${PILE_NAMES[op.fromArea] ?? op.fromArea}` : "";
   return `${subject} can't ${passiveVerb}${where}${by}${tail}`;
 }
 

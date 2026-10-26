@@ -117,6 +117,12 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
     }
     for (const op of program.ops) {
       if (op.op === "forbid" && op.fromArea === "under") continue;
+      // P-474 (prohibition batch 6): "this card can't be added to a player's
+      // hand" — the card's own rule wherever it is.
+      if (op.op === "forbid" && op.what === "beMovedBySkill" && op.fromArea === "any" && op.toArea === "hand" && op.until === "game" && op.target && "sel" in op.target && op.target.sel.special === "self") {
+        out.push({ what: op.what, fromArea: "any", toArea: "hand", ...(op.unless ? { unless: op.unless, master } : {}) });
+        continue;
+      }
       // BT18-052: "You can't switch this card in your Energy Area to Active
       // Mode" — a rule about itself where it is (9-1-3-3), which is no in-play area.
       const inEnergy = op.op === "forbid" && op.what === "switchToActive" && op.fromArea === "energy" && Object.values(state.sides).some((side) => side.zones.energy?.includes(id));

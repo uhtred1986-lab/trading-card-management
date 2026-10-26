@@ -183,6 +183,8 @@ const defs: Record<string, CardDef> = {
   ONCE_EVER: C("ONCE_EVER", { skill: "[Activate: Main] Draw 1 card, and you can't activate this skill for the duration of the game." }),
   LOCK_LEADER: C("LOCK_LEADER", { skill: "[Activate: Main] Draw 1 card, and you can't activate non-keyword Leader Card skills or skills on copies of this card for the turn." }),
   LACT: card("LACT", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null, skill: "[Activate: Main][Once per turn] Draw 1 card." }),
+  P474: C("P474", { skill: "[Permanent] This card can't be added to a player's hand." }),
+  RECALL: C("RECALL", { skill: "[Activate: Main] Choose up to 1 card in your Drop Area and add it to your hand." }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -740,6 +742,24 @@ for (const me of SEATS) {
     assert.ok(offered(s, leader), `${me}: the next turn the Leader's skill is offered again`);
   }
 
+  // 25 (P-474, best guess pending a ruling): a skill does not add it to a hand
+  // from the Drop Area; another card it does (control); a draw still draws it.
+  for (const def of ["P474", "PLAIN"]) {
+    let s = game3(me);
+    const it = stage(s, me, def, "drop");
+    const recall = stage(s, me, "RECALL", "battle");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === recall)!.action), [it], 0));
+    assert.equal(zoneOf(s, it), def === "P474" ? "drop" : "hand", `${me}: P-474 — ${def === "P474" ? "stays in the Drop Area" : "another card is added (control)"}`);
+  }
+  {
+    let s = game3(you);
+    const top = s.sides[me].zones.deck[0];
+    s.cards[top].cardId = "P474";
+    s = roundtrip(endTurn(s));
+    assert.equal(zoneOf(s, top), "hand", `${me}: P-474 — the draw is no skill's move, and draws it`);
+  }
+
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs
   // naming "your opponent" — here, me — so the attacker is the activating seat's opponent.)
   {
@@ -771,4 +791,4 @@ for (const me of SEATS) {
     assert.deepEqual([after.sides[me].zones.hand.length, after.sides[me].zones.zEnergy.length], [hand - 1, 0], `${me}: one hand card and the Z-Energy paid`);
   }
 }
-console.log("prohibition catalog 6: owner ruling (a keyword play's tax judged after its own hand costs — [Revive]'s colours, [Union-Fusion]'s materials) — enforced from both seats");
+console.log("prohibition catalog 6: owner ruling (a keyword play's tax judged after its own hand costs), Leader flips both ways and their bans, BT15-091's [Field] moments, [Z-Awaken], attacking-card and chosen-card escapes, evolved KO immunity, piles, plays other than / only, deck plays, [Awaken] draws, Life locks, power shield, no-gain, activation and attack prices, real \"you can't activate\" bans — read, and enforced from both seats");
