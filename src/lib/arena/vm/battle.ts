@@ -1629,7 +1629,7 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       const want = how.allMarkers ? inst.markers : (how.atLeast ?? 1);
       b.markerLoss = { remaining: Math.min(want, inst.markers), lost: 0 };
       return loseMarkers(ctx, game, state, ev);
-    } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible") && !forbids(ctx, game, state, "beKOdInBattle", { card: b.guard, player: atkP })) {
+    } else if (!hasKeyword(ctx, game, state, b.guard, "Indestructible") && !forbids(ctx, game, state, "beKOdInBattle", { card: b.guard, player: atkP, source: b.attacker })) {
       // 20-14: "it can't be KO'd by your opponent's attacks for the battle"
       // (BT13-118) — this KO, asked with the attacking side; a skill's KO is
       // `beKOdBySkill`, read where a skill KOs.

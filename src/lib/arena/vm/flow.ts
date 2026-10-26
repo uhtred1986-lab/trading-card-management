@@ -932,7 +932,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
   // activate skills" (BT29-041) has its pending [Auto] cancelled.
-  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card })) {
+  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
@@ -1336,7 +1336,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }
-    if (frame.pendingHookSkill && forbids(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card })) {
+    if (frame.pendingHookSkill && forbids(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card, skillKind: "auto" })) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card} can't activate skills, so its skill does not resolve` });
       return "done";
     }

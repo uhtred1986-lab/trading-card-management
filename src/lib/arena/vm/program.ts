@@ -1071,7 +1071,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -1108,6 +1108,27 @@ function ruleApplies(
   // of line, and never the card whose rule it is. Asked without a line, the
   // kind cannot exclude anything, so the rule is read as applying.
   if (f.counterKind && opts.skillKind !== undefined && counterKindOf(opts.skillKind) !== f.counterKind) return false;
+  // "…the [Activate: Main] skill on copies of this card" (BT12-031): only
+  // lines of that kind. Asked without a line, the rule applies.
+  if (f.skillKinds?.length && opts.skillKind !== undefined && !f.skillKinds.includes(opts.skillKind)) return false;
+  // "…by skills other than its own" (EB1-27), "…other than {Jaguar's
+  // Island}'s skills" (BT22-072): the one skill the rule lets through.
+  if (f.exceptSource && opts.source && state.cards[opts.source]) {
+    if (f.exceptSource.self && rule.source && opts.source === rule.source) return false;
+    if (f.exceptSource.name && nameShowing(ctx, state, opts.source)?.toLowerCase() === f.exceptSource.name.toLowerCase()) return false;
+  }
+  // A move by a skill: a rule that names no area of departure is about the
+  // Battle Area (20-14's "can't be removed from a Battle Area"), and one that
+  // names a destination only about a move there.
+  if (what === "beMovedBySkill") {
+    const from = opts.from ?? (opts.card ? findCard(state, opts.card)?.zone : undefined);
+    if (!f.fromArea && from !== undefined && from !== "battle") return false;
+    if (f.toArea && opts.to !== undefined && opts.to !== f.toArea) return false;
+    if (f.toBottom && opts.toBottom === false) return false;
+  }
+  // "…in battle against Battle Cards with energy costs of 3 or less" (P-481):
+  // a description of the card whose action it is. Asked without one, it applies.
+  if (f.byFilter && opts.source && state.cards[opts.source] && !predicateOf(f.byFilter, game)(attrsNow(ctx, game, state, opts.source))) return false;
   if (f.otherCards && rule.source && rule.source === opts.card) return false;
   // "By skills" and "except by skills" are opposite halves of one wording, and
   // a rule that names one of them says nothing about the other.
@@ -1164,7 +1185,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1182,7 +1203,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1238,9 +1259,9 @@ export function keywordPlayForbiddenBy(
   keyword: { name: string; variant?: string } | null | undefined,
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   if (!keyword) return null;
-  if (keyword.name === "Evolve") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: true });
+  if (keyword.name === "Evolve") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: true, source: card });
   if (keyword.name !== "Union") return null;
-  if (keyword.variant === "Fusion" || keyword.variant === "Potara") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: false, union: keyword.variant });
+  if (keyword.variant === "Fusion" || keyword.variant === "Potara") return forbiddenBy(ctx, game, state, "play", { player, card, bySkill: true, evolution: false, union: keyword.variant, source: card });
   if (keyword.variant !== "Absorb") return null;
   const bareBattle = (f: CardFilter | undefined) => !f || Object.entries(f).every(([k, v]) => (k === "type" ? v === "BATTLE" : v == null || v === false || (Array.isArray(v) && v.length === 0)));
   for (const rule of prohibitions(ctx, game, state)) {
@@ -1271,7 +1292,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses

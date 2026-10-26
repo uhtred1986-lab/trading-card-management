@@ -1236,8 +1236,13 @@ import type { EngineState, Trigger } from "./harness";
   // "other" qualifying something else must not disarm the test either.
   const own = opsOf("[Permanent] This card's skills can't be negated in any area.");
   assert.ok(JSON.stringify(own.ops).includes('"special":"self"'), "9-1-5: this card's own skills");
+  // Since prohibition batch 2 the exception ("other than [Revive Blue/Green]")
+  // is not read, so the clause is reported rather than read as a ban on every
+  // play of the card (the declared play from the hand included); what it may
+  // never become is a rule about another card.
   const notThisCard = opsOf("[Permanent] You can't play this card from any area with skills other than [Revive Blue/Green].");
-  assert.ok(JSON.stringify(notThisCard.ops).includes('"special":"self"'), "a bare 'other' does not make it another card");
+  assert.ok(JSON.stringify(notThisCard.ops).includes('"special":"self"') || notThisCard.unsupported.length > 0, "a bare 'other' does not make it another card");
+  assert.ok(!JSON.stringify(notThisCard.ops).includes('"notSelf"'), "a bare 'other' does not make it another card");
 
   // 3. "Cards chosen with this card's skill can't be switched to Active Mode"
   // (P-137, XD1-06, XD1-01) is the long way of saying "the chosen cards", and
