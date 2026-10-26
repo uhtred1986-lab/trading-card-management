@@ -1219,6 +1219,8 @@ export type Op =
       sameCharacterUnder?: true;
       /** BT23-005, P-485: the cards the rule lets through, by description (`Prohibition.exceptFilter`). */
       exceptFilter?: CardFilter;
+      /** BT12-086: the skills let through, by their card (`Prohibition.exceptByFilter`). */
+      exceptByFilter?: CardFilter;
       /** "…other than the card they attacked with" (`Prohibition.exceptCards`), resolved as the rule is put in force. */
       exceptCards?: Ref;
     }
@@ -3011,6 +3013,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const up = op.faceUp ?? true;
         for (const id of h.resolveRef(frame, op.target)) {
           if (h.isFaceUp(id) === up) continue;
+          // BT12-086 (prohibition batch 6): "Cards in your life can only be
+          // flipped face up by skills on mono-yellow cards".
+          if (up && h.areaOf(id) === "life" && h.forbids("flipLifeFaceUp", { player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`a card in a life can't be flipped face up by ${h.nameOf(frame.card)}'s skill`);
+            continue;
+          }
           h.setFaceUp(id, up);
           // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
           h.note(`${h.nameOf(id)} is turned face ${up ? "up" : "down"}`);
@@ -3269,7 +3277,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3300,6 +3308,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}),
             ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}),
             ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}),
+            ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

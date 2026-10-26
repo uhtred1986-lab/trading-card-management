@@ -397,7 +397,14 @@ export type ForbiddenAction =
    * [Awaken] line's effect makes does not happen for that player; the
    * [Awaken] itself does. Asked by the `draw` op of an [Awaken]'s effect.
    */
-  | "drawByAwaken";
+  | "drawByAwaken"
+  /**
+   * "Cards in your life can only be flipped face up by skills on mono-yellow
+   * cards" (BT12-086): a skill turning a Life card face up (3-9-2-1), asked of
+   * the Life card with the skill's card as `source`; `exceptByFilter` names
+   * the skills let through.
+   */
+  | "flipLifeFaceUp";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -599,6 +606,13 @@ export interface Prohibition {
    * read is not let through.
    */
   exceptFilter?: CardFilter;
+  /**
+   * The skills the rule lets through, by the card whose skill it is
+   * (prohibition batch 6): "…can only be flipped face up **by skills on
+   * mono-yellow cards**" (BT12-086). Asked of `source`; an action no skill
+   * takes is not let through.
+   */
+  exceptByFilter?: CardFilter;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */

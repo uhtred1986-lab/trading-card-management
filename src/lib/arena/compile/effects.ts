@@ -4008,6 +4008,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" }, then: [rule] }];
     }
   }
+  // "Cards in your life can only be flipped face up by skills on mono-yellow
+  // cards" (BT12-086, prohibition batch 6): a skill turning one of that
+  // player's Life cards face up does not, unless its card is such a card.
+  {
+    const lifeOnly = /^cards in (your|your opponent'?s) life can only be flipped face up by (?:the )?skills (?:on|of) (.+? cards?)$/.exec(t.trim().replace(/[.]$/, ""));
+    if (lifeOnly) {
+      const exceptByFilter = filterFor(lifeOnly[2], null);
+      if (!exceptByFilter || unreadFilterWords(lifeOnly[2], exceptByFilter).length) return null;
+      return [{ op: "forbid", what: "flipLifeFaceUp", until, cardsOf: lifeOnly[1] === "your" ? "you" : "opponent", exceptByFilter }];
+    }
+  }
   // "…and for the turn, you can't add cards to your energy, **can only play
   // mono-blue <Zamasu> or mono-blue <Goku Black> cards**, …" (P-485,
   // prohibition batch 6): every play but of the cards described; the subject
@@ -4244,6 +4255,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // BT6-053: a player prohibition, not damage prevention or an optional payment.
     if (side === "you" && /^add cards from your life to your hand(?: for the duration of the turn)?$/.test(rest))
       return [{ op: "forbid", what: "addLifeToHand", side, until }];
+    // "…you can't add face-up cards in your life to your hand" (BT12-086,
+    // prohibition batch 6): the same, for the Life cards that are face up.
+    if (side === "you" && /^add face-up cards in your life to your hand$/.test(rest))
+      return [{ op: "forbid", what: "addLifeToHand", side, until, filter: { ...parseFilter(""), faceUp: true }, ...withUnless }];
     // "You cannot lose the game … and the opponent cannot win the game"
     // (P-032): the game's loss and win conditions do not end the game for
     // that player while the rule holds (`loseGame`, `winGame`).

@@ -169,6 +169,10 @@ const defs: Record<string, CardDef> = {
   DECK_PLAYER: C("DECK_PLAYER", { skill: "[Activate: Main] Choose up to 1 Battle Card in your deck and play it, then shuffle your deck." }),
   ONLY_TRUNKS: C("ONLY_TRUNKS", { skill: "[Activate: Main] You can't play any cards other than red <Trunks: Future> cards for the turn." }),
   TRUNKS_F: C("TRUNKS_F", { colors: ["Red"], characters: ["Trunks: Future"] }),
+  LIFELOCK: C("LIFELOCK", { colors: ["Yellow"], skill: "[Permanent] Cards in your life can only be flipped face up by skills on mono-yellow cards; you can't add face-up cards in your life to your hand." }),
+  RFLIP: C("RFLIP", { colors: ["Red"], skill: "[Activate: Main] Choose up to 1 card in your life and flip it face up." }),
+  YFLIP: C("YFLIP", { colors: ["Yellow"], skill: "[Activate: Main] Choose up to 1 card in your life and flip it face up." }),
+  LIFEPICK: C("LIFEPICK", { colors: ["Yellow"], skill: "[Activate: Main] Choose up to 1 card in your life and add it to your hand." }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -632,6 +636,29 @@ for (const me of SEATS) {
     const plays = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "play" && (l.action as { card: string }).card === id);
     assert.ok(plays(s, trunks), `${me}: BT23-005 — a red <Trunks: Future> is played`);
     assert.ok(!plays(s, plain), `${me}: another card is not`);
+  }
+
+  // 20 (BT12-086): a red skill turns no Life card face up, a mono-yellow one
+  // does (control); a face-up Life card is not added to the hand, a face-down
+  // one is (control).
+  {
+    let s = game3(me);
+    stage(s, me, "LIFELOCK", "battle");
+    const red = stage(s, me, "RFLIP", "battle");
+    const yellow = stage(s, me, "YFLIP", "battle");
+    const pick = stage(s, me, "LIFEPICK", "battle");
+    s = roundtrip(s);
+    const [first, second] = s.sides[me].zones.life;
+    const use = (t: VmState, id: string, cards: string[]) => roundtrip(settle(take(t, RULES.legalActions(ctx, t).find((l) => l.action.type === "activate" && l.action.card === id)!.action), cards, 0));
+    s = use(s, red, [first]);
+    assert.equal(s.cards[first].faceUp, false, `${me}: BT12-086 — a red card's skill turns no Life card face up`);
+    s = use(s, yellow, [first]);
+    assert.equal(s.cards[first].faceUp, true, `${me}: a mono-yellow card's skill does (control)`);
+    s = use(s, pick, [first]);
+    assert.equal(zoneOf(s, first), "life", `${me}: BT12-086 — the face-up Life card is not added to the hand`);
+    s = roundtrip(endTurn(endTurn(s)));
+    s = use(s, pick, [second]);
+    assert.equal(zoneOf(s, second), "hand", `${me}: a face-down one is (control)`);
   }
 
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs

@@ -1154,6 +1154,9 @@ function ruleApplies(
     const placing = names(opts.moving);
     if (!state.cards[opts.card].under.some((id) => id !== opts.moving && names(id).some((n) => placing.includes(n)))) return false;
   }
+  // "…can only be flipped face up by skills on mono-yellow cards" (BT12-086):
+  // a skill of a card the description fits is let through.
+  if (f.exceptByFilter && opts.source && state.cards[opts.source] && predicateOf(f.exceptByFilter, game)(attrsNow(ctx, game, state, opts.source))) return false;
   // "…can't play any cards other than red <Trunks: Future> cards" (BT23-005),
   // "…can only play mono-blue <Zamasu> or mono-blue <Goku Black> cards"
   // (P-485): a card the description fits is let through.
@@ -1205,6 +1208,10 @@ function ruleApplies(
       } else if (!predicateOf(f.filter, game)(attrs)) return false;
     }
     if (f.name && nameShowing(ctx, state, opts.card) !== f.name) return false;
+    // BT12-086 (prohibition batch 6): "face-up cards in your life" — face up is
+    // this copy's, in its area (3-9-2-1), which the card predicate leaves to
+    // the selector; asked here of the card itself.
+    if (f.filter?.faceUp && !state.cards[opts.card].faceUp) return false;
   }
   return !escapeHolds(ctx, game, state, f, opts, rule.source);
 }

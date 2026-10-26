@@ -1227,7 +1227,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
     if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
-    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to) && !dropToWarpForbidden(id, movement.to));
+    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to, undefined, id) && !dropToWarpForbidden(id, movement.to));
   };
   // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
   // card, so a later choice of the same price can no longer pick it.
