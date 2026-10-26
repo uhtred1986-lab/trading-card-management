@@ -11,7 +11,8 @@ import { LayoutGroup, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import type { ArenaSession } from "../session/contract";
 
-import type { Action, LegalAction, PlayerId, Requirement } from "@/lib/arena/types";
+import type { Action, Area, LegalAction, PlayerId, Requirement } from "@/lib/arena/types";
+import { hasArea, wordsFor } from "@/lib/arena/board-words";
 import type { NumberedBeat } from "@/lib/arena/beats";
 import { feel } from "@/lib/arena/feel";
 import type { Snapshot } from "@/lib/arena/snapshot";
@@ -113,6 +114,9 @@ import { quietSkills } from "./quiet-skills";
  */
 const WIDE = "(min-width: 1024px)";
 /** Moves whose price the player settles before sending them (`settlePayment`). */
+/** The short names the "Zones" button lists, for the public zones a game has. */
+const ZONE_BUTTON_WORD = { drop: "Drop", warp: "Warp", zDeck: "Z-Deck", zEnergy: "Z-Energy" } as const;
+
 const PAYABLE = new Set<Action["type"]>(["play", "playUnison", "playZ", "activate", "combo", "counter"]);
 type PaymentOption = NonNullable<LegalAction["paymentPreview"]>["options"][number];
 
@@ -285,6 +289,9 @@ export function ArenaStage({
   const showConnectionIssue = liveGame.connection !== "connected" && liveGame.connection !== "paused";
   const { legal, taps, beats } = live;
   const view = useMemo(() => withShortOpponent(live.view, live.game.mode), [live.view, live.game.mode]);
+  // F1-06: the areas this game has. A word missing from its table is an area it does not declare, and none is drawn.
+  const words = useMemo(() => wordsFor(live.game.game), [live.game.game]);
+  const has = (area: Area) => hasArea(words, area);
   // Desktop: the field's cards fill the two Battle Areas (`useFieldFit`).
   useFieldFit(boardRef, wide, Math.max(view.you.battle.length + (view.you.unison ? 1 : 0), view.them.battle.length + (view.them.unison ? 1 : 0)));
   const [planOpen, setPlanOpen] = useState(false);
@@ -1287,18 +1294,18 @@ export function ArenaStage({
     for (const side of [view.you, view.them]) {
       const zones: [string, (CardView | null | undefined)[]][] = [
         ["leader", [side.leader]],
-        ["unison", [side.unison]],
+        ...(has("unison") ? [["unison", [side.unison]] as [string, (CardView | null | undefined)[]]] : []),
         ["battle area", side.battle],
         ["combo area", side.combo],
         ["energy area", side.energy],
         ["hand", side.hand ?? []],
         ["life", side.lifeFaceUp],
-        ["Z-Deck", side.zDeckFaceUp],
+        ...(has("zDeck") ? [["Z-Deck", side.zDeckFaceUp] as [string, (CardView | null | undefined)[]]] : []),
         ["drop", [side.dropTop]],
         ["Drop", side.inspectableZones?.drop ?? []],
-        ["Warp", side.inspectableZones?.warp ?? []],
-        ["Z-Energy", side.inspectableZones?.zEnergy ?? []],
-        ["Z-Deck", side.inspectableZones?.zDeck ?? []],
+        ...(has("warp") ? [["Warp", side.inspectableZones?.warp ?? []] as [string, (CardView | null | undefined)[]]] : []),
+        ...(has("zEnergy") ? [["Z-Energy", side.inspectableZones?.zEnergy ?? []] as [string, (CardView | null | undefined)[]]] : []),
+        ...(has("zDeck") ? [["Z-Deck", side.inspectableZones?.zDeck ?? []] as [string, (CardView | null | undefined)[]]] : []),
         ["search", side.choices ?? []],
       ];
       for (const [zone, cards] of zones) if (cards.some((c) => c?.id === id)) return { side, zone };
@@ -1854,12 +1861,12 @@ export function ArenaStage({
                   ) : <p className="text-xs text-space-300">Decklist unavailable in this view.</p>}
                 </div>
                 {([
-                  ["Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
-                  ["Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
-                  ["Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
-                  ["Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
-                  ["Warp", side.warp, side.inspectableZones?.warp ?? []],
-                ] as [string, number, CardView[]][]).map(([zone, count, cards]) => (
+                  ["unison", "Unison", side.unison ? 1 : 0, side.unison ? [side.unison] : []],
+                  ["zDeck", "Z-Deck", side.zDeck, side.inspectableZones?.zDeck ?? side.zDeckFaceUp],
+                  ["zEnergy", "Z-Energy", side.zEnergy, side.inspectableZones?.zEnergy ?? []],
+                  ["drop", "Drop", side.drop, side.inspectableZones?.drop ?? (side.dropTop ? [side.dropTop] : [])],
+                  ["warp", "Warp", side.warp, side.inspectableZones?.warp ?? []],
+                ] as [Area, string, number, CardView[]][]).filter(([area]) => has(area)).map(([, zone, count, cards]) => (
                   <div key={zone} data-inspect-zone={`${side.player}:${zone}`}>
                     <h4 className="text-sm font-semibold text-space-100">{zone} · {count}</h4>
                     {count > cards.length && <p className="text-xs text-space-300">{count - cards.length} card faces unavailable in this view.</p>}
@@ -1955,10 +1962,10 @@ export function ArenaStage({
                   className="tap min-h-11 rounded border border-space-600 px-3 text-sm lg:hidden"
                   aria-label="Inspect public zones"
                 >
-                  Zones: Drop, Warp, Z-Deck, Z-Energy
+                  Zones: {(["drop", "warp", "zDeck", "zEnergy"] as const).filter(has).map((area) => ZONE_BUTTON_WORD[area]).join(", ")}
                 </button>
-                <ReferenceCounts side={view.you} />
-                <ReferenceCounts side={view.them} />
+                <ReferenceCounts side={view.you} words={words} />
+                <ReferenceCounts side={view.them} words={words} />
               </div>
             </MenuSection>
             {session.reportBug && (
