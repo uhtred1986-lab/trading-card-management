@@ -45,7 +45,9 @@
       "characters": [
         "Whis"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-03",
@@ -64,7 +66,9 @@
       "characters": [
         "Master Roshi"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-04",
@@ -83,7 +87,9 @@
       "characters": [
         "Krillin"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-05",
@@ -102,7 +108,9 @@
       "characters": [
         "Shin"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-06",
@@ -121,7 +129,9 @@
       "characters": [
         "Android 17"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-07",
@@ -140,7 +150,9 @@
       "characters": [
         "Android 18"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-08",
@@ -159,7 +171,9 @@
       "characters": [
         "Son Goku"
       ],
-      "specifiedCost": "{r}{r}"
+      "specifiedCost": {
+        "Red": 2
+      }
     },
     {
       "id": "FS01-09",
@@ -178,7 +192,9 @@
       "characters": [
         "Son Gohan : Adolescence"
       ],
-      "specifiedCost": "{r}{r}"
+      "specifiedCost": {
+        "Red": 2
+      }
     },
     {
       "id": "FS01-10",
@@ -197,7 +213,9 @@
       "characters": [
         "Tien Shinhan"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-11",
@@ -216,7 +234,9 @@
       "characters": [
         "Piccolo"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-12",
@@ -235,7 +255,9 @@
       "characters": [
         "Beerus"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-13",
@@ -254,7 +276,9 @@
       "characters": [
         "Frieza"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-14",
@@ -273,7 +297,9 @@
       "characters": [
         "Vegeta"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-15",
@@ -292,7 +318,9 @@
       "characters": [
         "Kamehameha"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS01-16",
@@ -311,7 +339,9 @@
       "characters": [
         "God Kamehameha"
       ],
-      "specifiedCost": "{r}"
+      "specifiedCost": {
+        "Red": 1
+      }
     },
     {
       "id": "FS02-01",
@@ -353,7 +383,9 @@
       "characters": [
         "Gotenks"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-03",
@@ -372,7 +404,9 @@
       "characters": [
         "Gotenks"
       ],
-      "specifiedCost": "{u}{u}"
+      "specifiedCost": {
+        "Blue": 2
+      }
     },
     {
       "id": "FS02-04",
@@ -391,7 +425,9 @@
       "characters": [
         "Son Goku"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-05",
@@ -410,7 +446,9 @@
       "characters": [
         "Son Goten"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-06",
@@ -429,7 +467,9 @@
       "characters": [
         "Son Goten"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-07",
@@ -448,7 +488,9 @@
       "characters": [
         "Son Gohan : Adolescence"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-08",
@@ -467,7 +509,9 @@
       "characters": [
         "Trunks : Youth"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-09",
@@ -486,7 +530,9 @@
       "characters": [
         "Trunks : Youth"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-10",
@@ -505,7 +551,9 @@
       "characters": [
         "Videl"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-11",
@@ -524,7 +572,9 @@
       "characters": [
         "Piccolo"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-12",
@@ -543,7 +593,9 @@
       "characters": [
         "Bulma"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-13",
@@ -562,7 +614,9 @@
       "characters": [
         "Vegeta"
       ],
-      "specifiedCost": "{u}{u}"
+      "specifiedCost": {
+        "Blue": 2
+      }
     },
     {
       "id": "FS02-14",
@@ -581,7 +635,9 @@
       "characters": [
         "Majin Buu : Good"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-15",
@@ -600,7 +656,9 @@
       "characters": [
         "Galick Gun"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS02-16",
@@ -619,7 +677,9 @@
       "characters": [
         "Final Flash"
       ],
-      "specifiedCost": "{u}"
+      "specifiedCost": {
+        "Blue": 1
+      }
     },
     {
       "id": "FS03-01",
@@ -661,7 +721,9 @@
       "characters": [
         "Angol"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-03",
@@ -680,7 +742,9 @@
       "characters": [
         "Shamoian"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-04",
@@ -699,7 +763,9 @@
       "characters": [
         "Turles"
       ],
-      "specifiedCost": "{g}{g}{g}"
+      "specifiedCost": {
+        "Green": 3
+      }
     },
     {
       "id": "FS03-05",
@@ -718,7 +784,9 @@
       "characters": [
         "Nappa"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-06",
@@ -737,7 +805,9 @@
       "characters": [
         "Paragus"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-07",
@@ -756,7 +826,9 @@
       "characters": [
         "Paragus"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-08",
@@ -775,7 +847,9 @@
       "characters": [
         "Broly"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-09",
@@ -794,7 +868,9 @@
       "characters": [
         "Broly"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-10",
@@ -813,7 +889,9 @@
       "characters": [
         "Broly : BR"
       ],
-      "specifiedCost": "{g}{g}{g}{g}"
+      "specifiedCost": {
+        "Green": 4
+      }
     },
     {
       "id": "FS03-11",
@@ -832,7 +910,9 @@
       "characters": [
         "Vegeta"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-12",
@@ -851,7 +931,9 @@
       "characters": [
         "King Vegeta"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-13",
@@ -870,7 +952,9 @@
       "characters": [
         "Moah"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-14",
@@ -889,7 +973,9 @@
       "characters": [
         "Raditz"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-15",
@@ -908,7 +994,9 @@
       "characters": [
         "Gigantic Meteor"
       ],
-      "specifiedCost": "{g}"
+      "specifiedCost": {
+        "Green": 1
+      }
     },
     {
       "id": "FS03-16",
@@ -927,7 +1015,9 @@
       "characters": [
         "Destructive Strength"
       ],
-      "specifiedCost": "{g}{g}{g}"
+      "specifiedCost": {
+        "Green": 3
+      }
     },
     {
       "id": "FS04-01",
@@ -969,7 +1059,9 @@
       "characters": [
         "Cui"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-03",
@@ -988,7 +1080,9 @@
       "characters": [
         "Golden Frieza"
       ],
-      "specifiedCost": "{y}{y}"
+      "specifiedCost": {
+        "Yellow": 2
+      }
     },
     {
       "id": "FS04-04",
@@ -1007,7 +1101,9 @@
       "characters": [
         "King Cold"
       ],
-      "specifiedCost": "{y}{y}"
+      "specifiedCost": {
+        "Yellow": 2
+      }
     },
     {
       "id": "FS04-05",
@@ -1026,7 +1122,9 @@
       "characters": [
         "Zarbon"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-06",
@@ -1045,7 +1143,9 @@
       "characters": [
         "Shisami"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-07",
@@ -1064,7 +1164,9 @@
       "characters": [
         "Sorbet"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-08",
@@ -1083,7 +1185,9 @@
       "characters": [
         "Tagoma"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-09",
@@ -1102,7 +1206,9 @@
       "characters": [
         "Cheelai : BR"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-10",
@@ -1121,7 +1227,9 @@
       "characters": [
         "Dodoria"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-11",
@@ -1140,7 +1248,9 @@
       "characters": [
         "Frieza"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-12",
@@ -1159,7 +1269,9 @@
       "characters": [
         "Frieza"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-13",
@@ -1178,7 +1290,9 @@
       "characters": [
         "Frieza"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-14",
@@ -1197,7 +1311,9 @@
       "characters": [
         "Lemo : BR"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-15",
@@ -1216,7 +1332,9 @@
       "characters": [
         "Golden Death Beam"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     },
     {
       "id": "FS04-16",
@@ -1235,7 +1353,9 @@
       "characters": [
         "Death Ball"
       ],
-      "specifiedCost": "{y}"
+      "specifiedCost": {
+        "Yellow": 1
+      }
     }
   ]
 }

@@ -49,7 +49,7 @@ FS02-16 | Final Flash | Extra | Blue | 2({u}) | — | — | [Permanent] If you h
 
 ## FS03 Starter Deck -Broly- (Green)
 
-FS03-01 | Broly | Leader | Green | — | 15000 front / 25000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over. // BACK: [Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn. (no [When Attacking] on the back: confirmed against Bandai's official card list, 26 Oct 2026)
+FS03-01 | Broly | Leader | Green | — | 15000 front / 25000 back | — | FRONT: [When Attacking] Draw 1 card. [Awaken] When your life is at 4 or less, add 1 card from your life to your energy in Rest Mode. Then, flip this card over. // BACK: [Activate:Main][Once Per Turn] Place 1 of your energy in your Drop : Draw 1 card. Then, this card gets +5000 power for the turn. (site shows no [When Attacking] on the back side; confirmed against Bandai's official card list, 26 Oct 2026)
 FS03-02 | Angol | Battle | Green | 2({g}) | 15000 | 10000 | [Critical]
 FS03-03 | Shamoian | Battle | Green | 1({g}) | 5000 | 5000 | [Blocker]
 FS03-04 | Turles (SR) | Battle | Green | 5({g}{g}{g}) | 30000 | 5000 | [Critical] [On Play] Add up to 1 card with a cost of 3 or more from your Drop to your energy.
