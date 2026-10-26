@@ -39,8 +39,13 @@ export type Side = "you" | "opponent" | "both";
  * it holds through the opponent's whole turn and the controller's own Charge
  * Phase, and ends as the controller's next Main Phase begins — one phase later
  * than `nextTurn`, which ends as that turn begins.
+ *
+ * `ownTurn` is "until the end of **your** turn" (BT31-043, #930): it ends at
+ * the end of a turn of its controller's (7-4-5) — the turn it was made on
+ * when that is theirs, or their next one when it was made on the opponent's
+ * turn ("when this card is removed from a Unison Area" can happen then).
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "game" | "whileSourceInPlay";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";

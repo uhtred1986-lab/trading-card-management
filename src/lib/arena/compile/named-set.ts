@@ -51,15 +51,20 @@ export function compileNamedSet(clause: string, c: Ctx): Op[] | null | undefined
   if (words.required) {
     return selectors.flatMap((sel, i): Op[] => [
       { op: "choose", sel, as: vars[i], reason: `${words.slots[i]} from ${words.source}, ${words.dest === "hand" ? "to add to your hand" : "to place under this card"}` },
-      { op: "moveTo", target: { var: vars[i] }, to: words.dest },
+      { op: "moveTo", target: { var: vars[i] }, to: words.dest as "hand" | "under" },
     ]);
   }
+  const purpose = words.dest === "hand" ? "to add to your hand" : words.dest === "battle" ? `to play${words.rest ? " in Rest Mode" : ""}` : "to place under this card";
   const chooses: Op[] = selectors.map((sel, i) => ({
     op: "choose",
     sel: { ...sel, ...(i ? { notIn: vars.slice(0, i) } : {}) },
     as: vars[i],
-    reason: `${words.slots[i]} from ${words.source}, ${words.dest === "hand" ? "to add to your hand" : "to place under this card"}`,
+    reason: `${words.slots[i]} from ${words.source}, ${purpose}`,
   }));
-  const moves: Op[] = vars.map((v) => ({ op: "moveTo", target: { var: v }, to: words.dest }));
+  // #930, EX25-11: "play up to 1 each of <Kale> and <Caulifla> cards … in Rest Mode from your
+  // Drop" — each chosen card is played (5-5), in Rest Mode when the words say so.
+  const moves: Op[] = words.dest === "battle"
+    ? vars.map((v) => ({ op: "play", target: { var: v }, ...(words.rest ? { mode: "rest" as const } : {}) }))
+    : vars.map((v) => ({ op: "moveTo", target: { var: v }, to: words.dest as "hand" | "under" }));
   return [...chooses, ...moves];
 }

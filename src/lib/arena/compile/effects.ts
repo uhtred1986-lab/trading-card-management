@@ -4000,7 +4000,7 @@ const LEADING_COLOR_COUNT = /^for (?:each|every) (?:card )?colou?rs?(?: types?)?
  * `splitClauses` cuts it at its comma into these two halves, neither a
  * sentence alone; `nextActivationReduction` reads the pair.
  */
-const NEXT_ACTIVATION = /^(?:and |then )?(?:during (?:this|that) turn,? )?(?:the next time|if) (?:you|your) (?:would )?(activate|play|place|use|pay the energy cost to place) (.+?)(?: (?:during )?(?:this|that|the) (turn|battle))?[.,]?$/i;
+const NEXT_ACTIVATION = /^(?:and |then )?(?:during (?:this|that) turn,? )?(?:the next time|if) (?:you|your) (?:would )?(activate|play|place|use|pay the energy cost to place) (.+?)(?: (?:during )?(?:this|that|the) (turn|battle)| until the end of (your|the) turn)?[.,]?$/i;
 const REDUCE_THAT_SKILL_COST = /^(?:then |and )?reduce (?:its|the|that card's|that skill's|the skill's|their|this card's) (?:(skill|energy|specified|activation) )?costs?(?: of (?:it|that (?:\[[^\]]+\] )?skill|that card|the extra card))? by ((?:\{[rugykbw\d]+\})+|\d+)(?: for the turn)?[.]?$/i;
 /** A sentence that is a cost reducer ending in its amount - what a leading "for each ..." count is hung on. */
 /**
@@ -4453,7 +4453,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const verb = nextTime[1].toLowerCase().startsWith("pay") ? "place" : nextTime[1].toLowerCase();
       // "the skill cost" after "activate", "the energy cost" after a play.
       const noun = reduce[1]?.toLowerCase().replace("activation", "skill") ?? (verb === "activate" || verb === "use" ? "skill" : "energy");
-      const ops = nextTimeReduction(verb, nextTime[2], noun, reduce[2], nextTime[3]?.toLowerCase() === "battle" ? "battle" : "turn", c, true);
+      // #930, BT31-043: "until the end of **your** turn" (put at the end of the clause by `PURE_DURATION`)
+      // ends with its controller's own turn, the next one when it resolved on the opponent's (`ownTurn`).
+      const until: Duration = nextTime[3]?.toLowerCase() === "battle" ? "battle" : nextTime[4]?.toLowerCase() === "your" ? "ownTurn" : "turn";
+      const ops = nextTimeReduction(verb, nextTime[2], noun, reduce[2], until, c, true);
       if (ops) push(ops);
       else {
         refuse(clause);

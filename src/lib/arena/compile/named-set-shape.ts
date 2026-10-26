@@ -39,12 +39,19 @@ const SHAPES = [
   // each name here rather than once in a pair of dashes.
   { verb: "choose", dest: "hand", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) .+?) and add them to your hand$/i },
   { verb: "add", dest: "hand", required: false, re: /^add (up to 1 .+?) from ((?:your|their) .+?) to your hand$/i },
+  // #930: "Play up to 1 each of <Kale> and <Caulifla> cards with 9000 power in Rest Mode from your
+  // Drop" (EX25-11): one "up to 1" slot per name (`eachOfSlots`), each played. "In Rest Mode" is
+  // the mode they are played in, said before or after the place.
+  { verb: "play", dest: "battle", required: false, rest: true, re: /^play (up to 1 each of .+?) in rest mode from ((?:your|their) .+?)$/i },
+  { verb: "play", dest: "battle", required: false, rest: true, re: /^play (up to 1 each of .+?) from ((?:your|their) .+?) in rest mode$/i },
 ] as const;
 
 export interface NamedSetWords {
-  verb: "choose" | "place" | "add";
-  /** Where every card taken goes: under this card, or to the hand. */
-  dest: "under" | "hand";
+  verb: "choose" | "place" | "add" | "play";
+  /** Where every card taken goes: under this card, to the hand, or played to the Battle Area. */
+  dest: "under" | "hand" | "battle";
+  /** A play "in Rest Mode". */
+  rest?: boolean;
   source: string;
   colour: string | null;
   /** True for "1 each of <A> and <B>": every slot is a card that must be had. */
@@ -60,23 +67,37 @@ function listItems(list: string): string[] {
 
 /** The words of a clause of this shape, or `null`. */
 export function namedSetWords(clause: string): NamedSetWords | null {
-  const said = clause.trim().replace(/[.,]$/, "").replace(/([―—–])(?=\S)/g, "$1 ");
+  const said = clause
+    .trim()
+    .replace(/[.,]$/, "")
+    .replace(/([―—–])(?=\S)/g, "$1 ")
+    // #930, EX23-11: "…from among all cards in your deck and Drop to your hand" is a search of
+    // those places ("among all cards" names no card of its own, as `saidTheShortWay` reads it),
+    // and a plain "and" between two places is one choice across both (the "and/or" pair).
+    .replace(/\bfrom among all (?:of )?(?:the )?cards in /i, "from ")
+    .replace(new RegExp(`\\bfrom (your|their) (${AREA}) and (?:your |their )?(${AREA})\\b(?!/)`, "i"), "from $1 $2 and/or $3");
   for (const shape of SHAPES) {
     const m = shape.re.exec(said);
     if (!m) continue;
+    const rest = "rest" in shape && shape.rest ? { rest: true } : {};
     let list = m[1].replace(/^up to /i, "");
     // "1 each of <A> and <B>": the "each of" says every name is one slot.
     if (shape.required) list = list.replace(/^1 each of /i, "1 ");
     else if (/^1 each of /i.test(list)) {
       const each = eachOfSlots(list);
       if (!each) return null;
-      return { verb: shape.verb, dest: shape.dest, source: m[2].trim(), colour: each.colour, required: false, slots: each.slots };
+      return { verb: shape.verb, dest: shape.dest, ...rest, source: m[2].trim(), colour: each.colour, required: false, slots: each.slots };
     }
+    if (shape.verb === "play") return null;
     let colour: string | null = null;
-    // "…and 1 <Bollarator> card―all red―": one colour for every slot.
-    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(${COLOUR})\\s*${DASH}\\s*$`, "i").exec(list);
+    let measure = "";
+    // "…and 1 <Bollarator> card―all red―": one colour for every slot. #930, EX23-11: "1 <Son Goku>
+    // card and 1 <Vegeta> card―both blue and with 20000 power―" adds one power or energy-cost
+    // measure, said once for both as the colour is.
+    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(${COLOUR})(?:\\s+and\\s+(${MEASURE}))?\\s*${DASH}\\s*$`, "i").exec(list);
     if (aside) {
       colour = aside[1].toLowerCase();
+      measure = aside[2] ? ` ${aside[2].toLowerCase()}` : "";
       list = list.slice(0, aside.index);
     }
     if (DASH_ANYWHERE.test(list)) return null;
@@ -89,7 +110,7 @@ export function namedSetWords(clause: string): NamedSetWords | null {
       const body = x.replace(/^(?:up to )?(?:1 )?/i, "");
       const own = new RegExp(`^(${COLOUR}) `, "i").exec(body);
       const here = own ? own[1].toLowerCase() : colour;
-      return `${shape.required ? "1" : "up to 1"} ${here ? `${here} ` : ""}${own ? body.slice(own[0].length) : body}`;
+      return `${shape.required ? "1" : "up to 1"} ${here ? `${here} ` : ""}${own ? body.slice(own[0].length) : body}${measure}`;
     });
     // The same name twice would be one slot twice over.
     if (new Set(slots.map((x) => x.toLowerCase())).size !== slots.length) return null;
@@ -99,6 +120,10 @@ export function namedSetWords(clause: string): NamedSetWords | null {
 }
 
 const DASH_ANYWHERE = /[―—–]|--/;
+/** A place a "from your A and B" pair names. */
+const AREA = "(?:deck|drop(?: area)?|hand|warp|battle area|(?:z-)?energy(?: area)?|life)";
+/** One power or energy-cost measure, as `eachOfSlots` reads it. */
+const MEASURE = "with (?:an? )?(?:energy costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)";
 
 /**
  * #930: "choose **up to 1 each of blue {Super Saiyan Son Goku} and {Super
@@ -121,10 +146,12 @@ function eachOfSlots(list: string): { colour: string | null; slots: string[] } |
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function namedSetSpans(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const start = new RegExp(`\\b(?:choose|place|add) (?:up to )?1 (?:each of )?(?:${COLOUR} )?${NAME}`, "gi");
+  const start = new RegExp(`\\b(?:choose|place|add|play) (?:up to )?1 (?:each of )?(?:${COLOUR} )?${NAME}`, "gi");
   for (let m = start.exec(text); m; m = start.exec(text)) {
     for (let end = m.index + 1; end <= text.length; end++) {
-      const stops = end === text.length || ".;".includes(text[end]) || text.startsWith(", and ", end) || text.startsWith(" then ", end);
+      // #930, EX23-11: "…to your hand, shuffle your deck if you looked through it": a plain comma
+      // ends the clause too (only where the words up to it are the whole shape).
+      const stops = end === text.length || ".;,".includes(text[end]) || text.startsWith(" then ", end);
       if (!stops || !namedSetWords(text.slice(m.index, end))) continue;
       out.push([m.index, end]);
       start.lastIndex = end;
