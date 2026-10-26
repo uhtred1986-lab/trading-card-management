@@ -159,6 +159,16 @@ const defs: Record<string, CardDef> = {
   DIGGER: C("DIGGER", { skill: "[Activate: Main] Choose up to 1 card under your Leader and add it to your hand." }),
   BT22_113: C("BT22_113", { skill: "[Permanent] You can't place more than 1 card with the same character name under this card in your Battle Area.<br>[Activate: Main] Choose up to 1 card in your hand and place it under this card." }),
   GOKU_A: C("GOKU_A", { characters: ["Son Goku"] }),
+  LANDROID: card("LANDROID", { type: "LEADER", traits: ["Android"], energyCost: null, comboCost: null, comboPower: null }),
+  P017: C("P017", { skill: "[Permanent] If your Leader Card is an ≪Android≫, the opponent cannot draw cards when their Leader Card activates [Awaken]. (They still can activate [Awaken])" }),
+  P485: C("P485", { skill: "[Activate: Main] Add this card from your hand to your energy, and for the turn, you can't add cards to your energy, can only play mono-blue <Zamasu> or mono-blue <Goku Black> cards." }),
+  ZAMASU: C("ZAMASU", { colors: ["Blue"], characters: ["Zamasu"] }),
+  ZAMASU_RG: C("ZAMASU_RG", { colors: ["Blue", "Green"], characters: ["Zamasu"] }),
+  CHARGER: C("CHARGER", { skill: "[Activate: Main] Place the top card of your deck in your energy." }),
+  NO_DECK_PLAY: C("NO_DECK_PLAY", { skill: "[Activate: Main] You can't play cards from your deck for the rest of the game." }),
+  DECK_PLAYER: C("DECK_PLAYER", { skill: "[Activate: Main] Choose up to 1 Battle Card in your deck and play it, then shuffle your deck." }),
+  ONLY_TRUNKS: C("ONLY_TRUNKS", { skill: "[Activate: Main] You can't play any cards other than red <Trunks: Future> cards for the turn." }),
+  TRUNKS_F: C("TRUNKS_F", { colors: ["Red"], characters: ["Trunks: Future"] }),
   CLEAR: C("CLEAR", { skill: "[Activate: Main] Choose up to 1 Extra Card in your opponent's Battle Area and place it in its owner's Drop Area." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -542,6 +552,86 @@ for (const me of SEATS) {
     s = roundtrip(endTurn(endTurn(s)));
     s = place(s, other);
     assert.ok(s.cards[host].under.includes(other), `${me}: another name does (control)`);
+  }
+
+  // 16 (P-017): with my Leader an ≪Android≫, the opponent's [Awaken] flips
+  // their Leader and draws nothing; without P-017 it draws (control).
+  for (const ruled of [true, false]) {
+    let s = game3(you);
+    s.cards[leaderOf(s, me)].cardId = "LANDROID";
+    const theirs = leaderOf(s, you);
+    s.cards[theirs].cardId = "L-RED";
+    if (ruled) stage(s, me, "P017", "battle");
+    empty(s, you, "life", 4);
+    s = roundtrip(s);
+    const hand = s.sides[you].zones.hand.length;
+    const [awaken] = RULES.legalActions(ctx, s).filter((l) => l.action.type === "activate" && l.action.card === theirs);
+    assert.ok(awaken, `${me}: the opponent's [Awaken] is offered`);
+    s = roundtrip(settle(take(s, awaken.action), [], 0));
+    assert.equal(s.cards[theirs].flipped, true, `${me}: P-017 — they still awaken`);
+    assert.equal(s.sides[you].zones.hand.length, ruled ? hand : hand + 1, `${me}: P-017 — ${ruled ? "and draw nothing" : "and draw (control)"}`);
+  }
+
+  // 17 (P-485): for the turn, only a mono-blue <Zamasu> is played (a Blue/Green
+  // one is not), and a skill puts no card in the Energy Area; before the rule
+  // the other card is played (control).
+  {
+    let s = game3(me);
+    const p485 = stage(s, me, "P485", "hand");
+    const plain = stage(s, me, "PLAIN", "hand");
+    const zamasu = stage(s, me, "ZAMASU", "hand");
+    const dual = stage(s, me, "ZAMASU_RG", "hand");
+    const charger = stage(s, me, "CHARGER", "battle");
+    s = roundtrip(s);
+    const plays = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "play" && (l.action as { card: string }).card === id);
+    assert.ok(plays(s, plain), `${me}: before the rule, any card is played (control)`);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === p485)!.action)));
+    assert.equal(zoneOf(s, p485), "energy", `${me}: P-485 itself goes to the energy first`);
+    assert.ok(!plays(s, plain), `${me}: P-485 — not a red card`);
+    assert.ok(!plays(s, dual), `${me}: …nor a Blue/Green <Zamasu>`);
+    assert.ok(plays(s, zamasu), `${me}: a mono-blue <Zamasu> is`);
+    const energy = s.sides[me].zones.energy.length;
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === charger)!.action)));
+    assert.equal(s.sides[me].zones.energy.length, energy, `${me}: no card is added to the energy by a skill`);
+  }
+
+  // 18 (P-496): no card is played from my deck for the rest of the game; from
+  // the hand it is (control).
+  {
+    let s = game3(me);
+    const lock = stage(s, me, "NO_DECK_PLAY", "battle");
+    const player = stage(s, me, "DECK_PLAYER", "battle");
+    const fromHand = stage(s, me, "PLAIN", "hand");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === lock)!.action)));
+    s = roundtrip(endTurn(endTurn(s)));
+    for (const id of s.sides[me].zones.deck.slice(0, 5)) s.cards[id].cardId = "PLAIN";
+    s = roundtrip(s);
+    const battle = s.sides[me].zones.battle.length;
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === player)!.action), s.sides[me].zones.deck.slice(0, 5), 0));
+    assert.equal(s.sides[me].zones.battle.length, battle, `${me}: P-496 — nothing played from the deck, a turn later too`);
+    assert.ok(RULES.legalActions(ctx, s).some((l) => l.action.type === "play" && (l.action as { card: string }).card === fromHand), `${me}: a card in hand is still played (control)`);
+    let c = game3(me);
+    const free = stage(c, me, "DECK_PLAYER", "battle");
+    for (const id of c.sides[me].zones.deck.slice(0, 5)) c.cards[id].cardId = "PLAIN";
+    c = roundtrip(c);
+    const before = c.sides[me].zones.battle.length;
+    c = roundtrip(settle(take(c, RULES.legalActions(ctx, c).find((l) => l.action.type === "activate" && l.action.card === free)!.action), c.sides[me].zones.deck.slice(0, 5), 0));
+    assert.equal(c.sides[me].zones.battle.length, before + 1, `${me}: without the rule the deck's card is played (control)`);
+  }
+
+  // 19 (BT23-005): "you can't play any cards other than red <Trunks: Future>
+  // cards" lets those through and stops every other — not the reverse.
+  {
+    let s = game3(me);
+    const lock = stage(s, me, "ONLY_TRUNKS", "battle");
+    const plain = stage(s, me, "PLAIN", "hand");
+    const trunks = stage(s, me, "TRUNKS_F", "hand");
+    s = roundtrip(s);
+    s = roundtrip(settle(take(s, RULES.legalActions(ctx, s).find((l) => l.action.type === "activate" && l.action.card === lock)!.action)));
+    const plays = (t: VmState, id: string) => RULES.legalActions(ctx, t).some((l) => l.action.type === "play" && (l.action as { card: string }).card === id);
+    assert.ok(plays(s, trunks), `${me}: BT23-005 — a red <Trunks: Future> is played`);
+    assert.ok(!plays(s, plain), `${me}: another card is not`);
   }
 
   // (Put in force on the opponent's own turn by an [Activate: Main] of theirs

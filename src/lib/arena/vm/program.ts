@@ -1154,6 +1154,10 @@ function ruleApplies(
     const placing = names(opts.moving);
     if (!state.cards[opts.card].under.some((id) => id !== opts.moving && names(id).some((n) => placing.includes(n)))) return false;
   }
+  // "…can't play any cards other than red <Trunks: Future> cards" (BT23-005),
+  // "…can only play mono-blue <Zamasu> or mono-blue <Goku Black> cards"
+  // (P-485): a card the description fits is let through.
+  if (f.exceptFilter && opts.card && state.cards[opts.card] && predicateOf(f.exceptFilter, game)(attrsNow(ctx, game, state, opts.card))) return false;
   // "…other than the card they attacked with" (BT8-089): the cards let through.
   if (f.exceptCards && opts.card && f.exceptCards.includes(opts.card)) return false;
   // "Battle Cards with energy costs greater than their current energy"

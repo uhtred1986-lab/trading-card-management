@@ -390,7 +390,14 @@ export type ForbiddenAction =
    * skill's controller as `player`.
    */
   | "flipLeaderFront"
-  | "flipLeaderBack";
+  | "flipLeaderBack"
+  /**
+   * "The opponent cannot draw cards when their Leader Card activates
+   * [Awaken]. (They still can activate [Awaken])" (P-017): the draw an
+   * [Awaken] line's effect makes does not happen for that player; the
+   * [Awaken] itself does. Asked by the `draw` op of an [Awaken]'s effect.
+   */
+  | "drawByAwaken";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -584,6 +591,14 @@ export interface Prohibition {
    * options); asked without it, the rule is read as not applying.
    */
   sameCharacterUnder?: boolean;
+  /**
+   * The cards the rule lets through, by description (prohibition batch 6):
+   * "you can't play any cards **other than red <Trunks: Future> cards**"
+   * (BT23-005), "…can only play mono-blue <Zamasu> or mono-blue <Goku Black>
+   * cards" (P-485). Asked of the card the rule is about; a card it cannot
+   * read is not let through.
+   */
+  exceptFilter?: CardFilter;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */

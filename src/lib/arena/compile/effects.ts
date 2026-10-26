@@ -396,7 +396,8 @@ function durationOf(clause: string): Duration {
   // sentence and is a condition, read as one before any clause gets here.
   if (/\bwhile this card is in (?:a|the|your) battle area\.?$/.test(t)) return "whileSourceInPlay";
   if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
-  if (/for the (?:duration of (?:the|this) )?game|during the game|in any area|in all areas/.test(t)) return "game";
+  // "…for the rest of the game" (P-496, prohibition batch 6) is the game too.
+  if (/for the (?:duration of (?:the|this) |rest of the |remainder of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
   // "Until the start of your next Main Phase" (BT13-012, #1163): through the
   // opponent's turn and your Charge Phase, ending as your Main Phase begins.
@@ -4007,6 +4008,18 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" }, then: [rule] }];
     }
   }
+  // "…and for the turn, you can't add cards to your energy, **can only play
+  // mono-blue <Zamasu> or mono-blue <Goku Black> cards**, …" (P-485,
+  // prohibition batch 6): every play but of the cards described; the subject
+  // is the "you" of the list it is cut from.
+  {
+    const only = /^(?:you )?can only play (.+? cards?)(?:\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+    if (only && !/\b(?:by|using|with|from)\b/.test(only[1])) {
+      const exceptFilter = filterFor(only[1], null);
+      if (!exceptFilter || unreadFilterWords(only[1], exceptFilter).length) return null;
+      return [{ op: "forbid", what: "play", side: "you", until, exceptFilter }];
+    }
+  }
   const m = /^(.*?)\s*(?:can'?t|cannot|will not|won'?t)\s+(.*)$/.exec(t);
   if (!m) return null;
   let subject = m[1].trim();
@@ -4235,6 +4248,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // (P-032): the game's loss and win conditions do not end the game for
     // that player while the rule holds (`loseGame`, `winGame`).
     if (/^lose the game(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) return [{ op: "forbid", what: "loseGame", side, until, ...withUnless }];
+    // "If your Leader Card is an ≪Android≫, the opponent cannot draw cards when
+    // their Leader Card activates [Awaken]" (P-017, prohibition batch 6): the
+    // draw of that player's [Awaken] does not happen; the [Awaken] still does.
+    if (side !== "both" && /^draw cards? when (?:their|your) leader(?: card)? activates \[awaken(?:: surge)?\](?: skills?)?$/.test(rest)) return [{ op: "forbid", what: "drawByAwaken", side, until, ...withUnless }];
     // "You can't flip your Leader Card to its front (back) for the turn"
     // (BT12-001, BT15-091): that player's Leader is not turned over that way —
     // by a skill's flip, or, to the back, by [Awaken] / [Wish] (22-2-4).
@@ -4313,6 +4330,20 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         if (!byFilter || !byFilter.keywords.length || unreadFilterWords(byKeyword[2], byFilter).length) return null;
         return [{ op: "forbid", what: "play", side, until, bySkill: true, fromArea: "hand", filter: { ...parseFilter(""), type: "BATTLE" }, byFilter, ...withUnless }];
       }
+      // "…you can't play any cards **other than red <Trunks: Future> cards** for
+      // the turn" (BT23-005, prohibition batch 6): every play but of the cards
+      // described (`exceptFilter`). Read before as a description of the cards
+      // banned, it banned exactly the cards it lets through.
+      const otherThan = /^(?:any )?cards? other than (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(what);
+      if (otherThan) {
+        const exceptFilter = filterFor(otherThan[1], null);
+        if (!exceptFilter || unreadFilterWords(otherThan[1], exceptFilter).length) return null;
+        return [{ op: "forbid", what: "play", side, until, exceptFilter, ...withUnless }];
+      }
+      if (/\bother than\b/.test(what)) return null;
+      // "…and you can't play cards from your deck for the rest of the game"
+      // (P-496, prohibition batch 6): any play of a card in that player's deck.
+      if (side === "you" && /^cards from your deck(?:\s+(?:for|during|until)\b.*)?$/.test(what)) return [{ op: "forbid", what: "play", side, until, fromArea: "deck", ...withUnless }];
       if (/\bfrom\b|\bskills? of\b|\bby (?:card )?skills?\b|\busing\b/.test(what)) return null;
       const filter = filterFor(what, null);
       const type = /\bunison cards?\b/.test(what) ? "UNISON" : /\bextra cards?\b/.test(what) ? "EXTRA" : /\bbattle cards?\b/.test(what) ? "BATTLE" : null;
@@ -4527,6 +4558,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return null;
     }
     if (/^activate\b/.test(rest) && /\[blocker/.test(rest)) return [{ op: "forbid", what: "block", side, until, ...withUnless }];
+    // "…you can't add cards to your energy" (P-485, prohibition batch 6): the
+    // Charge Phase's placement and a skill's move of the player's cards into
+    // their Energy Area from any area.
+    if (side !== "both" && /^add cards? to (?:your|their) energy(?: area)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
+      return [
+        { op: "forbid", what: "placeEnergy", side, until, ...withUnless },
+        { op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless },
+      ];
+    }
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
     if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
