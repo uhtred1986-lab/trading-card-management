@@ -676,6 +676,34 @@ export function anaphora(text: string): string {
       // "This card gains +5000 **and [Critical]**" (P-025): the measure the number changes is left unsaid before a
       // keyword, and it is power (the only measure a card gains as a bare "+5000").
       .replace(/\b(gains?|gets?) ([+-]\d+) and \[/gi, "$1 $2 power and [")
+      // Phrasing batch 2: "**Both that card and this card gain** +10000 power and [Triple Strike] …" (TB1-004, TB2-020),
+      // "…and **both this card and the chosen card get** +5000 power …" (BT7-075b), "…then **both the chosen cards and
+      // this card get** +10000 power …" (BT7-001b): two cards the sentence has named, each given the same thing — said
+      // once per card, so neither half is a clause with no subject.
+      // (A capital "Both" opens a sentence, and the first card keeps the capital: a sentence never goes on in lower case.)
+      .replace(/\bboth (that card|this card|the chosen cards?) and (that card|this card|the chosen cards?) (gets?|gains?) ([^.;]+)/gi, (whole: string, a: string, b: string, verb: string, what: string) => {
+        const v = /^gain/i.test(verb) ? "gains" : "gets";
+        const first = /^B/.test(whole) ? a[0].toUpperCase() + a.slice(1) : a;
+        return `${first} ${v} ${what}, and ${b} ${v} ${what}`;
+      })
+      // Phrasing batch 2: "…choose up to 1 of your opponent's cards and it gets **-5000 for the battle**" (BT25-129): a
+      // bare amount on a card, with its span after it, is power (the measure "+5000 and [Critical]" leaves unsaid too).
+      .replace(/\b(gets?|gains?|loses?) ([+-]\d+) (for the (?:duration of the )?(?:battle|turn)|until the end of)/gi, "$1 $2 power $3")
+      // Phrasing batch 2: "Then, **take the top 2 cards of your deck and add them to your energy**" (BT3-044), "**add 1
+      // card to your energy from the top of your deck**" (BT1-044): the top cards of the deck to the energy, as "place
+      // the top card of your deck in your energy" says it.
+      .replace(/\btake the top (\d+) cards of your deck and add them to your energy\b/gi, "add the top $1 cards of your deck to your energy")
+      .replace(/\badd (\d+) cards? to your energy from the top of your deck\b/gi, (_, n: string) => (n === "1" ? "add the top card of your deck to your energy" : `add the top ${n} cards of your deck to your energy`))
+      // Phrasing batch 2: "**Choose this card and all of your skill-less Battle Cards and they get** +5000 power for the
+      // turn" (EX13-30): this card and those cards, given the same thing.
+      // The same with a full stop between: "Choose this card and all of your non-black Battle Cards**. They gain** +5000
+      // power for the duration of the turn" (P-043).
+      .replace(/\bchoose this card and (all of your [^,.;]+?)(?: and they|\. they) (get|gain) /gi, "this card and $1 $2 ")
+      // Phrasing batch 2: "When your opponent's card is played, switch **this** to Active Mode" (BT31-031): this card.
+      .replace(/\bswitch this to (active|rest) mode\b/gi, "switch this card to $1 mode")
+      // Phrasing batch 2: "…and **reduce its combo power by -5000** for the turn" (BT24-022, BT24-023): the card the
+      // sentence used in the combo gets that much less combo power; the minus is the printed sign, not a double negative.
+      .replace(/\breduce (its|this card's|that card's) combo power by -?(\d+)/gi, (_, whose: string, n: string) => `${whose === "its" ? "it" : whose.replace(/'s$/, "")} gets -${n} combo power`)
       // "**Reduce the combo cost by 1 and negate the [Energy-Exhaust] skill of** multicolor
       // <Pan> cards …" (BT25-098, BT25-103, BT29-085b, EX19-20): a bare "the combo cost"
       // names no card (the reducer refuses it, deliberately), but the one subject the

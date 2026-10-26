@@ -102,11 +102,17 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // with the typo the only area word left in the clause is the destination, so
   // the card searched the **hand** it was meant to be adding to.
   "BT25-139": [[/form\s+your\s+deck\s+to\s+your\s+hand/g, "from your deck to your hand"]],
+  // NOT an official erratum: the owner's ruling of 26 Oct 2026 (phrasing batch 2). The comma before
+  // "Choose" is a misprinted full stop — the Leader condition gates only the draw and discard; the
+  // +15000 (and its "Additionally") always happens.
+  "BT26-027": [[/discard\s+2\s+cards\s+from\s+your\s+hand,\s+Choose\s+up\s+to\s+1/g, "discard 2 cards from your hand. Choose up to 1"]],
   "BT26-071": [[/both\s+gree\s+and\s+with/g, "both green and with"]],
   "BT26-085": [[/negated\s+fro\s+the\s+turn/g, "negated for the turn"]],
   "BT26-093": [
     [/Rest\s+Mode\s+Batle\s+Cards/g, "Rest Mode Battle Cards"],
     [/KO\s+it,\s+the\s+play\s+up\s+to\s+1/g, "KO it, then play up to 1"],
+    // Phrasing batch 2 (26 Oct 2026).
+    [/Choose\s+up\s+to\s+1of\s+your/g, "Choose up to 1 of your"],
   ],
   "BT26-123": [[/≪Prison\s+Planet≫card/g, "≪Prison Planet≫ card"]],
   "BT27-103": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
@@ -144,6 +150,44 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // as "your draw" the [Union-Fusion] price is unreadable.
   "BT31-149": [[/and\s+your\s+draw\s+3\s+cards/g, "and you draw 3 cards"]],
   "BT31-150": [[/card\s+is\s+plyed/g, "card is played"]],
+
+  // Phrasing batch 2 (26 Oct 2026): plain misspellings in the open-rules export
+  // of the day, each a word the compiler reads literally (a missing space, two
+  // letters swapped, a dropped "from"/"to"). Only the misspelt words change.
+  "BT16-098": [[/send\s+that\s+card\s+its\s+owner's\s+Warp/g, "send that card to its owner's Warp"]],
+  "BT1-092": [[/\[Blocker\]\s+\]\s+\(/g, "[Blocker] ("]],
+  "BT1-106": [[/negate\s+the\s+attack\.Afterwards/g, "negate the attack. Afterwards"]],
+  "BT7-053": [[/look\s+at\s+up\s+7\s+cards/g, "look at up to 7 cards"]],
+  // The generic energy cost printed as a bare number: the source lost the braces of the orb ({1}, {3}).
+  "BT6-081": [[/\[Activate:\s+Main\]\s+3,\s+choose\s+1\s+\{Display/g, "[Activate: Main] {3}, choose 1 {Display"]],
+  "BT6-096": [[/\[Activate:\s+Main\]\s+1,\s+place\s+this\s+card/g, "[Activate: Main] {1}, place this card"]],
+  "BT25-108": [[/to\s+your\s+hand,\s+the\s+shuffle\s+your\s+deck/g, "to your hand, then shuffle your deck"]],
+  "BT25-141": [[/discards\s+1\s+card\s+their\s+hand/g, "discards 1 card from their hand"]],
+  "BT26-022": [[/until\s+the\s+end\s+fo\s+your/g, "until the end of your"]],
+  "BT26-044": [[/combo,\s+you\s+opponent\s+places/g, "combo, your opponent places"]],
+  "BT26-059": [[/choose\s+up\s+to\s+1of\s+your/g, "choose up to 1 of your"]],
+  "BT26-091": [[/under\s+te\s+played\s+card/g, "under the played card"]],
+  "BT26-109": [[/place\s+itunder\s+your/g, "place it under your"]],
+  "BT26-129": [[/if\s+your\s+Laeder\s+is/g, "if your Leader is"]],
+  "BT26-133": [[/played,\s+you\s+opponent\s+sends/g, "played, your opponent sends"]],
+  "BT27-040": [[/from\s+our\s+life\s+o\s+your\s+hand/g, "from your life to your hand"]],
+  "BT27-074": [[/draw\s+1\s+card,t\s+hen\s+choose/g, "draw 1 card, then choose"]],
+  "BT27-078": [[/\{y\},\s+fi\s+your\s+Leader/g, "{y}, if your Leader"]],
+  "BT27-080": [[/if\s+you\s+Leader\s+is/g, "if your Leader is"]],
+  "BT27-105": [[/and\s+sendit\s+to/g, "and send it to"]],
+  "BT28-048": [[/hand,\s+andyou\s+choose/g, "hand, and you choose"]],
+  "BT28-096": [[/look\s+t\s+up\s+to\s+5\s+cards/g, "look at up to 5 cards"]],
+  "BT29-086": [[/does\s+not\s+caues\s+you/g, "does not cause you"]],
+  "BT30-006": [[/Z-Energyunder\s+this\s+card/g, "Z-Energy under this card"]],
+  "BT30-091": [[/If\s+yourLeader\s+is/g, "If your Leader is"]],
+  "BT31-050": [[/card\s+an\s+you\s+have/g, "card and you have"]],
+  "P-607": [
+    [/choose\s+up\s+to\s+1of\s+your/g, "choose up to 1 of your"],
+    [/and\s+palce\s+it/g, "and place it"],
+  ],
+  "P-658": [[/power\s+for\s+te\s+battle/g, "power for the battle"]],
+  "P-727": [[/by\s+\{u\}\s+fo\s+the\s+turn/g, "by {u} for the turn"]],
+  "P-743": [[/until\s+you\s+have\s+6life\s+left/g, "until you have 6 life left"]],
   "P-156": [[/2\s+or\s+more≪World\s+Tournament≫/g, "2 or more ≪World Tournament≫"]],
   "P-431": [[/\{y\}\{y\}\{3\}Yellow/g, "{y}{y}{3} Yellow"]],
   "P-620": [[/from\s+your\s+dec\s+or\s+hand/g, "from your deck or hand"]],
