@@ -286,7 +286,14 @@ for (const code of STARTERS) {
 }
 for (const def of Object.values(FW_DEFS)) {
   assert.equal(def.comboCost, null, `${def.id}: no combo price`);
-  assert.equal(def.specifiedCost, undefined, `${def.id}: no specified cost until F1-08`);
+  // The printed orbs from Bandai's official card list (F1-08, #1191): every non-leader prints at least one,
+  // never more than its cost; a leader prints none.
+  if (def.type === "LEADER") assert.equal(def.specifiedCost, undefined, `${def.id}: a leader prints no specified cost`);
+  else {
+    const orbs = Object.values(def.specifiedCost ?? {}).reduce((a, b) => a + (b ?? 0), 0);
+    assert.ok(orbs >= 1, `${def.id}: a specified cost of at least one orb`);
+    assert.ok(orbs <= Number(def.energyCost), `${def.id}: no more orbs than its cost`);
+  }
   for (const side of def.back ? (["front", "back"] as const) : (["front"] as const)) {
     const compiled = compileCardCached(def, side);
     const unread = Object.entries(compiled.bySkill).filter(([, sc]) => (sc as { unsupported: string[] }).unsupported.length).map(([i]) => i);
@@ -301,10 +308,13 @@ for (const def of Object.values(FW_DEFS)) {
   const created = IMPL.createGame(FC, { seed: 7, game: "fusion", p1: starterDeck("FS01"), p2: starterDeck("FS02") }).state;
   assert.equal(created.game, "fusion");
   let state = opening("FS01", "FS02");
+  // The first player draws on turn one too (owner's ruling of 26 Oct 2026, the 1 Jul 2024 change):
+  // at their first Charge Phase prompt p1 holds the 6-card hand plus that draw.
   for (const p of ["p1", "p2"] as const) {
-    assert.equal(zoneOf(state, p, "hand").length, 6, `${p}: a 6-card hand`);
+    const drew = p === state.firstPlayer ? 1 : 0;
+    assert.equal(zoneOf(state, p, "hand").length, 6 + drew, `${p}: a 6-card hand${drew ? " plus the first turn's draw" : ""}`);
     assert.equal(lifeOf(state, p), 8, `${p}: 8 life`);
-    assert.equal(zoneOf(state, p, "deck").length, 36, `${p}: 50 - 6 - 8 left in the deck`);
+    assert.equal(zoneOf(state, p, "deck").length, 36 - drew, `${p}: 50 - 6 - 8 left in the deck${drew ? ", less the draw" : ""}`);
     assert.equal(zoneOf(state, p, "zDeck").length + zoneOf(state, p, "zEnergy").length, 0, `${p}: no Z-Deck`);
   }
   assert.equal(energyMarkersOf(state, "p1"), 0, "the first player has no energy marker");

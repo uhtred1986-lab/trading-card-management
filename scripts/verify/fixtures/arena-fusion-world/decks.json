@@ -1,121 +1,87 @@
 {
- "notes": [
-  "The starters doc prints no deck sections, so no count comes from a printed decklist.",
-  "Every list is an assumption: 4 copies of every Common and 2 of every SR (both the plan's rule for FS02/FS04, applied to FS01/FS03 too), which is 56 cards; each deck is then cut to the 50 a Fusion World main deck holds by dropping one copy (to 3) of the highest-numbered Commons, listed under 'trimmed'.",
-  "Super Combo cards (max 4 in a deck) sit at 4 or fewer."
- ],
- "decks": {
-  "FS01": {
-   "leader": "FS01-01",
-   "main": {
-    "FS01-02": 4,
-    "FS01-03": 4,
-    "FS01-04": 4,
-    "FS01-05": 4,
-    "FS01-06": 4,
-    "FS01-07": 4,
-    "FS01-08": 2,
-    "FS01-09": 2,
-    "FS01-10": 4,
-    "FS01-11": 3,
-    "FS01-12": 3,
-    "FS01-13": 3,
-    "FS01-14": 3,
-    "FS01-15": 3,
-    "FS01-16": 3
-   },
-   "trimmed": [
-    "FS01-16",
-    "FS01-15",
-    "FS01-14",
-    "FS01-13",
-    "FS01-12",
-    "FS01-11"
-   ]
-  },
-  "FS02": {
-   "leader": "FS02-01",
-   "main": {
-    "FS02-02": 4,
-    "FS02-03": 2,
-    "FS02-04": 4,
-    "FS02-05": 4,
-    "FS02-06": 4,
-    "FS02-07": 4,
-    "FS02-08": 4,
-    "FS02-09": 4,
-    "FS02-10": 3,
-    "FS02-11": 3,
-    "FS02-12": 3,
-    "FS02-13": 2,
-    "FS02-14": 3,
-    "FS02-15": 3,
-    "FS02-16": 3
-   },
-   "trimmed": [
-    "FS02-16",
-    "FS02-15",
-    "FS02-14",
-    "FS02-12",
-    "FS02-11",
-    "FS02-10"
-   ]
-  },
-  "FS03": {
-   "leader": "FS03-01",
-   "main": {
-    "FS03-02": 4,
-    "FS03-03": 4,
-    "FS03-04": 2,
-    "FS03-05": 4,
-    "FS03-06": 4,
-    "FS03-07": 4,
-    "FS03-08": 4,
-    "FS03-09": 4,
-    "FS03-10": 2,
-    "FS03-11": 3,
-    "FS03-12": 3,
-    "FS03-13": 3,
-    "FS03-14": 3,
-    "FS03-15": 3,
-    "FS03-16": 3
-   },
-   "trimmed": [
-    "FS03-16",
-    "FS03-15",
-    "FS03-14",
-    "FS03-13",
-    "FS03-12",
-    "FS03-11"
-   ]
-  },
-  "FS04": {
-   "leader": "FS04-01",
-   "main": {
-    "FS04-02": 4,
-    "FS04-03": 2,
-    "FS04-04": 2,
-    "FS04-05": 4,
-    "FS04-06": 4,
-    "FS04-07": 4,
-    "FS04-08": 4,
-    "FS04-09": 4,
-    "FS04-10": 4,
-    "FS04-11": 3,
-    "FS04-12": 3,
-    "FS04-13": 3,
-    "FS04-14": 3,
-    "FS04-15": 3,
-    "FS04-16": 3
-   },
-   "trimmed": [
-    "FS04-16",
-    "FS04-15",
-    "FS04-14",
-    "FS04-13",
-    "FS04-12",
-    "FS04-11"
-   ]
+  "notes": [
+    "The official decklists of the four 51-card starter products (1 leader + 50), as recorded in docs/arena-fusion-world-starters.md. Bandai's product pages give only '16 types, 51 cards'; the per-card counts come from retailer and guide listings and match the owner's own four starter decks in the app's database card for card (checked 26 Oct 2026)."
+  ],
+  "decks": {
+    "FS01": {
+      "leader": "FS01-01",
+      "main": {
+        "FS01-02": 4,
+        "FS01-03": 4,
+        "FS01-04": 2,
+        "FS01-05": 4,
+        "FS01-06": 4,
+        "FS01-07": 4,
+        "FS01-08": 2,
+        "FS01-09": 2,
+        "FS01-10": 4,
+        "FS01-11": 4,
+        "FS01-12": 2,
+        "FS01-13": 4,
+        "FS01-14": 4,
+        "FS01-15": 2,
+        "FS01-16": 4
+      }
+    },
+    "FS02": {
+      "leader": "FS02-01",
+      "main": {
+        "FS02-02": 4,
+        "FS02-03": 2,
+        "FS02-04": 4,
+        "FS02-05": 4,
+        "FS02-06": 4,
+        "FS02-07": 2,
+        "FS02-08": 4,
+        "FS02-09": 4,
+        "FS02-10": 2,
+        "FS02-11": 4,
+        "FS02-12": 4,
+        "FS02-13": 2,
+        "FS02-14": 4,
+        "FS02-15": 2,
+        "FS02-16": 4
+      }
+    },
+    "FS03": {
+      "leader": "FS03-01",
+      "main": {
+        "FS03-02": 4,
+        "FS03-03": 4,
+        "FS03-04": 2,
+        "FS03-05": 4,
+        "FS03-06": 4,
+        "FS03-07": 2,
+        "FS03-08": 4,
+        "FS03-09": 4,
+        "FS03-10": 2,
+        "FS03-11": 2,
+        "FS03-12": 4,
+        "FS03-13": 4,
+        "FS03-14": 4,
+        "FS03-15": 2,
+        "FS03-16": 4
+      }
+    },
+    "FS04": {
+      "leader": "FS04-01",
+      "main": {
+        "FS04-02": 4,
+        "FS04-03": 2,
+        "FS04-04": 2,
+        "FS04-05": 2,
+        "FS04-06": 4,
+        "FS04-07": 4,
+        "FS04-08": 4,
+        "FS04-09": 4,
+        "FS04-10": 4,
+        "FS04-11": 4,
+        "FS04-12": 2,
+        "FS04-13": 4,
+        "FS04-14": 4,
+        "FS04-15": 4,
+        "FS04-16": 2
+      }
+    }
   }
- }
 }

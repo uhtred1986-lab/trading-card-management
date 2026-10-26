@@ -11,10 +11,9 @@
 --   * the opening hand is 6 cards with one mulligan, 8 life cards, and only the
 --     player who goes second places an energy marker (FW manual p. 6).
 --
--- `firstPlayerDraws: false`: the manual v1.10 has the first player skip the
--- draw on turn one (FW manual p. 7, Charge Phase step 2: "draw 1 card", with no
--- first-turn exception printed) and does not carry the 1 Jul 2024 change that lets the first
--- player draw on turn one. The owner rules on it in F1-08; it is left false.
+-- `firstPlayerDraws: true`: the owner's ruling of 26 Oct 2026 (#1191). The manual
+-- v1.10 (p. 7) predates the official change of 1 Jul 2024 under which the player
+-- who goes first also draws on their first turn; the arena plays the current rule.
 
 DEFINE GAME fusion                                                        -- FW manual p. 6
   title: "Dragon Ball Super Card Game Fusion World"
@@ -24,7 +23,7 @@ DEFINE GAME fusion                                                        -- FW 
   hand: 6
   life: 8
   mulligan: true
-  firstPlayerDraws: false
+  firstPlayerDraws: true
   phases: [charge, main, mainEnd, end]
   setupPhase: "setup"
   overPhase: "over"
@@ -184,7 +183,7 @@ DEFINE STEP chargeActivate                                                -- §7
 DEFINE STEP chargeDraw                                                    -- §7-2-9
   phase: "charge"
   optional: false
-  text: "the turn player draws 1 card, except the player who goes first, on their first turn (FW manual p. 7; see the header on the 1 Jul 2024 change)"
+  text: "the turn player draws 1 card, the player who goes first included on their first turn (FW manual p. 7, as changed on 1 Jul 2024; owner's ruling of 26 Oct 2026)"
 
 DEFINE STEP chargeEnergy                                                  -- §7-2-11
   phase: "charge"
