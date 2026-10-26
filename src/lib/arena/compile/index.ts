@@ -724,6 +724,9 @@ function compileSkillText(skill: Skill): Script {
       if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
     }
   }
+  // "The revealed card" (#930, EX13-14 / SD19-03) is what the price revealed.
+  const priceReveal = priceOps.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal");
+  if (priceReveal.length === 1) c.priceRevealed = priceReveal[0].as;
   // "The card that was switched to Hidden Mode by this skill" names the
   // price's card, possibly well after the effect has made choices of its own
   // ("Play this card, then switch the card that was switched to Hidden Mode

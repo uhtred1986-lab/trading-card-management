@@ -3,7 +3,7 @@ import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
 import { recordedSkillIdentity } from "./skill-identity";
 import { NotYet } from "./errors";
-import { isFusionSkill, requireFusionMaterials } from "./fusion-materials";
+import { fusionMaterialsProblem, isFusionSkill, requireFusionMaterials } from "./fusion-materials";
 /**
  * What a program *means*, read against a `VmState`.
  *
@@ -1506,6 +1506,15 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const printed = new Set(placed.characters.map(identityKey));
       if (!list(attrsNow(ctx, game, state, id).characters).some((n) => printed.has(identityKey(String(n))))) return false;
     }
+    // "…with a matching character name" / "…each with a character name that
+    // matches the [Union] skill conditions of the revealed card" (EX13-14,
+    // SD19-03, #930): one of the names the revealed card's [Union-Fusion]
+    // requires, exactly (2-10-1-1). Nothing revealed, nothing to match.
+    if (sel.filter?.unionNameOf) {
+      const revealed = frame.vars[sel.filter.unionNameOf]?.[0] ?? null;
+      const names = new Set(revealed ? unionNamesOf(ctx, state, revealed).map(identityKey) : []);
+      if (!list(attrsNow(ctx, game, state, id).characters).some((n) => names.has(identityKey(String(n))))) return false;
+    }
     // 22-16: [Barrier]'s own `chooseable` hook fact (#154's `forbid(what:
     // beChosen)`), checked on its own rather than through `forbids()`'s wider
     // net — `ignoreBarrier` and the hand exemption are [Barrier]-flavoured
@@ -1843,6 +1852,24 @@ export function namedCandidates(ctx: EngineContext, game: GameDefinition, state:
     return { name: n.name, accepts: (c: { attrs: Attrs; battle: boolean }) => c.battle && test(c.attrs) };
   });
   return namedSetCandidates(needs, pool, picked, samePower);
+}
+
+/**
+ * The character names a card's [Union-Fusion] skill requires (22-13-4-1), read
+ * off its typed material contract (`price.fusion.needs`, #907) — never the
+ * display text. A card whose contract is missing or malformed requires none
+ * that this can vouch for, so it answers nothing (#930: EX13-14, SD19-03).
+ */
+export function unionNamesOf(ctx: EngineContext, state: VmState, id: string): string[] {
+  const shown = skillsShowing(ctx, state, id);
+  const names: string[] = [];
+  for (const sk of shown.skills) {
+    if (!isFusionSkill(sk)) continue;
+    const fusion = shown.scripts.bySkill[sk.index]?.price?.fusion;
+    if (fusionMaterialsProblem(fusion)) continue;
+    for (const n of fusion!.needs) if (!names.some((x) => identityKey(x) === identityKey(n.name))) names.push(n.name);
+  }
+  return names;
 }
 
 /** The Potara slots survive source/display changes after activation. */
