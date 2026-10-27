@@ -359,11 +359,10 @@ for (const seat of ["p1", "p2"] as const) {
     s.cards[uni].markers = 3;
     const xs = offersOf(s, me).map((l) => (l.action as { x?: number }).x).filter((n) => n !== undefined);
     assert.deepEqual(xs, [0, 1, 2, 3], `${seat}: C: Spirit Boost X — offered at 0 to 3 markers`);
-    const before = s.cards[me].power ?? null;
     s = activate(s, me, {}, 2);
     assert.equal(s.cards[uni].markers, 1, `${seat}: C: Spirit Boost X — two markers removed`);
-    const effects = s.effects.filter((e) => e.target === me && e.kind === "power").reduce((n, e) => n + (e.value ?? 0), 0);
-    assert.equal(effects, 10000, `${seat}: C: Spirit Boost X — +5000 for each (${before})`);
+    const effects = s.effects.filter((e) => e.target === me && e.kind === "power").reduce((n, e) => n + Number(e.value ?? 0), 0);
+    assert.equal(effects, 10000, `${seat}: C: Spirit Boost X — +5000 for each`);
     cases++;
   }
 
