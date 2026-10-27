@@ -382,7 +382,13 @@ export type Amount =
   /** "Power equal to the total combo power of the cards discarded by this skill" — the same measure over every selected card, added up. */
   | { sumOf: Selector; attr: AmountAttr; times?: number }
   /** "That many plus 1". The right-hand side is a printed number: no card adds two board readings together, and allowing it would make the printed form ambiguous. */
-  | { plus: [Amount, number] };
+  | { plus: [Amount, number] }
+  /**
+   * Phrasing batch 8: "…reduce the Z-Energy cost of this card in your Z-Deck by 1 for each green Unison Card in your
+   * Drop. **(Up to 2)**" (P-464): the amount, never more than the printed ceiling. The right-hand side is a printed
+   * number, as `plus`'s is. Printed `count(SELECTOR) atMost 2`.
+   */
+  | { capped: [Amount, number] };
 
 /**
  * `minus` is "the rest": the cards bound to `var` that a later choice did not
@@ -480,7 +486,7 @@ export type Cond =
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
-  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" | "may" }
+  | { kind: "did"; what: "addToHand" | "play" | "negateAttack" | "negateLeaderAttack" | "ko" | "draw" | "may" | "flip" }
   /** "If you don't" (20-16): the opposite of a condition. */
   | { kind: "not"; cond: Cond }
   /**
@@ -1280,7 +1286,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1710,7 +1716,7 @@ export interface ScriptFrame {
    */
   printed?: { ops: Op[]; text: string; inBattle: boolean };
   /** What this program has done so far, for "if you added a card to your hand" (20-16). */
-  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean };
+  did?: { addToHand?: boolean; play?: boolean; negateAttack?: boolean; negateLeaderAttack?: boolean; ko?: boolean; draw?: boolean; may?: boolean; flip?: boolean };
   /**
    * #1121 (20-16): how many things this program has really done so far — a card
    * moved, drawn, KO'd, played, a life lost. `mayWitness` is set when an offer
@@ -1766,6 +1772,7 @@ export const DELAY_LABELS: Record<DelayTiming, string> = {
   turnEnd: "at the end of the turn",
   turnCleanup: "as the turn ends",
   battleEnd: "at the end of the battle",
+  damageStepEnd: "at the end of the Damage Step",
 };
 
 // ── the interpreter ────────────────────────────────────────────────────────
@@ -2144,8 +2151,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         for (const p of sideOf(master, op.side)) {
           const who: Side = p === master ? "you" : "opponent";
           const v = `discarded${frame.ip}${p}`;
+          // Phrasing batch 8: "you don't have to place cards from your hand in the Drop Area as a result of this card's
+          // skill" (TB1-002): the master's own discard, by this card's skill, is up to that many.
+          const optional = p === master && !!frame.card && !!h.permits?.("ownDiscardOptional", frame.card);
           spliced.push(
-            { op: "choose", sel: { side: who, area: "hand", count: n }, as: v, chooser: who, reason: `discard ${n} card${n === 1 ? "" : "s"}` },
+            { op: "choose", sel: { side: who, area: "hand", count: n, ...(optional ? { upTo: true } : {}) }, as: v, chooser: who, reason: `discard ${optional ? "up to " : ""}${n} card${n === 1 ? "" : "s"}` },
             { op: "moveTo", target: { var: v }, to: op.to ?? "drop", reveal: true },
           );
         }
@@ -2167,7 +2177,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (taken.length) {
             h.addDamageTaken(p, taken.length);
             h.log({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
-            h.pend("dealtDamage", frame.card);
+            // Phrasing batch 8: "when this card deals damage" answers the damage its skill deals to the opponent
+            // (`MOMENT_OF`), never what it makes its own master take ("take 2 damage").
+            if (p !== master) h.pend("dealtDamage", frame.card);
             // Phrasing batch 7 (owner's ruling of 27 Oct 2026 on BT9-104): "When one of your cards deals damage" counts
             // a skill's damage as well as battle damage — pended once, about the card whose skill dealt it (the
             // subject), and answered by every card in play of its master (`WATCHED_MOVE` in `host.ts`). Damage a skill
@@ -3091,6 +3103,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           h.flip(id, toBack);
           frame.acted = (frame.acted ?? 0) + 1;
+          // Phrasing batch 8: "…flip your opponent's Leader Card to the front. If you do, …" (BT9-093).
+          (frame.did ??= {}).flip = true;
         }
         break;
 

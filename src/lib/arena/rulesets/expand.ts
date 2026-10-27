@@ -284,6 +284,7 @@ function substAmount(amount: Amount, args: Args): Amount {
   if (!amount || typeof amount !== "object") return amount;
   if ("var" in amount) return (argOf(amount.var, args)?.value as Amount) ?? amount;
   if ("plus" in amount) return { ...amount, plus: [substAmount(amount.plus[0], args), substOperand(amount.plus[1], args)] };
+  if ("capped" in amount) return { ...amount, capped: [substAmount(amount.capped[0], args), amount.capped[1]] };
   // `life($side)` (#137).
   if ("life" in amount && isHole(amount.life)) return { ...amount, life: fill(amount.life.hole, { name: "life", type: "side", required: true }, args) as typeof amount.life };
   if ("count" in amount) return { ...amount, count: substSelector(amount.count, args) };

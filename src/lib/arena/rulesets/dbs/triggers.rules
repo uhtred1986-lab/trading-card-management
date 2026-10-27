@@ -474,11 +474,29 @@ DEFINE TRIGGER hiddenToDrop
 
 -- ── damage and life (5-10, 3-9, 21-3) ──────────────────────────────────────
 
--- §5-10 — when this card deals damage
+-- §5-10 — when this card deals damage. Phrasing batch 8 (owner's ruling of
+-- 27 Oct 2026): by attacking or by its skill — the `damage` op pends it by
+-- name with `by: skill` (`MOMENT_OF`), the battle fires it with `by: battle`.
 DEFINE TRIGGER dealtDamage
   ON damage(role: source)
   BIND "self"
   text: "when this card deals damage"
+
+-- Phrasing batch 8 — "When this card deals damage by attacking" (BT13-005),
+-- "…deals damage to your opponent in a battle" (BT26-089): the battle's damage
+-- only, never a skill's.
+DEFINE TRIGGER dealtBattleDamage
+  ON damage(role: source, by: battle)
+  BIND "self"
+  text: "when this card deals damage in a battle"
+
+-- Phrasing batch 8 — "When you deal damage to your opponent by attacking with
+-- a blue card" (BT30-017): the battle damage any of your cards deals, the
+-- attacker the subject and its description a condition on it.
+DEFINE TRIGGER yourCardDealtBattleDamage
+  ON damage(role: source, by: battle, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards deals damage by attacking"
 
 -- Phrasing batch 6 — "When one of your cards deals damage to your opponent"
 -- (BT9-104): the battle damage one of your cards deals, the attacker the
@@ -502,6 +520,15 @@ DEFINE TRIGGER opponentTookDamage
   ON damage(by: skill, watcher: opponent)
   BIND "subject"
   text: "when your opponent takes damage from a skill"
+
+-- Phrasing batch 8 — "When you take damage from an opponent's attack"
+-- (BT21-071): the battle's damage, the attacker the subject. The battle's
+-- `damage` moment is its attacker's master's, so the damaged player watches as
+-- the opponent.
+DEFINE TRIGGER youTookBattleDamage
+  ON damage(by: battle, watcher: opponent)
+  BIND "subject"
+  text: "when you take damage from an opponent's attack"
 
 -- §3-9 — when a card leaves your life
 DEFINE TRIGGER lifeLeft

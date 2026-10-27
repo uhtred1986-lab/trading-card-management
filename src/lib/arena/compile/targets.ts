@@ -1080,6 +1080,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     /^(?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent).+?) (?:is|are) played from your (?:hand|drop)(?: area)?$/.exec(t)?.[1] ??
     // Phrasing batch 7: "When a <Pan> card or …—both green …—is placed from your Battle Area in your Drop" (BT20-054b).
     /^(?:an? |1 |one of your |your )((?!this card\b|it\b|your opponent|an? opponent).+?)(?:\s*[-—–―]\s*|\s+)(?:is|are) placed from your battle area (?:in|into) (?:your|its owner'?s) drop(?: area)?$/.exec(t)?.[1] ??
+    // Phrasing batch 8: "When you deal damage to your opponent by attacking with a blue card" (BT30-017): the attacker.
+    /^you deal damage(?: to your opponent)? by attacking with (?:an? |1 |one of your |your )((?!this card\b).+?)$/.exec(t)?.[1] ??
     // Phrasing batch 7: "…is KO'd by your red card's attack or skill" (BT28-001b, `yourCardKos`): the card that KO'd it.
     /^.+? (?:is|are) ko'd by (?:one of )?your ((?!opponent).+?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)$/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
