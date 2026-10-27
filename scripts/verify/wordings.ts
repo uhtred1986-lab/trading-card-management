@@ -1558,9 +1558,11 @@ import type { EngineState, Trigger } from "./harness";
   assert.equal(f("mono-blue Battle Cards with a [Counter] skill").skillKind, "counter");
   assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate");
   assert.deepEqual(f("mono-blue Battle Cards with a [Counter] skill").keywords, []);
-  // Anything else in brackets makes the description unreadable rather than
-  // wider — [Sparking 7] is a numeric validity condition, not a keyword.
-  assert.equal(f("≪Universe 7≫ card with a [Sparking 7] skill").unreadable, true);
+  // [Sparking 7] is a numeric validity condition, not a keyword: mechanism batch 3 reads it as the exact tag a line
+  // prints (`keywordsExact`), never as the family. Anything else in brackets makes the description unreadable.
+  assert.equal(f("≪Universe 7≫ card with a [Sparking 7] skill").unreadable, false);
+  assert.deepEqual(f("≪Universe 7≫ card with a [Sparking 7] skill").keywordsExact, ["Sparking 7"]);
+  assert.equal(f("≪Universe 7≫ card with a [Frobnicate 7] skill").unreadable, true);
   assert.equal(f("blue ≪Android≫ card").unreadable, false);
   // "Without [X]" and "non-[X]" stay the opposite of all this.
   assert.deepEqual(f("Battle Cards without [Barrier]").notKeywords, ["Barrier"]);
@@ -1573,7 +1575,8 @@ import type { EngineState, Trigger } from "./harness";
 
   // An unreadable description fails the clause rather than selecting the whole
   // area — the difference between `null` and `undefined` out of `filterFor`.
-  const sparking = compileSkill(parseSkills("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with a [Sparking 7] skill from your Drop.")[0]);
+  // Mechanism batch 3 reads "[Sparking 7]" (`keywordsExact`); a tag nothing knows still fails the clause.
+  const sparking = compileSkill(parseSkills("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with a [Frobnicate 7] skill from your Drop.")[0]);
   assert.equal(sparking.unsupported.length, 1, "9-1: an unread description is an honest gap, not a wide selection");
   const readable = compileSkill(parseSkills("[Activate: Main] Play up to 1 red ≪Universe 7≫ card with a [Blocker] skill from your Drop.")[0]);
   assert.deepEqual(readable.unsupported, []);

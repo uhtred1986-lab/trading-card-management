@@ -98,7 +98,10 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   assert.deepEqual(s.unsupported, [], "P-418");
   assert.equal(find(s.ops, "negateCounter").length, 1);
   assert.deepEqual(compile("[counter: counter] Negate the [counter] skill and remove this card from the game.").unsupported, [], "BT30-150");
-  assert.ok(compile("[Counter: Counter] If your Leader Card is red and you choose 1 yellow card in your hand and place it in your Drop Area: Negate the [Counter: Attack] skill.").unsupported.length > 0, "EX09-06: the kind it answers is not asked, so it is not read");
+  // Mechanism batch 3: the kind it answers is asked now (`countering`), so EX09-06 reads — negating only a [Counter: Attack].
+  const ex09 = compile("[Counter: Counter] If your Leader Card is red and you choose 1 yellow card in your hand and place it in your Drop Area: Negate the [Counter: Attack] skill.");
+  assert.deepEqual(ex09.unsupported, [], "EX09-06: read");
+  assert.ok(JSON.stringify(ex09.ops).includes('"cond":{"kind":"countering","what":"attack"}') && find(ex09.ops, "negateCounter").length === 1, "EX09-06: only a [Counter: Attack] being answered is negated");
   // "negate that card's [Auto] skill" is still the kind-scoped negation
   assert.equal(find(compile("[Auto] When this card is played, choose up to 1 of your opponent's Battle Cards and negate that card's [Auto] skill for the turn.").ops, "negateSkillsOfKind").length, 1);
 }
