@@ -270,6 +270,13 @@ DEFINE WORDS untilOwnTurn
   you: "until the end of your turn"
   text: "until the end of {them}'s turn"
 
+-- Phrasing batch 7: "…until the end of a battle or the end of the turn,
+-- whichever comes first" (BT15-139): ends with the next battle's end or the
+-- turn's, the first of the two.
+DEFINE WORDS untilBattleOrTurn
+  of: until
+  text: "until the end of a battle or the end of the turn"
+
 DEFINE WORDS untilGame
   of: until
   text: "for the rest of the game"

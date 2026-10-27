@@ -73,13 +73,13 @@ const P_711 = "[auto][limit 1] Discard 1 multicolor card from your hand: When th
 {
   const pick = chooses(record(P_711, "P-711"))[0];
   assert.ok(pick && "area" in pick.sel && pick.sel.area === "drop" && pick.sel.count === 1 && pick.sel.upTo, "A1: up to 1 card of your Drop");
-  // One description: a <Pan> card or one with <GT> in its character name (`characters` and `charactersIncluding` are
-  // either one, BT25-068), and the aside's measures on it — so on both alternatives.
-  const f = pick.sel.filter;
-  assert.ok(f, "A1: a description");
-  assert.deepEqual(f.characters.map((x) => x.toLowerCase()), ["pan"], "A1: a <Pan> card…");
-  assert.deepEqual(f.charactersIncluding.map((x) => x.toLowerCase()), ["gt"], "A1: …or a card with <GT> in its character name");
-  assert.ok(f.multiColor && f.costMin === 4 && f.costMax === 4, "A1: …either one multicolour with an energy cost of 4");
+  // Phrasing batch 7 (owner, BT25-068): two alternatives — a <Pan> card, or one with <GT> in its character name — and
+  // the aside's measures on each.
+  const alts = pick.sel.filter?.anyOf ?? [];
+  assert.equal(alts.length, 2, "A1: two alternatives");
+  assert.deepEqual(alts[0].characters.map((x) => x.toLowerCase()), ["pan"], "A1: a <Pan> card…");
+  assert.deepEqual(alts[1].charactersIncluding.map((x) => x.toLowerCase()), ["gt"], "A1: …or a card with <GT> in its character name");
+  assert.ok(alts.every((f) => f.multiColor && f.costMin === 4 && f.costMax === 4), "A1: …either one multicolour with an energy cost of 4");
   records++;
 }
 // Narrow on purpose: an aside after a pair of names joined into one alternative is that alternative's (BT24-092 as before).
@@ -121,8 +121,11 @@ for (const [text, what, until] of [
   }
   records++;
 }
-// "Keyword skills negated" (P-327's play, EB1-07's Leader) is not this, and is left as it was.
-assert.ok(unreadOf("[Activate: Main] Choose 1 of your Leader Cards, and that card has its keyword skills negated for the turn.").length > 0, "A2: \"its keyword skills\" is not read as the non-keyword ones");
+// "Keyword skills negated" (P-327's play, EB1-07's Leader) is not this: phrasing batch 7 reads it as the keyword half.
+{
+  const rec = skillRecords(card("KW", { skill: "[Activate: Main] Choose 1 of your Leader Cards, and that card has its keyword skills negated for the turn." }))[0];
+  assert.deepEqual(kindsNegated(rec).map((n) => n.kind).sort(), ["counter", "keyword"], "A2: \"its keyword skills\" is not read as the non-keyword ones");
+}
 
 // B1. A trigger's second moment after a play: an opponent's attack, this card's [Blocker].
 for (const [text, what, triggers] of [
@@ -166,11 +169,9 @@ for (const [text, what, every] of [
   if (every > 1) assert.ok(JSON.stringify(red).includes(`"per":${every}`) || JSON.stringify(red).includes(`"every":${every}`) || JSON.stringify(red).includes(`"divide":${every}`) || JSON.stringify(red).includes(`"div":${every}`), `${what}: for every ${every}`);
   records++;
 }
-// The rest of the family counts otherwise and stays unread on purpose. (Phrasing batch 6 reads "For each Battle Card in
-// play" — both players' — and "For each marker on your blue Unison": `phrasing-batch-6.ts`.)
-for (const text of [
-  "[Permanent] For each green Unison Card in your Unison Area and Drop Area, reduce the energy cost of this card in your hand by 1.",
-]) assert.ok(unreadOf(text).length > 0, `B4: left unread: ${text.slice(12, 60)}`);
+// The rest of the family counts otherwise. (Phrasing batch 6 reads "For each Battle Card in play" — both players' — and
+// "For each marker on your blue Unison": `phrasing-batch-6.ts`; phrasing batch 7 reads "…in your Unison Area and Drop
+// Area" (P-379): `phrasing-batch-7.ts`.)
 
 // B5. "…it's sent to its owner's Warp instead of being played": the [Counter: Play]'s move to the Warp.
 for (const [text, what] of [

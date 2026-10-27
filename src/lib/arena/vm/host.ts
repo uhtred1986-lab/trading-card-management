@@ -1018,6 +1018,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   markerRemoved: { event: "markerRemoved", args: {} },
   // 5-7-5-3: the card's own combo entry, pended by `comboFrom` after a skill puts it in the Combo Area (a declared combo fires it itself).
   comboUsed: { event: "comboUsed", args: { to: "combo" } },
+  // Phrasing batch 7 (owner's ruling of 27 Oct 2026, BT9-104): a skill's damage to the opponent, pended by the `damage`
+  // op about the skill's card — the battle damage `yourCardDealtDamage` already answers through `battle.ts`'s own fire.
+  yourCardDealtDamage: { event: "damage", args: { role: "source" } },
 };
 
 /** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
@@ -1036,7 +1039,8 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
  */
 const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "zEnergyToDrop"]);
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill"]);
+// Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };

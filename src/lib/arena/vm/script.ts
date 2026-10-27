@@ -45,7 +45,7 @@ export type Side = "you" | "opponent" | "both";
  * when that is theirs, or their next one when it was made on the opponent's
  * turn ("when this card is removed from a Unison Area" can happen then).
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";
@@ -1280,7 +1280,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -2168,6 +2168,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.addDamageTaken(p, taken.length);
             h.log({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
             h.pend("dealtDamage", frame.card);
+            // Phrasing batch 7 (owner's ruling of 27 Oct 2026 on BT9-104): "When one of your cards deals damage" counts
+            // a skill's damage as well as battle damage — pended once, about the card whose skill dealt it (the
+            // subject), and answered by every card in play of its master (`WATCHED_MOVE` in `host.ts`). Damage a skill
+            // deals to its own master is not "to your opponent".
+            if (frame.card && p !== master) h.pend("yourCardDealtDamage", frame.card, frame.card);
             // 21-3: "when you take damage from an opponent's non-keyword
             // skill" and its mirror. Only the `damage` op reaches here —
             // battle damage takes a different path — so the "from a skill"

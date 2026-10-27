@@ -94,9 +94,8 @@ for (const [text, what] of [
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "negateSkills" || (o.op === "play" && o.negated)), "A2: …and never every skill (it read as that before)");
   records++;
 }
-// Not read where the keyword half is not a play's: EB1-07's "has its keyword skills negated" sits beside a "you can't activate
-// non-keyword Leader Card skills …" the compiler skips as a reminder, and BT31-002b's is a [Permanent] no standing reader collects.
-assert.ok(unreadOf("[auto]{r}, if your opponent has 3 or more energy and it's your turn: At the end of a battle in which you combo with this card from your hand, switch up to 1 of your mono-red Leader Cards to Active Mode, and that card gets +5000 power and has its keyword skills negated for the turn; you can't activate non-keyword Leader Card skills or skills on copies of this card for the turn.").includes("has its keyword skills negated for the turn"), "A2: EB1-07 stays unread");
+// Phrasing batch 7 reads EB1-07's "has its keyword skills negated" (`phrasing-batch-7.ts`). Not read: BT31-002b's is a
+// [Permanent] no standing reader collects.
 assert.ok(unreadOf("[permanent] Negate the keyword skills of all your Battle Cards.").length > 0, "A2: BT31-002b stays unread");
 
 // A3. BT26-015: "then shuffle your Drop" is nothing; the moment ("in your hand … discarded by one of your skills") is read.

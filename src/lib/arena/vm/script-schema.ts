@@ -121,7 +121,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "game", "whileSourceInPlay"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "game", "whileSourceInPlay", "battleOrTurn"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -347,7 +347,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1064,6 +1064,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: PERMIT_FIELDS,
     sentence: (raw, r) => {
       const op = raw as OpOf<"permit">;
+      // Phrasing batch 7: "This card can be used in combos in Rest Mode" (P-582, BT26-019) — the card itself, no other.
+      if (op.what === "comboRestSelf") return `${describeRef(op.target)} can be used in combos in Rest Mode${forThe(op.until, r)}`;
       if (op.what === "comboRest") {
         const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
         return `you can use your ${cards} in Rest Mode in combos${forThe(op.until, r)}`;
@@ -1090,7 +1092,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: '"awakenLife" (phrasing batch 6: "you can activate your Leader\'s [Awaken] even if your life is at 6 or less", P-500; "…even if you have 5 or more life", BT1-051) raises the target Leader\'s [Awaken] life ceiling to "n" (99: none) while it lasts; the [Awaken]\'s other conditions still hold. "evolveFromZEnergy" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. "evolveEnergyBases" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. "aegisAltDrop" / "aegisAltOpponentHand" (BT22-035, BT22-140; 22-30-3 "instead of", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card\'s own [Aegis] only) one card of your opponent\'s hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is "its attacks can\'t be negated": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does',
+    doc: '"comboRestSelf" (phrasing batch 7: "this card can be used in combos in Rest Mode", P-582) lets the target itself, rested, be used in a combo; "awakenLife" (phrasing batch 6: "you can activate your Leader\'s [Awaken] even if your life is at 6 or less", P-500; "…even if you have 5 or more life", BT1-051) raises the target Leader\'s [Awaken] life ceiling to "n" (99: none) while it lasts; the [Awaken]\'s other conditions still hold. "evolveFromZEnergy" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. "evolveEnergyBases" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. "aegisAltDrop" / "aegisAltOpponentHand" (BT22-035, BT22-140; 22-30-3 "instead of", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card\'s own [Aegis] only) one card of your opponent\'s hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is "its attacks can\'t be negated": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
@@ -1415,7 +1417,17 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.traitsAll ?? []).map((x) => `≪${x}≫`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
       const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
-      const bits = [...f.colors, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...including];
+      // Phrasing batch 7: every other measure the VM asks of the Leader is said too. "If your Leader Card is a red
+      // {Champa} or red {Vados}" (EX06-03) read "your leader is Red, or your leader is Red": the card names were asked
+      // and never said, and so were "mono-", "Z-", a name asked in part, an excluded trait and an original power.
+      const names = anyOfNames((f.names ?? []).map((x) => `{${x}}`));
+      const partly = (f.namesIncluding ?? []).map((x) => `with {${x}} in its card name`);
+      const tone = [...(f.monoColor ? ["mono-colour"] : []), ...(f.multiColor ? ["multicolour"] : []), ...(f.notColors ?? []).map((x) => `non-${x.toLowerCase()}`)];
+      const kind = f.z ? ["Z-Leader"] : [];
+      const notTraits = (f.notTraits ?? []).map((x) => `non-≪${x}≫`);
+      const said0 = [...tone, ...f.colors, ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
+      const bits = partly.length ? [...said0, ...(said0.length && !kind.length ? ["card"] : said0.length ? [] : ["a card"]), ...partly] : said0;
+      const originalPower = f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
       // "with 10000 power or less" (#990): the bound is part of the Leader
       // description, and the VM asks it. Left out, the reading claims a wider
       // Leader than the card does.
@@ -1429,7 +1441,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
               : f.powerMin != null
                 ? `with ${f.powerMin} power or more`
                 : "";
-      const said = [bits.join(" ") || f.names?.join("/") || (power ? "a card" : "a match"), power].filter(Boolean).join(" ");
+      const said = [bits.join(" ") || (power || originalPower ? "a card" : "a match"), power, originalPower].filter(Boolean).join(" ");
       return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${said}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
@@ -2563,6 +2575,13 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // A stored filter may be partial (Claude writes only the measures it means),
   // and a missing list crashed the workbench and the printer on BT31-132.
   const f = completeFilter(given);
+  // Phrasing batch 7: a whole name and a part of one in one filter are either one (`charactersIncluding`, BT25-068) —
+  // "<Pan> cards and/or cards with <GT> in their character names". A sentence that hung the part off the whole ("a
+  // <pan> card with <gt> in its character name") said both at once, so a sentence says them as two alternatives. The
+  // short form (no noun) is `parseFilter`'s own and stays as it is.
+  if (noun && !f.anyOf?.length && f.characters.length && f.charactersIncluding.length) {
+    return describeFilter({ ...f, characters: [], charactersIncluding: [], anyOf: [{ characters: f.characters, onlyCharacters: f.onlyCharacters }, { charactersIncluding: f.charactersIncluding }] as unknown as CardFilter[] }, noun);
+  }
   // "A <Veku: Br> card or a red <Son Goku: Br> card" (#537): each alternative
   // in its own words, then whatever the filter asks beside them.
   if (f.anyOf?.length) {
@@ -3020,6 +3039,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   ownTurn: " until the end of your turn",
   game: " for the rest of the game",
   whileSourceInPlay: " while this card is in a Battle Area",
+  battleOrTurn: " until the end of a battle or the end of the turn, whichever comes first",
 };
 const forThe = (until: Duration | undefined, r: RenderOptions) => (r.permanent || !until ? "" : DURATION_IN_WORDS[until]);
 

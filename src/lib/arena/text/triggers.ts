@@ -142,6 +142,15 @@ const YOUR_CARD_ABSORBS = /^when (?:one of your|your) ((?!opponent)[^,]{1,120}?)
 /** Phrasing batch 6: "When {X} is played from your hand" (TB2-045), "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
 const YOUR_CARD_PLAYED_FROM = /^when (?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,120}?) (?:is|are) played from your (hand|drop)(?: area)?(?:,|$)/;
 /**
+ * Phrasing batch 7: an opponent's Battle Card KO'd by one of yours, "by attack or skill" — "When a Battle Card that is in
+ * your opponent's Battle Area and whose owner is your opponent is KO'd by your red card's attack or skill" (BT28-001b).
+ * The card of yours that KO'd it is the subject (`yourCardKos`). Only "attack or skill": one of the two alone names a
+ * cause the KO event does not carry.
+ */
+export const YOUR_CARD_BATTLE_TO_DROP = /^when (?:an? |1 |one of your |your )((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,160}?)(?:\s*[-—–―]\s*|\s+)(?:is|are) placed from your battle area (?:in|into) (?:your|its owner'?s) drop(?: area)?(?:,|$)/;
+/** Phrasing batch 7: see `YOUR_CARD_BATTLE_TO_DROP` (BT20-054b) above, and the KO by one of yours below. */
+export const YOUR_CARD_KOS = /^when (?:a battle card that is in your opponent'?s battle area and whose owner is your opponent|(?:one of )?your opponent'?s battle cards?|an opponent'?s battle card) (?:is|are) ko'd by (?:one of )?your ((?!opponent)[^,]{1,80}?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)(?:,|$)/;
+/**
  * Phrasing batch 6: the keyword moves "When you activate …" names — "[Union-Fusion]" (BT10-092b), "an [Evolve] or
  * [Union] skill" (BT14-094), "[Evolve] or [Union Absorb]" (BT17-002b), "[union absorb]" (BT30-044b) — as `evolve`,
  * `union`, `fusion` or `absorb`. Empty for any other head.
@@ -437,7 +446,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // combo entry trigger (`comboUsed`; `comboed` is its stored alias).
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
-      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[blocker\])|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
+      // Phrasing batch 7: "When this card is activated" (BT10-058, a [Field] Extra) is the same moment said passively.
+      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[blocker\])|when this card is activated(?=\s*(?:,|:|\.|$))|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
         t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, ""),
       );
     case "playedFromHand":
@@ -555,6 +565,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /^when (?:one of )?your opponent'?s cards? (?:is|are) added to (?:their|its owner'?s) z-energy(?:,|$)/.test(head.toLowerCase());
     case "eitherCardPlayed": {
       const m = /^when your or your opponent'?s ([^,]{1,120}?) (?:is|are) played(?:,|$)/.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardBattleToDrop": {
+      const m = YOUR_CARD_BATTLE_TO_DROP.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardKos": {
+      const m = YOUR_CARD_KOS.exec(head.toLowerCase());
       return !!m && readableSubject(effect, m[1]);
     }
     case "yourCardDealtDamage":

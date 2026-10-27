@@ -297,7 +297,28 @@ DEFINE TRIGGER opponentCardKoed
   BIND "subject"
   text: "when an opponent's card is KO'd"
 
+-- Phrasing batch 7 — "When a Battle Card that is in your opponent's Battle
+-- Area and whose owner is your opponent is KO'd by your red card's attack or
+-- skill" (BT28-001b): a KO one of your cards caused, by its attack or by its
+-- skill — the `cause` role, which fires only for an opponent's card. The card
+-- of yours that did it is the subject; what the text says of it ("red card")
+-- is a condition on it.
+DEFINE TRIGGER yourCardKos
+  ON ko(role: cause, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards KOs an opponent's card"
+
 -- ── leaving a Battle Area (3-1, 9-6-9) ─────────────────────────────────────
+
+-- Phrasing batch 7 — "When a <Pan> card or a card with <GT> in its character
+-- name—both green and without <Son Goku: GT>—is placed from your Battle Area
+-- in your Drop" (BT20-054b): another card of yours going from your Battle Area
+-- to the Drop, by any cause (a KO, a skill, the rules) — `leftBattleToDrop`
+-- said of another card. The card is the subject; its description a condition.
+DEFINE TRIGGER yourCardBattleToDrop
+  ON moved(from: battle, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards goes from your Battle Area to the Drop"
 
 -- §3-1-5 — when this card is removed from a Battle Area by a skill
 DEFINE TRIGGER removedFromBattle
@@ -461,12 +482,14 @@ DEFINE TRIGGER dealtDamage
 
 -- Phrasing batch 6 — "When one of your cards deals damage to your opponent"
 -- (BT9-104): the battle damage one of your cards deals, the attacker the
--- subject. A skill's damage reaches no `damage` moment yet, as for
--- `dealtDamage`.
+-- subject. Phrasing batch 7 (owner's ruling of 27 Oct 2026): a skill's damage
+-- counts too — the `damage` op pends this by name for the cards in play of the
+-- player whose card's skill dealt it, the skill's card the subject, as it
+-- pends `dealtDamage`.
 DEFINE TRIGGER yourCardDealtDamage
   ON damage(role: source, watcher: controller)
   BIND "subject"
-  text: "when one of your cards deals battle damage"
+  text: "when one of your cards deals damage"
 
 -- §21-3 — when you take damage from a skill
 DEFINE TRIGGER youTookDamage
