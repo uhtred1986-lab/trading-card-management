@@ -820,7 +820,8 @@ import type { EngineState, Trigger } from "./harness";
   const moments: [string, Trigger][] = [
     ["When this card is placed in the Drop Area from the Battle Area, draw 1 card.", "leftBattleToDrop"],
     ["When your mono-red ≪Saiyan≫ Leader Card is attacked, draw 1 card.", "yourLeaderAttacked"],
-    ["When you take damage from an opponent's non-keyword skill, draw 1 card.", "youTookDamage"],
+    // Phrasing batch 9 (owner's ruling of 27 Oct 2026): never your own skill's damage — a moment of its own.
+    ["When you take damage from an opponent's non-keyword skill, draw 1 card.", "youTookOpponentSkillDamage"],
     ["When your opponent takes damage from a skill on one of your Battle Cards, draw 1 card.", "opponentTookDamage"],
     ["When your life moves to another area, draw 1 card.", "lifeLeft"],
     ["When your life is placed in your Drop, draw 1 card.", "lifeLeft"],

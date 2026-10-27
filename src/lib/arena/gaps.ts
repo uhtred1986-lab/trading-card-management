@@ -140,6 +140,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardDealtBattleDamage: "when one of your cards deals damage by attacking",
   dealtBattleDamage: "when this card deals damage in a battle",
   youTookBattleDamage: "when you take damage from an opponent's attack",
+  youTookOpponentSkillDamage: "when you take damage from an opponent's skill",
+  yourCardBlockerUsed: "when one of your cards activates [Blocker]",
   yourCardKos: "when one of your cards KOs an opponent's card",
   yourCardBattleToDrop: "when one of your cards goes from your Battle Area to the Drop",
   yourCardReturnedToHand: "when a card is returned from your Battle Area to its owner's hand",

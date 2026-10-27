@@ -4990,6 +4990,10 @@
       "words": "when your opponent takes damage from a skill"
     },
     {
+      "name": "youTookOpponentSkillDamage",
+      "words": "when you take damage from an opponent's skill"
+    },
+    {
       "name": "youTookBattleDamage",
       "words": "when you take damage from an opponent's attack"
     },
@@ -5052,6 +5056,10 @@
     {
       "name": "blockerUsed",
       "words": "when this card activates [Blocker]"
+    },
+    {
+      "name": "yourCardBlockerUsed",
+      "words": "when one of your cards activates [Blocker]"
     },
     {
       "name": "evolvedInto",

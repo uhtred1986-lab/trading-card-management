@@ -187,7 +187,13 @@ export function splitDisjunction(text: string, opts: { measured?: boolean } = {}
     // alone, then another card described with its own article and name — two alternatives, not one colour list. Read
     // as one ("mono-colour Green Black ≪demon realm race≫") it asked a mono-coloured Leader of two colours, which none is.
     // Only in a Leader description (`measured`), and only a lone colour before the "or".
-    const ownDescription = !!opts.measured && /^an?\s/i.test(after) && /[<≪{]/.test(after) && /^(?:mono-?)?(?:red|blue|green|yellow|black|white)$/i.test(text.slice(splitIndices.at(-1)?.end ?? 0, match.index).trim());
+    const lone = text.slice(splitIndices.at(-1)?.end ?? 0, match.index).trim();
+    // Phrasing batch 9 (owner's ruling of 27 Oct 2026): the same with no article — "your Leader Card is **mono-green or
+    // black** …" is a mono-green Leader, or a black one, as BT12-153's two are. A "mono-" colour alone before the "or"
+    // and a plain colour after it are two Leaders; read as one colour list it asked a mono-coloured Leader, so a
+    // two-colour black Leader failed. ("mono-red or mono-green" says mono twice and is one list either way.)
+    const monoThenPlain = !!opts.measured && /^mono-?(?:red|blue|green|yellow|black|white)$/i.test(lone) && /^(?:red|blue|green|yellow|black|white)\b/i.test(after);
+    const ownDescription = monoThenPlain || (!!opts.measured && /^an?\s/i.test(after) && /[<≪{]/.test(after) && /^(?:mono-?)?(?:red|blue|green|yellow|black|white)$/i.test(lone));
     if (!ownDescription && new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
       continue;
     }

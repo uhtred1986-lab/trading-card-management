@@ -111,6 +111,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     modeOf: (id) => (card(id).mode as Mode | null) ?? null,
     markersOf: (id) => card(id).markers,
     isFaceUp: (id) => card(id).faceUp,
+    zoneEpoch: (id) => card(id).zoneEpoch ?? 0,
     isHidden: (id) => card(id).hidden,
     hiddenStamp: (id) => (card(id).hidden ? `${id}@${card(id).zoneEpoch ?? 0}:${card(id).hiddenCount ?? 0}` : null),
     isFlipped: (id) => card(id).flipped,
@@ -1041,6 +1042,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   dealtDamage: { event: "damage", args: { role: "source", by: "skill" } },
   youTookDamage: { event: "damage", args: { by: "skill" } },
   opponentTookDamage: { event: "damage", args: { by: "skill" } },
+  // Phrasing batch 9 (owner's ruling of 27 Oct 2026): "when you take damage from your opponent's skill" — pended by the
+  // `damage` op only when the skill's master is the damaged player's opponent, so your own skill's damage to you is not it.
+  youTookOpponentSkillDamage: { event: "damage", args: { by: "skill" } },
 };
 
 /** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */

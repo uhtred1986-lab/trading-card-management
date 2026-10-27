@@ -49,7 +49,9 @@ const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 // ("power of 35000 or less", BT7-017's "an energy cost of 3 or more **and power of 35000 or
 // less** in your Drop Area") are the same second measure. Mechanism batch 2: so is "…with an energy cost of 2 or less **and
 // without [Super Combo]** from your deck" (P-569), only right before the place searched.
-const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill|without \[[a-z0-9:\- /]+\] from)(?: or (?:less|more))?\b/i;
+const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill|without \[[a-z0-9:\- /]+\] from|without <[^>]+> in (?:its|their) character names?)(?: or (?:less|more))?\b/i;
+// (Phrasing batch 9: "…cards with energy costs of 1 **and without <Turles> in their character names**" (BT24-097,
+// BT24-099) is a measure of the same cards too; split off, the choice took any ≪Turles Crusher Corps≫ card.)
 
 /** A comma (and its "and") in front of a measure of the same description: see `commaJoinsMeasure`. */
 /**
@@ -183,6 +185,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
     (_, leader: string, description: string, color: string) => `${leader} is mono-${color} ${description}`);
+  // Phrasing batch 9: "for each of your <Pan> cards **and** cards with <GT> in their character names" (EX23-52) is one
+  // count of every card of either kind — the "and" joins two kinds of card, not two clauses. Said with "or", the
+  // count's filter reads it whole (`anyOf`), each card counted once.
+  text = text.replace(/\b(for (?:each|every) of your [^,.;:]+? cards?) and (cards? with [^,.;:]+? in (?:their|its) character names?)/gi, "$1 or $2");
   // Phrasing batch 4: "…from your deck, hand, or Drop, **and if you looked at your deck, shuffle your deck**" (BT22-079,
   // BT22-085, BT22-112, BT22-133) is the shuffle a search leaves behind, said with the condition first — the same as
   // "shuffle your deck if you looked through it", which the `shuffle` op already only does after a look at the deck.
@@ -639,7 +645,11 @@ function commaJoinsAlternative(text: string, start: number, comma: number): bool
 function commaJoinsMeasure(text: string, start: number, comma: number): boolean {
   const before = text.slice(start, comma).trim();
   if (!/^(?:then\s+)?(?:add|choose|play|search for|place|return|put|send)\b/i.test(before) || !/\bwith\b/i.test(before)) return false;
-  return MEASURE_AFTER_AND.test(text.slice(comma + 1).trimStart().replace(/^(?:and|or)\s+/i, ""));
+  const after = text.slice(comma + 1).trimStart().replace(/^(?:and|or)\s+/i, "");
+  // (Phrasing batch 9 joins "…and without <Turles> in their character names" at an "and" only: BT24-099's comma list
+  // "with different card names, energy costs of 1, and without <Turles> …" would read its "any number of" as one card.)
+  if (/^without </i.test(after)) return false;
+  return MEASURE_AFTER_AND.test(after);
 }
 
 /**

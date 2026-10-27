@@ -182,8 +182,9 @@ for (const [text, what, check] of [
   assert.ok(check(condsDeep(rec)), `D: ${what} — asked of the card the choice took (${JSON.stringify(condsDeep(rec)).slice(0, 300)})`);
   records++;
 }
-// Not read: a count of what this skill moved (XD3-07), and a bound said "equal to the number of" (BT17-147).
-assert.ok(anyRecord("[activate: battle] Choose up to 2 Cell Jr. tokens in your Battle Area and remove them from the game: For each Cell Jr. token you remove from the game with this skill, choose up to 1 of your opponent's cards and switch it to Rest Mode.").unread.length > 0, "D: XD3-07 stays unread");
+// Not read: a bound said "equal to the number of" (BT17-147). (XD3-07's count of what this skill moved is read since
+// phrasing batch 9, off the price's own choice — `phrasing-batch-9.ts`.)
+assert.equal(anyRecord("[activate: battle] Choose up to 2 Cell Jr. tokens in your Battle Area and remove them from the game: For each Cell Jr. token you remove from the game with this skill, choose up to 1 of your opponent's cards and switch it to Rest Mode.").unread.length, 0, "D: XD3-07 is read (phrasing batch 9)");
 assert.ok(!opOf(anyRecord("[Activate: Battle] If your Leader Card is green or a ≪Frieza Clan≫ card and your opponent has 3 or more energy: Your opponent discards 2 cards from their hand. Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of Unison Cards and ≪Frieza Clan≫ cards in all Leader Areas, Energy Areas, Battle Areas, Unison Areas, Drop Areas, and Warps, KO it, then remove this card from the game.") as Rec, "choose").some((o) => o.atMost), "D: BT17-147 — one card, not up to a count");
 // P-597: a count leading a later clause, an "up to" choice per step.
 {

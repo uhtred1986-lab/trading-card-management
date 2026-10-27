@@ -1583,6 +1583,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     out = pick && state.cards[pick] ? [pick] : [];
   } else if (sel.fromVar) {
     out = (frame.vars[sel.fromVar] ?? []).filter((id) => state.cards[id]);
+    // Phrasing batch 9 (3-1-4, BT10-054): a named move's card that has changed area since it arrived is a new card.
+    const stamped = frame.vars[`${sel.fromVar}@epoch`];
+    if (stamped) out = out.filter((id) => stamped.includes(`${id}@${state.cards[id].zoneEpoch ?? 0}`));
   } else {
     // A phrase may name two areas — "your opponent's Battle Cards or Unisons".
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];

@@ -521,6 +521,15 @@ DEFINE TRIGGER opponentTookDamage
   BIND "subject"
   text: "when your opponent takes damage from a skill"
 
+-- Phrasing batch 9 (owner's ruling of 27 Oct 2026) — "When you take damage
+-- from an opponent's non-keyword skill" (BT14-070): a skill's damage whose
+-- skill is the opponent's. The `damage` op pends it by name only then, so
+-- damage your own skill deals you is not this moment.
+DEFINE TRIGGER youTookOpponentSkillDamage
+  ON damage(by: skill, watcher: controller)
+  BIND "subject"
+  text: "when you take damage from an opponent's skill"
+
 -- Phrasing batch 8 — "When you take damage from an opponent's attack"
 -- (BT21-071): the battle's damage, the attacker the subject. The battle's
 -- `damage` moment is its attacker's master's, so the damaged player watches as
@@ -636,6 +645,14 @@ DEFINE TRIGGER blockerUsed
   ON keywordActivated(keyword: Blocker)
   BIND "self"
   text: "when this card activates [Blocker]"
+
+-- Phrasing batch 9 — "When your black card with a [Union] skill or black
+-- Z-Unison attacks or activates the [Blocker] skill" (BT24-112 back): another
+-- card of yours activating [Blocker], the blocker the subject.
+DEFINE TRIGGER yourCardBlockerUsed
+  ON keywordActivated(keyword: Blocker, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards activates [Blocker]"
 
 -- §22-5-2-3/4 — successful evolution, distinct from keyword activation.
 DEFINE TRIGGER evolvedInto
