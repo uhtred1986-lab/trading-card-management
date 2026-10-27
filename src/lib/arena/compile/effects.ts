@@ -134,7 +134,7 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
  * this skill's own effect sent to a Warp (`Ctx.sentToWarp`), and only while they
  * are still there — a delayed step that finds one gone finds nothing (3-1-4).
  */
-const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:the|a|your|their|its owner'?s|their owners?'?s?) warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) your battle area)?$/i;
+const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) your battle area)?$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   // Mechanism batch 2 (BT7-051): "all the cards sent …" is every one of them — a choice over them takes all (`count` 99),
@@ -240,6 +240,19 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // about the Piccolo. Only the head of the phrase can carry an antecedent, so
   // that is what is tested — 66 choices were resolving to this card because
   // the "its" of a trailing "with …" was read as a reference.
+  // Mechanism batch 3 (23-2): "…choose up to 1 of your <Son Goku> cards and add up to 1 {Power Pole} **from under that
+  // card**" (BT21-020), "…and play up to 1 ≪Universe 7≫ Z-Battle Card … **from under it**" (SD21-01b), "place up to 1
+  // ≪Demon Clan≫ card from your Drop under that card and play up to 1 red ≪Demon Clan≫ card … **from under that card**"
+  // (P-717): a card of the pile under the card the pronoun names — the card chosen, or, when the card last acted on was
+  // itself placed into a pile by this skill, the card that pile hangs from (`underHost`). The pronoun test below read
+  // the whole phrase as the chosen card, and moved it.
+  const pileOf = /^(.+?) from under (it|that card)$/i.exec(clause.trim());
+  if (pileOf && !/\b(?:this card|it|that card|them|those cards)\b/i.test(pileOf[1])) {
+    let host = c.lastTarget && "var" in c.lastTarget ? c.lastTarget.var : c.last;
+    for (let guard = 0; host && c.underHost?.[host] && guard < 8; guard++) host = c.underHost[host];
+    const sel = host ? parseTarget(`${pileOf[1]} from under this card`) : null;
+    return sel && host && sel.area === "under" && !sel.special && !sel.underHost && !sel.areas ? { sel: { ...sel, underHost: { fromVar: host } } } : null;
+  }
   const head = headOf(clause);
   if (IT.test(head.toLowerCase()) || BARE_IT.test(head.trim().replace(/[.,]$/, ""))) {
     // A **plural** pronoun answered by *this card* is a category error, and it
@@ -1199,6 +1212,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     //   cards under it **from your Drop Area**" (P-397), "…place this card under it **from your Battle Area**" (EX19-08).
     .replace(/^place (.+?) ((?:at|on) (?:the )?(?:top|bottom) of (?:your|its owner'?s) deck) (from the battle area)$/, "place $1 $3 $2")
     .replace(/^add (.+?) to your hand (from your (?:deck|drop(?: area)?|warp))$/, "add $1 $2 to your hand")
+    // Mechanism batch 3: "your <Gamma 1: SH> and <Gamma 2: SH> cards**―both red and with energy costs of 2―**gain
+    // [Barrier]" (BT22-002b): the dashes carry a colour and a cost that hold for every name, so they move in front of and
+    // behind the list — every red card of either name with an energy cost of 2.
+    .replace(/^your ((?:<[^<>]+>(?:,? and |,? or |, ))+<[^<>]+>) cards\s*[―—–]\s*both (red|blue|green|yellow|black|white) and with (?:an )?energy costs? of (\d+)\s*[―—–]\s*(gains?|gets?) /, "all of your $2 $1 cards with an energy cost of $3 $4 ")
+    // Mechanism batch 3 (23-2): "add up to 1 card with <Pan> in its character name from under this card **to its owner's
+    // hand**" (BT19-127), "add up to 1 {Power Pole} from under that card **into your hand**" (BT21-020): a pile card goes
+    // to its owner's hand either way (3-1-1), which "to your hand" already moves it to.
+    .replace(/^(add (?:up to )?\d+ .+? from under (?:this card|that card|it)) (?:into|to) (?:your|its owner'?s?) hand$/, "$1 to your hand")
     .replace(/^(place|put) (.+?) under (it|your leader(?: card)?|the chosen [a-z' ]+?) (from (?:your|its owner'?s) (?:hand|drop(?: area)?|battle area|warp))$/, "$1 $2 $4 under $3")
     // Phrasing batch 1: "place this card at the bottom of your deck **from your Warp**" (BT16-122, P-288, P-287) →
     // "place this card from your Warp at the bottom of your deck", the order the move patterns read.
@@ -2608,9 +2629,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // 9-1-5: a skill that switches itself off, for effects meant to happen once.
   // "For the game" is a mark on the instance; the two shorter durations are
   // continuous effects, because they have to come back.
-  if (/^negate this skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateOwnSkill" }];
-  if (/^negate this skill for the (?:duration of the )?turn$/.test(t)) return [{ op: "negateOwnSkill", until: "turn" }];
-  if (/^negate this skill for the (?:duration of the |rest of the )?battle$/.test(t)) return [{ op: "negateOwnSkill", until: "battle" }];
+  // Mechanism batch 3: "…then **you** negate this skill for the battle" (BT26-044): the subject said again after a
+  // sentence about the opponent.
+  if (/^(?:you )?negate this skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateOwnSkill" }];
+  if (/^(?:you )?negate this skill for the (?:duration of the )?turn$/.test(t)) return [{ op: "negateOwnSkill", until: "turn" }];
+  if (/^(?:you )?negate this skill for the (?:duration of the |rest of the )?battle$/.test(t)) return [{ op: "negateOwnSkill", until: "battle" }];
+  // Mechanism batch 3 (9-1-5): "If you added a card to your hand, negate **this card's skill** for the game" (BT19-007):
+  // the singular said of a card whose next line says "negate this card's skills for the game" — read as the card's
+  // skills, every one (ruling question 3 of the batch).
+  if (/^negate this card'?s skill for the (?:duration of the )?game$/.test(t)) return [{ op: "negateSkills", target: { sel: { special: "self" } }, until: "game" }];
 
   // 3-1-6-1: a Battle Card may sit in either player's Battle Area, so taking
   // control of one is a move to your own — mode and markers carried, because
@@ -2749,6 +2776,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // Only the bare "[Counter]" (#907 round 5): "Negate the [Counter: Attack] skill" (EX09-06) names the kind of counter
   // it answers, which `negateCounter` does not ask, so that one stays unread rather than answer a Counter: Play too.
   if (/^negate the \[counter\](?: skill)?$/.test(t)) return [{ op: "negateCounter" }];
+  // Mechanism batch 3 (22-10-8): "Negate the [Counter: Attack] skill" (EX09-06, BT12-153), "Negate the [Counter:
+  // Attack]" (BT16-043): only a [Counter: Attack] being answered is negated (`countering`); answering any other
+  // [Counter], it does nothing.
+  if ((m = /^negate the \[counter: ?(attack|play)\](?: skill)?$/.exec(t))) return [{ op: "if", cond: { kind: "countering", what: m[1] as "attack" | "play" }, then: [{ op: "negateCounter" }] }];
 
   // 8-1-1 lifted: "This card can attack Battle Cards in Active Mode", "your
   // red cards can attack your opponent's Battle Cards without [Barrier] in
@@ -3144,6 +3175,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const ref = refFor(`${m[1]} from under this card`, c);
     if (!ref || !("sel" in ref) || ref.sel.area !== "under" || ref.sel.count !== 1) return null;
     return withChoice(ref, clause, c, (target) => ({ op: "placeOnTop", target }));
+  }
+  // Mechanism batch 3 (23-2, 22-46-6 by analogy): "place this card from under your Leader on top of your Leader"
+  // (BT20-058, BT20-059), "…from under your Z-Leader on top of your Leader" (BT20-057): this Z-Leader card, lying in the
+  // Leader's pile, becomes the top of the Leader stack — placed, not played; the old top goes under it.
+  if (/^place this card from under your (?:z-)?leader(?: card)? on top of your leader(?: card)?$/.test(t)) {
+    return [{ op: "placeOnTop", target: { sel: { special: "self", area: "under", underHost: { side: "you", area: "leader" } } }, onto: { sel: { special: "leader" } } }];
   }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
@@ -3687,7 +3724,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
         // cards' the choice looks for (it read as a choice of rested energy, played in Active Mode).
         .replace(/^(play .+?)(\s|--|[-—–―])in (rest|active) mode (from (?:your|their) (?:(?! with ).)+?)((?: with (?:its|their) .*)?)$/, (_w, a: string, gap: string, mode: string, from: string, rest: string) => `${a}${gap.trim() ? `${gap} ` : " "}${from} in ${mode} mode${rest}`)
     : t;
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(tp))) {
+  // Mechanism batch 3: "…and play them **to their owners' Battle Areas**" (BT13-096), "…in their owners' Battle Areas"
+  // (EX21-15): each card goes to its own owner's side (`toOwners`) — read as a plain play, the opponent's card came back
+  // into the master's Battle Area.
+  const toOwners = /^play (?:it|them|those cards|that card) (?:to|in|into) (?:their owners?'?s?|its owner'?s?) battle areas?$/.test(tp);
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(toOwners ? tp.replace(/ (?:to|in|into) (?:their owners?'?s?|its owner'?s?) battle areas?$/, "") : tp))) {
     if (/token/.test(t)) return compileToken(clause, c);
     // "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**" (P-500,
     // P-508, P-548, P-694, BT1-051, BT7-069, EX06-03, EX25-02, P-208): a permission that lifts the life gate of a
@@ -3755,7 +3796,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // {Name}" and the permissions ("you may activate {Name} from your hand
     // without paying its energy cost") are other things.
     const activating = /^activate\b/.test(tp) && /^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from (?!.*\bwithout paying\b).+)?$/.test(m[1]);
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...arrivesWith } as const;
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -6131,6 +6172,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       if (lifted?.length) push(lifted);
       else refuse(clause);
       continue;
+    }
+    // Mechanism batch 3 (9-1-5): "Then, **for the duration of the game**, negate this skill" (P-040): the span said in
+    // front of the verb, cut off by the comma, scopes the clause after it. Only "negate this skill" is read so; a span
+    // anywhere else stays a clause of its own (unread).
+    {
+      const lead = /^(?:then,?\s+)?for the (?:duration of the )?(game|turn)$/i.exec(clause.trim());
+      if (lead && /^(?:and )?negate this skill\.?$/i.test(clauses[i + 1]?.trim() ?? "")) {
+        clauses[i + 1] = `negate this skill for the ${lead[1].toLowerCase()}`;
+        continue;
+      }
     }
     // "…from your deck or life and add them to your hand. Then shuffle any
     // areas you looked through" (SD7-01, #539): search results are shown as

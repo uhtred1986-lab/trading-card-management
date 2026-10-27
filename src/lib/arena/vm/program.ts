@@ -1957,6 +1957,14 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // the evaluator is shared, so reading it here is what keeps "shared" true.
     case "asking":
       return state.prompt.kind === c.prompt;
+    // Mechanism batch 3 (22-10-8): the counter motion this one answers — the first one waiting under the running
+    // frame, the one `negateCounter` eliminates — and the kind of the [Counter] skill it resolves.
+    case "countering": {
+      const motion = state.programs.find((f) => f !== frame && f.counterMotion);
+      if (!motion?.card) return false;
+      const kind = skillsShowing(ctx, state, motion.card).skills.find((sk) => sk.index === motion.skillIndex)?.kind ?? "";
+      return kind === `counter:${c.what}`;
+    }
     // 20-14, asked of the frame's own card and master — the same reading
     // `vm/actions.ts` asks of a candidate, so a `REFUSE` and a program mean one
     // thing by the word.

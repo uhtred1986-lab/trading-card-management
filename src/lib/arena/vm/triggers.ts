@@ -325,6 +325,8 @@ function fromPile(script: Script | undefined): boolean {
     ((op.op === "moveTo" || op.op === "play") && !!op.target && "sel" in op.target && op.target.sel.special === "self" && (op.target.sel.area === "under" || !!op.target.sel.areas?.includes("under")))
     // Phrasing batch 8: "play this card from under one of your Z-Leaders" (BT21-105) chooses this card there first.
     || (op.op === "choose" && op.sel.special === "self" && (op.sel.area === "under" || !!op.sel.areas?.includes("under")))
+    // Mechanism batch 3: "place this card from under your Z-Leader on top of your Leader" (BT20-057).
+    || (op.op === "placeOnTop" && "sel" in op.target && op.target.sel.special === "self" && op.target.sel.area === "under")
     || (op.op === "if" && (walk(op.then) || walk(op.else)))
     || (op.op === "may" && walk(op.ops)));
   return walk(script?.ops);

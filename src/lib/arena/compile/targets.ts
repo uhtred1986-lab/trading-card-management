@@ -933,7 +933,8 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
       t
         .replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, " ")
         .replace(/\d+000\b/g, "")
-        .replace(/energy cost (?:of )?\d+/g, "")
+        // Mechanism batch 3: "your red <A> cards with energy cost**s** of 2" is a measure, not two cards.
+        .replace(/energy costs? (?:of )?\d+/g, "")
         .replace(/\bz-\d/g, ""),
     ))
   ) {

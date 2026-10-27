@@ -879,7 +879,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentAttacksRedUnison2":
       return /when your opponent attacks your red unison card with a specified cost of 2\b/.test(head.toLowerCase());
     case "opponentCombos":
-      return /when your opponent combos\b|when your opponent uses a card in a combo\b/.test(t);
+      // Mechanism batch 3: "When your opponent uses **cards** in a combo" (BT26-044) is the same moment.
+      return /when your opponent combos\b|when your opponent uses (?:a card|cards) in a combo\b/.test(t);
     // Your own side of it. "When you combo with this card" is the card's own
     // skill and belongs to `comboUsed`, so the possessive has to be excluded
     // here or every combo card would fire twice.
