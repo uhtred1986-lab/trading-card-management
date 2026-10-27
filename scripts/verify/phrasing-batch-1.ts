@@ -223,7 +223,7 @@ const EX19_08 = "[Auto][Limit 1] Choose 1 card in your hand and discard it: When
   assert.ok(ops[0].op === "choose" && ops[0].sel.upTo && "side" in ops[0].sel && ops[0].sel.area === "leader" && ops[1].op === "flip", "EX19-08: up to 1 Leader, flipped");
   records += 2;
 }
-assert.ok(unreadOf("[Activate: Main][Limit 1] Flip your red <Son Gohan: Youth> Leader to its front side.").length > 0, "BT28-015's flip to the front side stays unread (the op flips one way)");
+// (Phrasing batch 7 reads BT28-015's flip to the front side: `phrasing-batch-7.ts`.)
 
 // 5. Z-Energy with its skills negated
 const BT26_068 = "[Auto][Limit 1] When this card is played, draw 1 card, then add up to 1 green <Vegeta> card with an energy cost of 4 or less from your Drop to your Z-Energy with its skills negated for the turn.";
