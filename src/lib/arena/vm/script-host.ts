@@ -92,6 +92,8 @@ export interface ScriptHost {
   masterOf(id: string): PlayerId;
   /** Which area it stands in, or null for a card that is nowhere (under another card, or gone). */
   areaOf(id: string): Area | null;
+  /** The card this one is under (23-2), or null. */
+  hostOf(id: string): string | null;
   /** Active or Rest (1-10), or null where the area has no modes. */
   modeOf(id: string): Mode | null;
   /** Markers on the card (1-11). */
@@ -129,7 +131,7 @@ export interface ScriptHost {
   /** #1208: the game declares no combo price, so a card with no printed combo cost may join a combo free (`canCombo`'s `free`). */
   comboFree(): boolean;
   /** 0-2-5: is this action forbidden right now? */
-  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string; keyword?: string }): boolean;
+  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string; keyword?: string; moving?: string }): boolean;
   /**
    * 20-14-1: the prices in force on this action (`Prohibition.pay`), each a
    * program the acting player runs in their own frame — the rules `forbids`
@@ -181,8 +183,8 @@ export interface ScriptHost {
   setFaceUp(id: string, faceUp: boolean): void;
   /** 23-5: switch a Battle Card between Hidden and Revealed Mode. */
   setHidden(id: string, hidden: boolean, by?: { card: string; master: PlayerId }): void;
-  /** 1-9: turn a Leader to its back side, and log it. */
-  flip(id: string): void;
+  /** 1-9: turn a Leader to its back side (or, `toBack` false, to its front), and log it. */
+  flip(id: string, toBack?: boolean): void;
   /** 1-11: add or remove markers, never below zero, and log the new total. Returns that total. */
   changeMarkers(id: string, delta: number): number;
   /** 6-2-1-11: change a player's energy markers, never below zero, and log the change asked for. */

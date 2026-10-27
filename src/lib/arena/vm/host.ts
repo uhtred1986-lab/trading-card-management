@@ -107,6 +107,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // equality is relied on, and `createGame` already refuses a definition
     // whose zone names the procedure cannot find.
     areaOf: (id) => (zoneOf(state, id) as Area | null) ?? null,
+    hostOf: (id) => hostOf(state, id),
     modeOf: (id) => (card(id).mode as Mode | null) ?? null,
     markersOf: (id) => card(id).markers,
     isFaceUp: (id) => card(id).faceUp,
@@ -329,9 +330,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const cause: Record<string, string | boolean> = by ? { by: "skill", byOpponent: by.master !== controller } : {};
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
-    flip: (id) => {
-      card(id).flipped = true;
-      log(ev, { type: "flip", card: id, flipped: true });
+    flip: (id, toBack = true) => {
+      card(id).flipped = toBack;
+      log(ev, { type: "flip", card: id, flipped: toBack });
     },
     changeMarkers: (id, delta) => {
       const inst = card(id);
@@ -805,7 +806,7 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) return;
   to = route.to;
-  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source)) return;
+  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) return;
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile

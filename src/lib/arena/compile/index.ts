@@ -967,7 +967,10 @@ function compileSkillText(skill: Skill): Script {
     // which a trigger with no "your" in it never got — so those skills fired
     // for any card at all. "It" is still pointed at the subject only where
     // the trigger says "your", as before.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim())) {
+    // BT15-091: "when a player places a [Field] Extra Card in a Battle Area",
+    // "when a player's [Field] Extra Card leaves a Battle Area" — either
+    // player's card, its description the condition on it.
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim())) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the

@@ -1074,6 +1074,11 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b,
     // `yourUnisonLeft`): the Unison that left, as it was when it did.
     /^(?:an?|1|one of your|your) ((?!opponent|this card\b).+?) leaves? (?:your|the) unison area$/.exec(t)?.[1] ??
+    // BT15-091: "When a player places a [Field] Extra Card in a Battle Area",
+    // "when a player's [Field] Extra Card leaves a Battle Area" — either
+    // player's card (`aPlayerPlacesInBattle`, `aPlayersCardLeftBattle`).
+    /^a player places (?:an?|1) (.+?) in a battle area$/.exec(t)?.[1] ??
+    /^a player'?s (.+?) leaves? a battle area$/.exec(t)?.[1] ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that
