@@ -52,6 +52,9 @@ DEFINE KEYWORD Awaken
   REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
   REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
   REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  -- 20-14 (BT12-001, BT15-091): "you can't flip your Leader Card to its back
+  -- for the turn" — the flip is the keyword's, so it is not offered.
+  REFUSE forbidden() UNLESS NOT forbidden(what: flipLeaderBack)
   label: "Awaken: {card} → {back}"
   DO {}
   AFTER {
@@ -73,6 +76,7 @@ DEFINE KEYWORD Wish
   REFUSE zone(area: leader) UNLESS count([self] IN you.leader) >= 1
   REFUSE other(detail: "the Leader is already awakened") UNLESS NOT leaderFlipped()
   REFUSE other(detail: "the Leader has no awakened side") UNLESS leaderMatches(filter: "card", back: true)
+  REFUSE forbidden() UNLESS NOT forbidden(what: flipLeaderBack)
   label: "Wish: {card} → {back}"
   DO {}
   AFTER {

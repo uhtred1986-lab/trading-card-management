@@ -745,6 +745,18 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // BT8-089: "When a Battle Card attacks" — any player's, said with nothing else.
     case "battleCardAttacks":
       return /^when a battle card attacks\s*(?:,|:|\.|$)/.test(head.toLowerCase());
+    // BT15-091: "When a player places a [Field] Extra Card in a Battle Area" and
+    // "When a player's [Field] Extra Card leaves a Battle Area" — either
+    // player's card, the description a condition on it, read only when it is
+    // read whole (as `yourCardPlaced` is).
+    case "aPlayerPlacesInBattle": {
+      const m = /^when a player places (?:an?|1) ([^,:]{1,90}?) in a battle area\s*(?:,|:|\.|$)/.exec(head.toLowerCase());
+      return !!m && !/ or |\bfrom\b|\bby\b|\busing\b|\bunder\b/.test(m[1]) && !parseFilter(effect.unmask(m[1])).unreadable;
+    }
+    case "aPlayersCardLeftBattle": {
+      const m = /^when a player'?s ([^,:]{1,90}?) leaves? a battle area\s*(?:,|:|\.|$)/.exec(head.toLowerCase());
+      return !!m && !/ or |\bfrom\b|\bby\b|\busing\b|\bunder\b/.test(m[1]) && !parseFilter(effect.unmask(m[1])).unreadable;
+    }
     case "opponentAttacks":
       // Phrasing batch 4: also as the second moment of a play — "When this card is played **or one of your opponent's
       // cards attacks**" (P-716), "…played **or your opponent attacks**" (BT16-145, BT16-146).

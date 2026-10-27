@@ -160,7 +160,7 @@ const P_473 = "[Activate: Main] If your Leader's back side is a {Majin Buu, Lead
 {
   const r = record(EX13_24, "EX13-24");
   assert.ok(conds(r).some((c) => c.kind === "leaderFlipped" && c.flipped === false), "EX13-24: the Leader shows its front side");
-  assert.deepEqual(r.ops[0], { op: "flip", target: { sel: { special: "leader" } } }, "…and is flipped to its back");
+  assert.deepEqual(r.ops[0], { op: "flip", target: { sel: { special: "leader" } }, to: "back" }, "…and is flipped to its back");
   const p = record(P_473, "P-473");
   const kinds = conds(p).map((c) => c.kind);
   assert.deepEqual(kinds, ["leaderMatches", "leaderFlipped", "life", "count"], "P-473: all four requirements, none swallowed");

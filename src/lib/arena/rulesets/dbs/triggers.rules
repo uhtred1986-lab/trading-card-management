@@ -162,6 +162,23 @@ DEFINE TRIGGER battleCardAttacks
   BIND "subject"
   text: "when a Battle Card attacks"
 
+-- §5-5-4 — when a player places a card in a Battle Area (BT15-091,
+-- prohibition batch 6): either player's card arriving in any Battle Area,
+-- played or placed by a skill alike (5-5-1), watched by every player's cards
+-- in play. What the card says about it ("a [Field] Extra Card") is a condition
+-- on the subject.
+DEFINE TRIGGER aPlayerPlacesInBattle
+  ON moved(to: battle, watcher: both)
+  BIND "subject"
+  text: "when a player places a card in a Battle Area"
+
+-- §3-1-5 — when a player's card leaves a Battle Area (BT15-091's back): either
+-- player's card, to any area, by any cause, read as it was when it left.
+DEFINE TRIGGER aPlayersCardLeftBattle
+  ON moved(from: battle, watcher: both)
+  BIND "subject"
+  text: "when a player's card leaves a Battle Area"
+
 -- Phrasing batch 5 — when one of your cards attacks: "When your ≪Saiyan≫ card
 -- attacks" (BT27-001), "When your Battle Cards attack" (BT2-003). The attacking
 -- card is the subject; what the card says about it is a condition on it.

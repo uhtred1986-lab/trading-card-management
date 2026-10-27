@@ -326,6 +326,9 @@ export function resolvePlay(
     const meets = !gate.filter || predicateOf(gate.filter, game)(p.subjectInfo ?? attrsNow(ctx, game, state, card));
     if (!(success && unionEntryMatches(gate.what, opts.using) && meets)) state.pending.splice(state.pending.indexOf(p), 1);
   }
+  // EX04-04 (prohibition batch 6): an evolution's successful entry is kept
+  // the same way, for "if you played this card with [evolve]".
+  if (success && opts.using && /^(?:EX-|Xeno-)?Evolve$/.test(opts.using)) state.cards[card].enteredUsing = opts.using;
   if (success && opts.using?.startsWith("Union-")) {
     state.cards[card].enteredUsing = opts.using;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredUsing = opts.using;

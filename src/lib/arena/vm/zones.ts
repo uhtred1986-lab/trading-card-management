@@ -157,7 +157,9 @@ export interface VmCard {
   /**
    * 22-13 (#930): the [Union] keyword whose own move played this copy into
    * the area it stands in ("Union-Fusion", "Union-Potara", "Union-Absorb";
-   * no other keyword's play is recorded here) — what
+   * since prohibition batch 6 also "Evolve", "EX-Evolve", "Xeno-Evolve", for
+   * EX04-04's "if you played this card with [evolve]"; no other keyword's
+   * play is recorded here) — what
    * `playedUsing(what: Union)` reads for BT5-037's "if you played this card
    * using [union]" and BT6-036's "if this card was played using [union]". Set
    * by `resolvePlay` only when the play succeeded (owner's ruling of 25 Oct
