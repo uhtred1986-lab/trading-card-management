@@ -1173,7 +1173,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Identity in other areas (mechanism batch 4, 9-1-3, 20-1)",
-    body: "“This card **has** <Ginyu>, <Jeice>, <Burter>, <Recoome>, and <Guldo> in all areas” (P-024) is the identity “is also treated as” makes, read only of this card and only in all areas. “**Your <Son Goku> and <Vegeta> cards are** also treated as red, blue, and green in all areas” (EX21-19) changes your cards of either name wherever they are — but only while its own card is in play (9-1-3-1): the walk of the other areas reads a card's own identity there and nothing it says about others. “Ignore **this card's** specified cost in all areas” (EX21-34) is “no specified cost” about this card. Not read: “cards with ≪Universe≫ **as part of their special traits**” (EX03-25) — no filter asks for part of a trait.",
+    body: "“This card **has** <Ginyu>, <Jeice>, <Burter>, <Recoome>, and <Guldo> in all areas” (P-024) is the identity “is also treated as” makes, read only of this card and only in all areas. “**Your <Son Goku> and <Vegeta> cards are** also treated as red, blue, and green in all areas” (EX21-19) changes your cards of either name wherever they are; “in all areas” makes the [Permanent] valid in all areas (9-1-3-3), as an all-area [Permanent] in hand already is (#549). “Ignore **this card's** specified cost in all areas” (EX21-34) is “no specified cost” about this card. Not read: “cards with ≪Universe≫ **as part of their special traits**” (EX03-25) — no filter asks for part of a trait.",
   },
   {
     title: "Prohibition leftovers (mechanism batch 4, 20-14)",

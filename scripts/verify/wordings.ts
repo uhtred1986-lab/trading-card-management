@@ -1806,7 +1806,8 @@ import type { EngineState, Trigger } from "./harness";
   // at: these are a measure of a card an earlier clause named, and a condition
   // is parsed with no antecedent to resolve them against (ground rule 5).
   assert.equal(cond("if its power is 20000 or more"), null, "BT3-001");
-  assert.equal(cond("if you or your opponent's Leader Card has 15000 or more power"), null, "BT3-026: either Leader, which `power` states of one selector");
+  // Mechanism batch 4: read now as either Leader, `any` of two `power` conditions (mechanism-4.ts).
+  assert.equal(cond("if you or your opponent's Leader Card has 15000 or more power")?.kind, "any", "BT3-026: either Leader, `any` of two `power` conditions");
 
   // The whole [Permanent], which read as nothing before: EX25-31.
   const perm = compileSkill(parseSkills("[Permanent] If this card has 15000 power or more, it gains [Barrier] and [Blocker].")[0]);

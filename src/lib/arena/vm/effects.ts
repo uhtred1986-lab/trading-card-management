@@ -569,10 +569,7 @@ export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
 
 /** A change to a card's identity (traits, characters, colours, names) printed "in all areas" (TB1-095, #936). */
 function identityInAllAreas(op: Op): boolean {
-  // Mechanism batch 4: only the card's own identity holds from where it lies. "Your <Son Goku> and <Vegeta> cards are
-  // also treated as red, blue, and green in all areas" (EX21-19) is about other cards wherever *they* are, and is in
-  // force only while its own card is in play (9-1-3-1) — the walk of the play areas reads it.
-  if (op.op === "gains") return op.allAreas === true && (!op.target || ("sel" in op.target && op.target.sel.special === "self"));
+  if (op.op === "gains") return op.allAreas === true;
   return op.op === "modifyAttr" && op.allAreas === true && (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames");
 }
 
@@ -938,7 +935,7 @@ function collect(
       !inPlayNow &&
       (op.op === "power" || op.op === "comboPower" || op.op === "grant" || op.op === "negateKeyword" ||
         (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower" || op.attr === "keywords" || ((op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") && !op.allAreas))) ||
-        (op.op === "gains" && !identityInAllAreas(op)))
+        (op.op === "gains" && !op.allAreas))
     ) continue;
     if (op.op === "power" || op.op === "comboPower") {
       // "+3000 power for each marker on this card": the same two counted amounts

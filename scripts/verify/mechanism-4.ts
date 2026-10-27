@@ -14,7 +14,7 @@
  *    and energy" (BT30-055), "For each ≪Turtle School≫ card with a different character name in your Z-Energy" (BT18-059b,
  *    BT18-091: names, not cards), "[Triple Strike] and +5000 power for each Extra Card …" (BT13-064).
  * S: other areas — "This card has <Ginyu>, … in all areas" (P-024), "Your <Son Goku> and <Vegeta> cards are also treated
- *    as red, blue, and green in all areas" (EX21-19: only while its own card is in play), "ignore this card's specified
+ *    as red, blue, and green in all areas" (EX21-19: valid in all areas, 9-1-3-3), "ignore this card's specified
  *    cost in all areas" (EX21-34).
  * P: prohibitions — "Afterwards, the opponent's Battle Cards are unable to attack" (BT1-106, unconditional: official Q&A),
  *    "can't activate [Blocker] or [Counter] skills" (P-671's half), "can't activate [Counter]" (BT23-076's half), "you
@@ -182,7 +182,7 @@ const defs: Record<string, CardDef> = {
   TS1: card("TS1", { traits: ["Turtle School"], characters: ["Krillin"] }),
   TS2: card("TS2", { traits: ["Turtle School"], characters: ["Krillin"] }),
   TS3: card("TS3", { traits: ["Turtle School"], characters: ["Yamcha"] }),
-  // S: other cards' identity, while the card saying it is in play.
+  // S: other cards' identity in all areas.
   RAINBOW: card("RAINBOW", { skill: "[Permanent] Your &lt;Son Goku&gt; and &lt;Vegeta&gt; cards are also treated as red, blue, and green in all areas." }),
   GOKU: card("GOKU", { characters: ["Son Goku"] }),
   GINYU: card("GINYU", { skill: "[Permanent] This card has &lt;Ginyu&gt;, &lt;Jeice&gt;, and &lt;Guldo&gt; in all areas." }),
@@ -361,7 +361,7 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(attr(s, me, "power"), 20000, `${seat}: A: two character names — +10000`);
     cases++;
   }
-  // S. Other cards' identity in every area, only while the card is in play.
+  // S. Other cards' identity in every area.
   {
     const s = fresh(seat, seed(7));
     const rainbow = stage(s, seat, "RAINBOW", "battle");
@@ -369,8 +369,10 @@ for (const seat of ["p1", "p2"] as const) {
     const theirs = stage(s, foe, "GOKU", "hand");
     assert.deepEqual((attr(s, goku, "colors") as string[]).slice().sort(), ["Blue", "Green", "Red"], `${seat}: S: your <Son Goku> in hand — red, blue, green`);
     assert.deepEqual(attr(s, theirs, "colors"), ["Red"], `${seat}: S: …the opponent's is not`);
+    // 9-1-3-3 read literally ("…in all areas": the skill is valid in all areas), as `auto-costs-549.ts` already holds
+    // for an all-area [Permanent] in hand: it still holds with its card in hand. Ruling question 1 of the PR.
     assert.ok(moveCard(s, game, rainbow, "hand", { owner: seat }).ok);
-    assert.deepEqual(attr(s, goku, "colors"), ["Red"], `${seat}: S: …and none of it once the card is in hand (9-1-3-1)`);
+    assert.deepEqual((attr(s, goku, "colors") as string[]).slice().sort(), ["Blue", "Green", "Red"], `${seat}: S: …and with its card in hand too (9-1-3-3)`);
     const ginyu = stage(s, seat, "GINYU", "hand");
     assert.ok((attr(s, ginyu, "characters") as string[]).map((c) => c.toLowerCase()).includes("jeice"), `${seat}: S: "this card has <Jeice> in all areas" — in hand too`);
     cases++;
