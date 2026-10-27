@@ -682,6 +682,16 @@ function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null
     const at = (n: string) => parseFilter(whole.slice(0, costs.index) + whole.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
     return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
   }
+  // Phrasing batch 9: "your green <Zamasu> card **with an [Evolve] or [Union] skill**" (BT26-061b): two keyword skills,
+  // either one — a card with either. Read as one list (`keywords`, every one asked) the second keyword was dropped and
+  // only the [Evolve] cards answered.
+  const keywordOr = /\bwith (?:an? )?(\[[a-z: -]+\]) (?:or|and\/or) (?:an? )?(\[[a-z: -]+\]) skills?\b/i.exec(whole);
+  if (keywordOr) {
+    const at = (k: string) => parseFilter(whole.replace(keywordOr[0], `with a ${k} skill`));
+    const alts = [at(keywordOr[1]), at(keywordOr[2])];
+    // ("[Over Realm] or [Dark Over Realm]", P-614, is one keyword family either way, and stays one filter.)
+    if (alts.every((a) => !a.unreadable && a.keywords.length) && JSON.stringify(alts[0]) !== JSON.stringify(alts[1])) return { ...emptyFilter(), anyOf: alts };
+  }
   // Phrasing batch 5 (EX16-02): the place the cards are in — "…**in your hand or Drop Area**", "…**from your deck or
   // hand**" — is the selector's (`parseTarget` reads it), not a description: its "or" joins two areas, and cut there the
   // last piece was an area with no card noun, which refused the alternatives and left one merged description ("1

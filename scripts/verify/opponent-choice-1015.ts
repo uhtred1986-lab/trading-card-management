@@ -253,7 +253,9 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   const drawn = (before: EngineState, after: EngineState) => zoneOf(after, "p1", "hand").length - zoneOf(before, "p1", "hand").length;
   const settleAll = (s: EngineState): EngineState => {
     for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
-      if (s.prompt.kind === "chooseCards") { const c = s.prompt.choice; s = playG(s, { type: "choose", player: s.prompt.player, cards: c.candidates.slice(0, c.min) }); continue; }
+      // (Phrasing batch 9, 5-2-7: "choose 1 Battle Card in your hand" may be declined — the hand is a secret area — so
+      // the card to play is taken rather than the minimum.)
+      if (s.prompt.kind === "chooseCards") { const c = s.prompt.choice; s = playG(s, { type: "choose", player: s.prompt.player, cards: c.candidates.slice(0, Math.max(1, c.min)) }); continue; }
       s = playG(s, actsG(s).find((x) => x.type === "pass" || (x.type === "counter" && !x.card) || (x.type === "block" && !x.card)) ?? actsG(s)[0]);
     }
     return s;

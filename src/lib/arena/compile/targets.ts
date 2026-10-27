@@ -1068,6 +1068,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // Phrasing batch 3: "When you use a red skill-less Battle Card with an energy cost of 2 in a combo" (BT14-001b).
     // Phrasing batch 5: "When you use **one of your** Red/Yellow multicolor ≪God≫ cards in a combo" (BT24-002, BT24-003).
     /^you use (?:an?|1|one of your) ((?!.*\busing\b).+?) in a combo$/.exec(t)?.[1] ??
+    // Phrasing batch 9: "When one of your <Son Goku: Xeno> or <Vegeta: Xeno> cards is used in a combo" (BT24-112).
+    /^(?:one of your|your) ((?!opponent)(?!this card).+?) (?:is|are) used in a combo$/.exec(t)?.[1] ??
     // The word "card" stays in the phrase: taking it out of the capture let
     // the lazy group stop at "battle", and "battle" alone narrows nothing.
     /^(?:your|your opponent's) (.+?)(?:[-—–]\s*)?is played\b/.exec(t)?.[1] ??

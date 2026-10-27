@@ -1115,6 +1115,10 @@ export type Trigger =
   | "dealtBattleDamage"
   /** Phrasing batch 8: "When you take damage from an opponent's attack" (BT21-071): battle damage only, the attacker the subject. */
   | "youTookBattleDamage"
+  /** Phrasing batch 9: "When you take damage from an opponent's non-keyword skill" (BT14-070): a skill's damage, never your own skill's. */
+  | "youTookOpponentSkillDamage"
+  /** Phrasing batch 9: "When your black card with a [Union] skill … attacks or activates the [Blocker] skill" (BT24-112b): one of your cards activates [Blocker]; it is the subject. */
+  | "yourCardBlockerUsed"
   /** Phrasing batch 7: "When a Battle Card that is in your opponent's Battle Area and whose owner is your opponent is KO'd by your red card's attack or skill" (BT28-001b): the card of yours that KO'd it is the subject. */
   | "yourCardKos"
   /** Phrasing batch 7: "When a <Pan> card or a card with <GT> in its character name—both green and without <Son Goku: GT>—is placed from your Battle Area in your Drop" (BT20-054b): another card of yours, any cause; it is the subject. */
