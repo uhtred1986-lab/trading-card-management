@@ -195,6 +195,8 @@ export const EXPR_LITERALS = {
   plus: "count(SELECTOR) + 1",
   /** `+ -n`, printed with its sign as the operator (#137). */
   minus: "life(you) - 2",
+  /** Phrasing batch 8: a printed ceiling, "(Up to 2)" (P-464). */
+  capped: "count(SELECTOR) atMost 2",
 } as const;
 
 /** The measures `attr` and `sumOf` may read off a card. Printed as bare words; a measure added to `AmountAttr` fails the typecheck until it is listed. */

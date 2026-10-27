@@ -183,7 +183,12 @@ export function splitDisjunction(text: string, opts: { measured?: boolean } = {}
     if (/and\/$/i.test(before)) {
       continue;
     }
-    if (new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
+    // Phrasing batch 8: "your Leader Card is **mono-green or a black ≪Demon Realm Race≫ card**" (BT12-153): a colour
+    // alone, then another card described with its own article and name — two alternatives, not one colour list. Read
+    // as one ("mono-colour Green Black ≪demon realm race≫") it asked a mono-coloured Leader of two colours, which none is.
+    // Only in a Leader description (`measured`), and only a lone colour before the "or".
+    const ownDescription = !!opts.measured && /^an?\s/i.test(after) && /[<≪{]/.test(after) && /^(?:mono-?)?(?:red|blue|green|yellow|black|white)$/i.test(text.slice(splitIndices.at(-1)?.end ?? 0, match.index).trim());
+    if (!ownDescription && new RegExp(COLOR_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + COLOR_NAMES_PATTERN, "i").test(after)) {
       continue;
     }
     if (new RegExp(AREA_NAMES_PATTERN + "$", "i").test(before) && new RegExp("^" + AREA_NAMES_PATTERN, "i").test(after)) {

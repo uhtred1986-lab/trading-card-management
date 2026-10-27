@@ -120,6 +120,7 @@ function permitLabel(p: Permission): string {
   if (p.what === "aegisAltOpponentHand") return "can pay its [Aegis] from the opponent's hand";
   if (p.what === "attackUnnegatable") return "its attacks can't be negated";
   if (p.what === "comboRestSelf") return "can be used in combos in Rest Mode";
+  if (p.what === "ownDiscardOptional") return "its skills' discards from your hand are optional";
   if (p.what === "awakenLife") return p.n !== undefined && p.n < 99 ? `can activate its [Awaken] at ${p.n} life or less` : "can activate its [Awaken] at any life";
   return `can attack ${p.filter ? describeFilter(p.filter) : "cards"} in Active Mode`;
 }

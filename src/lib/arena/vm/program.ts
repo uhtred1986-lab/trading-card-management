@@ -1787,6 +1787,8 @@ function lifeCount(game: GameDefinition, state: VmState, master: PlayerId, side:
 export function amount(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, a: Amount): number {
   if (typeof a === "number") return a;
   if ("plus" in a) return amount(ctx, game, state, frame, a.plus[0]) + a.plus[1];
+  // Phrasing batch 8: "(Up to 2)" (P-464) — the amount, never above the printed ceiling.
+  if ("capped" in a) return Math.min(amount(ctx, game, state, frame, a.capped[0]), a.capped[1]);
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + measureOf(ctx, game, state, id, "power"), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - (state.sides[frame.master].zones[SETUP_ZONES.hand]?.length ?? 0));

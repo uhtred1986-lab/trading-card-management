@@ -553,11 +553,12 @@ export const NOUN_TYPES = CARD_TYPES;
 // ── an amount ───────────────────────────────────────────────────────────────
 
 /** The shapes an amount may take: a number, `$name`, `+ n`, and one per `EXPR_SCHEMA` row. */
-export type AmountShape = "number" | "var" | "plus" | string;
+export type AmountShape = "number" | "var" | "plus" | "capped" | string;
 
 export function amountShape(v: unknown): AmountShape {
   if (typeof v === "number" || !isObject(v)) return "number";
   if ("plus" in v) return "plus";
+  if ("capped" in v) return "capped";
   if ("var" in v) return "var";
   // `sumOf` before `attr`: the two share an `attr` key, and the row with more fields is the more specific.
   const rows = [...EXPR_SCHEMA].sort((a, b) => (b.fields?.length ?? 1) - (a.fields?.length ?? 1));
@@ -588,6 +589,7 @@ export function blankAmount(shape: AmountShape, bound: readonly string[] = []): 
   if (shape === "number") return 1;
   if (shape === "var") return { var: bound[bound.length - 1] ?? "t" };
   if (shape === "plus") return { plus: [1, 1] };
+  if (shape === "capped") return { capped: [1, 1] };
   const spec = exprSpec(shape);
   if (!spec) return 1;
   if (!spec.args.length) return { [spec.key]: true };
@@ -596,7 +598,7 @@ export function blankAmount(shape: AmountShape, bound: readonly string[] = []): 
   return out;
 }
 
-export const AMOUNT_SHAPES: AmountShape[] = ["number", "var", "plus", ...EXPR_SCHEMA.map((e) => e.key)];
+export const AMOUNT_SHAPES: AmountShape[] = ["number", "var", "plus", "capped", ...EXPR_SCHEMA.map((e) => e.key)];
 
 /** The shapes past a plain number, as an amount chip offers them: the language's own spelling, "…" where a selector goes. */
 export const EXPR_SPECS_SHAPES: { key: AmountShape; label: string }[] = [

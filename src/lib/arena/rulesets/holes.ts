@@ -174,6 +174,7 @@ function walkAmount(amount: Amount | undefined, where: string, out: HoleAt[]): v
     if (hole) out.push({ name: hole.hole, slot: "number", form: "hole", where: `${where}.plus` });
     return walkAmount(amount.plus[0], where, out);
   }
+  if ("capped" in amount) return walkAmount(amount.capped[0], where, out);
   // `life($side)` (#137).
   if ("life" in amount && isHole(amount.life)) out.push({ name: amount.life.hole, slot: "side", form: "hole", where: `${where}.life` });
   if ("count" in amount) return walkSelector(amount.count, `${where}.count`, out);

@@ -248,7 +248,7 @@ const BT9_020 = "[Counter: Play] When the Battle Card is played, choose up to 2 
   records += 20;
 }
 assert.ok(unreadOf("[Auto] When you play this card from your hand, if your Leader Card is red, choose up to 1 of your other ≪Saiyan≫ Battle Cards in play which are ≪Universe 7≫ or ≪Universe 6≫ and switch it to Active Mode. Both that card and this card gain +10000 power and [Triple Strike] for the duration of the turn.").length > 0, "TB1-004: \"which are\" stays unread");
-assert.ok(unreadOf("[activate: main][spirit boost 1] {1}, remove this card in your Drop Area from the game: Choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy, and until the end of your opponent's next turn, its skills are negated and it can't attack.").length > 0, "EX17-04: the span over both halves stays unread");
+// (Phrasing batch 8 reads EX17-04 — the leading span over both halves — `phrasing-batch-8.ts`.)
 assert.ok(unreadOf("[auto] When this card is played from your hand, play up to 2 Cell Jr. Tokens (10000 power, 0 combo cost, and 5000 combo power), and those cards get +5000 power for the turn.").length > 0, "BT21-088: an \"up to\" token play stays unread");
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
