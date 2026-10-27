@@ -174,6 +174,12 @@ const YOU_TOOK_BATTLE_DAMAGE = /^when you (?:take|receive) damage from (?:an |yo
  */
 const YOU_TOOK_ANY_DAMAGE = /^when you (?:take|receive) damage(?:,|$)/;
 const YOU_TOOK_OPPONENT_SKILL_DAMAGE = /^when you (?:take|receive) damage from (?:an |your |one of your )?opponent'?s (?:non-keyword )?skills?(?:,|$)/;
+/**
+ * Phrasing batch 10 (owner's ruling of 27 Oct 2026): every other skill damage moment answers any skill's damage, an
+ * Extra card's included; "When your opponent takes damage from (non-keyword) skill(s) on (one of) your Battle Cards or
+ * Unison Cards" (DB3-017, BT10-001b) still asks where the skill's card was (`opponentTookBoardSkillDamage`).
+ */
+const OPPONENT_TOOK_BOARD_SKILL_DAMAGE = /^when your opponent (?:takes|receives) damage from (?:a |an )?(?:non-keyword )?skills? on (?:one of )?your battle cards? or unison(?: cards?)?(?:,|$)/;
 /** Phrasing batch 7: see `YOUR_CARD_BATTLE_TO_DROP` (BT20-054b) above, and the KO by one of yours below. */
 export const YOUR_CARD_KOS = /^when (?:a battle card that is in your opponent'?s battle area and whose owner is your opponent|(?:one of )?your opponent'?s battle cards?|an opponent'?s battle card) (?:is|are) ko'd by (?:one of )?your ((?!opponent)[^,]{1,80}?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)(?:,|$)/;
 /**
@@ -512,7 +518,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "youTookOpponentSkillDamage":
       return YOU_TOOK_OPPONENT_SKILL_DAMAGE.test(head);
     case "opponentTookDamage":
-      return /when your opponent (?:takes|receives) damage/.test(head);
+      return /when your opponent (?:takes|receives) damage/.test(head) && !OPPONENT_TOOK_BOARD_SKILL_DAMAGE.test(head);
+    case "opponentTookBoardSkillDamage":
+      return OPPONENT_TOOK_BOARD_SKILL_DAMAGE.test(head);
     // 3-9: a life card leaving the Life Area, however it leaves.
     case "lifeLeft":
       return /when your life (?:moves|is moved|is placed|leaves|is added)/.test(head);

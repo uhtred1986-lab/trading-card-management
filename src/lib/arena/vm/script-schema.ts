@@ -1564,6 +1564,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: '"if the revealed card\'s energy cost is the same as the declared number" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound',
   },
+  xAtLeast: {
+    fields: [{ name: "n", type: "number", required: true }],
+    sentence: (raw) => `X is ${(raw as CondOf<"xAtLeast">).n} or more`,
+    doc: 'phrasing batch 10 (22-43): "if you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X',
+  },
   varMatches: {
     fields: [
       { name: "var", type: "string", required: true },
@@ -1729,6 +1734,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   choseFrom:      "primitive",
   varMatches:     "macro over `count`",
   varAttrIsX:     "primitive",
+  xAtLeast:       "primitive",
   isTurnPlayer:   "primitive",
   asking:         "primitive",
   countering:     "primitive",

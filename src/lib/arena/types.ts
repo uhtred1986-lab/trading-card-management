@@ -1117,6 +1117,8 @@ export type Trigger =
   | "youTookBattleDamage"
   /** Phrasing batch 9: "When you take damage from an opponent's non-keyword skill" (BT14-070): a skill's damage, never your own skill's. */
   | "youTookOpponentSkillDamage"
+  /** Phrasing batch 10: "When your opponent takes damage from a skill on one of your Battle Cards or Unison Cards" (DB3-017): only a skill whose card is on the board. */
+  | "opponentTookBoardSkillDamage"
   /** Phrasing batch 9: "When your black card with a [Union] skill … attacks or activates the [Blocker] skill" (BT24-112b): one of your cards activates [Blocker]; it is the subject. */
   | "yourCardBlockerUsed"
   /** Phrasing batch 7: "When a Battle Card that is in your opponent's Battle Area and whose owner is your opponent is KO'd by your red card's attack or skill" (BT28-001b): the card of yours that KO'd it is the subject. */

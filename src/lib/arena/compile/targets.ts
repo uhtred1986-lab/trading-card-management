@@ -922,6 +922,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   } else if ((m = /\bup to (\d+)\b/.exec(t))) {
     count = Number(m[1]);
     upTo = true;
+  } else if (/\bany number of\b/.test(t)) {
+    // Phrasing batch 10: "Play **any number of** blue ≪Red Ribbon Army≫ ≪Android≫ Battle Cards with different card
+    // names from your energy" (BT17-051): as many as the player likes, none included — never "all" (a plural with no
+    // number) and never one (BT24-099's comma list).
+    count = 99;
+    upTo = true;
   } else if (/\ball\b|\bevery\b|\beach\b/.test(t)) {
     count = 99;
     // A digit inside a name is part of the name, not a count: ≪Universe 6≫,

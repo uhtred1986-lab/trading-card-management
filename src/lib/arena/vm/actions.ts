@@ -234,9 +234,14 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   if (xPrice && open && def.cost?.length) {
     const out: Candidate[] = [];
     let short: Requirement[] = [];
-    for (let n = xPrice.min ?? 0; n <= (xPrice.max ?? Infinity); n++) {
+    // Phrasing batch 10 (22-43): "[Spirit Boost X]" — X markers off the Unison Card (`DEFINE COST spiritBoost`'s place),
+    // one candidate per number of markers it holds, the energy unchanged.
+    const unisonMarkers = xPrice.spiritBoost ? state.cards[state.sides[player].zones.unison?.[0] ?? ""]?.markers ?? 0 : 0;
+    for (let n = xPrice.min ?? 0; n <= (xPrice.spiritBoost ? Math.min(unisonMarkers, xPrice.max ?? Infinity) : (xPrice.max ?? Infinity)); n++) {
       const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
-      const withX: BoundAmounts = { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
+      const withX: BoundAmounts = xPrice.spiritBoost
+        ? { ...bound, markersFrom: { ...(bound.markersFrom ?? {}), unison: { n: -n, by: "Spirit Boost" } } }
+        : { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
       const price = priceFor(ctx, game, state, def, line.card, withX);
       if (isFusionPayment(line)) {
         const failures = fusionPaymentRefusals(ctx, game, state, player, line, n);

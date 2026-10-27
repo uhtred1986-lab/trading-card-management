@@ -1951,6 +1951,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "varMatches":
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     // "If the revealed card's energy cost is the same as the declared number" (BT22-090).
+    // Phrasing batch 10 (22-43): the X a [Spirit Boost X] price was paid at.
+    case "xAtLeast":
+      return frame.x !== undefined && frame.x >= c.n;
     case "varAttrIsX":
       return frame.x !== undefined && (frame.vars[c.var] ?? []).some((id) => state.cards[id] && measureOf(ctx, game, state, id, c.attr) === frame.x);
     case "isTurnPlayer":

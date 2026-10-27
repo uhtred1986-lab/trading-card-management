@@ -3450,6 +3450,21 @@
       "doc": "\"if the revealed card's energy cost is the same as the declared number\" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound"
     },
     {
+      "kind": "xAtLeast",
+      "class": "primitive",
+      "signature": "{\"kind\":\"xAtLeast\",\"n\":N}",
+      "fields": [
+        {
+          "name": "n",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "X is 1 or more",
+      "doc": "phrasing batch 10 (22-43): \"if you removed a marker from one of your red Unison Cards using this skill\" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X"
+    },
+    {
       "kind": "varMatches",
       "class": "macro over `count`",
       "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER}",
@@ -4733,7 +4748,7 @@
     },
     {
       "syntax": "X",
-      "doc": "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)"
+      "doc": "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5). X spiritBoost: [Spirit Boost X], X markers off your Unison Card (22-43)"
     },
     {
       "syntax": "PAYWITH",
@@ -4988,6 +5003,10 @@
     {
       "name": "opponentTookDamage",
       "words": "when your opponent takes damage from a skill"
+    },
+    {
+      "name": "opponentTookBoardSkillDamage",
+      "words": "when your opponent takes damage from a skill on your Battle or Unison Cards"
     },
     {
       "name": "youTookOpponentSkillDamage",

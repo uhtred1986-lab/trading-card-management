@@ -512,6 +512,11 @@ export type Cond =
   | { kind: "varMatches"; var: string; filter: CardFilter }
   /** "If the revealed card's energy cost is the same as the declared number" (BT22-090): a card a reveal or a look bound has this measure equal to the X a `declare` bound. */
   | { kind: "varAttrIsX"; var: string; attr: AmountAttr }
+  /**
+   * Phrasing batch 10 (22-43): "If you removed a marker … using this skill" on a [Spirit Boost X] line (BT14-029,
+   * BT14-030, BT14-090) — the X the price was paid at is at least `n`.
+   */
+  | { kind: "xAtLeast"; n: number }
   /** Whose turn it is (7-1). "opponent" is "during your opponent's turn". */
   | { kind: "isTurnPlayer"; who?: "you" | "opponent" }
   /**
@@ -1438,6 +1443,12 @@ export interface SkillPrice {
 export interface XCost {
   min?: number;
   max?: number;
+  /**
+   * Phrasing batch 10 (22-43): "[Spirit Boost X]" — X is the number of markers the price removes from your Unison Card,
+   * not energy (BT14-029, BT14-030, BT14-090). The effect reads it back as X ("if you removed a marker … using this
+   * skill" is X ≥ 1, "for each marker you removed using this skill" is X).
+   */
+  spiritBoost?: true;
 }
 
 /**
@@ -1523,6 +1534,7 @@ export function costSentence(cost: CostRecord | null): string | null {
   if (cost.marker != null) parts.push(cost.marker >= 0 ? `add ${cost.marker} marker${cost.marker === 1 ? "" : "s"}` : `remove ${-cost.marker} marker${cost.marker === -1 ? "" : "s"}`);
   if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
   if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
+  if (cost.x?.spiritBoost) parts.push("Spirit Boost X");
   // 20-19: the alternative payers are named before the conditions, because
   // they are part of what the price *is* — "pay 2 energy or use this card as
   // energy" — rather than something it also requires.
@@ -1681,8 +1693,8 @@ export interface ScriptFrame {
   /** Closed areas this running skill actually inspected, persisted across a choice/reload. */
   lookedAreas?: Partial<Record<PlayerId, ("deck" | "life")[]>>;
   /**
-   * Mechanism batch 2 (search, 20-12): the cards this skill picked out of a secret area — the deck, or a face-down
-   * card in the life — by a description ("1 <Son Goku> card from your deck"). 3-1-7: such a card moved on into another
+   * Mechanism batch 2 (search, 20-12): the cards this skill picked out of a secret area — the deck, a face-down card in
+   * the life, or (phrasing batch 10) the hand — by a description ("1 <Son Goku> card from your deck"). 3-1-7: such a card moved on into another
    * secret area (the hand, the deck, the life) is shown to both players as it goes, whatever the card prints. Additive:
    * older frames carry none.
    */
@@ -2093,7 +2105,8 @@ function inSecretPile(h: ScriptHost, id: string): boolean {
 /**
  * Phrasing batch 9 (owner's ruling of 27 Oct 2026, 5-2-7): the hand is a secret area too (3-2-2), so a card a
  * description picks out of it cannot be shown to meet it either, and the pick may be declined as one out of the deck may.
- * Only the decline: what 3-1-7 shows on the way to another secret area stays the deck's and the life's (`inSecretPile`).
+ * Phrasing batch 10 (owner's ruling of 27 Oct 2026): what 3-1-7 shows on the way to another secret area is the hand's
+ * too — a described card picked from the hand and moved into the deck or the life is revealed.
  */
 function declinablePick(h: ScriptHost, id: string): boolean {
   return inSecretPile(h, id) || h.areaOf(id) === "hand";
@@ -2236,17 +2249,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             // 21-3: "when you take damage from an opponent's non-keyword
             // skill" and its mirror. Only the `damage` op reaches here —
             // battle damage takes a different path — so the "from a skill"
-            // half of those wordings is the moment itself. The cards that add
-            // "from a skill on one of your Battle Cards" are answered by the
-            // area the source sits in.
+            // half of those wordings is the moment itself.
+            // Phrasing batch 10 (owner's ruling of 27 Oct 2026): damage dealt by an Extra card's skill — or by any card
+            // outside the Battle, Unison and Leader Areas — is a skill's damage too, so these are pended for any
+            // skill's damage. Only "…from a skill on one of your Battle Cards or Unison Cards" (DB3-017, BT10-001b)
+            // asks where the card was: `opponentTookBoardSkillDamage`, pended when it sits in its master's Battle or
+            // Unison Area.
+            for (const w of h.cardsInPlay(p)) h.pend("youTookDamage", w, frame.card);
+            // Phrasing batch 9 (owner's ruling of 27 Oct 2026): "…from your opponent's skill" — not your own skill's.
+            if (p !== master) for (const w of h.cardsInPlay(p)) h.pend("youTookOpponentSkillDamage", w, frame.card);
+            for (const w of h.cardsInPlay(p === "p1" ? "p2" : "p1")) h.pend("opponentTookDamage", w, frame.card);
             const src = frame.card && h.areaOf(frame.card);
-            const fromBoard = src === "battle" || src === "unison" || src === "leader";
-            if (fromBoard) {
-              for (const w of h.cardsInPlay(p)) h.pend("youTookDamage", w, frame.card);
-              // Phrasing batch 9 (owner's ruling of 27 Oct 2026): "…from your opponent's skill" — not your own skill's.
-              if (p !== master) for (const w of h.cardsInPlay(p)) h.pend("youTookOpponentSkillDamage", w, frame.card);
-              for (const w of h.cardsInPlay(p === "p1" ? "p2" : "p1")) h.pend("opponentTookDamage", w, frame.card);
-            }
+            if (p !== master && (src === "battle" || src === "unison")) for (const w of h.cardsInPlay(master)) h.pend("opponentTookBoardSkillDamage", w, frame.card);
             // 3-9: the life cards themselves left the Life Area — `h.move` above has fired that `moved(from: life)`
             // moment for each of them, which is what `lifeLeft` is declared on. Phrasing batch 9: the name was pended
             // here as well, had no `MOMENT_OF` entry, and so only logged a note; pended with one it would have answered
@@ -2530,8 +2544,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.vars[op.as] = picked;
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
+          // Phrasing batch 10 (owner's ruling of 27 Oct 2026): a pick out of the hand too — the hand is a secret area.
           if (described) {
-            const secret = picked.filter((id) => inSecretPile(h, id));
+            const secret = picked.filter((id) => declinablePick(h, id));
             if (secret.length) frame.specifiedPicks = [...new Set([...(frame.specifiedPicks ?? []), ...secret])];
           }
           // Phrasing batch 6 (EX16-02): where each card was as it was chosen, for a later `choseFrom`.
@@ -2972,7 +2987,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
           // Mechanism batch 2 (3-1-7): a card a description picked out of a secret area, moved on into another secret
           // area, is revealed to all players as it goes, even where the card does not say so (20-12).
-          const shown = op.reveal || (!!frame.specifiedPicks?.includes(id) && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp)));
+          // Phrasing batch 10 (owner's ruling of 27 Oct 2026): a described card picked from the hand and moved into the
+          // deck or the life is revealed the same way.
+          const picked = !!frame.specifiedPicks?.includes(id);
+          const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
           h.move(id, dest, owner, { position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
