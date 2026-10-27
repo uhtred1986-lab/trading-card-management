@@ -2,7 +2,7 @@ import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import { PLACED_IN_ENERGY } from "./shared";
 import type { Cond, Ref, ScriptArea, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
-import { colorCountSelector, filterFor, parseTarget } from "./targets";
+import { boardCount, colorCountSelector, filterFor, parseTarget } from "./targets";
 
 /**
  * A price, or the head of one, read as the one or more conditions it states.
@@ -1039,6 +1039,32 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
     delete sel.count;
     delete sel.upTo;
     return { cond: { kind: "count", sel: { ...sel, side: "both" }, ...count(m[2], m[3]) } };
+  }
+  // Mechanism batch 4: "If the total number of cards in Rest Mode between you and your opponent is 6 or more" (P-106,
+  // P-110, P-111; folded by `splitClausesJoined`): both players' Leader, Battle and Energy Areas (`boardCount`).
+  if (!bare && (m = /^the total number of cards in (rest|active) mode between both players is (\d+) or (more|less|fewer)$/.exec(t))) {
+    const sel = boardCount(`cards in ${m[1]} mode between you and your opponent`);
+    if (!sel) return null;
+    delete sel.count;
+    delete sel.upTo;
+    return { cond: { kind: "count", sel, ...count(m[2], m[3]) } };
+  }
+  // Mechanism batch 4: "If your opponent is the original owner of 4 or more Battle Cards in play" (BT23-077): the
+  // Battle Cards in either Battle Area that the opponent owns (`ownedByOpponent`) — a card's owner never changes (1-2).
+  if (!bare && (m = /^your opponent is the (?:original )?owner of (\d+) or (more|less|fewer) battle cards in play$/.exec(t))) {
+    return { cond: { kind: "count", sel: { side: "both", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" }, ownedByOpponent: true }, ...count(m[1], m[2]) } };
+  }
+  // Mechanism batch 4: "If you or your opponent's Leader Card has 15000 or more power" (BT3-026): either Leader.
+  if (!bare && (m = /^you or your opponent's leader(?: card)? has (\d+) or (more|less) power$/.exec(t))) {
+    const own = parseConditionClause(`your leader card has ${m[1]} or ${m[2]} power`, true)?.cond;
+    const theirs = parseConditionClause(`your opponent's leader card has ${m[1]} or ${m[2]} power`, true)?.cond;
+    return own && theirs ? { cond: { kind: "any", conds: [own, theirs] } } : null;
+  }
+  // Mechanism batch 4: "If your opponent's Leader has a Battle Card under it" (P-499): its pile holds one — a Z-Battle
+  // Card a [Z-Stack] put there counts (official Q&A on P-499).
+  if (!bare && (m = /^your opponent's leader(?: card)? has an? (battle card|card) under it$/.exec(t))) {
+    const got = parseConditionClause(`there are 1 or more ${m[1]}s under your opponent's leader card`, true)?.cond;
+    return got ? { cond: got } : null;
   }
   if (!bare && (m = /^you or your opponent have (.+)$/.exec(t))) {
     const own = parseCountCondition(`you have ${m[1].replace(/\bin their\b/g, "in your")}`);

@@ -284,7 +284,10 @@ export function powerReductionSources(state: VmState, id: string, standing: VmSt
  */
 const boardCounted = (a: Amount): boolean => typeof a === "object" && ("count" in a || "markers" in a || ("capped" in a && boardCounted(a.capped[0])));
 
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
+/** Mechanism batch 4: a standing `negateKeyword` naming every keyword at once (a [Permanent]'s "negate the keyword skills of …"). */
+export const KEYWORD_WILDCARD = "*";
+
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "negateSkillsOfKind", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {};
@@ -566,7 +569,10 @@ export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
 
 /** A change to a card's identity (traits, characters, colours, names) printed "in all areas" (TB1-095, #936). */
 function identityInAllAreas(op: Op): boolean {
-  if (op.op === "gains") return op.allAreas === true;
+  // Mechanism batch 4: only the card's own identity holds from where it lies. "Your <Son Goku> and <Vegeta> cards are
+  // also treated as red, blue, and green in all areas" (EX21-19) is about other cards wherever *they* are, and is in
+  // force only while its own card is in play (9-1-3-1) — the walk of the play areas reads it.
+  if (op.op === "gains") return op.allAreas === true && (!op.target || ("sel" in op.target && op.target.sel.special === "self"));
   return op.op === "modifyAttr" && op.allAreas === true && (op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames");
 }
 
@@ -932,7 +938,7 @@ function collect(
       !inPlayNow &&
       (op.op === "power" || op.op === "comboPower" || op.op === "grant" || op.op === "negateKeyword" ||
         (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower" || op.attr === "keywords" || ((op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") && !op.allAreas))) ||
-        (op.op === "gains" && !op.allAreas))
+        (op.op === "gains" && !identityInAllAreas(op)))
     ) continue;
     if (op.op === "power" || op.op === "comboPower") {
       // "+3000 power for each marker on this card": the same two counted amounts
@@ -974,6 +980,19 @@ function collect(
     }
     if (op.op === "negateKeyword") {
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "negateKeyword", target: id, value: op.keyword });
+      continue;
+    }
+    // Mechanism batch 4 (9-1-5, 22-1-1): "[Permanent] Negate the keyword skills of all your Battle Cards" (BT31-002b).
+    // The keyword half is a standing negation of every keyword name — `KEYWORD_WILDCARD`, which the keyword readers
+    // (`valueOf`'s keywords layer, `keywordNegatedFor`) take as all of them, printed or granted; the [Counter] and
+    // [Activate] halves are a standing kind negation the activation gates read (`standingKindNegated`, `vm/program.ts`).
+    // Only in play, as every other negation a [Permanent] makes (9-1-3-1).
+    if (op.op === "negateSkillsOfKind") {
+      if (!inPlayNow) continue;
+      for (const id of targets(frame, op)) {
+        if (op.kind === "keyword") out.push({ source: frame.card, master: frame.master, kind: "negateKeyword", target: id, value: KEYWORD_WILDCARD as KeywordSkill["name"] });
+        else out.push({ source: frame.card, master: frame.master, kind: "negateSkillKind", target: id, value: op.kind as unknown as number });
+      }
       continue;
     }
     // 20-21: the price a card is bought at, standing rather than resolved —
@@ -1304,7 +1323,7 @@ export function valueOf(game: GameDefinition, attrs: Attrs, name: string, static
       ...statics.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
       ...timed.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
     ]);
-    value = (value as readonly string[]).filter((keyword) => !negated.has(keyword as KeywordSkill["name"]));
+    value = negated.has(KEYWORD_WILDCARD as KeywordSkill["name"]) ? [] : (value as readonly string[]).filter((keyword) => !negated.has(keyword as KeywordSkill["name"]));
   }
   return value;
 }

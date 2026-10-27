@@ -728,7 +728,7 @@ export type Op =
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   /** Mechanism batch 3: `toOwners` — "play them to their owners' Battle Areas" (BT13-096): each card into its own owner's Battle Area. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true }
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; ignoreOwnPermanent?: true }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -3870,7 +3870,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        let targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
+        let targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
         // that fails to enter play (Fusion/Potara: the card that activated it,

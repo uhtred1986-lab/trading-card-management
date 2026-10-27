@@ -14,7 +14,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
+import { AREA_WORDS, boardCount, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -799,7 +799,8 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
   // "…using this skill" (BT13-122, BT16-072) is the same words as "with".
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: (?:with|using) this skill)?$/.test(t)) return "skip";
-  if (/^(?:additionally|then|so|and|also|after that|in addition)$/.test(t)) return "skip";
+  // Mechanism batch 4: "Afterwards," (BT1-106) is "after that".
+  if (/^(?:additionally|then|so|and|also|after that|afterwards|in addition)$/.test(t)) return "skip";
   // 20-13-1 read straight: skipping a turn or a span of phases already says
   // where play proceeds from, so a trailing clause that only names that
   // destination (BT31-097, BT21-104) restates the `skip` clause before it
@@ -869,7 +870,9 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?|(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+.+?)\s*,\s*(.+)$/.exec(t);
   const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
-  const headSrc = lead ? lead[3] : m![1];
+  // Mechanism batch 4: "For each marker on this card, **it** gets +5000 power during your turn" (EX19-21): the pronoun
+  // is the card the count just named, and nothing else in a [Permanent] that names no other card.
+  const headSrc = lead ? (/^markers?\s+on\s+this card$/.test(lead[2].trim()) && !c.lastTarget ? lead[3].replace(/^it\b/, "this card") : lead[3]) : m![1];
   // What is being counted ends at its noun. "…+6000 power for each card in
   // your energy **and [Triple Strike] for the duration of the battle**"
   // carries on about the card, not about what is counted, and taking the whole
@@ -925,13 +928,14 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   // any phrase it can place, so "color", "energy cost" or "keyword skill" in
   // front of an area read as the number of *cards* there (EX19-26 read "-2000
   // power for each of your energy" for "each card color in your Energy Area").
-  if (colors === undefined && !markersOn && !countsCards(what)) return null;
+  const board = markersOn || colors !== undefined ? null : boardCount(what);
+  if (colors === undefined && !markersOn && !board && !countsCards(what)) return null;
   // Phrasing batch 7: two areas of the board said with "and" in a count — "the Z-Cards in your Leader Area and Battle
   // Area" (BT21-076, P-479) — are both of them, as the three of P-658 are. (The pair reader keeps "Battle Area or Leader
   // Area" as the cards in play, BT3-087, which is a choice's reading and not this.)
   const boardPair = colors === undefined ? /^(.+?) in your (leader|battle|unison) area and (?:your )?(leader|battle|unison) area$/i.exec(what) : null;
   const pairSel = boardPair && boardPair[2].toLowerCase() !== boardPair[3].toLowerCase() ? parseTarget(`${boardPair[1]} in your battle area`) : null;
-  const sel = colors ?? (pairSel ? ({ ...pairSel, area: boardPair![2].toLowerCase(), areas: [boardPair![2].toLowerCase(), boardPair![3].toLowerCase()] } as Selector) : null) ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
+  const sel = colors ?? board ?? (pairSel ? ({ ...pairSel, area: boardPair![2].toLowerCase(), areas: [boardPair![2].toLowerCase(), boardPair![3].toLowerCase()] } as Selector) : null) ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
   // Phrasing batch 6 (`ledCost`): two areas said with "and" ("in your Unison Area and Drop Area", P-379; "…Leader Area
@@ -1180,6 +1184,24 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const second = compileClause(`you can't ${twoBans[1]} for the ${twoBans[2]}`, c);
     return first && second ? [...first, ...second] : null;
   }
+  // Mechanism batch 4: "…your opponent can't activate **[Blocker] or [Counter] skills**" (P-671): two prohibitions, one
+  // per keyword, each read as its own wording is. "…can't activate [Counter]" (BT23-076) drops the word "skills".
+  const blockerOrCounter = /^(.*?\bcan'?t activate) \[blocker\] or \[counter\] skills?(.*)$/i.exec(clause.trim());
+  if (blockerOrCounter) {
+    const first = compileClause(`${blockerOrCounter[1]} [Blocker] skills${blockerOrCounter[2]}`, c);
+    const second = compileClause(`${blockerOrCounter[1]} [Counter] skills${blockerOrCounter[2]}`, c);
+    return first && second ? [...first, ...second] : null;
+  }
+  // Mechanism batch 4: "…your opponent's Leader Card can't attack **this card or Unison Cards**" (P-268b): two
+  // prohibitions on the same attacker, one per target.
+  const twoTargets = /^(.*?\bcan'?t attack) this card or (unison cards?)([.]?)$/i.exec(clause.trim());
+  if (twoTargets) {
+    const first = compileClause(`${twoTargets[1]} this card`, c);
+    const second = compileClause(`${twoTargets[1]} ${twoTargets[2]}`, c);
+    return first && second ? [...first, ...second] : null;
+  }
+  const bareCounter =/^(.*?\bcan'?t activate \[counter\])((?: (?:for|during|until)\b.*)?)[.]?$/i.exec(clause.trim());
+  if (bareCounter) return compileClause(`${bareCounter[1]} skills${bareCounter[2]}`, c);
   const t = clause
     .toLowerCase()
     .trim()
@@ -1196,6 +1218,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // Mechanism batch 2 (3-8): "**Place this card in your energy from your hand**" (BT10-051): the place it comes from
     // said last.
     .replace(/^place this card in your energy from your hand$/, "place this card from your hand in your energy")
+    // Mechanism batch 4: "When this card attacks, it **gains +1000** for each 1 energy you have" (BT1-030): the power
+    // the number is, unsaid; the official Q&A reads it as power equal to the cards in the Energy Area as it resolves.
+    .replace(/^(it|this card) gains ([+-]\d+) (for each\b)/, "$1 gets $2 power $3")
+    // Mechanism batch 4: "…this card gets **an additional** +2000 combo power for the battle for each color in your
+    // energy" (EB1-50): one more change of its own, added to the +10000 before it — "additional" says nothing more.
+    .replace(/^(it|this card) gets an additional ([+-]\d+ (?:combo )?power\b)/, "$1 gets $2")
+    // Mechanism batch 4: "…the opponent's Battle Cards **are unable to attack** for the duration of the turn" (BT1-106):
+    // "can't attack" (20-14) in other words.
+    .replace(/^the opponent's battle cards are unable to attack\b/, "your opponent's battle cards can't attack")
     // "Place up to 1 **of your** red ≪Saiyan≫ cards with an energy cost of 1 **in your Drop Area from your deck**"
     // (BT13-003): the place searched said after the place the card goes to.
     .replace(/^place (up to \d+|\d+) of your (.+?) (in(?:to)? your drop(?: area)?) from your deck$/, "place $1 $2 from your deck $3")
@@ -2121,6 +2152,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     }
     return [{ op: "costReduction", target: { sel: whole }, amount: 0, what: "specified" as const, all: true, until: durationOf(clause) }];
   }
+  // Mechanism batch 4: "…ignore **this card's** specified cost in all areas" (EX21-34): the same no-specified-cost change
+  // "treat this card as if it had no specified cost" makes, about this card alone.
+  if (/^ignore this card'?s specified costs?$/.test(qq)) {
+    return [{ op: "costReduction", target: { sel: { special: "self" } }, amount: 0, what: "specified" as const, all: true, until: durationOf(clause) }];
+  }
   if ((m = /^ignore the specified costs? (?:of|on) (.+? in your [a-z-]+(?: area)?)(?: during this turn)?$/.exec(qq))) {
     const ref = refFor(m[1], c);
     if (!ref || !("sel" in ref) || ref.sel.special || (c.stale && ref === c.stale)) return null;
@@ -2227,7 +2263,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const flat: number = sign * (orbs ? Object.values(orbs).reduce<number>((sum, n) => sum + (n ?? 0), 0) : Number(amountText));
     let by: Amount = flat;
     if (perText) {
-      const per = parseTarget(countAreasSaidWithAnd(perText));
+      const per = boardCount(perText) ?? parseTarget(countAreasSaidWithAnd(perText));
       if (!per) return null;
       by = { count: { ...per, count: undefined, upTo: undefined }, ...(perStepOf > 1 ? { per: perStepOf } : {}), ...(flat === 1 ? {} : { times: flat }) };
     }
@@ -2489,11 +2525,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // failed the whole match and the Leader's only [Permanent] went unread.
   if (
     (m =
-      /^(.*?) (?:gains?|is (?:also )?treated as(?: an?)?) ((?:(?:non-)?(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (all|any) areas?)?$/.exec(
+      /^(.*?) (gains?|is (?:also )?treated as(?: an?)?|are (?:also )?treated as|has) ((?:(?:non-)?(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫|red|blue|green|yellow|black|white)[\s,]*(?:and\s+|or\s+)?)+)(?:\s*colou?rs?)?(?: in (all|any) areas?)?$/.exec(
         t,
       ))
   ) {
-    const what = m[2];
+    const verb = m[2];
+    const what = m[3];
+    // Mechanism batch 4: "This card **has** <Ginyu>, <Jeice>, <Burter>, <Recoome>, and <Guldo> **in all areas**" (P-024)
+    // is the same identity said with "has" — read only of this card and only "in all areas", where it cannot be a test.
+    if (verb === "has" && !(m[4] && /^this card$/i.test(m[1]))) return null;
     const filter = parseFilter(what);
     const colors = filter.colors;
     // A whole card name is the fourth thing a card can be "also treated as",
@@ -2502,8 +2542,25 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // skill naming that card find this one (20-1).
     if (!filter.traits.length && !filter.characters.length && !colors.length && !filter.names.length) return null;
     if (filter.notTraits.length || filter.notCharacters.length || filter.notNames.length) return null;
+    // Mechanism batch 4: "Your <Son Goku> and <Vegeta> cards **are** also treated as red, blue, and green in all areas"
+    // (EX21-19): a group of the master's cards, wherever each one is — the widening `negate the [K] of your … in all
+    // areas` takes (BT9-037), one change per description in the list.
+    if (/^are\b/.test(verb)) {
+      if (!m[4] || !c.permanent) return null;
+      const refs = refsFor(m[1], c);
+      const wide = refs?.map((target): Ref | null => {
+        if (!("sel" in target) || target.sel.special || target.sel.fromVar || target.sel.side !== "you" || (target.sel.area !== "play" && target.sel.area !== "battle")) return null;
+        const { area: _area, count: _count, upTo: _upTo, ...sel } = target.sel;
+        void _area;
+        void _count;
+        void _upTo;
+        return { sel: { ...sel, areas: [...EVERY_AREA] } };
+      });
+      if (!wide?.length || !wide.every((r): r is Ref => !!r)) return null;
+      return wide.map((target) => ({ op: "gains", target, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}), allAreas: true }) as Op);
+    }
     const ref = refFor(m[1] || "this card", c);
-    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}), ...(m[3] ? { allAreas: true } : {}) }] : null;
+    return ref ? [{ op: "gains", target: ref, traits: filter.traits, characters: filter.characters, colors, ...(filter.names.length ? { names: filter.names } : {}), ...(m[4] ? { allAreas: true } : {}) }] : null;
   }
 
   // Taking on another card's printed skills (20-18). Two wordings, and the
@@ -2681,6 +2738,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if ((m = /^negate (.*?)(?:'s)? non-keyword skills$/.exec(q)) || (m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) non-keyword skills negated(?: (?:for|until) .*)?$/.exec(q))) {
     const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
     return ref ? negateNonKeyword(ref, durationOf(t)) : null;
+  }
+  // Mechanism batch 4: "Negate the keyword skills **of** all your Battle Cards" (BT31-002b), "…**on** all of your
+  // opponent's Battle Cards" (BT25-140's granted [Permanent]): the keyword half (`negateKeywordSkills`) of a group, read
+  // by the standing reader now (`vm/effects.ts` collects a [Permanent]'s keyword negation as a wildcard `negateKeyword`).
+  if ((m = /^negate the keyword skills (?:of|on) (all (?:of )?(?:your|your opponent's) battle cards)$/.exec(q))) {
+    const ref = refFor(m[1].replace(/^all of /, "all "), c);
+    if (!ref || !("sel" in ref) || ref.sel.special) return null;
+    return negateKeywordSkills(ref, durationOf(t));
   }
   // #907 round 4: "...it gets +5000 power **and has its skills negated for the turn**" (BT13-117, BT15-057,
   // BT17-109, ...): the "and" cuts the clause, and the half left carries no subject - it is the card the
@@ -4735,8 +4800,11 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       // "…can't play Battle Cards … **from their owner's hands**" (EX23-05,
       // BT24-138): only a play of a card that is in a hand — declared or by a
       // skill — and not one from the Drop, the deck or the Warp.
-      const fromHand = /\s+from (?:your|their|their owners?'?s?) hands?(?=\s+(?:for|during|until)\b|$)/;
-      const fromArea = fromHand.test(mm[1]) ? ("hand" as const) : undefined;
+      // Mechanism batch 4: "…you can't play Battle Cards **from your Drop Area** for the turn" (BT12-109): the same rule
+      // about a play of a card in that player's Drop.
+      const fromHand = /\s+from (?:your|their|their owners?'?s?) (hands?|drop areas?|drops?)(?=\s+(?:for|during|until)\b|$)/;
+      const fromSaid = fromHand.exec(mm[1]);
+      const fromArea = fromSaid ? (/^hand/.test(fromSaid[1]) ? ("hand" as const) : ("drop" as const)) : undefined;
       if (fromArea) {
         const what = mm[1].replace(fromHand, "").replace(DURATION_AFTER_OBJECT, "").trim();
         if (side === "both" && !/\btheir owners?'?s?\b/.test(mm[1])) return null;
@@ -5896,7 +5964,7 @@ const REDUCE_THAT_SKILL_COST = /^(?:then |and )?reduce (?:its|the|that card's|th
  */
 const SIMPLE_COUNT = /^(?!.*\b(?:among|colou?rs?|costs?|markers?|tokens?|and|or)\b).+$/i;
 /** `SIMPLE_COUNT`, and not "in play" with no side named: "Battle Card in play" is both players' cards, which the target reader reads as yours. */
-const simpleCount = (counted: string): boolean => SIMPLE_COUNT.test(counted) && !(/\bin play\b/i.test(counted) && !/\b(?:your|their|opponent's)\b/i.test(counted));
+const simpleCount = (counted: string): boolean => !!boardCount(counted) || (SIMPLE_COUNT.test(counted) && !(/\bin play\b/i.test(counted) && !/\b(?:your|their|opponent's)\b/i.test(counted)));
 // (Not the Z-Energy cost: P-464 prints a cap, "(Up to 2)", that the note-stripper has already dropped by now.)
 const COST_REDUCER = /^(?!.*z-energy)(?:reduce|decrease) .*\bcosts?\b.* by (?:\d+|(?:\{[rugykbw\d]+\})+)[.]?$/i;
 /** "When you would play a Unison with [Empower] from your hand, reduce the specified cost by {y}" (P-733): every such play this turn. */
@@ -6414,6 +6482,31 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // "During this turn, your opponent can't…", "…, until the end of your
     // opponent's turn, it can't attack" — a duration split off on its own
     // belongs to the clause after it, where `durationOf` will find it.
+    // Mechanism batch 4: "…for each card in both players' Battle Areas **and energy**" (BT30-055): one count over two
+    // areas of both players (`boardCount`), cut at its "and" by the splitter.
+    if (i + 1 < clauses.length && /\bfor each card in both players' battle areas$/i.test(clause.trim()) && /^energy[.]?$/i.test(clauses[i + 1].trim())) {
+      clauses.splice(i, 2, `${clause.trim()} and energy`);
+      i--;
+      continue;
+    }
+    // Mechanism batch 4: "This card gets [Triple Strike] **and +5000 power for each Extra Card … for the turn**"
+    // (BT13-064): the keyword and a counted power, cut at the "and" — the power half has no subject and the keyword half
+    // no span. Each gets the other's: the subject is the card, the span closes both.
+    const kwThenCount = /^(this card|it) gets? (\[[^\]]+\])[.]?$/i.exec(clause.trim());
+    const countTail = kwThenCount && i + 1 < clauses.length ? /^([+-]\d+ power for each .+?)( for the (?:turn|battle))[.]?$/i.exec(clauses[i + 1].trim()) : null;
+    if (kwThenCount && countTail) {
+      clauses.splice(i, 2, `${kwThenCount[1]} gets ${countTail[1]}${countTail[2]}`, `${kwThenCount[1]} gains ${kwThenCount[2]}${countTail[2]}`);
+      joined.splice(i, 2, joined[i], true);
+      i--;
+      continue;
+    }
+    // Mechanism batch 4: the same span said last and cut off on its own — "it gains +1000 for each 1 energy you have,
+    // **for the duration of the turn**" (BT1-030) — closes the clause before it, the only one it can belong to.
+    if (i + 2 === clauses.length && !PURE_DURATION.test(clause.trim()) && /^for the duration of the (?:turn|battle)[.]?$/i.test(clauses[i + 1].trim()) && !DURATION_TAIL.test(clause.trim().replace(/[.,]$/, "").toLowerCase())) {
+      clauses.splice(i, 2, `${clause.trim().replace(/[.,]$/, "")} ${clauses[i + 1].trim()}`);
+      i--;
+      continue;
+    }
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {
       const span = clause.trim().replace(/[.,]$/, "");
       clauses[i + 1] = `${clauses[i + 1].replace(/[.]$/, "")} ${clause.trim()}`;
@@ -6509,7 +6602,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Phrasing batch 8: and a count that opens a later clause of the effect (BT21-149's "[Counter: Play] Play this card,
     // **for every card in your opponent's Z-Deck**, place up to 1 …", cut from the play by `COUNT_LEADS_CLAUSE`).
     const leadCount = ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || permanentReduction) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
-    const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent (?:card |character )?names?\b/i.test(leadCount[2]);
+    const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent card names?\b/i.test(leadCount[2]);
+    // Mechanism batch 4: "For each ≪Turtle School≫ card with **a different character name** in your Z-Energy, this card
+    // gets +5000 power …" (BT18-059b, BT18-091) is read now — the trailing reader keeps the count's
+    // `differentCharacters`, so it counts the character names (`selectedCount`), never the cards.
     if (leadCount && countOnly && i + 1 < clauses.length && !/\bfor (?:each|every)\b|\bequal to\b/i.test(clauses[i + 1])) {
       const said = `${clauses[i + 1].trim().replace(/[.]$/, "")} for ${leadCount[1].toLowerCase()} ${leadCount[2]}`;
       const counted = compileForEach(said, c, permanentReduction);
@@ -6722,6 +6818,17 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const lastChoose = [...groups.flatMap((g) => g.ops)].reverse().find((o) => o.op === "choose");
       if (lastChoose && lastChoose.op === "choose") lastChoose.sel.ignoreBarrier = true;
       continue;
+    }
+    // Mechanism batch 4: "play up to 1 {SS3 Broly, Saiyan Berserker} from your Drop, **ignoring its [permanent]
+    // skill**" (EX21-31; owner's ruling of 27 Oct 2026): the played card's own [Permanent] does not refuse this play
+    // (`play`'s `ignoreOwnPermanent`). Only right after the play it is about; anywhere else it stays unread.
+    if (/^ignoring its \[permanent\] skills?\.?$/i.test(clause.trim())) {
+      const lastOps = groups[groups.length - 1]?.ops ?? [];
+      const last = lastOps[lastOps.length - 1];
+      if (last && last.op === "play" && !last.ignoreOwnPermanent) {
+        last.ignoreOwnPermanent = true;
+        continue;
+      }
     }
     // 9-10: "If this card would leave the Battle Area" is not a condition —
     // nothing has happened yet. It says the *next* clause replaces the
