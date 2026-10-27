@@ -1680,6 +1680,12 @@ export interface ScriptFrame {
    * older frames carry none.
    */
   specifiedPicks?: string[];
+  /**
+   * Phrasing batch 9 (owner's ruling of 27 Oct 2026, 20-12-3): the players whose deck this skill searched — a choice
+   * made out of the deck itself, not out of cards a look set apart — and has not shuffled since. The deck is shuffled
+   * when the skill ends, whether or not the card prints "then shuffle your deck". Additive: older frames carry none.
+   */
+  searchedDecks?: PlayerId[];
   /** Card selected for a nested skill activation while its line is being chosen. */
   invokingCard?: string;
   /** Offered skill indices stay bound to their prompt positions across reload. */
@@ -2068,10 +2074,22 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
 }
 
 /** One search step's inspected closed areas survive an intervening choice. */
+/** Phrasing batch 9 (3-1-4): the name under which a named move's cards are kept with their area counts. */
+export const epochVar = (name: string): string => `${name}@epoch`;
+
 /** Mechanism batch 2: a card in a secret area nobody may read — the deck, or a face-down card in a life (3-2-2, 3-9-2). */
 function inSecretPile(h: ScriptHost, id: string): boolean {
   const area = h.areaOf(id);
   return area === "deck" || (area === "life" && !h.isFaceUp(id));
+}
+
+/**
+ * Phrasing batch 9 (owner's ruling of 27 Oct 2026, 5-2-7): the hand is a secret area too (3-2-2), so a card a
+ * description picks out of it cannot be shown to meet it either, and the pick may be declined as one out of the deck may.
+ * Only the decline: what 3-1-7 shows on the way to another secret area stays the deck's and the life's (`inSecretPile`).
+ */
+function declinablePick(h: ScriptHost, id: string): boolean {
+  return inSecretPile(h, id) || h.areaOf(id) === "hand";
 }
 
 /** Mechanism batch 2: does this description ask anything of a card, so that choosing it needs the card's information (5-2-7)? */
@@ -2102,6 +2120,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // Might} … and place this card under the chosen card: **Add a marker to
       // the chosen card**." Handing the names on is what makes that one skill
       // rather than two.
+      // Phrasing batch 9 (20-12-3): a deck searched and not shuffled since is shuffled as the skill ends.
+      for (const p of frame.searchedDecks ?? []) h.shuffleDecks([p]);
+      frame.searchedDecks = undefined;
       if (frame.saveVarsAs && frame.priceUnpaid) {
         h.priceUnpaid(frame.saveVarsAs, frame.priceUnpaid);
         return "done";
@@ -2215,10 +2236,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const fromBoard = src === "battle" || src === "unison" || src === "leader";
             if (fromBoard) {
               for (const w of h.cardsInPlay(p)) h.pend("youTookDamage", w, frame.card);
+              // Phrasing batch 9 (owner's ruling of 27 Oct 2026): "…from your opponent's skill" — not your own skill's.
+              if (p !== master) for (const w of h.cardsInPlay(p)) h.pend("youTookOpponentSkillDamage", w, frame.card);
               for (const w of h.cardsInPlay(p === "p1" ? "p2" : "p1")) h.pend("opponentTookDamage", w, frame.card);
             }
-            // 3-9: the life cards themselves left the Life Area.
-            for (const w of h.cardsInPlay(p)) h.pend("lifeLeft", w, taken[0]);
+            // 3-9: the life cards themselves left the Life Area — `h.move` above has fired that `moved(from: life)`
+            // moment for each of them, which is what `lifeLeft` is declared on. Phrasing batch 9: the name was pended
+            // here as well, had no `MOMENT_OF` entry, and so only logged a note; pended with one it would have answered
+            // "when your life moves to another area" a second time. It is not pended.
           }
         }
         break;
@@ -2295,8 +2320,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           for (const area of op.areas ?? ["deck"]) {
             if (op.inspectedOnly && !frame.lookedAreas?.[p]?.includes(area)) continue;
             h.log({ type: "note", text: `${h.playerName(p)} shuffles their ${area}` });
-            if (area === "deck") h.shuffleDecks([p]);
-            else h.shuffleLives([p]);
+            if (area === "deck") {
+              h.shuffleDecks([p]);
+              if (frame.searchedDecks) frame.searchedDecks = frame.searchedDecks.filter((x) => x !== p);
+            } else h.shuffleLives([p]);
           }
         }
         break;
@@ -2447,6 +2474,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (!op.sel.fromVar && !op.sel.special) {
           const inspected = (op.sel.areas ?? (op.sel.area ? [op.sel.area] : [])).filter((area): area is "deck" | "life" => area === "deck" || area === "life");
           for (const player of sideOf(master, op.sel.side)) if (inspected.length) rememberLook(frame, player, inspected);
+          // Phrasing batch 9 (20-12-3): a choice out of the deck itself is a search, and the deck is shuffled after it.
+          if (inspected.includes("deck")) for (const player of sideOf(master, op.sel.side)) if (!frame.searchedDecks?.includes(player)) frame.searchedDecks = [...(frame.searchedDecks ?? []), player];
         }
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.
@@ -2646,7 +2675,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Mechanism batch 2 (5-2-7): a card in a secret area cannot be shown to meet a description, so the player may
         // decline to pick it even for an exact "choose 1 … from your deck" — a search may come up empty ("fail to
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
-        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => inSecretPile(h, id)).length : 0;
+        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => declinablePick(h, id)).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
         const answer = h.lastChoice();
@@ -3006,6 +3035,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.moveLoop.index++;
         }
         frame.moveLoop = undefined;
+        // Phrasing batch 9 (owner's ruling of 27 Oct 2026 on BT10-054, 3-1-4): the cards a named move took are the cards
+        // as they arrived. One that leaves that area and comes back is a new card, and no longer the one "you placed in
+        // your energy with this skill": each is remembered with its area count (`epochVar`), and `fromVar` drops the ones
+        // that have moved since.
+        if (op.as) frame.vars[epochVar(op.as)] = (frame.vars[op.as] ?? []).map((id) => `${id}@${h.zoneEpoch(id)}`);
         break;
       }
 

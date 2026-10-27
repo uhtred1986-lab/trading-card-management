@@ -872,6 +872,21 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const counted = stepped ? stepped[2] : countedSrc;
   const step = Number(lead ? (lead[1] ?? 1) : stepped ? stepped[1] : 1);
   if (!Number.isInteger(step) || step < 1) return null;
+  // Phrasing batch 9: "Choose up to 2 Cell Jr. tokens in your Battle Area and remove them from the game: **For each Cell
+  // Jr. token you remove from the game with this skill**, choose up to 1 …" (XD3-07): how many cards the price took, read
+  // off its binding (`var`) — the tokens are gone by then, and a count of the board would find none of them.
+  if (step === 1 && c.priceChoice && /^[^,]+? (?:that )?you (?:removed?|remove) from the game (?:with|using|by) this skill$/.test(counted)) {
+    const priced = c.priceChoice;
+    // The effect's own choice starts past the price's name, so the count still reads the price's cards.
+    const at = /^c(\d+)$/.exec(priced);
+    if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
+    const head = compileClause(`${headSrc}${tail}`, c);
+    if (!head?.length) return null;
+    const [op, ...rest] = head;
+    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { var: priced } : null) as Amount);
+    if (!swapped || JSON.stringify(swapped).includes("null")) return null;
+    return [swapped, ...rest];
+  }
   const per = step > 1 ? { per: step } : {};
   // "For each marker on X" is a marker total, not a count of matching cards —
   // reading it as `count` asked how many cards are named "this card" (always
@@ -5701,6 +5716,29 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     return filter;
   };
   let m: RegExpExecArray | null;
+  // Phrasing batch 9: "When this card attacks a Battle Card, **if that card has 25000 power or less**, KO it" (EX09-01):
+  // the card attacked (`guard`, the target as the attack is declared), asked now — and "it" after is that card. Only in
+  // that moment, and only before the skill has named another card of its own.
+  // Phrasing batch 9: "…this card gets +5000 power for the battle. Additionally, **if this skill makes this card's power
+  // 70000 or more**, …" (EX23-52): this card's power as the skill's own raise leaves it — asked after the raise.
+  if ((m = /^(?:additionally,? )?if this skill makes this card'?s power (\d+) or more$/.exec(t)) && c.lastOp === "power") {
+    const filter = described(`card with ${m[1]} power or more`);
+    return filter ? { kind: "count", sel: { special: "self", filter }, atLeast: 1 } : null;
+  }
+  // Phrasing batch 9: "[Spirit Boost 1] … and **if you removed a marker from a red Unison Card with a specified cost of 3
+  // or more using this skill**, …" (BT15-001b): the price took its markers off your Unison — the one card in your Unison
+  // Area (22-43) — so the question is that Unison's description. Only with a printed number of at least 1: a [Spirit
+  // Boost X] may have removed none, which this cannot tell.
+  if ((m = /^(?:and )?if you removed (?:a|1) markers? from (?:an? |your |one of your )?(.+?) using this skill$/.exec(t)) && c.spiritBoost && c.spiritBoost >= 1) {
+    const filter = described(m[1]);
+    return filter && (filter.type === "UNISON" || /\bunison\b/.test(m[1])) ? { kind: "count", sel: { side: "you", area: "unison", filter }, atLeast: 1 } : null;
+  }
+  if ((m = /^if that card has (\d+) power or (less|more)$/.exec(t)) && c.attacksBattleCard && !c.last && !(c.lastTarget && !("sel" in c.lastTarget && c.lastTarget.sel.special === "self"))) {
+    const filter = described(`card with ${m[1]} power or ${m[2]}`);
+    if (!filter) return null;
+    c.lastTarget = { sel: { special: "guard" } };
+    return { kind: "count", sel: { special: "guard", filter }, atLeast: 1 };
+  }
   if ((m = /^if the ko'?d card (?:is|was) (?:an? )?(.+)$/.exec(t)) && c.koed) {
     const filter = described(m[1]);
     return filter ? { kind: "count", sel: { fromVar: c.koed, area: "drop", filter }, atLeast: 1 } : null;
@@ -6425,6 +6463,11 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const multiplied = counted && permanentReduction && ceiling ? capReduction(counted, Number(ceiling[1])) : counted;
       if (multiplied) {
         push(multiplied);
+        // Phrasing batch 9: what the counted clause chose is what "it"/"them" means next — "…, for every 2 non-black
+        // cards in your opponent's Warp, choose up to 1 of your opponent's Battle Cards … **and KO it**" (P-346, P-651,
+        // BT20-006). Left untracked, the pronoun fell back on this card and the skill KO'd its own card.
+        for (const o of multiplied) track(o, c);
+        c.lastOp = multiplied[multiplied.length - 1].op;
         i++;
         continue;
       }

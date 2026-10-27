@@ -183,6 +183,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
     (_, leader: string, description: string, color: string) => `${leader} is mono-${color} ${description}`);
+  // Phrasing batch 9: "for each of your <Pan> cards **and** cards with <GT> in their character names" (EX23-52) is one
+  // count of every card of either kind — the "and" joins two kinds of card, not two clauses. Said with "or", the
+  // count's filter reads it whole (`anyOf`), each card counted once.
+  text = text.replace(/\b(for (?:each|every) of your [^,.;:]+? cards?) and (cards? with [^,.;:]+? in (?:their|its) character names?)/gi, "$1 or $2");
   // Phrasing batch 4: "…from your deck, hand, or Drop, **and if you looked at your deck, shuffle your deck**" (BT22-079,
   // BT22-085, BT22-112, BT22-133) is the shuffle a search leaves behind, said with the condition first — the same as
   // "shuffle your deck if you looked through it", which the `shuffle` op already only does after a look at the deck.

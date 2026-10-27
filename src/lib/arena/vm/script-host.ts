@@ -100,6 +100,8 @@ export interface ScriptHost {
   markersOf(id: string): number;
   /** 3-9-2-1: face up in a closed area. */
   isFaceUp(id: string): boolean;
+  /** 3-1-4: how many times the card has changed area — a card that moved since is a new card. */
+  zoneEpoch(id: string): number;
   /** 1-10-2: Hidden Mode. */
   isHidden(id: string): boolean;
   /** Which Hidden Mode this card is in (`CardInstance.hiddenCount`), or null while it is revealed. */

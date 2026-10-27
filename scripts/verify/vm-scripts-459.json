@@ -752,10 +752,6 @@
         "cards": [
           "p2#32"
         ]
-      },
-      {
-        "type": "note",
-        "text": "lifeLeft is a moment no declaration names, so nothing answers to it"
       }
     ],
     "beats": [
@@ -972,10 +968,6 @@
           "p1#1",
           "p1#3"
         ]
-      },
-      {
-        "type": "note",
-        "text": "lifeLeft is a moment no declaration names, so nothing answers to it"
       }
     ],
     "beats": [
