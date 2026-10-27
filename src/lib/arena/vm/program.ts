@@ -192,10 +192,33 @@ function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmSt
   if (readingStatics) return [];
   const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
   if (scope?.standing) return scope.standing;
-  const standing = readStatics(ctx, game, state);
+  const standing = withoutBarredGrants(ctx, game, state, readStatics(ctx, game, state));
   if (scope) scope.standing = standing;
   return standing;
 }
+
+/**
+ * BT22-081 (prohibition batch 6): a [Permanent]'s keyword grant to a card a
+ * `gainSkills` rule in force is about is not gained. Read straight off the
+ * rules (standing and timed), the cards as printed, so it cannot recur.
+ */
+function withoutBarredGrants(ctx: EngineContext, game: GameDefinition, state: VmState, standing: VmStatic[]): VmStatic[] {
+  const rules = [
+    ...standing.filter((e) => e.kind === "forbid").map((e) => ({ target: e.target, f: e.value as Prohibition })),
+    ...state.effects.filter((e) => e.kind === "forbid" && e.forbid).map((e) => ({ target: e.target, f: e.forbid as Prohibition })),
+  ].filter(({ f }) => f.what === "gainSkills" && !f.unless);
+  if (!rules.length) return standing;
+  return standing.filter((e) => e.kind !== "keyword" || !grantBarred(ctx, game, state, e.target, rules));
+}
+
+function grantBarred(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, rules: { target: string; f: Prohibition }[]): boolean {
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  if (!def) return false;
+  const owner = findCard(state, id)?.owner;
+  const printed = attrsOf(def, game).attrs;
+  return rules.some(({ target, f }) => (!target || target === id) && (!f.cardsOf || f.cardsOf === owner) && (!f.filter || predicateOf(f.filter, game)(printed)));
+}
+
 
 function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
@@ -468,8 +491,13 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
       : refusedNegation
         ? mine.filter((e) => e.kind !== "negateKeyword")
         : mine;
-    const layerTimed = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!keywordSkillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
-    const value = valueOf(game, base, name, name === "keywords" ? layerStatics.filter((e) => e.kind !== "keyword" || e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)) : layerStatics, layerTimed);
+    const layerTimed0 = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!keywordSkillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
+    // P-668 (prohibition batch 6): a reduction of this card's power by the
+    // skill of a player a rule in force names is not applied.
+    const shielded = name === "power" ? powerShield(ctx, game, state, id, standing) : null;
+    const layerTimed = shielded ? layerTimed0.filter((e) => !(e.kind === "power" && typeof e.value === "number" && e.value < 0 && shielded.has(e.master))) : layerTimed0;
+    const layerStatics0 = shielded ? layerStatics.filter((e) => !(e.kind === "power" && typeof e.value === "number" && e.value < 0 && shielded.has(e.master))) : layerStatics;
+    const value = valueOf(game, base, name, name === "keywords" ? layerStatics0.filter((e) => e.kind !== "keyword" || e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId)) : layerStatics0, layerTimed);
     if (value !== undefined) out[name] = value;
   }
   // #154: a keyword's `attrBonus` hook is a further layer, read after the
@@ -485,6 +513,33 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     if (typeof current === "number") out[fact.attr] = current + fact.delta;
   }
   return out;
+}
+
+/**
+ * P-668 (prohibition batch 6): the players whose skills may not reduce this
+ * card's power — every `powerReducedBySkill` rule in force, timed or standing,
+ * about the card's controller's cards of its printed type. Read straight off
+ * the rules (never through `forbids`, which reads `attrsNow`), so a rule with
+ * an escape is not read here; null when no rule protects the card.
+ */
+function powerShield(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, standing: readonly VmStatic[]): Set<PlayerId> | null {
+  const rules = [
+    ...standing.filter((e) => e.kind === "forbid").map((e) => ({ target: e.target, f: e.value as Prohibition })),
+    ...state.effects.filter((e) => e.kind === "forbid" && e.forbid).map((e) => ({ target: e.target, f: e.forbid as Prohibition })),
+  ].filter(({ f }) => f.what === "powerReducedBySkill" && !f.unless);
+  if (!rules.length) return null;
+  const def = ctx.defs[state.cards[id]?.cardId ?? ""];
+  if (!def) return null;
+  const controller = masterOf(game, state, id);
+  const type = baseType(def);
+  const out = new Set<PlayerId>();
+  for (const { target, f } of rules) {
+    if (target && target !== id) continue;
+    if (f.cardsOf && f.cardsOf !== controller) continue;
+    if (f.filter?.type && f.filter.type !== type) continue;
+    for (const p of ["p1", "p2"] as PlayerId[]) if (!f.player || f.player === p) out.add(p);
+  }
+  return out.size ? out : null;
 }
 
 /**
@@ -1066,7 +1121,7 @@ function escapeHolds(ctx: EngineContext, game: GameDefinition, state: VmState, f
   if (!f.unless) return false;
   const card = source && state.cards[source] ? source : opts.card && state.cards[opts.card] ? opts.card : "";
   const master = f.master ?? (card ? masterOf(game, state, card) : undefined) ?? opts.player ?? "p1";
-  return condHolds(ctx, game, state, { ops: [], ip: 0, vars: {}, card, master }, f.unless);
+  return condHolds(ctx, game, state, { ops: [], ip: 0, vars: { ...(f.unlessVars ?? {}) }, card, master }, f.unless);
 }
 
 /** Does this rule apply to what is being asked about? The legacy `matchesProhibition`, test for test. */
@@ -1076,7 +1131,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -1150,6 +1205,22 @@ function ruleApplies(
   // "You may not activate [EX-Evolve]" (BT4-003): only a line of that keyword.
   // "Evolve" is every [Evolve] skill, its variants included (22-5-2-2).
   if (f.keywordSkill && !(opts.keyword === f.keywordSkill || (f.keywordSkill === "Evolve" && /^(?:EX-|Xeno-)?Evolve$/.test(opts.keyword ?? "")))) return false;
+  // BT22-113: "you can't place more than 1 card with the same character name
+  // under this card" — only a card sharing a character name with one already
+  // under the host. Asked without the card being placed, it does not apply.
+  if (f.sameCharacterUnder) {
+    if (!opts.moving || !opts.card || !state.cards[opts.moving] || !state.cards[opts.card]) return false;
+    const names = (id: string): string[] => { const v = attrsNow(ctx, game, state, id).characters; return Array.isArray(v) ? v.map((n) => String(n).toLowerCase()) : []; };
+    const placing = names(opts.moving);
+    if (!state.cards[opts.card].under.some((id) => id !== opts.moving && names(id).some((n) => placing.includes(n)))) return false;
+  }
+  // "…can only be flipped face up by skills on mono-yellow cards" (BT12-086):
+  // a skill of a card the description fits is let through.
+  if (f.exceptByFilter && opts.source && state.cards[opts.source] && predicateOf(f.exceptByFilter, game)(attrsNow(ctx, game, state, opts.source))) return false;
+  // "…can't play any cards other than red <Trunks: Future> cards" (BT23-005),
+  // "…can only play mono-blue <Zamasu> or mono-blue <Goku Black> cards"
+  // (P-485): a card the description fits is let through.
+  if (f.exceptFilter && opts.card && state.cards[opts.card] && predicateOf(f.exceptFilter, game)(attrsNow(ctx, game, state, opts.card))) return false;
   // "…other than the card they attacked with" (BT8-089): the cards let through.
   if (f.exceptCards && opts.card && f.exceptCards.includes(opts.card)) return false;
   // "Battle Cards with energy costs greater than their current energy"
@@ -1197,6 +1268,10 @@ function ruleApplies(
       } else if (!predicateOf(f.filter, game)(attrs)) return false;
     }
     if (f.name && nameShowing(ctx, state, opts.card) !== f.name) return false;
+    // BT12-086 (prohibition batch 6): "face-up cards in your life" — face up is
+    // this copy's, in its area (3-9-2-1), which the card predicate leaves to
+    // the selector; asked here of the card itself.
+    if (f.filter?.faceUp && !state.cards[opts.card].faceUp) return false;
   }
   return !escapeHolds(ctx, game, state, f, opts, rule.source);
 }
@@ -1216,7 +1291,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1234,7 +1309,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1358,7 +1433,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1738,6 +1813,9 @@ export function countSelected(ctx: EngineContext, game: GameDefinition, state: V
  * own successful play; a named variant ("Union-Potara") only that one. No
  * entry answers nothing.
  */
+/** The `play … using:` of an evolution of any kind (22-5-2-2). */
+const EVOLVE_PLAY = /^(?:EX-|Xeno-)?Evolve$/;
+
 export function unionEntryMatches(what: string, using: string | undefined): boolean {
   if (!using?.startsWith("Union-")) return false;
   return what === "Union" || what === using;
@@ -1809,6 +1887,14 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
         // ("when your <X> card is played by a [Union] skill", #930).
         if (c.sel.special === "subject" && !c.sel.filter && union(frame.subjectEnteredUsing)) return true;
         return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
+      }
+      // EX04-04 (prohibition batch 6): "if you played this card with
+      // [evolve]" — the copy's lasting memory of entering by an evolution of
+      // any kind (22-5-2-2), as [Union]'s is.
+      if (c.what === "Evolve") {
+        const evolved = (using: string | undefined) => !!using && EVOLVE_PLAY.test(using);
+        if (c.sel.special === "self" && evolved(frame.selfEnteredUsing)) return true;
+        return resolveSelector(ctx, game, state, frame, c.sel).some((id) => evolved(state.cards[id]?.enteredUsing));
       }
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
     }

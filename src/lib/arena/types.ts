@@ -388,7 +388,45 @@ export type ForbiddenAction =
    * (P-676): a skill taking markers off the card (13-5), asked of the card
    * with the skill's controller as `player`.
    */
-  | "removeMarkers";
+  | "removeMarkers"
+  /**
+   * "You can't flip your Leader Card to its front (back) for the turn"
+   * (BT12-001, BT15-091): a skill turning that player's Leader over (22-2-4)
+   * that way does not, and [Awaken] / [Wish] — a flip to the back — are not
+   * offered while the back is forbidden. Asked of the Leader with the flipping
+   * skill's controller as `player`.
+   */
+  | "flipLeaderFront"
+  | "flipLeaderBack"
+  /**
+   * "The opponent cannot draw cards when their Leader Card activates
+   * [Awaken]. (They still can activate [Awaken])" (P-017): the draw an
+   * [Awaken] line's effect makes does not happen for that player; the
+   * [Awaken] itself does. Asked by the `draw` op of an [Awaken]'s effect.
+   */
+  | "drawByAwaken"
+  /**
+   * "Cards in your life can only be flipped face up by skills on mono-yellow
+   * cards" (BT12-086): a skill turning a Life card face up (3-9-2-1), asked of
+   * the Life card with the skill's card as `source`; `exceptByFilter` names
+   * the skills let through.
+   */
+  | "flipLifeFaceUp"
+  /**
+   * "The power of your Battle Cards and Unisons can't be reduced by your
+   * opponent's skills" (P-668): a negative power change whose source is a
+   * card of `player` — a timed effect or a [Permanent] — is not applied to
+   * the cards the rule is about (`cardsOf`, `filter.type`). Read where power
+   * is layered (`attrsNow`), off the rules in force, card type as printed.
+   */
+  | "powerReducedBySkill"
+  /**
+   * "Your originally skill-less Battle Cards can't gain skills for the game"
+   * (BT22-081): a keyword or a skill given to such a card — by a skill's grant
+   * or by a [Permanent] — is not gained (the official Q&A: the card may still
+   * be chosen, and gains nothing). The cards are read as printed.
+   */
+  | "gainSkills";
 
 export interface Prohibition {
   what: ForbiddenAction;
@@ -422,6 +460,12 @@ export interface Prohibition {
    * chair — not from the chair of whoever is trying to act.
    */
   master?: PlayerId;
+  /**
+   * The cards an escape names by a skill's choice, kept as the rule was made
+   * (prohibition batch 6, BT8-044's "as long as the chosen card is in Rest
+   * Mode"): the escape is asked with these bound.
+   */
+  unlessVars?: Record<string, string[]>;
   /** Whose action is forbidden. Absent means either player's. */
   player?: PlayerId;
   /** Which cards it is about. Absent means any card. */
@@ -449,7 +493,7 @@ export interface Prohibition {
    * their owner's hands**" (EX23-05). Matched against where the card is when
    * the action is asked about; a card the rule cannot place is not its.
    */
-  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
+  fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
   /** With `fromArea`: only that area of the acting player's own — "from **your** Drop Area to your Warp" (BT16-001). */
   fromOwnArea?: boolean;
   /** Cards with this exact name — "you can't play copies of this card". */
@@ -568,6 +612,29 @@ export interface Prohibition {
    * attacking card of that moment.
    */
   exceptCards?: string[];
+  /**
+   * `placeUnder` only (BT22-113, prohibition batch 6): "you can't place more
+   * than 1 card with the same character name under this card" — a card is
+   * kept out only when one with a character name it shares is under the host
+   * already. Asked with the card being placed (`moving` in the matchers'
+   * options); asked without it, the rule is read as not applying.
+   */
+  sameCharacterUnder?: boolean;
+  /**
+   * The cards the rule lets through, by description (prohibition batch 6):
+   * "you can't play any cards **other than red <Trunks: Future> cards**"
+   * (BT23-005), "…can only play mono-blue <Zamasu> or mono-blue <Goku Black>
+   * cards" (P-485). Asked of the card the rule is about; a card it cannot
+   * read is not let through.
+   */
+  exceptFilter?: CardFilter;
+  /**
+   * The skills the rule lets through, by the card whose skill it is
+   * (prohibition batch 6): "…can only be flipped face up **by skills on
+   * mono-yellow cards**" (BT12-086). Asked of `source`; an action no skill
+   * takes is not let through.
+   */
+  exceptByFilter?: CardFilter;
 }
 
 /** The four [Counter] kinds of 22-10-2-1, as a `forbid` names one. */
@@ -959,6 +1026,10 @@ export type Trigger =
   | "opponentAttacks"
   /** BT8-089: any player's Battle Card attacks (8-1-1), watched by every player's cards in play. The attacker is the `subject`. */
   | "battleCardAttacks"
+  /** BT15-091: any player places a [Field] Extra Card (or another card the subject condition names) in a Battle Area. The card placed is the `subject`. */
+  | "aPlayerPlacesInBattle"
+  /** BT15-091's back: any player's card leaves a Battle Area, for anywhere. The card that left is the `subject`. */
+  | "aPlayersCardLeftBattle"
   /** BT7-003: an opponent's skill made your energy Active on their turn. */
   | "opponentEnergyActiveBySkill"
   /** SD8-09: the opponent's skill made their own energy Active on their turn. */

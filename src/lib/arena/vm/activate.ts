@@ -96,7 +96,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -105,8 +105,8 @@ import type { VmState } from "./state";
 import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { masterOf, skillsShowing } from "./triggers";
 import { replacementChoices } from "./replace";
-import { canCombo } from "../text/cards";
-import { findCard } from "./zones";
+import { canCombo, coversColors } from "../text/cards";
+import { findCard, moveCard } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
@@ -555,7 +555,10 @@ export function activationRefusals(
   // own price is never paid for a play that cannot happen. A payable tax is
   // asked by the `play` op; declining it there is a failed play (22-5-7).
   const playTaxes = banned || playBanned ? [] : keywordPlayTaxes(ctx, game, state, player, card, sk.keyword);
-  const unpaidPlay = playTaxes.length ? unpaidActivationTaxAfter(ctx, game, state, player, card, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
+  // Owner ruling 26 Oct 2026 (the batch 5 follow-up): on the board the move's
+  // whole own price leaves — its energy and the cards it takes ([Union-Fusion]'s
+  // materials, [Over Realm]'s Drop Area), `unpaidKeywordPlayTax`.
+  const unpaidPlay = playTaxes.length ? unpaidKeywordPlayTax(ctx, game, state, player, card, sk, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
   if (unpaidPlay) before.push({ kind: "forbidden", by: unpaidPlay.by, until: unpaidPlay.until, unless: `you pay, each time: ${describeScript(unpaidPlay.ops).replace(/ other than this card\b/g, " other than the card being played")}` });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
@@ -867,6 +870,83 @@ export function unpaidActivationTaxAfter(ctx: EngineContext, game: GameDefinitio
   return unpaidActivationTax(ctx, game, copy, player, card, taxes);
 }
 
+/** Enough of the keyword's own payments to look through — a hand rarely holds more than a dozen cards, so this is never reached in play. */
+const KEYWORD_OUTLAYS_MAX = 128;
+
+/**
+ * Owner ruling of 26 Oct 2026, the batch 5 follow-up (20-14-1, 22-5-7): a
+ * keyword that plays its own card under a play tax is judged on the board its
+ * **whole** own price leaves — the energy (`energy`, rested first as in
+ * `unpaidActivationTaxAfter`), and the cards the keyword itself takes
+ * (`keywordOutlays`): [Revive]'s colour cards and [Union-Fusion]'s two
+ * materials out of the hand, [Over Realm]'s Drop Area into the Warp. A tax
+ * one of those payments still leaves payable is payable — the player picks
+ * the payment — and only when every way of paying the keyword leaves it
+ * unpayable is the keyword refused, naming that tax. A keyword with nothing
+ * of its own to pay but energy is `unpaidActivationTaxAfter`.
+ */
+export function unpaidKeywordPlayTax(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skill: Skill, taxes: TaxInForce[], energy: number): TaxInForce | null {
+  if (!taxes.length) return null;
+  const board = structuredClone(state);
+  for (const id of activeEnergy(game, board, player).slice(0, energy)) board.cards[id].mode = "rest";
+  const outlays = keywordOutlays(ctx, game, board, player, card, skill);
+  if (!outlays?.length) return unpaidActivationTax(ctx, game, board, player, card, taxes);
+  let first: TaxInForce | null = null;
+  for (const outlay of outlays.slice(0, KEYWORD_OUTLAYS_MAX)) {
+    const after = structuredClone(board);
+    for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
+    const unpaid = unpaidActivationTax(ctx, game, after, player, card, taxes);
+    if (!unpaid) return null;
+    first ??= unpaid;
+  }
+  return first;
+}
+
+/**
+ * The ways a keyword that plays its own card can pay what it takes besides
+ * energy, each as the moves it makes (`unpaidKeywordPlayTax`). `null` is a
+ * keyword that takes nothing else ([Evolve], [Arrival], [Union-Potara]: its
+ * materials stay in play, under the card), or a payment this reading does not
+ * model — [Successor]'s Battle Cards, a [Union-Fusion] widened to other areas
+ * by a [Permanent] — which is then judged on the energy alone, as before.
+ * An empty list is a keyword that cannot be paid at all; its own `REFUSE`
+ * says so.
+ */
+function keywordOutlays(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skill: Skill): { id: string; to: string }[][] | null {
+  const kw = skill.keyword as { name?: string; variant?: string; colors?: Color[] } | undefined;
+  if (!kw?.name) return null;
+  const hand = zone(state, player, ACTIVATION_ZONES.hand).filter((id) => id !== card);
+  const toDrop = (ids: string[]) => ids.map((id) => ({ id, to: ACTIVATION_ZONES.drop as string }));
+  // 22-34-3: [Revive] drops up to two hand cards whose original colours cover both it names.
+  if (kw.name === "Revive") {
+    const colors = kw.colors ?? [];
+    if (!colors.length) return null;
+    const original = (id: string): string[] => { const v = attrsNow(ctx, game, state, id).originalColors; return Array.isArray(v) ? v.map(String) : []; };
+    const useful = hand.filter((id) => original(id).some((c) => (colors as string[]).includes(c)));
+    const out: string[][] = [];
+    for (const [i, a] of useful.entries()) {
+      if (coversColors([original(a)], colors)) out.push([a]);
+      for (const b of useful.slice(i + 1)) if (coversColors([original(a), original(b)], colors)) out.push([a, b]);
+    }
+    return out.map(toDrop);
+  }
+  // 22-15: [Over Realm] sends the whole Drop Area to the Warp as its cost.
+  if (kw.name === "Over Realm") return [zone(state, player, ACTIVATION_ZONES.drop).map((id) => ({ id, to: ACTIVATION_ZONES.overRealmWarp as string }))];
+  // 22-13-4-2: [Union-Fusion] drops one hand card per named character, of one printed power.
+  if (kw.name === "Union" && kw.variant === "Fusion") {
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player, skillIndex: skill.index };
+    const host = vmHost(ctx, game, state, []);
+    if ((["unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom"] as const).some((what) => host.condHolds(frame, { kind: "permits", what }))) return null;
+    const sel: Selector = { side: "you", area: "hand", notSelf: "card" };
+    const out: string[][] = [];
+    for (const a of namedCandidates(ctx, game, state, frame, sel, [])) {
+      for (const b of namedCandidates(ctx, game, state, frame, sel, [a])) if (b !== a && !out.some((p) => p.includes(a) && p.includes(b))) out.push([a, b]);
+    }
+    return out.map(toDrop);
+  }
+  return null;
+}
+
 /**
  * #677: where an activation's 20-14 prices are charged — a frame with no
  * program of its own, put in front of what it guards (the activation's own
@@ -1014,7 +1094,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -1172,7 +1252,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
     if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
-    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to) && !dropToWarpForbidden(id, movement.to));
+    return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to, undefined, id) && !dropToWarpForbidden(id, movement.to));
   };
   // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
   // card, so a later choice of the same price can no longer pick it.

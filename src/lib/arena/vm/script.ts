@@ -451,7 +451,7 @@ export type Cond =
    * played by a [Union] skill" (BT22-033, BT25-036 back, P-682) — it is the
    * same gate about the played card (`unionPlayedGate`).
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" }
+  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" | "Evolve" }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
@@ -898,7 +898,8 @@ export type Op =
    */
   | { op: "comboFrom"; target: Ref; negated?: boolean }
   /** "You may flip this card over" — a Leader awakens by a skill other than its [Awaken] (22-2-4). */
-  | { op: "flip"; target: Ref }
+  /** 22-2-4: turn a Leader over — `to` "back" or "front" only that way, absent either way ("flip this card over" on the awakened side turns it back to its front, BT12-001). */
+  | { op: "flip"; target: Ref; to?: "front" | "back" }
   /**
    * "Flip up to 1 card in your life face up" (3-9-2-1). The Life Area is
    * secret; a card turned face up in it is treated as being in an open area,
@@ -1198,7 +1199,7 @@ export type Op =
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
-      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any";
+      fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
       bySkill?: boolean;
@@ -1231,6 +1232,12 @@ export type Op =
       costVsEnergy?: "above" | "atLeast";
       /** "You may not activate [EX-Evolve]" (`Prohibition.keywordSkill`). */
       keywordSkill?: string;
+      /** BT22-113: one card per character name under the host (`Prohibition.sameCharacterUnder`). */
+      sameCharacterUnder?: true;
+      /** BT23-005, P-485: the cards the rule lets through, by description (`Prohibition.exceptFilter`). */
+      exceptFilter?: CardFilter;
+      /** BT12-086: the skills let through, by their card (`Prohibition.exceptByFilter`). */
+      exceptByFilter?: CardFilter;
       /** "…other than the card they attacked with" (`Prohibition.exceptCards`), resolved as the rule is put in force. */
       exceptCards?: Ref;
     }
@@ -1899,7 +1906,7 @@ function defers(r: ReplacementResult | null | undefined): boolean {
  * to take it from, a move or KO of cards that are not there.
  */
 /** Steps whose effect is a recorded change of the game (a move, a draw, a KO, a play, a payment of life). */
-const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo"]);
+const ACTING_OPS = new Set(["draw", "moveTo", "ko", "play", "discard", "mill", "damage", "addLife", "lifeDownTo", "flip"]);
 /** Steps that decide or look but change nothing on their own. */
 /** The Hidden Modes this program's own switches made, for a later `sameHiding` reveal (BT28-121). */
 const HIDDEN_HERE = "hiddenHere";
@@ -1911,6 +1918,22 @@ const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
  * else that matters (a power change, a rest or a grant has no count, so a
  * block with those keeps the answer given).
  */
+/**
+ * Prohibition batch 6 (BT8-044's back): an escape that names a card the skill
+ * chose — "…as long as **the chosen card** is in Rest Mode, your opponent's
+ * cards can't attack Leader Cards" — keeps what that choice bound when the rule
+ * is made, since the escape is asked long after the skill has resolved.
+ */
+function escapeVars(cond: Cond, frame: ScriptFrame): { unlessVars?: Record<string, string[]> } {
+  const names = new Set<string>();
+  JSON.stringify(cond, (k, v) => {
+    if ((k === "fromVar" || k === "var") && typeof v === "string") names.add(v);
+    return v;
+  });
+  const kept = Object.fromEntries([...names].filter((n) => frame.vars[n]).map((n) => [n, [...frame.vars[n]]]));
+  return Object.keys(kept).length ? { unlessVars: kept } : {};
+}
+
 export function mayBlockWitnessable(ops: Op[]): boolean {
   let acting = false;
   const walk = (list: Op[]): boolean => {
@@ -2092,6 +2115,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "draw":
         for (const p of sideOf(master, op.side)) {
+          // P-017 (prohibition batch 6): "the opponent cannot draw cards when
+          // their Leader Card activates [Awaken]" — an [Awaken]'s own draw
+          // does not happen; the [Awaken] does.
+          if (frame.viaKeyword === "Awaken" && h.forbids("drawByAwaken", { player: p, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`${h.nameOf(frame.card)}: no card is drawn — a rule forbids drawing with [Awaken]`);
+            continue;
+          }
           const before = h.zone(p, "hand").length;
           h.draw(p, h.amount(frame, op.n));
           // "If you did not draw a card with this skill" (20-16).
@@ -2760,7 +2790,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // owner's deck by your opponent's skills" (P-672) — and a card in a
           // hand is asked too ("cards in your hand can't be returned to your
           // deck by your opponent's skills", DB2-156): `fromArea: hand`.
-          const leaving = h.areaOf(id);
+          // Prohibition batch 6: a card under another leaves "under" it —
+          // "this card can't be removed from under your Leader by a skill other
+          // than this card's skills" (BT21-012, BT21-052: `fromArea: under`).
+          const leaving = h.areaOf(id) ?? (h.hostOf(id) ? "under" : null);
           // "Your opponent can't add cards from their deck to their hand using
           // non-Leader Card skills" (DB3-092, BT9-077): a card in a deck too,
           // which only a rule naming the deck (`fromArea: deck`) is about.
@@ -2783,7 +2816,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (op.to === "under") {
             // 20-14: "you can't place cards under this card, except with this
             // card's skill" (BT25-008, BT7-022) — asked of the host.
-            if (host && h.forbids("placeUnder", { card: host, player: master, ...(frame.card ? { source: frame.card } : {}) })) {
+            if (host && h.forbids("placeUnder", { card: host, player: master, moving: id, ...(frame.card ? { source: frame.card } : {}) })) {
               if (frame.saveVarsAs) frame.priceUnpaid ??= `cards can't be placed under ${h.nameOf(host)}`;
               frame.moveLoop.index++;
               continue;
@@ -3039,8 +3072,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "flip":
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.isFlipped(id) || !h.hasBack(id) || h.areaOf(id) !== "leader") continue;
-          h.flip(id);
+          if (!h.hasBack(id) || h.areaOf(id) !== "leader") continue;
+          // "Flip this card over" turns the Leader whichever side it shows;
+          // "to its back" / "to its front" only that way (22-2-4).
+          const toBack = op.to === undefined ? !h.isFlipped(id) : op.to === "back";
+          if (h.isFlipped(id) === toBack) continue;
+          // 20-14, BT12-001, BT15-091: "you can't flip your Leader Card to its
+          // front (back) for the turn" — the flip does not happen, and "if you
+          // do" after it is false (`acted`).
+          if (h.forbids(toBack ? "flipLeaderBack" : "flipLeaderFront", { player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`${h.nameOf(id)} can't be flipped to its ${toBack ? "back" : "front"}`);
+            continue;
+          }
+          h.flip(id, toBack);
+          frame.acted = (frame.acted ?? 0) + 1;
         }
         break;
 
@@ -3048,6 +3093,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const up = op.faceUp ?? true;
         for (const id of h.resolveRef(frame, op.target)) {
           if (h.isFaceUp(id) === up) continue;
+          // BT12-086 (prohibition batch 6): "Cards in your life can only be
+          // flipped face up by skills on mono-yellow cards".
+          if (up && h.areaOf(id) === "life" && h.forbids("flipLifeFaceUp", { player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}) })) {
+            h.note(`a card in a life can't be flipped face up by ${h.nameOf(frame.card)}'s skill`);
+            continue;
+          }
           h.setFaceUp(id, up);
           // 3-9-2-1: a face-up card is open to both players, so naming it leaks nothing.
           h.note(`${h.nameOf(id)} is turned face ${up ? "up" : "down"}`);
@@ -3166,7 +3217,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "grant":
-        for (const id of h.resolveRef(frame, op.target)) h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) {
+          // BT22-081 (prohibition batch 6): a card that can't gain skills gains nothing.
+          if (h.forbids("gainSkills", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) })) continue;
+          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "keyword", value: op.keyword, until: op.until });
+        }
         break;
 
       case "copySkills": {
@@ -3214,7 +3269,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
         if (!picked.length) break;
-        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } });
+        // BT22-081 (prohibition batch 6): a card that can't gain skills copies none.
+        const targets = h.resolveRef(frame, op.target ?? { sel: { special: "self" } }).filter((id) => !h.forbids("gainSkills", { card: id, player: master, ...(frame.card ? { source: frame.card } : {}) }));
         for (const id of targets)
           for (const src of new Set(picked.map((x) => x.card))) {
             const mine = picked.filter((x) => x.card === src);
@@ -3316,7 +3372,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3336,7 +3392,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
             ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),
             ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}),
-            ...(op.unless ? { unless: op.unless, master: frame.master } : {}),
+            ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}),
             ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}),
             ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}),
             ...(op.extraCardActivation ? { extraCardActivation: true } : {}),
@@ -3345,6 +3401,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}),
             ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}),
             ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}),
+            ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}),
+            ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}),
+            ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}),
             player: players[0],
             filter: op.filter,
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,

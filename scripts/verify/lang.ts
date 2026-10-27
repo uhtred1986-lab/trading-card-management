@@ -276,7 +276,7 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
     tripCond(played, "playedUsing");
     assert.equal(printCond(played), 'playedUsing(sel: [self], what: "Over Realm")');
     assert.equal(describeScript([{ op: "if", cond: played, then: [{ op: "draw", n: 1 }] }]), "if this card was played with [Over Realm] this turn: draw 1");
-    assert.equal(validateRule(ruleOf([{ op: "draw", n: 1 }], { trigger: ["attacks"], cond: { ...played, what: "Evolve" } as unknown as Cond }), "auto")?.field !== undefined, true, "only [Over Realm] is a keyword the play remembers");
+    assert.equal(validateRule(ruleOf([{ op: "draw", n: 1 }], { trigger: ["attacks"], cond: { ...played, what: "Revive" } as unknown as Cond }), "auto")?.field !== undefined, true, "[Revive] is no keyword the play remembers");
     tripOps([{ op: "play", target: { sel: { special: "self" } }, counterWindow: true, using: "Over Realm" }], "play … using");
     tripCond({ kind: "playedUsing", sel: { side: "you", area: "battle" }, what: "Over Realm" }, "playedUsing over a selector");
   }

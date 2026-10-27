@@ -1338,7 +1338,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
         {
           op: "if",
           cond: { kind: "count", sel: { special: "subject", filter: blueFilter }, atLeast: 1 },
-          then: [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }, { op: "flip", target: { sel: { special: "self" } } }],
+          then: [{ op: "draw", n: 2 }, { op: "lifeDownTo", n: 6 }, { op: "flip", target: { sel: { special: "self" } }, to: "back" }],
         },
       ],
     },
