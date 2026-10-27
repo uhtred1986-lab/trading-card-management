@@ -745,7 +745,7 @@ export interface Permission {
    * EX25-02), "…even if you have 5 or more life" (BT1-051, BT7-069): the target Leader's [Awaken] is offered with its
    * printed life ceiling raised to `n` — 99, no ceiling, for "N or more life". Its other conditions still hold.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -939,7 +939,8 @@ export interface ContinuousEffect {
  * point the flow already passes through, so nothing new has to be invented to
  * fire them: the drain happens inside that step.
  */
-export type DelayTiming = "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd";
+/** Phrasing batch 8: `damageStepEnd`, "at the end of the Damage Step for that battle" (BT24-108, BT23-128) — the battle's own, dropped when it ends. */
+export type DelayTiming = "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd" | "damageStepEnd";
 
 /**
  * Which turn the timing has to come round on. "thisTurn" is the common case —
@@ -1108,6 +1109,12 @@ export type Trigger =
   | "eitherCardPlayed"
   /** Phrasing batch 6: "When one of your cards deals damage to your opponent" (BT9-104): battle damage, the attacker the subject. */
   | "yourCardDealtDamage"
+  /** Phrasing batch 8: "When you deal damage to your opponent by attacking with a blue card" (BT30-017): battle damage only, the attacker the subject. */
+  | "yourCardDealtBattleDamage"
+  /** Phrasing batch 8: "When this card deals damage by attacking" (BT13-005): battle damage only. */
+  | "dealtBattleDamage"
+  /** Phrasing batch 8: "When you take damage from an opponent's attack" (BT21-071): battle damage only, the attacker the subject. */
+  | "youTookBattleDamage"
   /** Phrasing batch 7: "When a Battle Card that is in your opponent's Battle Area and whose owner is your opponent is KO'd by your red card's attack or skill" (BT28-001b): the card of yours that KO'd it is the subject. */
   | "yourCardKos"
   /** Phrasing batch 7: "When a <Pan> card or a card with <GT> in its character name—both green and without <Son Goku: GT>—is placed from your Battle Area in your Drop" (BT20-054b): another card of yours, any cause; it is the subject. */

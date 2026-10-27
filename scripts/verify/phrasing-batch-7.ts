@@ -58,7 +58,6 @@ function record(text: string, what: string, o: Partial<CardDef> = {}, index?: nu
   assert.deepEqual(plain(round.value), plain(rule), `${what}: …unchanged`);
   return roundtrip(rec);
 }
-const unreadOf = (text: string, index = 0) => skillRecords(card("U", { skill: text })).find((r) => r.skillIndex === index)!.unread;
 const flat = (c: Cond | null | undefined): Cond[] => (!c ? [] : c.kind === "all" || c.kind === "any" ? c.conds.flatMap(flat) : [c]);
 const opsDeep = (ops: Op[]): Op[] => ops.flatMap((o) => [o, ...(o.op === "if" ? [...opsDeep(o.then), ...opsDeep(o.else ?? [])] : o.op === "may" || o.op === "delay" ? opsDeep(o.ops) : o.op === "chooseMode" ? o.modes.flatMap((m) => opsDeep(m.ops)) : [])]);
 const condsDeep = (rec: Rec): Cond[] => [...flat(rec.cond ?? rec.cost?.condition), ...opsDeep(rec.ops).flatMap((o) => (o.op === "if" ? flat(o.cond) : []))];
@@ -190,8 +189,7 @@ for (const [text, what] of [
   assert.deepEqual(rec.trigger, ["played"], "C: BT10-058 answers its own activation");
   records++;
 }
-// Left on purpose: a printed ceiling (P-464) — no amount says one.
-assert.ok(unreadOf("[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)").length > 0, "C: P-464 stays unread");
+// (Phrasing batch 8 reads P-464's printed ceiling — `capped` — `phrasing-batch-8.ts`.)
 
 // D. "more life than your opponent" is strict.
 {

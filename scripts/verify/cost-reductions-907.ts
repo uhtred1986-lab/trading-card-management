@@ -173,13 +173,12 @@ const ops = (text: string): CostOp[] => {
   // Extras in your Battle Area and/or Drop" (P-430) reads, proved in the VM by `phrasing-batch-4.ts`.)
   const per = one("[Permanent] If your Leader is a green <Son Goku: GT> card, for each green <Son Goku: GT> card in your Warp, reduce the energy cost of this card in your hand by 1.");
   assert.deepEqual(per.unsupported, []);
-  // (Phrasing batch 6: the markers on Unison Cards in play, both players', are read — `phrasing-batch-6.ts`; a printed
-  // ceiling is still no amount.)
-  for (const text of [
-    "[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)",
-  ]) {
-    const s = one(text);
-    assert.ok(s.unsupported.length > 0 && describeScript(s.ops, { permanent: true }) === "", `unread, never read flat: ${text.slice(0, 70)}`);
+  // (Phrasing batch 6: the markers on Unison Cards in play, both players', are read — `phrasing-batch-6.ts`.)
+  // Phrasing batch 8: a printed ceiling is read as the count capped there (`capped`, P-464), never flat.
+  {
+    const s = one("[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)");
+    const cut = s.ops[0];
+    assert.ok(s.unsupported.length === 0 && cut?.op === "costReduction" && typeof cut.amount === "object" && "capped" in cut.amount && cut.amount.capped[1] === 2, "P-464: capped at 2, never read flat");
   }
 }
 

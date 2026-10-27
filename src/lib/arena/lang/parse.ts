@@ -564,6 +564,12 @@ class Parser {
         left = { plus: [left, this.number()] };
         continue;
       }
+      // Phrasing batch 8: `atMost n`, a printed ceiling ("(Up to 2)", P-464).
+      if (this.isKw("atMost")) {
+        this.i++;
+        left = { capped: [left, this.number()] };
+        continue;
+      }
       return left;
     }
   }

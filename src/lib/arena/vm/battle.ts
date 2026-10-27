@@ -312,7 +312,21 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       const b = state.battle;
       if (!b) return;
+      // Phrasing batch 8: "At the end of the Damage Step for that battle, …" (BT24-108, BT23-128): the Damage Step (8-4)
+      // ran and is over, so what was written down for its end happens now, before 8-5 begins. A battle that ended
+      // early (8-1-6-1: a negated attack jumps here) had no Damage Step, and what waited for it never happens.
+      const damageStepRan = b.step === "damage";
       b.step = "battleEnd";
+      if (damageStepRan) {
+        const due = dueDelays(state, "damageStepEnd");
+        if (due.length) {
+          state.programs.push(...due);
+          const top = state.flow[state.flow.length - 1];
+          if (top) top.reask = true;
+          return;
+        }
+      }
+      state.delayed = state.delayed.filter((d) => d.at !== "damageStepEnd");
       if (!b.endCombo) {
         log(ev, { type: "battleStep", step: "battleEnd" });
         if (game.id === "dbs") b.endCombo = { chooserIndex: 0, stage: "choices", retainedComboPower: {} };
@@ -1812,7 +1826,8 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   if (state.damageTotals) state.damageTotals[defender] += taken.length;
   log(ev, { type: "damage", player: defender, amount: taken.length, critical: d.critical, cards: taken });
   const attacker = b.attacker;
-  fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source" } });
+  // Phrasing batch 8: `by: battle` tells it from a skill's damage (`MOMENT_OF`'s `by: skill`, `vm/host.ts`).
+  fire(ctx, game, state, { event: "damage", card: attacker, controller: masterOf(game, state, attacker), args: { role: "source", by: "battle" } });
   if (d.wins && !gameEndForbidden(ctx, game, state, defender, other(defender))) endGame(ctx, game, state, ev, other(defender), `[Victory Strike] — ${nameOf(ctx, state, attacker)} dealt damage`);
 }
 

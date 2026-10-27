@@ -755,18 +755,6 @@
       },
       {
         "type": "note",
-        "text": "dealtDamage is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "youTookDamage is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "opponentTookDamage is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
         "text": "lifeLeft is a moment no declaration names, so nothing answers to it"
       }
     ],
@@ -984,18 +972,6 @@
           "p1#1",
           "p1#3"
         ]
-      },
-      {
-        "type": "note",
-        "text": "dealtDamage is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "youTookDamage is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "opponentTookDamage is a moment no declaration names, so nothing answers to it"
       },
       {
         "type": "note",

@@ -330,7 +330,7 @@ COND is one of these (a field marked ? may be left out):
 ${CONDITIONS}
   "During your opponent's turn" is a CONDITION, {"kind":"isTurnPlayer","who":"opponent"} — not a duration. A
   duration says how long an effect this skill applies lasts; a condition says when the skill does anything at all.
-TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd"
+TIMING: "turnStart" | "mainStart" | "turnEnd" | "turnCleanup" | "battleEnd" | "damageStepEnd"
 SCOPE: "thisTurn" (default) | "nextTurn" | "yourNextTurn" | "opponentNextTurn"
 AREA: ${vocab.areas.map((a) => `"${a}"`).join(" | ")}
 DURATION: ${vocab.durations.map((d) => `"${d}"`).join(" | ")} — "nextTurn" lasts through the opponent's turn and ends as yours begins; "nextMain" lasts one phase longer, until the start of your next Main Phase; "whileSourceInPlay" lasts until the card that made it leaves the Battle Area.
