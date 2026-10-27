@@ -72,6 +72,10 @@ export interface Ctx {
    * BT28-121) is that card and no other. Absent when the price chose nothing.
    */
   priceChoice?: string;
+  /** Phrasing batch 9: the moment is "when this card attacks a Battle Card" — "that card" before anything is named is the card attacked (EX09-01). */
+  attacksBattleCard?: boolean;
+  /** Phrasing batch 9: a printed [Spirit Boost N] (N ≥ 1) on the line — markers this skill removed from your Unison (BT15-001b). */
+  spiritBoost?: number;
   /**
    * Every card the price *chose* ("then choose 1 of your red <Android 17> cards
    * and 1 of your red <Android 18> cards", BT23-007), by the names it binds —

@@ -601,6 +601,7 @@ function compileSkillText(skill: Skill): Script {
     raw: skill.effect,
     skillKind: skill.kind,
     xBound: priceX(skill) !== null,
+    ...(skill.spiritBoost ? { spiritBoost: skill.spiritBoost } : {}),
   };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
@@ -960,6 +961,7 @@ function compileSkillText(skill: Skill): Script {
       const guardFilter = tail ? filterFor(`${attacking[1]} card ${tail}`, null) : undefined;
       if (tail && (!guardFilter || !/^with\b/i.test(tail) || unreadFilterWords(tail, guardFilter).length)) return { ops: [], unsupported: [trigger, ...clauses] };
       triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
+      if (attacking[1].toLowerCase() === "battle") c.attacksBattleCard = true;
     }
     // "When your ≪Ginyu Force≫ card is played **by this card's skill**, it
     // gets +5000 power" (BT29-083, #1163): "this card's skill" is the means,

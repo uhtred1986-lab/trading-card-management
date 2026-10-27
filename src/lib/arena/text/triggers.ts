@@ -127,7 +127,15 @@ const DROP_FROM_Z_ENERGY = /^when this card is placed (?:in|into) (?:a|your|its 
  * opponent's skill" (DB2-174). The description becomes a condition on the subject (`subjectFilterOf`); one the filter
  * cannot read whole leaves the skill unread rather than firing for every card.
  */
+/** Phrasing batch 9: "When one of your <Son Goku: Xeno> or <Vegeta: Xeno> cards is used in a combo" (BT24-112) — `youCombo`, the card used the subject. */
+export const YOUR_CARD_USED_IN_COMBO = /^when (?:one of your|your) ((?!opponent)(?!this card)[^,]{1,120}?) (?:is|are) used in a combo(?:,|$)/;
 const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
+/**
+ * Phrasing batch 9: "When your black card with a [Union] skill or black Z-Unison **attacks or activates the [Blocker]
+ * skill**" (BT24-112 back): two moments of another card of yours, as "this card attacks or activates [Blocker]" is two of
+ * this card's — `yourCardAttacks`, and `yourCardBlockerUsed` (the blocker the subject).
+ */
+const YOUR_CARD_ATTACKS_OR_BLOCKS = /^when (?:your|one of your) ((?!opponent)(?!leader)(?!this card)[^,]{1,120}?) attacks,? or activates (?:its |the |an? )?\[blocker\](?: skill)?(?:,|$)/;
 const YOUR_CARD_REMOVED_BY_OPPONENT = /^when (?:your|one of your) ((?!opponent)[^,]{1,160}?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?(?:,|$)/;
 /**
  * Phrasing batch 6: "When this card is discarded from your hand by a [Union] skill" (BT11-079, BT19-052), "When this
@@ -158,6 +166,14 @@ export const YOUR_CARD_BATTLE_TO_DROP = /^when (?:an? |1 |one of your |your )((?
 const DEALT_BATTLE_DAMAGE = /when this card deals damage(?: to your opponent)? (?:by attacking|in (?:a|the) battle)\b/;
 export const YOUR_CARD_DEALT_BATTLE_DAMAGE = /^when you deal damage(?: to your opponent)? by attacking with (?:an? |1 |one of your |your )((?!this card\b)[^,]{1,120}?)(?:,|$)/;
 const YOU_TOOK_BATTLE_DAMAGE = /^when you (?:take|receive) damage from (?:an |your )?opponent'?s (?:attack|battle card'?s attack)(?:,|$)/;
+/**
+ * Phrasing batch 9 (owner's rulings of 27 Oct 2026): a bare "When you take damage" (BT12-086's wording) is any damage —
+ * a skill's and the battle's alike (1-13-2) — so it answers both moments; "When you take damage **from (one of) your
+ * opponent's (non-keyword) skill(s)**" (BT14-070, BT13-039, BT14-023, BT14-104) is never your own skill's damage to you
+ * (`youTookOpponentSkillDamage`).
+ */
+const YOU_TOOK_ANY_DAMAGE = /^when you (?:take|receive) damage(?:,|$)/;
+const YOU_TOOK_OPPONENT_SKILL_DAMAGE = /^when you (?:take|receive) damage from (?:an |your |one of your )?opponent'?s (?:non-keyword )?skills?(?:,|$)/;
 /** Phrasing batch 7: see `YOUR_CARD_BATTLE_TO_DROP` (BT20-054b) above, and the KO by one of yours below. */
 export const YOUR_CARD_KOS = /^when (?:a battle card that is in your opponent'?s battle area and whose owner is your opponent|(?:one of )?your opponent'?s battle cards?|an opponent'?s battle card) (?:is|are) ko'd by (?:one of )?your ((?!opponent)[^,]{1,80}?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)(?:,|$)/;
 /**
@@ -490,9 +506,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // skill" is satisfied by the moment itself.
     case "youTookDamage":
       // Phrasing batch 8: not the attack's damage ("…from an opponent's attack", BT21-071), `youTookBattleDamage`'s.
-      return /when you (?:take|receive) damage/.test(head) && !YOU_TOOK_BATTLE_DAMAGE.test(head);
+      return /when you (?:take|receive) damage/.test(head) && !YOU_TOOK_BATTLE_DAMAGE.test(head) && !YOU_TOOK_OPPONENT_SKILL_DAMAGE.test(head);
     case "youTookBattleDamage":
-      return YOU_TOOK_BATTLE_DAMAGE.test(head);
+      return YOU_TOOK_BATTLE_DAMAGE.test(head) || YOU_TOOK_ANY_DAMAGE.test(head);
+    case "youTookOpponentSkillDamage":
+      return YOU_TOOK_OPPONENT_SKILL_DAMAGE.test(head);
     case "opponentTookDamage":
       return /when your opponent (?:takes|receives) damage/.test(head);
     // 3-9: a life card leaving the Life Area, however it leaves.
@@ -539,7 +557,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "zEnergyToDrop":
       return DROP_FROM_Z_ENERGY.test(head);
     case "yourCardAttacks": {
-      const m = YOUR_CARD_ATTACKS.exec(head);
+      const m = YOUR_CARD_ATTACKS.exec(head) ?? YOUR_CARD_ATTACKS_OR_BLOCKS.exec(head);
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardBlockerUsed": {
+      const m = YOUR_CARD_ATTACKS_OR_BLOCKS.exec(head);
       return !!m && readableSubject(effect, m[1]);
     }
     case "yourCardRemovedByOpponent": {
@@ -887,6 +909,12 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Phrasing batch 3: "When you use **a red skill-less Battle Card with an energy cost of 2** in a combo" (BT14-001b):
       // the same moment, the card used described (the compiler reads the description as a condition on it).
       // Phrasing batch 5: "When you use **one of your** Red/Yellow multicolor ≪God≫ cards in a combo" (BT24-002, BT24-003).
+      // Phrasing batch 9: the passive — "When one of your <Son Goku: Xeno> or <Vegeta: Xeno> cards **is used in a combo**"
+      // (BT24-112), read when its description is read whole.
+      if (YOUR_CARD_USED_IN_COMBO.test(head)) {
+        const said = effect.unmask(YOUR_CARD_USED_IN_COMBO.exec(head)![1]);
+        return !/\bfrom\b|\busing\b|\bby\b/.test(said) && (!/ or /.test(said) || readsOr(said)) && !parseFilter(said).unreadable;
+      }
       return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1|one of your) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
     // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
     // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
