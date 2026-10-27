@@ -304,8 +304,9 @@ const playCard = (s: EngineState, id: string) => settle(pay(playG(s, { type: "pl
   const mixed = compile("[Permanent] Your yellow ≪Boujack Brigade≫ cards with energy costs of 2 or less other than this card gain [Barrier], and once per turn, this card can't be removed from a Battle Area by skills.");
   assert.deepEqual(mixed.unsupported, [], "P-638");
   assert.equal(find(mixed.ops, "replace")[0]?.bySide, undefined, "any skill");
-  // Left unread: a KO in battle is not a moment the replacement table has (BT17-139), and a count of uses (BT28-078b).
-  assert.ok(compile("[Permanent] Once per turn, if this card would be KO'd in battle, you may place 1 card from under this card in its owner's Drop Area instead.").unsupported.length > 0);
+  // A KO in battle (BT17-139) is read since delayed/replacement batch 1 (`by: koInBattle`, and the Damage Step now asks
+  // an optional replacement; proved in delayed-replacement-1.ts). Left unread: a count of uses (BT28-078b).
+  assert.deepEqual(compile("[Permanent] Once per turn, if this card would be KO'd in battle, you may place 1 card from under this card in its owner's Drop Area instead.").unsupported, []);
   assert.ok(compile("[Permanent] Once per turn, when you activate {Stop You Fiend!}'s skill from your hand, reduce the energy cost by {y}.").unsupported.length > 0);
 
   // In a game: the first removal by a skill in a turn fails, the second does not.

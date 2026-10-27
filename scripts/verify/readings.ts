@@ -566,7 +566,11 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
 {
   assert.equal(validateProgram([{ op: "replaceLeave", to: "deck", requestedTo: "hand" }]), true);
-  assert.equal(validateProgram([{ op: "replaceLeave", to: "deck", requestedTo: "drop" }]), false, "this macro only supports narrowing the requested hand destination; reject other areas instead of silently discarding them");
+  // Delayed/replacement batch 1: the Drop is the other requested destination a card prints ("When this card is placed in
+  // your Drop from your Battle Area or Combo Area, … instead", BT18-133; `causeMatches` compares it). Any other area is
+  // still refused rather than silently discarded.
+  assert.equal(validateProgram([{ op: "replaceLeave", to: "deck", requestedTo: "drop" }]), true);
+  assert.equal(validateProgram([{ op: "replaceLeave", to: "deck", requestedTo: "warp" }] as never), false, "this macro only supports narrowing the requested hand or Drop destination; reject other areas instead of silently discarding them");
 
   // BT29-040: an opponent Battle Card returned to hand by one
   // of your skills goes to the bottom of its owner's deck instead, but the
