@@ -682,6 +682,13 @@
           "nullable": false,
           "offCard": "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
           "type": "boolean"
+        },
+        {
+          "name": "ignoreOwnPermanent",
+          "required": false,
+          "nullable": false,
+          "offCard": "mechanism batch 4: \"play … from your Drop, ignoring its [permanent] skill\" (EX21-31; owner's ruling of 27 Oct 2026) - a prohibition the played card's own [Permanent] puts on playing it does not refuse this play; every other card's rule still does",
+          "type": "boolean"
         }
       ],
       "sentence": "play this card",

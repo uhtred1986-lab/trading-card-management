@@ -161,6 +161,9 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT16-098": [[/send\s+that\s+card\s+its\s+owner's\s+Warp/g, "send that card to its owner's Warp"]],
   "BT1-092": [[/\[Blocker\]\s+\]\s+\(/g, "[Blocker] ("]],
   "BT1-106": [[/negate\s+the\s+attack\.Afterwards/g, "negate the attack. Afterwards"]],
+  // Mechanism batch 4: the source runs the [Permanent] into the [Auto] after it with no line break, so the [Auto] was
+  // read as part of the cost reduction's sentence.
+  "BT3-026": [[/in\s+your\s+hand\s+by\s+2\.\s*\[Auto\]/g, "in your hand by 2.<br>[Auto]"]],
   "BT7-053": [[/look\s+at\s+up\s+7\s+cards/g, "look at up to 7 cards"]],
   // The generic energy cost printed as a bare number: the source lost the braces of the orb ({1}, {3}).
   "BT6-081": [[/\[Activate:\s+Main\]\s+3,\s+choose\s+1\s+\{Display/g, "[Activate: Main] {3}, choose 1 {Display"]],

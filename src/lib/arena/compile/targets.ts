@@ -231,6 +231,26 @@ export function colorCountSelector(counted: string): Selector | null | undefined
   if (new Set(areas).size !== areas.length) return null;
   return { ...places[0]!, ...(areas.length > 1 ? { areas } : {}), distinctColors: true };
 }
+/**
+ * Mechanism batch 4: counts over both players' boards, or over every card one player has in a mode, that
+ * `parseTarget` has no single description for.
+ *
+ * - "For each card your opponent has in Rest Mode" (BT17-148) and "the total number of cards in Rest Mode between
+ *   you and your opponent" (P-106, P-110, P-111): the cards a mode applies to — the Leader, Battle and Energy Areas
+ *   (the official Q&A on P-106: "the Leader Areas, Battle Areas, and Energy Areas").
+ * - "For each card in both players' Battle Areas and energy" (BT30-055): both sides, those areas.
+ */
+export function boardCount(counted: string): Selector | null {
+  const t = counted.trim().toLowerCase().replace(/[.,]$/, "");
+  let m = /^cards? (you|your opponent) (?:has|have) in (rest|active) mode$/.exec(t);
+  if (m) return { side: m[1] === "you" ? "you" : "opponent", area: "leader", areas: ["leader", "battle", "energy"], mode: m[2] as "rest" | "active", count: 99, upTo: false };
+  m = /^(?:the total number of )?cards in (rest|active) mode between you and your opponent$/.exec(t);
+  if (m) return { side: "both", area: "leader", areas: ["leader", "battle", "energy"], mode: m[1] as "rest" | "active", count: 99, upTo: false };
+  m = /^cards? in both players' battle areas( and (?:energy|energy areas))?$/.exec(t);
+  if (m) return { side: "both", area: "battle", ...(m[1] ? { areas: ["battle", "energy"] as ScriptArea[] } : {}), count: 99, upTo: false };
+  return null;
+}
+
 /** "Up to 1 (card) each of/from …": a count per area or per kind (see `parseTargetPhrase`). */
 export const EACH_COUNT = /\b\d+ (?:[a-z-]+ )*?(?:cards? )?each (?:of|from|in)\b/i;
 export const SUMMED_COUNT = /\b(?:costs?|power) (?:that |which )?adds? up to\b|\badds? up to (?:a total of )?\d+ or (?:less|more|fewer|greater)\b/i;

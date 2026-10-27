@@ -94,9 +94,9 @@ for (const [text, what] of [
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "negateSkills" || (o.op === "play" && o.negated)), "A2: …and never every skill (it read as that before)");
   records++;
 }
-// Phrasing batch 7 reads EB1-07's "has its keyword skills negated" (`phrasing-batch-7.ts`). Not read: BT31-002b's is a
-// [Permanent] no standing reader collects.
-assert.ok(unreadOf("[permanent] Negate the keyword skills of all your Battle Cards.").length > 0, "A2: BT31-002b stays unread");
+// Phrasing batch 7 reads EB1-07's "has its keyword skills negated" (`phrasing-batch-7.ts`); mechanism batch 4 reads BT31-002b's
+// [Permanent] with a standing reader (`mechanism-4.ts`).
+assert.deepEqual(unreadOf("[permanent] Negate the keyword skills of all your Battle Cards."), [], "A2: BT31-002b reads (mechanism batch 4)");
 
 // A3. BT26-015: "then shuffle your Drop" is nothing; the moment ("in your hand … discarded by one of your skills") is read.
 {

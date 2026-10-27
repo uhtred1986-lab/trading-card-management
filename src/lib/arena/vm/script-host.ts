@@ -135,7 +135,7 @@ export interface ScriptHost {
   /** Phrasing batch 8: does a permission of this kind stand on this card (`permit`, TB1-002's `ownDiscardOptional`)? Absent on a host that never asks. */
   permits?(what: "ownDiscardOptional", card: string): boolean;
   /** 0-2-5: is this action forbidden right now? */
-  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string; keyword?: string; moving?: string }): boolean;
+  forbids(what: ForbiddenAction, opts?: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; skillKind?: string; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean }): boolean;
   /**
    * 20-14-1: the prices in force on this action (`Prohibition.pay`), each a
    * program the acting player runs in their own frame — the rules `forbids`

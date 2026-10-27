@@ -284,7 +284,10 @@ export function powerReductionSources(state: VmState, id: string, standing: VmSt
  */
 const boardCounted = (a: Amount): boolean => typeof a === "object" && ("count" in a || "markers" in a || ("capped" in a && boardCounted(a.capped[0])));
 
-export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
+/** Mechanism batch 4: a standing `negateKeyword` naming every keyword at once (a [Permanent]'s "negate the keyword skills of …"). */
+export const KEYWORD_WILDCARD = "*";
+
+export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "negateSkillsOfKind", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
 export const DEFERRED_STATICS: Record<string, string> = {};
@@ -976,6 +979,19 @@ function collect(
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "negateKeyword", target: id, value: op.keyword });
       continue;
     }
+    // Mechanism batch 4 (9-1-5, 22-1-1): "[Permanent] Negate the keyword skills of all your Battle Cards" (BT31-002b).
+    // The keyword half is a standing negation of every keyword name — `KEYWORD_WILDCARD`, which the keyword readers
+    // (`valueOf`'s keywords layer, `keywordNegatedFor`) take as all of them, printed or granted; the [Counter] and
+    // [Activate] halves are a standing kind negation the activation gates read (`standingKindNegated`, `vm/program.ts`).
+    // Only in play, as every other negation a [Permanent] makes (9-1-3-1).
+    if (op.op === "negateSkillsOfKind") {
+      if (!inPlayNow) continue;
+      for (const id of targets(frame, op)) {
+        if (op.kind === "keyword") out.push({ source: frame.card, master: frame.master, kind: "negateKeyword", target: id, value: KEYWORD_WILDCARD as KeywordSkill["name"] });
+        else out.push({ source: frame.card, master: frame.master, kind: "negateSkillKind", target: id, value: op.kind as unknown as number });
+      }
+      continue;
+    }
     // 20-21: the price a card is bought at, standing rather than resolved —
     // "reduce the energy cost of your <Son Goku> cards in your hand by 1". It
     // reaches the price through the attribute layers `LAYER_KINDS` pairs it
@@ -1304,7 +1320,7 @@ export function valueOf(game: GameDefinition, attrs: Attrs, name: string, static
       ...statics.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
       ...timed.filter((e) => e.kind === "negateKeyword").map((e) => e.value as KeywordSkill["name"]),
     ]);
-    value = (value as readonly string[]).filter((keyword) => !negated.has(keyword as KeywordSkill["name"]));
+    value = negated.has(KEYWORD_WILDCARD as KeywordSkill["name"]) ? [] : (value as readonly string[]).filter((keyword) => !negated.has(keyword as KeywordSkill["name"]));
   }
   return value;
 }
