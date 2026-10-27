@@ -515,7 +515,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // and use up [Once per turn]. The compiled record is a lone IF on the
       // KO'd card's filter (`special: "subject"`), read here, never from names.
       // The filter is read from the KO'd card as it stands, as the IF would.
-      if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed") && match.subject && state.cards[match.subject]) {
+      // Phrasing batch 7: the same for "…is placed from your Battle Area in your Drop" (BT20-054b, `yourCardBattleToDrop`,
+      // the card as it left) and "…is KO'd by your red card's attack or skill" (BT28-001b, `yourCardKos`, the card that KO'd).
+      if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed" || match.trigger === "yourCardBattleToDrop" || match.trigger === "yourCardKos") && match.subject && state.cards[match.subject]) {
         const ops = showing.scripts.bySkill[sk.index]?.ops;
         const first = ops?.[0];
         if (ops?.length === 1 && first?.op === "if" && !first.else && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter

@@ -1081,6 +1081,10 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
   }
   // "your life is less than or equal to your opponent's" (BT15-067): the "life" after it left unsaid.
   if (/^your life is (?:less than or equal to|at or below|no more than) your opponent's$/.test(t)) return { cond: { kind: "lifeVsOpponent", atMost: true } };
+  // Phrasing batch 7: "if you have **more** life than your opponent" (BT1-058) is the strict comparison — not "at most
+  // theirs"; "less/fewer life than" is not "at least theirs".
+  if (/^you have more life than your opponent$|^your life is (?:greater|higher|more) than your opponent'?s(?: life)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "lifeVsOpponent", atMost: true } } };
+  if (/^you have (?:less|fewer) life than your opponent$|^your life is (?:less|lower|fewer) than your opponent'?s(?: life)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "lifeVsOpponent", atLeast: true } } };
   if ((m = /^this card is in (?:a|the|your) (combo area|z-energy)$/.exec(t))) {
     const area = m[1] === "combo area" ? "combo" : "zEnergy";
     return { cond: { kind: "count", sel: { special: "self", area, side: "you" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
