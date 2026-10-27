@@ -354,8 +354,14 @@ const LIST_WORD =
 
 /** A list item, with the "and"/"or"/"and/or" that may introduce the last one. */
 function listItem(seg: string): boolean {
-  return LIST_WORD.test(seg.trim().replace(/^(?:and\/or|and|or)\s+/i, ""));
+  if (LIST_WORD.test(seg.trim().replace(/^(?:and\/or|and|or)\s+/i, ""))) return true;
+  // Phrasing batch 6: a list of names — "If <Bergamo>, <Lavender>, and <Basil> are in play in your Battle Area"
+  // (TB1-048): an item that is a bare name, or the last one, introduced by "and"/"or", that starts with one.
+  const s = seg.trim();
+  return new RegExp(`^${LIST_NAME}(?: cards?)?$`).test(s) || new RegExp(`^(?:and\\/or|and|or)\\s+${LIST_NAME}`, "i").test(s);
 }
+/** One printed name: a <character>, a {card name} or a ≪trait≫. */
+const LIST_NAME = "(?:<[^<>]+>|\\{[^{}]+\\}|≪[^≪≫]+≫)";
 
 /**
  * The same trap one step wider: a comma inside a *list of anything* is not a
@@ -390,7 +396,10 @@ function andEndsAList(text: string, start: number, i: number): boolean {
       .split(/,\s*/)
       .filter((x) => x.trim())
       .pop() ?? "";
-  return run && listItem(last) && listItem(text.slice(i + 5, i + 60));
+  const after = text.slice(i + 5, i + 60);
+  // Phrasing batch 6: a list of names ends in one too ("<Bergamo>, <Lavender>, and <Basil> are in play", TB1-048).
+  const names = new RegExp(`^${LIST_NAME}(?: cards?)?$`).test(last.trim()) && new RegExp(`^${LIST_NAME}`).test(after.trim());
+  return run && listItem(last) && (listItem(after) || names);
 }
 
 /**

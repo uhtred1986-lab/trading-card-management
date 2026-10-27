@@ -741,8 +741,11 @@ export interface Permission {
    * be a Battle Card from under the granting card instead, one for one; the
    * cost's own description still applies and its energy is never affected
    * (owner-accepted default of 25 Oct 2026 on #930).
+   * `awakenLife` (phrasing batch 6): "you can activate your Leader's [Awaken] even if your life is at 6 or less" (P-500,
+   * EX25-02), "…even if you have 5 or more life" (BT1-051, BT7-069): the target Leader's [Awaken] is offered with its
+   * printed life ceiling raised to `n` — 99, no ceiling, for "N or more life". Its other conditions still hold.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -1079,7 +1082,32 @@ export type Trigger =
   | "droppedFromHandByYou"
   /** Phrasing batch 5: "When this card is sent from your Drop Area to your Warp by a skill" (BT12-130). */
   | "dropToWarpBySkill"
-  | "yourCardReturnedToHand"
+  /** Phrasing batch 6: "When this card is discarded from your hand by a [Union] skill" (BT11-079, BT19-052, P-683). */
+  | "droppedFromHandByUnion"
+  /** Phrasing batch 6: "…by a [Union-Fusion] skill", "…as a result of [Union-Fusion]" (P-246, SD6-02, BT18-085). */
+  | "droppedFromHandByFusion"
+  /** Phrasing batch 6: "When you activate [Union-Fusion]" (BT10-092b): the [Union] card is the subject. */
+  | "unionFusionActivated"
+  /** Phrasing batch 6: "When you activate [Union Absorb]" (BT30-044b), "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089). */
+  | "unionAbsorbUsed"
+  /** Phrasing batch 6: "When you activate an [Evolve] … skill" (BT14-094, BT17-002b): the evolving card is the subject. */
+  | "evolveActivated"
+  /** Phrasing batch 6: "When a card in a Battle Area is returned to its owner's hand by a skill" (BT12-029): either side's. */
+  | "battleCardReturnedToHand"
+  /** Phrasing batch 6: "When one of your opponent's Battle Cards is played by a skill" (BT21-105): any skill. */
+  | "opponentCardPlayedBySkill"
+  /** Phrasing batch 6: "When your energy is placed at the bottom of its owner's deck" (BT30-030). */
+  | "yourEnergyToDeck"
+  /** Phrasing batch 6: "When {Destined Conclusion Piccolo Jr.} is played from your hand" (TB2-045). */
+  | "yourCardPlayedFromHand"
+  /** Phrasing batch 6: "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
+  | "yourCardPlayedFromDrop"
+  /** Phrasing batch 6: "When one of your opponent's cards is added to their Z-Energy" (BT21-038). */
+  | "opponentCardToZEnergy"
+  /** Phrasing batch 6: "When your or your opponent's <Majin Buu> card is played" (BT28-100). */
+  | "eitherCardPlayed"
+  /** Phrasing batch 6: "When one of your cards deals damage to your opponent" (BT9-104): battle damage, the attacker the subject. */
+  | "yourCardDealtDamage"  | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another
    * Unison of yours leaving your Unison Area for any area, watched by your cards

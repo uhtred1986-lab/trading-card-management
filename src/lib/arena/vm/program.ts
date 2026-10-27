@@ -1932,6 +1932,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     }
     case "chose":
       return (frame.vars[c.var] ?? []).length >= (c.atLeast ?? 1);
+    // Phrasing batch 6 (EX16-02): a card of that choice was taken from one of these areas.
+    case "choseFrom":
+      return (frame.chosenFrom?.[c.var] ?? []).some((area) => (c.areas as string[]).includes(area));
     case "varMatches":
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     // "If the revealed card's energy cost is the same as the declared number" (BT22-090).

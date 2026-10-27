@@ -173,8 +173,9 @@ const ops = (text: string): CostOp[] => {
   // Extras in your Battle Area and/or Drop" (P-430) reads, proved in the VM by `phrasing-batch-4.ts`.)
   const per = one("[Permanent] If your Leader is a green <Son Goku: GT> card, for each green <Son Goku: GT> card in your Warp, reduce the energy cost of this card in your hand by 1.");
   assert.deepEqual(per.unsupported, []);
+  // (Phrasing batch 6: the markers on Unison Cards in play, both players', are read — `phrasing-batch-6.ts`; a printed
+  // ceiling is still no amount.)
   for (const text of [
-    "[Permanent] For each marker on Unison Cards in play, reduce the energy cost of this card in your hand by 1.",
     "[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)",
   ]) {
     const s = one(text);

@@ -563,7 +563,9 @@ function compileSkillText(skill: Skill): Script {
   // compiles to a delay instead, and the skill then waits for the *next* end
   // of a battle — one battle too late, every time.
   const trailing = trailingTrigger(skill);
-  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect);
+  // Phrasing batch 6: "if all of your Battle Cards are red **and no other color**" (TB3-007, TB3-008, TB3-010) is "…are
+  // mono-red" (2-6-4), said before the clauses are cut at its "and".
+  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect).replace(/\b(all of your [^,.:;]+? (?:are|is)) (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi, "$1 mono-$2");
   if (!text) return { ops: [], unsupported: [] };
   const unsupported: string[] = [];
   const c: Ctx = {

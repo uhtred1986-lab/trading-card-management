@@ -401,7 +401,7 @@
   },
   "L-RED#0": {
     "outcome": "notOffered",
-    "digest": "e79ed802"
+    "digest": "deeffd05"
   },
   "LEADERGRAB#0": {
     "outcome": "fired",
@@ -609,7 +609,7 @@
   },
   "REJ#0": {
     "outcome": "notOffered",
-    "digest": "d98b96c3"
+    "digest": "5c433b3a"
   },
   "RELKO#0": {
     "outcome": "fired",

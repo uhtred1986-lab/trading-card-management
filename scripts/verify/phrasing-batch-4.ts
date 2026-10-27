@@ -166,11 +166,10 @@ for (const [text, what, every] of [
   if (every > 1) assert.ok(JSON.stringify(red).includes(`"per":${every}`) || JSON.stringify(red).includes(`"every":${every}`) || JSON.stringify(red).includes(`"divide":${every}`) || JSON.stringify(red).includes(`"div":${every}`), `${what}: for every ${every}`);
   records++;
 }
-// The rest of the family counts otherwise and stays unread on purpose.
+// The rest of the family counts otherwise and stays unread on purpose. (Phrasing batch 6 reads "For each Battle Card in
+// play" — both players' — and "For each marker on your blue Unison": `phrasing-batch-6.ts`.)
 for (const text of [
-  "[permanent] For each Battle Card in play, reduce the energy cost of this card in your hand by 2.",
   "[Permanent] For each green Unison Card in your Unison Area and Drop Area, reduce the energy cost of this card in your hand by 1.",
-  "[Permanent] For each marker on your blue Unison, reduce the energy cost of this card in your hand by 1.",
 ]) assert.ok(unreadOf(text).length > 0, `B4: left unread: ${text.slice(12, 60)}`);
 
 // B5. "…it's sent to its owner's Warp instead of being played": the [Counter: Play]'s move to the Warp.
@@ -198,7 +197,8 @@ for (const [text, what, n] of [
 }
 // Two choices of one card each, and a card counted by where it came from, are not this.
 assert.ok(skillRecords(card("P-108", { skill: "[Auto] When this card is KO'd, if your Leader Card is a blue <Gogeta: Br> card, choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add them to your hand. If you added 2 cards to your hand, add 2 cards from the top of your deck to your energy." }))[0].unread.length > 0, "B6: P-108's two one-card choices stay unread");
-assert.ok(unreadOf("[+1][Activate: Main] You may choose 1 <Dark Broly> card in your hand or Drop Area and place it at the bottom of your deck. If you placed a card from your hand at the bottom of your deck, draw 1 card.").length > 0, "B6: \"from your hand\" stays unread");
+// "…from your hand" is read since phrasing batch 6 (owner's ruling of 26 Oct 2026 on EX16-02, `choseFrom`).
+assert.deepEqual(unreadOf("[+1][Activate: Main] You may choose 1 <Dark Broly> card in your hand or Drop Area and place it at the bottom of your deck. If you placed a card from your hand at the bottom of your deck, draw 1 card."), [], "B6: \"from your hand\" is read (batch 6)");
 
 // B7. "Your opponent's Tokens": any token of theirs.
 {

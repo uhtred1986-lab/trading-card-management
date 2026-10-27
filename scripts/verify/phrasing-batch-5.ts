@@ -195,7 +195,8 @@ assert.ok(unreadOf("[-X][activate: main] For each marker you remove using this s
   assert.deepEqual(alts[0].characters.map((x) => x.toLowerCase()), ["dark broly"], "B5: …a <Dark Broly> card");
   assert.ok(alts[0].originalCostMax === 9 && !alts[0].notColors.length && !alts[0].charactersIncluding.length, "B5: …costing 9 or less, nothing more");
   assert.ok(alts[1].notColors.includes("Black") && alts[1].charactersIncluding.map((x) => x.toLowerCase()).includes("xeno") && alts[1].type === "BATTLE" && alts[1].originalCostMax === 9, "B5: …or a non-black Battle Card with <Xeno>, costing 9 or less");
-  assert.deepEqual(rec10.unread, ["If you placed a card from your hand at the bottom of your deck", "draw 1 card"], "B5: the hand-only count after it stays unread");
+  // The hand-only draw after it is read since phrasing batch 6 (owner's ruling of 26 Oct 2026, `choseFrom`).
+  assert.deepEqual(rec10.unread, [], "B5: …and nothing left unread");
   const alts20 = chooses(record(EX16_02, "EX16-02", {}, 20))[0]?.sel.filter?.anyOf ?? [];
   assert.equal(alts20.length, 2, "B5: EX16-02#20 — the same two descriptions, either one for each card");
   records++;
@@ -254,10 +255,8 @@ for (const [text, what] of [
   assert.deepEqual(bt21.trigger, ["comboUsed"], "C5: …and its moment is read");
   records += 3;
 }
-// Left unread on purpose: BT9-037's "in all areas" (the reader keeps only the cards in play) and [Rejuvenate]'s "and you remove N
-// markers" (its Leader condition does not gate the keyword's move).
-assert.ok(unreadOf("[Permanent] If your Leader Card is a ≪Universe 7≫ card, negate the [Energy-Exhaust] of your Red/Blue multicolor cards in all areas.").length > 0, "C5: BT9-037 stays unread");
-assert.ok(unreadOf("[Rejuvenate][Once per turn] If your Leader Card is black and you remove 4 markers from this card.").length > 0, "C5: BT13-124 stays unread");
+// BT9-037's "in all areas" and [Rejuvenate]'s "and you remove N markers" were left unread here; the owner's rulings of 26
+// Oct 2026 have them read since phrasing batch 6 (`phrasing-batch-6.ts`, A3 and A1).
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
