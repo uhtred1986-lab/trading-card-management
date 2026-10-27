@@ -529,6 +529,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         name: "using",
         type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb"] },
       },
+      {
+        name: "toOwners",
+        type: "boolean",
+        offCard: "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
+      },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"play">;
@@ -542,6 +547,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
+        + (op.toOwners ? " in their owners' Battle Areas" : "")
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
@@ -662,9 +668,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"switch your card that\'s in a battle with this card / the chosen card" (8-1-7-2): the target, your own card in your Battle Area or Leader Area, becomes the attack card or the guard card in place of yours, and the battle goes on with it. Its "when this card attacks / is attacked" are not made pending',
   },
   placeOnTop: {
-    fields: [TARGET],
-    sentence: "place {target} on top of this card, from under it",
-    doc: '"place a Z-Extra from under this card on top of this card" (23-2, 21-5-2): the target, a card in this card\'s pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card\'s position, the continuous effects on its power and its seat in a battle; this card\'s other effects end. Never in a Leader Area',
+    fields: [TARGET, { name: "onto", type: "ref" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"placeOnTop">;
+      return `place ${describeRef(op.target)} on top of ${op.onto ? describeRef(op.onto) : "this card"}, from under it`;
+    },
+    doc: '"place a Z-Extra from under this card on top of this card" (23-2, 21-5-2): the target, a card in this card\'s pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card\'s position, the continuous effects on its power and its seat in a battle; this card\'s other effects end. "onto" (mechanism batch 3) names another card whose pile it is and whose place it takes — "place this card from under your Leader on top of your Leader" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and "when your Leader is placed" answers it',
   },
   comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
   flip: {
@@ -1576,6 +1585,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: (raw) => `a rule in force stops you ${FORBIDDEN_IN_WORDS[(raw as CondOf<"forbidden">).what]}`,
     doc: 'whether a prohibition in force (20-14) stops this, asked of the card and the player the move is about. No card says this — it is the word a `DEFINE ACTION`\'s `REFUSE` gates a move on, and it is the same predicate `forbids()` is. "bySkill" tells the two halves of one wording apart: false is a move the player declares ("…except by skills"), true a move a skill makes; "from" names the area the move takes cards out of when that is not where the candidate stands — the price of [Over Realm] empties the Drop into the Warp, asked of a card in the hand (`dropToWarp`, BT6-028)',
   },
+  countering: {
+    fields: [{ name: "what", type: { enum: ["attack", "play", "counter"] }, required: true }],
+    sentence: (raw) => `the [Counter] being answered is a [Counter: ${{ attack: "Attack", play: "Play", counter: "Counter" }[(raw as CondOf<"countering">).what]}]`,
+    doc: 'mechanism batch 3 (22-10-8): the [Counter] this one answers is of that kind — "Negate the [Counter: Attack] skill" on a [Counter: Counter] (EX09-06) is this, then `negateCounter`. False when no counter is being answered',
+  },
   asking: {
     fields: [{ name: "prompt", type: { enum: PROMPT_KINDS }, required: true }],
     sentence: (raw) => `the question on the table is the ${(raw as CondOf<"asking">).prompt} question`,
@@ -1717,6 +1731,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   varAttrIsX:     "primitive",
   isTurnPlayer:   "primitive",
   asking:         "primitive",
+  countering:     "primitive",
   forbidden:      "primitive",
   playerAttr:     "primitive",
   sameCard:       "primitive",

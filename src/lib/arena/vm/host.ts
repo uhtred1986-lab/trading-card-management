@@ -254,9 +254,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     placeOnTop: (id, host) => {
       const top = state.cards[host];
       const at = findCard(state, host);
-      if (!top || !state.cards[id] || !top.under.includes(id) || !at || at.zone === SETUP_ZONES.leader || game.zones[at.zone]?.host !== true) return false;
+      // Mechanism batch 3 (3-1-2, 22-46-6 by analogy): a Leader Area takes a card on top only when it is a Leader
+      // card — "place this card from under your Leader on top of your Leader" (BT20-058's Z-Leader).
+      const leaderStack = at?.zone === SETUP_ZONES.leader;
+      const leaderCard = /LEADER/.test(String(attrsNow(ctx, game, state, id).type ?? ""));
+      if (!top || !state.cards[id] || !top.under.includes(id) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
       const mode = top.mode;
-      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: true });
+      // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
+      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: true, ...(leaderStack ? { onto: host } : {}) });
       if (!up.ok) return false;
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
@@ -276,6 +281,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
       log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
       emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under" } }, null);
+      // 6-2-4, 22-46-6-3: a card placed in the Leader Area — "when your Leader is placed" answers it.
+      if (leaderStack) emit(ctx, game, state, ev, { event: "moved", card: id, controller: at.owner, args: { to: at.zone, asPlay: false } }, null);
       return true;
     },
     setMode: (id, mode, by) => {
@@ -715,7 +722,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (energyBase && opts.onto) moveTo(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
         // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
         // in the opponent's Battle Area.
-        const side = union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
+        // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
+        const side = opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
