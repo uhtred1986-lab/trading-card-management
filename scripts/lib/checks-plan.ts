@@ -195,7 +195,8 @@ export function planSteps(scope: Scope, root: string, chain: ChainEntry[], graph
   const bin = (...p: string[]) => path.join("node_modules", ...p);
   const tsc: Step = { name: "typecheck", kind: "tsc", argv: [bin("typescript", "bin", "tsc"), "--noEmit", "--pretty", "false"], timeoutMs: 8 * MIN };
   const lint = (list: string[]): Step => ({ name: list.length ? `lint (${list.length} files)` : "lint", kind: "eslint", argv: [bin("eslint", "bin", "eslint.js"), "--no-warn-ignored", ...list], timeoutMs: 8 * MIN });
-  const test = (e: ChainEntry): Step => ({ name: e.key.replace(/^scripts\//, ""), kind: "test", argv: [bin("tsx", "dist", "cli.mjs"), e.file, ...e.args], timeoutMs: 15 * MIN });
+  // verify-arena runs every arena suite in one process (about 20 min by Oct 2026); the rest stay at 15.
+  const test = (e: ChainEntry): Step => ({ name: e.key.replace(/^scripts\//, ""), kind: "test", argv: [bin("tsx", "dist", "cli.mjs"), e.file, ...e.args], timeoutMs: (e.file.endsWith("verify-arena.ts") ? 30 : 15) * MIN });
   if (scope === "full") {
     return {
       unknown: [],
