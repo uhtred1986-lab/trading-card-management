@@ -2675,7 +2675,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Mechanism batch 2 (5-2-7): a card in a secret area cannot be shown to meet a description, so the player may
         // decline to pick it even for an exact "choose 1 … from your deck" — a search may come up empty ("fail to
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
-        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => declinablePick(h, id)).length : 0;
+        // Phrasing batch 9: the hand's cards only on an effect — a price run on a frame of its own ([Aegis]'s hand colours,
+        // a [Revive], a keyword's action price, …) is paid in full (5-8-2-2), as a `saveVarsAs` price is.
+        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
+        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => (paying ? inSecretPile(h, id) : declinablePick(h, id))).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
         const answer = h.lastChoice();
