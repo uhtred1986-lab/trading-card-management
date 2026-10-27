@@ -392,6 +392,21 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // The one card printing it is the only user; the engine keeps no count of cards ever sent.
   const sentToWarp = /^you(?:'ve| have) sent (\d+) or more cards to your warp$/.exec(t.replace(/’/g, "'"));
   if (sentToWarp) return parseConditionClause(`if there are ${sentToWarp[1]} or more cards in your warp`, true);
+  // Mechanism batch 3 (23-2): "if **a <Garlic Jr.> is under this card**" (BT21-006), "if an <Android 13> card is under
+  // this card" (BT19-019), "while a red <Koichiarator> card is under this card" (BT20-011), "and {Great Ape Son Goku, the
+  // Aggressor} is under this card" (SD17-02), "if {Big Gete Star} is under this card" (BT2-108): this card's own pile
+  // holds a card the description fits — the same count "there is a … under this card" already reads.
+  // The same of the Leader's pile: "if an <Android 18> card is under your Leader" (BT20-058), "if a <Cell> card is
+  // under your Leader" (BT20-059).
+  {
+    const pile = /^(?:(an?|1) )?(.+?) (?:is|are) under (this card|your (?:z-)?leader(?: card)?)$/.exec(t);
+    if (pile && (pile[1] || /^\{[^{}]+\}$/.test(pile[2])) && !/^(?:\d+ or more )?cards?$|\bunder\b|\bthis card\b|\bleader\b/.test(pile[2])) {
+      if (pile[3] === "this card") return parseConditionClause(`if there is a ${pile[2]} under this card`, true);
+      const filter = parseFilter(pile[2]);
+      if (filter.unreadable) return null;
+      return { cond: { kind: "count", sel: { side: "you", area: "under", underHost: { side: "you", area: "leader" }, filter }, atLeast: 1 }, subject: { sel: { special: "leader" } } };
+    }
+  }
   // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
   const shaped = costConditionShape(t, allowBare);

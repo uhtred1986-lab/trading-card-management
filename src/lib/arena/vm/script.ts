@@ -483,6 +483,11 @@ export type Cond =
   | { kind: "all"; conds: Cond[] }
   /** "If your opponent's Leader Card's back is facing up" — the Leader has awakened (22-2). */
   | { kind: "leaderFlipped"; side?: Side; flipped?: boolean }
+  /**
+   * Mechanism batch 3 (22-10-8): "Negate the [Counter: Attack] skill" on a [Counter: Counter] (EX09-06, BT12-153,
+   * BT16-043) — the [Counter] this one answers is of that kind. False when no counter is being answered.
+   */
+  | { kind: "countering"; what: "attack" | "play" | "counter" }
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
@@ -722,7 +727,8 @@ export type Op =
    * order"). Part of the play, so a play that fails moves none of them.
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string }
+  /** Mechanism batch 3: `toOwners` — "play them to their owners' Battle Areas" (BT13-096): each card into its own owner's Battle Area. */
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -896,7 +902,8 @@ export type Op =
    * position (Active/Rest), the continuous effects on its power and its seat in
    * a battle (21-5-2); this card's other effects end. Not in a Leader Area.
    */
-  | { op: "placeOnTop"; target: Ref }
+  /** Mechanism batch 3: "onto" names the card whose pile it leaves and whose place it takes — "place this card from under your Leader on top of your Leader" (BT20-058); absent, this card. */
+  | { op: "placeOnTop"; target: Ref; onto?: Ref }
   /**
    * "Use up to 1 card with 5000 combo power from your Drop in a combo (with
    * its skills negated)" — into your Combo Area during a battle, for no combo
@@ -3277,7 +3284,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // selector host does, and a price that needed it is unpaid.
         const ids = h.resolveRef(frame, op.target).filter((id) => h.exists(id));
         if (ids.length > 1) h.log({ type: "note", text: `${h.nameOf(frame.card)}: ${ids.length} cards match the card to place on top, and the skill does not say which; nothing is placed` });
-        const done = ids.length === 1 && h.placeOnTop(ids[0], frame.card);
+        // Mechanism batch 3: the card whose pile it is, when the skill names another (`onto`, one card exactly).
+        const hosts = op.onto ? h.resolveRef(frame, op.onto).filter((id) => h.exists(id)) : [frame.card];
+        const done = ids.length === 1 && hosts.length === 1 && h.placeOnTop(ids[0], hosts[0]);
         if (done) frame.acted = (frame.acted ?? 0) + 1;
         else if (frame.saveVarsAs && ids.length) frame.priceUnpaid ??= "the card from under this card was not placed on top of it";
         break;
@@ -3940,7 +3949,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated, ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

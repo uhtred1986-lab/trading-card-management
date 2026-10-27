@@ -675,6 +675,13 @@
             "Union-Potara",
             "Union-Absorb"
           ]
+        },
+        {
+          "name": "toOwners",
+          "required": false,
+          "nullable": false,
+          "offCard": "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
+          "type": "boolean"
         }
       ],
       "sentence": "play this card",
@@ -1309,17 +1316,23 @@
     {
       "name": "placeOnTop",
       "class": "primitive",
-      "signature": "{\"op\":\"placeOnTop\",\"target\":TARGET}",
+      "signature": "{\"op\":\"placeOnTop\",\"target\":TARGET,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
           "required": true,
           "nullable": false,
           "type": "ref"
+        },
+        {
+          "name": "onto",
+          "required": false,
+          "nullable": false,
+          "type": "ref"
         }
       ],
       "sentence": "place this card on top of this card, from under it",
-      "doc": "\"place a Z-Extra from under this card on top of this card\" (23-2, 21-5-2): the target, a card in this card's pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card's position, the continuous effects on its power and its seat in a battle; this card's other effects end. Never in a Leader Area"
+      "doc": "\"place a Z-Extra from under this card on top of this card\" (23-2, 21-5-2): the target, a card in this card's pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card's position, the continuous effects on its power and its seat in a battle; this card's other effects end. \"onto\" (mechanism batch 3) names another card whose pile it is and whose place it takes — \"place this card from under your Leader on top of your Leader\" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and \"when your Leader is placed\" answers it"
     },
     {
       "name": "comboFrom",
@@ -3541,6 +3554,26 @@
       ],
       "sentence": "a rule in force stops you attack",
       "doc": "whether a prohibition in force (20-14) stops this, asked of the card and the player the move is about. No card says this — it is the word a `DEFINE ACTION`'s `REFUSE` gates a move on, and it is the same predicate `forbids()` is. \"bySkill\" tells the two halves of one wording apart: false is a move the player declares (\"…except by skills\"), true a move a skill makes; \"from\" names the area the move takes cards out of when that is not where the candidate stands — the price of [Over Realm] empties the Drop into the Warp, asked of a card in the hand (`dropToWarp`, BT6-028)"
+    },
+    {
+      "kind": "countering",
+      "class": "primitive",
+      "signature": "{\"kind\":\"countering\",\"what\":\"attack\"|\"play\"|\"counter\"}",
+      "fields": [
+        {
+          "name": "what",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "attack",
+            "play",
+            "counter"
+          ]
+        }
+      ],
+      "sentence": "the [Counter] being answered is a [Counter: Attack]",
+      "doc": "mechanism batch 3 (22-10-8): the [Counter] this one answers is of that kind — \"Negate the [Counter: Attack] skill\" on a [Counter: Counter] (EX09-06) is this, then `negateCounter`. False when no counter is being answered"
     },
     {
       "kind": "asking",

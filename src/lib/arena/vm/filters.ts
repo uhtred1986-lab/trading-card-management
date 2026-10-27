@@ -36,7 +36,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { identityKey, keywordName, keywordsInSkills, parseSkills } from "../text/cards";
-import { emptyFilter, type CardFilter } from "../text/filters";
+import { emptyFilter, sparkingTags, type CardFilter } from "../text/filters";
 import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
 import type { GameDefinition } from "../rulesets";
@@ -274,7 +274,7 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
     if (f.keywords.some((k) => !hasKeyword(keywords, k))) return false;
     // A parameter the description printed (#941): the keyword's printed name, number and Dark included.
     if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
-      const have = new Set(keywords.map((k) => keywordName(k).toLowerCase()));
+      const have = new Set([...keywords.map((k) => keywordName(k).toLowerCase()), ...sparkingTags(skills)]);
       if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
       if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
     }

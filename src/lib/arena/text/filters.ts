@@ -492,6 +492,11 @@ const KEYWORD_FAMILIES = new Set(["union"]);
  * Strike]" read exactly as before. A negated exact tag is *only* exact: the
  * family would also forbid the cards the description allows.
  */
+/** Mechanism batch 3 (22-26): the "[Sparking X]" tags a card's lines print, by the name a filter asks for them. */
+export function sparkingTags(skills: readonly { sparking: number | null }[]): string[] {
+  return skills.flatMap((sk) => (sk.sparking != null ? [`sparking ${sk.sparking}`] : []));
+}
+
 function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name"] }, printed: string, negated = false): void {
   // #930: "a card with a **[union-fusion]** skill" (EX13-14) names one variant
   // of [Union], so a [Union-Potara] or [Union-Absorb] card is not one; only the
@@ -1013,6 +1018,15 @@ function parseOneFilter(text: string): CardFilter {
       f.skillKind = kind;
       continue;
     }
+    // Mechanism batch 3 (22-26): "…≪Universe 7≫ card **with a [Sparking 7] skill**" (EX25-08, EX25-09): [Sparking X]
+    // is a validity tag on a skill line, no keyword of its own, and the number is part of what is asked — a card one of
+    // whose lines prints [Sparking 7] exactly (`keywordsExact`, read off the parsed lines' tags).
+    const sparking = /^sparking (\d+)$/.exec(word);
+    if (sparking) {
+      const list = (f.keywordsExact ??= []);
+      if (!list.includes(`Sparking ${sparking[1]}`)) list.push(`Sparking ${sparking[1]}`);
+      continue;
+    }
     // `keywordOf` wants the parameters the *printed* tag carries — it reads
     // "[Union-Fusion]" but not the bare "[Union]" a target description uses,
     // because the family alone is what the description means. Matching is by
@@ -1309,7 +1323,7 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.notKeywords.some((k) => hasKeyword(d, k))) return false;
   if (f.keywords.some((k) => !hasKeyword(d, k))) return false;
   if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
-    const have = new Set(keywordsOf(d).map((k) => keywordName(k).toLowerCase()));
+    const have = new Set([...keywordsOf(d).map((k) => keywordName(k).toLowerCase()), ...sparkingTags(skillsOf(d))]);
     if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
     if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
   }
