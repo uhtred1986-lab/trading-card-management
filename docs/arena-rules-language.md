@@ -70,7 +70,7 @@ IF     := "IF" cond
 THEN   := "THEN" ( stmt )*                         one per line
 stmt   := name "(" ( value | field ":" value ) ( "," field ":" value )* ")"
 cond   := comparison | name "(" … ")" | "NOT" cond | cond "AND" cond | cond "OR" cond | "(" cond ")"
-expr   := term ( ( "+" | "-" ) number | "atMost" number )*   left-associative; the right side is always printed
+expr   := term ( ( "+" | "-" ) number )* ( "atMost" number )*   left-associative; the right side is always printed
                                                    ("atMost n": a printed ceiling, "(Up to 2)", P-464)
 term   := number | "$" name | call ( "/" number )? ( "*" number )?   "/" on count, markers, life
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"

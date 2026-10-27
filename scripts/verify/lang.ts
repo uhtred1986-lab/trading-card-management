@@ -1158,7 +1158,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     assert.ok(grammar.includes('( ( "+" | "-" ) number )'), "§3's expr production does not show the + and - operators");
     assert.ok(grammar.includes("term   := number"), "§3's expr production does not show a bare number");
     // Phrasing batch 8: and the printed ceiling, `atMost n` ("(Up to 2)", P-464).
-    assert.ok(grammar.includes('"atMost" number'), "§3's expr production does not show the atMost ceiling");
+    assert.ok(grammar.includes('( "atMost" number )'), "§3's expr production does not show the atMost ceiling");
     assert.equal(Object.keys(EXPR_LITERALS).join(","), "number,var,plus,minus,capped", "EXPR_LITERALS names the five forms this check covers");
   }
 

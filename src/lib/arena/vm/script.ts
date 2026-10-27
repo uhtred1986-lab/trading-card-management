@@ -2177,7 +2177,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (taken.length) {
             h.addDamageTaken(p, taken.length);
             h.log({ type: "damage", player: p, amount: taken.length, critical: false, cards: taken });
-            h.pend("dealtDamage", frame.card);
+            // Phrasing batch 8: "when this card deals damage" answers the damage its skill deals to the opponent
+            // (`MOMENT_OF`), never what it makes its own master take ("take 2 damage").
+            if (p !== master) h.pend("dealtDamage", frame.card);
             // Phrasing batch 7 (owner's ruling of 27 Oct 2026 on BT9-104): "When one of your cards deals damage" counts
             // a skill's damage as well as battle damage — pended once, about the card whose skill dealt it (the
             // subject), and answered by every card in play of its master (`WATCHED_MOVE` in `host.ts`). Damage a skill
