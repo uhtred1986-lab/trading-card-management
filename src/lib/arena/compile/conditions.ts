@@ -1,4 +1,5 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
+import { PLACED_IN_ENERGY } from "./shared";
 import type { Cond, Ref, ScriptArea, Selector } from "../vm/script";
 import { compileAction, joints } from "./prices";
 import { colorCountSelector, filterFor, parseTarget } from "./targets";
@@ -682,6 +683,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (/^you negated (?:a|your opponent's) leader(?: card)?'s attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateLeaderAttack" } };
   if (/^you negated (?:an|the|that) attack(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "negateAttack" } };
   if (/^you ko'?d (?:a|1 or more|any|one or more) (?:battle )?cards?(?: (?:this way|with this skill))?$/.test(t)) return { cond: { kind: "did", what: "ko" } };
+  // Mechanism batch 2: "Choose up to 1 of your opponent's Battle Cards … and KO it. **If you KO'd it**, choose up to 1 of
+  // your energy and switch it to Active Mode" (TB3-051), "If you KO-ed it" (TB2-058): the card this skill chose to KO
+  // was KO'd by it — the same question as "if you KO'd a card", the KO being the skill's only one.
+  if (/^you ko(?:'?d|-?ed) (?:it|them|that card|the chosen cards?)$/.test(t)) return { cond: { kind: "did", what: "ko" } };
   if (/^you (?:drew|draw) (?:a|1 or more|any) cards?(?: with this skill)?$/.test(t)) return { cond: { kind: "did", what: "draw" } };
   if (/^you (?:did not|didn'?t|do not|don'?t) draw (?:a|any) cards?(?: with this skill)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "did", what: "draw" } } };
   // "If your opponent's Leader Card's back is facing up" — awakened (22-2).
@@ -1095,6 +1100,27 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
   if ((m = /^this card is in (?:a|the|your) (combo area|z-energy)$/.exec(t))) {
     const area = m[1] === "combo area" ? "combo" : "zEnergy";
     return { cond: { kind: "count", sel: { special: "self", area, side: "you" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
+  }
+  // Mechanism batch 2 (3-8): "…at the end of the turn, **if this card is in your energy**, place it in its owner's Drop
+  // Area" (BT10-051, BT10-036, BT10-040): this card, still in the Energy Area it was placed in (a card that left and came
+  // back is a new card, 3-1-4, which the engine does not tell apart from the old one).
+  if ((m = /^this card (is|isn't|is not) in your energy(?: area)?$/.exec(t))) {
+    const sel: Selector = { special: "self", area: "energy", side: "you" };
+    return { cond: m[1] === "is" ? { kind: "count", sel, atLeast: 1 } : { kind: "count", sel, atMost: 0 }, subject: { sel: { special: "self" } } };
+  }
+  // Mechanism batch 2 (3-8): "…then at the end of the turn, **if the card you placed in your energy with this skill is
+  // (isn't) in your energy**, …" (BT10-054): the card the skill's own move to the Energy Area took, bound by the
+  // compiler (`PLACED_IN_ENERGY`), and asked where it is now.
+  if ((m = /^the card you placed in your energy with this skill (is|isn't|is not) in your energy(?: area)?$/.exec(t))) {
+    const sel: Selector = { fromVar: PLACED_IN_ENERGY, area: "energy" };
+    return { cond: m[1] === "is" ? { kind: "count", sel, atLeast: 1 } : { kind: "count", sel, atMost: 0 }, subject: { sel: { fromVar: PLACED_IN_ENERGY } } };
+  }
+  // Mechanism batch 2 (3-8): "If it's your opponent's turn, and **this card and all of your energy are in Rest Mode**"
+  // (BT29-071): this card in that mode, and every card of your Energy Area in it.
+  if ((m = /^this card and all (?:of )?your energy are in (rest|active) mode$/.exec(t))) {
+    const self = parseConditionClause(`this card is in ${m[1]} mode`, true);
+    const energy = parseConditionClause(`all of your energy is in ${m[1]} mode`, true);
+    return self && energy ? { cond: { kind: "all", conds: [self.cond, energy.cond] } } : null;
   }
   if ((m = /^(.+?) (is|isn't|is not|are|aren't|are not) in your z-energy$/.exec(t)) && !/\b(?:the|that|those|these|this)\b/.test(m[1])) {
     const sel = parseTarget(`${m[1]} in your z-energy`);

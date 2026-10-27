@@ -63,8 +63,11 @@ export function compileNamedSet(clause: string, c: Ctx): Op[] | null | undefined
   }));
   // #930, EX25-11: "play up to 1 each of <Kale> and <Caulifla> cards … in Rest Mode from your
   // Drop" — each chosen card is played (5-5), in Rest Mode when the words say so.
+  // Mechanism batch 2 (BT7-051): the cards sent to the Warp go under one name as well, for a later "the cards sent to
+  // the Warp by this skill".
+  const sent = words.dest === "warp" ? `w${c.n++}` : null;
   const moves: Op[] = words.dest === "battle"
     ? vars.map((v) => ({ op: "play", target: { var: v }, ...(words.rest ? { mode: "rest" as const } : {}), ...(words.negated ? { negated: words.negated } : {}) }))
-    : vars.map((v) => ({ op: "moveTo", target: { var: v }, to: words.dest as "hand" | "under" | "warp" }));
+    : vars.map((v) => ({ op: "moveTo", target: { var: v }, to: words.dest as "hand" | "under" | "warp", ...(sent ? { as: sent } : {}) }));
   return [...chooses, ...moves];
 }

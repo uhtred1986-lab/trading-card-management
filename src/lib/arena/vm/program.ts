@@ -1712,6 +1712,14 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const printed = new Set(placed.characters.map(identityKey));
       if (!list(attrsNow(ctx, game, state, id).characters).some((n) => printed.has(identityKey(String(n))))) return false;
     }
+    // Mechanism batch 2 (P-440): "…with the same name as the chosen card" — a card name (2-3) the chosen card has now,
+    // the names a skill makes it also be included (`namesNow`). Nothing bound, nothing to match (ground rule 5).
+    if (sel.filter?.sameNameAs) {
+      const against = frame.vars[sel.filter.sameNameAs]?.[0] ?? null;
+      if (!against || !state.cards[against]) return false;
+      const theirs = new Set(namesNow(attrsNow(ctx, game, state, against)).map((n) => n.toLowerCase()));
+      if (!namesNow(attrsNow(ctx, game, state, id)).some((n) => theirs.has(n.toLowerCase()))) return false;
+    }
     // "…with a matching character name" / "…each with a character name that
     // matches the [Union] skill conditions of the revealed card" (EX13-14,
     // SD19-03, #930): one of the names the revealed card's [Union-Fusion]

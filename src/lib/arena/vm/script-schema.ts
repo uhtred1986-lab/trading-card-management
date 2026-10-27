@@ -499,6 +499,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "faceUp", type: "boolean" },
       { name: "random", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
+      { name: "as", type: "string", offCard: "names the cards this move takes for a later clause — \"if the card you placed in your energy with this skill is in your energy\" (BT10-054, mechanism batch 2)" },
     ],
     // A move a macro lowered to reads as the spelling it stands for (#137,
     // `moveAs`) — "life down to 3", not a selector counted by an expression.
@@ -2723,6 +2724,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   if (f.powerRel) bits.push(`with power ${POWER_REL_WORDS[f.powerRel.cmp]} ${f.powerRel.of === "chosen" ? "the chosen card's" : "this card's"} power`);
   if (f.nameInSkillTextOf) bits.push("whose card name is in the text of a skill on the chosen card");
   if (f.sameCharacterAs) bits.push("with the same character name as the card you placed under this card");
+  if (f.sameNameAs) bits.push("with the same name as the chosen card");
   if (f.unionNameOf) bits.push("with a character name the revealed card's [Union] skill requires");
   if (f.noKeywords) bits.push("and no keyword skills");
   return bits.join(" ");
@@ -2858,7 +2860,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // "Up to 1 of the cards looked at" already has its noun.
   const words = sel.fromVar && !selectorWords(sel) ? "" : selectorNoun(sel, plural);
   const host = sel.underHost ? describeUnderHost(sel.underHost) : null;
-  const where = sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
+  // Mechanism batch 2 (BT10-054): the card a move to the Energy Area took, said as the card says it, with where it is now.
+  const where = sel.fromVar === "placedInEnergy" ? `of the card placed in your energy with this skill${sel.area ? ` ${describeWhere({ ...sel, fromVar: undefined, side: sel.side ?? "you" })}` : ""}` : sel.fromVar ? "of the cards looked at" : host ? `under ${host}` : describeWhere(sel);
   const mode = describeMode(sel);
   // 22-16-2: a choice that reaches past [Barrier] says so, or the reading of "ignoring [Barrier]" is the same words as a choice that does not.
   return [count, words, where].filter(Boolean).join(" ").replace(/^any number of of /, "any number of ") + mode + describeNotSelf(sel) + (sel.ignoreBarrier ? " ignoring [Barrier]" : "");
