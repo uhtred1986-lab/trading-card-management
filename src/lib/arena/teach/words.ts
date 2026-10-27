@@ -155,7 +155,7 @@ function signature(name: string, fields: RefField[]): string {
 }
 
 /** Above this the reference drops its per-row docs first, then the sentences. A budget, not a target. */
-export const REFERENCE_BUDGET = 30_000;
+export const REFERENCE_BUDGET = 32_000;
 
 /**
  * The language reference as the prompt carries it: `languageReference()`
