@@ -13,7 +13,7 @@ import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { AREA_WORDS, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
@@ -134,14 +134,22 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
  * this skill's own effect sent to a Warp (`Ctx.sentToWarp`), and only while they
  * are still there — a delayed step that finds one gone finds nothing (3-1-4).
  */
-const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:the|a|your|their|its owner'?s|their owners?'?s?) warps? (?:by|with) this skill(?: from (?:your|the) warp)?$/i;
+const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:the|a|your|their|its owner'?s|their owners?'?s?) warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) your battle area)?$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
-  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) return c.sentToWarp ? { sel: { fromVar: c.sentToWarp, area: "warp" } } : null;
+  // Mechanism batch 2 (BT7-051): "all the cards sent …" is every one of them — a choice over them takes all (`count` 99),
+  // where a selector with no count was a choice of one.
+  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) return c.sentToWarp ? { sel: { fromVar: c.sentToWarp, area: "warp", ...(/^(?:all|any)\b/i.test(clause.trim()) ? { count: 99 } : {}) } } : null;
   // #907 round 4 (P-440, BT25-099b): "a card with the same name as **the chosen card**" names ANOTHER card by
   // the chosen one's name. The pronoun test below took the "chosen card" for the target and the skill moved
   // (P-440) or played (BT25-099b) the card it had chosen only to compare with. No selector says "the same
   // name as", so it is refused, the same as `parseTarget`'s "as the card you placed".
+  // Mechanism batch 2: the plain "…with the same name as the chosen card" is a measure now (`sameNameAs`), read by
+  // `parseTarget` and bound to the earlier choice by `compileClause`; the colour and character-name variants stay refused.
+  if (SAME_NAME_AS_CHOSEN.test(clause) && !/\bsame (?:colou?r and |character )/i.test(clause)) {
+    const sel = parseTarget(clause);
+    return sel && !sel.special && !sel.fromVar ? { sel } : null;
+  }
   if (/\bsame (?:colou?r and )?(?:character )?names? as (?:the chosen cards?|that card|the card you (?:placed|chose))\b/i.test(clause)) return null;
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
@@ -714,7 +722,12 @@ function parseDelayClause(clause: string): { at: DelayTiming; scope: DelayScope;
   const t = clean(clause);
   const best = bestDelay(t, (src) => new RegExp(`^${src}`));
   if (!best) return null;
-  return { at: best.at, scope: best.scope, label: best.m[0], rest: t.slice(best.m[0].length).replace(/^[\s,:]+/, "") };
+  const rest = t.slice(best.m[0].length).replace(/^[\s,:]+/, "");
+  // Mechanism batch 2: "At the end of your next turn **after you place this card in your energy with this skill**"
+  // (BT10-036, BT10-040) counts the turn from an event another skill of the card remembers, which no delay here
+  // carries: refused whole rather than read as the end of every next turn.
+  if (/^after\b/i.test(rest)) return null;
+  return { at: best.at, scope: best.scope, label: best.m[0], rest };
 }
 
 /**
@@ -1120,6 +1133,25 @@ function awakenLifePermit(t: string, c: Ctx): Op[] | null | undefined {
 }
 
 function compileClause(clause: string, c: Ctx): Op[] | null {
+  // Mechanism batch 2 (P-440): "…with the same name as the chosen card" names the choice made before this clause.
+  const before = c.last;
+  const ops = compileClauseRead(clause, c);
+  if (!ops || !JSON.stringify(ops).includes(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`)) return ops;
+  // Only a choice this effect made itself: a price's choice ("Choose 1 of your Battle Cards and place it under this
+  // card: … the same name as the chosen card") is in another frame, and its name may be reused by the effect's own.
+  if (!before || !c.choices.some((ch) => ch.var === before) || ops.some((o) => o.op === "choose" && o.as === before)) return null;
+  return JSON.parse(JSON.stringify(ops).split(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`).join(`"sameNameAs":${JSON.stringify(before)}`)) as Op[];
+}
+
+function compileClauseRead(clause: string, c: Ctx): Op[] | null {
+  // Mechanism batch 2 (BT10-051): "…and you can't place cards in your energy **or play cards other than mono-blue
+  // <Zamasu> or <Goku Black> cards** for the turn" is two prohibitions with one span. Read as one, the second was lost.
+  const twoBans = /^(?:and )?you can'?t place cards in your energy(?: area)? or (play .+?) for the (turn|game)[.]?$/i.exec(clause.trim());
+  if (twoBans) {
+    const first = compileClause(`you can't place cards in your energy for the ${twoBans[2]}`, c);
+    const second = compileClause(`you can't ${twoBans[1]} for the ${twoBans[2]}`, c);
+    return first && second ? [...first, ...second] : null;
+  }
   const t = clause
     .toLowerCase()
     .trim()
@@ -1130,6 +1162,18 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // Delayed/replacement batch 1: "…, and **you switch** up to 1 of your blue energy to Active Mode at the end of the
     // turn" (BT27-028): the subject said again after a sentence about the opponent, as for "you choose" above.
     .replace(/^you (?=switch up to \d+\b)/, "")
+    // Mechanism batch 2 (20-12): "…; **you place** up to 2 ≪Dark Dragon Ball≫ cards from your deck in your Drop Area"
+    // (BT13-124) — the subject said again after a sentence about the opponent.
+    .replace(/^you (?=place up to \d+ .+ from your deck\b)/, "")
+    // Mechanism batch 2 (3-8): "**Place this card in your energy from your hand**" (BT10-051): the place it comes from
+    // said last.
+    .replace(/^place this card in your energy from your hand$/, "place this card from your hand in your energy")
+    // "Place up to 1 **of your** red ≪Saiyan≫ cards with an energy cost of 1 **in your Drop Area from your deck**"
+    // (BT13-003): the place searched said after the place the card goes to.
+    .replace(/^place (up to \d+|\d+) of your (.+?) (in(?:to)? your drop(?: area)?) from your deck$/, "place $1 $2 from your deck $3")
+    // "…add up to 1 {Cell's Full-Power Kamehameha} **from your deck**, then shuffle your deck" (BT21-145): "add" with
+    // no place named adds to the hand, as every other "add … from your deck" says.
+    .replace(/^(add (?:up to )?\d+ (?!.*\bto (?:your|their|its owner'?s?) )[^,;]+? from your deck)$/, "$1 to your hand")
     // "…it gets +5000 combo power for the turn **and is sent to your Warp** at the end of the battle" (P-207): the
     // second verb of a sentence whose subject is the card the clause before it named.
     .replace(/^is sent to (your|its owner'?s?) warp$/, "send it to $1 warp")
@@ -5625,7 +5669,8 @@ function track(o: Op, c: Ctx): void {
     // TB3-059): once this card is under another it is out of play, and what the sentence goes on about is the host.
     c.lastTarget = o.under;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
-  if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
+  if (o.op === "moveTo" && o.to === "warp" && o.as) c.sentToWarp = o.as;
+  else if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
   if (o.op === "ko" && "var" in o.target && !o.target.minus) c.koed = o.target.var;
   if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.target.var;
@@ -6828,6 +6873,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // (BT13-057's "At the start of your next Main Phase, if you don't have a
       // Unison Card in play, you may pay {u}").
       if (open.delay && open.ops.length === 0 && !open.sink) (open.innerConds ??= []).push(cond.cond);
+      // Mechanism batch 2 (BT10-054): "…at the end of the turn, if the card you placed in your energy with this skill is
+      // in your energy, place it in its owner's Drop Area. **If the card you placed … isn't in your energy**, place 1 card
+      // from your energy …": the other half of the question the delayed part asks, asked at the same later moment.
+      else if (open.delay && open.ops.length && !open.sink && JSON.stringify(cond.cond).includes(`"fromVar":"${PLACED_IN_ENERGY}"`) && JSON.stringify(open.innerConds ?? []).includes(`"fromVar":"${PLACED_IN_ENERGY}"`)) groups.push({ conds: [...open.conds], ops: [], delay: open.delay, innerConds: [cond.cond] });
       else if (chaining) open.conds.push(cond.cond);
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;

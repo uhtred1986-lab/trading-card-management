@@ -338,6 +338,7 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   powerRel: { powerRel: { of: "self", cmp: "<=" } },
   nameInSkillTextOf: { nameInSkillTextOf: "c0" },
   sameCharacterAs: { sameCharacterAs: "c0" },
+  sameNameAs: { sameNameAs: "c0" },
   unionNameOf: { unionNameOf: "revealed" },
   unreadable: { unreadable: true },
 };
@@ -418,7 +419,7 @@ function onACatalogRow(def: CardDef): Attrs {
 
 // The three measures a card's attributes cannot answer say so by name, with the
 // reason each is left to the selector — they are not silently ignored.
-for (const field of ["faceUp", "powerRel", "nameInSkillTextOf", "sameCharacterAs", "unionNameOf", "unreadable"] as const) {
+for (const field of ["faceUp", "powerRel", "nameInSkillTextOf", "sameCharacterAs", "sameNameAs", "unionNameOf", "unreadable"] as const) {
   const deferred = deferredMeasures(FILTER_SAMPLES[field]);
   assert.deepEqual(
     deferred.map((d) => d.field),

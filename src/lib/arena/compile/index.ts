@@ -19,7 +19,7 @@ import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, tax
 import { bondDescriptorOnly } from "../text/bond";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
-import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { filterFor, parseTarget, subjectFilterOf } from "./targets";
 import { compileFusionMaterials } from "./fusion-materials";
 import { isFusionSkill } from "../vm/fusion-materials";
@@ -565,8 +565,23 @@ function compileSkillText(skill: Skill): Script {
   const trailing = trailingTrigger(skill);
   // Phrasing batch 6: "if all of your Battle Cards are red **and no other color**" (TB3-007, TB3-008, TB3-010) is "…are
   // mono-red" (2-6-4), said before the clauses are cut at its "and".
-  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect).replace(/\b(all of your [^,.:;]+? (?:are|is)) (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi, "$1 mono-$2");
+  const text = stripNotes(trailing ? withoutTrailingTrigger(skill.effect, trailing) : skill.effect).replace(/\b(all of your [^,.:;]+? (?:are|is)) (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi, "$1 mono-$2")
+    // Mechanism batch 2 (3-8): "**take the top 6 cards from your deck and add them to your energy**" (P-104) is the move
+    // "add the top 6 cards of your deck to your energy" said in two verbs.
+    .replace(/\btake the top (\d+) cards? from your deck and add (?:them|it) to your energy\b/gi, "add the top $1 cards of your deck to your energy")
+    // Mechanism batch 2 (3-8): "choose **this card and 1 of your energy** and switch them to Active Mode" (TB2-058): both
+    // are switched. Cut at its "and"s, "them" was only the energy and this card stayed in Rest Mode.
+    .replace(/\bchoose this card and (\d+) of your energy and switch them to (active|rest) mode\b/gi, "switch this card to $2 Mode, then choose $1 of your energy and switch it to $2 Mode");
   if (!text) return { ops: [], unsupported: [] };
+  // Mechanism batch 2: an [Auto] whose moment is "At the end of your next turn **after you place this card in your
+  // energy with this skill**" (BT10-036, BT10-040) waits on an event another line of the card remembers; no moment
+  // says it, and read without it the skill would never fire. Unread whole.
+  if (skill.kind === "auto" && /^at the end of your next turn after\b/i.test(text.trim())) return { ops: [], unsupported: [text.trim().split(/,/)[0]] };
+  // Mechanism batch 2: "When this card is played using a [successor] skill **that was activated by choosing 1 or more
+  // each of <Android 17>, <Android 18>, and <Cell> for their skill costs**" (BT21-145): which cards paid the price is not
+  // part of any moment the engine has; read without it the skill fired on every play.
+  const paidWith = /\busing an? \[[^\]]+\] skill that was activated by choosing [^,]+/i.exec(skill.raw ?? skill.effect);
+  if (skill.kind === "auto" && paidWith) return { ops: [], unsupported: [paidWith[0]] };
   const unsupported: string[] = [];
   const c: Ctx = {
     permanent: skill.kind === "permanent" && !triggeredPermanent(skill),
@@ -1110,6 +1125,29 @@ function compileSkillText(skill: Skill): Script {
   // choice clause bound to the price (#930) measures nothing: unread.
   if (JSON.stringify(ops).includes(`"sameCharacterAs":"${PLACED_UNDER_PLACEHOLDER}"`)) {
     return { ops: [], unsupported: [...unsupported, "with the same character name as the card you placed under this card"] };
+  }
+  if (JSON.stringify(ops).includes(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`)) {
+    return { ops: [], unsupported: [...unsupported, "with the same name as the chosen card"] };
+  }
+  // Mechanism batch 2 (BT10-054): "the card you placed in your energy with this skill" is what the skill's one move
+  // to the Energy Area took, outside any delayed part. None, or more than one, and there is nothing to name: unread.
+  if (JSON.stringify(ops).includes(`"fromVar":"${PLACED_IN_ENERGY}"`)) {
+    const moves = ops.filter((o): o is Extract<Op, { op: "moveTo" }> => o.op === "moveTo" && o.to === "energy");
+    if (moves.length !== 1) return { ops: [], unsupported: [...unsupported, "the card you placed in your energy with this skill"] };
+    moves[0].as = PLACED_IN_ENERGY;
+    // "If it is in your energy, … . If it isn't in your energy, …" at the same later moment is one question with two
+    // answers, asked once: two delays would ask the second after the first had already moved the card.
+    for (let k = 0; k + 1 < ops.length; k++) {
+      const a = ops[k];
+      const b = ops[k + 1];
+      if (a.op !== "delay" || b.op !== "delay" || a.at !== b.at || a.scope !== b.scope || a.ops.length !== 1 || b.ops.length !== 1) continue;
+      const ia = a.ops[0];
+      const ib = b.ops[0];
+      if (ia.op !== "if" || ib.op !== "if" || ia.else || ib.else || ia.cond.kind !== "count" || ib.cond.kind !== "count") continue;
+      const same = JSON.stringify(ia.cond.sel) === JSON.stringify(ib.cond.sel) && JSON.stringify(ia.cond.sel).includes(PLACED_IN_ENERGY);
+      if (!same || ia.cond.atLeast !== 1 || ib.cond.atMost !== 0) continue;
+      ops.splice(k, 2, { ...a, ops: [{ ...ia, else: ib.then }] });
+    }
   }
   const priced = costText(skill.cost);
   const priceCond = ops.length && !engineChecks ? priceCondition(skill) : null;

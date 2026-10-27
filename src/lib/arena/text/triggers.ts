@@ -508,7 +508,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // 3-1: a move an effect caused, which is not a KO — the cards write "or
     // KO'd" when they mean both.
     case "removedFromBattle":
-      return /when this card is (?:played or )?removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
+      // Mechanism batch 2: "When this card is **KO'd or removed** from the Battle Area by a skill" (P-569) is both moments.
+      return /when this card is (?:played or )?(?:ko'?d or )?removed from [a-z' ]*battle area by (?:a|your|one of your) skill/.test(t);
     // 3-1: the narrower wording — a skill put it out of the Battle Area *and*
     // it ended in the Drop. `removedFromBattle` covers a skill that sends it
     // anywhere, so this cannot simply widen that one: a card bounced to the

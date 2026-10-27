@@ -47,8 +47,9 @@ const TARGET_BEFORE_AND = /(?:^\s*|[,;:]\s+)(?:this card|it|they|them|that card|
 const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 // #907 round 4: the plural "energy costs of 3 or less" and the measure said before its number
 // ("power of 35000 or less", BT7-017's "an energy cost of 3 or more **and power of 35000 or
-// less** in your Drop Area") are the same second measure.
-const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill)(?: or (?:less|more))?\b/i;
+// less** in your Drop Area") are the same second measure. Mechanism batch 2: so is "…with an energy cost of 2 or less **and
+// without [Super Combo]** from your deck" (P-569), only right before the place searched.
+const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill|without \[[a-z0-9:\- /]+\] from)(?: or (?:less|more))?\b/i;
 
 /** A comma (and its "and") in front of a measure of the same description: see `commaJoinsMeasure`. */
 /**

@@ -73,7 +73,8 @@ const rec = skillRecords(defs.BT4018)[0];
   assert.ok(ko.unread.length > 0 && !JSON.stringify(ko.ops).includes("sameCharacterAs"), "a price that places nothing under this card leaves the comparison unread");
   const two = unread("[Union Absorb] Choose 2 of your Battle Cards and place them under this card: Choose up to 1 <Baby> with the same character name as the card you placed under this card from your deck, and play it on top of this card.");
   assert.ok(two.unread.length > 0, "two cards placed are not 'the card you placed'");
-  // The sibling wording "…same name as the chosen card" (P-440, BT25-099b) stays refused.
+  // The sibling wording "…same name as the chosen card" is read only against a choice the effect itself made (P-440,
+  // mechanism batch 2, `sameNameAs`); naming a price's choice it stays refused.
   const chosen = unread("[Activate: Main] Choose 1 of your Battle Cards and place it under this card: Choose up to 1 card with the same name as the chosen card from your deck and add it to your hand.");
   assert.ok(chosen.unread.length > 0, "'the same name as the chosen card' is still unread");
 }

@@ -135,8 +135,12 @@ type Sel = { area?: string; areas?: string[]; side?: string; filter?: { costMin:
   assert.ok(counts.length >= 3, "one count per name (it was one card that is any of the three)");
 
   const placed = compile("[Activate: Battle][Limit 1] Choose up to 1 mono-red <Broly> card in your Battle Area with an energy cost of 6 or less, add up to 1 card with the same name as the chosen card from your deck to your hand, and shuffle your deck.");
-  assert.notDeepEqual(placed.unsupported, [], "P-440: 'the same name as the chosen card' is refused (it moved the chosen card itself)");
-  assert.equal(find(placed.ops, "moveTo").length, 0);
+  // Mechanism batch 2: read now as a measure against the chosen card (`sameNameAs`) — the deck card is what moves,
+  // never the chosen card itself (the misreading this case was written against).
+  assert.deepEqual(placed.unsupported, [], "P-440: 'the same name as the chosen card' is read");
+  const moved = find(placed.ops, "moveTo");
+  const picks = find(placed.ops, "choose");
+  assert.ok(moved.length === 1 && "var" in moved[0].target && picks[1] && moved[0].target.var === picks[1].as && picks[1].sel.filter?.sameNameAs === picks[0].as, "P-440: the deck card of that name moves, not the chosen card");
 
   // P-481 is read since prohibition batch 2: the battle's KO against those
   // attackers only (`beKOdInBattle` with `byFilter`), never every KO.
