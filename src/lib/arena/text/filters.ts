@@ -656,7 +656,11 @@ function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null
   // alternative, not the last one alone. Taken off here and said again of each piece below.
   // Only "both" said of two alternatives: an aside after a pair of names joined into one piece ("…or up to 1 ≪Saiyan≫
   // or ≪Earthling≫ card—both yellow…—", BT24-092) is that piece's, as it always read (`endingAsideForAll` false).
-  const ending = endingAsideForAll ? /(?:--|[-—–―])\s*both\s+((?:(?!--|[—–―]|\bor (?!less\b|more\b)).)+?)\s*(?:--|[-—–―])?\s*$/i.exec(plain) : null;
+  // Phrasing batch 6: "all" said of three — "≪Evil Wizard≫ card, ≪Demon Realm Race≫ card, or ≪Demon God≫ card—all black
+  // and with an energy cost of 2 or less—" (BT17-112) — is the same aside, said of every alternative.
+  // (The place printed right after the closing dash — "…2 or less—from your hand" — is the selector's, as below.)
+  const asideThenPlace = /((?:--|[-—–―])\s*(?:both|all)\s+[^—–―]+?(?:--|[-—–―]))\s*(?:in|from) (?:your|their) (?:hand|deck|drop(?: area)?|warp)$/i.exec(plain);
+  const ending = endingAsideForAll ? /(?:--|[-—–―])\s*(?:both|all)\s+((?:(?!--|[—–―]|\bor (?!less\b|more\b)).)+?)\s*(?:--|[-—–―])?\s*$/i.exec(asideThenPlace ? plain.slice(0, asideThenPlace.index + asideThenPlace[1].length) : plain) : null;
   const shared = ending && /\bor\b/i.test(plain.slice(0, ending.index)) ? ending[1] : null;
   const whole = expandSharedCardDescription(plain);
   // "…with an energy cost of 1 or 5" (BT29-032, #537): two costs, either one.

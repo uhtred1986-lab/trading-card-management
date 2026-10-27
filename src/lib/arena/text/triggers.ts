@@ -129,6 +129,31 @@ const DROP_FROM_Z_ENERGY = /^when this card is placed (?:in|into) (?:a|your|its 
  */
 const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
 const YOUR_CARD_REMOVED_BY_OPPONENT = /^when (?:your|one of your) ((?!opponent)[^,]{1,160}?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?(?:,|$)/;
+/**
+ * Phrasing batch 6: "When this card is discarded from your hand by a [Union] skill" (BT11-079, BT19-052), "When this
+ * card is placed from a hand into its owner's Drop by a [Union] skill" (P-683) — and the [Union-Fusion] wordings:
+ * "…discarded from your hand by a [Union-Fusion] skill" (P-246), "…placed in your Drop from your hand by
+ * [Union-Fusion]" (BT18-085), "…placed in your Drop Area from your hand as a result of [Union-Fusion]" (SD6-02).
+ */
+const DISCARDED_BY_UNION = /^when this card(?: in your hand)? is (?:discarded from (?:your|a) hand|placed from (?:your|a) hand (?:in|into) (?:your|its owner'?s) drop(?: area)?|placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from (?:your|a) hand) by an? \[union\](?: skill)?(?:,|$)/;
+const DISCARDED_BY_FUSION = /^when this card(?: in your hand)? is (?:discarded from (?:your|a) hand|placed from (?:your|a) hand (?:in|into) (?:your|its owner'?s) drop(?: area)?|placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from (?:your|a) hand) (?:by an? |by |as a result of )\[union-fusion\](?: skill)?(?:,|$)/;
+/** Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089): the card is the subject. */
+const YOUR_CARD_ABSORBS = /^when (?:one of your|your) ((?!opponent)[^,]{1,120}?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?(?:,|$)/;
+/** Phrasing batch 6: "When {X} is played from your hand" (TB2-045), "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
+const YOUR_CARD_PLAYED_FROM = /^when (?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,120}?) (?:is|are) played from your (hand|drop)(?: area)?(?:,|$)/;
+/**
+ * Phrasing batch 6: the keyword moves "When you activate …" names — "[Union-Fusion]" (BT10-092b), "an [Evolve] or
+ * [Union] skill" (BT14-094), "[Evolve] or [Union Absorb]" (BT17-002b), "[union absorb]" (BT30-044b) — as `evolve`,
+ * `union`, `fusion` or `absorb`. Empty for any other head.
+ */
+function activatedKeywords(head: string): string[] {
+  const m = /^when you activate (?:an? )?\[([a-z -]+)\](?: skill)?(?: or (?:an? )?\[([a-z -]+)\](?: skill)?)?\s*(?:,|$)/.exec(head.toLowerCase());
+  if (!m) return [];
+  const one = (k: string | undefined) => (k === undefined ? null : k === "evolve" ? "evolve" : k === "union" ? "union" : /^union[- ]fusion$/.test(k) ? "fusion" : /^union[- ]absorb$/.test(k) ? "absorb" : "?");
+  const out = [one(m[1]), one(m[2])].filter((k): k is string => k !== null);
+  return out.includes("?") ? [] : out;
+}
+
 /** A description the subject filter reads whole: no "or" it would read half of, nothing it leaves unread. */
 function readableSubject(effect: { unmask: (s: string) => string }, said: string): boolean {
   const description = expandSharedCardDescription(effect.unmask(said));
@@ -496,6 +521,41 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     }
     case "opponentLifeToZBySkill":
       return /^when your opponent'?s life is added to (?:its owner'?s|their) z-energy by (?:one of )?your skills?(?:,|$)/.test(head);
+    // Phrasing batch 6: the [Union]/[Evolve] family's moments.
+    case "droppedFromHandByUnion":
+      return DISCARDED_BY_UNION.test(head.toLowerCase());
+    case "droppedFromHandByFusion":
+      return DISCARDED_BY_FUSION.test(head.toLowerCase());
+    case "unionFusionActivated":
+      return activatedKeywords(head).includes("fusion");
+    case "unionAbsorbUsed": {
+      if (activatedKeywords(head).includes("absorb")) return true;
+      const m = YOUR_CARD_ABSORBS.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "evolveActivated":
+      return activatedKeywords(head).includes("evolve");
+    case "battleCardReturnedToHand":
+      return /^when (?:a|1) card in (?:a|the) battle area is returned to its owner'?s hand(?: by (?:a|any) skill)?(?:,|$)/.test(head.toLowerCase());
+    case "opponentCardPlayedBySkill": {
+      const m = /^when (?:one of )?your opponent'?s ((?!skill)[^,]{1,120}?) (?:is|are) played by (?:a|any) skill(?:,|$)/.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourEnergyToDeck":
+      return /^when your energy is placed (?:at|on) the bottom of (?:its owner'?s|your) deck(?:,|$)/.test(head.toLowerCase());
+    case "yourCardPlayedFromHand":
+    case "yourCardPlayedFromDrop": {
+      const m = YOUR_CARD_PLAYED_FROM.exec(head.toLowerCase());
+      return !!m && (m[2] === "hand") === (trigger === "yourCardPlayedFromHand") && readableSubject(effect, m[1]);
+    }
+    case "opponentCardToZEnergy":
+      return /^when (?:one of )?your opponent'?s cards? (?:is|are) added to (?:their|its owner'?s) z-energy(?:,|$)/.test(head.toLowerCase());
+    case "eitherCardPlayed": {
+      const m = /^when your or your opponent'?s ([^,]{1,120}?) (?:is|are) played(?:,|$)/.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardDealtDamage":
+      return /^when one of your cards deals damage(?: to your opponent)?(?:,|$)/.test(head.toLowerCase());
     case "yourCardReturnedToHand":
       return RETURNED_FROM_YOUR_BATTLE.test(head.split(/,|\./, 1)[0]);
     case "battleOrDeckToWarp":
@@ -563,7 +623,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when (?:a|this) card in your life is flipped face up/.test(t);
     // 22: a keyword skill being used, which the cards name by its own bracket.
     case "unionActivated":
-      return /when you activate a \[union[^\]]*\](?: skill)?/.test(t);
+      // Phrasing batch 6: "When you activate an [Evolve] **or [Union]** skill" (BT14-094).
+      return /when you activate a \[union[^\]]*\](?: skill)?/.test(t) || activatedKeywords(head).includes("union");
     case "unionAbsorbActivated":
       return /when this card'?s \[union-absorb\] is activated/.test(t);
     case "overlordActivated":

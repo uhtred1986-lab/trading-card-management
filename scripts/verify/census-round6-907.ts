@@ -194,16 +194,19 @@ type Sel = { area?: string; areas?: string[]; fromVar?: string; filter?: Record<
   assert.ok(compile("[activate: main][once per turn]{1}, choose 1 ≪World Tournament≫ card in your Battle Area: Choose up to 1 Battle Card from your hand with a card name in the chosen card's skill text and play it.").unsupported.length > 0, "P-269b stays unread");
   const keyword = compile("[Activate: Main][Once per turn] Choose up to 1 of your red Unison Cards with [Rejuvenate] in its skill text, and you may place 1 red ≪Demon Clan≫ card from your Drop Area under it.");
   assert.equal(((find(keyword.ops, "choose")[0].sel as Sel).filter?.keywords as unknown[] | undefined)?.length, 1, "a keyword in the text is still read as the keyword");
-  // "You can activate its [Awaken] even if your life is at N or less" lifts a gate; it is not a play of a card.
-  for (const text of [
-    "[Auto] If your Leader's back side is {Saiyan Bond Vegeta} and your opponent has 2 or more energy: During this turn, you can activate your Leader's [Awaken] even if your life is at 6 or less.",
-    "[Auto] When you play this card, for the duration of the turn, if your Leader Card is a red <Broly> card, you can activate its [Awaken] skill even if you have 5 or more life.",
-    "[Auto] You can activate your green <Beerus> or <Champa> card's [Awaken] even when your life is at 4 or less.",
-  ]) {
+  // "You can activate its [Awaken] even if your life is at N or less" lifts a gate; it is not a play of a card. Phrasing
+  // batch 6 reads the second as that gate lifted (`awakenLife`); the first, an [Auto] naming no moment, and the third, a
+  // card of no fixed area, stay unread.
+  for (const [text, lifted] of [
+    ["[Auto] If your Leader's back side is {Saiyan Bond Vegeta} and your opponent has 2 or more energy: During this turn, you can activate your Leader's [Awaken] even if your life is at 6 or less.", false],
+    ["[Auto] When you play this card, for the duration of the turn, if your Leader Card is a red <Broly> card, you can activate its [Awaken] skill even if you have 5 or more life.", true],
+    ["[Auto] You can activate your green <Beerus> or <Champa> card's [Awaken] even when your life is at 4 or less.", false],
+  ] as const) {
     const s = compile(text);
     assert.equal(find(s.ops, "play").length, 0, "no play of a card");
     assert.equal(find(s.ops, "choose").length, 0, "and no choice of six Leaders");
-    assert.ok(s.unsupported.length > 0, "the permission stays unread");
+    if (lifted) assert.ok(!s.unsupported.length && find(s.ops, "permit").some((p) => (p as { what?: string }).what === "awakenLife"), "the permission is the gate lifted");
+    else assert.ok(s.unsupported.length > 0, "the permission stays unread");
   }
   assert.equal(find(compile("[Permanent] If your Leader Card is a Blue/Green multicolor card, you can activate your Leader Card's [Activate: Main], [Activate: Battle], and [Activate: Main/Battle] skills even when your life is at 4 or less.").ops, "play").length, 0, "P-208: a Leader is not played");
   // "They both lose": two choices, and a bare reference names only the last.

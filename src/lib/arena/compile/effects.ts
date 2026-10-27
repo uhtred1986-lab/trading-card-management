@@ -408,7 +408,9 @@ function durationOf(clause: string): Duration {
   // trailing form: a [Permanent]'s "While this card is in …, …" leads its
   // sentence and is a condition, read as one before any clause gets here.
   if (/\bwhile this card is in (?:a|the|your) battle area\.?$/.test(t)) return "whileSourceInPlay";
-  if (/for the (?:duration of (?:the|this) )?battle|during this battle/.test(t)) return "battle";
+  // Phrasing batch 6: "…gets +10000 power **until the next end of the battle**" (BT31-103): a "battle" effect, which ends
+  // at the next battle's end — the one in progress, or the next one when none is (`endEffects` ends only that span).
+  if (/for the (?:duration of (?:the|this) )?battle|during this battle|until the next end of (?:the|a) battle/.test(t)) return "battle";
   // "…for the rest of the game" (P-496, prohibition batch 6) is the game too.
   if (/for the (?:duration of (?:the|this) |rest of the |remainder of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
   if (/until (?:the start of )?your opponent's next turn/.test(t)) return "opponentTurn";
@@ -786,7 +788,7 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
  * count — times the printed number, since "+5000 power for each" is far more
  * common than "1 for each".
  */
-function compileForEach(clause: string, c: Ctx): Op[] | null {
+function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const t = clean(clause);
   // "For each marker on this card, this card gets +5000 power during your
   // turn" (BT27-003/004/005/006, EX19-21): the count leads the sentence,
@@ -846,7 +848,12 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   const sel = colors ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
-  const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), count: 99, upTo: false };
+  // Phrasing batch 6 (`ledCost`): two areas said with "and" ("in your Unison Area and Drop Area", P-379; "…Leader Area
+  // and Battle Area", BT21-076) are not one area, and the selector keeps one — left unread. "In play" with no owner is
+  // both players' (BT15-155's "For each Battle Card in play", BT15-095's "markers on Unison Cards in play").
+  if (ledCost && /\band\b/.test(counted)) return null;
+  const everyone = ledCost && /\bin play\b/.test(counted) && !/\b(?:your|their|opponent'?s?)\b/.test(counted);
+  const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), ...(everyone ? { side: "both" as const } : {}), count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
     zCostOf
       ? { sumOf: broad, attr: "zEnergyCost", ...(printed === 1 ? {} : { times: printed }) }
@@ -861,12 +868,16 @@ function compileForEach(clause: string, c: Ctx): Op[] | null {
   if (!head?.length) return null;
   const [op, ...rest] = head;
   // Trailing cost counts already have their own reader (including orb colors).
-  if (op.op === "costReduction" && !lead) return null;
+  // Phrasing batch 6 (`ledCost`): a [Permanent]'s count printed before its cost reduction ("For each marker on your
+  // blue Unison, reduce the energy cost of this card in your hand by 1", BT28-054) is read here, where the count's
+  // own readers (markers, the Z-Energy cost sum, areas said with "and") are.
+  if (op.op === "costReduction" && !lead && !ledCost) return null;
+  if (ledCost && (op.op !== "costReduction" || typeof op.amount !== "number" || (op.what !== undefined && op.what !== "zEnergy"))) return null;
   const swapped = swapForEachAmount(op, amountFor);
   if (!swapped) return null;
   // The named area is the reducer's scope, not a creation/activation source.
   // selfFrom reads “from”, so preserve “in your hand” explicitly here.
-  if (lead && swapped.op === "costReduction" && /\bthis card in your hand by\b/.test(headSrc)) {
+  if ((lead || ledCost) && swapped.op === "costReduction" && /\bthis card in your hand by\b/.test(headSrc)) {
     swapped.target = { sel: { special: "self", area: "hand" } };
   }
   return [swapped, ...rest];
@@ -943,7 +954,7 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
 // "During **that** turn" is the turn the sentence has been talking about,
 // which is this one — the same duration said with a different pronoun.
 const DURATION_TAIL_SRC =
-  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until (?:the )?(?:end|start|beginning) of [a-z' ]+|while this card is in (?:a|the|your) battle area";
+  "for the (?:duration of (?:the |this )?)?(?:turn|battle|game)|for the rest of (?:the|this) turn|during (?:this|the|that) turn|this turn|until the next end of (?:the|a) battle|until (?:the )?(?:end|start|beginning) of [a-z' ]+|while this card is in (?:a|the|your) battle area";
 /**
  * How long, on its own. A pattern that takes a whole *target phrase* off the
  * end of a clause has to cut the duration itself rather than work from
@@ -953,6 +964,9 @@ const DURATION_TAIL_SRC =
  * next turn" came back as the play area, for the rest of the game.
  */
 const DURATION_TAIL = new RegExp(`\\s+(?:${DURATION_TAIL_SRC})$`);
+/** Phrasing batch 6: every area one player's card can be in, for a standing change said "in all areas" of cards wherever they are (BT9-037). */
+const EVERY_AREA: readonly ScriptArea[] = ["hand", "deck", "drop", "life", "leader", "battle", "combo", "energy", "unison", "warp", "zDeck", "zEnergy", "removed"];
+
 const TRAILING_QUALIFIER = new RegExp(`\\s+(?:${DURATION_TAIL_SRC}|in (?:all|any) areas?)$`);
 
 /**
@@ -1016,6 +1030,30 @@ const OPPONENT_DOES = /^your opponent (places|puts|sends|returns|adds|switches|r
 const OPPONENT_POSSESSIVE = /\btheir\b|\bits owner'?s?\b/i;
 
 /** Try to read one clause. Returns null when the wording is not understood. */
+/**
+ * Phrasing batch 6: "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**"
+ * (P-500, P-508, EX25-02), "…your Leader can activate [Awaken] even if your life is at 6 or less during that turn",
+ * "…you can activate its [Awaken] skill **even if you have 5 or more life**" (BT1-051, BT7-069, EX06-03), "Your blue
+ * {Fused Zamasu} Leader Card can activate its [awaken] skill even if you have 3 or more life" (a [Permanent]): the life
+ * gate of your Leader's [Awaken] lifted — raised to N, or gone for "N or more life" (`awakenLife`, n 99) — for the turn
+ * (the game, in a [Permanent]). The [Awaken]'s other conditions still hold. `undefined` for any other clause; `null`
+ * for this one with a Leader description the target reader cannot place.
+ */
+function awakenLifePermit(t: string, c: Ctx): Op[] | null | undefined {
+  const m = /^(?:(your (?:[a-z/ -]+ )?(?:≪[^≫]+≫ |<[^>]+> |\{[^}]+\} )?leader(?: card)?) can activate (?:its |the )?\[awaken(?:: surge)?\](?: skill)?|activate (?:your leader(?: card)?'s|its|the) \[awaken(?:: surge)?\](?: skill)?(?: on your leader(?: card)?)?) even (?:if|when) (?:your life is at (\d+) or less|you have (\d+) or more life)(?: (?:during (?:this|that) turn|for the duration of the turn|for the turn))?$/.exec(t);
+  if (!m) return undefined;
+  // An [Auto] that names no moment (P-500 as the export prints it: "[Auto] If …: During this turn, you can activate …")
+  // would read whole and never fire; it stays unread until its moment is known.
+  if (c.skillKind === "auto" && !/\b(?:when|whenever|at the (?:start|end|beginning))\b/i.test(c.raw)) return null;
+  const said = m[1] && !/^your leader(?: card)?$/.test(m[1]) ? refFor(m[1], c) : { sel: { side: "you" as const, area: "leader" as const } };
+  const who = said && "sel" in said && said.sel.special === "leader" ? { sel: { side: "you" as const, area: "leader" as const } } : said;
+  if (!who || !("sel" in who) || who.sel.area !== "leader" || who.sel.special) return null;
+  const { count: _count, upTo: _upTo, ...sel } = who.sel;
+  void _count;
+  void _upTo;
+  return [{ op: "permit", what: "awakenLife", target: { sel }, until: c.permanent ? "game" : durationOf(t), n: m[2] !== undefined ? Number(m[2]) : 99 }];
+}
+
 function compileClause(clause: string, c: Ctx): Op[] | null {
   const t = clause
     .toLowerCase()
@@ -1053,6 +1091,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // The same, for the Warp: "send this card to your Warp **from your Drop Area**" (BT17-131).
     .replace(/^send (.+?) (to (?:your|their|its owner'?s?) warps?) (from (?:your|their) (?:drop(?: area)?|hand|battle area))$/, "send $1 $3 $2");
   let m: RegExpExecArray | null;
+
+  // Phrasing batch 6: before anything reads the "even if …" as a trailing condition.
+  const awaken = awakenLifePermit(t, c);
+  if (awaken !== undefined) return awaken;
 
   // Phrasing batch 2: "At the end of your opponent's next turn, **they add** all cards sent to their Warp by this
   // skill **from their Warp to their hand**" (BT11-014, BT11-016): the cards this skill sent, back to their owner's
@@ -2075,6 +2117,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // Phrasing batch 5: "…and negate **its** [energy-exhaust] skill in all areas" (EX18-05): the possessive pronoun, the
   // card the sentence is about — this card, in a [Permanent] that names no other.
   const itsSelf = !c.lastTarget || ("sel" in c.lastTarget && c.lastTarget.sel.special === "self");
+  // Phrasing batch 6 (owner's ruling, 26 Oct 2026): "choose up to 1 of your opponent's Battle Cards, ignoring [barrier],
+  // **negate [indestructible]**, and KO it" (BT23-081, P-454), "…, **negate their [indestructible] skills**, and remove them
+  // from the game" (P-493): the keyword of the cards just chosen, negated **for the turn** when no span is printed — a timed
+  // `negateKeyword` (`until`), put in force as the step runs, so the KO or the move after it meets no [Indestructible].
+  if (!c.permanent && c.lastTarget && "var" in c.lastTarget && (m = /^negate (?:(?:its|their) )?\[([a-z0-9\- ]+)\](?: skills?)?(?: (?:for the turn|for the battle|for the duration of the (?:turn|battle)))?$/.exec(t))) {
+    const kw = keywordOf(m[1]);
+    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: c.lastTarget, until: durationOf(t) }];
+  }
   if ((m = /^negate its \[([a-z0-9\- ]+)\](?: skill)? in (?:all|any) areas?$/.exec(t)) && c.permanent && itsSelf) {
     const kw = keywordOf(m[1]);
     if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } } }];
@@ -2095,11 +2145,23 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // "negate X's [K]", so this word order went unread on every card that uses
   // it. A tag naming a *kind* of skill falls through to the rule for those,
   // exactly as it does above.
-  if ((m = /^negate the \[([a-z0-9\- ]+)\] skills? (?:on|of) (.+)$/.exec(q))) {
+  // Phrasing batch 6 (owner's ruling, 26 Oct 2026): "negate the [Energy-Exhaust] **of** your Red/Blue multicolor cards **in
+  // all areas**" (BT9-037, "skill" left out) covers every such card of yours **wherever it is**, not only in play — so one
+  // placed in your energy from the hand, deck or Drop arrives in Active Mode (22-31's hook asks the card as it lands).
+  if ((m = /^negate the \[([a-z0-9\- ]+)\] (?:skills? )?(?:on|of) (.+)$/.exec(q))) {
     const kw = keywordOf(m[1]);
     if (kw) {
       const refs = refsFor(m[2], c);
-      return refs ? refs.map((target) => ({ op: "negateKeyword", keyword: kw.name, target }) as Op) : null;
+      const everywhere = c.permanent && /\bin (?:all|any) areas?$/.test(t);
+      const widen = (target: Ref): Ref | null => {
+        if (!everywhere) return target;
+        if (!("sel" in target) || target.sel.special || target.sel.fromVar || target.sel.side !== "you" || (target.sel.area !== "play" && target.sel.area !== "battle")) return null;
+        const { area: _area, ...sel } = target.sel;
+        void _area;
+        return { sel: { ...sel, areas: [...EVERY_AREA] } };
+      };
+      const wide = refs?.map(widen);
+      return wide && wide.every((r): r is Ref => !!r) ? wide.map((target) => ({ op: "negateKeyword", keyword: kw.name, target }) as Op) : null;
     }
     if (!/^(?:auto|activate|counter|permanent)\b/.test(m[1])) return null;
   }
@@ -5820,8 +5882,11 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
     // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
     // clause was cut off as a condition and the rest read as a play of the Leader (#907 round 6): unread whole.
+    // Phrasing batch 6: an [Awaken]'s is read whole by the clause reader (`awakenLife`); any other stays unread.
     if (/\byou (?:can|may) activate\b[^.]*\[[a-z: -]+\][^.]*\beven (?:if|when)\b/i.test(clause)) {
-      refuse(clause);
+      const lifted = /\[awaken/i.test(clause) ? compileClause(clause.trim().replace(/[.]$/, ""), c) : null;
+      if (lifted?.length) push(lifted);
+      else refuse(clause);
       continue;
     }
     // "…from your deck or life and add them to your hand. Then shuffle any
@@ -6093,10 +6158,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // The same count opening an [Activate]'s effect — "[Activate: Battle] For each card in your Warp, this card gets +5000
     // power for the battle" (EX15-05, EX21-32) — reads the same way. Never a count "with different character names"
     // (BT18-059b, BT18-091): that is how many names, which a count of cards is not.
-    const leadCount = (c.skillKind === "auto" || c.skillKind?.startsWith("activate")) && i === 0 ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
+    // Phrasing batch 6: and a [Permanent]'s cost reduction opened by one — "For each Battle Card in play, reduce the
+    // energy cost of this card in your hand by 2" (BT15-155, BT28-054, BT15-095, P-379, BT21-076, P-479) is the
+    // trailing "…by 2 for each Battle Card in play" the reader already knows. Not with a printed ceiling ("(Up to 2)",
+    // P-464): no amount says one, and read without it the reduction would have none.
+    const permanentReduction = c.skillKind === "permanent" && i === 0 && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost of this card\b/i.test(clauses[i + 1].trim()) && !/\(up to \d+\)/i.test(c.raw);
+    const leadCount = (c.skillKind === "auto" || c.skillKind?.startsWith("activate") || permanentReduction) && i === 0 ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
     const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent (?:card |character )?names?\b/i.test(leadCount[2]);
     if (leadCount && countOnly && i + 1 < clauses.length && !/\bfor (?:each|every)\b|\bequal to\b/i.test(clauses[i + 1])) {
-      const multiplied = compileForEach(`${clauses[i + 1].trim().replace(/[.]$/, "")} for ${leadCount[1].toLowerCase()} ${leadCount[2]}`, c);
+      const said = `${clauses[i + 1].trim().replace(/[.]$/, "")} for ${leadCount[1].toLowerCase()} ${leadCount[2]}`;
+      const multiplied = compileForEach(said, c, permanentReduction);
       if (multiplied) {
         push(multiplied);
         i++;
@@ -6117,8 +6188,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // deck. **If you placed cards in your Drop Area**, …" (P-121), "**If you placed a Battle Card at the bottom of your
     // deck**" (P-142): how many cards the move just before it took (20-16), counted off the choice that move took
     // them from — and only when that move is the skill's last, goes where the words say, and moves exactly what the
-    // choice chose. Anything else ("…a card **from your hand** at the bottom of your deck", EX16-02) stays unread.
-    const counted = /^if you (added|placed) (a|an|1|2|3|4|5|1 or more|cards) ?(battle )?(?:cards?)?(?: (to your hand|(?:in|into) (?:your|the) drop(?: area)?|at the bottom of your deck))?[.,]?$/i.exec(clause.trim().toLowerCase());
+    // choice chose. Anything else stays unread.
+    // Phrasing batch 6 (owner's ruling, 26 Oct 2026): "If you placed a card **from your hand** at the bottom of your deck"
+    // (EX16-02), after a choice over the hand and the Drop Area: only a card taken from the place it names (`choseFrom`).
+    const counted = /^if you (added|placed) (a|an|1|2|3|4|5|1 or more|cards) ?(battle )?(?:cards?)?(?: from your (hand|drop(?: area)?))?(?: (to your hand|(?:in|into) (?:your|the) drop(?: area)?|at the bottom of your deck))?[.,]?$/i.exec(clause.trim().toLowerCase());
+    const fromArea: ScriptArea | null = !counted?.[4] ? null : counted[4] === "hand" ? "hand" : "drop";
+    if (counted) counted.splice(4, 1);
     // ("If you added **a card** to your hand" is `did addToHand`, the condition reader's, and stays so.)
     if (counted && !(counted[1] === "added" && !/^[2-9]$/.test(counted[2]))) {
       const open = groups[groups.length - 1];
@@ -6138,8 +6213,9 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const n = /^\d+$/.test(counted[2]) ? Number(counted[2]) : 1;
       // One choice that can hold that many: "up to 1 <Son Goku: Br> card and 1 <Vegeta: Br> card … If you added 2 cards"
       // (P-108) is two choices of one card each, which no count of either one answers.
-      if (chosen && where && battleOnly && c.last === chosen.var && (chosen.sel.count ?? 1) >= n) {
-        groups.push({ conds: [{ kind: "chose", var: chosen.var, atLeast: n }], ops: [] });
+      const fromOk = !fromArea || (n === 1 && (chosen?.sel.areas?.length ?? 0) > 1 && chosen!.sel.areas!.includes(fromArea) && !chosen!.sel.side?.startsWith("opp"));
+      if (chosen && where && battleOnly && fromOk && c.last === chosen.var && (chosen.sel.count ?? 1) >= n) {
+        groups.push({ conds: [fromArea ? { kind: "choseFrom", var: chosen.var, areas: [fromArea] } : { kind: "chose", var: chosen.var, atLeast: n }], ops: [] });
         continue;
       }
     }

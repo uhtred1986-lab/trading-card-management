@@ -392,8 +392,16 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // as the pair "<A> and <B> are in your Drop Area" already is - not one card that is any of them, which
   // is what the single description below made of it (the cost reduction of BT7-054 came on with any one
   // of the three there). The names are counted one by one and all must hold.
-  const eachName = new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:at least\\s+)?(\\d+)\\s*(?:or more\\s+)?((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t);
-  if (eachName && !/\b(?:both|each|all)\b/.test(eachName[3])) {
+  // Phrasing batch 6: the same list with no count at all — "if you have <Android 14>, <Android 15> and <Android 13> in
+  // your Drop Area", "if there are <A> and <B> cards in your Drop Area", "if you have a <A>, a <B> and a <C> in …" — is
+  // one card of each name too; read as one description, any ONE of them was enough.
+  const eachName =
+    new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:at least\\s+)?(\\d+)\\s*(?:or more\\s+)?((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t) ??
+    (() => {
+      const bare = new RegExp(`^(?:there (?:is|are)|you have)\\s+((?:(?:an?\\s+)?${NAMED_CARD}(?:\\s+cards?)?,?\\s+)+and\\s+(?:an?\\s+)?${NAMED_CARD})(?:\\s+cards?)?\\s+((?:in|among)\\s.+)$`).exec(t);
+      return bare ? ([bare[0], "1", bare[1], bare[2]] as unknown as RegExpExecArray) : null;
+    })();
+  if (eachName && !/\b(?:both|each|all|or)\b/.test(eachName[3])) {
     const names = [...eachName[2].matchAll(new RegExp(NAMED_CARD, "g"))].map((x) => x[0]);
     const conds: Cond[] = [];
     for (const name of names) {
@@ -1008,12 +1016,14 @@ function costConditionShape(t: string, bare: boolean): { cond: Cond } | null | u
   // wider ("a Battle Card with 20000 power or more is in ...", "X or Y cards are in ...") is the
   // ordinary conditions' business and is left to them.
   const NAME = "(?:[{<≪][^}>≫]+[}>≫])(?: cards?)?";
-  if ((m = new RegExp(`^(?:an? )?(${NAME}(?: and ${NAME})?) (is|are) in (play in )?(your (?:drop area|warp|hand|energy area|life area|z-deck|battle area|combo area))$`).exec(t))) {
+  // Phrasing batch 6: three or more, listed with commas — "If <Bergamo>, <Lavender>, and <Basil> are in play in your
+  // Battle Area" (TB1-048) — are each on its own as well.
+  if ((m = new RegExp(`^(?:an? )?(${NAME}(?:, ${NAME})*,? and ${NAME}|${NAME}) (is|are) in (play in )?(your (?:drop area|drop|warp|hand|energy area|life area|z-deck|battle area|combo area))$`).exec(t))) {
     const two = / and /.test(m[1]);
     if (bare && !two) return undefined;
     // "is in play in your Battle Area" with one name is read by the ordinary rule; the pair is not.
     if (m[3] && !two) return undefined;
-    const names = m[1].split(/ and /).map((one, i, all) => (i < all.length - 1 && !/\bcards?$/.test(one) ? `${one} card` : one));
+    const names = m[1].split(/,? and |, /).map((one, i, all) => (i < all.length - 1 && !/\bcards?$/.test(one) ? `${one} card` : one));
     const conds = names.map((one) => parseCountCondition(`you have ${/s$/.test(one) ? "" : "a "}${one} in ${m![4]}`));
     if (conds.some((x) => !x)) return null;
     return { cond: conds.length === 1 ? conds[0]! : { kind: "all", conds: conds as Cond[] } };
