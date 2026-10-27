@@ -625,7 +625,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If the Battle Card being played has an energy cost of 7 or less" — a
   // [Counter: Play] asking about the card it is answering (9-6). The card is
   // not in play yet, so it can only be named, never chosen.
-  if ((m = /^the (battle |extra |unison )?card being played (?:has|is) (.+)$/.exec(t))) {
+  // What happens to that card ("…is placed in its owner's Drop Area instead") is the effect, not a description.
+  if ((m = /^the (battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) (?:has|is) (?!(?:placed|put|returned|sent|played|removed)\b)(.+)$/.exec(t))) {
     // The type word is a measure too: "the **Battle** Card being played"
     // (BT29-112) is not an Extra being played, whatever its cost.
     const filter = filterFor(`${m[1] ?? ""}card ${m[2]}`, null);
@@ -722,6 +723,12 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If this card has 3 or more markers on it" (13-2).
   if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
     return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  }
+  // Delayed/replacement batch 1: "If this card has 1 or more cards under it" (P-436, BT17-144) and "if 1 or more
+  // cards are under this card" (BT20-149): this card's own pile, counted — the gate of their 9-10 substitute, which
+  // places that pile in the Drop instead.
+  if ((m = /^(?:this card has (\d+) or more cards? under it|(\d+) or more cards? (?:are|is) under this card)$/.exec(t))) {
+    return { cond: { kind: "count", sel: { side: "you", area: "under" }, atLeast: Number(m[1] ?? m[2]) }, subject: { sel: { special: "self" } } };
   }
   // "If a {Dr.Uiro's Lab} in your Battle Area has 17 or more cards under it"
   // (BT8-045b): the pile under another card, counted. Best guess where two

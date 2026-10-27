@@ -95,6 +95,8 @@ function causeMatches(game: GameDefinition, state: VmState, id: string, r: Repla
   // Fusion World's power-zero drop (FW manual p. 11) is a skill's doing, not a KO.
   if (r.by === "skill" && reason !== "effect" && reason !== "powerZero") return false;
   if (r.by === "ko" && reason !== "ko") return false;
+  // "…would be KO'd in battle" (BT17-139): the battle's KO (8-4-6-2), the one no skill's controller is the actor of.
+  if (r.by === "koInBattle" && !(reason === "ko" && actor === undefined)) return false;
   if (r.by === "skillOrKo" && reason !== "effect" && reason !== "powerZero" && reason !== "ko") return false;
   // A skill's KO is asked with the skill's controller as the actor; the
   // battle's KO (8-4-6-2) has none, and is not this rule's. Fusion World's

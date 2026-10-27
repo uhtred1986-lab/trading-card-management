@@ -1538,7 +1538,7 @@ export interface Replacement {
    * P-638): an effect putting it out or a **skill's** KO (owner ruling, 26 Oct
    * 2026: a KO by a skill is a removal), but never the battle's KO.
    */
-  by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill";
+  by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle";
   /**
    * 9-10 with the cause narrowed to *whose* skill it was: "if this card would
    * be removed from your Battle Area **by an opponent's skill**" (19 cards).

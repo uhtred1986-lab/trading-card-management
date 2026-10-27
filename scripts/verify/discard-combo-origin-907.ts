@@ -265,7 +265,8 @@ const TURLES = "[Auto] If your Leader Card is a ≪Turles Crusher Corps≫ card 
   // BT1-015 (`battleEnd` delays run since #1042, "after the battle" is read since the #907 battle-end follow-ups):
   // see battle-end-followups-907.ts. It is no longer unread.
   assert.deepEqual(compile("[auto] When this card attacks a Battle Card, KO that card after the battle. Then, if your opponent's Leader Card has 10000 or less power, inflict 1 damage to your opponent.").unsupported, [], "BT1-015");
-  // BT17-139: a battle's KO is taken by the Damage Step (`koCard`), which cannot stop to ask the owner of an optional replacement.
-  assert.ok(compile("[Permanent] Once per turn, if this card would be KO'd in battle, you may place 1 card from under this card in its owner's Drop Area instead.").unsupported.length > 0, "BT17-139");
+  // BT17-139: the Damage Step now stops to ask the owner of an optional replacement of the guard's KO (delayed/replacement
+  // batch 1, `koGuard`), so it is read; the VM proof is delayed-replacement-1.ts.
+  assert.deepEqual(compile("[Permanent] Once per turn, if this card would be KO'd in battle, you may place 1 card from under this card in its owner's Drop Area instead.").unsupported, [], "BT17-139");
 }
 console.log("discard-combo-origin-907: ok");

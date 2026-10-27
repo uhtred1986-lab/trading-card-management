@@ -1044,7 +1044,7 @@ export type Op =
    * `by: "skill"` narrows it to departures a skill caused, and
    * `bySide: "opponent"` to the ones the opponent's skill caused.
    */
-  | { op: "replaceLeave"; to: ScriptArea; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent" | "you"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand"; until?: Duration; optional?: boolean; target?: Ref }
+  | { op: "replaceLeave"; to: ScriptArea; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle"; bySide?: "opponent" | "you"; mode?: "active" | "rest"; position?: "top" | "bottom"; requestedTo?: "hand" | "drop"; until?: Duration; optional?: boolean; target?: Ref }
   /**
    * 9-10: an event that is about to happen happens differently, or not at all.
    * The primitive `replaceLeave` and `resolvingPlay` are macros over
@@ -1082,7 +1082,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price

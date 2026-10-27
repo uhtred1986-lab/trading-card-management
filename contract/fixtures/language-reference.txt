@@ -1869,7 +1869,7 @@
     {
       "name": "replaceLeave",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"replaceLeave\",\"from\"?:[\"battle\"|\"combo\"],\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\",\"bySide\"?:\"opponent\"|\"you\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replaceLeave\",\"from\"?:[\"battle\"|\"combo\"],\"to\":AREA,\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\",\"bySide\"?:\"opponent\"|\"you\",\"mode\"?:\"active\"|\"rest\",\"position\"?:\"top\"|\"bottom\",\"requestedTo\"?:\"hand\"|\"drop\",\"until\"?:DURATION,\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "from",
@@ -1897,7 +1897,8 @@
             "skill",
             "ko",
             "skillOrKo",
-            "skillOrKoBySkill"
+            "skillOrKoBySkill",
+            "koInBattle"
           ]
         },
         {
@@ -1936,7 +1937,8 @@
           "nullable": false,
           "type": "enum",
           "enumValues": [
-            "hand"
+            "hand",
+            "drop"
           ]
         },
         {
@@ -1965,7 +1967,7 @@
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "from",
@@ -2009,6 +2011,7 @@
             "ko",
             "skillOrKo",
             "skillOrKoBySkill",
+            "koInBattle",
             "attack"
           ]
         },
@@ -2047,7 +2050,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, this happens instead: draw 1",
-      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"from\" optionally names the Battle/Combo departure areas for a leave redirect; \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area; with a \"target\" it is the rule of the life card that prints it — \"if you would reveal this card from your life to add it to your hand\" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to; \"by\":\"skillOrKoBySkill\" is a departure a skill causes or a skill's KO, never the battle's (\"once per turn, this card can't be removed from a Battle Area by skills\", BT22-117, P-638). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is [Permanent] only — or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
+      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"from\" optionally names the Battle/Combo departure areas for a leave redirect; \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area; with a \"target\" it is the rule of the life card that prints it — \"if you would reveal this card from your life to add it to your hand\" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to; \"by\":\"koInBattle\" on a \"ko\" is the battle's KO only (8-4-6-2, \"if this card would be KO'd in battle\", BT17-139), never a skill's; \"by\":\"skillOrKoBySkill\" is a departure a skill causes or a skill's KO, never the battle's (\"once per turn, this card can't be removed from a Battle Area by skills\", BT22-117, P-638). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is [Permanent] only — or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
     },
     {
       "name": "altCost",

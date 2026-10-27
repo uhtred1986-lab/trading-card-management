@@ -49,7 +49,7 @@ import { sparkingIsValid } from "./validity";
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import type { EngineContext, GameEvent } from "../types";
-import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type ScriptFrame, type Selector } from "./script";
+import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type Ref, type ScriptFrame, type Selector } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
 import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
@@ -629,6 +629,11 @@ function comboDepartures(ops: readonly Op[]): Op[] {
   return out;
 }
 
+/** A replacement about cards other than its own: a target that is a selector, not this card. */
+function aboutOthers(target: Ref | undefined): boolean {
+  return !!target && "sel" in target && target.sel.special !== "self";
+}
+
 /** The zones `permanents` walks for a game, worked out once (#1009): they are the game definition's, not the board's. */
 const zonePlans = new WeakMap<GameDefinition, { inPlay: Set<string>; zones: string[]; walked: string[] }>();
 function zonePlan(game: GameDefinition) {
@@ -1038,7 +1043,10 @@ function collect(
     // `collectStatics`' reading, word for word, under its one kind.
     if (op.op === "replaceLeave") {
       const explicitSource = op.from?.some((zone) => state.sides[frame.master].zones[zone]?.includes(frame.card));
-      if (op.from ? !explicitSource : !inPlayNow) continue;
+      // "from" says where the departing card leaves. For the card's own rule that is also where the rule is valid;
+      // a rule about other cards ("when you would place a ≪Universe 7≫ card from your Combo Area in your Drop",
+      // BT23-099) is valid while its own card is in play (delayed/replacement batch 1).
+      if (op.from && !aboutOthers(op.target) ? !explicitSource : !inPlayNow) continue;
       const to = op.to === "play" ? "battle" : op.to === "under" ? "drop" : op.to;
       const value: Replacement = { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
       for (const id of op.target ? targets(frame, op) : [frame.card]) out.push({ source: frame.card, master: frame.master, kind: "replaceLeave", target: id, value: { ...value }, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) });
@@ -1054,13 +1062,14 @@ function collect(
       // BT30-104 (deck flags 26 Oct 2026): a substitute that removes this card from the Warp stands
       // while this card is in the Warp, which is where `warpSelfOps` found it.
       const warpSelf = !!state.sides[frame.master].zones.warp?.includes(frame.card) && movesSelfOutOfWarp(op.with);
-      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : warpSelf ? false : op.from ? !explicitSource : !inPlayNow)) continue;
+      if (op.event === "play" || (lifeSelf ? !state.sides[frame.master].zones.life?.includes(frame.card) : warpSelf ? false : op.from && !aboutOthers(op.target) ? !explicitSource : !inPlayNow)) continue;
       const isLife = op.event === "life";
       // 13-5-2: a marker loss is never a redirect — the marker is not a card
       // that could go anywhere else — so its `with` is always the substitute.
       const isMarker = op.event === "marker";
       const redirect = isMarker ? null : redirectOf(op.with);
-      const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
+      // "…would be KO'd **in battle**" (BT17-139) keeps its narrower cause on the `ko` moment.
+      const by = op.event === "ko" ? (op.by === "koInBattle" ? ("koInBattle" as const) : ("ko" as const)) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }

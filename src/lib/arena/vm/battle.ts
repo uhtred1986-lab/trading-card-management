@@ -1603,6 +1603,7 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // `battleDamage`'s `resume`, which goes straight to `damageLife`).
   if (b?.damage) return dealDamage(ctx, game, state, ev, other(state.turnPlayer));
   if (b?.markerLoss) return loseMarkers(ctx, game, state, ev);
+  if (b?.guardKo) return koGuard(ctx, game, state, ev);
   if (!b || b.negated || !battleIntact(state)) return abortToEnd(game, state);
   b.step = "damage";
   log(ev, { type: "battleStep", step: "damage" });
@@ -1640,9 +1641,54 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // contract's `koByEffect` (#154; that hook is for a *skill's* KO, and
       // reads `forbid(what: beKOdBySkill)` through `prohibitions()` instead —
       // see `docs/arena-ruleset-spec.md` §4.3).
-      koCard(ctx, game, state, ev, b.guard, b.attacker);
+      b.guardKo = {};
+      return koGuard(ctx, game, state, ev);
     }
   }
+}
+
+/**
+ * 8-4-6-2's KO of the guard, with 9-10-2's and 9-10-3's question (delayed/replacement batch 1). A battle's KO used to
+ * take only the first mandatory, question-free replacement (`leaveRoute`'s deterministic answer), so "if this card
+ * would be KO'd, **you may** … instead" (BT6-094, BT17-139's "in battle", EX24-37) never applied to it. When a choice
+ * is owed — several replacements, or only optional ones — the guard's master is asked through the same `replaceMove`
+ * question the life cards' use, and `resumeDamage` brings the step back to this answer. A substitute taken goes to the
+ * front of `state.programs` (it may ask — "choose 1 card under this card") and the guard stays; a redirect or "none" is
+ * the KO with that answer. With nothing to ask, the KO is exactly what it was.
+ */
+function koGuard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void | "wait" {
+  const b = state.battle!;
+  const k = b.guardKo!;
+  const guard = b.guard;
+  const master = masterOf(game, state, guard);
+  const onField = !!findCard(state, guard) && findCard(state, guard)!.zone === "battle";
+  if (!onField || forbids(ctx, game, state, "beKOd", { card: guard })) {
+    delete b.guardKo;
+    return;
+  }
+  const choices = replacementChoices(ctx, game, state, guard, "ko", { requestedTo: "drop" });
+  const allowNone = choices.length > 0 && choices.every((c) => c.optional);
+  let replaced: ReplacementResult | null | undefined;
+  if (k.awaiting) {
+    const index = state.lastMode;
+    state.lastMode = null;
+    delete k.awaiting;
+    replaced = index == null || index < 0 || index >= choices.length ? null : routeOf(choices[index]);
+    if (replaced?.ops?.length) {
+      const taken = choices[index!];
+      delete b.guardKo;
+      log(ev, { type: "note", text: `${nameOf(ctx, state, guard)} is not KO'd; ${describeScript(taken.ops ?? [])} instead` });
+      state.programs.unshift(markerSubstituteFrame(guard, taken, master));
+      return;
+    }
+  } else if (choices.length > 1 || allowNone) {
+    k.awaiting = true;
+    const prompt = replacementPrompt(nameOf(ctx, state, guard), "drop", choices, allowNone);
+    state.prompt = { kind: "replaceMove", player: master, card: guard, reason: prompt.reason, options: prompt.options };
+    return "wait";
+  }
+  delete b.guardKo;
+  koCard(ctx, game, state, ev, guard, b.attacker, replaced);
 }
 
 /**
@@ -1776,7 +1822,7 @@ function dealDamage(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * than advancing past that step with an unread `lastMode`.
  */
 export function resumeDamage(state: VmState): boolean {
-  if (!state.battle?.damage?.awaiting && !state.battle?.markerLoss?.awaiting && !state.battle?.endCombo?.awaitingDeparture) return false;
+  if (!state.battle?.damage?.awaiting && !state.battle?.markerLoss?.awaiting && !state.battle?.guardKo?.awaiting && !state.battle?.endCombo?.awaitingDeparture) return false;
   const top = state.flow[state.flow.length - 1];
   if (top) delete top.asking;
   return true;
