@@ -357,13 +357,14 @@ function refsFor(phrase: string, c: Ctx): Ref[] | null {
 
 /**
  * A target with a number in it ("1 card from your Drop", "up to 2 of your
- * opponent's Battle Cards") is a choice before it is anything else: the
+ * opponent's Battle Cards", "any number of …") is a choice before it is anything else: the
  * interpreter resolves a selector to *every* card it matches, so an action
  * handed the selector directly would take them all. Bare plurals ("your
  * opponent's Battle Cards") carry no count and do mean all of them.
  */
 function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
-  if ("sel" in ref && !ref.sel.special && ref.sel.take == null && ref.sel.count != null && ref.sel.count < 99) {
+  // Phrasing batch 10: "place **any number of** red Extras from your Drop under that card" (P-724) is a choice too.
+  if ("sel" in ref && !ref.sel.special && ref.sel.take == null && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: ref.sel, as: v, reason: clause }, act({ var: v })];
   }
@@ -900,6 +901,15 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
     if (!swapped || JSON.stringify(swapped).includes("null")) return null;
     return [swapped, ...rest];
   }
+  // Phrasing batch 10 (22-43): "…-5000 power for the turn **for each marker you removed using this skill**" on a [Spirit
+  // Boost X] line (BT14-029): X, the markers its price removed.
+  if (step === 1 && c.spiritBoostX && /^markers? (?:that )?you (?:removed?|remove)(?: from (?:your|the) unison(?: card)?)? (?:with|using|by) this skill$/.test(counted)) {
+    const head = compileClause(`${headSrc}${tail}`, c);
+    if (!head?.length) return null;
+    const [op, ...rest] = head;
+    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { x: true } : { x: true, times: printed }));
+    return swapped ? [swapped, ...rest] : null;
+  }
   const per = step > 1 ? { per: step } : {};
   // "For each marker on X" is a marker total, not a count of matching cards —
   // reading it as `count` asked how many cards are named "this card" (always
@@ -1161,9 +1171,24 @@ function awakenLifePermit(t: string, c: Ctx): Op[] | null | undefined {
 }
 
 function compileClause(clause: string, c: Ctx): Op[] | null {
+  // Phrasing batch 10: "look at up to 5 cards from the top of your deck, choose up to 2 ≪Universe 2≫ cards, **add up to 1
+  // card to your hand, send up to 1 card to your Warp**" (BT30-101, BT30-104): the bare cards are the ones just chosen
+  // out of the look, each pick taken out of that pool (`fromVar`); "look at up to 2 cards …, **place up to 1 card in your
+  // Drop, send up to 1 card to its owner's Warp**, then place the rest at the bottom" (BT30-101) picks out of the look.
+  const bare = /^(?:then )?(add|send|place) up to (\d+) cards? (to your hand|to (?:your|its owner'?s) warp|in(?:to)? your drop(?: area)?)$/.exec(clause.trim().toLowerCase().replace(/[.]$/, ""));
+  const pool = bare ? (bare[1] === "place" ? c.lastSeen : c.pickPool ?? (bare[1] === "send" ? c.lastSeen : null)) : null;
+  if (bare && pool && (bare[1] !== "add" || bare[3] === "to your hand")) {
+    const v = `c${c.n++}`;
+    const to = bare[3] === "to your hand" ? "hand" : /warp/.test(bare[3]) ? "warp" : "drop";
+    const picked: Op[] = [{ op: "choose", sel: { fromVar: pool, count: Number(bare[2]), upTo: true }, as: v, reason: clause }, { op: "moveTo", target: { var: v }, to, ...(to === "hand" ? {} : { reveal: true }) }];
+    return picked;
+  }
   // Mechanism batch 2 (P-440): "…with the same name as the chosen card" names the choice made before this clause.
   const before = c.last;
   const ops = compileClauseRead(clause, c);
+  // Phrasing batch 10: a bare "choose up to N …" out of a look, with nothing done to it yet, is the pool the bare cards
+  // above are picked from.
+  if (ops?.length === 1 && ops[0].op === "choose" && c.lastSeen && ops[0].sel.fromVar === c.lastSeen && /^choose up to \d+\b/i.test(clause.trim())) c.pickPool = ops[0].as;
   if (!ops || !JSON.stringify(ops).includes(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`)) return ops;
   // Only a choice this effect made itself: a price's choice ("Choose 1 of your Battle Cards and place it under this
   // card: … the same name as the chosen card") is in another frame, and its name may be reused by the effect's own.
@@ -3877,6 +3902,37 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     return [{ op: "choose", sel: { fromVar: c.last, count: Number(m[2]), upTo: !!m[1] }, as: v, reason: clause }];
   }
 
+  // Phrasing batch 10: "…if your opponent has 11 or more cards in their hand, **they place cards from their hand at the
+  // bottom of their deck in any order until they have 10 cards in their hand**" (BT19-037, BT19-038): the opponent picks
+  // as many of their hand cards as stand above the number (owed, never fewer by choice) and puts them at the bottom of
+  // their deck. A hand already at or under it gives none.
+  if ((m = /^(?:they|your opponent) places? cards from their hand at the bottom of their deck(?: in any order)? until they have (\d+) cards? in their hand$/.exec(t))) {
+    const v = `c${c.n++}`;
+    const hand: Selector = { side: "opponent", area: "hand", count: 99, upTo: false };
+    return [
+      { op: "choose", sel: { side: "opponent", area: "hand" }, as: v, chooser: "opponent", atMost: { plus: [{ count: hand }, -Number(m[1])] }, owed: true, reason: clause },
+      { op: "moveTo", target: { var: v }, to: "deck", position: "bottom" },
+    ];
+  }
+
+  // Phrasing batch 10: a count read off the choice just made — "choose any number of your Battle Cards and they get
+  // -10000 power for the turn. **Choose up to the same number of** your opponent's Battle Cards … and KO them" (P-625);
+  // "choose any number of your yellow Battle Cards and place them into their owner's Drop, **choose a number of** your
+  // opponent's Battle Cards **up to the number of cards placed** into their owner's Drop **this way**" (BT31-067). Read
+  // without it, the second choice was every matching card. Only with an earlier choice in the same skill to count.
+  if (
+    c.last &&
+    ((m = /^choose up to the same number of (.+)$/.exec(t)) ||
+      (m = /^choose a number of (.+?) up to the number of cards (?:placed|sent|put) (?:in|into|int|to) (?:their owners?'?s?|your|its owner'?s) (?:drop|drop area|warp)s? this way$/.exec(t)))
+  ) {
+    const sel = parseTarget(m[1], undefined, c.lastSeen ?? undefined);
+    if (!sel || sel.special || sel.take != null || sel.fromVar) return null;
+    const v = `c${c.n++}`;
+    // "…the number of cards **placed** … this way" counts the chosen cards that reached a Drop, not the ones chosen.
+    const placed = /^choose a number of/.test(t);
+    return [{ op: "choose", sel: { ...sel, count: undefined, upTo: true }, as: v, reason: clause, atMost: placed ? { count: { fromVar: c.last, area: "drop" } } : { var: c.last } }];
+  }
+
   // "Choose any number of your opponent's Battle Cards up to the number of
   // your Hidden Mode cards" (BT29-139): as many as the player likes, up to a
   // count read off the board when the choice is made (`atMost`).
@@ -3986,7 +4042,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // "up to", "all" and "any number" keep their existing readings.
     if (/^(?:you may|you can|the player may)\s+/i.test(clause.trim())) {
       sel.count ??= 1;
-      if (sel.upTo || sel.minCount !== undefined || sel.count < 2 || sel.count >= 99) sel.upTo = true;
+      // Phrasing batch 10: "you may choose **all** of your Battle Cards other than this card and place them in their
+      // owner's Drop Area. If you do, …" (BT7-039) is all of them or none — the offer is taken or declined whole, never
+      // "any number". A bare plural ("you can choose Battle Cards in your Drop when choosing cards to use with … [Union]",
+      // EX21-12) is still a choice of how many.
+      if (sel.upTo || sel.minCount !== undefined || sel.count < 2 || (sel.count >= 99 && !/\ball\b/i.test(clause))) sel.upTo = true;
     }
     // "…with power less than or equal to **the chosen card's** power"
     // (BT19-096): `parseFilter` cannot know which variable that is — only the
@@ -5772,9 +5832,13 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
   // or more using this skill**, …" (BT15-001b): the price took its markers off your Unison — the one card in your Unison
   // Area (22-43) — so the question is that Unison's description. Only with a printed number of at least 1: a [Spirit
   // Boost X] may have removed none, which this cannot tell.
-  if ((m = /^(?:and )?if you removed (?:a|1) markers? from (?:an? |your |one of your )?(.+?) using this skill$/.exec(t)) && c.spiritBoost && c.spiritBoost >= 1) {
+  // Phrasing batch 10: on a [Spirit Boost X] line (BT14-029, BT14-030, BT14-090) the price may have removed none, so the
+  // question is also whether X — the markers it removed — is at least 1 (`xAtLeast`).
+  if ((m = /^(?:and )?if you removed (?:a|1) markers? from (?:an? |your |one of your )?(.+?) using this skill$/.exec(t)) && ((c.spiritBoost && c.spiritBoost >= 1) || c.spiritBoostX)) {
     const filter = described(m[1]);
-    return filter && (filter.type === "UNISON" || /\bunison\b/.test(m[1])) ? { kind: "count", sel: { side: "you", area: "unison", filter }, atLeast: 1 } : null;
+    if (!filter || !(filter.type === "UNISON" || /\bunison\b/.test(m[1]))) return null;
+    const unison: Cond = { kind: "count", sel: { side: "you", area: "unison", filter }, atLeast: 1 };
+    return c.spiritBoostX ? { kind: "all", conds: [{ kind: "xAtLeast", n: 1 }, unison] } : unison;
   }
   if ((m = /^if that card has (\d+) power or (less|more)$/.exec(t)) && c.attacksBattleCard && !c.last && !(c.lastTarget && !("sel" in c.lastTarget && c.lastTarget.sel.special === "self"))) {
     const filter = described(`card with ${m[1]} power or ${m[2]}`);

@@ -76,6 +76,10 @@ export interface Ctx {
   attacksBattleCard?: boolean;
   /** Phrasing batch 9: a printed [Spirit Boost N] (N ≥ 1) on the line — markers this skill removed from your Unison (BT15-001b). */
   spiritBoost?: number;
+  /** Phrasing batch 10: a choice out of a look with nothing done to it yet — the pool "add up to 1 card to your hand" picks from (BT30-101). */
+  pickPool?: string;
+  /** Phrasing batch 10: a "[Spirit Boost X]" line — X is the markers its price removed from your Unison (22-43). */
+  spiritBoostX?: boolean;
   /**
    * Every card the price *chose* ("then choose 1 of your red <Android 17> cards
    * and 1 of your red <Android 18> cards", BT23-007), by the names it binds —

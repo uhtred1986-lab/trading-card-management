@@ -296,6 +296,7 @@ class Parser {
       for (;;) {
         if (this.eatKw("min")) x.min = this.number();
         else if (this.eatKw("max")) x.max = this.number();
+        else if (this.eatKw("spiritBoost")) x.spiritBoost = true;
         else break;
       }
       cost.x = x;

@@ -646,9 +646,6 @@ function commaJoinsMeasure(text: string, start: number, comma: number): boolean 
   const before = text.slice(start, comma).trim();
   if (!/^(?:then\s+)?(?:add|choose|play|search for|place|return|put|send)\b/i.test(before) || !/\bwith\b/i.test(before)) return false;
   const after = text.slice(comma + 1).trimStart().replace(/^(?:and|or)\s+/i, "");
-  // (Phrasing batch 9 joins "…and without <Turles> in their character names" at an "and" only: BT24-099's comma list
-  // "with different card names, energy costs of 1, and without <Turles> …" would read its "any number of" as one card.)
-  if (/^without </i.test(after)) return false;
   return MEASURE_AFTER_AND.test(after);
 }
 

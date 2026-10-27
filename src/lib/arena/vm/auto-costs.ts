@@ -708,6 +708,8 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
   if (bound.unreadable) throw new NotYet("read this Auto's printed skill cost", "#549");
   const choices: AutomaticCost["choices"] = [];
   const x = script.price?.x;
+  // Phrasing batch 10: an [Auto]'s [Spirit Boost X] (X markers, 22-43) is not charged here yet — never as X energy.
+  if (x?.spiritBoost) throw new NotYet("charge an [Auto]'s [Spirit Boost X] markers", "#149");
   const min = x?.min ?? 0;
   const capacity = activeEnergy(game, state, frame.master).length + payersFor(ctx, game, state, frame.master, bound.payers).length + Number(state.sides[frame.master].attrs.energyMarkers ?? 0);
   const declaredMax = x?.max;

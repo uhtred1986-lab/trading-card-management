@@ -602,6 +602,7 @@ function compileSkillText(skill: Skill): Script {
     skillKind: skill.kind,
     xBound: priceX(skill) !== null,
     ...(skill.spiritBoost ? { spiritBoost: skill.spiritBoost } : {}),
+    ...(priceX(skill)?.spiritBoost ? { spiritBoostX: true } : {}),
   };
   // A standing permission is one sentence, not a list of actions: "you can
   // activate this card's [Counter] skill from your hand without paying its
