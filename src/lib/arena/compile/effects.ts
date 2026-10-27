@@ -5622,7 +5622,9 @@ export function splitModal(text: string): { head: string; options: string[] } | 
     .map((o) => o.trim())
     .filter(Boolean);
   if (options.length < 2) return null;
-  return { head: text.slice(0, m.index).trim(), options };
+  // Phrasing batch 9: "Draw 1 card **and** choose one— ・…" (SD7-04, BT24-097): the head's own effect, then the menu —
+  // the "and" (or "then") that joins them is neither's, and left on the head it was a clause nothing read.
+  return { head: text.slice(0, m.index).trim().replace(/,?\s+(?:and|then)$/i, ""), options };
 }
 
 export function holdForGame(ops: Op[]): Op[] {

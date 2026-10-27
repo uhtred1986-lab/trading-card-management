@@ -180,6 +180,29 @@ assert.ok(skillRecords(card("BT14-090", { skill: "[Counter: Attack][Spirit Boost
   records++;
 }
 
+// D. Phrasing clusters: a modal head's own effect joined to the menu by "and"; "and without <Name> in their character
+// names" as one more measure.
+for (const [text, what, first] of [
+  ["[Activate: Main][Once per turn][Sparking 5] (This skill takes effect when you have 5 or more cards in your Drop Area.)  Draw 1 card and choose one - ・Choose up to 2 of your energy and switch them to Active Mode. ・Choose 1 Battle Card with an energy cost of 2 or less from your Drop Area and play it. ・Choose your Leader Card or 1 of your Battle Cards, and it gets +5000 power and [Critical] for the duration of the turn.", "SD7-04", "draw"],
+  ["[Activate: Main] If your Leader Card is a ≪Heroine≫ card: Look at up to 7 cards from the top of your deck and choose one- ・Add up to 2 green skill-less Battle Cards among them to your hand, then shuffle your deck. ・If you don't have a Unison Card in play, play up to 1 green Unison Card with 6000 power among them with a marker on it, then shuffle your deck.", "BT14-086", "look"],
+] as const) {
+  const rec = record(text, what);
+  const body = rec.ops[0]?.op === "if" ? rec.ops[0].then : rec.ops;
+  assert.deepEqual(body.map((o) => o.op), [first, "chooseMode"], `D: ${what} — the head's ${first}, then the menu`);
+  records++;
+}
+for (const [text, what] of [
+  ["[auto] When this card is played, draw 1 card and choose one— ・Choose up to 1 of your opponent's Rest Mode Battle Cards and KO it. ・Choose up to 3 yellow ≪Turles Crusher Corps≫ cards with energy costs of 1 and without <Turles> in their character names and switch them to Active Mode.", "BT24-097"],
+  ["[Activate: Main] If your Leader is a yellow <Turles> card: Look at up to 7 cards from the top of your deck, add up to 2 yellow ≪Turles Crusher Corps≫ cards with energy costs of 1 and without <Turles> in their character names to your hand, then shuffle your deck.", "BT24-110"],
+] as const) {
+  const rec = record(text, what);
+  const pick = opOf(rec, "choose").find((o) => o.sel.filter?.traits.length);
+  assert.ok(pick && pick.sel.filter!.notCharactersIncluding.join().toLowerCase() === "turles" && pick.sel.filter!.costMax === 1, `D: ${what} — ≪Turles Crusher Corps≫ cards costing 1, without <Turles> in their names`);
+  records++;
+}
+// BT24-099's comma list stays unread: its "any number of … with different card names" is not read as one card.
+assert.ok(skillRecords(card("BT24-099", { skill: "[Auto][Limit 1][Spirit Boost 1] If your Leader's back side is {Turles, Corps Commander}: When this card attacks, look at up to 5 cards from the top of your deck, play any number of yellow ≪Turles Crusher Corps≫ cards with different card names, energy costs of 1, and without <Turles> in their character names, then shuffle your deck." }))[0].unread.length > 0, "D: BT24-099 stays unread");
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
