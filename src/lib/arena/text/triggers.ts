@@ -148,6 +148,16 @@ const YOUR_CARD_PLAYED_FROM = /^when (?:an? |1 |one of your |your )?((?!this car
  * cause the KO event does not carry.
  */
 export const YOUR_CARD_BATTLE_TO_DROP = /^when (?:an? |1 |one of your |your )((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,160}?)(?:\s*[-—–―]\s*|\s+)(?:is|are) placed from your battle area (?:in|into) (?:your|its owner'?s) drop(?: area)?(?:,|$)/;
+/**
+ * Phrasing batch 8: the damage wordings that print a battle answer only the battle's damage, never a skill's (the
+ * `damage` op's moments since the owner's ruling of 27 Oct 2026): "When this card deals damage by attacking"
+ * (BT13-005), "…deals damage to your opponent in a battle" (BT26-089); "When you deal damage to your opponent by
+ * attacking with a blue card" (BT30-017) — any card of yours, the attacker the subject; "When you take damage from an
+ * opponent's attack" (BT21-071).
+ */
+const DEALT_BATTLE_DAMAGE = /when this card deals damage(?: to your opponent)? (?:by attacking|in (?:a|the) battle)\b/;
+export const YOUR_CARD_DEALT_BATTLE_DAMAGE = /^when you deal damage(?: to your opponent)? by attacking with (?:an? |1 |one of your |your )((?!this card\b)[^,]{1,120}?)(?:,|$)/;
+const YOU_TOOK_BATTLE_DAMAGE = /^when you (?:take|receive) damage from (?:an |your )?opponent'?s (?:attack|battle card'?s attack)(?:,|$)/;
 /** Phrasing batch 7: see `YOUR_CARD_BATTLE_TO_DROP` (BT20-054b) above, and the KO by one of yours below. */
 export const YOUR_CARD_KOS = /^when (?:a battle card that is in your opponent'?s battle area and whose owner is your opponent|(?:one of )?your opponent'?s battle cards?|an opponent'?s battle card) (?:is|are) ko'd by (?:one of )?your ((?!opponent)[^,]{1,80}?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)(?:,|$)/;
 /**
@@ -479,7 +489,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // deals — battle damage takes a different path — so "from a non-keyword
     // skill" is satisfied by the moment itself.
     case "youTookDamage":
-      return /when you (?:take|receive) damage/.test(head);
+      // Phrasing batch 8: not the attack's damage ("…from an opponent's attack", BT21-071), `youTookBattleDamage`'s.
+      return /when you (?:take|receive) damage/.test(head) && !YOU_TOOK_BATTLE_DAMAGE.test(head);
+    case "youTookBattleDamage":
+      return YOU_TOOK_BATTLE_DAMAGE.test(head);
     case "opponentTookDamage":
       return /when your opponent (?:takes|receives) damage/.test(head);
     // 3-9: a life card leaving the Life Area, however it leaves.
@@ -573,6 +586,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     }
     case "yourCardKos": {
       const m = YOUR_CARD_KOS.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "yourCardDealtBattleDamage": {
+      const m = YOUR_CARD_DEALT_BATTLE_DAMAGE.exec(head.toLowerCase());
       return !!m && readableSubject(effect, m[1]);
     }
     case "yourCardDealtDamage":
@@ -738,7 +755,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "chargeStart":
       return /^at the (?:beginning|start) of (?:your|the|this) (?:turn|charge phase)\b/.test(head);
     case "dealtDamage":
-      return /when this card deals damage|when you deal damage/.test(t);
+      // Phrasing batch 8: a wording that prints the battle is `dealtBattleDamage`'s or `yourCardDealtBattleDamage`'s.
+      return /when this card deals damage|when you deal damage/.test(t) && !DEALT_BATTLE_DAMAGE.test(t) && !YOUR_CARD_DEALT_BATTLE_DAMAGE.test(head.toLowerCase());
+    case "dealtBattleDamage":
+      return DEALT_BATTLE_DAMAGE.test(t);
     case "battleEnd":
       // "…after you combo with this card" is the combo card's own end of the
       // battle, `comboed` below (#539).

@@ -156,6 +156,12 @@ const ASIDE_DASH = /[―—–]|--/y;
  * there the count went with the trigger clause, which an [Auto] drops — the effect read as one flat step.
  */
 const TRIGGER_THEN_COUNT = /^(?:when|whenever|at the (?:start|end|beginning) of)\b/i;
+/**
+ * Phrasing batch 8: "[Counter: Play] Play this card**, for every card in your opponent's Z-Deck, place up to 1 Battle
+ * Card** from your Drop or Warp under this card" (BT21-149): a count that opens a clause of its own — it is followed by
+ * a comma and a verb — leads the effect after it, never multiplies the one before it (which here has no amount at all).
+ */
+const COUNT_LEADS_CLAUSE = /^,\s*for (?:each|every)\b[^,.;:]*,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|deal)\b/i;
 
 export function splitClauses(text: string): string[] {
   return splitClausesJoined(text).clauses;
@@ -247,7 +253,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()))))
+        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()) && !COUNT_LEADS_CLAUSE.test(text.slice(i)))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {

@@ -219,7 +219,7 @@ for (const [text, what, n, until] of [
 assert.ok(unreadOf("[Auto] If your Leader's back side is {Saiyan Bond Vegeta} and your opponent has 2 or more energy: During this turn, you can activate your Leader's [Awaken] even if your life is at 6 or less.").length > 0, "D: P-500 stays unread (no moment)");
 // Not read: two areas said with "and" in the leading count (P-379) and a printed ceiling (P-464) — no amount says either.
 // (Phrasing batch 7 reads P-379 — both areas counted — `phrasing-batch-7.ts`.)
-assert.ok(unreadOf("[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)").length > 0, "D: P-464 stays unread");
+// (Phrasing batch 8 reads P-464's printed ceiling — `capped` — `phrasing-batch-8.ts`.)
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const unison = (id: string, skill: string): CardDef => card(id, { type: "UNISON", colors: ["Blue"], energyCost: "X" as unknown as number, power: 5000, comboCost: null, comboPower: null, skill });

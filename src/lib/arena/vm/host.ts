@@ -175,6 +175,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // menu cannot disagree about what is forbidden.
     comboFree: () => comboPriceOf(game) === null,
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
+    permits: (what, card) => permissions(ctx, game, state, what).some((p) => p.target === card),
     taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
     canPayTax: (player, card, ops) => canPayTaxProgram(ctx, game, state, player, card, ops),
 
@@ -946,7 +947,10 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const eventCard = (trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life") || (WATCHED_MOVE.has(trigger) && subject)
     ? subject!
     : id;
-  const controller = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
+  const master = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
+  // Phrasing batch 8: "when your opponent takes damage from a skill" is pended on each of the dealer's cards, and the
+  // moment is about the damaged player (`watcher: opponent` asks the other side of it), so its side is the other one.
+  const controller = ABOUT_THE_OTHER_SIDE.has(trigger) ? otherPlayer(master) : master;
   const moment = MOMENT_OF[trigger];
   if (!moment) {
     log(ev, { type: "note", text: `${trigger} is a moment no declaration names, so nothing answers to it` });
@@ -1021,7 +1025,18 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // Phrasing batch 7 (owner's ruling of 27 Oct 2026, BT9-104): a skill's damage to the opponent, pended by the `damage`
   // op about the skill's card — the battle damage `yourCardDealtDamage` already answers through `battle.ts`'s own fire.
   yourCardDealtDamage: { event: "damage", args: { role: "source" } },
+  // Phrasing batch 8 (owner's ruling of 27 Oct 2026): the `damage` op's other three names, which had no moment, so a
+  // skill's damage was never answered by "when this card deals damage" (5-10), "when you take damage from a skill" or
+  // "when your opponent takes damage from a skill" (21-3). `by: skill` says it is a skill's: the battle's own `damage`
+  // fire says `by: battle`, and the wordings that print a battle ("by attacking", "from an opponent's attack") are
+  // declared on that (`dealtBattleDamage`, `youTookBattleDamage`, `yourCardDealtBattleDamage`).
+  dealtDamage: { event: "damage", args: { role: "source", by: "skill" } },
+  youTookDamage: { event: "damage", args: { by: "skill" } },
+  opponentTookDamage: { event: "damage", args: { by: "skill" } },
 };
+
+/** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */
+const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage"]);
 
 /** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
 const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "restedByAlliance"]);

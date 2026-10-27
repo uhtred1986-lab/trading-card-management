@@ -405,6 +405,7 @@ const refAreas = (ref: Ref | undefined): string[] => (ref && typeof ref === "obj
 function amountAreas(amount: Amount | undefined): string[] {
   if (!amount || typeof amount !== "object") return [];
   if ("plus" in amount) return amountAreas(amount.plus[0]);
+  if ("capped" in amount) return amountAreas(amount.capped[0]);
   if ("count" in amount) return selectorAreas(amount.count);
   if ("markers" in amount) return selectorAreas(amount.markers);
   if ("sumOf" in amount) return selectorAreas(amount.sumOf);

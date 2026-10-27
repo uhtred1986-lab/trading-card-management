@@ -278,6 +278,12 @@ export function powerReductionSources(state: VmState, id: string, standing: VmSt
 }
 
 /** The ops `permanents` reads out of a [Permanent]'s program. */
+/**
+ * The amounts a [Permanent] can read off the board: a count, a marker total — and, phrasing batch 8, either of them
+ * under a printed ceiling ("…by 1 for each green Unison Card in your Drop. (Up to 2)", P-464).
+ */
+const boardCounted = (a: Amount): boolean => typeof a === "object" && ("count" in a || "markers" in a || ("capped" in a && boardCounted(a.capped[0])));
+
 export const STATIC_OPS = ["power", "comboPower", "modifyAttr", "grant", "gains", "negateKeyword", "costReduction", "forbid", "immune", "payWith", "altCost", "replaceLeave", "replace", "skip", "permit", "if"] as const;
 
 /** Every other op a [Permanent] may carry, and the issue that reads it. A gap named is a gap that can be looked up. */
@@ -932,7 +938,7 @@ function collect(
       // "+3000 power for each marker on this card": the same two counted amounts
       // the cost reduction below takes — a [Permanent] binds no variable, so
       // only a count over the board can be read.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+      const value = typeof op.amount === "number" ? op.amount : boardCounted(op.amount) ? measure(frame, op.amount) : null;
       if (value == null) continue;
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: op.op, target: id, value });
       continue;
@@ -998,7 +1004,7 @@ function collect(
       // `orbTotals(…, "evolve")` reads it instead of `skillCost` for an
       // [Evolve] line, and `skillOrbs` does the same.
       if (op.what === "skill" || op.what === "evolve") {
-        const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+        const value = typeof op.amount === "number" ? op.amount : boardCounted(op.amount) ? measure(frame, op.amount) : null;
         if (value == null) continue;
         const kind = op.what === "evolve" ? "evolveCost" : "skillCost";
         // EX03-16: an [Evolve] price changed only when it is played onto these.
@@ -1011,7 +1017,7 @@ function collect(
       // "…by 1 for each of your blue Battle Cards" — the same two amounts the
       // power statics take, and for the same reason: a [Permanent] has no frame
       // that ever bound a variable, so only a count over the board can be read.
-      const value = typeof op.amount === "number" ? op.amount : "count" in op.amount || "markers" in op.amount ? measure(frame, op.amount) : null;
+      const value = typeof op.amount === "number" ? op.amount : boardCounted(op.amount) ? measure(frame, op.amount) : null;
       if (value == null) continue;
       // 20-21-2: an energy cost reduced "by {r}" keeps the orbs it was said in.
       const named = kind === "cost" && op.colors?.length ? { colors: op.colors } : {};

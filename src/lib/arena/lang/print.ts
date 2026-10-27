@@ -90,6 +90,8 @@ export const atom = (s: string) => (WORD.test(s) ? s : JSON.stringify(s));
 export function printAmount(a: Amount): string {
   if (typeof a === "number") return String(a);
   if ("plus" in a) return `${printAmount(a.plus[0])} ${printOperand(a.plus[1])}`;
+  // Phrasing batch 8: a printed ceiling, "(Up to 2)" (P-464).
+  if ("capped" in a) return `${printAmount(a.capped[0])} atMost ${a.capped[1]}`;
   if ("var" in a) return `$${a.var}`;
   const bag = a as Record<string, unknown>;
   for (const spec of EXPR_SCHEMA) {

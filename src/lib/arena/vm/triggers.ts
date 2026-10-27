@@ -250,6 +250,11 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
     if (handOut && trigger.name === "lifeLeft") {
       for (const p of sides) for (const id of state.sides[p].zones.drop) { askedCards.push(id); handOut.add(id); }
     }
+    // Phrasing batch 8 (9-1-3-2, BT21-105): "When one of your opponent's Battle Cards is played by a skill, play this
+    // card from under one of your Z-Leaders" works from the pile it names, so the cards under the watching side's cards
+    // in play hear a watched moment too, as they hear a board moment (BT31-110 below). Only *asked*: `pendAutos` keeps a
+    // pile card's skill when its record takes this card out of the pile (`fromPile`), and nothing else it prints.
+    if (handOut) for (const id of inPiles(game, state, sides)) { askedCards.push(id); handOut.add(id); }
     // 3-9-2-1: the card turned face up is still in its Life Area, and its own
     // Auto can answer as well as the controller's in-play watchers. The
     // declaration's watcher chooses the audience; this event subject is the
@@ -318,6 +323,8 @@ function inPiles(game: GameDefinition, state: VmState, sides: PlayerId[]): strin
 function fromPile(script: Script | undefined): boolean {
   const walk = (ops: readonly Op[] | undefined): boolean => !!ops?.some((op) =>
     ((op.op === "moveTo" || op.op === "play") && !!op.target && "sel" in op.target && op.target.sel.special === "self" && (op.target.sel.area === "under" || !!op.target.sel.areas?.includes("under")))
+    // Phrasing batch 8: "play this card from under one of your Z-Leaders" (BT21-105) chooses this card there first.
+    || (op.op === "choose" && op.sel.special === "self" && (op.sel.area === "under" || !!op.sel.areas?.includes("under")))
     || (op.op === "if" && (walk(op.then) || walk(op.else)))
     || (op.op === "may" && walk(op.ops)));
   return walk(script?.ops);
@@ -517,7 +524,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // The filter is read from the KO'd card as it stands, as the IF would.
       // Phrasing batch 7: the same for "…is placed from your Battle Area in your Drop" (BT20-054b, `yourCardBattleToDrop`,
       // the card as it left) and "…is KO'd by your red card's attack or skill" (BT28-001b, `yourCardKos`, the card that KO'd).
-      if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed" || match.trigger === "yourCardBattleToDrop" || match.trigger === "yourCardKos") && match.subject && state.cards[match.subject]) {
+      // Phrasing batch 8: and "…by attacking with a blue card" (BT30-017, `yourCardDealtBattleDamage`, the attacker).
+      if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed" || match.trigger === "yourCardBattleToDrop" || match.trigger === "yourCardKos" || match.trigger === "yourCardDealtBattleDamage") && match.subject && state.cards[match.subject]) {
         const ops = showing.scripts.bySkill[sk.index]?.ops;
         const first = ops?.[0];
         if (ops?.length === 1 && first?.op === "if" && !first.else && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter
@@ -559,7 +567,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       const pileSkill = sk.kind === "auto" && fromPile(showing.scripts.bySkill[sk.index]);
       if (at ? pileSkill : moment.card === undefined && !pileSkill) continue;
       if (match.handWatcher) {
-        if (!at || !outside.includes(at as never)) continue;
+        // Phrasing batch 8: a pile card (in no zone) is asked only for a skill that takes it out of the pile (BT21-105).
+        if (at ? !outside.includes(at as never) : !pileSkill) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
       if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && combo?.timing === "battleEnd") continue;
       // 8-5-10-1 names the actual 8-5-8 cleanup departure, not an

@@ -194,9 +194,7 @@ assert.ok(unreadOf("[Counter: Play] Play this card. Additionally, if the Battle 
   assert.ok(d2 && d2.at === "battleEnd" && d2.ops[0]?.op === "moveTo" && d2.ops[0].to === "warp", "D: P-207 — this card to the Warp at the end of the battle");
   records += 9;
 }
-// Left unread on purpose (see the glossary): BT24-108's Damage Step timing, P-560's "the same amount", EX17-04's span.
-assert.ok(unreadOf("[activate: battle][limit 1]{y}{y}, choose 1 yellow <Kale> card in your Battle Area and 1 yellow <Caulifla> card in your Combo area: At the end of the Damage Step for that battle, play this card from your hand, place all of the chosen cards under this card.").length > 0, "D: BT24-108 stays unread");
-assert.ok(unreadOf("[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and return it to its owner's hand. Then at the start of your opponent's turn, add up to 1 non-[super combo] card from your energy to your hand, and add the same amount of cards from your hand to your energy.").length > 0, "D: P-560 stays unread");
+// (Phrasing batch 8 reads BT24-108's Damage Step timing, P-560's "the same amount" and EX17-04's span — `phrasing-batch-8.ts`.)
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
