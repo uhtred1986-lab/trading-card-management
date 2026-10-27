@@ -126,6 +126,14 @@ export interface CardFilter {
    */
   sameCharacterAs?: string | null;
   /**
+   * Mechanism batch 2 (P-440): "add up to 1 card **with the same name as the chosen card** from your deck to your
+   * hand" — the variable an earlier `choose` of the same skill bound. The candidate shares a card name with that card
+   * as it is now (2-3: its card name, and any name a skill makes it also be). A measure against another card the skill
+   * holds, so it is applied where that card is known (`resolveSelector`), not by `matches`. Optional and written only
+   * when read, like `sameCharacterAs`.
+   */
+  sameNameAs?: string | null;
+  /**
    * "For each character name required for the revealed card's [union] skill,
    * add up to 1 card **with a matching character name** …" (EX13-14), "Add up
    * to 1 Battle Card each … **each with a character name that matches the
@@ -454,6 +462,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   powerRel: "powerRel",
   nameInSkillTextOf: "variable",
   sameCharacterAs: "variable",
+  sameNameAs: "variable",
   unionNameOf: "variable",
   z: "tri",
 };

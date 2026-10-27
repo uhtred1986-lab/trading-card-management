@@ -109,6 +109,7 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   powerRel: { except: [] },
   nameInSkillTextOf: { except: [] },
   sameCharacterAs: { except: [] },
+  sameNameAs: { except: [] },
   unionNameOf: { except: [] },
   z: { only: ["ZB", "ZCHEAP", "ZED"] },
 };

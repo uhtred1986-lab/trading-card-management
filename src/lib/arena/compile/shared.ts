@@ -13,6 +13,15 @@ export const SWITCHED_BY_THIS_SKILL = /\b(?:all )?the cards? (?:that (?:was|were
  */
 export const PLACED_UNDER_PLACEHOLDER = "placedUnderByPrice";
 export const SAME_CHARACTER_AS_PLACED = /\s*,?\s*with the same character name as the card you placed under this card\b/i;
+/**
+ * Mechanism batch 2 (P-440): "…card **with the same name as the chosen card** from your deck": `parseTarget` writes
+ * this placeholder into the filter's `sameNameAs`, and the choice clause replaces it with the variable of the skill's
+ * last choice (`Ctx.last`). Left unbound it is unread, never a measure against nothing.
+ */
+export const SAME_NAME_AS_CHOSEN_PLACEHOLDER = "chosenBefore";
+/** Mechanism batch 2 (BT10-054): the variable a skill's move to the Energy Area binds when a later clause names "the card you placed in your energy with this skill". */
+export const PLACED_IN_ENERGY = "placedInEnergy";
+export const SAME_NAME_AS_CHOSEN = /\s*,?\s*with the same (?:card )?name as the chosen card\b/i;
 
 export interface Ctx {
   /** The variable the last `choose` bound. */

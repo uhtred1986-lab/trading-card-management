@@ -710,7 +710,7 @@ export type Op =
    * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
    * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason; as?: string }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -1673,6 +1673,13 @@ export interface ScriptFrame {
   awaiting?: string;
   /** Closed areas this running skill actually inspected, persisted across a choice/reload. */
   lookedAreas?: Partial<Record<PlayerId, ("deck" | "life")[]>>;
+  /**
+   * Mechanism batch 2 (search, 20-12): the cards this skill picked out of a secret area — the deck, or a face-down
+   * card in the life — by a description ("1 <Son Goku> card from your deck"). 3-1-7: such a card moved on into another
+   * secret area (the hand, the deck, the life) is shown to both players as it goes, whatever the card prints. Additive:
+   * older frames carry none.
+   */
+  specifiedPicks?: string[];
   /** Card selected for a nested skill activation while its line is being chosen. */
   invokingCard?: string;
   /** Offered skill indices stay bound to their prompt positions across reload. */
@@ -2061,6 +2068,19 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
 }
 
 /** One search step's inspected closed areas survive an intervening choice. */
+/** Mechanism batch 2: a card in a secret area nobody may read — the deck, or a face-down card in a life (3-2-2, 3-9-2). */
+function inSecretPile(h: ScriptHost, id: string): boolean {
+  const area = h.areaOf(id);
+  return area === "deck" || (area === "life" && !h.isFaceUp(id));
+}
+
+/** Mechanism batch 2: does this description ask anything of a card, so that choosing it needs the card's information (5-2-7)? */
+function describesCard(sel: Selector): boolean {
+  const f = sel.filter as Partial<CardFilter> | undefined;
+  if (!f) return false;
+  return Object.entries(f).some(([k, v]) => k !== "unreadable" && (Array.isArray(v) ? v.length > 0 : typeof v === "boolean" ? v : v != null && !(typeof v === "object" && !Object.keys(v as object).length)));
+}
+
 function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "life")[]): void {
   const looked = frame.lookedAreas ??= {};
   const own = looked[player] ??= [];
@@ -2456,6 +2476,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // possible up to it are taken (5-2-5).
         const upTo = (bounded && !op.owed) || (!!op.sel.upTo && !owedInFull(frame, op));
         const minimum = op.sel.minCount ?? (upTo ? 0 : want);
+        // Mechanism batch 2: the description asks something of the card, so a pick from a secret area needs the card's
+        // information (5-2-7, 3-1-7).
+        const described = describesCard(op.sel);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
           // Phrasing batch 4 (owner's approval of 26 Oct 2026; 5-8-2-2): an action price's exact "choose N" — not "up
@@ -2469,6 +2492,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return;
           }
           frame.vars[op.as] = picked;
+          // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
+          // another secret area; remembered here, while it is still where it was chosen from.
+          if (described) {
+            const secret = picked.filter((id) => inSecretPile(h, id));
+            if (secret.length) frame.specifiedPicks = [...new Set([...(frame.specifiedPicks ?? []), ...secret])];
+          }
           // Phrasing batch 6 (EX16-02): where each card was as it was chosen, for a later `choseFrom`.
           if ((op.sel.areas?.length ?? 0) > 1) frame.chosenFrom = { ...(frame.chosenFrom ?? {}), [op.as]: picked.map((id) => h.areaOf(id) ?? "") };
           // 20-5: "discard any number of cards: … X cards". X is how many were
@@ -2614,6 +2643,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const cands = later.length
           ? completablePicks(open, Math.max(0, want - sofar.length - 1), later, (next, id) => h.resolveSelector({ ...frame, vars: { ...frame.vars, [op.as]: [...sofar, id] } }, next.sel))
           : open;
+        // Mechanism batch 2 (5-2-7): a card in a secret area cannot be shown to meet a description, so the player may
+        // decline to pick it even for an exact "choose 1 … from your deck" — a search may come up empty ("fail to
+        // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
+        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => inSecretPile(h, id)).length : 0;
+        const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {
@@ -2623,7 +2657,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // The prompt's required pick also applies to a persisted exact
           // choice. Restoring an empty answer cannot end an accepted N-card
           // payment early while qualifying candidates are still available.
-          if (!upTo && !answer.length && sofar.length < minimum && cands.length > 0) throw new IllegalAction("that exact choice still requires a card");
+          if (!upTo && !answer.length && sofar.length < floor && cands.length > 0) throw new IllegalAction("that exact choice still requires a card");
           // #677: an exact choice answered with a card that is no longer a
           // candidate — a stale saved answer, the card having left since the
           // question was put — is refused rather than read as picking
@@ -2671,7 +2705,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Under a summed bound, taking every candidate is forced only when
         // all of them fit under it together.
         const allFit = !bound || cands.reduce((n, id) => n + measure(id), 0) <= room;
-        if (!upTo && !namesakes && allFit && cands.length <= minimum - sofar.length) {
+        if (!upTo && floor === minimum && !namesakes && allFit && cands.length <= minimum - sofar.length) {
           frame.awaiting = undefined;
           take([...sofar, ...cands]);
           break;
@@ -2689,7 +2723,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             reason: (op.reason ?? `${h.nameOf(frame.card)}: choose ${howMany}`) + asked,
             candidates: cands,
             // One card per answer, so the menu is one action per card.
-            min: sofar.length >= minimum ? 0 : 1,
+            min: sofar.length >= floor ? 0 : 1,
             max: 1,
             continuation: op.as,
             ...(op.blind ? { blind: true as const } : {}),
@@ -2776,6 +2810,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (frame.saveVarsAs) frame.priceUnpaid ??= "the card to place under was not chosen";
         }
         const host = op.to === "under" ? (op.under ? (ambiguousHost ? undefined : hosts[0]) : frame.card) : null;
+        // Mechanism batch 2 (BT10-054): "the card you placed in your energy **with this skill**" — the cards this move
+        // takes, named for a later clause (which also asks where they are by then).
+        // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
+        // the cards sent to the Warp by this skill" (BT7-051) is both cards.
+        if (op.as && !frame.moveLoop) frame.vars[op.as] = [...new Set([...(frame.vars[op.as] ?? []), ...h.resolveRef(frame, op.target)])];
         frame.moveLoop ??= {
           kind: "moveTo",
           ids: op.random ? shuffledIds(h, h.resolveRef(frame, op.target)) : h.resolveRef(frame, op.target),
@@ -2892,7 +2931,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const fromDrop = h.areaOf(id) === "drop";
           // 9-6-9-2: read before the move ends the effects on the card.
           const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
-          h.move(id, dest, owner, { position: op.position, reveal: op.reveal, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          // Mechanism batch 2 (3-1-7): a card a description picked out of a secret area, moved on into another secret
+          // area, is revealed to all players as it goes, even where the card does not say so (20-12).
+          const shown = op.reveal || (!!frame.specifiedPicks?.includes(id) && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp)));
+          h.move(id, dest, owner, { position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is

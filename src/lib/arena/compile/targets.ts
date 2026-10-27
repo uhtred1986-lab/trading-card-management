@@ -2,7 +2,7 @@ import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, energyBoundOf, expand
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
-import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED } from "./shared";
+import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -464,6 +464,14 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(samePlaced[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     if (!sel || sel.special || sel.fromVar || sel.filter?.anyOf?.length || sel.filter?.sameCharacterAs) return null;
     return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), sameCharacterAs: PLACED_UNDER_PLACEHOLDER } };
+  }
+  // Mechanism batch 2 (P-440): "…add up to 1 card **with the same name as the chosen card** from your deck" — a name
+  // measured against the skill's earlier choice, left as a placeholder the choice clause binds (`Ctx.last`).
+  const sameName = SAME_NAME_AS_CHOSEN.exec(phrase);
+  if (sameName) {
+    const sel = parseTarget(phrase.replace(sameName[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special || sel.fromVar || sel.filter?.anyOf?.length || sel.filter?.sameNameAs || sel.filter?.unreadable) return null;
+    return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), sameNameAs: SAME_NAME_AS_CHOSEN_PLACEHOLDER } };
   }
   const characters = DIFFERENT_CHARACTERS.exec(phrase);
   if (characters) {

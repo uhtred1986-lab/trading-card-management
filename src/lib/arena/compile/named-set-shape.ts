@@ -60,6 +60,10 @@ const SHAPES = [
   // Alliance} and 1 {Dr. Myuu, Vengeful Alliance} from your deck to your Warp" (BT20-054).
   { verb: "play", dest: "battle", required: false, rest: false, re: /^choose (up to 1 .+?) from ((?:your|their) (?:(?!\bwith\b).)+?) and play them$/i },
   { verb: "send", dest: "warp", required: false, re: /^send (up to 1 .+?) from ((?:your|their) .+?) to (?:your|their|its owner'?s?|their owners?'?) warps?$/i },
+  // Mechanism batch 2 (20-12): the pair chosen out of a secret area, then sent to the Warp — "choose up to 1 <Vegeta>
+  // card and 1 <Nappa> card with energy costs of 2 or less and 10000 power from your deck, send them to your Warp"
+  // (BT7-051). The comma form of "and play them" / "and send them" is said the "and" way first (`namedSetWords`).
+  { verb: "send", dest: "warp", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) (?:(?!\bwith\b).)+?) and send them to (?:your|their|its owner'?s?|their owners?'?) warps?$/i },
 ] as const;
 
 export interface NamedSetWords {
@@ -100,7 +104,15 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // Phrasing batch 7: "Choose up to 1 blue <Son Goku> and 1 yellow <Vegeta> card **in your hand with energy costs of
     // 2 or less** and play them" (BT7-025): the place and the plural measure are every card's, said once after the
     // last name. The first name used to be read alone, as a card in play, and never played.
-    .replace(/^(choose up to 1 .+?) in ((?:your|their) (?:hand|deck|drop(?: area)?)) (with energy costs of \d+(?: or (?:less|more))?) and play them$/i, "$1 $3 from $2 and play them");
+    .replace(/^(choose up to 1 .+?) in ((?:your|their) (?:hand|deck|drop(?: area)?)) (with energy costs of \d+(?: or (?:less|more))?) and play them$/i, "$1 $3 from $2 and play them")
+    // Mechanism batch 2: "choose up to 1 {A} and 1 {B} from your deck**,** play them" (P-156), "…from your deck, send
+    // them to your Warp" (BT7-051): the comma says what the "and" says.
+    .replace(/^(choose up to 1 .+? from (?:your|their) .+?),\s+(?:and\s+)?(play them|send them to (?:your|their) warps?)$/i, "$1 and $2")
+    // Mechanism batch 2: a hyphen for a dash — "<Son Goten> and <Trunks : Youth> cards**-**both red and with an energy
+    // cost of 1**-**from your deck and/or Drop" (BT29-024) — and the long vowel mark the catalog prints for one ("cardsー
+    // all green …ーfrom your deck", P-596).
+    .replace(/(\bcards?|[>}≫])\s?[-ー]\s?((?:all|both)\b)/gi, "$1 ― $2")
+    .replace(/(\d|\bless|\bmore|\bpower|\bskill-less|\])\s?[-ー]\s?(from\b)/gi, "$1 ― $2");
   for (const shape of SHAPES) {
     const m = shape.re.exec(said);
     if (!m) continue;
@@ -140,7 +152,8 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     if (DASH_ANYWHERE.test(list)) return null;
     // Phrasing batch 3: a measure printed once after the last name in the plural — "up to 1 red <Mai> card and up to 1
     // red <Shu> card **with energy costs of 2**" (BT10-020, BT10-022, BT10-024) — is every card's, as the dashes' is.
-    const plural = !aside ? /\s+(with energy costs of \d+(?: or (?:less|more))?(?: and (?:the )?\[[^\]]+\](?: skill)?)?)$/i.exec(list) : null;
+    // Mechanism batch 2: "…with energy costs of 2 or less **and 10000 power**" (BT7-051) is a second measure of every card.
+    const plural = !aside ? /\s+(with energy costs of \d+(?: or (?:less|more))?(?: and (?:the )?\[[^\]]+\](?: skill)?| and [\d,]+ power)?)$/i.exec(list) : null;
     if (plural) {
       measure = ` ${plural[1].toLowerCase().replace(/energy costs/, "an energy cost")}`;
       list = list.slice(0, plural.index);
@@ -152,8 +165,11 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // A list of names alone — "up to 1 <Gravy> and 1 <Putine>" (EX07-11) — names one card per name likewise.
     const noun = /\bcards?$/i.test(items[items.length - 1] ?? "") || items.every((x) => new RegExp(`^(?:up to )?(?:1 )?${NAME}$`, "i").test(x)) || (!!aside && items.every((x) => new RegExp(`${NAME}$`).test(x)));
     // #1208: Fusion World prints the bare name, "up to 1 <Son Goten> and up to 1 <Trunks : Youth>", with no "card".
-    const raw = items.map((x) => ((shape.required || noun || shape.dest === "hand") && !/\bcards?$/i.test(x) ? `${x} card` : x));
-    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?${NAME} cards?$`, "i").test(x))) return null;
+    // Mechanism batch 2: a slot may name its card by a character name it includes — "up to 1 card with <Son Goten> in
+    // its character name and 1 card with <Trunks> in its character name—both blue …—" (BT19-066).
+    const including = new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?cards? with ${NAME} in (?:its|their) character names?$`, "i");
+    const raw = items.map((x) => ((shape.required || noun || shape.dest === "hand") && !/\bcards?$/i.test(x) && !including.test(x) ? `${x} card` : x));
+    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?${NAME} cards?$`, "i").test(x) && !including.test(x))) return null;
     // Only the first slot says "up to 1"; every item is one named card. A colour in front of an
     // item (BT6-012) is that item's own and wins over the one the dashes give all of them.
     const slots = raw.map((x) => {
@@ -199,7 +215,7 @@ function eachOfSlots(list: string): { colour: string | null; slots: string[] } |
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function namedSetSpans(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const start = new RegExp(`\\b(?:choose|place|add|play|send) (?:up to )?1 (?:each of )?(?:${COLOUR} )?${NAME}`, "gi");
+  const start = new RegExp(`\\b(?:choose|place|add|play|send) (?:up to )?1 (?:each of )?(?:${COLOUR} )?(?:cards? with )?${NAME}`, "gi");
   for (let m = start.exec(text); m; m = start.exec(text)) {
     for (let end = m.index + 1; end <= text.length; end++) {
       // #930, EX23-11: "…to your hand, shuffle your deck if you looked through it": a plain comma
