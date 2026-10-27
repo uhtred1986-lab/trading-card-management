@@ -157,7 +157,7 @@ for (const [text, what, trigger, check] of [
 }
 // Left unread or with no moment on purpose: a description the subject filter would misread (BT20-054b's aside with
 // "without"), a move from under a card (BT26-052).
-assert.equal(skillRecords(card("BT20-054", { skill: "[Auto][Once per turn] When a <Pan> card or a card with <GT> in its character name—both green and without <Son Goku: GT>—is placed from your Battle Area in your Drop, add it to your Z-Energy from your Drop." }))[0].trigger.length, 0, "B: BT20-054b keeps no moment");
+// (Phrasing batch 7 reads BT20-054b — `yourCardBattleToDrop`, "without <Son Goku: GT>" a name ruled out — `phrasing-batch-7.ts`.)
 
 // C. Names listed in a condition are each of them, not any one.
 for (const [text, what, names] of [
@@ -218,7 +218,7 @@ for (const [text, what, n, until] of [
 // Not read: the same lift in an [Auto] that names no moment (P-500 as the export prints it) would never fire.
 assert.ok(unreadOf("[Auto] If your Leader's back side is {Saiyan Bond Vegeta} and your opponent has 2 or more energy: During this turn, you can activate your Leader's [Awaken] even if your life is at 6 or less.").length > 0, "D: P-500 stays unread (no moment)");
 // Not read: two areas said with "and" in the leading count (P-379) and a printed ceiling (P-464) — no amount says either.
-assert.ok(unreadOf("[Permanent] For each green Unison Card in your Unison Area and Drop Area, reduce the energy cost of this card in your hand by 1.").length > 0, "D: P-379 stays unread");
+// (Phrasing batch 7 reads P-379 — both areas counted — `phrasing-batch-7.ts`.)
 assert.ok(unreadOf("[permanent] For each green Unison Card in your Drop, reduce the Z-Energy cost of this card in your Z-Deck by 1. (Up to 2)").length > 0, "D: P-464 stays unread");
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────

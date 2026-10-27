@@ -106,6 +106,17 @@ const AREA_NAMED: Record<string, ScriptArea> = {
  * stays the cards you have in play, as it always read.
  */
 const AREA_LISTED: Record<string, ScriptArea> = { ...AREA_NAMED, "leader area": "leader", "unison area": "unison" };
+/**
+ * Phrasing batch 7: a pair that names the Leader or Unison Area beside an area off the board — "for each green Unison
+ * Card in your **Unison Area and Drop Area**" (P-379) — is the two areas, as a list of three is. Read as before, the
+ * pair reader did not know the Unison Area and the count kept the Drop alone. Two areas on the board ("Battle Area or
+ * Leader Area", BT3-087) stay the cards you have in play.
+ */
+const ON_BOARD = new Set<ScriptArea>(["battle", "leader", "unison"]);
+function pairOffBoard(words: string[]): boolean {
+  const areas = words.map((w) => AREA_LISTED[w]);
+  return areas.length === 2 && areas.every(Boolean) && areas[0] !== areas[1] && !areas.every((a) => ON_BOARD.has(a)) && areas.some((a) => a === "leader" || a === "unison");
+}
 
 /**
  * "...for each green Extra Card in your Battle Area **and** Drop Area" (BT13-073, BT13-076, BT13-077,
@@ -120,7 +131,7 @@ export function countAreasSaidWithAnd(phrase: string): string {
     /\b((?:in|from|of|into) (?:your|their)(?: opponent'?s)? )((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)*),? and (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/,
     (all, pre: string, first: string, last: string) => {
       const words = [...first.split(/,\s*/), last].map((w) => w.trim());
-      if (!words.every((w) => (words.length >= 3 ? AREA_LISTED : AREA_NAMED)[w])) return all;
+      if (!words.every((w) => (words.length >= 3 || pairOffBoard(words) ? AREA_LISTED : AREA_NAMED)[w])) return all;
       return first.includes(",") ? `${pre}${first}, or ${last}` : `${pre}${first} or ${last}`;
     },
   );
@@ -779,7 +790,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   const listed = AREA_LIST_RE.exec(tTarget) ?? AREA_LIST_RE.exec(t);
   const listAreas = listed ? listed[1].split(/,\s*(?:(?:and\/or|or)\s+)?|\s+(?:and\/or|or)\s+/).map((w) => AREA_LISTED[w.trim()]) : [];
   const list: ScriptArea[] | null = listed && listAreas.length >= 3 && listAreas.every((a) => a) && new Set(listAreas).size === listAreas.length ? listAreas : null;
-  const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : null);
+  const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : both && pairOffBoard([both[1], both[2]]) ? [AREA_LISTED[both[1]], AREA_LISTED[both[2]]] : null);
 
   let area: ScriptArea | null = null;
   let areaMatch: RegExpExecArray | null = null;
@@ -1067,6 +1078,10 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // <Son Goku: GT> card is played from your Drop" (BT26-001b): the card played.
     /^(?:one of )?your opponent'?s ((?!skill).+?) (?:is|are) played by (?:a|any) skill$/.exec(t)?.[1] ??
     /^(?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent).+?) (?:is|are) played from your (?:hand|drop)(?: area)?$/.exec(t)?.[1] ??
+    // Phrasing batch 7: "When a <Pan> card or …—both green …—is placed from your Battle Area in your Drop" (BT20-054b).
+    /^(?:an? |1 |one of your |your )((?!this card\b|it\b|your opponent|an? opponent).+?)(?:\s*[-—–―]\s*|\s+)(?:is|are) placed from your battle area (?:in|into) (?:your|its owner'?s) drop(?: area)?$/.exec(t)?.[1] ??
+    // Phrasing batch 7: "…is KO'd by your red card's attack or skill" (BT28-001b, `yourCardKos`): the card that KO'd it.
+    /^.+? (?:is|are) ko'd by (?:one of )?your ((?!opponent).+?)['’]s? (?:attack or skill|skill or attack|attacks? or skills?)$/.exec(t)?.[1] ??
     // "When your blue <Son Goku> card is KO'd" — the same question about the
     // card that just died (21-14).
     /^(?:your|your opponent's|an opponent's|one of your|one of your opponent's) (.+?) (?:is|are) ko'd\b/.exec(t)?.[1] ??
