@@ -1113,7 +1113,9 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   const before = c.last;
   const ops = compileClauseRead(clause, c);
   if (!ops || !JSON.stringify(ops).includes(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`)) return ops;
-  if (!before) return null;
+  // Only a choice this effect made itself: a price's choice ("Choose 1 of your Battle Cards and place it under this
+  // card: … the same name as the chosen card") is in another frame, and its name may be reused by the effect's own.
+  if (!before || !c.choices.some((ch) => ch.var === before) || ops.some((o) => o.op === "choose" && o.as === before)) return null;
   return JSON.parse(JSON.stringify(ops).split(`"sameNameAs":"${SAME_NAME_AS_CHOSEN_PLACEHOLDER}"`).join(`"sameNameAs":${JSON.stringify(before)}`)) as Op[];
 }
 

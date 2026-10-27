@@ -2634,7 +2634,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // Mechanism batch 2 (5-2-7): a card in a secret area cannot be shown to meet a description, so the player may
         // decline to pick it even for an exact "choose 1 … from your deck" — a search may come up empty ("fail to
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
-        const floor = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? Math.min(minimum, sofar.length + cands.filter((id) => !inSecretPile(h, id)).length) : minimum;
+        const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => inSecretPile(h, id)).length : 0;
+        const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
         const answer = h.lastChoice();
         if (answer && frame.awaiting === op.as) {

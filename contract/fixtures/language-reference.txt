@@ -584,6 +584,13 @@
             "charge",
             "areaExtension"
           ]
+        },
+        {
+          "name": "as",
+          "required": false,
+          "nullable": false,
+          "offCard": "names the cards this move takes for a later clause — \"if the card you placed in your energy with this skill is in your energy\" (BT10-054, mechanism batch 2)",
+          "type": "string"
         }
       ],
       "sentence": "move this card to drop",
@@ -4523,6 +4530,14 @@
       "field": "sameCharacterAs",
       "type": "variable",
       "printed": "card with the same character name as the card you placed under this card",
+      "openTo": [
+        "string"
+      ]
+    },
+    {
+      "field": "sameNameAs",
+      "type": "variable",
+      "printed": "card with the same name as the chosen card",
       "openTo": [
         "string"
       ]
