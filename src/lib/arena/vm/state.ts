@@ -106,6 +106,12 @@ export interface VmBattle {
    * never asked.
    */
   markerLoss?: { remaining: number; lost: number; awaiting?: true };
+  /**
+   * 8-4-6-2's KO of the guard, part way through (delayed/replacement batch 1): set only while the Damage Step is
+   * waiting on 9-10-2/9-10-3's question over the guard's `ko` replacements ("if this card would be KO'd, you may …
+   * instead"), so the step resumes at that answer. Absent on every battle that never asked.
+   */
+  guardKo?: { awaiting?: true };
   /** 20-13: the battle steps skipped in this battle, so the combo offer that belongs to a skipped step is not made either. */
   skipped?: ("offense" | "defense")[];
   /**

@@ -1060,7 +1060,8 @@ function collect(
       // that could go anywhere else — so its `with` is always the substitute.
       const isMarker = op.event === "marker";
       const redirect = isMarker ? null : redirectOf(op.with);
-      const by = op.event === "ko" ? ("ko" as const) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
+      // "…would be KO'd **in battle**" (BT17-139) keeps its narrower cause on the `ko` moment.
+      const by = op.event === "ko" ? (op.by === "koInBattle" ? ("koInBattle" as const) : ("ko" as const)) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
       const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }

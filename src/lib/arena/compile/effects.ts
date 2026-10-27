@@ -493,7 +493,7 @@ export function isComboDropReplacement(clause: string): boolean {
   return from?.length === 1 && from[0] === "combo";
 }
 
-function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill"; bySide?: "opponent" | "you"; subject?: string } | null {
+function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle"; bySide?: "opponent" | "you"; subject?: string; requestedTo?: "drop" } | null {
   const t = clean(clause);
   // "Would … the Battle Area" is the hypothetical phrasing; six cards
   // (BT14-153, BT14-154, BT15-153, BT15-154, BT16-107, BT17-148) print the
@@ -563,6 +563,29 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // Battle Area; what the card does instead is the next clause.
   if (/^when this card would be placed in (?:its owner'?s?|your) drop(?: area)? from (?:a|your|the) combo area$/.test(t))
     return { from: ["combo"] };
+  // Delayed/replacement batch 1: the same departure in the words the rest of
+  // the catalog prints it in. "If this card would leave your Combo Area"
+  // (EX19-05, EX19-07) names every departure from the Combo Area, so no
+  // destination narrows it. "When this card is placed in a Drop Area from a
+  // Combo Area" (P-182) and "…in your Drop from your Battle Area or Combo
+  // Area" (BT18-133) name the Drop as the requested destination (9-10: the
+  // event replaced is that move, not any departure). "When you would place
+  // [a card] from your Combo Area in your Drop" (BT18-122's back, BT23-099)
+  // is the same move of any of the player's combo cards the subject names.
+  // "If your Battle Card would be removed from a Battle Area or Combo Area"
+  // (BT31-055's back) is the DB2 errata's wording about other cards: both
+  // areas, no cause, no destination.
+  if (/^(?:if|when) (?:this card|it) would leave (?:your|the|a) combo area$/.test(t)) return { from: ["combo"] };
+  if (/^(?:if|when) this card (?:is|would be) placed in (?:a|your|its owner'?s?) drop(?: area)? from (?:a|your|the) combo area$/.test(t)) return { from: ["combo"], requestedTo: "drop" };
+  if (/^(?:if|when) this card (?:is|would be) placed in your drop(?: area)? from your battle area or combo area$/.test(t)) return { from: ["battle", "combo"], requestedTo: "drop" };
+  {
+    const m = /^(?:if|when) you would place (.+?) from your combo area in(?:to)? your drop(?: area)?$/.exec(t);
+    if (m && !/\b(?:this card|it)\b/.test(m[1])) return { from: ["combo"], requestedTo: "drop", subject: m[1].trim() };
+  }
+  {
+    const m = /^(?:if|when) (your battle cards?) would be removed from (?:a|your|the) battle area or combo area$/.exec(t);
+    if (m) return { from: ["battle", "combo"], subject: m[1] };
+  }
   // The obsolete Drop-only wording deliberately remains unread. Catalog
   // ingestion corrects the four errata cards before drafting new records.
   // "If this card would be KO'd" replaces the KO and nothing else: a card its
@@ -570,6 +593,13 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // whose skill did it, and a KO in battle is then not this moment at all.
   const koed = /^(?:if|when)?\s*(?:this card|it) would be ko'?d( by (?:(a|your|one of your) skills?|(?:an|your|one of your) opponent'?s? skills?))?$/.exec(t);
   if (koed) return { by: "ko", ...(koed[1] && !koed[2] ? ({ bySide: "opponent" } as const) : null) };
+  // Delayed/replacement batch 1: "if this card would be KO'd **in battle**" (BT17-139) is the battle's KO
+  // (8-4-6-2) and no skill's (`koInBattle`).
+  if (/^(?:if|when)?\s*(?:this card|it) would be ko'?d in (?:a )?battle$/.test(t)) return { by: "koInBattle" };
+  // "When **one of your ≪Namekian≫ or ≪Demon Clan≫ cards** would be KO'd by an opponent's skill" (BT18-060's back):
+  // the same KO of other cards of yours, the subject kept as the leave family keeps it.
+  const theirKo = /^(?:if|when)\s+(?:one of )?(your .+? cards?) would be ko'?d by (?:an|your|one of your) opponent'?s? skills?$/.exec(t);
+  if (theirKo && !/\b(?:this card|it)\b/.test(theirKo[1])) return { by: "ko", bySide: "opponent", subject: theirKo[1].replace(/^your\s+/, "") };
   return null;
 }
 
@@ -1062,6 +1092,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // "…, then **you choose** up to 1 of your opponent's Battle Cards" (BT10-149, BT18-143, P-279, #907 round 5): the
     // subject is said after a sentence about the opponent, to say it is the master choosing again.
     .replace(/^you (?=choose (?:up to )?(?:\d+|an?|one|all|any number)\b)/, "")
+    // Delayed/replacement batch 1: "…, and **you switch** up to 1 of your blue energy to Active Mode at the end of the
+    // turn" (BT27-028): the subject said again after a sentence about the opponent, as for "you choose" above.
+    .replace(/^you (?=switch up to \d+\b)/, "")
+    // "…it gets +5000 combo power for the turn **and is sent to your Warp** at the end of the battle" (P-207): the
+    // second verb of a sentence whose subject is the card the clause before it named.
+    .replace(/^is sent to (your|its owner'?s?) warp$/, "send it to $1 warp")
     // A trailing "instead" marks a replacement (9-10) and says nothing about
     // the action itself; the clause before it has already recorded that.
     .replace(/\s+instead$/, "")
@@ -2320,6 +2356,15 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     return [{ op: "comboPower", target: { sel: { special: "self" } }, amount: Number(m[1]), until: durationOf(t) }];
   }
 
+  // Delayed/replacement batch 1: "…and it gains ≪Master's Teachings≫ **until the end of your opponent's next turn**"
+  // (BT19-124): a resolved skill's special trait for a span, the timed form of the standing `gains` below
+  // (`modifyAttr` on `traits`, 20-1). Only a special trait, and only with a span printed.
+  if (!c.permanent && q !== t && !/\bin (?:all|any) areas?\b/.test(t) && (m = /^(.*?) gains? ((?:≪[^≫]+≫[\s,]*(?:and\s+)?)+)$/.exec(q))) {
+    const traits = [...m[2].matchAll(/≪([^≫]+)≫/g)].map((x) => x[1]);
+    const ref = refFor(m[1] || "this card", c);
+    if (!ref || !traits.length) return null;
+    return [{ op: "modifyAttr", attr: "traits", values: traits, target: ref, until: durationOf(t) }];
+  }
   // 20-1: what a card counts as, rather than what it does. "This card gains
   // ≪Saiyan≫ in all areas" makes it a Saiyan to every skill that names one.
   //
@@ -2400,6 +2445,14 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
+  // Delayed/replacement batch 1: "…and it gains **the [Servant] skill** until the start of your next Main Phase"
+  // (BT13-075): one keyword, said with its article and noun.
+  if ((m = /^(.*?) gains? the (\[[^\]]+\]) skill$/.exec(q)) && !c.permanent) {
+    const ref = refFor(m[1], c);
+    const k = keywordOf(m[2].slice(1, -1));
+    if (!ref || !k) return null;
+    return [{ op: "grant", target: ref, keyword: k, until: durationOf(t) }];
+  }
   if ((m = /^(.*?) gains? ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const ref = refFor(m[1], c);
     const kws = [...m[2].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
@@ -2424,7 +2477,7 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     // the same move to the Warp as "placed in" it (3-10).
     const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");
     const stopped =
-      /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
+      /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
         tSent,
       );
     // The same said actively: "place it in its owner's Drop **instead of
@@ -2435,7 +2488,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
       const to: ScriptArea = placedInstead[1] ? "drop" : placedInstead[2] ? "warp" : "deck";
       return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
-    if (stopped && /instead of being played|instead$/.test(t)) {
+    // `t` has already lost a trailing "instead" (above), so the bare "…is placed in its owner's Drop Area **instead**"
+    // (BT7-110) never reached here. Delayed/replacement batch 1: the printed clause says it, and only a [Counter: Play]
+    // has a play being resolved for it to stand in place of (9-6).
+    if (stopped && (/instead of being played|instead$/.test(t) || (c.skillKind === "counter:play" && /\binstead[.\s]*$/i.test(clause)))) {
       // 22-13-4-5-1-1 names the hand form specially: a card "returned to its
       // owner's hand instead of being played" does *not* then go to the Drop.
       const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : stopped[3] ? "hand" : "deck";
@@ -2624,8 +2680,10 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // combos" (BT18-001), "during this turn, you can use white Rest Mode
   // <Vegeta: GT> cards in combos" (BT29-129). A combo normally takes a card
   // from the hand or an Active Battle Card; this lets the rested ones in.
-  if ((m = /^(?:during this turn,? )?(?:you (?:can|may) )?use (?:your )?(.*?)\s*rest mode (.*?)cards? in combos?(?: during this turn| for the turn)?$/.exec(t))) {
-    const said = `${m[1]} ${m[2]}card`.trim();
+  // Delayed/replacement batch 1: "…in combos **until the end of your opponent's turn**" (BT27-022, BT24-027): the
+  // same permission through the opponent's next turn (`nextTurn`).
+  if ((m = /^(?:during this turn,? )?(?:you (?:can|may) )?use (?:your )?(.*?)\s*rest mode (.*?)cards?((?: without \[[^\]]+\](?: skills?)?)?) in combos?(?: during this turn| for the turn| until the end of your opponent's(?: next)? turn)?$/.exec(t))) {
+    const said = `${m[1]} ${m[2]}card${m[3] ?? ""}`.trim();
     const filter = filterFor(said, null);
     if (filter === null) return null;
     const until: Duration = /during this turn|for the turn/.test(t) ? "turn" : durationOf(t);
@@ -4108,6 +4166,20 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // #907 round 4: "can only attack **with Battle Cards one more time**" (BT15-119, BT15-140, P-321) puts
   // the "with" in front of the count, and "can only attack **2 more times**" (BT19-092, BT19-099,
   // BT24-005) has a number of its own: the same budget, `uses` of them.
+  // Delayed/replacement batch 1: "your opponent can only attack with Battle Cards **once during their next turn**"
+  // (BT11-132, BT11-093) and "until the end of your opponent's next turn, **they** can only attack **one time** with
+  // Battle Cards with energy costs of 4 or less" (P-330): a budget for a turn of theirs that has not started, so "once"
+  // is the whole of it — the same `uses` as "one more time", lasting through that turn (`nextTurn`). Only with the
+  // opponent's next turn printed: "once" in a turn already under way would count attacks made before the rule.
+  const nextTurnSaid = /\b(?:during their next turn|until the end of your opponent'?s next turn|during your opponent'?s next turn)\b/.test(t);
+  const onceNext = nextTurnSaid ? /^(your opponent|they)\s+can only attack(?: with (.+?))?\s+(?:once|one time)(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q.replace(/\s+during their next turn$/, "")) : null;
+  if (onceNext && (onceNext[1] !== "they" || /\byour opponent'?s next turn\b/.test(t))) {
+    const withWhat = onceNext[2] ?? onceNext[3];
+    const filter = withWhat ? filterFor(withWhat, null) : undefined;
+    if (filter === null) return null;
+    const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+    return [{ op: "forbid", what: "attack", side: "opponent", until: "nextTurn", uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
+  }
   const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
@@ -6374,9 +6446,27 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     const durationTail = /[,\s]+(until the end of (?:your opponent's|your|the)(?: next)? turn)[,.]?$/i.exec(clause.trim());
     const replacementClause = durationTail ? clause.trim().slice(0, durationTail.index).trim().replace(/,$/, "") : clause;
     const timedReturn = durationTail ? parseWouldReturnToHand(replacementClause) : null;
-    const would = timedReturn ?? parseWouldLeave(clause);
+    // "…if it would leave your Combo Area **this turn**, remove it from the game
+    // instead" (BT17-145): an [Auto]'s replacement for the turn it resolves in.
+    const thisTurn = !timedReturn && !c.permanent ? /^(.+?)\s+this turn[,.]?$/i.exec(clause.trim()) : null;
+    const timedLeave = thisTurn ? parseWouldLeave(thisTurn[1]) : null;
+    // "If this card has 1 or more cards under it **and would be removed** from your Battle Area by an
+    // opponent's skill" (P-436, BT17-144): the split leaves the opener without its subject, which is the
+    // "this card" of the condition before it.
+    const elided = /^would\b/i.test(clause.trim()) && i > 0 && /^(?:if|when) this card\b/i.test(clauses[i - 1].trim()) ? `this card ${clause.trim()}` : null;
+    // "If your life is at 1 and **this card in Rest Mode** would be KO'd" (EX24-37): the mode is a condition of the
+    // replacement (it applies only while the card is in that mode), said inside the opener. It joins the condition
+    // before it, and the opener is read without it.
+    const inMode = !elided && !timedReturn && !timedLeave ? /^(?:(?:if|when)\s+)?this card in (rest|active) mode (would .+)$/i.exec(clause.trim()) : null;
+    const modeCond = inMode && parseWouldLeave(`this card ${inMode[2]}`) ? parseConditionClause(`this card is in ${inMode[1].toLowerCase()} mode`, true) : null;
+    const would = timedReturn ?? timedLeave ?? (modeCond && inMode ? parseWouldLeave(`this card ${inMode[2]}`) : parseWouldLeave(elided ?? clause));
+    if (would && modeCond) {
+      const open = groups[groups.length - 1];
+      if (open.ops.length === 0 && !open.delay && !open.sink) open.conds.push(modeCond.cond);
+      else groups.push({ conds: [modeCond.cond], ops: [] });
+    }
     if (would) {
-      c.replacing = { ...would, ...(durationTail ? { until: durationOf(durationTail[1]) } : {}) };
+      c.replacing = { ...would, ...(durationTail ? { until: durationOf(durationTail[1]) } : timedLeave ? { until: "turn" as const } : {}) };
       // "…it goes to the Warp instead" — "it" is the card the phrase named.
       c.lastTarget = { sel: { special: "self" } };
       continue;
@@ -6616,14 +6706,18 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // 20-14: "your opponent **may not** activate [Counter: Play] skills"
     // (BT4-122, BT4-003, BT4-080, BT4-094, BT4-104, P-060) is the same
     // prohibition as "can't" — not an offer, which "may" alone would be.
-    const plain = clause.replace(/^((?:your opponent|they|you)\s+)?instead[,\s]+/i, "$1").replace(/\bmay not\b/i, "can't");
+    // "If this card would be KO'd, **you may instead** place 1 ≪Boujack Brigade≫ card …" (BT6-094): the same adverb
+    // after the offer — the offer stays, the word comes off.
+    const plain = clause.replace(/^((?:your opponent|they|you)(?:\s+may)?\s+)?instead[,\s]+/i, "$1").replace(/\bmay not\b/i, "can't");
     const unbounded = c.replacing ? plain.replace(/[\s,]+instead[.\s]*$/i, "") : plain;
     // 9-10 once a turn: "…, once per turn you may switch 1 of your cards to
     // Revealed Mode instead" (BT29-141). The replacement's program ends by
     // switching its own [Permanent] off for the turn (`negateOwnSkill`), which
     // is exactly "once per turn" for a standing rule.
-    const oncePerTurn = !!c.replacing && /^once per turn,?\s+/i.test(unbounded.trim());
-    const saidWhole = oncePerTurn ? unbounded.trim().replace(/^once per turn,?\s+/i, "") : unbounded;
+    // "…, you may add 1 card from your life to your hand **once per turn** instead" (BT22-139): the same limit
+    // printed at the end of the substitute.
+    const oncePerTurn = !!c.replacing && (/^once per turn,?\s+/i.test(unbounded.trim()) || /\s+once per turn[,.]?$/i.test(unbounded.trim()));
+    const saidWhole = oncePerTurn ? unbounded.trim().replace(/^once per turn,?\s+/i, "").replace(/\s+once per turn[,.]?$/i, "") : unbounded;
     // "Choose 1 of your and your opponent's Battle Cards **ignoring [Barrier]**
     // . Then …" (TB3-066, TB3-068, BT8-122): printed inside the choosing
     // clause with no comma to cut it off as its own, which is how the sets
@@ -6781,7 +6875,11 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
           refuse(clause);
           continue;
         }
-        const target: Ref = subject ? { sel: { side: subjectSide ?? "you", area: "battle", filter, count: 99 } } : only.target;
+        // The subject is looked for where the departure starts: "a card from your
+        // Combo Area" (BT18-122's back) is a combo card, "your Battle Card …
+        // removed from a Battle Area or Combo Area" (BT31-055's back) either.
+        const where = from?.length === 1 && from[0] === "combo" ? { area: "combo" as const } : from?.includes("combo") ? { area: "battle" as const, areas: ["battle", "combo"] as ScriptArea[] } : { area: "battle" as const };
+        const target: Ref = subject ? { sel: { side: subjectSide ?? "you", ...where, filter, count: 99 } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
         push([{ op: "replaceLeave", to: only.to, target, ...(from ? { from } : {}), ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
@@ -6816,7 +6914,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         push([
           {
             op: "replace",
-            event: replaceEvent === "life" ? "life" : by === "ko" ? "ko" : "leave",
+            event: replaceEvent === "life" ? "life" : by === "ko" || by === "koInBattle" ? "ko" : "leave",
             ...(replaceEvent === "life" ? (lifeTo ? { to: lifeTo } : {}) : by && by !== "ko" ? { by } : {}),
             ...(replaceEvent !== "life" && bySide ? { bySide } : {}),
             ...(replaceEvent !== "life" && from ? { from } : {}),
