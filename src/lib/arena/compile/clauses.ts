@@ -179,6 +179,9 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Phrasing batch 4: "…from your deck, hand, or Drop, **and if you looked at your deck, shuffle your deck**" (BT22-079,
   // BT22-085, BT22-112, BT22-133) is the shuffle a search leaves behind, said with the condition first — the same as
   // "shuffle your deck if you looked through it", which the `shuffle` op already only does after a look at the deck.
+  // Phrasing batch 7: "…until the end of a battle or the end of the turn**, whichever comes first**" (BT15-139): the
+  // comma is the span's own, not a new clause.
+  text = text.replace(/\b(until the end of (?:a|the) battle or (?:the )?end of the turn), (whichever comes first)\b/gi, "$1 $2");
   text = text.replace(/\bif you looked (?:at|through) your deck, shuffle (?:your|the) deck\b/gi, "shuffle your deck if you looked through it");
   // Phrasing batch 4: "**look at your deck and life, add up to 2 [Dragon Ball] cards to your hand**, then shuffle any
   // areas you looked through using this skill" (BT21-027, BT21-029, BT21-031) is a search of both areas (20-12): the
@@ -214,7 +217,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Warp" is one clause; its commas and "and"s are the list's own.
   // #907: "choose up to 1 <A> card, 1 <B> card, and 1 <C> card―all red―from
   // your hand and/or Drop and place them under this card" likewise.
-  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...namedPairPresenceSpans(text), ...opponentChoiceSpans(text), ...unionNameSearchSpans(text), ...prohibitionListSpans(text)];
+  // Phrasing batch 7: "When a Battle Card **that is in your opponent's Battle Area and whose owner is your opponent** is
+  // KO'd by …" (BT28-001b): one description of the KO'd card, whose "and" is its own.
+  const relative = [...text.matchAll(/\bthat is in your opponent'?s battle area and whose owner is your opponent\b/gi)].map((m) => [m.index! - 1, m.index! + m[0].length] as [number, number]);
+  const wholeMoves = [...disjointMoveSpans(text), ...namedSetSpans(text), ...namedPairPresenceSpans(text), ...opponentChoiceSpans(text), ...unionNameSearchSpans(text), ...prohibitionListSpans(text), ...relative];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     const whole = wholeMoves.find(([from, to]) => i > from && i < to);

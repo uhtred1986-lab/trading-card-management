@@ -96,7 +96,11 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // those places ("among all cards" names no card of its own, as `saidTheShortWay` reads it),
     // and a plain "and" between two places is one choice across both (the "and/or" pair).
     .replace(/\bfrom among all (?:of )?(?:the )?cards in /i, "from ")
-    .replace(new RegExp(`\\bfrom (your|their) (${AREA}) and (?:your |their )?(${AREA})\\b(?!/)`, "i"), "from $1 $2 and/or $3");
+    .replace(new RegExp(`\\bfrom (your|their) (${AREA}) and (?:your |their )?(${AREA})\\b(?!/)`, "i"), "from $1 $2 and/or $3")
+    // Phrasing batch 7: "Choose up to 1 blue <Son Goku> and 1 yellow <Vegeta> card **in your hand with energy costs of
+    // 2 or less** and play them" (BT7-025): the place and the plural measure are every card's, said once after the
+    // last name. The first name used to be read alone, as a card in play, and never played.
+    .replace(/^(choose up to 1 .+?) in ((?:your|their) (?:hand|deck|drop(?: area)?)) (with energy costs of \d+(?: or (?:less|more))?) and play them$/i, "$1 $3 from $2 and play them");
   for (const shape of SHAPES) {
     const m = shape.re.exec(said);
     if (!m) continue;

@@ -410,6 +410,9 @@ function durationOf(clause: string): Duration {
   if (/\bwhile this card is in (?:a|the|your) battle area\.?$/.test(t)) return "whileSourceInPlay";
   // Phrasing batch 6: "…gets +10000 power **until the next end of the battle**" (BT31-103): a "battle" effect, which ends
   // at the next battle's end — the one in progress, or the next one when none is (`endEffects` ends only that span).
+  // Phrasing batch 7: "…until the end of a battle or the end of the turn, whichever comes first" (BT15-007, BT15-139,
+  // BT15-001b, BT15-141): ends with the next battle's end or the turn's, the first of the two (`battleOrTurn`).
+  if (/until the end of (?:a|the) battle or (?:the )?end of the turn,? whichever comes first/.test(t)) return "battleOrTurn";
   if (/for the (?:duration of (?:the|this) )?battle|during this battle|until the next end of (?:the|a) battle/.test(t)) return "battle";
   // "…for the rest of the game" (P-496, prohibition batch 6) is the game too.
   if (/for the (?:duration of (?:the|this) |rest of the |remainder of the )?game|during the game|in any area|in all areas/.test(t)) return "game";
@@ -827,7 +830,8 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const markersOn = /^markers?\s+on\s+(.+)$/.exec(counted);
   // Phrasing batch 5: "for every **Z-Energy cost of** the Z-Cards in your Leader Area, Battle Area, and Unison Area"
   // (P-658): a Z-Energy cost total (`sumOf`, `zEnergyCost`), not a count of the cards — in single steps only.
-  const zCostOf = markersOn ? null : /^z-energy costs? of (?:the )?(.+)$/.exec(counted);
+  // Phrasing batch 7: "for each **Z-Energy in the costs of** Z-Cards in your Leader Area and Battle Area" (P-479) is the same total.
+  const zCostOf = markersOn ? null : /^(?:z-energy costs? of|z-energy in the costs? of) (?:the )?(.+)$/.exec(counted);
   if (zCostOf && step !== 1) return null;
   const what = markersOn ? markersOn[1] : zCostOf ? zCostOf[1] : counted;
   // "For each marker on **it**" (P-377, P-378, DB3-144): the pronoun the
@@ -845,13 +849,20 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   // front of an area read as the number of *cards* there (EX19-26 read "-2000
   // power for each of your energy" for "each card color in your Energy Area").
   if (colors === undefined && !markersOn && !countsCards(what)) return null;
-  const sel = colors ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
+  // Phrasing batch 7: two areas of the board said with "and" in a count — "the Z-Cards in your Leader Area and Battle
+  // Area" (BT21-076, P-479) — are both of them, as the three of P-658 are. (The pair reader keeps "Battle Area or Leader
+  // Area" as the cards in play, BT3-087, which is a choice's reading and not this.)
+  const boardPair = colors === undefined ? /^(.+?) in your (leader|battle|unison) area and (?:your )?(leader|battle|unison) area$/i.exec(what) : null;
+  const pairSel = boardPair && boardPair[2].toLowerCase() !== boardPair[3].toLowerCase() ? parseTarget(`${boardPair[1]} in your battle area`) : null;
+  const sel = colors ?? (pairSel ? ({ ...pairSel, area: boardPair![2].toLowerCase(), areas: [boardPair![2].toLowerCase(), boardPair![3].toLowerCase()] } as Selector) : null) ?? (/^(?:it|this card)$/.test(what) ? ({ special: "self" } as Selector) : (parseTarget(countAreasSaidWithAnd(what)) ?? energyYouHave(what)));
   if (!sel) return null;
   // A count (or a marker total) reads the whole area, not one card out of it.
   // Phrasing batch 6 (`ledCost`): two areas said with "and" ("in your Unison Area and Drop Area", P-379; "…Leader Area
   // and Battle Area", BT21-076) are not one area, and the selector keeps one — left unread. "In play" with no owner is
   // both players' (BT15-155's "For each Battle Card in play", BT15-095's "markers on Unison Cards in play").
-  if (ledCost && /\band\b/.test(counted)) return null;
+  // Phrasing batch 7: read now where the selector keeps both areas (P-379's Unison Area and Drop Area, BT21-076's Leader
+  // Area and Battle Area); any other "and" is still left unread.
+  if (ledCost && /\band\b/.test(counted) && !((sel.areas?.length ?? 0) >= 2)) return null;
   const everyone = ledCost && /\bin play\b/.test(counted) && !/\b(?:your|their|opponent'?s?)\b/.test(counted);
   const broad: Selector = { ...sel, ...(lead && sel.filter?.token ? { area: "battle" as const } : {}), ...(everyone ? { side: "both" as const } : {}), count: 99, upTo: false };
   const amountFor = (printed: number): Amount =>
@@ -2570,7 +2581,20 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     const tail = DURATION_TAIL.exec(t)?.[0];
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(tail ?? t) }] : null;
   }
-  if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q))) {
+  // Phrasing batch 7 (the owner's P-327 ruling, said the active way): "switch this card to Active Mode and **negate its
+  // keyword skills** for the turn" (SD16-01b), "…that card gets +5000 power and **has its keyword skills negated** for
+  // the turn" (EB1-07), "…from under this card, **negating its keyword skills** for the turn" (P-496): the card's
+  // keyword skills, printed and granted, and its [Counter]s (`negateKeywordSkills`) — not every skill, which is what the
+  // line below read "its keyword" as.
+  if ((m = /^(?:and )?negat(?:e|ing) (.*?)(?:'s)? keyword skills$/.exec(q)) && !/\bnon-$/.test(m[1])) {
+    const ref = /^(?:its|their)$/.test(m[1]) ? c.lastTarget : refFor(m[1], c);
+    return ref ? negateKeywordSkills(ref, durationOf(t)) : null;
+  }
+  if ((m = /^(?:(it|they|that card|those cards|the chosen cards?) )?(?:has|have) (?:its|their) keyword skills negated(?: (?:for|until) .*)?$/.exec(q)) && (m[1] || c.lastTarget)) {
+    const ref = m[1] ? refFor(m[1], c) : c.lastTarget;
+    return ref ? negateKeywordSkills(ref, durationOf(t)) : null;
+  }
+  if ((m = /^negate (.*?)(?:'s)? skills$/.exec(q)) && !/\b(?:non-)?keyword$/.test(m[1])) {
     const ref = refFor(m[1], c);
     return ref ? [{ op: "negateSkills", target: ref, until: durationOf(t) }] : null;
   }
@@ -2630,6 +2654,12 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (filter === null) return null;
     const until: Duration = /during this turn|for the turn/.test(t) ? "turn" : durationOf(t);
     return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until, ...(filter ? { filter } : {}) }];
+  }
+
+  // Phrasing batch 7: "[Permanent] This card can be used in combos in Rest Mode" (P-582, BT26-019): the card itself, rested,
+  // may be used in a combo (5-7 lifted for it alone) — `comboRestSelf`, which no other card answers to.
+  if (/^this card can be used in combos? in rest mode$/.test(t)) {
+    return [{ op: "permit", what: "comboRestSelf", target: { sel: { special: "self" } }, until: c.permanent ? "game" : durationOf(t) }];
   }
 
   // 22-15 widened (owner-approved 2 Oct 2026): "[Permanent] This card's [Over
@@ -2746,11 +2776,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   // BT31-081), "flip over up to 1 of your blue <Goku Black>-only Leader Cards"
   // (EX19-08). Only Leaders, only to the back: "to its front side" turns an
   // awakened Leader back, which the `flip` op does not do, and stays unread.
-  if ((m = /^(?:you may )?flip (?:over )?(your leader(?: card)?|(?:up to )?1 of your (?:.+? )?leader(?: card)?s|your .+? leader(?: card)?(?: with .+)?)(?: to its back(?: side)?)?$/.exec(t)) && (/ to its back(?: side)?$/.test(t) || /^(?:you may )?flip over /.test(t))) {
+  // Phrasing batch 7: "Flip your opponent's Leader Card to the front" (BT9-093, BT7-079, BT15-033): their Leader,
+  // turned back to its front (a Leader showing its front stays as it is, 22-2-4).
+  if (/^(?:you may )?flip your opponent'?s leader(?: card)? to (?:the|its) front(?: side)?$/.test(t)) return [{ op: "flip", target: { sel: { special: "opponentLeader" } }, to: "front" }];
+  // Phrasing batch 7: "to its front side" too — "Flip your red <Son Gohan: Youth> Leader to its front side" (BT28-015),
+  // "Flip your yellow <Launch> Leader with an original power of 10000 to its front side" (BT31-081). The `flip` op turns
+  // a Leader either way since prohibition batch 6.
+  if ((m = /^(?:you may )?flip (?:over )?(your leader(?: card)?|(?:up to )?1 of your (?:.+? )?leader(?: card)?s|your .+? leader(?: card)?(?: with .+?)?)(?: to its (back|front)(?: side)?)?$/.exec(t)) && (/ to its (?:back|front)(?: side)?$/.test(t) || /^(?:you may )?flip over /.test(t))) {
     // Prohibition batch 6: the Leader family is one-way, to the back, as it
     // always was — "flip over up to 1 of your … Leader Cards" (EX19-08) is an
     // awakening, not a turn back to the front.
-    const to = { to: "back" as const };
+    const to = { to: m[2] === "front" ? ("front" as const) : ("back" as const) };
     if (/^your leader(?: card)?$/.test(m[1])) return [{ op: "flip", target: { sel: { special: "leader" } }, ...to }];
     const sel = parseTarget(m[1].replace(/\bleader( card)?s\b/, "cards").replace(/\bleader( card)?\b/, "card"));
     if (!sel || sel.special || sel.fromVar || sel.filter?.unreadable || (sel.side ?? "you") !== "you") return null;
@@ -3692,7 +3728,11 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
     if (filter === null) return null;
     const side = owner === "your" ? "you" : "opponent";
     const leader: Selector = { side, area: "leader", count: Number(n), upTo: !!upTo, ...(filter ? { filter } : {}) };
-    const rest = parseTarget(`${upTo ?? ""}${n} of ${owner} ${other}`);
+    // Phrasing batch 7: "up to 1 of your **black** Leader Cards or Battle Cards" (BT15-139): words said once, before the
+    // first kind, with none of the second's own, are said of both — as "red Leader Cards or red Battle Cards" (BT3-010)
+    // says them twice. Read as the Leader's alone, any Battle Card of any colour could be chosen.
+    const shared = desc && /^(?:battle|unison) cards?$/.test(other.trim()) ? `${desc} ` : "";
+    const rest = parseTarget(`${upTo ?? ""}${n} of ${owner} ${shared}${other}`);
     if (!rest || rest.fromVar || rest.special || rest.take != null) return null;
     const printed = /^choose (?:up to )?\d+ of (?:your opponent's|your) (.+?) or (.+)$/i.exec(clause.trim());
     const v = `c${c.n++}`;

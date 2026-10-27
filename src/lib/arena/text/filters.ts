@@ -733,7 +733,13 @@ function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null
   const EMPTY = JSON.stringify({ ...emptyFilter(), type: null });
   if (alts.every((a) => JSON.stringify({ ...a, type: null }) === EMPTY)) return null;
   const shape = (a: CardFilter) => JSON.stringify({ ...a, ...Object.fromEntries(OR_ABLE.map((k) => [k, null])) });
-  if (alts.every((a) => shape(a) === shape(alts[0]))) return null;
+  // Phrasing batch 7 (owner, BT25-068): "<Pan> card or card with <GT> in its character name -- both multicolor --" is
+  // two alternatives, each multicolour, as P-711's and BT17-112's asides are. Folded into one description it read "a
+  // multicolour <Pan> card with <GT> in its character name" — the same cards to the VM (`characters` and
+  // `charactersIncluding` answer in one `some`), but a sentence that says both at once. So where an aside said of every
+  // alternative meets alternatives that name in different ways (a whole name, a part of one), they stay two.
+  const ways = (a: CardFilter) => OR_ABLE.filter((k) => { const v = a[k]; return Array.isArray(v) ? v.length > 0 : !!v; }).join();
+  if (alts.every((a) => shape(a) === shape(alts[0])) && !(shared && alts.some((a) => ways(a) !== ways(alts[0])))) return null;
   return { ...emptyFilter(), anyOf: alts };
 }
 
@@ -800,6 +806,13 @@ function parseOneFilter(text: string): CardFilter {
     const character = which?.toLowerCase() === "character";
     if (neg) (character ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
     else (character ? f.charactersIncluding : f.namesIncluding).push(value);
+    return " ";
+  });
+  // Phrasing batch 7: a bare "**without <Son Goku: GT>**" — "a <Pan> card or a card with <GT> in its character
+  // name—both green and without <Son Goku: GT>—" (BT20-054b) — rules that name out (2-10-1-1: the whole character
+  // name). It used to fall to the exact loop below and became a name the card had to *have*.
+  t = t.replace(/\bwithout\s+(<[^>]+>|\{[^}]+\})(?!\s+in (?:its|their)\b)/gi, (_whole, token: string) => {
+    (token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
     return " ";
   });
   // The same measure with the phrase in front of the name: "card whose card

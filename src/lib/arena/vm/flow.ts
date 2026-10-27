@@ -261,6 +261,8 @@ const STEP_WORK: Record<string, Work> = {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
       returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
+      // Phrasing batch 7: the turn's half of "the end of a battle or the end of the turn, whichever comes first".
+      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
       // #930: "until the end of your turn" ends only at the end of its master's turn.
       returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
       state.programs.push(...dueDelays(state, "turnCleanup"));
@@ -443,6 +445,9 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
         returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
+        // Phrasing batch 7: "…until the end of a battle or the end of the turn, whichever comes first" (BT15-139)
+        // ends with the first battle to end after it was made, or with the turn (`endEffects` below), whichever is first.
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
         state.battle = null;
       }
       // 7-3: a phase running out of steps is the moment "at the end of your

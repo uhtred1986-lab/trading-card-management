@@ -745,7 +745,7 @@ export interface Permission {
    * EX25-02), "…even if you have 5 or more life" (BT1-051, BT7-069): the target Leader's [Awaken] is offered with its
    * printed life ceiling raised to `n` — 99, no ceiling, for "N or more life". Its other conditions still hold.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -915,7 +915,7 @@ export interface ContinuousEffect {
    */
   matching?: { sel: Selector; vars: Record<string, string[]> };
   /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163); "ownTurn" ends at the end of the master's own turn (#930). */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay";
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the
@@ -1107,7 +1107,12 @@ export type Trigger =
   /** Phrasing batch 6: "When your or your opponent's <Majin Buu> card is played" (BT28-100). */
   | "eitherCardPlayed"
   /** Phrasing batch 6: "When one of your cards deals damage to your opponent" (BT9-104): battle damage, the attacker the subject. */
-  | "yourCardDealtDamage"  | "yourCardReturnedToHand"
+  | "yourCardDealtDamage"
+  /** Phrasing batch 7: "When a Battle Card that is in your opponent's Battle Area and whose owner is your opponent is KO'd by your red card's attack or skill" (BT28-001b): the card of yours that KO'd it is the subject. */
+  | "yourCardKos"
+  /** Phrasing batch 7: "When a <Pan> card or a card with <GT> in its character name—both green and without <Son Goku: GT>—is placed from your Battle Area in your Drop" (BT20-054b): another card of yours, any cause; it is the subject. */
+  | "yourCardBattleToDrop"
+  | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another
    * Unison of yours leaving your Unison Area for any area, watched by your cards

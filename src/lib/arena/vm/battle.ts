@@ -1419,8 +1419,10 @@ function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: V
   // 5-7 lifted: "you can use your … Rest Mode … cards in combos" (BT18-001,
   // BT29-129) lets in the rested ones the description fits.
   const rested = permissions(ctx, game, state, "comboRest").filter((p) => p.master === player);
+  // Phrasing batch 7: "This card can be used in combos in Rest Mode" (P-582, BT26-019): the card the permit is on.
+  const restedSelf = permissions(ctx, game, state, "comboRestSelf").filter((p) => p.master === player).map((p) => p.target);
   const field = (state.sides[player].zones.battle ?? []).filter(
-    (id) => id !== b.attacker && id !== b.guard && (state.cards[id]?.mode === "active" || (state.cards[id]?.mode === "rest" && rested.some((p) => permitted(ctx, game, state, p.filter, id)))),
+    (id) => id !== b.attacker && id !== b.guard && (state.cards[id]?.mode === "active" || (state.cards[id]?.mode === "rest" && (restedSelf.includes(id) || rested.some((p) => permitted(ctx, game, state, p.filter, id))))),
   );
   return [...hand, ...field].filter((id) => {
     const inst = state.cards[id];
