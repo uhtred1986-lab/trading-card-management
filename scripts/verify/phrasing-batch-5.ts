@@ -181,8 +181,12 @@ for (const [text, what, trigger, index] of [
   assert.ok(ex15 && typeof ex15.amount === "object" && "count" in ex15.amount && ex15.amount.count.area === "warp", "B4: EX15-05 — the same count opening an [Activate]");
   records += 3;
 }
-// Never a count of names ("with a different character name", BT18-059b), nor a choice "for each" (BT15-063).
-assert.ok(unreadOf("[activate: battle][once per turn] If it's your turn: For each ≪Bardock's Crew≫ card with different character names in your Z-Energy, this card gets +3000 power for the battle.").length > 0, "B4: a count of different names stays unread");
+// A count of names ("with a different character name", BT18-059b) is read since mechanism batch 4 (#1239): one step per
+// character name. A choice "for each" (BT15-063) is still not this reader's.
+{
+  const bardock = opOf(record("[activate: battle][once per turn] If it's your turn: For each ≪Bardock's Crew≫ card with different character names in your Z-Energy, this card gets +3000 power for the battle.", "BT18-059"), "power")[0];
+  assert.ok(bardock && typeof bardock.amount === "object" && "count" in bardock.amount && bardock.amount.count.differentCharacters && bardock.amount.count.area === "zEnergy", "B4: a count of different names counts each character name once");
+}
 assert.ok(unreadOf("[-X][activate: main] For each marker you remove using this skill, choose up to 1 of your opponent's Battle Cards and KO it.").length > 0, "B4: a choice for each stays unread");
 
 // B5. EX16-02: two alternatives, each with its own measures, in the hand or the Drop Area (#10); the same "and/or" (#20).
