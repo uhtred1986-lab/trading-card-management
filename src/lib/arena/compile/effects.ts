@@ -134,12 +134,19 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
  * this skill's own effect sent to a Warp (`Ctx.sentToWarp`), and only while they
  * are still there — a delayed step that finds one gone finds nothing (3-1-4).
  */
-const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) your battle area)?$/i;
+const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) (?:your|its owner'?s) battle area)?$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   // Mechanism batch 2 (BT7-051): "all the cards sent …" is every one of them — a choice over them takes all (`count` 99),
   // where a selector with no count was a choice of one.
-  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) return c.sentToWarp ? { sel: { fromVar: c.sentToWarp, area: "warp", ...(/^(?:all|any)\b/i.test(clause.trim()) ? { count: 99 } : {}) } } : null;
+  // Audit-selectors-1 review: when the effect sent nothing and the price sent this card — "Send this card to its owner's
+  // Warp: At the start of your next Main Phase, …, play **the card that was sent to the Warp by this skill** in its
+  // owner's Battle Area" (BT7-080) — it is this card, while it is still in the Warp (3-1-4). Read as no card, the
+  // clause fell through to "choose your leader, play the chosen cards".
+  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) {
+    if (c.sentToWarp) return { sel: { fromVar: c.sentToWarp, area: "warp", ...(/^(?:all|any)\b/i.test(clause.trim()) ? { count: 99 } : {}) } };
+    return c.priceSentSelfToWarp && /^the card\b/i.test(clause.trim()) ? { sel: { special: "self", area: "warp" } } : null;
+  }
   // #907 round 4 (P-440, BT25-099b): "a card with the same name as **the chosen card**" names ANOTHER card by
   // the chosen one's name. The pronoun test below took the "chosen card" for the target and the skill moved
   // (P-440) or played (BT25-099b) the card it had chosen only to compare with. No selector says "the same

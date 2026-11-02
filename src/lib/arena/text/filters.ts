@@ -970,6 +970,14 @@ function parseOneFilter(text: string): CardFilter {
     (which.toLowerCase() === "character" ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
     return " ";
   });
+  // Audit-selectors-1 review: the plain negation — "…a yellow <Son Goku: Childhood> card with an energy cost of 4 or less
+  // **that doesn't have ≪Great Ape≫**" (BT18-096), "…with 20000 power **that doesn't have <Master Roshi>**" (BT18-062): the
+  // name ruled out, as "non-≪Great Ape≫" says it. Read by the positive loop below it became a name the card had to have.
+  // Not "…in its/their character name(s)" (read above) nor "…under it" (a card in a pile, BT21-021).
+  t = t.replace(/\b(?:that|which)\s+do(?:es)?\s?n'?o?t\s+have\s+(≪[^≫]+≫|<[^>]+>|\{[^}]+\})(?!\s+(?:in (?:its|their)|under)\b)/gi, (_whole, token: string) => {
+    (token.startsWith("≪") ? f.notTraits : token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
+    return " ";
+  });
   t = t.replace(/(character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
     const value = token.slice(1, -1).trim();
     (which.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding).push(value);

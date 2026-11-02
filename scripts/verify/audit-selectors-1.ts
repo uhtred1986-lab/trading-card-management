@@ -186,6 +186,28 @@ for (const [text, what, side] of [
   attackerSel[what] = choose;
   records++;
 }
+// R (review). "That doesn't have ≪X≫" rules the name out; "the card sent to the Warp by this skill" after a price that
+// sent this card is this card; a program that would play the Leader is unread, never played.
+{
+  const rec = record("[auto][limit 1] If your Leader is a yellow <Son Goku: Childhood> card or yellow Z-Leader: When this card is removed from a Battle Area by an opponent's skill, play up to 1 yellow <Son Goku: Childhood> card with an energy cost of 4 or less that doesn't have ≪Great Ape≫ from your Drop.", "BT18-096");
+  const f = opOf(rec, "choose")[0].sel.filter!;
+  assert.deepEqual([f.traits, f.notTraits.map((x) => x.toLowerCase()), f.characters.map((x) => x.toLowerCase())], [[], ["great ape"], ["son goku: childhood"]], `R: BT18-096 — ≪Great Ape≫ ruled out (${JSON.stringify(f)})`);
+  assert.match(rec.reads, /non-≪great ape≫/, "R: BT18-096 — said so");
+  records++;
+}
+{
+  const rec = record("[Activate: Main] Send this card to its owner's Warp: At the start of your next Main Phase, if your Leader Card is a yellow ≪Universe 6≫ card, play the card that was sent to the Warp by this skill in its owner's Battle Area.", "BT7-080");
+  const chosen = opOf(rec, "choose")[0];
+  assert.ok(chosen.sel.special === "self" && chosen.sel.area === "warp", `R: BT7-080 — this card, from the Warp (${JSON.stringify(chosen.sel)})`);
+  assert.ok(opOf(rec, "play").some((o) => "var" in o.target && o.target.var === chosen.as), "R: BT7-080 — and it is the card played");
+  assert.ok(!opsDeep(rec.ops).some((o) => o.op === "choose" && o.sel.special === "leader"), "R: BT7-080 — never the Leader");
+  records++;
+}
+{
+  const recs = skillRecords(card("EX15-01", { skill: "[unique][blocker]<br>[union-fusion] Draw 1 card: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[activate: main]{r}{r}{r}: If your Leader Card is a red <Gogeta: Br> card and you have 4 or more energy: Choose up to 1 mono-red <Gogeta: Br> card with an energy cost of 8 or less from your deck or hand, play it on top of this card, then shuffle your deck if you looked through it. You can't activate the [activate: main] skill on copies of this card for the turn." }));
+  const line = recs.find((r) => r.skillIndex === 20);
+  assert.ok(line && line.unread.some((u) => /play the Leader/.test(u)), `R: EX15-01 — a play of the Leader is unread (${JSON.stringify(line?.unread)})`);
+}
 
 // ── C. "the chosen card(s)" after a price ───────────────────────────────────────
 for (const [text, what, n, to] of [

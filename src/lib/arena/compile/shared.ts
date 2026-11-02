@@ -102,6 +102,11 @@ export interface Ctx {
    */
   pricePlacedUnder?: boolean;
   /**
+   * Audit-selectors-1 review: the price sent this card to the Warp ("Send this card to its owner's Warp: …", BT7-080),
+   * so "the card that was sent to the Warp by this skill" in an effect that sent nothing itself is this card.
+   */
+  priceSentSelfToWarp?: boolean;
+  /**
    * The name the skill's price bound the card it revealed to ("…choose 1 card in
    * your hand with a [union-fusion] skill and reveal it", EX13-14; "…reveal 1
    * card with [Union-Fusion] in your hand", SD19-03): what "the revealed card"
