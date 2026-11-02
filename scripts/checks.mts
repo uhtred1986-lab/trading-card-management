@@ -16,6 +16,8 @@
  * in a cloud session that variable belongs to another app.
  */
 import { spawn, execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildGraph, isBuildSensitive, planSteps, readChain, type Scope, type Step } from "./lib/checks-plan.ts";
@@ -80,7 +82,9 @@ export function excerpt(r: Pick<Result, "step" | "out" | "timedOut">): string[] 
   if (r.step.kind === "tsc") picked = nonEmpty.filter((l) => /error TS\d+/.test(l));
   else if (r.step.kind === "eslint") picked = nonEmpty;
   else {
-    const at = lines.findIndex((l) => /^\s*(\w*Error\b|AssertionError|FAIL|not ok)|✗|\bfailed\b/i.test(l));
+    // verify-arena prints "  FAILED   <suite> — …"; a passing suite's description can contain the word "failed".
+    const suite = lines.findIndex((l) => /^\s*FAILED\s{2,}\S/.test(l));
+    const at = suite >= 0 ? suite : lines.findIndex((l) => /^\s*(\w*Error\b|AssertionError|FAIL|not ok)|✗|\bfailed\b/i.test(l));
     picked = at >= 0 ? lines.slice(Math.max(0, at - 2)).filter((l) => l.trim()) : nonEmpty.slice(-MAX_LINES);
   }
   if (picked.length === 0) picked = nonEmpty.slice(-MAX_LINES);
@@ -139,7 +143,10 @@ async function main() {
 
   const bad = all.filter((r) => !r.ok);
   for (const r of bad) {
-    console.log(`\n--- ${r.step.name}`);
+    // The whole output, so a long step never has to be re-run just to read its failure.
+    const log = path.join(os.tmpdir(), `checks-${r.step.name.replace(/[^\w.-]+/g, "_")}.log`);
+    fs.writeFileSync(log, r.out);
+    console.log(`\n--- ${r.step.name} (full output: ${log})`);
     for (const l of excerpt(r)) console.log(l);
   }
   const slow = [...all].sort((a, b) => b.ms - a.ms).slice(0, 3).map((r) => `${r.step.name.replace(/^verify\//, "")} ${sec(r.ms)}`);
